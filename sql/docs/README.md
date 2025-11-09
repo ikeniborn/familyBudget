@@ -359,8 +359,9 @@ docker stats familybudget-postgres
 ### Документация проекта
 
 - `../../CLAUDE.md` - Главная документация проекта
-- `../../backend/db/schema/` - SQL схема БД (Development Mode)
-- `../../backend/db/migrations/` - Alembic миграции (Production Mode)
+- `../../backend/db/migrations/` - **Alembic миграции** (ТЕКУЩАЯ СИСТЕМА для всех окружений)
+- `../../backend/db/deprecated/schema/` - Старые SQL schema файлы (АРХИВ, не используются)
+- `../../backend/db/README.md` - Документация по Alembic миграциям
 - `../../backend/README.md` - Backend документация
 
 ### Документация инструментов
@@ -408,6 +409,12 @@ psql -U familybudget -d familybudget -c "TRUNCATE TABLE t_f_budget_fact CASCADE;
 
 ## 📝 Changelog
 
+### 2025-11-09
+- ✅ Обновлена документация для Alembic-only системы миграций
+- ✅ Ссылки на `backend/db/schema/` заменены на `backend/db/migrations/`
+- ✅ Добавлена ссылка на `backend/db/README.md` (Alembic документация)
+- ✅ Отмечено, что старые schema/*.sql файлы теперь в `backend/db/deprecated/`
+
 ### 2025-11-02
 - ✅ Создан `execute_sql_parallel.py` - параллельный executor
 - ✅ Удален `05_insert_t_d_article_hierarchy.sql` (триггеры автоматически управляют)
@@ -419,5 +426,5 @@ psql -U familybudget -d familybudget -c "TRUNCATE TABLE t_f_budget_fact CASCADE;
 ---
 
 **Автор:** Claude Code
-**Дата:** 2025-11-02
-**Версия:** 1.0.0
+**Последнее обновление:** 2025-11-09
+**Версия:** 1.1.0

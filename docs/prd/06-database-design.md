@@ -776,21 +776,299 @@ REINDEX TABLE t_f_budget_fact;
 
 ---
 
-### 6.7 Database Migrations
+### 6.7 Database Migrations (Alembic-Based)
 
-Рекомендуется использовать Alembic для управления миграциями базы данных.
+**Версия:** 2.0 (Alembic-Only System, начиная с 2025-11-09)
+**Статус:** Production-ready для всех окружений (development + production)
 
-**Пример команды инициализации:**
+#### 6.7.1 Migration System Architecture
+
+Family Budget использует **Alembic** для всех операций управления схемой БД.
+
+**Эволюция системы миграций:**
+
+| Система | Период | Метод | Статус |
+|---------|--------|-------|--------|
+| **2-Tier System** | До 2025-11-09 | schema/*.sql + Alembic (unused) | ❌ DEPRECATED |
+| **Alembic-Only System** | С 2025-11-09 | Alembic migrations only | ✅ CURRENT |
+
+**Старая архитектура (deprecated):**
+```
+backend/db/
+├── schema/              # Tier 1: Base DDL files (raw SQL)
+│   ├── 001_core_dimensions.sql
+│   ├── 002_core_facts.sql
+│   └── ...
+└── migrations/          # Tier 2: Alembic (НЕ использовался)
+    └── versions/        # Пустая директория
+```
+
+**Новая архитектура (current):**
+```
+backend/db/
+├── migrations/                    # Alembic migrations
+│   ├── alembic.ini
+│   ├── env.py
+│   ├── versions/
+│   │   └── 20251109_001_baseline_schema_v5_0_0.py  # Baseline migration
+│   └── archive/                   # Old migrations (consolidated)
+│
+├── deprecated/                    # Archived schema files
+│   ├── README.md                  # Migration history
+│   └── schema/                    # Old DDL files (DO NOT USE)
+│
+├── run_migrations.sh              # Migration runner wrapper
+└── README.md                      # Database documentation
+```
+
+---
+
+#### 6.7.2 Baseline Migration
+
+**Файл:** `backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py`
+**Revision ID:** `001_baseline`
+**Down Revision:** None (first migration)
+
+**Описание:**
+Baseline migration консолидирует все 7 schema/*.sql файлов в единую версионированную миграцию.
+
+**Создает:**
+- Core dimension tables: `t_d_user`, `t_d_article`, `t_d_financial_center`, `t_d_cost_center`
+- Fact table: `t_f_budget_fact`
+- Hierarchy table: `t_d_article_hierarchy` (Closure Table)
+- Auth tables: `t_f_refresh_token`, `t_article_usage_stats`
+- Notification table: `t_notification`
+- Recommendations table: `t_recommended_amounts`
+- Все triggers, functions, indexes
+
+**Применение baseline миграции:**
+```bash
+cd backend/db/migrations
+alembic upgrade head
+```
+
+**Проверка:**
+```bash
+# Текущая ревизия должна быть 001_baseline
+alembic current
+# Output: 001_baseline (head)
+
+# Список таблиц
+psql -c "\dt" familybudget
+# Output: 10 tables (t_d_*, t_f_*, t_notification, t_recommended_amounts)
+```
+
+---
+
+#### 6.7.3 Development Workflow
+
+**Создание новой миграции:**
 
 ```bash
-# Инициализация Alembic
-alembic init alembic
+# 1. Перейти в директорию Alembic
+cd backend/db/migrations
 
-# Создание первой миграции
-alembic revision -m "initial schema"
+# 2. Создать миграцию вручную
+alembic revision -m "add_user_preferences_table"
 
-# Применение миграции
+# ИЛИ автогенерация из изменений SQLModel
+alembic revision --autogenerate -m "sync_user_model"
+
+# 3. Отредактировать миграцию
+nano versions/YYYYMMDD_REV_add_user_preferences_table.py
+
+# 4. Тестировать миграцию (КРИТИЧНО!)
+alembic upgrade head      # Применить
+alembic downgrade -1      # Откатить
+alembic upgrade head      # Применить снова
+
+# 5. Зафиксировать
+git add versions/YYYYMMDD_REV_add_user_preferences_table.py
+git commit -m "feat(db): add user preferences table"
+```
+
+**Пример миграции:**
+
+```python
+"""add user preferences table
+
+Revision ID: 002_user_prefs
+Revises: 001_baseline
+Create Date: 2025-11-09 12:00:00.000000
+
+"""
+from alembic import op
+import sqlalchemy as sa
+
+# revision identifiers
+revision: str = '002_user_prefs'
+down_revision: Union[str, None] = '001_baseline'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+def upgrade() -> None:
+    """Create user preferences table."""
+    op.execute("""
+        CREATE TABLE t_user_preferences (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES t_d_user(id) ON DELETE CASCADE,
+            theme VARCHAR(20) DEFAULT 'light',
+            language VARCHAR(10) DEFAULT 'ru',
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW(),
+
+            CONSTRAINT uq_user_prefs_user UNIQUE (user_id)
+        )
+    """)
+
+    op.execute("""
+        CREATE INDEX idx_user_prefs_user ON t_user_preferences(user_id)
+    """)
+
+def downgrade() -> None:
+    """Drop user preferences table."""
+    op.execute("DROP TABLE IF EXISTS t_user_preferences CASCADE")
+```
+
+---
+
+#### 6.7.4 Production Deployment
+
+**Автоматическое применение миграций:**
+
+```bash
+# Production deploy автоматически применяет миграции
+cd ~/familyBudget
+./deploy.sh --profile full
+
+# deploy.sh вызывает:
+# - docker compose exec backend bash /app/backend/db/run_migrations.sh
+# - run_migrations.sh выполняет: alembic upgrade head
+```
+
+**Ручное применение миграций (production):**
+
+```bash
+# Войти в backend container
+docker compose exec backend bash
+
+# Применить миграции
+cd /app/backend/db/migrations
 alembic upgrade head
+
+# Проверить статус
+alembic current
+alembic history --verbose
+```
+
+**Откат миграции (production):**
+
+```bash
+# ВНИМАНИЕ: Может привести к потере данных!
+
+# Откатить последнюю миграцию
+docker compose exec backend bash
+cd /app/backend/db/migrations
+alembic downgrade -1
+
+# Откатить до конкретной ревизии
+alembic downgrade a1b2c3d4e5f6
+
+# Проверить результат
+alembic current
+```
+
+---
+
+#### 6.7.5 Best Practices
+
+**✅ ВСЕГДА:**
+
+1. **Тестируй миграции в обе стороны:**
+   ```bash
+   alembic upgrade head     # Вперед
+   alembic downgrade -1     # Назад
+   alembic upgrade head     # Снова вперед
+   ```
+
+2. **Пиши полный downgrade():**
+   ```python
+   # ✅ ПРАВИЛЬНО
+   def downgrade() -> None:
+       op.execute("DROP TABLE IF EXISTS t_new_table CASCADE")
+
+   # ❌ НЕПРАВИЛЬНО
+   def downgrade() -> None:
+       pass  # ← Невозможен откат!
+   ```
+
+3. **Используй транзакции для DDL:**
+   ```python
+   def upgrade() -> None:
+       # PostgreSQL поддерживает transactional DDL
+       op.execute("""
+           CREATE TABLE t_new_table (...);
+           CREATE INDEX idx_new_table_id ON t_new_table(id);
+       """)
+   ```
+
+4. **Проверяй autogenerate результаты:**
+   ```bash
+   alembic revision --autogenerate -m "sync_models"
+   # ОБЯЗАТЕЛЬНО просмотри файл перед применением!
+   nano versions/YYYYMMDD_*.py
+   ```
+
+**❌ НИКОГДА:**
+
+1. **НЕ редактируй примененные миграции:**
+   - Миграция в production = immutable
+   - Создай новую миграцию для исправлений
+
+2. **НЕ используй deprecated schema/ файлы:**
+   - `backend/db/schema/` → `backend/db/deprecated/schema/`
+   - Используй ТОЛЬКО Alembic
+
+3. **НЕ пропускай миграции:**
+   ```bash
+   # ❌ НЕПРАВИЛЬНО
+   alembic upgrade a1b2c3 && alembic upgrade e4f5g6
+
+   # ✅ ПРАВИЛЬНО
+   alembic upgrade head
+   ```
+
+---
+
+#### 6.7.6 Migration Commands Reference
+
+| Команда | Описание |
+|---------|----------|
+| `alembic upgrade head` | Применить все pending миграции |
+| `alembic downgrade -1` | Откатить последнюю миграцию |
+| `alembic downgrade -2` | Откатить 2 миграции |
+| `alembic downgrade <rev>` | Откатить до конкретной ревизии |
+| `alembic current` | Показать текущую ревизию |
+| `alembic history --verbose` | Показать историю миграций |
+| `alembic heads` | Показать последнюю ревизию (head) |
+| `alembic revision -m "msg"` | Создать пустую миграцию |
+| `alembic revision --autogenerate -m "msg"` | Автогенерация из SQLModel |
+
+---
+
+#### 6.7.7 Database Reset (Development Only)
+
+**ВНИМАНИЕ:** Удаляет ВСЕ данные!
+
+```bash
+# Полный сброс БД
+docker compose down -v
+docker compose up -d
+
+# ИЛИ через deploy.sh
+./deploy.sh --reset-db
+
+# Миграции применяются автоматически при старте backend
 ```
 
 ---
@@ -889,6 +1167,75 @@ alembic upgrade head
 - All authenticated users should see all transactions in analytics and CRUD endpoints
 - `user_id` should still be saved when creating transactions
 - No authorization errors when accessing/modifying any transaction
+
+---
+
+#### Migration to Alembic-Only System (2025-11-09) - Replace 2-tier migrations with Alembic
+
+**Changes:**
+- **Migrated from 2-tier system to Alembic-only system:**
+  - **OLD:** `backend/db/schema/*.sql` (Tier 1 DDL) + `backend/db/migrations/` (Tier 2 Alembic, unused)
+  - **NEW:** `backend/db/migrations/versions/` (Alembic only)
+
+- **Created baseline migration:**
+  - File: `backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py`
+  - Revision ID: `001_baseline`
+  - Consolidates all 7 schema/*.sql files into single Alembic migration
+  - Creates complete database schema (tables, indexes, triggers, functions)
+
+- **Archived old schema files:**
+  - Moved: `backend/db/schema/` → `backend/db/deprecated/schema/`
+  - Created: `backend/db/deprecated/README.md` explaining migration history
+  - Old files kept for reference only - DO NOT USE
+
+- **Updated migration infrastructure:**
+  - Created: `scripts/lib/alembic.sh` - Alembic operations module
+  - Updated: `backend/db/run_migrations.sh` - Alembic wrapper (v1.0 → v2.0)
+  - Created: `backend/db/README.md` - Comprehensive Alembic documentation
+
+- **Updated deployment scripts:**
+  - `deploy.sh` now uses Alembic migrations instead of schema files
+  - Migration runner integrated with Docker Compose lifecycle
+  - Automatic migration application on backend startup
+
+**Rationale:**
+- **Version control:** All schema changes tracked in git with proper revision history
+- **Rollback support:** Any migration can be reverted via `alembic downgrade`
+- **Production-ready:** Incremental migrations instead of full DB recreation
+- **Consistency:** Same migration system for development and production
+- **Auditable:** Clear history of schema evolution with dates and authors
+
+**Migration Path:**
+1. ✅ Create baseline migration from existing schema (2025-11-09)
+2. ✅ Archive old schema files to `deprecated/`
+3. ✅ Update all scripts to use Alembic
+4. ✅ Update documentation (CLAUDE.md, PRD, backend/db/README.md)
+5. ⏳ Future: All schema changes through Alembic migrations only
+
+**Files Created:**
+- `backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py` - Baseline migration
+- `backend/db/deprecated/README.md` - Migration history documentation
+- `backend/db/README.md` - Alembic workflow guide
+- `scripts/lib/alembic.sh` - Alembic operations module
+- `tests/unit/backend/db/test_baseline_migration.py` - Migration tests
+
+**Files Modified:**
+- `backend/db/run_migrations.sh` - Rewritten for Alembic (v1.0 → v2.0)
+- `CLAUDE.md` - Updated Database Management section with Alembic workflow
+- `docs/prd/06-database-design.md` - This changelog entry and section 6.7 rewrite
+
+**Files Moved:**
+- `backend/db/schema/` → `backend/db/deprecated/schema/` (7 SQL files)
+
+**Testing:**
+- ✅ Unit tests for baseline migration structure (syntactic checks)
+- ✅ Migration upgrade/downgrade cycle tested
+- ✅ All tables, indexes, triggers, functions verified in migration
+
+**Deployment Impact:**
+- **Development:** `docker compose up` now applies Alembic migrations automatically
+- **Production:** `./deploy.sh` applies migrations via `run_migrations.sh`
+- **Breaking change:** Schema files no longer used - all changes via Alembic
 
 ---
 
