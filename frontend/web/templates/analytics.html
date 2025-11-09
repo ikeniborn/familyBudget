@@ -46,6 +46,7 @@
                         <div class="btn-group">
                             <button class="btn btn-sm btn-primary" id="filter-week" data-period="week" onclick="updatePeriod('week')" aria-pressed="true" aria-labelledby="period-label filter-week">Неделя</button>
                             <button class="btn btn-sm btn-outline" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="false" aria-labelledby="period-label filter-month">Месяц</button>
+                            <button class="btn btn-sm btn-outline" id="filter-quarter" data-period="quarter" onclick="updatePeriod('quarter')" aria-pressed="false" aria-labelledby="period-label filter-quarter">Квартал</button>
                             <button class="btn btn-sm btn-outline" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Год</button>
                             <button class="btn btn-sm btn-outline" id="filter-custom" data-period="custom" onclick="toggleCustomRange()" aria-pressed="false" aria-labelledby="period-label filter-custom">Произвольный</button>
                         </div>
@@ -155,30 +156,7 @@ let customDateTo = null;
 let rangePicker = null;
 
 // Period mapping for different chart types
-// Maps global period selection to appropriate period for each chart type
-const periodMapping = {
-    'week': {
-        planFact: 'week',      // 7 days - Monday to Sunday
-        trends: 'week',        // Week aggregation (days: Пн, Вт, Ср...)
-        pie: 'week',           // Week aggregation for pie chart
-        waterfall: 'month',    // Week → Month (more meaningful for waterfall)
-        heatmap: 'month'       // Week → Month (minimum 4 weeks for heatmap)
-    },
-    'month': {
-        planFact: 'month',     // Current month days
-        trends: 'month',       // Month aggregation (weeks: Н1, Н2, Н3...)
-        pie: 'month',          // Month aggregation for pie chart
-        waterfall: 'quarter',  // Month → Quarter (3 months)
-        heatmap: 'quarter'     // Quarter (~13 weeks for heatmap)
-    },
-    'year': {
-        planFact: 'year',      // 12 months of current year
-        trends: 'year',        // Year aggregation (months: Янв, Фев, Мар...)
-        pie: 'year',           // Year aggregation for pie chart
-        waterfall: 'year',     // Full year (12 months)
-        heatmap: 'year'        // Full year (~52 weeks for heatmap)
-    }
-};
+// Backend now handles all period logic directly, so we pass period as-is
 
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -195,26 +173,26 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Use period mapping for initial load (default: week)
-    const mapping = periodMapping['week'];
+    // Initial load with default period (week)
+    const defaultPeriod = 'week';
 
     // Update period display text
-    updatePeriodDisplay('week');
+    updatePeriodDisplay(defaultPeriod);
 
     initPlanFactChart();
-    loadPlanFactData(mapping.planFact);
+    loadPlanFactData(defaultPeriod);
 
     initTrendsChart();
-    loadTrendsData(mapping.trends);
+    loadTrendsData(defaultPeriod);
 
     initPieChart();
-    loadPieData('expense', mapping.pie);
+    loadPieData('expense', defaultPeriod);
 
     initWaterfallChart();
-    loadWaterfallData(mapping.waterfall);
+    loadWaterfallData(defaultPeriod);
 
     initHeatmapChart();
-    loadHeatmapData(mapping.heatmap);
+    loadHeatmapData(defaultPeriod);
 });
 
 // Helper function to create empty state option for charts
@@ -419,15 +397,12 @@ function updatePeriod(period) {
     // Update period display text
     updatePeriodDisplay(period);
 
-    // Get period mapping for current global period
-    const mapping = periodMapping[period];
-
-    // Reload ALL charts with appropriate periods
-    loadPlanFactData(mapping.planFact);
-    loadTrendsData(mapping.trends);
-    loadPieData(currentPieType, mapping.pie);
-    loadWaterfallData(mapping.waterfall, currentWaterfallArticleId);
-    loadHeatmapData(mapping.heatmap);
+    // Reload ALL charts with the selected period
+    loadPlanFactData(period);
+    loadTrendsData(period);
+    loadPieData(currentPieType, period);
+    loadWaterfallData(period, currentWaterfallArticleId);
+    loadHeatmapData(period);
 }
 
 // Update period display text
@@ -457,6 +432,10 @@ function updatePeriodDisplay(period, dateFrom = null, dateTo = null) {
                 const monthStart = new Date(today);
                 monthStart.setDate(today.getDate() - 27);
                 text = `Выбран месяц: ${formatDate(monthStart)} — ${formatDate(today)}`;
+                break;
+            case 'quarter':
+                const quarterStart = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+                text = `Выбран квартал: ${formatDate(quarterStart)} — ${formatDate(today)}`;
                 break;
             case 'year':
                 const yearStart = new Date(today);
@@ -871,7 +850,7 @@ function updatePieChart(data) {
             {
                 name: typeLabel,
                 type: 'pie',
-                radius: ['40%', '70%'],  // Donut chart
+                radius: ['35%', '63%'],  // Donut chart (reduced by 10%)
                 avoidLabelOverlap: true,
                 itemStyle: {
                     borderRadius: 10,
@@ -932,9 +911,9 @@ function updateGlobalType(type) {
         loadHeatmapDataCustom(isoFrom, isoTo);
     } else {
         // Period mode
-        loadPlanFactData(periodMapping[currentPeriod].planFact);
+        loadPlanFactData(currentPeriod);
         loadPieData(type, currentPeriod);
-        loadHeatmapData(periodMapping[currentPeriod].heatmap);
+        loadHeatmapData(currentPeriod);
     }
 }
 
@@ -1171,9 +1150,8 @@ function updateWaterfallChart(data) {
 // Reset waterfall drill-down to main view
 function resetWaterfallDrilldown() {
     currentWaterfallArticleId = null;
-    // Use current global period mapping
-    const mapping = periodMapping[currentPeriod];
-    loadWaterfallData(mapping.waterfall, null);
+    // Use current global period
+    loadWaterfallData(currentPeriod, null);
 }
 
 // Show drill-down modal with category list
@@ -1333,26 +1311,33 @@ function updateHeatmapChart(data) {
     heatmapChart.dispose();
     heatmapChart = echarts.init(chartDom);
 
-    // Period labels
+    // Period labels with fallback
     const periodMap = { week: 'Неделя', month: 'Месяц', quarter: 'Квартал', year: 'Год' };
-    const periodLabel = periodMap[data.period] || data.period;
+    const periodLabel = periodMap[data.period] || data.period || 'Период';
 
-    // Aggregation labels
+    // Aggregation labels with fallback
     const aggregationMap = {
         day: 'по дням',
         week: 'по неделям',
-        month: 'по месяцам'
+        month: 'по месяцам',
+        single_week: 'неделя'
     };
-    const aggregationLabel = aggregationMap[data.aggregation] || '';
+    const aggregationLabel = aggregationMap[data.aggregation] || 'агрегация';
 
     const typeMap = { expense: 'расходов', income: 'доходов' };
     const typeLabel = typeMap[currentGlobalType] || 'расходов';
     const typeLabelSingular = currentGlobalType === 'income' ? 'Доход' : 'Расход';
 
+    // Build title with validation
+    const titleText = `Тепловая карта (${periodLabel}, ${aggregationLabel})`;
+    const subtitleText = (data.start_date && data.end_date)
+        ? `${data.start_date} — ${data.end_date}`
+        : '';
+
     const option = {
         title: {
-            text: `Тепловая карта (${periodLabel}, ${aggregationLabel})`,
-            subtext: `${data.start_date} — ${data.end_date}`,
+            text: titleText,
+            subtext: subtitleText,
             left: 'center',
             textStyle: {
                 fontSize: 16,
