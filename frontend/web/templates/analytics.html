@@ -217,6 +217,40 @@ document.addEventListener('DOMContentLoaded', function() {
     loadHeatmapData(mapping.heatmap);
 });
 
+// Helper function to create empty state option for charts
+function createEmptyStateOption(icon, title, subtitle) {
+    return {
+        title: {
+            text: title,
+            subtext: subtitle,
+            left: 'center',
+            top: 'middle',
+            textStyle: {
+                fontSize: 16,
+                color: '#999',
+                fontWeight: 'normal'
+            },
+            subtextStyle: {
+                fontSize: 14,
+                color: '#bbb'
+            }
+        },
+        graphic: {
+            type: 'text',
+            left: 'center',
+            top: '60%',
+            style: {
+                text: icon,
+                fontSize: 48,
+                fill: '#ccc'
+            }
+        },
+        xAxis: { show: false },
+        yAxis: { show: false },
+        series: []
+    };
+}
+
 // Initialize Plan vs Fact chart
 function initPlanFactChart() {
     const chartDom = document.getElementById('chart-plan-fact');
@@ -257,6 +291,17 @@ async function loadPlanFactData(period) {
 // Update Plan vs Fact chart with data
 function updatePlanFactChart(data) {
     planFactChart.hideLoading();
+
+    // Handle empty data
+    if (!data.labels || data.labels.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '📊',
+            'Нет данных',
+            'Добавьте транзакции или планы для просмотра графика'
+        );
+        planFactChart.setOption(emptyOption);
+        return;
+    }
 
     const periodMap = { week: 'Неделя', month: 'Месяц', year: 'Год' };
     const option = {
@@ -540,6 +585,17 @@ async function loadTrendsData(period) {
 function updateTrendsChart(data) {
     trendsChart.hideLoading();
 
+    // Handle empty data
+    if (!data.labels || data.labels.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '📈',
+            'Нет данных',
+            'Добавьте транзакции для просмотра динамики'
+        );
+        trendsChart.setOption(emptyOption);
+        return;
+    }
+
     const periodMap = { week: '7 дней', month: '4 недели', year: '12 месяцев' };
     const periodLabel = periodMap[data.period] || data.period;
 
@@ -702,6 +758,17 @@ async function loadPieData(type, period) {
 // Update Pie chart with data
 function updatePieChart(data) {
     pieChart.hideLoading();
+
+    // Handle empty data
+    if (!data.categories || data.categories.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '🥧',
+            'Нет данных',
+            'Добавьте транзакции для просмотра распределения по категориям'
+        );
+        pieChart.setOption(emptyOption);
+        return;
+    }
 
     const typeMap = { expense: 'Расходы', income: 'Доходы' };
     const periodMap = { week: 'Неделя', month: 'Месяц', year: 'Год' };
@@ -926,6 +993,17 @@ async function loadWaterfallData(period = 'year', articleId = null) {
 // Update Waterfall chart with data
 function updateWaterfallChart(data) {
     waterfallChart.hideLoading();
+
+    // Handle empty data
+    if (!data.labels || data.labels.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '💧',
+            'Нет данных',
+            'Добавьте транзакции для просмотра денежного потока'
+        );
+        waterfallChart.setOption(emptyOption);
+        return;
+    }
 
     // Build proper waterfall data structure
     // Waterfall shows: Начало -> +Income -> -Expense -> Итого (cumulative)
@@ -1218,6 +1296,17 @@ async function loadHeatmapData(period = 'quarter') {
 // Update Heatmap chart with data (supports dynamic aggregation)
 function updateHeatmapChart(data) {
     heatmapChart.hideLoading();
+
+    // Handle empty data
+    if (!data.xAxis || data.xAxis.length === 0 || !data.yAxis || data.yAxis.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '🔥',
+            'Нет данных',
+            'Добавьте транзакции для просмотра тепловой карты'
+        );
+        heatmapChart.setOption(emptyOption);
+        return;
+    }
 
     // Transform data to ECharts format: [xIndex, yIndex, value]
     const heatmapData = [];

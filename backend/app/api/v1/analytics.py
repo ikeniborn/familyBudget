@@ -4,6 +4,7 @@ Analytics API endpoints.
 Provides aggregated data for charts and dashboards.
 """
 
+import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional
@@ -20,6 +21,8 @@ from backend.app.schemas.analytics import (
     RecommendedAmountsMetadata,
     RecommendedAmountsResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
@@ -193,7 +196,8 @@ async def get_plan_fact_data(
     Returns:
         Dict with categories and plan/fact amounts for each period
     """
-    today = date.today()
+    try:
+        today = date.today()
 
     # Priority: custom date range > period parameter
     if date_from and date_to:
@@ -328,13 +332,23 @@ async def get_plan_fact_data(
             plan_data.append(plan_by_date.get(current_date, 0.0))
             current_date += timedelta(days=1)
 
-    return {
-        "labels": labels,
-        "plan": plan_data,
-        "fact": fact_data,
-        "period": period,
-        "article_type": article_type
-    }
+        return {
+            "labels": labels,
+            "plan": plan_data,
+            "fact": fact_data,
+            "period": period,
+            "article_type": article_type
+        }
+
+    except Exception as e:
+        logger.error(f"Error in /plan-fact: {str(e)}", exc_info=True)
+        return {
+            "labels": [],
+            "plan": [],
+            "fact": [],
+            "period": period or "week",
+            "article_type": article_type
+        }
 
 
 @router.get("/trends")
@@ -361,7 +375,8 @@ async def get_trends_data(
     Returns:
         Dict with labels, income, and expense arrays aggregated by period
     """
-    today = date.today()
+    try:
+        today = date.today()
 
     # Priority: custom date range > period parameter
     if date_from and date_to:
@@ -482,13 +497,23 @@ async def get_trends_data(
             else:
                 current_month_date = date(current_month_date.year, current_month_date.month + 1, 1)
 
-    return {
-        "labels": labels,
-        "income": income_data,
-        "expense": expense_data,
-        "period": period,
-        "record_type": record_type
-    }
+        return {
+            "labels": labels,
+            "income": income_data,
+            "expense": expense_data,
+            "period": period,
+            "record_type": record_type
+        }
+
+    except Exception as e:
+        logger.error(f"Error in /trends: {str(e)}", exc_info=True)
+        return {
+            "labels": [],
+            "income": [],
+            "expense": [],
+            "period": period or "week",
+            "record_type": record_type
+        }
 
 
 @router.get("/category-breakdown")
@@ -518,7 +543,8 @@ async def get_category_breakdown(
     Returns:
         Dict with category names and amounts
     """
-    today = date.today()
+    try:
+        today = date.today()
 
     # Priority: custom date range > period parameter
     if date_from and date_to:
@@ -571,15 +597,27 @@ async def get_category_breakdown(
         amounts.append(amount)
         percentages.append(round((amount / total * 100) if total > 0 else 0, 1))
 
-    return {
-        "categories": categories,
-        "amounts": amounts,
-        "percentages": percentages,
-        "total": total,
-        "type": type,
-        "period": period,
-        "record_type": record_type
-    }
+        return {
+            "categories": categories,
+            "amounts": amounts,
+            "percentages": percentages,
+            "total": total,
+            "type": type,
+            "period": period,
+            "record_type": record_type
+        }
+
+    except Exception as e:
+        logger.error(f"Error in /category-breakdown: {str(e)}", exc_info=True)
+        return {
+            "categories": [],
+            "amounts": [],
+            "percentages": [],
+            "total": 0,
+            "type": type,
+            "period": period or "week",
+            "record_type": record_type
+        }
 
 
 @router.get("/waterfall")
@@ -608,7 +646,8 @@ async def get_waterfall_data(
     Returns:
         Dict with labels, income/expense data, balance, and metadata
     """
-    today = date.today()
+    try:
+        today = date.today()
 
     # Priority: custom date range > period parameter
     if date_from and date_to:
@@ -769,17 +808,31 @@ async def get_waterfall_data(
             balance_data.append(cumulative_balance)
             categories_data.append(period_info.get("articles", []))
 
-    return {
-        "labels": labels,
-        "income": income_data,
-        "expense": expense_data,
-        "balance": balance_data,
-        "categories": categories_data,  # For drill-down
-        "period": period,
-        "year": today.year,
-        "article_id": article_id,
-        "article_name": articles_info.get(article_id) if article_id else None
-    }
+        return {
+            "labels": labels,
+            "income": income_data,
+            "expense": expense_data,
+            "balance": balance_data,
+            "categories": categories_data,  # For drill-down
+            "period": period,
+            "year": today.year,
+            "article_id": article_id,
+            "article_name": articles_info.get(article_id) if article_id else None
+        }
+
+    except Exception as e:
+        logger.error(f"Error in /waterfall: {str(e)}", exc_info=True)
+        return {
+            "labels": [],
+            "income": [],
+            "expense": [],
+            "balance": [],
+            "categories": [],
+            "period": period or "month",
+            "year": date.today().year,
+            "article_id": article_id,
+            "article_name": None
+        }
 
 
 @router.get("/heatmap")
@@ -812,7 +865,8 @@ async def get_heatmap_data(
         - 7-30 days: aggregate by weeks (days × weeks)
         - >30 days: aggregate by months (weeks × months)
     """
-    today = date.today()
+    try:
+        today = date.today()
 
     # Priority: custom date range > period parameter
     if date_from and date_to:
@@ -997,17 +1051,31 @@ async def get_heatmap_data(
             else:
                 current_month_date = date(current_month_date.year, current_month_date.month + 1, 1)
 
-    return {
-        "data": data,  # 2D array: [row][col] where row=yAxis, col=xAxis
-        "xAxis": xAxis,  # Labels for X-axis (horizontal)
-        "yAxis": yAxis,  # Labels for Y-axis (vertical)
-        "aggregation": aggregation,  # "day", "week", or "month"
-        "period": period,
-        "article_type": article_type,
-        "record_type": record_type,
-        "start_date": start_date.isoformat(),
-        "end_date": end_date.isoformat()
-    }
+        return {
+            "data": data,  # 2D array: [row][col] where row=yAxis, col=xAxis
+            "xAxis": xAxis,  # Labels for X-axis (horizontal)
+            "yAxis": yAxis,  # Labels for Y-axis (vertical)
+            "aggregation": aggregation,  # "day", "week", or "month"
+            "period": period,
+            "article_type": article_type,
+            "record_type": record_type,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Error in /heatmap: {str(e)}", exc_info=True)
+        return {
+            "data": [],
+            "xAxis": [],
+            "yAxis": [],
+            "aggregation": "day",
+            "period": period or "week",
+            "article_type": article_type,
+            "record_type": record_type,
+            "start_date": date.today().isoformat(),
+            "end_date": date.today().isoformat()
+        }
 
 
 @router.get("/recommended-amounts", response_model=RecommendedAmountsResponse)
