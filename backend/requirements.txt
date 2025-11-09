@@ -7,6 +7,7 @@ aiofiles==23.2.1
 # Database
 sqlmodel==0.0.14
 asyncpg==0.29.0
+psycopg2-binary==2.9.9  # Required for Alembic migrations (sync driver)
 alembic==1.13.1
 
 # Authentication & Security

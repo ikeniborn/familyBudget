@@ -448,7 +448,7 @@ sync_update() {
 sync_clean() {
     local repo_dir=$1
 
-    warning "Clean sync: DELETES EVERYTHING in $DEPLOY_DIR except .env"
+    warning "Clean sync: DELETES EVERYTHING in $DEPLOY_DIR except protected files"
     warning "⚠️  This will DELETE:"
     warning "  - All code (backend/, bot/, nginx/, frontend/, scripts/)"
     warning "  - All data (data/* including PostgreSQL database)"
@@ -456,8 +456,9 @@ sync_clean() {
     warning "  - All backups (backups/)"
     warning "  - All Docker volumes and containers"
     echo ""
-    warning "Preserved:"
+    warning "Protected (NOT deleted):"
     warning "  - .env file"
+    warning "  - .npm-isolated/ (production npm environment)"
     warning "  - logs/ and data/ directories (contents cleared)"
     warning "  - Current deploy.log (for troubleshooting)"
     echo ""
@@ -625,7 +626,7 @@ sync_code_to_deploy() {
             echo "Select sync mode:"
             echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
             echo "      Removes files from /opt/budget not in repository"
-            echo "      Protected: .env, backups/, data/, logs/"
+            echo "      Protected: .env, .npm-isolated/, backups/, data/, logs/"
             echo ""
             echo "  [2] Update only (rsync)"
             echo "      Updates existing + adds new files"
@@ -634,7 +635,7 @@ sync_code_to_deploy() {
             echo "  [3] Clean + copy (DANGEROUS!)"
             echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
             echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-            echo "      Protected: .env, logs/ and data/ directories (contents cleared)"
+            echo "      Protected: .env, .npm-isolated/, logs/ and data/ directories (contents cleared)"
             echo ""
             echo "  [4] Skip synchronization"
             echo "      Deploy without updating code"

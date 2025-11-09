@@ -2,10 +2,18 @@
 
 # ============================================================================
 # Script: run_migrations.sh
-# Description: Master migration runner for Family Budget database
+# Description: Alembic migration runner for Family Budget database
 # Author: ClaudeCode Implementation System
-# Date: 2025-10-09
-# Task: TASK-007
+# Date: 2025-11-09
+# Version: 2.0 (Alembic-based)
+# ============================================================================
+#
+# This script is a wrapper around Alembic for managing database migrations.
+# It replaces the old schema-based migration system with proper versioned migrations.
+#
+# Previous version (v1.0) used backend/db/schema/*.sql files with custom tracking.
+# Current version (v2.0) uses Alembic migrations in backend/db/migrations/versions/.
+#
 # ============================================================================
 
 set -e  # Exit on error
@@ -16,10 +24,9 @@ set -u  # Exit on undefined variable
 # ============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MIGRATIONS_DIR="${SCRIPT_DIR}/schema"
-# Use /app/logs mounted volume instead of read-only backend/db directory
+MIGRATIONS_DIR="${SCRIPT_DIR}/migrations"
+ALEMBIC_INI="${MIGRATIONS_DIR}/alembic.ini"
 LOG_FILE="/app/logs/migrations.log"
-MIGRATION_TRACKING_TABLE="schema_migrations"
 
 # Database connection parameters
 DB_HOST="${DB_HOST:-localhost}"
@@ -33,6 +40,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
 NC='\033[0m' # No Color
 
 # ============================================================================
@@ -55,11 +63,23 @@ log_warning() {
     echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} ⚠ $1"
 }
 
+log_info() {
+    echo -e "${MAGENTA}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} ℹ $1"
+}
+
+# Check if alembic is installed
+check_alembic() {
+    if ! command -v alembic &> /dev/null; then
+        log_error "alembic command not found. Please install Alembic."
+        log_error "Run: pip install alembic"
+        exit 1
+    fi
+}
+
 # Check if psql is installed
 check_psql() {
     if ! command -v psql &> /dev/null; then
-        log_error "psql command not found. Please install PostgreSQL client."
-        exit 1
+        log_warning "psql command not found (optional for status checks)"
     fi
 }
 
@@ -67,258 +87,157 @@ check_psql() {
 test_connection() {
     log "Testing database connection..."
 
-    if PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1" &>/dev/null; then
-        log_success "Database connection successful"
+    if command -v psql &> /dev/null; then
+        if PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c "SELECT 1" &>/dev/null; then
+            log_success "Database connection successful"
+            return 0
+        else
+            log_error "Cannot connect to database"
+            log_error "Host: ${DB_HOST}:${DB_PORT}"
+            log_error "Database: ${DB_NAME}"
+            log_error "User: ${DB_USER}"
+            return 1
+        fi
+    else
+        log_warning "Skipping connection test (psql not available)"
         return 0
-    else
-        log_error "Cannot connect to database"
-        log_error "Host: ${DB_HOST}:${DB_PORT}"
-        log_error "Database: ${DB_NAME}"
-        log_error "User: ${DB_USER}"
-        return 1
     fi
 }
 
-# Create migration tracking table
-create_tracking_table() {
-    log "Creating migration tracking table..."
-
-    PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" <<EOF
-CREATE TABLE IF NOT EXISTS ${MIGRATION_TRACKING_TABLE} (
-    id SERIAL PRIMARY KEY,
-    migration_file VARCHAR(255) NOT NULL UNIQUE,
-    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    execution_time_ms INT,
-    checksum VARCHAR(64)
-);
-
-CREATE INDEX IF NOT EXISTS idx_schema_migrations_file
-    ON ${MIGRATION_TRACKING_TABLE}(migration_file);
-
-COMMENT ON TABLE ${MIGRATION_TRACKING_TABLE} IS
-    'Tracks applied database migrations';
-EOF
-
-    if [ $? -eq 0 ]; then
-        log_success "Migration tracking table ready"
-    else
-        log_error "Failed to create tracking table"
-        exit 1
-    fi
+# Get current Alembic revision
+get_current_revision() {
+    local current=$(cd "${MIGRATIONS_DIR}" && alembic current 2>/dev/null | tail -1 | awk '{print $1}' || echo "")
+    echo "$current"
 }
 
-# Check if migration was already applied
-is_migration_applied() {
-    local migration_file="$1"
-
-    local count=$(PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -t -c \
-        "SELECT COUNT(*) FROM ${MIGRATION_TRACKING_TABLE} WHERE migration_file = '${migration_file}'" | tr -d ' ')
-
-    if [ "${count}" -gt 0 ]; then
-        return 0  # Already applied
-    else
-        return 1  # Not applied
-    fi
+# Get head Alembic revision
+get_head_revision() {
+    local head=$(cd "${MIGRATIONS_DIR}" && alembic heads 2>/dev/null | tail -1 | awk '{print $1}' || echo "")
+    echo "$head"
 }
 
-# Check if migration file changed since last application
-check_migration_changed() {
-    local migration_file="$1"
-    local migration_path="${MIGRATIONS_DIR}/${migration_file}"
+# Apply all pending migrations (alembic upgrade head)
+apply_all_migrations() {
+    log "Starting Alembic migration process..."
+    echo ""
 
-    if [ ! -f "${migration_path}" ]; then
-        return 1  # File doesn't exist
-    fi
+    local start_time=$(date +%s)
 
-    local current_checksum=$(calculate_checksum "${migration_path}")
-    local stored_checksum=$(PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -t -c \
-        "SELECT checksum FROM ${MIGRATION_TRACKING_TABLE} WHERE migration_file = '${migration_file}'" | tr -d ' ')
+    # Execute alembic upgrade
+    log_info "Executing: alembic upgrade head"
 
-    if [ -z "${stored_checksum}" ]; then
-        return 1  # No checksum stored (old migration)
-    fi
-
-    if [ "${current_checksum}" != "${stored_checksum}" ]; then
-        return 0  # Changed
-    else
-        return 1  # Not changed
-    fi
-}
-
-# Calculate file checksum
-calculate_checksum() {
-    local file="$1"
-    sha256sum "${file}" | awk '{print $1}'
-}
-
-# Apply single migration
-apply_migration() {
-    local migration_file="$1"
-    local migration_path="${MIGRATIONS_DIR}/${migration_file}"
-    local is_reapply="${2:-false}"  # Optional parameter: true if reapplying
-
-    if [ ! -f "${migration_path}" ]; then
-        log_error "Migration file not found: ${migration_file}"
-        return 1
-    fi
-
-    if [ "${is_reapply}" = "true" ]; then
-        log_warning "Re-applying migration: ${migration_file}"
-    else
-        log "Applying migration: ${migration_file}"
-    fi
-
-    local start_time=$(date +%s%3N)
-    local checksum=$(calculate_checksum "${migration_path}")
-
-    # Execute migration
-    if PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -f "${migration_path}" >> "${LOG_FILE}" 2>&1; then
-        local end_time=$(date +%s%3N)
+    if cd "${MIGRATIONS_DIR}" && alembic upgrade head >> "${LOG_FILE}" 2>&1; then
+        local end_time=$(date +%s)
         local execution_time=$((end_time - start_time))
 
-        # Record or update migration
-        if [ "${is_reapply}" = "true" ]; then
-            # Update existing record
-            PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c \
-                "UPDATE ${MIGRATION_TRACKING_TABLE}
-                 SET checksum = '${checksum}',
-                     applied_at = CURRENT_TIMESTAMP,
-                     execution_time_ms = ${execution_time}
-                 WHERE migration_file = '${migration_file}'" >> "${LOG_FILE}" 2>&1
-        else
-            # Insert new record
-            PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c \
-                "INSERT INTO ${MIGRATION_TRACKING_TABLE} (migration_file, execution_time_ms, checksum)
-                 VALUES ('${migration_file}', ${execution_time}, '${checksum}')" >> "${LOG_FILE}" 2>&1
+        log_success "Migrations applied successfully (${execution_time}s)"
+
+        # Show new revision
+        local new_revision=$(get_current_revision)
+        if [ -n "$new_revision" ]; then
+            log_info "Current database revision: $new_revision"
         fi
 
-        if [ "${is_reapply}" = "true" ]; then
-            log_success "Migration re-applied successfully (${execution_time}ms)"
-        else
-            log_success "Migration applied successfully (${execution_time}ms)"
-        fi
         return 0
     else
-        log_error "Migration failed. Check ${LOG_FILE} for details."
+        log_error "Alembic upgrade failed. Check ${LOG_FILE} for details."
+        log_error "Last 20 lines of log:"
+        tail -20 "${LOG_FILE}"
         return 1
     fi
 }
 
-# Reapply specific migration (force)
-reapply_migration() {
-    local migration_file="$1"
+# Rollback last migration (alembic downgrade -1)
+downgrade_migration() {
+    local steps="${1:--1}"
 
-    if ! is_migration_applied "${migration_file}"; then
-        log_error "Cannot reapply '${migration_file}' - not applied yet. Use 'run' instead."
-        return 1
-    fi
+    log_warning "DANGER: Rolling back Alembic migration (downgrade $steps)"
+    log_warning "This may LOSE DATA!"
 
-    log_warning "Force reapplying migration: ${migration_file}"
-    log_warning "This will re-execute the migration SQL!"
-
-    apply_migration "${migration_file}" "true"
-}
-
-# List pending migrations
-list_pending_migrations() {
-    log "Checking for pending migrations..."
-
-    local pending=()
-
-    for file in "${MIGRATIONS_DIR}"/*.sql; do
-        local basename=$(basename "${file}")
-
-        if ! is_migration_applied "${basename}"; then
-            pending+=("${basename}")
-        fi
-    done
-
-    if [ ${#pending[@]} -eq 0 ]; then
-        log_success "No pending migrations"
-        return 1
-    else
-        log_warning "Found ${#pending[@]} pending migration(s):"
-        for migration in "${pending[@]}"; do
-            echo "  - ${migration}"
-        done
-        return 0
-    fi
-}
-
-# Apply all pending migrations
-apply_all_migrations() {
-    local failed=0
-    local applied=0
-    local skipped=0
-    local changed=0
-
-    log "Starting migration process..."
     echo ""
+    read -p "Are you sure you want to rollback? Type 'yes' to confirm: " confirm
+    if [[ "$confirm" != "yes" ]]; then
+        log_info "Rollback cancelled by user"
+        return 1
+    fi
 
-    # Sort migration files numerically
-    for file in $(ls "${MIGRATIONS_DIR}"/*.sql | sort -V); do
-        local basename=$(basename "${file}")
+    echo ""
+    log_info "Executing: alembic downgrade $steps"
 
-        if is_migration_applied "${basename}"; then
-            # Check if migration file changed
-            if check_migration_changed "${basename}"; then
-                log_warning "⚠️  CHANGED: ${basename}"
-                log_warning "    Migration file was modified since last application!"
-                log_warning "    Use 'reapply ${basename}' to re-run if needed"
-                changed=$((changed + 1))
-            fi
-            skipped=$((skipped + 1))
-            continue
-        fi
+    if cd "${MIGRATIONS_DIR}" && alembic downgrade "$steps" >> "${LOG_FILE}" 2>&1; then
+        log_success "Downgrade completed"
 
-        if apply_migration "${basename}" "false"; then
-            applied=$((applied + 1))
+        # Show new revision
+        local new_revision=$(get_current_revision)
+        if [ -n "$new_revision" ]; then
+            log_info "Current database revision: $new_revision"
         else
-            failed=$((failed + 1))
-            log_error "Stopping migration process due to failure"
-            break
+            log_warning "Database is now at base (no migrations applied)"
         fi
 
-        echo ""
-    done
-
-    echo ""
-    log "========================================"
-    log "Migration Summary:"
-    log "  Applied:  ${applied}"
-    log "  Skipped:  ${skipped}"
-    if [ ${changed} -gt 0 ]; then
-        log_warning "  Changed:  ${changed} (review recommended!)"
-    fi
-    log "  Failed:   ${failed}"
-    log "========================================"
-
-    if [ ${failed} -gt 0 ]; then
-        log_error "Migration process completed with errors"
-        exit 1
-    elif [ ${changed} -gt 0 ]; then
-        log_warning "Some migrations were modified after being applied"
-        log_warning "Review changes and use 'reapply <file>' if needed"
+        return 0
     else
-        log_success "Migration process completed successfully"
+        log_error "Alembic downgrade failed. Check ${LOG_FILE} for details."
+        tail -20 "${LOG_FILE}"
+        return 1
     fi
 }
 
 # Show migration status
 show_status() {
-    log "Migration Status:"
+    log "Alembic Migration Status:"
     echo ""
 
-    PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -c \
-        "SELECT
-            migration_file,
-            applied_at,
-            execution_time_ms || 'ms' as duration
-         FROM ${MIGRATION_TRACKING_TABLE}
-         ORDER BY id;"
+    # Get current and head revisions
+    local current=$(get_current_revision)
+    local head=$(get_head_revision)
+
+    if [ -z "$current" ]; then
+        log_warning "No migrations applied (fresh database)"
+        log_info "Current revision: (empty)"
+    else
+        log_info "Current revision: $current"
+    fi
+
+    if [ -n "$head" ]; then
+        log_info "Latest revision:  $head"
+    fi
 
     echo ""
-    list_pending_migrations || true
+
+    # Check if database is up to date
+    if [ -z "$current" ]; then
+        log_warning "Database needs initialization"
+        log_info "Run: $0 run"
+    elif [ "$current" = "$head" ]; then
+        log_success "Database is up to date"
+    else
+        log_warning "Database needs migration"
+        log_info "Run: $0 run"
+    fi
+
+    echo ""
+    log "Migration History (last 10):"
+    echo ""
+
+    cd "${MIGRATIONS_DIR}" && alembic history --verbose | head -30
+
+    return 0
+}
+
+# Show current revision only
+show_current() {
+    local current=$(get_current_revision)
+
+    if [ -z "$current" ]; then
+        log_warning "No migrations applied"
+        echo "(empty)"
+    else
+        log_info "Current revision:"
+        cd "${MIGRATIONS_DIR}" && alembic current
+    fi
+
+    return 0
 }
 
 # Show help
@@ -326,12 +245,13 @@ show_help() {
     cat <<EOF
 Usage: $0 [COMMAND] [ARGS]
 
-Family Budget Database Migration Runner
+Family Budget Alembic Migration Runner
 
 Commands:
   run                      Apply all pending migrations (default)
-  status                   Show migration status
-  reapply <migration.sql>  Force re-apply specific migration
+  status                   Show migration status and history
+  current                  Show current database revision
+  downgrade [steps]        Rollback migrations (default: -1)
   help                     Show this help message
 
 Environment Variables:
@@ -348,17 +268,33 @@ Examples:
   # Check migration status
   DB_PASSWORD=secret ./run_migrations.sh status
 
-  # Re-apply modified migration
-  DB_PASSWORD=secret ./run_migrations.sh reapply 009_create_additional_indexes.sql
+  # Rollback last migration
+  DB_PASSWORD=secret ./run_migrations.sh downgrade
+
+  # Rollback 2 migrations
+  DB_PASSWORD=secret ./run_migrations.sh downgrade -2
 
   # Using environment file
   set -a && source .env && set +a
   ./run_migrations.sh run
 
-Migration Change Detection:
-  - Each migration is tracked with SHA256 checksum
-  - If migration file changes after being applied, warning is shown
-  - Use 'reapply' command to re-execute changed migration
+Alembic Workflow:
+  1. Development Mode (before v5.0.0):
+     - Database schema managed via backend/db/schema/*.sql
+     - Full recreation on each deploy
+     - Alembic not used
+
+  2. Production Mode (after v5.0.0):
+     - Database schema managed via Alembic migrations
+     - Incremental migrations only
+     - backend/db/schema/ deprecated
+
+Migration Files:
+  - Location: backend/db/migrations/versions/
+  - Format: YYYYMMDD_REV_description.py
+  - Baseline: 20251109_001_baseline_schema_v5_0_0.py
+
+For more info on Alembic, see: https://alembic.sqlalchemy.org/
 
 EOF
 }
@@ -373,46 +309,44 @@ main() {
     case "${command}" in
         run)
             log "========================================"
-            log "Family Budget - Database Migrations"
+            log "Family Budget - Alembic Migrations"
             log "========================================"
             echo ""
 
+            check_alembic
             check_psql
-            test_connection || exit 1
-            create_tracking_table
+            test_connection || log_warning "Connection test skipped"
 
             echo ""
             apply_all_migrations
             ;;
 
         status)
+            check_alembic
             check_psql
-            test_connection || exit 1
-            create_tracking_table
+            test_connection || log_warning "Connection test skipped"
             show_status
             ;;
 
-        reapply)
-            if [ -z "${2:-}" ]; then
-                log_error "Missing migration file argument"
-                echo ""
-                echo "Usage: $0 reapply <migration_file.sql>"
-                echo "Example: $0 reapply 009_create_additional_indexes.sql"
-                exit 1
-            fi
+        current)
+            check_alembic
+            show_current
+            ;;
 
-            local migration_file="$2"
+        downgrade)
+            local steps="${2:--1}"
+
             log "========================================"
-            log "Family Budget - Migration Reapply"
+            log "Family Budget - Migration Rollback"
             log "========================================"
             echo ""
 
+            check_alembic
             check_psql
             test_connection || exit 1
-            create_tracking_table
 
             echo ""
-            reapply_migration "${migration_file}"
+            downgrade_migration "$steps"
             ;;
 
         help|--help|-h)
