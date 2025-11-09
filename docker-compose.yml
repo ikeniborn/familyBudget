@@ -30,7 +30,6 @@ services:
       POSTGRES_SHARED_BUFFERS: ${POSTGRES_SHARED_BUFFERS:-256MB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/db/schema:/docker-entrypoint-initdb.d:ro
       - postgres_backups:/backups
     # Port 5432 is exposed on host, but access is controlled by UFW firewall
     # By default, UFW blocks all external connections to port 5432
