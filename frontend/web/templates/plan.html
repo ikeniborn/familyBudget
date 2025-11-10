@@ -912,27 +912,42 @@ async function showEditModal(factId) {
         });
 
         // Wait for initialization to complete, then set selected value
-        // Use longer timeout and check for categories array instead of _currentState
+        // Check that both categories AND Choices.js options are loaded
         let attempts = 0;
         const maxAttempts = 60; // 60 * 100ms = 6 seconds max
         const waitForChoices = setInterval(async () => {
             attempts++;
 
-            // Check if categories are loaded (more reliable than _currentState)
-            if (editCategoryTreeSelect && editCategoryTreeSelect.categories && editCategoryTreeSelect.categories.length > 0) {
-                // Additional check: ensure Choices.js is initialized
-                if (editCategoryTreeSelect.choices) {
+            // Check if categories are loaded AND Choices.js has options
+            if (editCategoryTreeSelect &&
+                editCategoryTreeSelect.categories &&
+                editCategoryTreeSelect.categories.length > 0 &&
+                editCategoryTreeSelect.choices) {
+
+                // Check if Choices.js has loaded options (not just initialized)
+                const choicesConfig = editCategoryTreeSelect.choices.config;
+                const choicesStore = editCategoryTreeSelect.choices._store;
+
+                if (choicesStore && choicesStore.choices && choicesStore.choices.length > 1) {
                     clearInterval(waitForChoices);
                     console.log('[Edit Modal] ChoicesCategoryTree ready, setting category:', fact.article_id);
 
-                    // Set value directly on select element first
-                    editSelect.value = fact.article_id;
-                    // Then update Choices.js
-                    await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+                    // Set value using Choices.js setChoiceByValue (more reliable)
+                    try {
+                        editCategoryTreeSelect.choices.setChoiceByValue(fact.article_id.toString());
+                        // Also update path display
+                        await editCategoryTreeSelect.updatePathDisplay(fact.article_id);
+                    } catch (error) {
+                        console.error('[Edit Modal] Failed to set category:', error);
+                    }
                 }
-            } else if (attempts >= maxAttempts) {
+            }
+
+            if (attempts >= maxAttempts) {
                 clearInterval(waitForChoices);
                 console.error('[Edit Modal] ChoicesCategoryTree initialization timeout after 6 seconds');
+                console.log('[Edit Modal] Debug - categories:', editCategoryTreeSelect?.categories?.length,
+                           'choices:', editCategoryTreeSelect?.choices?._store?.choices?.length);
             }
         }, 100); // Increased interval to 100ms for better stability
     }
