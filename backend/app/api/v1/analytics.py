@@ -641,15 +641,16 @@ async def get_category_breakdown(
             amounts.append(amount)
             percentages.append(round((amount / total * 100) if total > 0 else 0, 1))
 
-            return {
-                "categories": categories,
-                "amounts": amounts,
-                "percentages": percentages,
-                "total": total,
-                "type": type,
-                "period": period,
-                "record_type": record_type
-            }
+        # Return after processing all categories
+        return {
+            "categories": categories,
+            "amounts": amounts,
+            "percentages": percentages,
+            "total": total,
+            "type": type,
+            "period": period,
+            "record_type": record_type
+        }
 
     except Exception as e:
         logger.error(f"Error in /category-breakdown: {str(e)}", exc_info=True)
