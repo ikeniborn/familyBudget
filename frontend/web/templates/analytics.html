@@ -851,7 +851,7 @@ function updatePieChart(data) {
         legend: {
             orient: 'horizontal',
             left: 'center',
-            bottom: 0,
+            bottom: 15,  // Increased spacing from bottom
             formatter: function(name) {
                 return name.length > 15 ? name.substring(0, 15) + '...' : name;
             }
@@ -860,7 +860,8 @@ function updatePieChart(data) {
             {
                 name: typeLabel,
                 type: 'pie',
-                radius: ['35%', '63%'],  // Donut chart (reduced by 10%)
+                radius: ['30%', '55%'],  // Reduced radius for more space
+                center: ['50%', '43%'],  // Move center slightly up
                 avoidLabelOverlap: true,
                 itemStyle: {
                     borderRadius: 10,
@@ -1666,24 +1667,24 @@ function exportTrendsData(format) {
 @media (min-width: 641px) and (max-width: 1023px) {
     /* Tablet - medium charts */
     .chart-container {
-        height: 350px;
-        min-height: 350px;
+        height: 400px;
+        min-height: 380px;
     }
 }
 
 @media (min-width: 1024px) {
     /* Desktop - full size charts */
     .chart-container {
-        height: 450px;
-        min-height: 400px;
+        height: 500px;
+        min-height: 450px;
     }
 }
 
 @media (min-width: 1536px) {
     /* Large desktop - larger charts */
     .chart-container {
-        height: 500px;
-        min-height: 450px;
+        height: 550px;
+        min-height: 500px;
     }
 }
 
