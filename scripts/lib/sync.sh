@@ -175,7 +175,6 @@ check_code_changes() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='docker-compose.networks.yml' \
         --exclude='.npm-isolated/' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | wc -l)
 
@@ -224,7 +223,6 @@ sync_mirror() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='docker-compose.networks.yml' \
         --exclude='.npm-isolated/' \
         --exclude='docs/' \
         --exclude='setup.sh' \
@@ -261,7 +259,6 @@ sync_mirror() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='docker-compose.networks.yml' \
         --exclude='.npm-isolated/' \
         --exclude='docs/' \
         --exclude='setup.sh' \
@@ -315,7 +312,6 @@ sync_update() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='docker-compose.networks.yml' \
         --exclude='.npm-isolated/' \
         --exclude='docs/' \
         --exclude='setup.sh' \
@@ -349,7 +345,6 @@ sync_update() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='docker-compose.networks.yml' \
         --exclude='.npm-isolated/' \
         --exclude='docs/' \
         --exclude='setup.sh' \
@@ -383,7 +378,6 @@ sync_update() {
         ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
-        ! -path "./docker-compose.networks.yml" \
         ! -path "./.npm-isolated/*" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
@@ -408,7 +402,6 @@ sync_update() {
         ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
-        ! -path "./docker-compose.networks.yml" \
         ! -path "./.npm-isolated/*" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
@@ -554,7 +547,6 @@ sync_clean() {
         --exclude='sql/' \
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
-        --exclude='docker-compose.networks.yml' \
         --exclude='.npm-isolated/' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
 

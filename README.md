@@ -771,19 +771,20 @@ openssl rand -base64 32
               └─────────────┘
 ```
 
-### Network Segmentation
+### Network Architecture
 
-**External Network (`172.29.0.0/16`):**
-- nginx (public-facing)
-- backend (API endpoints)
+**Single Bridge Network (`familybudget` - `172.28.0.0/16`):**
+- nginx (public-facing, ports 80/443)
+- backend (API endpoints, port 8000)
+- postgres (database, port 5432)
 - bot (Telegram integration)
 
-**Internal Network (`172.28.0.0/16`):**
-- postgres (no internet access)
-- backend (database access)
-- bot (database access)
-
-**Security:** PostgreSQL isolated from internet, accessible only from backend/bot containers.
+**Security:**
+- All services isolated in Docker bridge network
+- PostgreSQL accessible only via Docker network (not exposed to host)
+- External access controlled by nginx reverse proxy
+- Firewall (UFW) restricts access to host ports 80/443/22
+- Container-to-container communication via internal DNS
 
 ---
 
