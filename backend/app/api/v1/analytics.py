@@ -416,12 +416,11 @@ async def get_trends_data(
         elif period:
             # Calculate date range based on ROLLING period
             if period == "week":
-                # Last 4 calendar weeks (incomplete current week included)
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]
-                end_date = rolling_weeks[-1][1]
+                # Rolling 7 days from today (including today)
+                start_date = today - timedelta(days=6)
+                end_date = today
             elif period == "month":
-                # Last 4 calendar weeks (same as week period)
+                # Last 4 calendar weeks
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
                 end_date = rolling_weeks[-1][1]
@@ -466,8 +465,22 @@ async def get_trends_data(
         income_data = []
         expense_data = []
 
-        if period in ["week", "month"]:
-            # Для week/month: агрегация по 4 календарным неделям с ISO labels
+        if period == "week":
+            # Для period='week': показывать 7 отдельных дней с днями недели
+            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+            current_date = start_date
+            while current_date <= end_date:
+                weekday = current_date.weekday()
+                day_label = day_names_ru[weekday]
+
+                day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
+                labels.append(day_label)
+                income_data.append(day_data["income"])
+                expense_data.append(day_data["expense"])
+                current_date += timedelta(days=1)
+
+        elif period == "month":
+            # Для period='month': агрегация по 4 календарным неделям с ISO labels
             rolling_weeks_data = get_rolling_weeks(4, end_date, include_incomplete=True)
             for week_start, week_end, iso_label in rolling_weeks_data:
                 # Aggregate week data
@@ -702,12 +715,11 @@ async def get_waterfall_data(
         elif period:
             # Calculate date range and grouping based on ROLLING period
             if period == "week":
-                # Last 4 calendar weeks (same as month period)
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]
-                end_date = rolling_weeks[-1][1]
+                # Rolling 7 days from today (including today)
+                start_date = today - timedelta(days=6)
+                end_date = today
                 group_by_expr = Fact.fact_date
-                label_format = "week"  # Use ISO week labels
+                label_format = "day"  # Show individual days
             elif period == "month":
                 # Last 4 calendar weeks
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
@@ -795,7 +807,29 @@ async def get_waterfall_data(
 
         cumulative_balance = 0.0
 
-        if label_format == "week":
+        if label_format == "day":
+            # Для period='week': показывать 7 отдельных дней с днями недели
+            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+            current_date = start_date
+            while current_date <= end_date:
+                weekday = current_date.weekday()
+                day_label = day_names_ru[weekday]
+
+                day_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
+                income = day_info["income"]
+                expense = day_info["expense"]
+                day_balance = income - expense
+                cumulative_balance += day_balance
+
+                labels.append(day_label)
+                income_data.append(income)
+                expense_data.append(expense)
+                balance_data.append(cumulative_balance)
+                categories_data.append(day_info.get("articles", []))
+
+                current_date += timedelta(days=1)
+
+        elif label_format == "week":
             # Для month периода: агрегация по 4 календарным неделям
             rolling_weeks_data = get_rolling_weeks(4, end_date, include_incomplete=True)
             for week_start, week_end, iso_label in rolling_weeks_data:
