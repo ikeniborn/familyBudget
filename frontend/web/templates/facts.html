@@ -1217,18 +1217,12 @@ function setupCreateTransactionTypeButtons() {
             }
 
             // Перезагрузить категории с новым типом
-            console.log('Transaction type changed to:', this.dataset.type);
+            const createType = this.dataset.type;
+            console.log('Transaction type changed to:', createType);
             if (createCategoryTreeSelect && allCategories.length > 0) {
-                const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
-                const createType = this.dataset.type;
-
-                createCategoryTreeSelect = new ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
-                    type: createType,
-                    showLeafOnly: true,
-                    onCategoryChange: (category) => {
-                        console.log('Category changed in create modal (record type change):', category);
-                    }
-                });
+                // Use updateType() method instead of destroy + recreate
+                // This prevents Choices.js "multiple instances" error
+                createCategoryTreeSelect.updateType(createType);
             }
         });
     });
@@ -1257,19 +1251,9 @@ function setupEditCategoryTypeButtons() {
             console.log('Edit modal category type changed to:', newType);
 
             if (editCategoryTreeSelect && allCategories.length > 0) {
-                // Destroy and recreate ChoicesCategoryTree with new type
-                editCategoryTreeSelect.destroy();
-
-                const editSelect = document.getElementById('edit-article');
-                editSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
-
-                editCategoryTreeSelect = new ChoicesCategoryTree('#edit-article', {
-                    type: newType,
-                    showLeafOnly: true,
-                    onCategoryChange: (category) => {
-                        console.log('Category changed in edit modal (type change):', category);
-                    }
-                });
+                // Use updateType() method instead of destroy + recreate
+                // This prevents Choices.js "multiple instances" error
+                editCategoryTreeSelect.updateType(newType);
             }
         });
     });

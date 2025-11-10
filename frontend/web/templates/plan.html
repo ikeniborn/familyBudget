@@ -1122,18 +1122,12 @@ function setupCreatePlanTypeButtons() {
             }
 
             // Перезагрузить категории с новым типом
-            console.log('Plan type changed to:', this.dataset.type);
+            const createType = this.dataset.type;
+            console.log('Plan type changed to:', createType);
             if (createCategoryTreeSelect && allCategories.length > 0) {
-                const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
-                const createType = this.dataset.type;
-
-                createCategoryTreeSelect = new ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
-                    type: createType,
-                    showLeafOnly: true,
-                    onCategoryChange: (category) => {
-                        console.log('Category changed in create modal (plan type change):', category);
-                    }
-                });
+                // Use updateType() method instead of destroy + recreate
+                // This prevents Choices.js "multiple instances" error
+                createCategoryTreeSelect.updateType(createType);
             }
         });
     });
