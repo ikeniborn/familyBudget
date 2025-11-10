@@ -381,7 +381,7 @@ function updatePeriod(period) {
     customRangeActive = false;  // Deactivate custom range
 
     // Update active button (DaisyUI btn-group)
-    document.querySelectorAll('#filter-week, #filter-month, #filter-year, #filter-custom').forEach(btn => {
+    document.querySelectorAll('#filter-week, #filter-month, #filter-quarter, #filter-year, #filter-custom').forEach(btn => {
         btn.classList.remove('btn-primary');
         btn.classList.add('btn-outline');
         btn.setAttribute('aria-pressed', 'false');
@@ -461,7 +461,7 @@ function toggleCustomRange() {
         customBtn.setAttribute('aria-pressed', 'true');
 
         // Deactivate other buttons
-        document.querySelectorAll('#filter-week, #filter-month, #filter-year').forEach(btn => {
+        document.querySelectorAll('#filter-week, #filter-month, #filter-quarter, #filter-year').forEach(btn => {
             btn.classList.remove('btn-primary');
             btn.classList.add('btn-outline');
             btn.setAttribute('aria-pressed', 'false');
@@ -971,10 +971,15 @@ async function loadWaterfallData(period = 'year', articleId = null) {
 
 // Update Waterfall chart with data
 function updateWaterfallChart(data) {
+    if (!waterfallChart) {
+        console.error('Waterfall chart not initialized');
+        return;
+    }
+
     waterfallChart.hideLoading();
 
     // Handle empty data
-    if (!data.labels || data.labels.length === 0) {
+    if (!data || !data.labels || data.labels.length === 0) {
         const emptyOption = createEmptyStateOption(
             '💧',
             'Нет данных',
@@ -1273,10 +1278,15 @@ async function loadHeatmapData(period = 'quarter') {
 
 // Update Heatmap chart with data (supports dynamic aggregation)
 function updateHeatmapChart(data) {
+    if (!heatmapChart) {
+        console.error('Heatmap chart not initialized');
+        return;
+    }
+
     heatmapChart.hideLoading();
 
     // Handle empty data
-    if (!data.xAxis || data.xAxis.length === 0 || !data.yAxis || data.yAxis.length === 0) {
+    if (!data || !data.xAxis || data.xAxis.length === 0 || !data.yAxis || data.yAxis.length === 0) {
         const emptyOption = createEmptyStateOption(
             '🔥',
             'Нет данных',
