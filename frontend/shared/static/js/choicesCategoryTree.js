@@ -490,7 +490,7 @@ class ChoicesCategoryTree {
      * @param {number} categoryId - Category ID to select
      */
     async setSelectedCategory(categoryId) {
-        console.log('[ChoicesCategoryTree] setSelectedCategory called with:', categoryId);
+        console.log('[ChoicesCategoryTree] setSelectedCategory called with:', categoryId, 'type:', typeof categoryId);
 
         if (this.choices) {
             // Get all available choices from _store (not _currentState)
@@ -498,21 +498,25 @@ class ChoicesCategoryTree {
             console.log('[ChoicesCategoryTree] Available choices count:', availableChoices.length);
 
             // Find the choice we're trying to set
-            const targetChoice = availableChoices.find(c => c.value === categoryId.toString() || c.value == categoryId);
-            console.log('[ChoicesCategoryTree] Target choice found:', targetChoice);
+            const targetChoice = availableChoices.find(c => c.value == categoryId || c.value === categoryId.toString());
+            console.log('[ChoicesCategoryTree] Target choice found:', targetChoice, 'value type:', typeof targetChoice?.value);
 
             if (targetChoice) {
-                // Try to set value
-                this.choices.setChoiceByValue(categoryId.toString());
+                // CRITICAL: Use the same type as stored in choices
+                // If value is a number, pass number; if string, pass string
+                const valueToSet = targetChoice.value;
+                console.log('[ChoicesCategoryTree] Calling setChoiceByValue with:', valueToSet, 'type:', typeof valueToSet);
+
+                this.choices.setChoiceByValue(valueToSet);
 
                 // Verify it was set
                 const currentValue = this.element.value;
-                console.log('[ChoicesCategoryTree] After setChoiceByValue - element.value:', currentValue);
+                console.log('[ChoicesCategoryTree] After setChoiceByValue - element.value:', currentValue, 'type:', typeof currentValue);
 
                 await this.updatePathDisplay(categoryId);
             } else {
                 console.error('[ChoicesCategoryTree] Category not found in choices:', categoryId);
-                console.log('[ChoicesCategoryTree] Available values:', availableChoices.map(c => c.value));
+                console.log('[ChoicesCategoryTree] Available values:', availableChoices.map(c => ({value: c.value, type: typeof c.value})));
             }
         } else {
             console.error('[ChoicesCategoryTree] setSelectedCategory failed - no choices instance');
