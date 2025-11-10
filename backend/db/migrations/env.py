@@ -68,7 +68,9 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    with connectable.connect() as connection:
+    # Use begin() instead of connect() to create a transactional context
+    # This ensures that changes are committed when the context exits
+    with connectable.begin() as connection:
         # Set ADMIN_TELEGRAM_ID for baseline migration bootstrap
         admin_telegram_id = os.getenv("ADMIN_TELEGRAM_ID")
         if admin_telegram_id:
