@@ -1142,6 +1142,74 @@ alembic upgrade head
 
 ---
 
+#### Baseline Migration Fix #2 (2025-11-10) - Неправильный порядок колонок в INSERT admin user
+
+**Проблема:**
+После исправления ошибки с `last_name`, миграция все еще падала молча. DO блок создания админа (строка 1207) содержал **неправильный порядок колонок** в INSERT:
+
+```sql
+-- ❌ НЕПРАВИЛЬНО (строка 1207):
+INSERT INTO t_d_user (
+    telegram_id, username, first_name, is_admin,
+    is_current, valid_from, valid_to,  -- ← НЕПРАВИЛЬНЫЙ ПОРЯДОК
+    created_at, updated_at
+) VALUES (
+    admin_telegram_id, 'admin', 'Admin', TRUE,
+    TRUE, NOW(), '9999-12-31 23:59:59'::TIMESTAMP,  -- ← type mismatch
+    NOW(), NOW()
+)
+```
+
+**Что происходило:**
+- Колонка `is_current` (BOOLEAN) → значение `TRUE` ✅
+- Колонка `valid_from` (TIMESTAMP) → значение `NOW()` ✅
+- Колонка `valid_to` (TIMESTAMP) → значение `'9999-12-31 23:59:59'::TIMESTAMP` ✅
+
+НО порядок VALUES не совпадал с порядком колонок! PostgreSQL пытался вставить:
+- BOOLEAN `TRUE` в TIMESTAMP `is_current` (должно быть в конце)
+- TIMESTAMP `NOW()` в TIMESTAMP `valid_from` (правильно, но не на своем месте)
+- TIMESTAMP `'9999-12-31'` в BOOLEAN `valid_to` (должно быть TIMESTAMP)
+
+Результат: SQL type error → Alembic rollback транзакции.
+
+**Исправление:**
+```sql
+-- ✅ ПРАВИЛЬНО (соответствует CREATE TABLE строки 52-66):
+INSERT INTO t_d_user (
+    telegram_id, username, first_name, is_admin,
+    valid_from, valid_to, is_current,  -- ← ПРАВИЛЬНЫЙ ПОРЯДОК
+    created_at, updated_at
+) VALUES (
+    admin_telegram_id, 'admin', 'Admin', TRUE,
+    NOW(), '9999-12-31 23:59:59'::TIMESTAMP, TRUE,  -- ← правильные типы
+    NOW(), NOW()
+)
+```
+
+**Затронутые файлы:**
+- `backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py` - исправлены строки 1207-1227
+
+**Проверка:**
+```bash
+# Python синтаксис
+python3 -m py_compile backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py
+
+# Порядок колонок (Python тест)
+python3 << 'EOF'
+table_cols = ["telegram_id", "username", "first_name", "is_admin",
+              "valid_from", "valid_to", "is_current", "created_at", "updated_at"]
+insert_cols = ["telegram_id", "username", "first_name", "is_admin",
+               "valid_from", "valid_to", "is_current", "created_at", "updated_at"]
+assert table_cols == insert_cols, "Column order mismatch!"
+print("✅ Column order matches CREATE TABLE")
+EOF
+```
+
+**Root Cause:**
+Человеческая ошибка - неправильный порядок колонок при копировании INSERT statement. SQL парсер PostgreSQL проверяет типы в runtime и откатывает транзакцию при type mismatch.
+
+---
+
 #### Migration 014 (2025-11-02) - Remove is_global field and implement Shared References Model
 
 **Changes:**
