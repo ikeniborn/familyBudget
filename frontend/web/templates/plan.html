@@ -919,18 +919,23 @@ async function showEditModal(factId) {
             attempts++;
             if (editCategoryTreeSelect && editCategoryTreeSelect.choices && fact.article_id) {
                 // Check if choices has options loaded (not just initialized)
-                const choicesConfig = editCategoryTreeSelect.choices.config;
-                const hasChoices = editCategoryTreeSelect.choices._currentState.choices.length > 1;
+                const currentState = editCategoryTreeSelect.choices._currentState;
+                if (currentState && currentState.choices) {
+                    const hasChoices = currentState.choices.length > 1;
 
-                if (hasChoices) {
-                    clearInterval(waitForChoices);
-                    // Set value directly on select element first
-                    editSelect.value = fact.article_id;
-                    // Then update Choices.js
-                    await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+                    if (hasChoices) {
+                        clearInterval(waitForChoices);
+                        // Set value directly on select element first
+                        editSelect.value = fact.article_id;
+                        // Then update Choices.js
+                        await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(waitForChoices);
+                        console.error('ChoicesCategoryTree initialization timeout - no choices loaded');
+                    }
                 } else if (attempts >= maxAttempts) {
                     clearInterval(waitForChoices);
-                    console.error('ChoicesCategoryTree initialization timeout - no choices loaded');
+                    console.error('ChoicesCategoryTree initialization timeout - _currentState not ready');
                 }
             } else if (attempts >= maxAttempts) {
                 clearInterval(waitForChoices);
