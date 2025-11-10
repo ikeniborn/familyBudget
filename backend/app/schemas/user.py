@@ -20,7 +20,7 @@ class UserCreate(BaseModel):
 
     Validation Rules:
         - telegram_id: Required, positive integer
-        - username, first_name, last_name: Optional strings
+        - username, first_name: Optional strings
         - is_admin: Optional, defaults to False
 
     Notes:
@@ -47,13 +47,6 @@ class UserCreate(BaseModel):
         max_length=255,
         description="User's first name (optional)",
         examples=["John", None]
-    )
-
-    last_name: Optional[str] = Field(
-        default=None,
-        max_length=255,
-        description="User's last name (optional)",
-        examples=["Doe", None]
     )
 
     is_admin: bool = Field(
@@ -117,12 +110,6 @@ class UserDetailResponse(BaseModel):
         examples=["John"]
     )
 
-    last_name: Optional[str] = Field(
-        default=None,
-        description="User's last name from Telegram",
-        examples=["Doe", None]
-    )
-
     is_admin: bool = Field(
         description="Admin status flag",
         examples=[False, True]
@@ -163,7 +150,6 @@ class UserDetailResponse(BaseModel):
                 "telegram_id": 123456789,
                 "username": "johndoe",
                 "first_name": "John",
-                "last_name": "Doe",
                 "is_admin": False,
                 "valid_from": "2025-10-13T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
@@ -198,4 +184,42 @@ class UserListResponse(BaseModel):
     offset: int = Field(
         description="Number of users skipped",
         examples=[0]
+    )
+
+
+class TelegramUserInfo(BaseModel):
+    """
+    Schema for Telegram user information fetched from Bot API.
+
+    Used by admin when checking if a Telegram ID is valid
+    and for auto-filling form fields with user data from Telegram.
+
+    Attributes:
+        telegram_id: User's Telegram ID (verified)
+        username: Telegram username (optional, may be None)
+        first_name: User's first name from Telegram profile
+        exists_in_db: Whether user already exists in our database
+    """
+
+    telegram_id: int = Field(
+        description="Telegram user ID",
+        examples=[123456789]
+    )
+
+    username: Optional[str] = Field(
+        default=None,
+        description="Telegram username (without @)",
+        examples=["johndoe", None]
+    )
+
+    first_name: Optional[str] = Field(
+        default=None,
+        description="User's first name from Telegram",
+        examples=["John"]
+    )
+
+    exists_in_db: bool = Field(
+        default=False,
+        description="True if user already exists in database",
+        examples=[False, True]
     )

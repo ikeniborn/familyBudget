@@ -21,8 +21,11 @@ from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
 from backend.app.schemas.admin import SystemStatsResponse
-from backend.app.schemas.user import UserCreate
-from backend.app.services.telegram_auth import validate_telegram_user
+from backend.app.schemas.user import UserCreate, TelegramUserInfo
+from backend.app.services.telegram_auth import (
+    validate_telegram_user,
+    fetch_telegram_user_info
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
@@ -183,38 +186,72 @@ async def get_user_by_id(
     )
 
 
-@router.get("/users/check-duplicate", response_model=bool)
-async def check_duplicate_user(
+@router.get("/users/telegram-info/{telegram_id}", response_model=TelegramUserInfo)
+async def get_telegram_user_info(
+    telegram_id: int,
     current_admin: CurrentAdmin,
-    telegram_id: int = Query(..., gt=0, description="Telegram ID to check"),
     session: AsyncSession = Depends(get_session)
-) -> bool:
+) -> TelegramUserInfo:
     """
-    Check if user with given telegram_id already exists (admin only).
+    Fetch user information from Telegram Bot API (admin only).
 
-    Used by admin panel to prevent duplicate user creation.
-    Only checks among current (active) users (is_current=True).
+    Retrieves username and first_name from Telegram for auto-filling
+    the user creation form. Also checks if user already exists in database.
+
+    Комбинированный подход:
+    - Сначала пытаемся получить данные из Telegram Bot API
+    - При ошибке возвращаем 404 с детальным сообщением
+    - Frontend может разрешить ручной ввод
 
     Args:
-        telegram_id: Telegram ID to check for duplicates
+        telegram_id: Telegram ID to fetch info for
         current_admin: Current admin user (from dependency)
         session: Database session
 
     Returns:
-        bool: True if user exists, False otherwise
+        TelegramUserInfo: User data from Telegram + exists_in_db flag
+
+    Raises:
+        HTTPException: 404 if user not found in Telegram or Bot API error
 
     Example:
-        GET /api/v1/admin/users/check-duplicate?telegram_id=123456789
-        Response: false
+        GET /api/v1/admin/users/telegram-info/123456789
+        Response: {
+            "telegram_id": 123456789,
+            "username": "johndoe",
+            "first_name": "John",
+            "exists_in_db": false
+        }
     """
+    # Fetch user data from Telegram Bot API
+    user_info = await fetch_telegram_user_info(telegram_id)
+
+    if user_info is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Не удалось получить информацию о пользователе {telegram_id} из Telegram. "
+                "Возможные причины: пользователь не существует, бот не запущен, "
+                "или пользователь не писал боту. "
+                "Вы можете ввести данные вручную."
+            )
+        )
+
+    # Check if user exists in our database
     query = select(User).where(
         User.telegram_id == telegram_id,
         User.is_current == True  # noqa: E712
     )
     result = await session.execute(query)
-    user = result.scalar_one_or_none()
+    existing_user = result.scalar_one_or_none()
 
-    return user is not None
+    # Return TelegramUserInfo with exists_in_db flag
+    return TelegramUserInfo(
+        telegram_id=user_info["telegram_id"],
+        username=user_info.get("username"),
+        first_name=user_info.get("first_name"),
+        exists_in_db=(existing_user is not None)
+    )
 
 
 @router.post("/users", response_model=UserResponse, status_code=201)
@@ -227,7 +264,10 @@ async def create_user(
     Create new user (admin only).
 
     Creates a new user record with SCD Type 2 fields.
-    Validates telegram_id uniqueness and existence via Telegram Bot API.
+    Validates telegram_id uniqueness in database.
+
+    Telegram validation removed - admin can create users without Bot API check.
+    This allows creating users even if bot is offline or user hasn't interacted yet.
 
     Args:
         create_data: User creation data (telegram_id, username, etc.)
@@ -239,7 +279,6 @@ async def create_user(
 
     Raises:
         HTTPException: 400 if telegram_id already exists (duplicate)
-        HTTPException: 400 if telegram_id is invalid (not found in Telegram)
         HTTPException: 500 for database or API errors
 
     Example:
@@ -248,7 +287,6 @@ async def create_user(
             "telegram_id": 123456789,
             "username": "johndoe",
             "first_name": "John",
-            "last_name": "Doe",
             "is_admin": false
         }
     """
@@ -267,24 +305,12 @@ async def create_user(
             detail=f"User with telegram_id {create_data.telegram_id} already exists"
         )
 
-    # Validation #2: Check if telegram_id exists in Telegram via Bot API
-    # This ensures we're creating valid users only
-    is_valid_telegram_user = await validate_telegram_user(create_data.telegram_id)
-
-    if not is_valid_telegram_user:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid telegram_id {create_data.telegram_id}. "
-                   "User not found in Telegram or bot hasn't interacted with this user. "
-                   "Please ensure the user has started a conversation with the bot."
-        )
-
     # Create new user with SCD Type 2 fields
+    # No Telegram Bot API validation - admin can create users manually
     new_user = User(
         telegram_id=create_data.telegram_id,
         username=create_data.username,
         first_name=create_data.first_name,
-        last_name=create_data.last_name,
         is_admin=create_data.is_admin,
         valid_from=datetime.utcnow(),
         valid_to=None,
@@ -308,7 +334,6 @@ async def create_user(
         telegram_id=new_user.telegram_id,
         username=new_user.username,
         first_name=new_user.first_name,
-        last_name=new_user.last_name,
         is_admin=new_user.is_admin,
         is_current=new_user.is_current,
         valid_from=new_user.valid_from.isoformat(),
@@ -400,7 +425,6 @@ async def update_user(
         telegram_id=new_user.telegram_id,
         username=new_user.username,
         first_name=new_user.first_name,
-        last_name=new_user.last_name,
         is_admin=new_user.is_admin,
         is_current=new_user.is_current,
         valid_from=new_user.valid_from.isoformat(),
