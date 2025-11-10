@@ -911,37 +911,30 @@ async function showEditModal(factId) {
             }
         });
 
-        // Wait for ChoicesCategoryTree to be fully initialized before setting value
-        // Use polling to ensure choices is ready and has options loaded
+        // Wait for initialization to complete, then set selected value
+        // Use longer timeout and check for categories array instead of _currentState
         let attempts = 0;
-        const maxAttempts = 40; // 40 * 50ms = 2 seconds max
+        const maxAttempts = 60; // 60 * 100ms = 6 seconds max
         const waitForChoices = setInterval(async () => {
             attempts++;
-            if (editCategoryTreeSelect && editCategoryTreeSelect.choices && fact.article_id) {
-                // Check if choices has options loaded (not just initialized)
-                const currentState = editCategoryTreeSelect.choices._currentState;
-                if (currentState && currentState.choices) {
-                    const hasChoices = currentState.choices.length > 1;
 
-                    if (hasChoices) {
-                        clearInterval(waitForChoices);
-                        // Set value directly on select element first
-                        editSelect.value = fact.article_id;
-                        // Then update Choices.js
-                        await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(waitForChoices);
-                        console.error('ChoicesCategoryTree initialization timeout - no choices loaded');
-                    }
-                } else if (attempts >= maxAttempts) {
+            // Check if categories are loaded (more reliable than _currentState)
+            if (editCategoryTreeSelect && editCategoryTreeSelect.categories && editCategoryTreeSelect.categories.length > 0) {
+                // Additional check: ensure Choices.js is initialized
+                if (editCategoryTreeSelect.choices) {
                     clearInterval(waitForChoices);
-                    console.error('ChoicesCategoryTree initialization timeout - _currentState not ready');
+                    console.log('[Edit Modal] ChoicesCategoryTree ready, setting category:', fact.article_id);
+
+                    // Set value directly on select element first
+                    editSelect.value = fact.article_id;
+                    // Then update Choices.js
+                    await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
                 }
             } else if (attempts >= maxAttempts) {
                 clearInterval(waitForChoices);
-                console.error('ChoicesCategoryTree initialization timeout');
+                console.error('[Edit Modal] ChoicesCategoryTree initialization timeout after 6 seconds');
             }
-        }, 50);
+        }, 100); // Increased interval to 100ms for better stability
     }
 
     document.getElementById('edit-modal').showModal();
