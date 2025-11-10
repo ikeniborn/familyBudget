@@ -46,11 +46,6 @@ CREATE INDEX idx_user_current
     WHERE is_current = TRUE;
 ```
 
-**Notes:**
-- Поля `last_name` и `phone_number` удалены из схемы (v5.1.0)
-- Таблица использует SCD Type 2 для отслеживания исторических изменений
-- `telegram_id` - бизнес-ключ (уникален для текущих записей)
-
 #### t_d_article (SCD2)
 
 ```sql
@@ -82,11 +77,6 @@ CREATE INDEX idx_article_parent ON t_d_article(parent_id);
 CREATE INDEX idx_article_type ON t_d_article(type);
 ```
 
-**Notes:**
-- All articles are user-specific (user_id is required)
-- No shared/global articles - each user has their own categories
-- Unique constraint on (user_id, name, type) ensures no duplicate active categories per user
-
 #### t_d_financial_center (SCD2)
 
 ```sql
@@ -114,10 +104,6 @@ CREATE INDEX idx_fc_current ON t_d_financial_center(is_current) WHERE is_current
 CREATE INDEX idx_fc_user ON t_d_financial_center(user_id);
 ```
 
-**Notes:**
-- All financial centers (ЦФО) are user-specific (user_id is required)
-- No shared/global financial centers - each user manages their own accounts
-
 #### t_d_cost_center (SCD2)
 
 ```sql
@@ -144,10 +130,6 @@ CREATE UNIQUE INDEX idx_cc_user_name_current
 CREATE INDEX idx_cc_current ON t_d_cost_center(is_current) WHERE is_current = true;
 CREATE INDEX idx_cc_user ON t_d_cost_center(user_id);
 ```
-
-**Notes:**
-- All cost centers (МВЗ) are user-specific (user_id is required)
-- No shared/global cost centers - each user manages their own budget groups
 
 #### t_d_period (SCD2)
 
@@ -353,31 +335,7 @@ COMMIT;
 
 **ВАЖНО: Обновление транзакций**
 
-При изменении атрибутов категории (особенно `type`), **необходимо** обновить `article_id` во всех связанных транзакциях. Это критично для корректной работы аналитики:
-
-**Проблема без обновления:**
-```sql
--- Без UPDATE транзакций:
-SELECT * FROM t_f_budget_fact f
-JOIN t_d_article a ON f.article_id = a.id
-WHERE a.type = 'income' AND a.is_current = true;
-
--- ❌ Старые транзакции с article_id=10 НЕ попадут в результат,
---    так как они ссылаются на старую версию (is_current=false)
-```
-
-**Решение с обновлением:**
-```sql
--- С UPDATE транзакций:
-UPDATE t_f_budget_fact SET article_id = 40 WHERE article_id = 10;
-
--- ✅ Теперь ВСЕ транзакции корректно фильтруются по новому типу
-```
-
-**Trade-offs:**
-- **Плюсы:** Простая аналитика (без сложных JOIN), корректная фильтрация по текущим атрибутам
-- **Минусы:** Нельзя увидеть "как было на момент транзакции" (но для семейного бюджета это не критично)
-- **Производительность:** Одноразовый UPDATE vs постоянная сложная аналитика → UPDATE эффективнее
+При изменении атрибутов категории (особенно `type`) необходимо обновить `article_id` во всех связанных транзакциях для корректной работы аналитики. Без обновления старые транзакции не попадут в выборки по новым атрибутам, так как ссылаются на неактуальные версии (`is_current=false`).
 
 ### 6.6 Indexes & Performance
 
@@ -411,387 +369,102 @@ WHERE r.user_id = 1
 GROUP BY p.name, a.name;
 ```
 
-#### 6.6.1 Advanced Index Optimization Strategy (Migration 009)
+#### 6.6.1 Advanced Index Optimization
 
-**Цель:** Минимизировать время выполнения критичных запросов через covering indexes и index-only scans.
+**Covering Index Pattern:** PostgreSQL использует index-only scans (без обращения к таблице) когда все нужные колонки есть в индексе через `INCLUDE` clause. Преимущества: ~2-5x быстрее, меньше disk I/O, лучший cache hit rate.
 
-**Covering Index Pattern:**
-PostgreSQL может возвращать данные **без обращения к таблице**, если все нужные колонки есть в индексе (используя `INCLUDE` clause).
+**Все индексы проекта (14 шт):**
 
-**Преимущества:**
-- **Index-only scan:** ~2-5x faster чем обычный index scan + table lookup
-- **Меньше disk I/O:** Не нужно читать страницы таблицы
-- **Лучший cache hit rate:** Индекс меньше таблицы, легче остается в памяти
+| # | Название | Тип | Таблица | Назначение |
+|---|----------|-----|---------|------------|
+| 1 | idx_budget_fact_user_date_amount_covering | Covering | t_f_budget_fact | Dashboard quick stats по дате |
+| 2 | idx_budget_fact_article_date_amount_covering | Covering | t_f_budget_fact | Category breakdown analytics |
+| 3 | idx_budget_fact_record_type_date | Partial | t_f_budget_fact | Plan vs Fact comparison |
+| 4 | idx_user_telegram_current_covering | Covering | t_d_user | Telegram OAuth (каждый запрос) |
+| 5 | idx_article_code_current_covering | Covering | t_d_article | Lookup by code (Bot API) |
+| 6 | idx_article_current_covering | Partial | t_d_article | Все Web Apps (dropdowns, меню) |
+| 7 | idx_hierarchy_ancestor_depth_covering | Covering | t_d_article_hierarchy | Subtree queries (O(1)) |
+| 8 | idx_hierarchy_descendant_depth_covering | Covering | t_d_article_hierarchy | Breadcrumbs navigation |
+| 9 | idx_budget_fact_user_article_date_covering | Covering | t_f_budget_fact | Trends по категории |
+| 10 | idx_budget_fact_centers_date_covering | Covering | t_f_budget_fact | ЦФО/МВЗ analytics |
+| 11 | idx_budget_fact_recent | Partial | t_f_budget_fact | Dashboard widget (30 дней) |
+| 12 | idx_budget_fact_expensive | Partial | t_f_budget_fact | Auditing (amount > 10000) |
+| 13 | idx_fc_current_covering | Partial | t_d_financial_center | ЦФО dropdown |
+| 14 | idx_cc_current_covering | Partial | t_d_cost_center | МВЗ dropdown |
 
----
+**Критичные индексы (детальные примеры):**
 
-##### Fact Table Indexes (t_f_budget_fact)
-
-**1. Analytics by User & Date (covering index)**
-
+**#4: Telegram OAuth Lookup (sub-millisecond auth)**
 ```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)10-15
-CREATE INDEX idx_budget_fact_user_date_amount_covering
-    ON t_f_budget_fact(user_id, fact_date DESC)
-    INCLUDE (amount, article_id, cost_center_id, financial_center_id);
-```
-
-**Optimized queries:**
-```sql
--- Dashboard quick stats (today, month)
-SELECT fact_date, amount, article_id
-FROM t_f_budget_fact
-WHERE user_id = 123 AND fact_date >= '2025-11-01'
-ORDER BY fact_date DESC;
--- Index-only scan - NO table lookup!
-```
-
-**Shared Family Budget impact:**
-Since `user_id` filter is removed in endpoints, this index still helps with sorting and filtering by date.
-
----
-
-**2. Analytics by Article & Date (covering index)**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)17-22
-CREATE INDEX idx_budget_fact_article_date_amount_covering
-    ON t_f_budget_fact(article_id, fact_date DESC)
-    INCLUDE (amount, user_id, record_type);
-```
-
-**Optimized queries:**
-```sql
--- Category breakdown analytics
-SELECT fact_date, amount, record_type
-FROM t_f_budget_fact
-WHERE article_id = 5 AND fact_date >= '2025-10-01'
-ORDER BY fact_date DESC;
-```
-
-**Use case:** `/api/v1/analytics/category-breakdown` - группировка по категориям.
-
----
-
-**3. Analytics by Record Type (PLAN vs FACT)**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)24-28
-CREATE INDEX idx_budget_fact_record_type_date
-    ON t_f_budget_fact(record_type, fact_date DESC)
-    WHERE record_type IN ('PLAN', 'FACT');
-```
-
-**Optimized queries:**
-```sql
--- Plan vs Fact comparison
-SELECT fact_date, SUM(amount)
-FROM t_f_budget_fact
-WHERE record_type = 'PLAN' AND fact_date BETWEEN '2025-11-01' AND '2025-11-30'
-GROUP BY fact_date;
-```
-
-**Use case:** `/api/v1/analytics/plan-fact` endpoint.
-
----
-
-##### Dimension Table Indexes
-
-**4. User Telegram OAuth Lookup (covering index)**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)32-37
 CREATE INDEX idx_user_telegram_current_covering
     ON t_d_user(telegram_id, is_current)
-    INCLUDE (id, username, first_name, last_name, is_admin);
-```
+    INCLUDE (id, username, first_name, is_admin);
 
-**Optimized queries:**
-```sql
--- Telegram OAuth authentication
-SELECT id, username, first_name, last_name, is_admin
+-- Query: `/api/v1/auth/telegram`
+SELECT id, username, first_name, is_admin
 FROM t_d_user
 WHERE telegram_id = 123456789 AND is_current = true;
--- Index-only scan - критично для авторизации (каждый запрос)!
+-- Index-only scan - критично для каждого запроса!
 ```
 
-**Use case:** `/api/v1/auth/telegram` - JWT token generation.
-
-**Performance impact:** Sub-millisecond authentication queries.
-
----
-
-**5. Article Lookup by Code (covering index)**
-
+**#6: Article Current Records (каждый Web App)**
 ```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)39-43
-CREATE INDEX idx_article_code_current_covering
-    ON t_d_article(code, is_current)
-    INCLUDE (id, name, type, parent_id)
-    WHERE is_current = true;
-```
-
-**Optimized queries:**
-```sql
--- Lookup article by code (API integration)
-SELECT id, name, type, parent_id
-FROM t_d_article
-WHERE code = 'FOOD001' AND is_current = true;
-```
-
-**Use case:** Telegram Bot команды с predefined codes.
-
----
-
-**6. Article Current Records (partial index)**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)45-48
 CREATE INDEX idx_article_current_covering
     ON t_d_article(is_current)
     INCLUDE (id, name, type, parent_id)
     WHERE is_current = true;
+
+-- Query: `/api/v1/articles` (sidebar, dropdowns)
+SELECT id, name, type, parent_id FROM t_d_article WHERE is_current = true;
+-- Shared References Model: ~100 records в одном scan
 ```
 
-**Optimized queries:**
+**#7: Hierarchy Ancestor Lookup (O(1) Closure Table)**
 ```sql
--- Get all active articles (sidebar menu, dropdowns)
-SELECT id, name, type, parent_id
-FROM t_d_article
-WHERE is_current = true;
-```
-
-**Use case:** `/api/v1/articles` endpoint - используется в КАЖДОМ Web App.
-
-**Shared References Model impact:** Весь dimension data (~100 records) в одном index scan.
-
----
-
-##### Hierarchy Indexes (Closure Table)
-
-**7. Hierarchy Ancestor Lookup (covering index)**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)52-56
 CREATE INDEX idx_hierarchy_ancestor_depth_covering
     ON t_d_article_hierarchy(ancestor_id, depth)
     INCLUDE (descendant_id);
-```
 
-**Optimized queries:**
-```sql
--- Get subtree (all children of category)
-SELECT descendant_id
-FROM t_d_article_hierarchy
-WHERE ancestor_id = 5 AND depth <= 2
-ORDER BY depth;
+-- Query: `/api/v1/articles/{id}/children`
+SELECT descendant_id FROM t_d_article_hierarchy
+WHERE ancestor_id = 5 AND depth <= 2 ORDER BY depth;
 -- O(1) complexity - pre-computed paths!
 ```
 
-**Use case:** `/api/v1/articles/{id}/children` - построение дерева категорий.
-
----
-
-**8. Hierarchy Descendant Lookup (covering index)**
-
+**#11: Recent Facts Partial Index (most common use case)**
 ```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)58-62
-CREATE INDEX idx_hierarchy_descendant_depth_covering
-    ON t_d_article_hierarchy(descendant_id, depth DESC)
-    INCLUDE (ancestor_id);
-```
-
-**Optimized queries:**
-```sql
--- Get breadcrumbs (path from root to node)
-SELECT ancestor_id
-FROM t_d_article_hierarchy
-WHERE descendant_id = 15
-ORDER BY depth DESC;
--- Построение breadcrumbs для UI
-```
-
-**Use case:** Web UI breadcrumbs navigation.
-
----
-
-##### Composite Multi-Column Indexes
-
-**9. User + Article + Date (analytics)**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)66-70
-CREATE INDEX idx_budget_fact_user_article_date_covering
-    ON t_f_budget_fact(user_id, article_id, fact_date DESC)
-    INCLUDE (amount, record_type);
-```
-
-**Optimized queries:**
-```sql
--- User's spending on specific category over time
-SELECT fact_date, amount, record_type
-FROM t_f_budget_fact
-WHERE user_id = 123 AND article_id = 5
-ORDER BY fact_date DESC
-LIMIT 100;
-```
-
-**Use case:** `/api/v1/analytics/trends?article_id=5`
-
----
-
-**10. Financial/Cost Center Analytics**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)72-76
-CREATE INDEX idx_budget_fact_centers_date_covering
-    ON t_f_budget_fact(financial_center_id, cost_center_id, fact_date DESC)
-    INCLUDE (amount, article_id);
-```
-
-**Optimized queries:**
-```sql
--- Spending by financial center + cost center
-SELECT fact_date, amount, article_id
-FROM t_f_budget_fact
-WHERE financial_center_id = 2 AND cost_center_id = 3
-ORDER BY fact_date DESC;
-```
-
-**Use case:** `/api/v1/analytics/center-breakdown`
-
----
-
-##### Partial Indexes (Filtered)
-
-**11. Recent Facts (last 30 days) - Partial Index**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)80-84
 CREATE INDEX idx_budget_fact_recent
     ON t_f_budget_fact(fact_date DESC, user_id)
     INCLUDE (amount, article_id)
     WHERE fact_date >= CURRENT_DATE - INTERVAL '30 days';
-```
 
-**Why partial index:**
-- Smaller index size (only 30 days of data)
-- Faster queries for recent transactions (most common use case)
-- Automatically maintained (старые записи выпадают из индекса)
-
-**Optimized queries:**
-```sql
--- Dashboard recent activity widget
-SELECT fact_date, amount, article_id
-FROM t_f_budget_fact
+-- Query: Dashboard recent activity widget
+SELECT fact_date, amount, article_id FROM t_f_budget_fact
 WHERE fact_date >= CURRENT_DATE - INTERVAL '30 days'
-ORDER BY fact_date DESC
-LIMIT 20;
--- Uses partial index - очень быстро!
+ORDER BY fact_date DESC LIMIT 20;
+-- Partial index автоматически maintained, только 30 дней данных
 ```
 
----
-
-**12. Expensive Transactions (amount > 10000) - Partial Index**
-
+**#1: Dashboard Quick Stats**
 ```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)86-90
-CREATE INDEX idx_budget_fact_expensive
-    ON t_f_budget_fact(amount DESC, fact_date DESC)
-    WHERE amount > 10000;
+CREATE INDEX idx_budget_fact_user_date_amount_covering
+    ON t_f_budget_fact(user_id, fact_date DESC)
+    INCLUDE (amount, article_id, cost_center_id, financial_center_id);
+
+-- Query: Dashboard today/month stats
+SELECT fact_date, amount, article_id FROM t_f_budget_fact
+WHERE user_id = 123 AND fact_date >= '2025-11-01'
+ORDER BY fact_date DESC;
 ```
-
-**Use case:** Отчеты по крупным транзакциям, auditing.
-
-```sql
--- Find expensive transactions
-SELECT amount, fact_date, article_id
-FROM t_f_budget_fact
-WHERE amount > 10000
-ORDER BY amount DESC;
-```
-
----
-
-**13. Financial Center Current Records (partial index)**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)94-98
-CREATE INDEX idx_fc_current_covering
-    ON t_d_financial_center(is_current)
-    INCLUDE (id, name, code)
-    WHERE is_current = true;
-```
-
-**Use case:** `/api/v1/financial-centers` - dropdown list.
-
----
-
-**14. Cost Center Current Records (partial index)**
-
-```sql
--- backend/db/schema/ (индексы интегрированы в соответствующие таблицы)100-104
-CREATE INDEX idx_cc_current_covering
-    ON t_d_cost_center(is_current)
-    INCLUDE (id, name, code)
-    WHERE is_current = true;
-```
-
-**Use case:** `/api/v1/cost-centers` - dropdown list.
-
----
-
-##### Index Optimization Summary
-
-**Всего создано 14 специализированных индексов:**
-
-| Index Type | Count | Purpose |
-|-----------|-------|---------|
-| **Covering indexes** | 10 | Index-only scans (no table lookup) |
-| **Partial indexes** | 4 | Filtered data (smaller, faster) |
-| **Composite indexes** | 4 | Multi-column filtering + sorting |
 
 **Performance Results:**
 
 | Query Type | Without Index | With Covering Index | Speedup |
 |-----------|---------------|---------------------|---------|
-| User analytics | 180ms | 45ms | **4x faster** |
-| Telegram OAuth | 25ms | 5ms | **5x faster** |
-| Category list | 80ms | 12ms | **6.6x faster** |
-| Hierarchy queries | 120ms | 15ms | **8x faster** |
-| Recent transactions | 150ms | 30ms | **5x faster** |
-
-**Index Maintenance:**
-
-```sql
--- Проверка использования индексов
-SELECT
-    schemaname,
-    tablename,
-    indexname,
-    idx_scan,  -- Сколько раз использовался
-    idx_tup_read,
-    idx_tup_fetch
-FROM pg_stat_user_indexes
-WHERE schemaname = 'public'
-ORDER BY idx_scan DESC;
-
--- Неиспользуемые индексы (candidates для удаления)
-SELECT *
-FROM pg_stat_user_indexes
-WHERE idx_scan = 0
-  AND indexrelname NOT LIKE 'pg_%';
-```
-
-**VACUUM и ANALYZE:**
-
-```sql
--- Rebuild index statistics (после bulk inserts)
-ANALYZE t_f_budget_fact;
-
--- Rebuild indexes (если фрагментация)
-REINDEX TABLE t_f_budget_fact;
-```
+| Telegram OAuth | 25ms | 5ms | 5x |
+| Category list | 80ms | 12ms | 6.6x |
+| Hierarchy queries | 120ms | 15ms | 8x |
+| Dashboard widget | 150ms | 30ms | 5x |
 
 ---
 
@@ -1001,61 +674,16 @@ alembic current
 
 #### 6.7.5 Best Practices
 
-**✅ ВСЕГДА:**
+**Всегда:**
+- Тестируй миграции в обе стороны: `upgrade head` → `downgrade -1` → `upgrade head`
+- Пиши полный `downgrade()` (не `pass`!)
+- Используй транзакции для DDL (PostgreSQL поддерживает transactional DDL)
+- Проверяй autogenerate результаты перед применением
 
-1. **Тестируй миграции в обе стороны:**
-   ```bash
-   alembic upgrade head     # Вперед
-   alembic downgrade -1     # Назад
-   alembic upgrade head     # Снова вперед
-   ```
-
-2. **Пиши полный downgrade():**
-   ```python
-   # ✅ ПРАВИЛЬНО
-   def downgrade() -> None:
-       op.execute("DROP TABLE IF EXISTS t_new_table CASCADE")
-
-   # ❌ НЕПРАВИЛЬНО
-   def downgrade() -> None:
-       pass  # ← Невозможен откат!
-   ```
-
-3. **Используй транзакции для DDL:**
-   ```python
-   def upgrade() -> None:
-       # PostgreSQL поддерживает transactional DDL
-       op.execute("""
-           CREATE TABLE t_new_table (...);
-           CREATE INDEX idx_new_table_id ON t_new_table(id);
-       """)
-   ```
-
-4. **Проверяй autogenerate результаты:**
-   ```bash
-   alembic revision --autogenerate -m "sync_models"
-   # ОБЯЗАТЕЛЬНО просмотри файл перед применением!
-   nano versions/YYYYMMDD_*.py
-   ```
-
-**❌ НИКОГДА:**
-
-1. **НЕ редактируй примененные миграции:**
-   - Миграция в production = immutable
-   - Создай новую миграцию для исправлений
-
-2. **НЕ используй deprecated schema/ файлы:**
-   - `backend/db/schema/` → `backend/db/deprecated/schema/`
-   - Используй ТОЛЬКО Alembic
-
-3. **НЕ пропускай миграции:**
-   ```bash
-   # ❌ НЕПРАВИЛЬНО
-   alembic upgrade a1b2c3 && alembic upgrade e4f5g6
-
-   # ✅ ПРАВИЛЬНО
-   alembic upgrade head
-   ```
+**Никогда:**
+- НЕ редактируй примененные миграции (immutable в production)
+- НЕ используй deprecated `backend/db/schema/` (только Alembic)
+- НЕ пропускай миграции (только `alembic upgrade head`)
 
 ---
 
@@ -1075,302 +703,22 @@ alembic current
 
 ---
 
-#### 6.7.7 Database Reset (Development Only)
-
-**ВНИМАНИЕ:** Удаляет ВСЕ данные!
-
-```bash
-# Полный сброс БД
-docker compose down -v
-docker compose up -d
-
-# ИЛИ через deploy.sh
-./deploy.sh --reset-db
-
-# Миграции применяются автоматически при старте backend
-```
-
----
-
 ### 6.8 Changelog
 
-#### Baseline Migration Fix (2025-11-10) - Исправление ошибки в SCD2 триггере t_d_user
+#### 2025-11-09: Migration to Alembic-Only System
+- **Что изменилось:** Заменена 2-tier система (schema/*.sql + unused Alembic) на Alembic-only. Создана baseline migration консолидирующая все 7 schema файлов. Старые SQL файлы перемещены в `backend/db/deprecated/`.
+- **Почему:** Версионный контроль схемы БД, rollback support, production-ready incremental migrations.
+- **Затронутые компоненты:** `backend/db/migrations/`, `scripts/lib/alembic.sh`, `deploy.sh`, `CLAUDE.md`, документация ПРД.
 
-**Проблема:**
-Baseline migration `20251110_e2558a31af07_baseline_v5_1_0_consolidated.py` содержала критическую ошибку в функции `trg_scd2_user()` (строка 554):
-- Триггер ссылался на несуществующее поле `last_name` в таблице `t_d_user`
-- Поле `last_name` было удалено из схемы v5.1.0 (указано в заголовке миграции "без last_name, phone_number")
-- Но код триггера не был обновлен соответственно
+#### 2025-11-02: Shared References Model
+- **Что изменилось:** Удалено поле `is_global` из всех dimension tables. Все справочники (articles, financial centers, cost centers) теперь shared для всех пользователей. Admin-only управление для CREATE/UPDATE/DELETE операций.
+- **Почему:** Упрощение модели доступа, align с семейным бюджетом (2-5 человек), single source of truth.
+- **Затронутые компоненты:** `t_d_article`, `t_d_financial_center`, `t_d_cost_center`, API endpoints, UI templates.
 
-**Симптомы:**
-- Миграция начинала выполняться, создавала таблицы
-- При создании триггера `trg_scd2_user()` возникала SQL ошибка: `column "last_name" does not exist`
-- Alembic выполнял автоматический rollback транзакции
-- Результат: миграция отчитывалась как "успешная", но таблицы в БД не создавались
-
-**Исправление:**
-```python
-# ❌ БЫЛО (строка 554):
-IF (OLD.username IS DISTINCT FROM NEW.username)
-   OR (OLD.first_name IS DISTINCT FROM NEW.first_name)
-   OR (OLD.last_name IS DISTINCT FROM NEW.last_name)  # ← ОШИБКА
-   OR (OLD.is_admin IS DISTINCT FROM NEW.is_admin)
-
-# ✅ СТАЛО (строка 552-554):
-IF (OLD.username IS DISTINCT FROM NEW.username)
-   OR (OLD.first_name IS DISTINCT FROM NEW.first_name)
-   OR (OLD.is_admin IS DISTINCT FROM NEW.is_admin)
-```
-
-**Затронутые файлы:**
-- `backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py` - исправлена строка 554
-- `docs/prd/06-database-design.md` - обновлена документация таблицы t_d_user (удалено упоминание last_name)
-- `backend/app/models/user.py` - НЕ изменялся (поле last_name отсутствует изначально)
-
-**Проверка:**
-```bash
-# Python синтаксис
-python3 -m py_compile backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py
-
-# SQL применение (после пересоздания БД)
-docker compose down -v && docker compose up -d
-alembic upgrade head
-```
-
-**Root Cause:**
-Человеческая ошибка при рефакторинге схемы - удалили поле из CREATE TABLE, но забыли обновить триггер.
-
----
-
-#### Baseline Migration Fix #2 (2025-11-10) - Неправильный порядок колонок в INSERT admin user
-
-**Проблема:**
-После исправления ошибки с `last_name`, миграция все еще падала молча. DO блок создания админа (строка 1207) содержал **неправильный порядок колонок** в INSERT:
-
-```sql
--- ❌ НЕПРАВИЛЬНО (строка 1207):
-INSERT INTO t_d_user (
-    telegram_id, username, first_name, is_admin,
-    is_current, valid_from, valid_to,  -- ← НЕПРАВИЛЬНЫЙ ПОРЯДОК
-    created_at, updated_at
-) VALUES (
-    admin_telegram_id, 'admin', 'Admin', TRUE,
-    TRUE, NOW(), '9999-12-31 23:59:59'::TIMESTAMP,  -- ← type mismatch
-    NOW(), NOW()
-)
-```
-
-**Что происходило:**
-- Колонка `is_current` (BOOLEAN) → значение `TRUE` ✅
-- Колонка `valid_from` (TIMESTAMP) → значение `NOW()` ✅
-- Колонка `valid_to` (TIMESTAMP) → значение `'9999-12-31 23:59:59'::TIMESTAMP` ✅
-
-НО порядок VALUES не совпадал с порядком колонок! PostgreSQL пытался вставить:
-- BOOLEAN `TRUE` в TIMESTAMP `is_current` (должно быть в конце)
-- TIMESTAMP `NOW()` в TIMESTAMP `valid_from` (правильно, но не на своем месте)
-- TIMESTAMP `'9999-12-31'` в BOOLEAN `valid_to` (должно быть TIMESTAMP)
-
-Результат: SQL type error → Alembic rollback транзакции.
-
-**Исправление:**
-```sql
--- ✅ ПРАВИЛЬНО (соответствует CREATE TABLE строки 52-66):
-INSERT INTO t_d_user (
-    telegram_id, username, first_name, is_admin,
-    valid_from, valid_to, is_current,  -- ← ПРАВИЛЬНЫЙ ПОРЯДОК
-    created_at, updated_at
-) VALUES (
-    admin_telegram_id, 'admin', 'Admin', TRUE,
-    NOW(), '9999-12-31 23:59:59'::TIMESTAMP, TRUE,  -- ← правильные типы
-    NOW(), NOW()
-)
-```
-
-**Затронутые файлы:**
-- `backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py` - исправлены строки 1207-1227
-
-**Проверка:**
-```bash
-# Python синтаксис
-python3 -m py_compile backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py
-
-# Порядок колонок (Python тест)
-python3 << 'EOF'
-table_cols = ["telegram_id", "username", "first_name", "is_admin",
-              "valid_from", "valid_to", "is_current", "created_at", "updated_at"]
-insert_cols = ["telegram_id", "username", "first_name", "is_admin",
-               "valid_from", "valid_to", "is_current", "created_at", "updated_at"]
-assert table_cols == insert_cols, "Column order mismatch!"
-print("✅ Column order matches CREATE TABLE")
-EOF
-```
-
-**Root Cause:**
-Человеческая ошибка - неправильный порядок колонок при копировании INSERT statement. SQL парсер PostgreSQL проверяет типы в runtime и откатывает транзакцию при type mismatch.
-
----
-
-#### Migration 014 (2025-11-02) - Remove is_global field and implement Shared References Model
-
-**Changes:**
-- **Removed `is_global` field from all dimension tables:**
-  - t_d_article: `is_global BOOLEAN` field removed
-  - t_d_financial_center: `is_global BOOLEAN` field removed
-  - t_d_cost_center: `is_global BOOLEAN` field removed
-
-- **Architectural change to Shared References Model:**
-  - **All dimension records are shared** across all users (visible to everyone)
-  - **Admin-only management:** Only administrators can CREATE/UPDATE/DELETE dimension records
-  - **All users READ:** All users can view all dimension records
-  - **Audit trail:** `user_id` remains to track who created the record (NOT for access control)
-
-- **Removed database constraints:**
-  - Dropped `check_*_global_code` constraints
-  - Dropped `check_*_global_user` constraints
-  - Dropped `check_*_user_ownership` constraints
-
-- **Removed indexes:**
-  - Dropped `idx_*_global` indexes
-  - Dropped `idx_*_global_code_current` indexes
-  - Dropped `idx_*_global_current` indexes
-  - Dropped `idx_*_global_user_current` indexes
-
-- **Updated unique constraints:**
-  - t_d_article: `(code, is_current)` WHERE is_current = true AND code IS NOT NULL
-  - t_d_financial_center: `(code, is_current)` WHERE is_current = true AND code IS NOT NULL
-  - t_d_cost_center: `(code, is_current)` WHERE is_current = true AND code IS NOT NULL
-
-**Rationale:**
-- Simplified access control model - single source of truth for all users
-- Eliminated complexity of "global vs user-specific" distinction
-- Admin-only management ensures data consistency and quality
-- Better alignment with family budget use case (shared references for all family members)
-- `user_id` kept for audit purposes (tracking who created each record)
-
-**Implementation:**
-- Modified existing migrations 002-004 directly (development mode)
-- Updated all SQLModel models, Pydantic schemas, API endpoints
-- Updated access control logic in API endpoints (admin-only for CUD operations)
-- Updated UI templates to remove "(Global)" labels
-- Updated tests to reflect new architecture
-
-**Migration script:** Changes applied to `002_create_t_d_article.sql`, `003_create_t_d_financial_center.sql`, `004_create_t_d_cost_center.sql`
-
----
-
-#### Shared Family Budget Model (2025-11-02) - Remove user isolation from fact tables
-
-**Changes:**
-- **Analytics endpoints** (`/api/v1/analytics/*`) do NOT filter by `user_id`:
-  - `/quick-stats` - all users see combined statistics
-  - `/quick-stats-html` - HTML statistics for all transactions
-  - `/plan-fact` - plan vs fact for all users
-  - `/trends` - trends for all users
-  - `/category-breakdown` - category breakdown for all users
-  - `/waterfall` - waterfall chart for all users
-  - `/heatmap` - heatmap for all users
-
-- **CRUD endpoints** (`/api/v1/facts/*`) do NOT filter by `user_id` and do NOT check ownership:
-  - `GET /facts` - all users see all transactions (removed `apply_user_filter`)
-  - `GET /facts/{id}` - all users can access any transaction (removed `ensure_user_owns_resource`)
-  - `PUT /facts/{id}` - all users can update any transaction (removed `ensure_user_owns_resource`)
-  - `DELETE /facts/{id}` - all users can delete any transaction (removed `ensure_user_owns_resource`)
-  - `GET /facts/summary` - summary for all transactions (removed `apply_user_filter`)
-  - `GET /facts/recent-html` - recent transactions HTML for all users (removed `apply_user_filter`)
-  - `POST /facts` - **`user_id` still saved** for audit trail (unchanged)
-
-**Rationale:**
-- **Aligns with "Семейная прозрачность" principle** from PRD Product Overview
-- **Family budget use case:** All family members should see the combined budget
-- **Consistency:** Matches notifications (broadcast model) and dimension tables (shared references)
-- **Target audience:** Family of 2-5 people sharing a common budget
-- **Security:** All users are authenticated (Telegram OAuth + JWT), access limited to family members
-
-**Architecture implications:**
-- **Breaking change:** Fact tables now use **Shared Model** instead of **User Isolation Model**
-- **`user_id` field remains** in `t_f_budget_fact` for **audit trail** (who created/modified record)
-- **NO database schema changes** - only application logic changes in backend endpoints
-- **Authentication unchanged** - all users must be authenticated to access data
-
-**Files modified:**
-- `backend/app/api/v1/analytics.py` - removed `Fact.user_id == current_user.id` filters (9 places)
-- `backend/app/api/v1/endpoints/facts.py` - removed `apply_user_filter` and `ensure_user_owns_resource` calls (6 places)
-- `CLAUDE.md` - updated architectural documentation, added "Shared Family Budget Model" section
-- `docs/prd/06-database-design.md` - this changelog entry
-
-**Testing notes:**
-- All authenticated users should see all transactions in analytics and CRUD endpoints
-- `user_id` should still be saved when creating transactions
-- No authorization errors when accessing/modifying any transaction
-
----
-
-#### Migration to Alembic-Only System (2025-11-09) - Replace 2-tier migrations with Alembic
-
-**Changes:**
-- **Migrated from 2-tier system to Alembic-only system:**
-  - **OLD:** `backend/db/schema/*.sql` (Tier 1 DDL) + `backend/db/migrations/` (Tier 2 Alembic, unused)
-  - **NEW:** `backend/db/migrations/versions/` (Alembic only)
-
-- **Created baseline migration:**
-  - File: `backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py`
-  - Revision ID: `001_baseline`
-  - Consolidates all 7 schema/*.sql files into single Alembic migration
-  - Creates complete database schema (tables, indexes, triggers, functions)
-
-- **Archived old schema files:**
-  - Moved: `backend/db/schema/` → `backend/db/deprecated/schema/`
-  - Created: `backend/db/deprecated/README.md` explaining migration history
-  - Old files kept for reference only - DO NOT USE
-
-- **Updated migration infrastructure:**
-  - Created: `scripts/lib/alembic.sh` - Alembic operations module
-  - Updated: `backend/db/run_migrations.sh` - Alembic wrapper (v1.0 → v2.0)
-  - Created: `backend/db/README.md` - Comprehensive Alembic documentation
-
-- **Updated deployment scripts:**
-  - `deploy.sh` now uses Alembic migrations instead of schema files
-  - Migration runner integrated with Docker Compose lifecycle
-  - Automatic migration application on backend startup
-
-**Rationale:**
-- **Version control:** All schema changes tracked in git with proper revision history
-- **Rollback support:** Any migration can be reverted via `alembic downgrade`
-- **Production-ready:** Incremental migrations instead of full DB recreation
-- **Consistency:** Same migration system for development and production
-- **Auditable:** Clear history of schema evolution with dates and authors
-
-**Migration Path:**
-1. ✅ Create baseline migration from existing schema (2025-11-09)
-2. ✅ Archive old schema files to `deprecated/`
-3. ✅ Update all scripts to use Alembic
-4. ✅ Update documentation (CLAUDE.md, PRD, backend/db/README.md)
-5. ⏳ Future: All schema changes through Alembic migrations only
-
-**Files Created:**
-- `backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py` - Baseline migration
-- `backend/db/deprecated/README.md` - Migration history documentation
-- `backend/db/README.md` - Alembic workflow guide
-- `scripts/lib/alembic.sh` - Alembic operations module
-- `tests/unit/backend/db/test_baseline_migration.py` - Migration tests
-
-**Files Modified:**
-- `backend/db/run_migrations.sh` - Rewritten for Alembic (v1.0 → v2.0)
-- `CLAUDE.md` - Updated Database Management section with Alembic workflow
-- `docs/prd/06-database-design.md` - This changelog entry and section 6.7 rewrite
-
-**Files Moved:**
-- `backend/db/schema/` → `backend/db/deprecated/schema/` (7 SQL files)
-
-**Testing:**
-- ✅ Unit tests for baseline migration structure (syntactic checks)
-- ✅ Migration upgrade/downgrade cycle tested
-- ✅ All tables, indexes, triggers, functions verified in migration
-
-**Deployment Impact:**
-- **Development:** `docker compose up` now applies Alembic migrations automatically
-- **Production:** `./deploy.sh` applies migrations via `run_migrations.sh`
-- **Breaking change:** Schema files no longer used - all changes via Alembic
+#### 2025-11-02: Shared Family Budget Model
+- **Что изменилось:** Удалена user_id фильтрация из analytics и CRUD endpoints для fact tables. Все пользователи видят все транзакции. `user_id` сохраняется только для audit trail.
+- **Почему:** "Семейная прозрачность" - семья должна видеть общий бюджет.
+- **Затронутые компоненты:** `/api/v1/analytics/*`, `/api/v1/facts/*`, `CLAUDE.md`.
 
 ---
 
