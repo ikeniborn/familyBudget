@@ -831,6 +831,19 @@ function showToast(message, type = 'info') {
 
 #### 8.8.8 Changelog
 
+**2025-11-10 (v3 - Edit Modal Improvements):**
+- ✅ **UX:** Исправлена ширина поля даты в modal_transaction.html (flex вместо grid-cols-2)
+- ✅ **Загрузка данных:** Добавлена загрузка ЦФО/МВЗ в create modal для facts.html и plan.html
+- ✅ **Edit Modal (facts.html):**
+  - Добавлен переключатель типа категории (Доход/Расход) с динамической перезагрузкой списка
+  - Заменен плоский список категорий на иерархический ChoicesCategoryTree
+  - Добавлен CalendarWidget для выбора даты с иконкой
+  - Переремещено поле "Описание" в конец формы (после ЦФО/МВЗ)
+- ✅ **Edit Modal (plan.html):**
+  - Заменен плоский список категорий на иерархический ChoicesCategoryTree
+  - Порядок полей не изменен (как запрошено)
+- ✅ **Обработка ошибок:** Toast уведомления при ошибках загрузки ЦФО/МВЗ
+
 **2025-11-01 (v2 - Bug Fixes):**
 - ✅ **CRITICAL FIX:** Исправлена ошибка `Cannot read properties of null (reading 'addEventListener')`
 - ✅ Добавлены defensive checks для всех `addEventListener` вызовов
@@ -850,6 +863,8 @@ function showToast(message, type = 'info') {
 
 **Технический долг:**
 - [x] ~~Добавить defensive programming для DOM queries~~ (COMPLETED 2025-11-01)
+- [x] ~~Добавить иерархический выбор категорий в edit modal~~ (COMPLETED 2025-11-10)
+- [x] ~~Добавить календарь для выбора даты в edit modal~~ (COMPLETED 2025-11-10)
 - [ ] Рассмотреть создание единого базового компонента для обоих модальных окон
 - [ ] Добавить валидацию на клиенте перед отправкой формы
 - [ ] Улучшить accessibility (ARIA labels, keyboard navigation)

@@ -307,6 +307,7 @@
 // Global state for CategoryTreeSelect
 let allCategories = [];
 let createCategoryTreeSelect = null;
+let editCategoryTreeSelect = null;
 
 // Global state
 let currentPage = 0;
@@ -417,14 +418,8 @@ async function loadArticles() {
             filterSelect.appendChild(option);
         });
 
-        // Populate edit dropdown (flat list for backward compatibility)
-        const editSelect = document.getElementById('edit-article');
-        articles.forEach(article => {
-            const option = document.createElement('option');
-            option.value = article.id;
-            option.textContent = `${article.name} (${article.type})`;
-            editSelect.appendChild(option);
-        });
+        // Edit modal will use ChoicesCategoryTree
+        // Initialized dynamically when modal is opened (see showEditModal function)
 
         // Инициализировать CategoryTreeSelect для create modal
         allCategories = articles;
@@ -551,6 +546,21 @@ async function loadFinancialCenters() {
         const data = await response.json();
         const centers = data.financial_centers || [];
 
+        // Populate create modal dropdown
+        const createSelect = document.querySelector('#form_create_modal select[name="financial_center_id"]');
+        if (createSelect) {
+            // Clear existing options except first (placeholder)
+            while (createSelect.options.length > 1) {
+                createSelect.remove(1);
+            }
+            centers.forEach(center => {
+                const option = document.createElement('option');
+                option.value = center.id;
+                option.textContent = center.name;
+                createSelect.appendChild(option);
+            });
+        }
+
         // Populate edit dropdown
         const editSelect = document.getElementById('edit-financial-center');
         if (editSelect) {
@@ -574,10 +584,11 @@ async function loadFinancialCenters() {
         }
     } catch (error) {
         console.error('Error loading financial centers:', error);
+        showToast('Ошибка загрузки ЦФО: ' + error.message, 'error');
     }
 }
 
-// Load cost centers for edit and filter dropdowns
+// Load cost centers for create, edit and filter dropdowns
 async function loadCostCenters() {
     try {
         const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true');
@@ -587,6 +598,21 @@ async function loadCostCenters() {
 
         const data = await response.json();
         const centers = data.cost_centers || [];
+
+        // Populate create modal dropdown
+        const createSelect = document.querySelector('#form_create_modal select[name="cost_center_id"]');
+        if (createSelect) {
+            // Clear existing options except first (placeholder)
+            while (createSelect.options.length > 1) {
+                createSelect.remove(1);
+            }
+            centers.forEach(center => {
+                const option = document.createElement('option');
+                option.value = center.id;
+                option.textContent = center.name;
+                createSelect.appendChild(option);
+            });
+        }
 
         // Populate edit dropdown
         const editSelect = document.getElementById('edit-cost-center');
@@ -611,6 +637,7 @@ async function loadCostCenters() {
         }
     } catch (error) {
         console.error('Error loading cost centers:', error);
+        showToast('Ошибка загрузки МВЗ: ' + error.message, 'error');
     }
 }
 
@@ -848,17 +875,49 @@ function nextPage() {
 }
 
 // Show edit modal
-function showEditModal(factId) {
+async function showEditModal(factId) {
     const fact = factsData.find(f => f.id === factId);
     if (!fact) return;
 
+    // Fill basic fields
     document.getElementById('edit-id').value = fact.id;
     document.getElementById('edit-amount').value = parseFloat(fact.amount);
     document.getElementById('edit-date').value = DateFormatter.formatForDisplay(fact.fact_date);
-    document.getElementById('edit-article').value = fact.article_id;
     document.getElementById('edit-description').value = fact.description || '';
     document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
     document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
+
+    // Determine category type from allCategories
+    const selectedArticle = allCategories.find(a => a.id === fact.article_id);
+    const categoryType = selectedArticle ? selectedArticle.type : 'expense';
+
+    // Destroy previous ChoicesCategoryTree instance if exists
+    if (editCategoryTreeSelect) {
+        editCategoryTreeSelect.destroy();
+        editCategoryTreeSelect = null;
+    }
+
+    // Initialize ChoicesCategoryTree for edit modal
+    const editSelect = document.getElementById('edit-article');
+    if (editSelect) {
+        // Clear existing options
+        editSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
+
+        editCategoryTreeSelect = new ChoicesCategoryTree('#edit-article', {
+            type: categoryType,
+            showLeafOnly: true,
+            onCategoryChange: (category) => {
+                console.log('Category changed in edit modal:', category);
+            }
+        });
+
+        // Set selected category after initialization
+        setTimeout(async () => {
+            if (editCategoryTreeSelect && fact.article_id) {
+                await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+            }
+        }, 100);
+    }
 
     document.getElementById('edit-modal').showModal();
 }
