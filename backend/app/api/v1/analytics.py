@@ -364,7 +364,7 @@ async def get_plan_fact_data(
 @router.get("/trends")
 async def get_trends_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(week|month|year)$"),
+    period: Optional[str] = Query(None, regex="^(week|month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
@@ -374,10 +374,11 @@ async def get_trends_data(
     Get spending trends over time for line chart with rolling periods.
 
     Args:
-        period: Time period (week, month, year) - rolling periods
-            - week: last 7 days from today
-            - month: last 28 days from today (changed from 4 weeks)
-            - year: last 365 days from today
+        period: Time period (week, month, quarter, year) - rolling periods
+            - week: last 4 calendar weeks
+            - month: last 4 calendar weeks
+            - quarter: rolling 3 months
+            - year: rolling 12 months
         date_from: Optional start date for custom range (overrides period)
         date_to: Optional end date for custom range (overrides period)
         record_type: Type of records (fact or plan)
@@ -412,6 +413,11 @@ async def get_trends_data(
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
                 end_date = rolling_weeks[-1][1]
+            elif period == "quarter":
+                # Rolling 3 months
+                rolling_months = get_rolling_months(3, today, include_incomplete=True)
+                start_date = rolling_months[0][0]
+                end_date = rolling_months[-1][1]
             else:  # year
                 # Rolling 12 months (current + 11 months back)
                 rolling_months = get_rolling_months(12, today, include_incomplete=True)
@@ -466,6 +472,24 @@ async def get_trends_data(
                 income_data.append(week_income)
                 expense_data.append(week_expense)
 
+        elif period == "quarter":
+            # Для quarter: агрегация по rolling 3 месяцам
+            rolling_months_data = get_rolling_months(3, end_date, include_incomplete=True)
+            for month_start, month_end, month_label in rolling_months_data:
+                # Aggregate month data
+                month_income = sum(
+                    data["income"] for d, data in data_by_date.items()
+                    if month_start <= d <= month_end
+                )
+                month_expense = sum(
+                    data["expense"] for d, data in data_by_date.items()
+                    if month_start <= d <= month_end
+                )
+
+                labels.append(month_label)
+                income_data.append(month_income)
+                expense_data.append(month_expense)
+
         else:  # year
             # Для year: агрегация по rolling 12 месяцам
             rolling_months_data = get_rolling_months(12, end_date, include_incomplete=True)
@@ -484,13 +508,13 @@ async def get_trends_data(
                 income_data.append(month_income)
                 expense_data.append(month_expense)
 
-            return {
-                "labels": labels,
-                "income": income_data,
-                "expense": expense_data,
-                "period": period,
-                "record_type": record_type
-            }
+        return {
+            "labels": labels,
+            "income": income_data,
+            "expense": expense_data,
+            "period": period,
+            "record_type": record_type
+        }
 
     except Exception as e:
         logger.error(f"Error in /trends: {str(e)}", exc_info=True)
