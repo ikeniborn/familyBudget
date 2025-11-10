@@ -83,12 +83,12 @@
                     <span class="label-text">Дата</span>
                 </label>
                 <!-- Quick Date Shortcuts -->
-                <div class="grid grid-cols-2 gap-2 mb-2">
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setTransactionDate(0)">Сегодня</button>
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setTransactionDate(-1)">Вчера</button>
+                <div class="flex gap-2 mb-2">
+                    <button type="button" class="btn btn-sm btn-outline flex-1" onclick="setTransactionDate(0)">Сегодня</button>
+                    <button type="button" class="btn btn-sm btn-outline flex-1" onclick="setTransactionDate(-1)">Вчера</button>
                 </div>
                 <input type="text" name="fact_date" required
-                       class="input input-bordered transaction-date-input"
+                       class="input input-bordered w-full transaction-date-input"
                        placeholder="ДД.ММ.ГГГГ" />
             </div>
 

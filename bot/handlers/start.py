@@ -183,7 +183,7 @@ def format_welcome_message(first_name: str, is_admin: bool = False) -> str:
     message = (
         f"✅ Добро пожаловать, {first_name}!\n\n"
         f"Роль: {role_text}\n\n"
-        f"💡 Используйте кнопку Menu (📱) в нижней части экрана для доступа к приложению.\n\n"
+        f"💡 Используйте кнопку Start (📱) в нижней части экрана для доступа к приложению.\n\n"
         f"📊 Все функции доступны через удобный WebApp интерфейс:\n"
         f"• Добавление транзакций\n"
         f"• Просмотр статистики\n"
@@ -207,5 +207,5 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
     logger.warning(f"Legacy menu callback triggered: {query.data}")
     await query.edit_message_text(
         "⚠️ Этот интерфейс устарел.\n\n"
-        "Используйте кнопку Menu (📱) в нижней части экрана для доступа к WebApp."
+        "Используйте кнопку Start (📱) в нижней части экрана для доступа к WebApp."
     )
