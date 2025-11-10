@@ -402,6 +402,11 @@ async function loadUsers() {
         const response = await fetch('/api/v1/admin/users?is_current=true', {
             credentials: 'include',
         });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const users = await response.json();
 
         const select = document.getElementById('filter-user');

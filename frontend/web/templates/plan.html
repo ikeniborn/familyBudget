@@ -370,6 +370,11 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadUsers() {
     try {
         const response = await fetch('/api/v1/admin/users?is_current=true');
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const users = await response.json();
 
         const select = document.getElementById('filter-user');

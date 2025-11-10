@@ -14,7 +14,7 @@ from pydantic import BaseModel
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import CurrentAdmin, get_session
+from backend.app.core.dependencies import CurrentAdmin, get_current_admin, get_session
 from backend.app.models.article import Article
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact as Fact
@@ -101,9 +101,9 @@ class ArticleUpdateRequest(BaseModel):
 
 @router.get("/users", response_model=List[UserResponse])
 async def get_all_users(
-    current_admin: CurrentAdmin,
-    session: AsyncSession = Depends(get_session),
-    is_current: bool = Query(True, description="Filter by current users only")
+    is_current: bool = Query(True, description="Filter by current users only"),
+    current_admin: CurrentAdmin = Depends(get_current_admin),
+    session: AsyncSession = Depends(get_session)
 ):
     """
     Get all users (admin only).
