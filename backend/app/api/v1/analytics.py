@@ -613,7 +613,7 @@ async def get_category_breakdown(
 @router.get("/waterfall")
 async def get_waterfall_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, regex="^(week|month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_id: int | None = Query(None, description="Filter by specific article (for drill-down)"),
@@ -625,10 +625,11 @@ async def get_waterfall_data(
     Shows monthly income, expense, and cumulative balance.
 
     Args:
-        period: Time aggregation (month, quarter, year) - rolling periods
-            - month: last 28 days from today
-            - quarter: current quarter (unchanged)
-            - year: last 365 days from today
+        period: Time aggregation (week, month, quarter, year) - rolling periods
+            - week: last 4 calendar weeks
+            - month: last 4 calendar weeks
+            - quarter: rolling 3 months
+            - year: rolling 12 months
         date_from: Optional start date for custom range (overrides period)
         date_to: Optional end date for custom range (overrides period)
         article_id: Optional article filter for drill-down
@@ -659,7 +660,14 @@ async def get_waterfall_data(
                 label_format = "month"
         elif period:
             # Calculate date range and grouping based on ROLLING period
-            if period == "month":
+            if period == "week":
+                # Last 4 calendar weeks (same as month period)
+                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
+                start_date = rolling_weeks[0][0]
+                end_date = rolling_weeks[-1][1]
+                group_by_expr = Fact.fact_date
+                label_format = "week"  # Use ISO week labels
+            elif period == "month":
                 # Last 4 calendar weeks
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
