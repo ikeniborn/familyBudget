@@ -72,7 +72,7 @@ def run_migrations_online() -> None:
         # Set ADMIN_TELEGRAM_ID for baseline migration bootstrap
         admin_telegram_id = os.getenv("ADMIN_TELEGRAM_ID")
         if admin_telegram_id:
-            connection.execute(f"SET LOCAL app.admin_telegram_id = '{admin_telegram_id}'")
+            connection.execute(text(f"SET LOCAL app.admin_telegram_id = '{admin_telegram_id}'"))
 
         context.configure(
             connection=connection,

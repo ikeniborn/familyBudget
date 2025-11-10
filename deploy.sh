@@ -592,28 +592,14 @@ main() {
         wait_for_services
         echo ""
 
-        # Check for modified migrations and handle interactively
-        # This happens BEFORE running new migrations to ensure schema consistency
-        if [[ "$REAPPLY_MIGRATION" == "true" ]]; then
-            # Manual reapply mode (via --reapply-migration flag)
-            if [[ -z "$REAPPLY_MIGRATION_FILE" ]]; then
-                error "Migration file not specified for --reapply-migration"
-                error "Usage: ./deploy.sh --reapply-migration <migration_file.sql>"
-                exit 1
-            fi
-            reapply_migration "$REAPPLY_MIGRATION_FILE"
-            echo ""
-        else
-            # Auto-detect changed migrations and handle interactively
-            handle_changed_migrations_interactive
-            echo ""
-
-            # Run regular migrations (new migrations that haven't been applied yet)
-            run_migrations
+        # Run Alembic migrations
+        # Admin user is created automatically during migration
+        if ! run_alembic_migrations; then
+            error "Deployment failed: Database migrations did not complete successfully"
+            error "Please check the logs and fix any migration issues before redeploying"
+            error "Log file: $LOG_FILE"
+            exit 1
         fi
-        echo ""
-
-        run_bootstrap_script
         echo ""
 
         setup_backup_cron
