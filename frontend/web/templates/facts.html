@@ -980,44 +980,45 @@ async function showEditModal(factId) {
         });
 
         // Wait for initialization to complete, then set selected value
-        // Check that both categories AND Choices.js options are loaded
-        let attempts = 0;
-        const maxAttempts = 60; // 60 * 100ms = 6 seconds max
-        const waitForChoices = setInterval(async () => {
-            attempts++;
-
-            // Check if categories are loaded AND Choices.js has options
+        // Use event-based approach - listen for Choices.js initialization
+        const initCheckInterval = setInterval(async () => {
+            // Check if ChoicesCategoryTree has fully initialized
             if (editCategoryTreeSelect &&
-                editCategoryTreeSelect.categories &&
-                editCategoryTreeSelect.categories.length > 0 &&
-                editCategoryTreeSelect.choices) {
+                editCategoryTreeSelect.choices &&
+                editCategoryTreeSelect.categoryMap &&
+                editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
 
-                // Check if Choices.js has loaded options (not just initialized)
-                const choicesConfig = editCategoryTreeSelect.choices.config;
-                const choicesStore = editCategoryTreeSelect.choices._store;
+                // Get current choices count to verify they're loaded
+                const currentChoices = editCategoryTreeSelect.choices._currentState?.choices || [];
 
-                if (choicesStore && choicesStore.choices && choicesStore.choices.length > 1) {
-                    clearInterval(waitForChoices);
-                    console.log('[Edit Modal] ChoicesCategoryTree ready, setting category:', fact.article_id);
+                console.log('[Edit Modal] Init check - choices loaded:', currentChoices.length, 'article_id:', fact.article_id);
 
-                    // Set value using Choices.js setChoiceByValue (more reliable)
-                    try {
-                        editCategoryTreeSelect.choices.setChoiceByValue(fact.article_id.toString());
-                        // Also update path display
-                        await editCategoryTreeSelect.updatePathDisplay(fact.article_id);
-                    } catch (error) {
-                        console.error('[Edit Modal] Failed to set category:', error);
-                    }
+                if (currentChoices.length > 0) {
+                    clearInterval(initCheckInterval);
+                    console.log('[Edit Modal] Setting category to:', fact.article_id);
+
+                    // Use the public API method
+                    await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+
+                    // Verify it was set
+                    const selectedValue = editSelect.value;
+                    console.log('[Edit Modal] Category set. Dropdown value:', selectedValue);
                 }
             }
+        }, 150); // Check every 150ms
 
-            if (attempts >= maxAttempts) {
-                clearInterval(waitForChoices);
-                console.error('[Edit Modal] ChoicesCategoryTree initialization timeout after 6 seconds');
-                console.log('[Edit Modal] Debug - categories:', editCategoryTreeSelect?.categories?.length,
-                           'choices:', editCategoryTreeSelect?.choices?._store?.choices?.length);
-            }
-        }, 100); // Increased interval to 100ms for better stability
+        // Safety timeout to prevent infinite loop
+        setTimeout(() => {
+            clearInterval(initCheckInterval);
+            console.error('[Edit Modal] Initialization timeout - giving up after 10 seconds');
+            console.log('[Edit Modal] Debug state:', {
+                hasInstance: !!editCategoryTreeSelect,
+                hasChoices: !!editCategoryTreeSelect?.choices,
+                hasMap: !!editCategoryTreeSelect?.categoryMap,
+                categoryExists: editCategoryTreeSelect?.categoryMap?.has(fact.article_id),
+                choicesCount: editCategoryTreeSelect?.choices?._currentState?.choices?.length
+            });
+        }, 10000);
     }
 
     // Setup category type buttons handlers
