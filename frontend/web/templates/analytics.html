@@ -543,6 +543,11 @@ async function loadTrendsData(period) {
         }
 
         const data = await response.json();
+
+        if (!data) {
+            throw new Error('Empty response from server');
+        }
+
         updateTrendsChart(data);
     } catch (error) {
         console.error('Error loading trends data:', error);
@@ -717,6 +722,11 @@ async function loadPieData(type, period) {
         }
 
         const data = await response.json();
+
+        if (!data) {
+            throw new Error('Empty response from server');
+        }
+
         updatePieChart(data);
     } catch (error) {
         console.error('Error loading pie data:', error);
@@ -941,6 +951,12 @@ async function loadWaterfallData(period = 'year', articleId = null) {
         }
 
         const data = await response.json();
+
+        // Validate data before accessing properties
+        if (!data) {
+            throw new Error('Empty response from server');
+        }
+
         waterfallCategoriesData = data.categories || [];
         updateWaterfallChart(data);
 
@@ -1259,6 +1275,11 @@ async function loadHeatmapData(period = 'quarter') {
         }
 
         const data = await response.json();
+
+        if (!data) {
+            throw new Error('Empty response from server');
+        }
+
         updateHeatmapChart(data);
     } catch (error) {
         console.error('Error loading heatmap data:', error);
