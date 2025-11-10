@@ -231,12 +231,11 @@ async def get_plan_fact_data(
         elif period:
             # Calculate date range based on ROLLING period
             if period == "week":
-                # Last 4 calendar weeks (incomplete current week included)
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]  # Monday of first week
-                end_date = rolling_weeks[-1][1]  # End of last week (today)
-                periods_count = 4  # 4 weeks
-                date_format = "week"  # Special: ISO week labels
+                # Rolling 7 days from today (including today)
+                start_date = today - timedelta(days=6)
+                end_date = today
+                periods_count = 7  # 7 days
+                date_format = "day"  # Show individual days
             elif period == "month":
                 # Last 4 calendar weeks (same as week period for this endpoint)
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
@@ -299,8 +298,21 @@ async def get_plan_fact_data(
         plan_data = []
 
         # Агрегация по неделям или месяцам в зависимости от date_format
-        if date_format == "week":
-            # Для week/month периодов: группировать по календарным неделям
+        if date_format == "day":
+            # Для period='week': показывать 7 отдельных дней с днями недели
+            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+            current_date = start_date
+            while current_date <= end_date:
+                # День недели (0=Пн, 6=Вс)
+                weekday = current_date.weekday()
+                day_label = day_names_ru[weekday]
+
+                labels.append(day_label)
+                fact_data.append(fact_by_date.get(current_date, 0.0))
+                plan_data.append(plan_by_date.get(current_date, 0.0))
+                current_date += timedelta(days=1)
+        elif date_format == "week":
+            # Для period='month': группировать по календарным неделям
             rolling_weeks_data = get_rolling_weeks(periods_count, end_date, include_incomplete=True)
             for week_start, week_end, iso_label in rolling_weeks_data:
                 # Агрегировать факты за неделю
@@ -854,17 +866,18 @@ async def get_waterfall_data(
 
                 current_date += timedelta(days=1)
 
-            return {
-                "labels": labels,
-                "income": income_data,
-                "expense": expense_data,
-                "balance": balance_data,
-                "categories": categories_data,  # For drill-down
-                "period": period,
-                "year": today.year,
-                "article_id": article_id,
-                "article_name": articles_info.get(article_id) if article_id else None
-            }
+        # Return data for all branches (week, month, else)
+        return {
+            "labels": labels,
+            "income": income_data,
+            "expense": expense_data,
+            "balance": balance_data,
+            "categories": categories_data,  # For drill-down
+            "period": period,
+            "year": today.year,
+            "article_id": article_id,
+            "article_name": articles_info.get(article_id) if article_id else None
+        }
 
     except Exception as e:
         logger.error(f"Error in /waterfall: {str(e)}", exc_info=True)
@@ -1070,17 +1083,18 @@ async def get_heatmap_data(
                 current_date += timedelta(days=1)
             yAxis = [""]
 
-            return {
-                "data": data,  # 2D array: [row][col] where row=yAxis, col=xAxis
-                "xAxis": xAxis,  # Labels for X-axis (horizontal)
-                "yAxis": yAxis,  # Labels for Y-axis (vertical)
-                "aggregation": aggregation,  # "day", "week", or "month"
-                "period": period,
-                "article_type": article_type,
-                "record_type": record_type,
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat()
-            }
+        # Return data for all branches (single_week, week, month, else)
+        return {
+            "data": data,  # 2D array: [row][col] where row=yAxis, col=xAxis
+            "xAxis": xAxis,  # Labels for X-axis (horizontal)
+            "yAxis": yAxis,  # Labels for Y-axis (vertical)
+            "aggregation": aggregation,  # "day", "week", or "month"
+            "period": period,
+            "article_type": article_type,
+            "record_type": record_type,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat()
+        }
 
     except Exception as e:
         logger.error(f"Error in /heatmap: {str(e)}", exc_info=True)
