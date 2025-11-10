@@ -287,9 +287,44 @@ docker compose restart backend
 ```
 
 ### Cache Busting
-**Автоматически:** при `./deploy.sh` → `scripts/lib/cache_busting.sh auto`
 
-**НЕ редактируй** `?v=` версии вручную!
+**⚠️ КРИТИЧНО - НИКОГДА НЕ ЗАПУСКАЙ CACHE BUSTING ЛОКАЛЬНО!**
+
+Cache busting выполняется **ТОЛЬКО на сервере** при deploy:
+
+```bash
+# ✅ ПРАВИЛЬНО - на сервере
+cd ~/familyBudget && ./deploy.sh --profile full
+# deploy.sh автоматически вызывает: scripts/lib/cache_busting.sh auto
+
+# ❌ НЕПРАВИЛЬНО - локально в репозитории
+bash scripts/lib/cache_busting.sh auto  # НЕ ДЕЛАЙ ЭТО!
+```
+
+**Правила:**
+
+1. **В репозитории:** ВСЕ статические файлы должны иметь `?v=PLACEHOLDER`
+   ```html
+   <script src="/static/js/app.js?v=PLACEHOLDER"></script>
+   <link href="/static/css/style.css?v=PLACEHOLDER">
+   ```
+
+2. **При deploy:** `scripts/lib/cache_busting.sh` **автоматически** заменяет `PLACEHOLDER` → `timestamp`
+   ```html
+   <!-- После deploy на сервере: -->
+   <script src="/static/js/app.js?v=20251110_0725"></script>
+   ```
+
+3. **НЕ коммить** файлы с timestamp вместо PLACEHOLDER
+4. **НЕ редактировать** `?v=` версии вручную
+5. **Добавлять новые HTML templates** в `scripts/lib/cache_busting.sh`:
+   - В функцию `update_cache_versions()` (строка ~26)
+   - В функцию `check_cache_versions()` (строка ~104)
+
+**Почему важно:**
+- Git diff показывает реальные изменения, не шум от версий
+- Одна версия для всех статиков = простой откат при проблемах
+- Timestamp генерируется на сервере = гарантирует уникальность
 
 ### Database Migration Errors
 ```bash
@@ -501,12 +536,15 @@ cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
 6. ✅ Admin checks для dimension CREATE/UPDATE/DELETE
 7. ✅ Тесты с pytest markers
 8. ✅ Alembic для изменений БД
+9. ✅ Используй `?v=PLACEHOLDER` для всех статических файлов в HTML
 
-**НИКОГДА НЕ редактируй напрямую:**
-- `frontend/**/templates/*.html` - cache busting версии `?v=` (auto)
-- `frontend/**/static/**/*.min.js` - minified files (auto)
-- `backend/db/deprecated/schema/*.sql` - archived DDL (use Alembic!)
-- `/opt/budget/**/*` - production runtime (sync from ~/familyBudget)
+**НИКОГДА НЕ делай:**
+- ❌ НЕ запускай `scripts/lib/cache_busting.sh` локально (только на сервере при deploy!)
+- ❌ НЕ коммить HTML с timestamp версиями (`?v=20251110_0725`) - только `?v=PLACEHOLDER`
+- ❌ НЕ редактируй `?v=` версии вручную
+- ❌ НЕ редактируй `frontend/**/static/**/*.min.js` - minified files (auto)
+- ❌ НЕ используй `backend/db/deprecated/schema/*.sql` - archived DDL (use Alembic!)
+- ❌ НЕ редактируй `/opt/budget/**/*` напрямую (sync from ~/familyBudget)
 
 **Workflow изменений:**
 ```bash
