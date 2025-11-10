@@ -772,15 +772,9 @@ async def get_waterfall_data(
         articles_info = {}  # Track articles for drill-down
 
         for row in rows:
-            # Handle different period_key types based on period
-            if isinstance(row.period_key, date):
-                # For month period, period_key is a date object - extract day of month
-                period_key = row.period_key.day
-            elif row.period_key:
-                # For quarter/year, period_key is an int (week or month number)
-                period_key = int(row.period_key)
-            else:
-                period_key = 0
+            # For all cases, keep period_key as is (date object or int from SQL)
+            # Don't convert date to int - we need full date for aggregation
+            period_key = row.period_key if row.period_key else 0
 
             if period_key not in period_data:
                 period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
@@ -901,7 +895,7 @@ async def get_waterfall_data(
                 current_date += timedelta(days=1)
 
         # Return data for all branches (week, month, else)
-        return {
+        result = {
             "labels": labels,
             "income": income_data,
             "expense": expense_data,
@@ -912,6 +906,15 @@ async def get_waterfall_data(
             "article_id": article_id,
             "article_name": articles_info.get(article_id) if article_id else None
         }
+
+        # DEBUG: Log response data
+        try:
+            lf = label_format
+        except NameError:
+            lf = "N/A"
+        logger.info(f"[WATERFALL DEBUG] period={period}, label_format={lf}, labels_count={len(labels)}, labels={labels[:3] if len(labels) > 0 else []}, income_sum={sum(income_data):.2f}, expense_sum={sum(expense_data):.2f}")
+
+        return result
 
     except Exception as e:
         logger.error(f"Error in /waterfall: {str(e)}", exc_info=True)
@@ -1074,9 +1077,9 @@ async def get_heatmap_data(
 
         elif aggregation == "month":
             # Для периода "квартал/год": месяцы × недели grid
-            # X-axis: недели в месяце (Н1-Н5)
-            # Y-axis: месяцы с годом
-            xAxis = ["Н1", "Н2", "Н3", "Н4", "Н5"]
+            # X-axis: 4 недели в месяце (Н1-Н4)
+            # Y-axis: месяцы с годом (сверху вниз от старых к новым)
+            xAxis = ["Н1", "Н2", "Н3", "Н4"]
             yAxis = []
             data = []
 
@@ -1091,16 +1094,25 @@ async def get_heatmap_data(
             for month_start, month_end, month_label in rolling_months_data:
                 yAxis.append(month_label)
 
-                # Агрегировать по неделям внутри месяца
-                month_data = [0.0] * 5  # До 5 недель в месяце
+                # Агрегировать по 4 неделям внутри месяца
+                # Н1 = дни 1-7, Н2 = дни 8-14, Н3 = дни 15-21, Н4 = дни 22-31
+                month_data = [0.0] * 4
 
                 # Найти все даты в месяце
                 current_date = month_start
                 while current_date <= month_end:
-                    # Определить номер недели внутри месяца (0-4)
-                    week_of_month = (current_date.day - 1) // 7
-                    if week_of_month < 5:
-                        month_data[week_of_month] += data_by_date.get(current_date, 0.0)
+                    # Определить номер недели внутри месяца (0-3)
+                    day_of_month = current_date.day
+                    if day_of_month <= 7:
+                        week_of_month = 0  # Н1
+                    elif day_of_month <= 14:
+                        week_of_month = 1  # Н2
+                    elif day_of_month <= 21:
+                        week_of_month = 2  # Н3
+                    else:
+                        week_of_month = 3  # Н4 (дни 22-31)
+
+                    month_data[week_of_month] += data_by_date.get(current_date, 0.0)
                     current_date += timedelta(days=1)
 
                 data.append(month_data)
