@@ -41,7 +41,6 @@ class UserResponse(BaseModel):
     telegram_id: int
     username: str | None
     first_name: str | None
-    last_name: str | None
     is_admin: bool
     is_current: bool
     valid_from: str
@@ -136,7 +135,6 @@ async def get_all_users(
             telegram_id=user.telegram_id,
             username=user.username,
             first_name=user.first_name,
-            last_name=user.last_name,
             is_admin=user.is_admin,
             is_current=user.is_current,
             valid_from=user.valid_from.isoformat(),
@@ -178,7 +176,6 @@ async def get_user_by_id(
         telegram_id=user.telegram_id,
         username=user.username,
         first_name=user.first_name,
-        last_name=user.last_name,
         is_admin=user.is_admin,
         is_current=user.is_current,
         valid_from=user.valid_from.isoformat(),
