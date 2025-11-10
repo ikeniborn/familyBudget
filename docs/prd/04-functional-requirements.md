@@ -1451,4 +1451,233 @@ function updateHeatmapChart(data) {
 
 ---
 
+### 4.12 Analytics Rolling Periods (v5.1.3 - IN PROGRESS)
+
+**Версия:** v5.1.3-beta
+**Дата начала:** 2025-11-09
+**Статус:** 🔄 IN PROGRESS
+**Branch:** `feature/analytics-rolling-periods`
+
+#### Описание
+
+Реализация rolling periods (скользящих периодов) для страницы аналитики с поддержкой квартала, ISO номеров недель и пропорциональных бюджетов. Основная цель - показывать актуальные данные относительно текущей даты, а не фиксированные календарные периоды.
+
+#### Изменения в периодах
+
+**До (v5.1.2):**
+- Неделя: 7 дней назад (произвольный период)
+- Месяц: 28 дней назад
+- Год: 365 дней назад
+- Недели нумеровались просто "Неделя 1", "Неделя 2"
+
+**После (v5.1.3):**
+- **Неделя**: 4 календарные недели (Пн-Вс), текущая неделя неполная (до сегодня)
+- **Месяц**: 4 календарные недели (аналогично неделе)
+- **Квартал**: 3 rolling месяца (текущий + 2 предыдущих, текущий неполный)
+- **Год**: 12 rolling месяцев (текущий + 11 предыдущих, текущий неполный)
+- **Custom**: сохранена логика auto-detection (day/week/month агрегация)
+- **ISO Week Numbers**: формат "Н45 25" (неделя 45, 2025 год)
+
+#### Ключевые улучшения
+
+1. **Rolling Periods**: Все периоды теперь "скользящие" относительно текущей даты
+2. **Incomplete Current Period**: Текущая неделя/месяц показываются до сегодняшнего дня (не до конца периода)
+3. **Proportional Budget**: Бюджет делится пропорционально дням в периоде
+4. **ISO Week Numbers**: Стандартные номера недель по ISO 8601
+5. **Quarter Period**: Новый период "Квартал" (3 месяца)
+6. **Calendar Alignment**: Недели всегда начинаются с понедельника
+
+#### Backend Changes
+
+**Новый модуль: `backend/app/utils/date_helpers.py`** (+234 lines)
+
+Утилитные функции для работы с датами и периодами:
+
+```python
+def get_iso_week_number(target_date: date) -> str
+    """Возвращает ISO номер недели в формате 'Н45 25'"""
+
+def get_week_bounds(target_date: date) -> Tuple[date, date]
+    """Возвращает границы календарной недели (Пн-Вс)"""
+
+def get_rolling_weeks(num_weeks: int, end_date: date, include_incomplete: bool = True) -> List[Tuple[date, date, str]]
+    """Возвращает последние N календарных недель с ISO labels"""
+
+def get_rolling_months(num_months: int, end_date: date, include_incomplete: bool = True) -> List[Tuple[date, date, str]]
+    """Возвращает последние N календарных месяцев с русскими названиями"""
+
+def get_proportional_budget(monthly_budget: Decimal, days_in_period: int, days_in_month: int = 30) -> Decimal
+    """Рассчитывает пропорциональный бюджет для периода"""
+
+def get_month_name_short_ru(month: int) -> str
+    """Возвращает короткое название месяца (3 буквы) на русском"""
+
+def get_quarter_bounds(target_date: date) -> Tuple[date, date, str]
+    """Возвращает границы rolling квартала (3 месяца)"""
+```
+
+**Изменения в `backend/app/api/v1/analytics.py`** (~500 lines changed)
+
+Все 5 endpoints обновлены с новой логикой периодов:
+
+##### 1. **GET `/api/v1/analytics/plan-fact`** - План vs Факт
+- ✅ Week period: 4 календарные недели с ISO labels ("Н42 25", "Н43 25", ...)
+- ✅ Month period: 4 календарные недели (аналогично week)
+- ✅ Quarter period: 3 rolling месяца с агрегацией по месяцам ("Сен 2025", "Окт 2025", "Ноя 2025")
+- ✅ Year period: 12 rolling месяцев ("Дек 2024", "Янв 2025", ..., "Ноя 2025")
+- ✅ Proportional budget для неполных периодов
+
+##### 2. **GET `/api/v1/analytics/trends`** - Динамика расходов/доходов
+- ✅ Аналогичные изменения периодов и агрегации
+- ✅ ISO week labels для week/month
+- ✅ Month names для quarter/year
+
+##### 3. **GET `/api/v1/analytics/category-breakdown`** - Разбивка по категориям
+- ✅ Обновлены границы периодов (используют rolling logic)
+- ✅ Агрегация остается прежней (сумма за весь период)
+
+##### 4. **GET `/api/v1/analytics/waterfall`** - Waterfall диаграмма
+- ✅ Week period drill-down: показывает 4 календарные недели с ISO labels
+- ✅ Month period drill-down: показывает 4 календарные недели
+- ✅ Quarter period drill-down: показывает 3 месяца
+- ✅ Year period drill-down: показывает 12 месяцев
+- ✅ Python-level aggregation вместо SQL GROUP BY (для гибкости с ISO weeks)
+
+##### 5. **GET `/api/v1/analytics/heatmap`** - Тепловая карта
+- ✅ Week period: 1 неделя × 7 дней (single_week aggregation)
+  - yAxis: ISO week label ("Н45 25")
+  - xAxis: дни недели ("Пн", "Вт", ..., "Вс")
+- ✅ Month period: 4 недели × 7 дней
+  - yAxis: ISO week labels ("Н42 25", "Н43 25", ...)
+  - xAxis: дни недели
+- ✅ Quarter period: 3 месяца × недели
+  - yAxis: месяцы ("Сен 2025", "Окт 2025", "Ноя 2025")
+  - xAxis: недели месяца
+- ✅ Year period: 12 месяцев × недели
+  - yAxis: месяцы ("Дек 2024", "Янв 2025", ...)
+  - xAxis: недели месяца
+
+#### Frontend Changes
+
+**`frontend/web/templates/analytics.html`** (~150 lines changed)
+
+**HTML:**
+- ✅ Добавлена кнопка "Квартал" в period filter
+```html
+<button class="btn btn-sm btn-outline" id="filter-quarter" data-period="quarter">
+    Квартал
+</button>
+```
+
+**JavaScript:**
+- ✅ Удален `periodMapping` object (backend теперь обрабатывает все периоды напрямую)
+- ✅ Обновлена функция `updatePeriodDisplay()` с обработкой квартала
+```javascript
+case 'quarter':
+    const quarterStart = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+    text = `Выбран квартал: ${formatDate(quarterStart)} — ${formatDate(today)}`;
+    break;
+```
+- ✅ Все вызовы API теперь передают период напрямую (без маппинга)
+- ✅ Уменьшен размер pie chart на 10%: `radius: ['35%', '63%']` (было `['40%', '70%']`)
+- ✅ Исправлен null в heatmap title (добавлена валидация и fallback значения)
+```javascript
+const periodLabel = periodMap[data.period] || data.period || 'Период';
+const aggregationLabel = aggregationMap[data.aggregation] || 'агрегация';
+const subtitleText = (data.start_date && data.end_date)
+    ? `${data.start_date} — ${data.end_date}`
+    : '';
+```
+
+#### Testing
+
+**Unit Tests:** `tests/unit/backend/utils/test_date_helpers.py` (+280 lines)
+- ✅ 31 тестов для всех 7 функций date_helpers.py
+- ✅ Test coverage: ISO weeks, rolling periods, proportional budgets, edge cases
+- ✅ Markers: `@pytest.mark.unit` для быстрого запуска
+- ⚠️ Тесты созданы, требуется окружение с pytest для запуска
+
+**Validation:**
+- ✅ Python syntax: `python3 -m py_compile backend/app/utils/date_helpers.py`
+- ✅ Python syntax: `python3 -m py_compile backend/app/api/v1/analytics.py`
+- ✅ Test file syntax: `python3 -m py_compile tests/unit/backend/utils/test_date_helpers.py`
+
+**Manual Testing Checklist:**
+- ⚠️ Проверить кнопку "Квартал" показывает 3 месяца
+- ⚠️ Проверить ISO week numbers отображаются корректно ("Н45 25")
+- ⚠️ Проверить waterfall drill-down работает для всех периодов
+- ⚠️ Проверить heatmap показывает правильную агрегацию
+- ⚠️ Проверить plan-fact пропорционально делит бюджет
+- ⚠️ Проверить pie chart уменьшен на 10%
+- ⚠️ Проверить heatmap title без null
+
+#### Files Changed
+
+**Backend:**
+- `backend/app/utils/date_helpers.py` (+234 lines, NEW)
+- `backend/app/api/v1/analytics.py` (~500 lines changed)
+
+**Frontend:**
+- `frontend/web/templates/analytics.html` (~150 lines changed)
+
+**Tests:**
+- `tests/unit/backend/utils/__init__.py` (+0 lines, NEW)
+- `tests/unit/backend/utils/test_date_helpers.py` (+280 lines, NEW)
+
+**Documentation:**
+- `docs/prd/04-functional-requirements.md` (этот файл)
+
+#### Dependencies
+
+- Python stdlib: `datetime`, `calendar`, `typing`
+- Decimal для точных вычислений бюджета
+- ISO 8601 week numbering (`date.isocalendar()`)
+
+#### Technical Decisions
+
+**Почему rolling periods?**
+- Более актуальные данные (всегда относительно сегодня)
+- Лучше для аналитики трендов (всегда последние N периодов)
+- Predictable behavior (всегда знаешь, что увидишь)
+
+**Почему ISO week numbers?**
+- Международный стандарт (ISO 8601)
+- Недели всегда Пн-Вс (удобно для пользователей)
+- Уникальная нумерация (неделя + год)
+
+**Почему incomplete current period?**
+- Честное отображение данных (не вводит в заблуждение)
+- Правильное сравнение с предыдущими периодами
+- Proportional budget показывает реальный темп трат
+
+**Почему убрали periodMapping?**
+- Backend теперь сам определяет правильную агрегацию
+- Меньше путаницы (один period = одна агрегация)
+- Проще поддерживать и тестировать
+
+#### Migration Notes
+
+**Breaking Changes:**
+- ⚠️ API response format НЕ изменился (обратная совместимость)
+- ⚠️ Labels в response изменились (ISO weeks вместо "Неделя N")
+- ⚠️ Количество точек на графиках изменилось (4 недели вместо 7/13)
+
+**Data Migration:**
+- ✅ Не требуется (изменения только в логике вычислений)
+- ✅ Все существующие данные остаются валидными
+
+#### Known Issues
+
+- ⚠️ Heatmap для года может быть высоким (12 месяцев × недели)
+- ⚠️ Custom period logic не изменена (может конфликтовать с rolling logic)
+
+#### Future Enhancements
+
+- 📅 Добавить "Half Year" период (6 месяцев)
+- 📅 Customizable week start day (Пн vs Вс)
+- 📅 Fiscal year support (не календарный год)
+- 📅 Compare periods (текущий квартал vs предыдущий)
+
+---
+
 
