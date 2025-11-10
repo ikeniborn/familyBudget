@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 from alembic import context
 
 # Add /app to sys.path to enable backend module imports
@@ -69,6 +69,11 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Set ADMIN_TELEGRAM_ID for baseline migration bootstrap
+        admin_telegram_id = os.getenv("ADMIN_TELEGRAM_ID")
+        if admin_telegram_id:
+            connection.execute(f"SET LOCAL app.admin_telegram_id = '{admin_telegram_id}'")
+
         context.configure(
             connection=connection,
             target_metadata=target_metadata

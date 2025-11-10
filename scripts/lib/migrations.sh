@@ -46,9 +46,18 @@ run_alembic_migrations() {
 
     # Apply migrations
     info "Applying pending migrations (alembic upgrade head)..."
+
+    # Pass ADMIN_TELEGRAM_ID to PostgreSQL session for admin creation
+    if [[ -n "${ADMIN_TELEGRAM_ID:-}" ]]; then
+        info "ADMIN_TELEGRAM_ID configured: ${ADMIN_TELEGRAM_ID}"
+        info "First admin will be created automatically during migration"
+    else
+        warning "ADMIN_TELEGRAM_ID not set - admin user will not be created"
+        warning "Set ADMIN_TELEGRAM_ID in .env to automatically create first admin"
+    fi
     echo ""
 
-    if compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini upgrade head" 2>&1 | tee -a "$LOG_FILE"; then
+    if compose_cmd exec -T backend bash -c "cd /app && ADMIN_TELEGRAM_ID=${ADMIN_TELEGRAM_ID:-} alembic -c backend/db/migrations/alembic.ini upgrade head" 2>&1 | tee -a "$LOG_FILE"; then
         echo ""
         success "Alembic migrations completed successfully"
 

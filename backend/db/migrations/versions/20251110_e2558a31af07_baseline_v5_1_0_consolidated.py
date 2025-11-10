@@ -1,8 +1,8 @@
-"""Baseline schema v5.0.0 - Full database schema migration with MONTHLY partitions
+"""Baseline schema v5.1.0 - Consolidated migration (без last_name, phone_number)
 
-Revision ID: 001_baseline
+Revision ID: e2558a31af07
 Revises: None
-Create Date: 2025-11-09
+Create Date: 2025-11-10
 
 This migration consolidates all schema/*.sql files into a single baseline migration.
 It creates the complete Family Budget database schema including:
@@ -35,7 +35,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '001_baseline'
+revision: str = 'e2558a31af07'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -54,10 +54,7 @@ def upgrade() -> None:
             id SERIAL PRIMARY KEY,
             telegram_id BIGINT NOT NULL,
             username VARCHAR(255),
-            first_name VARCHAR(255),
-            last_name VARCHAR(255),
-            phone_number VARCHAR(20),
-            is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+            first_name VARCHAR(255),            is_admin BOOLEAN NOT NULL DEFAULT FALSE,
             valid_from TIMESTAMP NOT NULL DEFAULT NOW(),
             valid_to TIMESTAMP DEFAULT '9999-12-31 23:59:59'::TIMESTAMP,
             is_current BOOLEAN NOT NULL DEFAULT TRUE,
@@ -82,7 +79,7 @@ def upgrade() -> None:
     op.execute("""
         CREATE INDEX idx_user_telegram_current_covering
             ON t_d_user(telegram_id, is_current)
-            INCLUDE (id, username, first_name, last_name, is_admin)
+            INCLUDE (id, username, first_name, is_admin)
             WHERE is_current = TRUE
     """)
 
@@ -563,10 +560,10 @@ def upgrade() -> None:
                 WHERE id = OLD.id;
 
                 INSERT INTO t_d_user (
-                    telegram_id, username, first_name, last_name, is_admin,
+                    telegram_id, username, first_name, is_admin,
                     valid_from, valid_to, is_current, created_at, updated_at
                 ) VALUES (
-                    NEW.telegram_id, NEW.username, NEW.first_name, NEW.last_name, NEW.is_admin,
+                    NEW.telegram_id, NEW.username, NEW.first_name, NEW.is_admin,
                     NOW(), '9999-12-31 23:59:59'::TIMESTAMP, TRUE, NOW(), NOW()
                 );
                 RETURN NULL;
@@ -1175,6 +1172,69 @@ def upgrade() -> None:
             END IF;
         END;
         $$ LANGUAGE plpgsql;
+    """)
+
+    # =========================================================================
+    # PART 8: Create First Admin User (Bootstrap)
+    # =========================================================================
+
+    # Create first admin user from ADMIN_TELEGRAM_ID environment variable
+    # This is idempotent - runs only if no admin exists yet
+    op.execute("""
+        DO $$
+        DECLARE
+            admin_telegram_id BIGINT;
+            admin_exists BOOLEAN;
+        BEGIN
+            -- Get ADMIN_TELEGRAM_ID from environment
+            admin_telegram_id := current_setting('app.admin_telegram_id', true)::BIGINT;
+
+            -- Skip if ADMIN_TELEGRAM_ID not set
+            IF admin_telegram_id IS NULL THEN
+                RAISE NOTICE 'ADMIN_TELEGRAM_ID not set - skipping admin creation';
+                RETURN;
+            END IF;
+
+            -- Check if admin already exists
+            SELECT EXISTS(
+                SELECT 1 FROM t_d_user
+                WHERE telegram_id = admin_telegram_id
+                AND is_current = true
+            ) INTO admin_exists;
+
+            -- Create admin if doesn't exist
+            IF NOT admin_exists THEN
+                INSERT INTO t_d_user (
+                    telegram_id,
+                    username,
+                    first_name,
+                    is_admin,
+                    is_current,
+                    valid_from,
+                    valid_to,
+                    created_at,
+                    updated_at
+                ) VALUES (
+                    admin_telegram_id,
+                    'admin',
+                    'Admin',
+                    TRUE,
+                    TRUE,
+                    NOW(),
+                    '9999-12-31 23:59:59'::TIMESTAMP,
+                    NOW(),
+                    NOW()
+                );
+
+                RAISE NOTICE 'First admin user created with telegram_id=%', admin_telegram_id;
+            ELSE
+                RAISE NOTICE 'Admin user already exists with telegram_id=%', admin_telegram_id;
+            END IF;
+        EXCEPTION
+            WHEN OTHERS THEN
+                -- Gracefully handle errors (e.g., ADMIN_TELEGRAM_ID not set)
+                RAISE NOTICE 'Could not create admin user: % (this is OK if ADMIN_TELEGRAM_ID not configured)', SQLERRM;
+        END $$;
     """)
 
 
