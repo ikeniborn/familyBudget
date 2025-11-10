@@ -979,12 +979,20 @@ async function showEditModal(factId) {
             }
         });
 
-        // Set selected category after initialization
-        setTimeout(async () => {
-            if (editCategoryTreeSelect && fact.article_id) {
+        // Wait for ChoicesCategoryTree to be fully initialized before setting value
+        // Use polling to ensure choices is ready
+        let attempts = 0;
+        const maxAttempts = 40; // 40 * 50ms = 2 seconds max
+        const waitForChoices = setInterval(async () => {
+            attempts++;
+            if (editCategoryTreeSelect && editCategoryTreeSelect.choices && fact.article_id) {
+                clearInterval(waitForChoices);
                 await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+            } else if (attempts >= maxAttempts) {
+                clearInterval(waitForChoices);
+                console.error('ChoicesCategoryTree initialization timeout');
             }
-        }, 100);
+        }, 50);
     }
 
     // Setup category type buttons handlers
