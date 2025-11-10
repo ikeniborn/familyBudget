@@ -103,7 +103,7 @@
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-trends">
                 <div class="card-body p-3">
                     <div class="flex justify-between items-start mb-1">
-                        <h2 id="chart-title-trends" class="card-title text-base mb-0">📈 Динамика расходов</h2>
+                        <h2 id="chart-title-trends" class="card-title text-base mb-0">📈 Динамика расходов и доходов</h2>
                         <div class="flex gap-1">
                             <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('csv')" title="Экспорт динамики в CSV">📄</button>
                             <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Экспорт динамики в Excel">📊</button>
@@ -281,7 +281,7 @@ function updatePlanFactChart(data) {
         return;
     }
 
-    const periodMap = { week: 'Неделя', month: 'Месяц', year: 'Год' };
+    const periodMap = { week: 'Неделя', month: 'Месяц', quarter: 'Квартал', year: 'Год' };
     const option = {
         title: {
             text: `План vs Факт (${periodMap[data.period] || data.period})`,
@@ -580,7 +580,7 @@ function updateTrendsChart(data) {
         return;
     }
 
-    const periodMap = { week: '7 дней', month: '4 недели', year: '12 месяцев' };
+    const periodMap = { week: '7 дней', month: '4 недели', quarter: 'квартал', year: '12 месяцев' };
     const periodLabel = periodMap[data.period] || data.period;
 
     const option = {
