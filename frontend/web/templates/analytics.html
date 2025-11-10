@@ -63,29 +63,12 @@
 
                     <!-- Period Display Text -->
                     <div id="period-display" class="text-sm text-base-content/70"></div>
-
-                    <!-- Global Type Filter (applies to Plan-Fact, Pie Chart, Heatmap) -->
-                    <div class="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-base-300">
-                        <label id="global-type-label" class="font-semibold text-sm">Тип (для графиков):</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true" aria-labelledby="global-type-label global-type-expense">Расходы</button>
-                            <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')" aria-pressed="false" aria-labelledby="global-type-label global-type-income">Доходы</button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Charts Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <!-- Plan vs Fact Chart -->
-            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
-                <div class="card-body p-3">
-                    <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План vs Факт</h2>
-                    <div id="chart-plan-fact" class="chart-container" role="img" aria-label="Гистограмма сравнения плановых и фактических расходов"></div>
-                </div>
-            </div>
-
             <!-- Waterfall Chart -->
             <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-waterfall">
                 <div class="card-body p-3">
@@ -110,6 +93,27 @@
                         </div>
                     </div>
                     <div id="chart-trends" class="chart-container" role="img" aria-label="Линейный график динамики доходов и расходов"></div>
+                </div>
+            </div>
+
+            <!-- Global Type Filter (applies to Plan-Fact, Pie Chart, Heatmap) -->
+            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="global-type-label">
+                <div class="card-body p-3">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label id="global-type-label" class="font-semibold text-sm">Тип категорий:</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true">Расходы</button>
+                            <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')" aria-pressed="false">Доходы</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plan vs Fact Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
+                <div class="card-body p-3">
+                    <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План vs Факт</h2>
+                    <div id="chart-plan-fact" class="chart-container" role="img" aria-label="Гистограмма сравнения плановых и фактических расходов"></div>
                 </div>
             </div>
 
