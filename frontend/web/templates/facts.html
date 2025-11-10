@@ -980,7 +980,7 @@ async function showEditModal(factId) {
         });
 
         // Wait for initialization to complete, then set selected value
-        // Use event-based approach - listen for Choices.js initialization
+        // Choices.js stores options in _store.choices, not _currentState.choices
         const initCheckInterval = setInterval(async () => {
             // Check if ChoicesCategoryTree has fully initialized
             if (editCategoryTreeSelect &&
@@ -988,12 +988,12 @@ async function showEditModal(factId) {
                 editCategoryTreeSelect.categoryMap &&
                 editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
 
-                // Get current choices count to verify they're loaded
-                const currentChoices = editCategoryTreeSelect.choices._currentState?.choices || [];
+                // Get choices from the correct location: _store.choices
+                const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
 
-                console.log('[Edit Modal] Init check - choices loaded:', currentChoices.length, 'article_id:', fact.article_id);
+                console.log('[Edit Modal] Init check - choices loaded:', choicesStore.length, 'article_id:', fact.article_id);
 
-                if (currentChoices.length > 0) {
+                if (choicesStore.length > 0) {
                     clearInterval(initCheckInterval);
                     console.log('[Edit Modal] Setting category to:', fact.article_id);
 
@@ -1016,7 +1016,7 @@ async function showEditModal(factId) {
                 hasChoices: !!editCategoryTreeSelect?.choices,
                 hasMap: !!editCategoryTreeSelect?.categoryMap,
                 categoryExists: editCategoryTreeSelect?.categoryMap?.has(fact.article_id),
-                choicesCount: editCategoryTreeSelect?.choices?._currentState?.choices?.length
+                storeChoicesCount: editCategoryTreeSelect?.choices?._store?.choices?.length
             });
         }, 10000);
     }

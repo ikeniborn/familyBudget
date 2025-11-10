@@ -493,24 +493,27 @@ class ChoicesCategoryTree {
         console.log('[ChoicesCategoryTree] setSelectedCategory called with:', categoryId);
 
         if (this.choices) {
-            console.log('[ChoicesCategoryTree] Current choices state:', this.choices._currentState);
-
-            // Get all available choices
-            const availableChoices = this.choices._currentState?.choices || [];
+            // Get all available choices from _store (not _currentState)
+            const availableChoices = this.choices._store?.choices || [];
             console.log('[ChoicesCategoryTree] Available choices count:', availableChoices.length);
 
             // Find the choice we're trying to set
-            const targetChoice = availableChoices.find(c => c.value === categoryId.toString() || c.value === categoryId);
+            const targetChoice = availableChoices.find(c => c.value === categoryId.toString() || c.value == categoryId);
             console.log('[ChoicesCategoryTree] Target choice found:', targetChoice);
 
-            // Try to set value
-            this.choices.setChoiceByValue(categoryId.toString());
+            if (targetChoice) {
+                // Try to set value
+                this.choices.setChoiceByValue(categoryId.toString());
 
-            // Verify it was set
-            const currentValue = this.element.value;
-            console.log('[ChoicesCategoryTree] After setChoiceByValue - element.value:', currentValue);
+                // Verify it was set
+                const currentValue = this.element.value;
+                console.log('[ChoicesCategoryTree] After setChoiceByValue - element.value:', currentValue);
 
-            await this.updatePathDisplay(categoryId);
+                await this.updatePathDisplay(categoryId);
+            } else {
+                console.error('[ChoicesCategoryTree] Category not found in choices:', categoryId);
+                console.log('[ChoicesCategoryTree] Available values:', availableChoices.map(c => c.value));
+            }
         } else {
             console.error('[ChoicesCategoryTree] setSelectedCategory failed - no choices instance');
         }
