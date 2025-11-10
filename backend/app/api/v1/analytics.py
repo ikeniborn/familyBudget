@@ -531,7 +531,7 @@ async def get_trends_data(
 async def get_category_breakdown(
     current_user: CurrentUser,
     type: str = Query("expense", regex="^(income|expense)$"),
-    period: Optional[str] = Query(None, regex="^(week|month|year|all)$"),
+    period: Optional[str] = Query(None, regex="^(week|month|quarter|year|all)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
@@ -542,10 +542,11 @@ async def get_category_breakdown(
 
     Args:
         type: Transaction type (income or expense)
-        period: Time period (week, month, year, all) - rolling periods
-            - week: last 7 days from today
-            - month: last 28 days from today
-            - year: last 365 days from today
+        period: Time period (week, month, quarter, year, all) - rolling periods
+            - week: last 4 calendar weeks
+            - month: last 4 calendar weeks
+            - quarter: rolling 3 months
+            - year: rolling 12 months
             - all: all available data
         date_from: Optional start date for custom range (overrides period)
         date_to: Optional end date for custom range (overrides period)
@@ -572,6 +573,10 @@ async def get_category_breakdown(
                 # Last 4 calendar weeks (same as week)
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
+            elif period == "quarter":
+                # Rolling 3 months
+                rolling_months = get_rolling_months(3, today, include_incomplete=True)
+                start_date = rolling_months[0][0]
             elif period == "year":
                 # Rolling 12 months
                 rolling_months = get_rolling_months(12, today, include_incomplete=True)
