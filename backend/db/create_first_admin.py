@@ -30,7 +30,7 @@ Requirements:
 After running:
     1. Admin user will exist in database
     2. Admin can authenticate via Telegram OAuth
-    3. Profile (username, first_name, last_name) will be auto-updated on first login
+    3. Profile (username, first_name) will be auto-updated on first login
     4. Admin can create other users via admin panel
 """
 
@@ -117,7 +117,6 @@ async def create_first_admin() -> None:
                     telegram_id,
                     username,
                     first_name,
-                    last_name,
                     is_admin,
                     is_current,
                     valid_from,
@@ -128,7 +127,6 @@ async def create_first_admin() -> None:
                     :telegram_id,
                     :username,
                     :first_name,
-                    :last_name,
                     :is_admin,
                     :is_current,
                     :valid_from,
@@ -143,7 +141,6 @@ async def create_first_admin() -> None:
                 "telegram_id": admin_telegram_id,
                 "username": "admin",  # Placeholder, will be updated on first Telegram login
                 "first_name": "Admin",  # Placeholder, will be updated on first Telegram login
-                "last_name": "User",  # Placeholder, will be updated on first Telegram login
                 "is_admin": True,
                 "is_current": True,
                 "valid_from": now,
@@ -166,7 +163,7 @@ async def create_first_admin() -> None:
             logger.info("Next steps:")
             logger.info("  1. Authenticate via Telegram OAuth:")
             logger.info(f"     https://{settings.DOMAIN}/api/v1/auth/telegram-login")
-            logger.info("  2. Your profile (username, first_name, last_name) will be")
+            logger.info("  2. Your profile (username, first_name) will be")
             logger.info("     automatically updated from Telegram on first login")
             logger.info("  3. You can now create other users via admin panel")
             logger.info("=" * 70)
