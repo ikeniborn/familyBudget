@@ -551,7 +551,6 @@ def upgrade() -> None:
 
             IF (OLD.username IS DISTINCT FROM NEW.username)
                OR (OLD.first_name IS DISTINCT FROM NEW.first_name)
-               OR (OLD.last_name IS DISTINCT FROM NEW.last_name)
                OR (OLD.is_admin IS DISTINCT FROM NEW.is_admin)
             THEN
                 UPDATE t_d_user

@@ -20,17 +20,36 @@
 ```sql
 CREATE TABLE t_d_user (
     id SERIAL PRIMARY KEY,
-    telegram_id BIGINT UNIQUE NOT NULL,
+    telegram_id BIGINT NOT NULL,
     username VARCHAR(255),
     first_name VARCHAR(255),
-    last_name VARCHAR(255),
-    is_admin BOOLEAN DEFAULT false,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+
+    -- SCD Type 2 fields
+    valid_from TIMESTAMP NOT NULL DEFAULT NOW(),
+    valid_to TIMESTAMP DEFAULT '9999-12-31 23:59:59'::TIMESTAMP,
+    is_current BOOLEAN NOT NULL DEFAULT TRUE,
+
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT check_user_valid_dates CHECK (valid_from < valid_to)
 );
 
-CREATE INDEX idx_user_telegram_id ON t_d_user(telegram_id);
+-- Unique constraint on telegram_id for current records
+CREATE UNIQUE INDEX idx_user_telegram_current
+    ON t_d_user(telegram_id, is_current)
+    WHERE is_current = TRUE;
+
+CREATE INDEX idx_user_current
+    ON t_d_user(is_current)
+    WHERE is_current = TRUE;
 ```
+
+**Notes:**
+- Поля `last_name` и `phone_number` удалены из схемы (v5.1.0)
+- Таблица использует SCD Type 2 для отслеживания исторических изменений
+- `telegram_id` - бизнес-ключ (уникален для текущих записей)
 
 #### t_d_article (SCD2)
 
@@ -1074,6 +1093,54 @@ docker compose up -d
 ---
 
 ### 6.8 Changelog
+
+#### Baseline Migration Fix (2025-11-10) - Исправление ошибки в SCD2 триггере t_d_user
+
+**Проблема:**
+Baseline migration `20251110_e2558a31af07_baseline_v5_1_0_consolidated.py` содержала критическую ошибку в функции `trg_scd2_user()` (строка 554):
+- Триггер ссылался на несуществующее поле `last_name` в таблице `t_d_user`
+- Поле `last_name` было удалено из схемы v5.1.0 (указано в заголовке миграции "без last_name, phone_number")
+- Но код триггера не был обновлен соответственно
+
+**Симптомы:**
+- Миграция начинала выполняться, создавала таблицы
+- При создании триггера `trg_scd2_user()` возникала SQL ошибка: `column "last_name" does not exist`
+- Alembic выполнял автоматический rollback транзакции
+- Результат: миграция отчитывалась как "успешная", но таблицы в БД не создавались
+
+**Исправление:**
+```python
+# ❌ БЫЛО (строка 554):
+IF (OLD.username IS DISTINCT FROM NEW.username)
+   OR (OLD.first_name IS DISTINCT FROM NEW.first_name)
+   OR (OLD.last_name IS DISTINCT FROM NEW.last_name)  # ← ОШИБКА
+   OR (OLD.is_admin IS DISTINCT FROM NEW.is_admin)
+
+# ✅ СТАЛО (строка 552-554):
+IF (OLD.username IS DISTINCT FROM NEW.username)
+   OR (OLD.first_name IS DISTINCT FROM NEW.first_name)
+   OR (OLD.is_admin IS DISTINCT FROM NEW.is_admin)
+```
+
+**Затронутые файлы:**
+- `backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py` - исправлена строка 554
+- `docs/prd/06-database-design.md` - обновлена документация таблицы t_d_user (удалено упоминание last_name)
+- `backend/app/models/user.py` - НЕ изменялся (поле last_name отсутствует изначально)
+
+**Проверка:**
+```bash
+# Python синтаксис
+python3 -m py_compile backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py
+
+# SQL применение (после пересоздания БД)
+docker compose down -v && docker compose up -d
+alembic upgrade head
+```
+
+**Root Cause:**
+Человеческая ошибка при рефакторинге схемы - удалили поле из CREATE TABLE, но забыли обновить триггер.
+
+---
 
 #### Migration 014 (2025-11-02) - Remove is_global field and implement Shared References Model
 
