@@ -168,7 +168,9 @@ async function loadUsers() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const users = await response.json();
+        const data = await response.json();
+        // Backend returns UserListResponse: {users: [...], total, limit, offset}
+        const users = data.users || data;  // Support both new and old format
         usersData = users;
         renderUsersTable(users);
     } catch (error) {
