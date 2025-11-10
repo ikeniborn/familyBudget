@@ -1209,9 +1209,9 @@ def upgrade() -> None:
                     username,
                     first_name,
                     is_admin,
-                    is_current,
                     valid_from,
                     valid_to,
+                    is_current,
                     created_at,
                     updated_at
                 ) VALUES (
@@ -1219,9 +1219,9 @@ def upgrade() -> None:
                     'admin',
                     'Admin',
                     TRUE,
-                    TRUE,
                     NOW(),
                     '9999-12-31 23:59:59'::TIMESTAMP,
+                    TRUE,
                     NOW(),
                     NOW()
                 );
