@@ -135,10 +135,7 @@ async def get_all_users(
             telegram_id=user.telegram_id,
             username=user.username,
             first_name=user.first_name,
-            is_admin=user.is_admin,
-            is_current=user.is_current,
-            valid_from=user.valid_from.isoformat(),
-            valid_to=user.valid_to.isoformat() if user.valid_to else None
+            is_admin=user.is_admin
         )
         for user in users
     ]
@@ -176,10 +173,7 @@ async def get_user_by_id(
         telegram_id=user.telegram_id,
         username=user.username,
         first_name=user.first_name,
-        is_admin=user.is_admin,
-        is_current=user.is_current,
-        valid_from=user.valid_from.isoformat(),
-        valid_to=user.valid_to.isoformat() if user.valid_to else None
+        is_admin=user.is_admin
     )
 
 
