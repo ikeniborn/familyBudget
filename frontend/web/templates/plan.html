@@ -671,6 +671,11 @@ function applyFilters() {
     // Trigram search by description
     filters.search = document.getElementById('filter-search').value.trim() || null;
 
+    // DEBUG: Log search filter value
+    if (filters.search) {
+        console.log('[SEARCH DEBUG] Applying search filter:', filters.search);
+    }
+
     currentPage = 0;
     loadFacts();
 
@@ -727,6 +732,11 @@ async function loadFacts() {
         if (filters.financial_center_id) params.append('financial_center_id', filters.financial_center_id);
         if (filters.cost_center_id) params.append('cost_center_id', filters.cost_center_id);
         if (filters.search) params.append('search', filters.search);
+
+        // DEBUG: Log final URL
+        if (filters.search) {
+            console.log('[SEARCH DEBUG] Sending request:', `/api/v1/admin/facts?${params}`);
+        }
 
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([

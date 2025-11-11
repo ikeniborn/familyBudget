@@ -1195,14 +1195,6 @@ function updateWaterfallChart(data) {
 
     waterfallChart.hideLoading();
 
-    // DEBUG: Log received data
-    console.log('[WATERFALL DEBUG] Received data:', {
-        labels_count: data?.labels?.length || 0,
-        initial_balance: data?.initial_balance,
-        income_sum: data?.income?.reduce((a, b) => a + b, 0) || 0,
-        expense_sum: data?.expense?.reduce((a, b) => a + b, 0) || 0
-    });
-
     // Handle empty data
     if (!data || !data.labels || data.labels.length === 0) {
         const emptyOption = createEmptyStateOption(

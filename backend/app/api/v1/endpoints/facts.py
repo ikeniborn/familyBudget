@@ -241,6 +241,7 @@ async def list_facts(
         # Substring search using ILIKE with pg_trgm GIN index
         # GIN index on description (gin_trgm_ops) speeds up ILIKE queries significantly
         # This provides case-insensitive substring matching with good performance
+        logger.info(f"[SEARCH DEBUG] Applying search filter: '{search}'")
         statement = statement.where(BudgetFact.description.ilike(f"%{search}%"))
 
     if amount_min is not None:
@@ -267,6 +268,10 @@ async def list_facts(
     # Execute query
     result = await session.execute(statement)
     rows = result.all()
+
+    # DEBUG: Log query results
+    if search:
+        logger.info(f"[SEARCH DEBUG] Query returned {len(rows)} rows (total={total}, limit={limit}, offset={offset})")
 
     # Enrich facts with article and center data
     enriched_facts = []
