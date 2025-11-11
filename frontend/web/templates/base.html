@@ -50,7 +50,7 @@
     <!-- DaisyUI Navbar -->
     <header class="navbar bg-base-100 shadow-lg sticky top-0 z-40" role="banner">
         <div class="navbar-start">
-            <a href="/" class="btn btn-ghost text-xl font-bold text-primary" aria-label="Семейный бюджет home">
+            <a href="/" class="btn btn-ghost text-lg sm:text-xl font-bold text-primary px-2 sm:px-4" aria-label="Семейный бюджет home">
                 💰 <span class="sm:hidden">СБ</span><span class="hidden sm:inline">Семейный бюджет</span>
             </a>
         </div>
@@ -82,20 +82,20 @@
             </ul>
         </div>
 
-        <div class="navbar-end gap-2">
+        <div class="navbar-end gap-1 sm:gap-2">
             <!-- Theme Toggle -->
-            <label class="swap swap-rotate cursor-pointer">
+            <label class="swap swap-rotate cursor-pointer p-1 sm:p-2">
                 <input type="checkbox" class="theme-controller" value="dark" aria-label="Toggle dark mode" />
                 <!-- Sun icon (light theme) -->
-                <span class="swap-off text-2xl">☀️</span>
+                <span class="swap-off text-xl sm:text-2xl">☀️</span>
                 <!-- Moon icon (dark theme) -->
-                <span class="swap-on text-2xl">🌙</span>
+                <span class="swap-on text-xl sm:text-2xl">🌙</span>
             </label>
 
             {% if user %}
                 <!-- User Dropdown Menu -->
                 <div class="dropdown dropdown-end">
-                    <label tabindex="0" class="btn btn-ghost btn-sm gap-2" aria-label="User menu">
+                    <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
                         <!-- Avatar -->
                         {% if user.photo_url %}
                             <div class="avatar">
@@ -120,35 +120,43 @@
                                 </div>
                             </div>
                         {% endif %}
-                        <span class="text-sm font-medium">{{ user.first_name or user.username }}</span>
+                        <!-- Username (hidden on mobile) -->
+                        <span class="hidden sm:inline text-sm font-medium">{{ user.first_name or user.username }}</span>
                         {% if user.is_admin %}
-                            <span class="badge badge-warning badge-xs">Admin</span>
+                            <span class="hidden sm:inline badge badge-warning badge-xs">Admin</span>
                         {% endif %}
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                         </svg>
                     </label>
-                    <ul tabindex="0" class="menu dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-52">
-                        <li class="menu-title"><span>Профиль</span></li>
+                    <ul tabindex="0" class="menu dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-64 sm:w-72">
+                        <li class="menu-title">
+                            <div class="flex items-center justify-between w-full">
+                                <span>{{ user.first_name or user.username }}</span>
+                                {% if user.is_admin %}
+                                    <span class="badge badge-warning badge-xs">Admin</span>
+                                {% endif %}
+                            </div>
+                        </li>
                         <li>
-                            <div class="flex items-center gap-2 py-2">
-                                <span class="text-xs opacity-60">Telegram ID:</span>
-                                <span class="font-mono text-xs">{{ user.telegram_id }}</span>
+                            <div class="flex flex-col gap-1 py-2 cursor-default hover:bg-transparent">
+                                <span class="text-xs opacity-60">Telegram ID</span>
+                                <span class="font-mono text-xs break-all">{{ user.telegram_id }}</span>
                             </div>
                         </li>
                         <div class="divider my-1"></div>
                         <li>
-                            <button onclick="handleLogout()" class="text-error" aria-label="Выйти из системы">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <button onclick="handleLogout()" class="text-error gap-2" aria-label="Выйти из системы">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                                 </svg>
-                                Выйти
+                                <span class="text-sm">Выйти</span>
                             </button>
                         </li>
                     </ul>
                 </div>
             {% else %}
-                <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm">Login</a>
+                <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm text-xs sm:text-sm px-3 sm:px-4">Login</a>
             {% endif %}
 
             <!-- Mobile Menu -->
