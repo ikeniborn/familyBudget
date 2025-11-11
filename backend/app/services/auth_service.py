@@ -82,6 +82,7 @@ async def update_user_profile(
     first_name: Optional[str],
     last_name: Optional[str],
     username: Optional[str],
+    photo_url: Optional[str],
 ) -> Optional[User]:
     """
     Update user profile data with SCD Type 2 pattern.
@@ -95,6 +96,7 @@ async def update_user_profile(
         first_name: User's first name
         last_name: User's last name (optional)
         username: Telegram username (optional)
+        photo_url: Local path to cached avatar (optional)
 
     Returns:
         Optional[User]: New version of user if updated, existing user if unchanged, None if not found
@@ -103,6 +105,7 @@ async def update_user_profile(
         - SCD Type 2 pattern: Creates new version when data changes
         - Old versions preserved for audit
         - Only updates profile data, not permissions
+        - photo_url changes trigger new version (includes avatar updates)
     """
     # Get existing user
     existing_user = await get_user_by_telegram_id(session, telegram_id)
@@ -111,10 +114,12 @@ async def update_user_profile(
         return None
 
     # Check if user data changed
+    # Use getattr() for nullable fields to prevent AttributeError
     data_changed = (
-        existing_user.username != username
+        getattr(existing_user, 'username', None) != username
         or existing_user.first_name != first_name
-        or existing_user.last_name != last_name
+        or getattr(existing_user, 'last_name', None) != last_name
+        or getattr(existing_user, 'photo_url', None) != photo_url
     )
 
     # If data unchanged, return existing user
@@ -123,6 +128,24 @@ async def update_user_profile(
 
     # If data changed, create new version (SCD2)
     now = datetime.utcnow()
+
+    # CRITICAL FIX: Revoke all active refresh tokens for the old user version
+    # This prevents "zombie tokens" that reference an inactive user (is_current=FALSE)
+    # Forces re-authentication on all devices when user profile data changes
+    # Fixes: 500 error on repeated login with changed profile data
+    from backend.app.models.refresh_token import RefreshToken
+
+    old_tokens_stmt = (
+        select(RefreshToken)
+        .where(RefreshToken.user_id == existing_user.id)
+        .where(RefreshToken.is_revoked == False)  # noqa: E712
+    )
+    old_tokens_result = await session.exec(old_tokens_stmt)
+    old_tokens = old_tokens_result.all()
+
+    for token in old_tokens:
+        token.revoke()  # Sets is_revoked=True, revoked_at=now()
+        session.add(token)
 
     # Close old version
     existing_user.is_current = False
@@ -136,6 +159,7 @@ async def update_user_profile(
         username=username,
         first_name=first_name,
         last_name=last_name,
+        photo_url=photo_url,
         is_admin=existing_user.is_admin,  # Preserve admin status
         valid_from=now,
         valid_to=datetime(9999, 12, 31, 23, 59, 59),

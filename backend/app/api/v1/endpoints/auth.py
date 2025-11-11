@@ -31,6 +31,7 @@ from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import AuthResponse, TelegramAuthData, UserResponse
 from backend.app.services.auth_service import get_user_by_telegram_id, update_user_profile
+from backend.app.services.avatar_service import download_user_avatar
 from backend.app.services.jwt import (
     create_access_token,
     create_refresh_token,
@@ -207,6 +208,14 @@ async def telegram_callback(
             detail="Access denied - user not registered by administrator. Please contact admin to create your account.",
         )
 
+    # Step 3.1.5: Download and cache avatar if provided
+    local_photo_path = None
+    if query_params.get("photo_url"):
+        local_photo_path = await download_user_avatar(
+            telegram_photo_url=query_params["photo_url"],
+            user_id=user.id
+        )
+
     # Step 3.2: Update user profile if data changed (SCD Type 2)
     user = await update_user_profile(
         session=session,
@@ -214,6 +223,7 @@ async def telegram_callback(
         first_name=query_params["first_name"],
         last_name=query_params.get("last_name"),
         username=query_params.get("username"),
+        photo_url=local_photo_path,
     )
 
     # Step 4: Generate JWT access token
@@ -388,6 +398,14 @@ async def telegram_login(
             detail="Access denied - user not registered by administrator. Please contact admin to create your account.",
         )
 
+    # Step 3.1.5: Download and cache avatar if provided
+    local_photo_path = None
+    if auth_data.photo_url:
+        local_photo_path = await download_user_avatar(
+            telegram_photo_url=auth_data.photo_url,
+            user_id=user.id
+        )
+
     # Step 3.2: Update user profile if data changed (SCD Type 2)
     user = await update_user_profile(
         session=session,
@@ -395,6 +413,7 @@ async def telegram_login(
         first_name=auth_data.first_name,
         last_name=auth_data.last_name,
         username=auth_data.username,
+        photo_url=local_photo_path,
     )
 
     # Step 4: Generate JWT access token
@@ -442,6 +461,7 @@ async def telegram_login(
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
+        photo_url=user.photo_url,
         is_admin=user.is_admin,
     )
 
@@ -632,6 +652,7 @@ async def refresh_access_token(
         username=user.username,
         first_name=user.first_name,
         last_name=user.last_name,
+        photo_url=user.photo_url,
         is_admin=user.is_admin,
     )
 

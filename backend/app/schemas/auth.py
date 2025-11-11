@@ -101,6 +101,8 @@ class UserResponse(BaseModel):
         telegram_id: User's Telegram ID (business key)
         username: Telegram username (optional)
         first_name: User's first name
+        last_name: User's last name (optional)
+        photo_url: Local path to cached profile photo (optional)
         is_admin: Admin status flag
 
     Example:
@@ -109,6 +111,8 @@ class UserResponse(BaseModel):
         ...     telegram_id=123456789,
         ...     username="johndoe",
         ...     first_name="John",
+        ...     last_name="Doe",
+        ...     photo_url="/static/avatars/1.jpg",
         ...     is_admin=False
         ... )
     """
@@ -131,6 +135,16 @@ class UserResponse(BaseModel):
         description="User's first name",
         examples=["John"]
     )
+    last_name: Optional[str] = Field(
+        default=None,
+        description="User's last name",
+        examples=["Doe", None]
+    )
+    photo_url: Optional[str] = Field(
+        default=None,
+        description="Local path to cached profile photo",
+        examples=["/static/avatars/1.jpg", None]
+    )
     is_admin: bool = Field(
         default=False,
         description="Admin status flag",
@@ -145,6 +159,8 @@ class UserResponse(BaseModel):
                 "telegram_id": 123456789,
                 "username": "johndoe",
                 "first_name": "John",
+                "last_name": "Doe",
+                "photo_url": "/static/avatars/1.jpg",
                 "is_admin": False
             }
         }

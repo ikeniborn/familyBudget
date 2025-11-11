@@ -50,18 +50,20 @@
     <!-- DaisyUI Navbar -->
     <header class="navbar bg-base-100 shadow-lg sticky top-0 z-40" role="banner">
         <div class="navbar-start">
-            <a href="/" class="btn btn-ghost text-xl font-bold text-primary" aria-label="Семейный бюджет home">
+            <a href="/" class="btn btn-ghost text-lg sm:text-xl font-bold text-primary px-2 sm:px-4" aria-label="Семейный бюджет home">
                 💰 <span class="sm:hidden">СБ</span><span class="hidden sm:inline">Семейный бюджет</span>
             </a>
         </div>
 
         <div class="navbar-center hidden lg:flex">
             <ul class="menu menu-horizontal px-1" role="menubar">
+                {% if user %}
                 <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">Главная</a></li>
                 <li><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Аналитика</a></li>
                 <li><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Транзакции</a></li>
                 <li><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">План</a></li>
                 <li><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}" aria-current="{% if '/notifications' in request.url.path %}page{% endif %}">🔔 Уведомления</a></li>
+                {% endif %}
 
                 {% if user and user.is_admin %}
                 <li>
@@ -80,28 +82,85 @@
             </ul>
         </div>
 
-        <div class="navbar-end gap-2">
+        <div class="navbar-end gap-1 sm:gap-2">
             <!-- Theme Toggle -->
-            <label class="swap swap-rotate cursor-pointer">
+            <label class="swap swap-rotate cursor-pointer p-1 sm:p-2">
                 <input type="checkbox" class="theme-controller" value="dark" aria-label="Toggle dark mode" />
                 <!-- Sun icon (light theme) -->
-                <span class="swap-off text-2xl">☀️</span>
+                <span class="swap-off text-xl sm:text-2xl">☀️</span>
                 <!-- Moon icon (dark theme) -->
-                <span class="swap-on text-2xl">🌙</span>
+                <span class="swap-on text-xl sm:text-2xl">🌙</span>
             </label>
 
             {% if user %}
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium" aria-label="Current user">{{ user.first_name or user.username }}</span>
-                    {% if user.is_admin %}
-                        <span class="badge badge-warning badge-sm" role="status">Admin</span>
-                    {% endif %}
+                <!-- User Dropdown Menu -->
+                <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
+                        <!-- Avatar -->
+                        {% if user.photo_url %}
+                            <div class="avatar">
+                                <div class="w-8 h-8 rounded-full">
+                                    <img src="{{ user.photo_url }}"
+                                         alt="{{ user.first_name or user.username }}"
+                                         loading="lazy"
+                                         onerror="this.parentElement.parentElement.style.display='none'; this.parentElement.parentElement.nextElementSibling.style.display='flex';">
+                                </div>
+                            </div>
+                            <!-- Fallback placeholder (hidden by default) -->
+                            <div class="avatar placeholder" style="display:none;">
+                                <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
+                                    <span class="text-xs">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <!-- Placeholder with first letter -->
+                            <div class="avatar placeholder">
+                                <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
+                                    <span class="text-xs">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                </div>
+                            </div>
+                        {% endif %}
+                        <!-- Username (hidden on mobile) -->
+                        <span class="hidden sm:inline text-sm font-medium">{{ user.first_name or user.username }}</span>
+                        {% if user.is_admin %}
+                            <span class="hidden sm:inline badge badge-warning badge-xs">Admin</span>
+                        {% endif %}
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </label>
+                    <ul tabindex="0" class="menu dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-64 sm:w-72">
+                        <li class="menu-title">
+                            <div class="flex items-center justify-between w-full">
+                                <span>{{ user.first_name or user.username }}</span>
+                                {% if user.is_admin %}
+                                    <span class="badge badge-warning badge-xs">Admin</span>
+                                {% endif %}
+                            </div>
+                        </li>
+                        <li>
+                            <div class="flex flex-col gap-1 py-2 cursor-default hover:bg-transparent">
+                                <span class="text-xs opacity-60">Telegram ID</span>
+                                <span class="font-mono text-xs break-all">{{ user.telegram_id }}</span>
+                            </div>
+                        </li>
+                        <div class="divider my-1"></div>
+                        <li>
+                            <button onclick="handleLogout()" class="text-error gap-2" aria-label="Выйти из системы">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                                <span class="text-sm">Выйти</span>
+                            </button>
+                        </li>
+                    </ul>
                 </div>
             {% else %}
-                <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm">Login</a>
+                <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm text-xs sm:text-sm px-3 sm:px-4">Login</a>
             {% endif %}
 
             <!-- Mobile Menu -->
+            {% if user %}
             <div class="dropdown dropdown-end lg:hidden">
                 <label tabindex="0" class="btn btn-ghost btn-circle">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,11 +168,50 @@
                     </svg>
                 </label>
                 <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-52">
+                    {% if user %}
+                        <!-- User info with avatar -->
+                        <li class="menu-title">
+                            <div class="flex items-center gap-2 px-2 py-2">
+                                {% if user.photo_url %}
+                                    <div class="avatar">
+                                        <div class="w-10 h-10 rounded-full">
+                                            <img src="{{ user.photo_url }}"
+                                                 alt="{{ user.first_name or user.username }}"
+                                                 loading="lazy"
+                                                 onerror="this.parentElement.parentElement.style.display='none'; this.parentElement.parentElement.nextElementSibling.style.display='flex';">
+                                        </div>
+                                    </div>
+                                    <!-- Fallback placeholder -->
+                                    <div class="avatar placeholder" style="display:none;">
+                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-10 h-10">
+                                            <span class="text-sm">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="avatar placeholder">
+                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-10 h-10">
+                                            <span class="text-sm">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                <div class="flex flex-col">
+                                    <span class="font-medium">{{ user.first_name or user.username }}</span>
+                                    {% if user.is_admin %}
+                                        <span class="badge badge-warning badge-xs">Admin</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </li>
+                        <div class="divider my-1"></div>
+                    {% endif %}
+                    {% if user %}
                     <li><a href="/">Главная</a></li>
                     <li><a href="/analytics">Аналитика</a></li>
                     <li><a href="/facts">Транзакции</a></li>
                     <li><a href="/plan">План</a></li>
                     <li><a href="/notifications">🔔 Уведомления</a></li>
+                    {% endif %}
+
                     {% if user and user.is_admin %}
                         <li class="menu-title"><span>Администратор</span></li>
                         <li><a href="/admin/users">👥 Пользователи</a></li>
@@ -122,8 +220,17 @@
                         <li><a href="/admin/cost-centers">💼 МВЗ</a></li>
                         <li><a href="/admin/monitoring">🔍 Мониторинг</a></li>
                     {% endif %}
+                    {% if user %}
+                        <div class="divider my-1"></div>
+                        <li>
+                            <button onclick="handleLogout()" class="text-error">
+                                🚪 Выйти
+                            </button>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
+            {% endif %}
         </div>
     </header>
 
@@ -132,6 +239,9 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Toast Container (for dynamic notifications) -->
+    <div id="toast-container" class="toast toast-top toast-end z-50" role="alert" aria-live="polite"></div>
+
     <!-- Footer -->
     <footer class="footer footer-center p-4 bg-base-200 text-base-content border-t">
         <aside>
@@ -139,8 +249,10 @@
         </aside>
     </footer>
 
-    <!-- Calendar Widget Script -->
+    <!-- Calendar Widget Script (only for authenticated users) -->
+    {% if user %}
     <script src="/shared/static/js/calendar-widget.min.js?v=PLACEHOLDER"></script>
+    {% endif %}
 
     {% block extra_scripts %}{% endblock %}
 
@@ -169,6 +281,65 @@
                 });
             }
         });
+
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            // Create toast element
+            const toast = document.createElement('div');
+            const alertClass = type === 'success' ? 'alert-success' :
+                              type === 'error' ? 'alert-error' :
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
+
+            toast.className = `alert ${alertClass} shadow-lg`;
+            toast.innerHTML = `<span>${message}</span>`;
+
+            // Add to container
+            container.appendChild(toast);
+
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.3s';
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    if (toast.parentNode === container) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Logout handler
+        async function handleLogout() {
+            try {
+                // Show loading toast
+                showToast('Выход из системы...', 'info');
+
+                // Call logout endpoint
+                const response = await fetch('/api/v1/auth/logout', {
+                    method: 'POST',
+                    credentials: 'same-origin', // Include cookies
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // Success - show toast and redirect
+                showToast('Вы успешно вышли из системы', 'success');
+
+                // Redirect to home page after short delay
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+
+            } catch (error) {
+                console.error('Logout error:', error);
+                showToast('Ошибка при выходе из системы', 'error');
+            }
+        }
     </script>
 </body>
 </html>
