@@ -237,12 +237,7 @@ sync_mirror() {
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | head -20
 
     echo ""
-    read -p "Continue with mirror sync? [Y/n]: " confirm
-
-    if [[ "${confirm,,}" == "n" ]]; then
-        warning "Sync cancelled by user"
-        return 1
-    fi
+    info "Proceeding with mirror sync (auto-confirmed)..."
 
     # Perform sync
     # CRITICAL FIX (2025-11-08): Protect .npm-isolated/ from deletion
@@ -326,12 +321,7 @@ sync_update() {
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | head -20
 
     echo ""
-    read -p "Continue with update sync? [Y/n]: " confirm
-
-    if [[ "${confirm,,}" == "n" ]]; then
-        warning "Sync cancelled by user"
-        return 1
-    fi
+    info "Proceeding with update sync (auto-confirmed)..."
 
     # 1. Perform rsync (update/add files)
     # IMPORTANT: .npm-isolated/ excluded (production-only directory)
