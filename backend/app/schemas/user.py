@@ -49,6 +49,13 @@ class UserCreate(BaseModel):
         examples=["John", None]
     )
 
+    last_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User's last name (optional)",
+        examples=["Doe", None]
+    )
+
     is_admin: bool = Field(
         default=False,
         description="Admin status flag (default: False)",
@@ -110,6 +117,18 @@ class UserDetailResponse(BaseModel):
         examples=["John"]
     )
 
+    last_name: Optional[str] = Field(
+        default=None,
+        description="User's last name from Telegram",
+        examples=["Doe", None]
+    )
+
+    photo_url: Optional[str] = Field(
+        default=None,
+        description="Local path to cached profile photo",
+        examples=["/static/avatars/1.jpg", None]
+    )
+
     is_admin: bool = Field(
         description="Admin status flag",
         examples=[False, True]
@@ -150,6 +169,8 @@ class UserDetailResponse(BaseModel):
                 "telegram_id": 123456789,
                 "username": "johndoe",
                 "first_name": "John",
+                "last_name": "Doe",
+                "photo_url": "/static/avatars/1.jpg",
                 "is_admin": False,
                 "valid_from": "2025-10-13T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",

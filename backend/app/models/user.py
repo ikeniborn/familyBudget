@@ -28,6 +28,8 @@ class User(SQLModel, table=True):
         telegram_id: Unique identifier from Telegram (business key)
         username: Telegram username (optional)
         first_name: User's first name (optional)
+        last_name: User's last name (optional)
+        photo_url: Local path to cached profile photo (optional)
         is_admin: Admin flag for access control
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
@@ -62,6 +64,16 @@ class User(SQLModel, table=True):
         default=None,
         max_length=255,
         description="User's first name"
+    )
+    last_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User's last name from Telegram"
+    )
+    photo_url: Optional[str] = Field(
+        default=None,
+        max_length=512,
+        description="Local path to cached profile photo (e.g., /static/avatars/123.jpg)"
     )
     is_admin: bool = Field(
         default=False,
@@ -103,5 +115,6 @@ class User(SQLModel, table=True):
         """String representation of User model."""
         return (
             f"User(id={self.id}, telegram_id={self.telegram_id}, "
-            f"username={self.username}, is_current={self.is_current})"
+            f"username={self.username}, first_name={self.first_name}, "
+            f"last_name={self.last_name}, is_current={self.is_current})"
         )

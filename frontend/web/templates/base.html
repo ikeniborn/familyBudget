@@ -94,6 +94,30 @@
                 <!-- User Dropdown Menu -->
                 <div class="dropdown dropdown-end">
                     <label tabindex="0" class="btn btn-ghost btn-sm gap-2" aria-label="User menu">
+                        <!-- Avatar -->
+                        {% if user.photo_url %}
+                            <div class="avatar">
+                                <div class="w-8 h-8 rounded-full">
+                                    <img src="{{ user.photo_url }}"
+                                         alt="{{ user.first_name or user.username }}"
+                                         loading="lazy"
+                                         onerror="this.parentElement.parentElement.style.display='none'; this.parentElement.parentElement.nextElementSibling.style.display='flex';">
+                                </div>
+                            </div>
+                            <!-- Fallback placeholder (hidden by default) -->
+                            <div class="avatar placeholder" style="display:none;">
+                                <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
+                                    <span class="text-xs">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <!-- Placeholder with first letter -->
+                            <div class="avatar placeholder">
+                                <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
+                                    <span class="text-xs">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                </div>
+                            </div>
+                        {% endif %}
                         <span class="text-sm font-medium">{{ user.first_name or user.username }}</span>
                         {% if user.is_admin %}
                             <span class="badge badge-warning badge-xs">Admin</span>
@@ -133,6 +157,42 @@
                     </svg>
                 </label>
                 <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-52">
+                    {% if user %}
+                        <!-- User info with avatar -->
+                        <li class="menu-title">
+                            <div class="flex items-center gap-2 px-2 py-2">
+                                {% if user.photo_url %}
+                                    <div class="avatar">
+                                        <div class="w-10 h-10 rounded-full">
+                                            <img src="{{ user.photo_url }}"
+                                                 alt="{{ user.first_name or user.username }}"
+                                                 loading="lazy"
+                                                 onerror="this.parentElement.parentElement.style.display='none'; this.parentElement.parentElement.nextElementSibling.style.display='flex';">
+                                        </div>
+                                    </div>
+                                    <!-- Fallback placeholder -->
+                                    <div class="avatar placeholder" style="display:none;">
+                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-10 h-10">
+                                            <span class="text-sm">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="avatar placeholder">
+                                        <div class="bg-neutral-focus text-neutral-content rounded-full w-10 h-10">
+                                            <span class="text-sm">{{ (user.first_name or user.username or 'U')[0].upper() }}</span>
+                                        </div>
+                                    </div>
+                                {% endif %}
+                                <div class="flex flex-col">
+                                    <span class="font-medium">{{ user.first_name or user.username }}</span>
+                                    {% if user.is_admin %}
+                                        <span class="badge badge-warning badge-xs">Admin</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </li>
+                        <div class="divider my-1"></div>
+                    {% endif %}
                     <li><a href="/">Главная</a></li>
                     <li><a href="/analytics">Аналитика</a></li>
                     <li><a href="/facts">Транзакции</a></li>

@@ -82,6 +82,7 @@ async def update_user_profile(
     first_name: Optional[str],
     last_name: Optional[str],
     username: Optional[str],
+    photo_url: Optional[str],
 ) -> Optional[User]:
     """
     Update user profile data with SCD Type 2 pattern.
@@ -95,6 +96,7 @@ async def update_user_profile(
         first_name: User's first name
         last_name: User's last name (optional)
         username: Telegram username (optional)
+        photo_url: Local path to cached avatar (optional)
 
     Returns:
         Optional[User]: New version of user if updated, existing user if unchanged, None if not found
@@ -103,6 +105,7 @@ async def update_user_profile(
         - SCD Type 2 pattern: Creates new version when data changes
         - Old versions preserved for audit
         - Only updates profile data, not permissions
+        - photo_url changes trigger new version (includes avatar updates)
     """
     # Get existing user
     existing_user = await get_user_by_telegram_id(session, telegram_id)
@@ -116,6 +119,7 @@ async def update_user_profile(
         getattr(existing_user, 'username', None) != username
         or existing_user.first_name != first_name
         or getattr(existing_user, 'last_name', None) != last_name
+        or getattr(existing_user, 'photo_url', None) != photo_url
     )
 
     # If data unchanged, return existing user
@@ -155,6 +159,7 @@ async def update_user_profile(
         username=username,
         first_name=first_name,
         last_name=last_name,
+        photo_url=photo_url,
         is_admin=existing_user.is_admin,  # Preserve admin status
         valid_from=now,
         valid_to=datetime(9999, 12, 31, 23, 59, 59),

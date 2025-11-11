@@ -195,6 +195,7 @@ function renderUsersTable(users) {
                 <thead>
                     <tr>
                         <th>📱 Telegram ID</th>
+                        <th>📷 Фото</th>
                         <th>👤 Username</th>
                         <th>📝 Имя</th>
                         <th>🔑 Роль</th>
@@ -218,9 +219,24 @@ function renderUsersTable(users) {
         const validFrom = formatDate(user.valid_from);
         const validTo = user.valid_to ? formatDate(user.valid_to) : '—';
 
+        // Avatar HTML
+        const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
+        const avatarHTML = user.photo_url
+            ? `<div class="avatar">
+                   <div class="w-8 h-8 rounded-full">
+                       <img src="${user.photo_url}" alt="${displayName}" loading="lazy" />
+                   </div>
+               </div>`
+            : `<div class="avatar placeholder">
+                   <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
+                       <span class="text-xs">${initial}</span>
+                   </div>
+               </div>`;
+
         html += `
             <tr>
                 <td class="font-mono">${user.telegram_id}</td>
+                <td>${avatarHTML}</td>
                 <td>${user.username || '—'}</td>
                 <td class="font-medium">${displayName}</td>
                 <td>${roleLabel}</td>
