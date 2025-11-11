@@ -58,6 +58,7 @@ class ArticleResponse(BaseModel):
     parent_id: int | None
     name: str
     type: str
+    is_active: bool
     is_current: bool
     valid_from: str
     valid_to: str | None
