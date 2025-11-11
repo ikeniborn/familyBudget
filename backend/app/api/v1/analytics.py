@@ -181,7 +181,7 @@ async def get_quick_stats_html(
 @router.get("/plan-fact")
 async def get_plan_fact_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(week|month|quarter|year)$"),
+    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", regex="^(income|expense)$"),
@@ -191,8 +191,7 @@ async def get_plan_fact_data(
     Get plan vs fact comparison data for bar chart.
 
     Args:
-        period: Time period (week, month, quarter, year) - rolling periods
-            - week: last 7 days from today
+        period: Time period (month, quarter, year) - rolling periods
             - month: last 28 days from today
             - quarter: current quarter (unchanged)
             - year: last 365 days from today
@@ -213,7 +212,7 @@ async def get_plan_fact_data(
             # Auto-determine grouping based on days difference
             days_diff = (end_date - start_date).days + 1
             if days_diff <= 7:
-                period = "week"  # Group by day
+                period = "month"  # Group by day
                 periods_count = days_diff
                 date_format = None  # Russian day names
             elif days_diff <= 31:
@@ -230,13 +229,7 @@ async def get_plan_fact_data(
                 date_format = None
         elif period:
             # Calculate date range based on ROLLING period
-            if period == "week":
-                # Rolling 7 days from today (including today)
-                start_date = today - timedelta(days=6)
-                end_date = today
-                periods_count = 7  # 7 days
-                date_format = "day"  # Show individual days
-            elif period == "month":
+            if period == "month":
                 # Last 4 calendar weeks (same as week period for this endpoint)
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
@@ -299,7 +292,7 @@ async def get_plan_fact_data(
 
         # Агрегация по неделям или месяцам в зависимости от date_format
         if date_format == "day":
-            # Для period='week': показывать 7 отдельных дней с днями недели
+            # Для периодов ≤7 дней: показывать отдельные дни с днями недели
             day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
             current_date = start_date
             while current_date <= end_date:
@@ -368,7 +361,7 @@ async def get_plan_fact_data(
             "labels": [],
             "plan": [],
             "fact": [],
-            "period": period or "week",
+            "period": period or "month",
             "article_type": article_type
         }
 
@@ -376,7 +369,7 @@ async def get_plan_fact_data(
 @router.get("/trends")
 async def get_trends_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(week|month|quarter|year)$"),
+    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
@@ -386,8 +379,7 @@ async def get_trends_data(
     Get spending trends over time for line chart with rolling periods.
 
     Args:
-        period: Time period (week, month, quarter, year) - rolling periods
-            - week: last 4 calendar weeks
+        period: Time period (month, quarter, year) - rolling periods
             - month: last 4 calendar weeks
             - quarter: rolling 3 months
             - year: rolling 12 months
@@ -408,18 +400,14 @@ async def get_trends_data(
             # Auto-determine grouping based on days difference
             days_diff = (end_date - start_date).days + 1
             if days_diff <= 7:
-                period = "week"  # Group by day
+                period = "month"  # Group by day
             elif days_diff <= 31:
                 period = "month"  # Group by day/week
             else:
                 period = "year"  # Group by month
         elif period:
             # Calculate date range based on ROLLING period
-            if period == "week":
-                # Rolling 7 days from today (including today)
-                start_date = today - timedelta(days=6)
-                end_date = today
-            elif period == "month":
+            if period == "month":
                 # Last 4 calendar weeks
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
@@ -465,8 +453,8 @@ async def get_trends_data(
         income_data = []
         expense_data = []
 
-        if period == "week":
-            # Для period='week': показывать 7 отдельных дней с днями недели
+        if period == "month" and (end_date - start_date).days <= 7:
+            # Для периодов ≤7 дней: показывать отдельные дни с днями недели
             day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
             current_date = start_date
             while current_date <= end_date:
@@ -547,7 +535,7 @@ async def get_trends_data(
             "labels": [],
             "income": [],
             "expense": [],
-            "period": period or "week",
+            "period": period or "month",
             "record_type": record_type
         }
 
@@ -556,7 +544,7 @@ async def get_trends_data(
 async def get_category_breakdown(
     current_user: CurrentUser,
     type: str = Query("expense", regex="^(income|expense)$"),
-    period: Optional[str] = Query(None, regex="^(week|month|quarter|year|all)$"),
+    period: Optional[str] = Query(None, regex="^(month|quarter|year|all)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
@@ -567,8 +555,7 @@ async def get_category_breakdown(
 
     Args:
         type: Transaction type (income or expense)
-        period: Time period (week, month, quarter, year, all) - rolling periods
-            - week: last 4 calendar weeks
+        period: Time period (month, quarter, year, all) - rolling periods
             - month: last 4 calendar weeks
             - quarter: rolling 3 months
             - year: rolling 12 months
@@ -590,11 +577,7 @@ async def get_category_breakdown(
             period = "custom"  # Mark as custom range
         elif period:
             # Calculate start date based on ROLLING period
-            if period == "week":
-                # Last 4 calendar weeks
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]
-            elif period == "month":
+            if period == "month":
                 # Last 4 calendar weeks (same as week)
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
@@ -660,7 +643,7 @@ async def get_category_breakdown(
             "percentages": [],
             "total": 0,
             "type": type,
-            "period": period or "week",
+            "period": period or "month",
             "record_type": record_type
         }
 
@@ -668,7 +651,7 @@ async def get_category_breakdown(
 @router.get("/waterfall")
 async def get_waterfall_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(week|month|quarter|year)$"),
+    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_id: int | None = Query(None, description="Filter by specific article (for drill-down)"),
@@ -680,8 +663,7 @@ async def get_waterfall_data(
     Shows monthly income, expense, and cumulative balance.
 
     Args:
-        period: Time aggregation (week, month, quarter, year) - rolling periods
-            - week: last 4 calendar weeks
+        period: Time aggregation (month, quarter, year) - rolling periods
             - month: last 4 calendar weeks
             - quarter: rolling 3 months
             - year: rolling 12 months
@@ -715,13 +697,7 @@ async def get_waterfall_data(
                 label_format = "month"
         elif period:
             # Calculate date range and grouping based on ROLLING period
-            if period == "week":
-                # Rolling 7 days from today (including today)
-                start_date = today - timedelta(days=6)
-                end_date = today
-                group_by_expr = Fact.fact_date
-                label_format = "day"  # Show individual days
-            elif period == "month":
+            if period == "month":
                 # Last 4 calendar weeks
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
@@ -803,7 +779,7 @@ async def get_waterfall_data(
         cumulative_balance = 0.0
 
         if label_format == "day":
-            # Для period='week': показывать 7 отдельных дней с днями недели
+            # Для периодов с группировкой по дням: показывать дни с днями недели
             day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
             current_date = start_date
             while current_date <= end_date:
@@ -935,7 +911,7 @@ async def get_waterfall_data(
 @router.get("/heatmap")
 async def get_heatmap_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(week|month|quarter|year)$"),
+    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", regex="^(income|expense)$"),
@@ -946,8 +922,7 @@ async def get_heatmap_data(
     Get spending patterns data for heatmap with dynamic aggregation.
 
     Args:
-        period: Time range (week, month, quarter, year) - rolling periods
-            - week: last 7 days from today → aggregate by days
+        period: Time range (month, quarter, year) - rolling periods
             - month: last 28 days from today → aggregate by weeks
             - quarter: current quarter → aggregate by weeks
             - year: last 365 days from today → aggregate by months
@@ -979,13 +954,7 @@ async def get_heatmap_data(
                 aggregation = "month"
         elif period:
             # Calculate date range and aggregation based on period
-            if period == "week":
-                # Current calendar week only → single week display
-                week_start, week_end = get_week_bounds(today)
-                start_date = week_start
-                end_date = min(week_end, today)  # До сегодня (неполная неделя)
-                aggregation = "single_week"
-            elif period == "month":
+            if period == "month":
                 # Last 4 calendar weeks → aggregate by weeks
                 rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
                 start_date = rolling_weeks[0][0]
@@ -1150,7 +1119,7 @@ async def get_heatmap_data(
             "xAxis": [],
             "yAxis": [],
             "aggregation": "day",
-            "period": period or "week",
+            "period": period or "month",
             "article_type": article_type,
             "record_type": record_type,
             "start_date": date.today().isoformat(),
@@ -1177,7 +1146,7 @@ async def get_recommended_amounts(
     ),
     period: str = Query(
         "quarter",
-        description="Analysis period: 'week' (7d), 'month' (30d), 'quarter' (90d), 'year' (365d)"
+        description="Analysis period: 'month' (30d), 'quarter' (90d), 'year' (365d)"
     ),
 ):
     """
@@ -1192,7 +1161,7 @@ async def get_recommended_amounts(
         - article_id: Optional category filter (NULL = global recommendations)
         - type: Optional type filter ('income' | 'expense' | NULL = all)
         - record_type: 'fact' (actual transactions) or 'plan' (planned transactions)
-        - period: Analysis period ('week' | 'month' | 'quarter' | 'year')
+        - period: Analysis period ('month' | 'quarter' | 'year')
 
     Returns:
         - amounts: Array of 4 recommended amounts (rounded to nice numbers)
@@ -1378,7 +1347,7 @@ async def get_recommended_amounts(
         if article_row:
             article_name = article_row[0]
 
-    period_days_map = {"week": 7, "month": 30, "quarter": 90, "year": 365}
+    period_days_map = {"month": 30, "quarter": 90, "year": 365}
 
     return RecommendedAmountsResponse(
         amounts=default_amounts,

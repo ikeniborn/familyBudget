@@ -355,14 +355,16 @@ const option = {
 
 ##### Period Filter with Custom Range
 
+**Обновление (2025-11-11):** Удален фильтр "Неделя". Доступные фильтры: Месяц, Квартал, Год, Произвольный.
+
 ```html
 <div class="flex flex-col gap-3">
     <!-- Period buttons -->
     <div class="flex flex-wrap items-center gap-3">
         <label id="period-label" class="font-semibold text-sm">Период (для всех графиков):</label>
         <div class="btn-group">
-            <button class="btn btn-sm btn-primary" id="filter-week" onclick="updatePeriod('week')">Неделя</button>
-            <button class="btn btn-sm btn-outline" id="filter-month" onclick="updatePeriod('month')">Месяц</button>
+            <button class="btn btn-sm btn-primary" id="filter-month" onclick="updatePeriod('month')">Месяц</button>
+            <button class="btn btn-sm btn-outline" id="filter-quarter" onclick="updatePeriod('quarter')">Квартал</button>
             <button class="btn btn-sm btn-outline" id="filter-year" onclick="updatePeriod('year')">Год</button>
             <button class="btn btn-sm btn-outline" id="filter-custom" onclick="toggleCustomRange()">Произвольный</button>
         </div>
