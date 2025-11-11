@@ -4,10 +4,11 @@ Analytics API endpoints.
 Provides aggregated data for charts and dashboards.
 """
 
+import calendar as cal_module
 import logging
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -35,6 +36,150 @@ from backend.app.utils.date_helpers import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
+
+
+# ==================== Helper Functions for Plan-Fact Analysis ====================
+
+
+def distribute_plan_by_days(
+    plan_by_date: Dict[date, float],
+    start_date: date,
+    end_date: date
+) -> List[float]:
+    """
+    Distribute monthly plans evenly across all days.
+
+    Algorithm:
+        1. Group all plans by month (sum plans for same month)
+        2. Calculate average per day = total_plan_for_month / days_in_month
+        3. Return array with average for each day in range
+
+    Example:
+        Plan: 30000₽ on 2025-11-01
+        Result: 1000₽ per day for all days in November (30 days)
+
+    Args:
+        plan_by_date: Dict mapping date → plan amount (from DB query)
+        start_date: First date in range
+        end_date: Last date in range (inclusive)
+
+    Returns:
+        List of plan amounts for each day in range (distributed evenly)
+    """
+    # 1. Group plans by month and sum
+    month_plans: Dict[Tuple[int, int], Dict[str, float]] = {}
+
+    for plan_date, amount in plan_by_date.items():
+        month_key = (plan_date.year, plan_date.month)
+
+        if month_key not in month_plans:
+            days_in_month = cal_module.monthrange(plan_date.year, plan_date.month)[1]
+            month_plans[month_key] = {
+                'total': 0.0,
+                'days': days_in_month,
+                'avg_per_day': 0.0
+            }
+
+        month_plans[month_key]['total'] += amount
+
+    # 2. Calculate average per day for each month
+    for month_key, plan_info in month_plans.items():
+        plan_info['avg_per_day'] = plan_info['total'] / plan_info['days']
+
+    # 3. Generate array with average for each day
+    result = []
+    current_date = start_date
+
+    while current_date <= end_date:
+        month_key = (current_date.year, current_date.month)
+        avg = month_plans.get(month_key, {}).get('avg_per_day', 0.0)
+        result.append(avg)
+        current_date += timedelta(days=1)
+
+    return result
+
+
+def distribute_plan_by_months(
+    plan_by_date: Dict[date, float],
+    start_date: date,
+    end_date: date
+) -> Dict[Tuple[int, int], float]:
+    """
+    Distribute plans evenly across months (for quarter/year periods).
+
+    Algorithm:
+        1. Group all plans by quarter or year
+        2. Calculate number of months in period
+        3. Calculate average per month = total_plan_for_period / num_months
+        4. Return dict mapping month_key → average amount
+
+    Example (quarter):
+        Plan: 90000₽ for Q1 2025
+        Result: 30000₽ per month (Jan, Feb, Mar)
+
+    Example (year):
+        Plan: 360000₽ for 2025
+        Result: 30000₽ per month (Jan-Dec)
+
+    Args:
+        plan_by_date: Dict mapping date → plan amount (from DB query)
+        start_date: First date in range
+        end_date: Last date in range (inclusive)
+
+    Returns:
+        Dict mapping (year, month) → average plan amount
+    """
+    # 1. Calculate number of months in the period
+    num_months = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month + 1
+
+    # 2. Sum all plans in the period
+    total_plan = sum(plan_by_date.values())
+
+    # 3. Calculate average per month
+    avg_per_month = total_plan / num_months if num_months > 0 else 0.0
+
+    # 4. Create dict for each month in range
+    result: Dict[Tuple[int, int], float] = {}
+    current_date = start_date
+
+    while current_date <= end_date:
+        month_key = (current_date.year, current_date.month)
+        result[month_key] = avg_per_month
+
+        # Move to next month
+        if current_date.month == 12:
+            current_date = date(current_date.year + 1, 1, 1)
+        else:
+            current_date = date(current_date.year, current_date.month + 1, 1)
+
+    return result
+
+
+def calculate_cumulative(data: List[float]) -> List[float]:
+    """
+    Calculate cumulative sum of array (running total).
+
+    Example:
+        Input:  [1000, 1500, 800, 1200]
+        Output: [1000, 2500, 3300, 4500]
+
+    Args:
+        data: List of amounts
+
+    Returns:
+        List of cumulative sums
+    """
+    cumulative = []
+    total = 0.0
+
+    for value in data:
+        total += value
+        cumulative.append(total)
+
+    return cumulative
+
+
+# ==================== Analytics Endpoints ====================
 
 
 @router.get("/quick-stats")
@@ -188,22 +333,39 @@ async def get_plan_fact_data(
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", regex="^(income|expense)$"),
+    chart_mode: str = Query("cumulative", regex="^(normal|cumulative)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Get plan vs fact comparison data for bar chart.
+    Get plan vs fact comparison data for bar chart with plan distribution and cumulative mode.
+
+    Plan Distribution Logic:
+        Plans are distributed evenly across the period to avoid showing plan only on fixation date:
+        - For 'month' period: Plan amount divided by days_in_month (avg per day)
+          Example: Plan 30000₽ on Nov 1 → 1000₽ per day for all Nov days (30 days)
+        - For 'quarter'/'year' periods: Plan amount divided by months in period
+          Example: Plan 90000₽ for Q1 → 30000₽ per month (Jan, Feb, Mar)
+
+    Chart Modes:
+        - 'normal': Regular bars (period-by-period values)
+        - 'cumulative': Cumulative bars (running total from period start)
 
     Args:
-        period: Time period (month, quarter, year) - rolling periods
-            - month: last 28 days from today
-            - quarter: current quarter (unchanged)
-            - year: last 365 days from today
+        period: Time period (month, quarter, year) - calendar periods from 1st day to today
+            - month: current calendar month (from 1st day to today)
+            - quarter: current calendar quarter (from Q start to today)
+            - year: current calendar year (from Jan 1 to today)
         date_from: Optional start date for custom range (overrides period)
         date_to: Optional end date for custom range (overrides period)
         article_type: Type of category (income or expense)
+        chart_mode: Display mode ('normal' or 'cumulative', default: 'cumulative')
 
     Returns:
-        Dict with categories and plan/fact amounts for each period
+        Dict with labels, plan/fact arrays, period, article_type, and chart_mode
+        - plan: Array of plan amounts (distributed + cumulative if mode=cumulative)
+        - fact: Array of fact amounts (cumulative if mode=cumulative)
+        - plan_period: List of original period amounts (for tooltip)
+        - fact_period: List of original period amounts (for tooltip)
     """
     try:
         today = date.today()
@@ -287,10 +449,33 @@ async def get_plan_fact_data(
         plan_result = await session.execute(plan_query)
         plan_by_date = {row.fact_date: float(row.total) for row in plan_result.all()}
 
+        # === PLAN DISTRIBUTION: Distribute plan evenly across period ===
+        # For month: distribute by days, for quarter/year: distribute by months
+        if date_format == "day":
+            # Month period: distribute plan evenly across all days in month
+            plan_distributed_list = distribute_plan_by_days(plan_by_date, start_date, end_date)
+            # Convert list to dict for compatibility with existing code
+            plan_distributed = {}
+            current_date = start_date
+            idx = 0
+            while current_date <= end_date:
+                plan_distributed[current_date] = plan_distributed_list[idx]
+                current_date += timedelta(days=1)
+                idx += 1
+        elif date_format == "month":
+            # Quarter/year periods: distribute plan evenly across months
+            plan_distributed_by_month = distribute_plan_by_months(plan_by_date, start_date, end_date)
+            # Will be used in month aggregation loop below
+        else:
+            # For other formats (week, custom): use original plan_by_date
+            plan_distributed = plan_by_date
+
         # Generate labels and data arrays
         labels = []
         fact_data = []
         plan_data = []
+        fact_period = []  # Original period values for tooltip
+        plan_period = []  # Original period values for tooltip
 
         # Агрегация по неделям или месяцам в зависимости от date_format
         if date_format == "day":
@@ -300,12 +485,28 @@ async def get_plan_fact_data(
                 # Число месяца (1-31)
                 day_label = str(current_date.day)
 
+                fact_amount = fact_by_date.get(current_date, 0.0)
+                plan_amount = plan_distributed.get(current_date, 0.0)
+
                 labels.append(day_label)
-                fact_data.append(fact_by_date.get(current_date, 0.0))
-                plan_data.append(plan_by_date.get(current_date, 0.0))
+                fact_data.append(fact_amount)
+                plan_data.append(plan_amount)
+                fact_period.append(fact_amount)  # For day period, same as fact_data
+                plan_period.append(plan_amount)  # Distributed plan
                 current_date += timedelta(days=1)
         elif date_format == "week":
             # Для period='month': группировать по календарным неделям
+            # Note: For week aggregation, plan distribution is done at day level first
+            # then aggregated by week
+            plan_distributed_list = distribute_plan_by_days(plan_by_date, start_date, end_date)
+            plan_distributed_dict = {}
+            current_date = start_date
+            idx = 0
+            while current_date <= end_date:
+                plan_distributed_dict[current_date] = plan_distributed_list[idx]
+                current_date += timedelta(days=1)
+                idx += 1
+
             rolling_weeks_data = get_rolling_weeks(periods_count, end_date, include_incomplete=True)
             for week_start, week_end, iso_label in rolling_weeks_data:
                 # Агрегировать факты за неделю
@@ -313,16 +514,19 @@ async def get_plan_fact_data(
                     amount for d, amount in fact_by_date.items()
                     if week_start <= d <= week_end
                 )
-                # Агрегировать планы за неделю
+                # Агрегировать РАСПРЕДЕЛЕННЫЕ планы за неделю
                 week_plan = sum(
-                    amount for d, amount in plan_by_date.items()
+                    amount for d, amount in plan_distributed_dict.items()
                     if week_start <= d <= week_end
                 )
                 labels.append(iso_label)
                 fact_data.append(week_fact)
                 plan_data.append(week_plan)
+                fact_period.append(week_fact)
+                plan_period.append(week_plan)
         elif date_format == "month":
             # Для quarter/year периодов: группировать по календарным месяцам
+            # Plan distribution: use distributed plan by month (avg per month)
             month_names_ru = [
                 "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
@@ -331,7 +535,6 @@ async def get_plan_fact_data(
             while current_date <= end_date:
                 # Первый и последний день текущего месяца
                 month_start = date(current_date.year, current_date.month, 1)
-                import calendar as cal_module
                 _, last_day = cal_module.monthrange(current_date.year, current_date.month)
                 month_end = date(current_date.year, current_date.month, last_day)
                 # Обрезать до end_date если месяц неполный
@@ -342,17 +545,17 @@ async def get_plan_fact_data(
                     amount for d, amount in fact_by_date.items()
                     if month_start <= d <= month_end
                 )
-                # Агрегировать планы за месяц
-                month_plan = sum(
-                    amount for d, amount in plan_by_date.items()
-                    if month_start <= d <= month_end
-                )
+                # Использовать РАСПРЕДЕЛЕННЫЙ план (среднее на месяц)
+                month_key = (current_date.year, current_date.month)
+                month_plan = plan_distributed_by_month.get(month_key, 0.0)
 
                 # Label: "Янв 2025"
                 month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 labels.append(month_label)
                 fact_data.append(month_fact)
                 plan_data.append(month_plan)
+                fact_period.append(month_fact)
+                plan_period.append(month_plan)
 
                 # Переход к следующему месяцу
                 if current_date.month == 12:
@@ -361,19 +564,41 @@ async def get_plan_fact_data(
                     current_date = date(current_date.year, current_date.month + 1, 1)
         else:
             # Для custom range или старой логики: группировать по дням
+            # Apply plan distribution for custom ranges too
+            plan_distributed_list = distribute_plan_by_days(plan_by_date, start_date, end_date)
             current_date = start_date
+            idx = 0
             while current_date <= end_date:
+                fact_amount = fact_by_date.get(current_date, 0.0)
+                plan_amount = plan_distributed_list[idx] if idx < len(plan_distributed_list) else 0.0
+
                 labels.append(current_date.strftime("%d.%m"))
-                fact_data.append(fact_by_date.get(current_date, 0.0))
-                plan_data.append(plan_by_date.get(current_date, 0.0))
+                fact_data.append(fact_amount)
+                plan_data.append(plan_amount)
+                fact_period.append(fact_amount)
+                plan_period.append(plan_amount)
                 current_date += timedelta(days=1)
+                idx += 1
+
+        # === CUMULATIVE MODE: Calculate running totals if requested ===
+        if chart_mode == "cumulative":
+            # Save original period values for tooltip (already saved above)
+            # Calculate cumulative sums
+            plan_cumulative = calculate_cumulative(plan_data)
+            fact_cumulative = calculate_cumulative(fact_data)
+            # Replace data arrays with cumulative
+            plan_data = plan_cumulative
+            fact_data = fact_cumulative
 
         return {
             "labels": labels,
             "plan": plan_data,
             "fact": fact_data,
+            "plan_period": plan_period,  # Original period amounts for tooltip
+            "fact_period": fact_period,  # Original period amounts for tooltip
             "period": period,
-            "article_type": article_type
+            "article_type": article_type,
+            "chart_mode": chart_mode
         }
 
     except Exception as e:
@@ -382,8 +607,11 @@ async def get_plan_fact_data(
             "labels": [],
             "plan": [],
             "fact": [],
+            "plan_period": [],
+            "fact_period": [],
             "period": period or "month",
-            "article_type": article_type
+            "article_type": article_type,
+            "chart_mode": chart_mode
         }
 
 
