@@ -298,10 +298,7 @@
 
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
-<!-- CategoryTreeSelect Component -->
-<script src="/shared/static/js/choicesCategoryTree.min.js?v=PLACEHOLDER"></script>
-<!-- DateFormatter Component -->
-<script src="/shared/static/js/dateFormatter.min.js?v=PLACEHOLDER"></script>
+<!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
 
 <script>
 // Global state for CategoryTreeSelect
@@ -349,7 +346,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Инициализация CalendarWidget для фильтров дат (Range Picker)
-    new CalendarWidget({
+    new BudgetShared.CalendarWidget({
         mode: 'range',
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
@@ -433,7 +430,7 @@ async function loadArticles() {
         const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
         if (createSelect) {
             const createType = document.querySelector('#form_create_modal input[name="plan_type"]:checked')?.value || 'expense';
-            createCategoryTreeSelect = new ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
+            createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
                 type: createType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
@@ -656,10 +653,10 @@ function applyFilters() {
 
     // Convert dates from DD.MM.YYYY to YYYY-MM-DD format for API
     const dateFromValue = document.getElementById('filter-date-from').value;
-    filters.date_from = dateFromValue ? DateFormatter.formatForAPI(dateFromValue) : null;
+    filters.date_from = dateFromValue ? BudgetShared.DateFormatter.formatForAPI(dateFromValue) : null;
 
     const dateToValue = document.getElementById('filter-date-to').value;
-    filters.date_to = dateToValue ? DateFormatter.formatForAPI(dateToValue) : null;
+    filters.date_to = dateToValue ? BudgetShared.DateFormatter.formatForAPI(dateToValue) : null;
 
     filters.financial_center_id = document.getElementById('filter-financial-center').value || null;
     filters.cost_center_id = document.getElementById('filter-cost-center').value || null;
@@ -781,7 +778,7 @@ function renderFactsTable(facts) {
         const description = fact.description || '—';
         const financialCenter = fact.financial_center_name || '—';
         const costCenter = fact.cost_center_name || '—';
-        const formattedDate = DateFormatter.formatForDisplay(fact.fact_date);
+        const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
 
         html += `
             <tr>
@@ -889,7 +886,7 @@ async function showEditModal(factId) {
     // Fill basic fields
     document.getElementById('edit-id').value = fact.id;
     document.getElementById('edit-amount').value = parseFloat(fact.amount);
-    document.getElementById('edit-date').value = DateFormatter.formatForDisplay(fact.fact_date);
+    document.getElementById('edit-date').value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
     document.getElementById('edit-description').value = fact.description || '';
     document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
     document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
@@ -910,7 +907,7 @@ async function showEditModal(factId) {
         // Clear existing options
         editSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
 
-        editCategoryTreeSelect = new ChoicesCategoryTree('#edit-article', {
+        editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
             type: categoryType,
             showLeafOnly: true,
             onCategoryChange: (category) => {
@@ -980,7 +977,7 @@ async function updateFact(event) {
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
-        fact_date: DateFormatter.formatForAPI(displayDate),
+        fact_date: BudgetShared.DateFormatter.formatForAPI(displayDate),
         article_id: parseInt(formData.get('article_id')),
         description: formData.get('description') || null
     };

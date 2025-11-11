@@ -3,8 +3,7 @@
 {% block extra_head %}
 <!-- ECharts library -->
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
-<!-- DateFormatter utility (CalendarWidget already included in base.html) -->
-<script src="/shared/static/js/dateFormatter.js?v=PLACEHOLDER"></script>
+<!-- BudgetShared bundle already included in base.html -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
 {% endblock %}
 
@@ -164,8 +163,8 @@ let rangePicker = null;
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize CalendarWidget for custom date range
-    if (typeof CalendarWidget !== 'undefined') {
-        rangePicker = new CalendarWidget({
+    if (typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+        rangePicker = new BudgetShared.CalendarWidget({
             startInputElement: document.getElementById('date-from'),
             endInputElement: document.getElementById('date-to'),
             mode: 'range',
@@ -488,8 +487,8 @@ function applyCustomRange() {
 
     // Convert DD.MM.YYYY to YYYY-MM-DD for API
     const toISODate = (ruDate) => {
-        if (typeof DateFormatter !== 'undefined' && DateFormatter.toISODate) {
-            return DateFormatter.toISODate(DateFormatter.parseRuDate(ruDate));
+        if (typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
+            return BudgetShared.DateFormatter.formatForAPI(ruDate);
         }
         // Fallback manual conversion
         const [day, month, year] = ruDate.split('.');
@@ -1009,8 +1008,8 @@ function updateGlobalType(type) {
     // Reload charts that depend on global type filter
     if (customRangeActive) {
         // Custom range mode
-        const isoFrom = DateFormatter.toISO(customDateFrom);
-        const isoTo = DateFormatter.toISO(customDateTo);
+        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
         loadPlanFactDataCustom(isoFrom, isoTo);
         loadPieDataCustom(type, isoFrom, isoTo);
         loadHeatmapDataCustom(isoFrom, isoTo);

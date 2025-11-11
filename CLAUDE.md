@@ -374,6 +374,142 @@ familyBudget/
 
 ---
 
+## 🎨 Frontend Shared Modules (BudgetShared)
+
+**Unified Bundle:** Все переиспользуемые JS модули объединены в `budgetShared.js`
+
+**Расположение:** `frontend/shared/static/js/budgetShared.js` (~56KB source, ~25KB minified, ~7KB gzipped)
+
+### Архитектура
+
+```javascript
+window.BudgetShared = {
+    DateFormatter: class,      // Форматирование дат (API ↔ UI)
+    CalendarWidget: class,     // Интерактивные календари (range/single)
+    ChoicesCategoryTree: class, // Иерархические селекторы категорий
+    version: '1.0.0'
+};
+```
+
+**Зависимости:**
+- `CalendarWidget` → использует `DateFormatter` внутри
+- `ChoicesCategoryTree` → использует Choices.js (подключается отдельно)
+
+### Development vs Production
+
+**Development (локально):**
+```html
+<!-- Используй source файл -->
+<script src="/shared/static/js/budgetShared.js?v=PLACEHOLDER"></script>
+```
+
+**Production (после deploy):**
+```html
+<!-- deploy.sh автоматически создаёт .min.js -->
+<script src="/shared/static/js/budgetShared.min.js?v=20251110_0725"></script>
+```
+
+**Workflow:**
+1. Редактируй `budgetShared.js` (source)
+2. При deploy: `scripts/lib/minify.sh` → создаёт `budgetShared.min.js`
+3. При deploy: `scripts/lib/cache_busting.sh` → заменяет `PLACEHOLDER` на timestamp
+
+### Использование
+
+**DateFormatter:**
+```javascript
+// Форматирование для API (YYYY-MM-DD)
+const apiDate = BudgetShared.DateFormatter.formatForAPI(new Date());
+
+// Форматирование для отображения (DD.MM.YYYY)
+const displayDate = BudgetShared.DateFormatter.formatForDisplay("2025-11-10");
+
+// Получить сегодня (API формат)
+const today = BudgetShared.DateFormatter.today();
+
+// Инициализация нативного <input type="date">
+BudgetShared.DateFormatter.initNativeDateInput('#fact_date', {
+    max: BudgetShared.DateFormatter.today()
+});
+```
+
+**CalendarWidget:**
+```javascript
+// Range режим (от - до)
+new BudgetShared.CalendarWidget({
+    mode: 'range',
+    container: '#calendar-container',
+    onDateSelect: (from, to) => {
+        console.log('Selected:', from, to);
+    }
+});
+
+// Single режим (одна дата)
+new BudgetShared.CalendarWidget({
+    mode: 'single',
+    container: '#calendar-container',
+    onDateSelect: (date) => {
+        console.log('Selected:', date);
+    }
+});
+```
+
+**ChoicesCategoryTree:**
+```javascript
+// Webapp (Bearer token auth)
+new BudgetShared.ChoicesCategoryTree('#article_select', {
+    type: 'expense',  // 'expense' | 'income'
+    token: 'Bearer xxx',
+    onSelect: (article) => {
+        console.log('Selected:', article);
+    }
+});
+
+// Web (cookie auth)
+new BudgetShared.ChoicesCategoryTree('#article_select', {
+    type: 'expense',
+    onSelect: (article) => {
+        console.log('Selected:', article);
+    }
+});
+```
+
+### Подключение в HTML Templates
+
+**Web templates (base.html):**
+```html
+<script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+```
+
+**Webapp templates (add.html, edit.html, addplan.html):**
+```html
+<script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+```
+
+### Важные правила
+
+✅ **ВСЕГДА:**
+- Используй namespace `BudgetShared.*` для всех классов
+- Подключай `budgetShared.min.js` с `?v=PLACEHOLDER`
+- Редактируй только source файл (`budgetShared.js`)
+- НЕ редактируй `budgetShared.min.js` (auto-generated)
+
+❌ **НИКОГДА:**
+- НЕ используй старые прямые импорты (`dateFormatter.min.js`, `calendar-widget.min.js`)
+- НЕ создавай инстансы без namespace (`new CalendarWidget()` → WRONG)
+- НЕ коммить `.min.js` файлы (создаются при deploy)
+
+### Исходные модули
+
+**Старые файлы остаются как source:**
+- `frontend/shared/static/js/dateFormatter.js` (source)
+- `frontend/shared/static/js/calendar-widget.js` (source)
+- `frontend/shared/static/js/choicesCategoryTree.js` (source)
+
+**НЕ используй напрямую** - только через `budgetShared.js`
+
+---
+
 ## 📋 Database Management (Alembic v2.0)
 
 **СТАТУС:** Alembic-Only с 2025-11-09 (schema/*.sql → DEPRECATED)

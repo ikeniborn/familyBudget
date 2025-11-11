@@ -346,10 +346,9 @@
     <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
     <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
     <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
-    <script src="/shared/static/js/dateFormatter.min.js?v=PLACEHOLDER"></script>
 
-    <!-- Choices.js Category Tree Component -->
-    <script src="/shared/static/js/choicesCategoryTree.min.js?v=PLACEHOLDER"></script>
+    <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
+    <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
 
     <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
 
@@ -718,7 +717,7 @@
                     await categoryTreeSelect.updateType(formState.planType);
                 } else {
                     // Create ChoicesCategoryTree instance
-                    categoryTreeSelect = new ChoicesCategoryTree('#category-select', {
+                    categoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#category-select', {
                         type: formState.planType,
                         auth: window.auth,  // Pass auth instance for Bearer token
                         showLeafOnly: true,
