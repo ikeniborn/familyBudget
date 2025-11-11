@@ -91,11 +91,35 @@
             </label>
 
             {% if user %}
-                <div class="flex items-center gap-2">
-                    <span class="text-sm font-medium" aria-label="Current user">{{ user.first_name or user.username }}</span>
-                    {% if user.is_admin %}
-                        <span class="badge badge-warning badge-sm" role="status">Admin</span>
-                    {% endif %}
+                <!-- User Dropdown Menu -->
+                <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="btn btn-ghost btn-sm gap-2" aria-label="User menu">
+                        <span class="text-sm font-medium">{{ user.first_name or user.username }}</span>
+                        {% if user.is_admin %}
+                            <span class="badge badge-warning badge-xs">Admin</span>
+                        {% endif %}
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </label>
+                    <ul tabindex="0" class="menu dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-52">
+                        <li class="menu-title"><span>Профиль</span></li>
+                        <li>
+                            <div class="flex items-center gap-2 py-2">
+                                <span class="text-xs opacity-60">Telegram ID:</span>
+                                <span class="font-mono text-xs">{{ user.telegram_id }}</span>
+                            </div>
+                        </li>
+                        <div class="divider my-1"></div>
+                        <li>
+                            <button onclick="handleLogout()" class="text-error" aria-label="Выйти из системы">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                                Выйти
+                            </button>
+                        </li>
+                    </ul>
                 </div>
             {% else %}
                 <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm">Login</a>
@@ -122,6 +146,14 @@
                         <li><a href="/admin/cost-centers">💼 МВЗ</a></li>
                         <li><a href="/admin/monitoring">🔍 Мониторинг</a></li>
                     {% endif %}
+                    {% if user %}
+                        <div class="divider my-1"></div>
+                        <li>
+                            <button onclick="handleLogout()" class="text-error">
+                                🚪 Выйти
+                            </button>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
@@ -131,6 +163,9 @@
     <main id="main-content" class="flex-1 container mx-auto px-4 py-8 max-w-7xl" role="main">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Toast Container (for dynamic notifications) -->
+    <div id="toast-container" class="toast toast-top toast-end z-50" role="alert" aria-live="polite"></div>
 
     <!-- Footer -->
     <footer class="footer footer-center p-4 bg-base-200 text-base-content border-t">
@@ -169,6 +204,65 @@
                 });
             }
         });
+
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            // Create toast element
+            const toast = document.createElement('div');
+            const alertClass = type === 'success' ? 'alert-success' :
+                              type === 'error' ? 'alert-error' :
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
+
+            toast.className = `alert ${alertClass} shadow-lg`;
+            toast.innerHTML = `<span>${message}</span>`;
+
+            // Add to container
+            container.appendChild(toast);
+
+            // Auto-dismiss after 3 seconds
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.3s';
+                toast.style.opacity = '0';
+                setTimeout(() => {
+                    if (toast.parentNode === container) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+
+        // Logout handler
+        async function handleLogout() {
+            try {
+                // Show loading toast
+                showToast('Выход из системы...', 'info');
+
+                // Call logout endpoint
+                const response = await fetch('/api/v1/auth/logout', {
+                    method: 'POST',
+                    credentials: 'same-origin', // Include cookies
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                // Success - show toast and redirect
+                showToast('Вы успешно вышли из системы', 'success');
+
+                // Redirect to home page after short delay
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1000);
+
+            } catch (error) {
+                console.error('Logout error:', error);
+                showToast('Ошибка при выходе из системы', 'error');
+            }
+        }
     </script>
 </body>
 </html>

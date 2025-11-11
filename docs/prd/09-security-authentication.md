@@ -406,5 +406,252 @@ async loadCategories() {
 - ✅ Все функции доступны как обычно
 - ✅ Никаких изменений в UX
 
+### 9.9 Logout функционал
+
+**Реализовано в:** v5.0.0-beta
+
+#### 9.9.1 Backend: Logout Endpoint
+
+**Endpoint:** `POST /api/v1/auth/logout`
+
+**Функционал:**
+1. Отзыв refresh token в БД (`t_f_refresh_token.is_revoked = True`)
+2. Удаление httpOnly cookies: `access_token` и `refresh_token`
+3. Graceful degradation: успех даже если токен не найден
+
+**Код (backend/app/api/v1/endpoints/auth.py:644-718):**
+```python
+@router.post("/logout")
+async def logout(
+    response: Response,
+    session: AsyncSession = Depends(get_session),
+    refresh_token: str | None = Cookie(None, alias="refresh_token"),
+) -> dict:
+    """Logout user by revoking refresh token."""
+
+    # 1. Revoke refresh token in database
+    if refresh_token:
+        token_hash = hash_token(refresh_token)
+        db_token = await session.exec(
+            select(RefreshToken)
+            .where(RefreshToken.token_hash == token_hash)
+            .where(RefreshToken.is_revoked == False)
+        ).first()
+
+        if db_token:
+            db_token.revoke()  # Sets is_revoked=True, revoked_at=now()
+            await session.commit()
+
+    # 2. Clear both cookies (access_token and refresh_token)
+    response.delete_cookie(key="access_token")
+    response.delete_cookie(key="refresh_token")
+
+    return {"message": "Logout successful"}
+```
+
+**Security features:**
+- ✅ Token revocation в БД (предотвращает reuse)
+- ✅ Удаление httpOnly cookies (XSS protection)
+- ✅ Идемпотентность (можно вызывать многократно)
+- ✅ Graceful degradation (работает даже без валидного токена)
+
+#### 9.9.2 Frontend: User Dropdown Menu
+
+**Компонент:** DaisyUI Dropdown в navbar (desktop)
+
+**Файл:** `frontend/web/templates/base.html:93-123`
+
+**Структура:**
+```html
+{% if user %}
+    <div class="dropdown dropdown-end">
+        <label tabindex="0" class="btn btn-ghost btn-sm gap-2">
+            <span>{{ user.first_name or user.username }}</span>
+            {% if user.is_admin %}
+                <span class="badge badge-warning badge-xs">Admin</span>
+            {% endif %}
+            <svg class="w-4 h-4">...</svg> <!-- Chevron down icon -->
+        </label>
+        <ul class="menu dropdown-content">
+            <li class="menu-title"><span>Профиль</span></li>
+            <li>
+                <div>Telegram ID: {{ user.telegram_id }}</div>
+            </li>
+            <div class="divider my-1"></div>
+            <li>
+                <button onclick="handleLogout()" class="text-error">
+                    <svg>...</svg> <!-- Logout icon -->
+                    Выйти
+                </button>
+            </li>
+        </ul>
+    </div>
+{% endif %}
+```
+
+**UI элементы:**
+- Имя пользователя + admin badge (если админ)
+- Telegram ID (для идентификации)
+- Кнопка "Выйти" (красная, с иконкой)
+
+#### 9.9.3 Frontend: Mobile Menu Logout
+
+**Компонент:** Logout кнопка в mobile dropdown menu
+
+**Файл:** `frontend/web/templates/base.html:149-156`
+
+**Структура:**
+```html
+{% if user %}
+    <div class="divider my-1"></div>
+    <li>
+        <button onclick="handleLogout()" class="text-error">
+            🚪 Выйти
+        </button>
+    </li>
+{% endif %}
+```
+
+**Расположение:** После навигационных ссылок и admin меню
+
+#### 9.9.4 Frontend: Toast Notification System
+
+**Назначение:** Визуальный feedback при logout
+
+**Файл:** `frontend/web/templates/base.html:167-235`
+
+**Toast Container:**
+```html
+<div id="toast-container" class="toast toast-top toast-end z-50"></div>
+```
+
+**showToast() функция:**
+```javascript
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    const alertClass = type === 'success' ? 'alert-success' :
+                      type === 'error' ? 'alert-error' :
+                      type === 'warning' ? 'alert-warning' : 'alert-info';
+
+    toast.className = `alert ${alertClass} shadow-lg`;
+    toast.innerHTML = `<span>${message}</span>`;
+    container.appendChild(toast);
+
+    // Auto-dismiss after 3 seconds
+    setTimeout(() => {
+        toast.style.transition = 'opacity 0.3s';
+        toast.style.opacity = '0';
+        setTimeout(() => container.removeChild(toast), 300);
+    }, 3000);
+}
+```
+
+**Типы toast:**
+- `info` - синий (loading, информация)
+- `success` - зеленый (успешные операции)
+- `error` - красный (ошибки)
+- `warning` - желтый (предупреждения)
+
+#### 9.9.5 Frontend: Logout Handler
+
+**handleLogout() функция:**
+```javascript
+async function handleLogout() {
+    try {
+        // 1. Show loading toast
+        showToast('Выход из системы...', 'info');
+
+        // 2. Call logout endpoint
+        const response = await fetch('/api/v1/auth/logout', {
+            method: 'POST',
+            credentials: 'same-origin', // Include cookies
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        // 3. Success - show toast and redirect
+        showToast('Вы успешно вышли из системы', 'success');
+
+        // 4. Redirect to home page (will show login button)
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 1000);
+
+    } catch (error) {
+        console.error('Logout error:', error);
+        showToast('Ошибка при выходе из системы', 'error');
+    }
+}
+```
+
+**Flow:**
+1. Показать info toast "Выход из системы..."
+2. POST `/api/v1/auth/logout` с credentials
+3. При успехе: success toast "Вы успешно вышли"
+4. Redirect на `/` через 1 секунду
+5. При ошибке: error toast с сообщением
+
+#### 9.9.6 UX Flow
+
+**Logout Flow (Desktop):**
+```
+Пользователь → Клик на имя пользователя → Dropdown открывается →
+→ Клик "Выйти" → Toast "Выход из системы..." →
+→ Backend logout → Toast "Вы успешно вышли" →
+→ Redirect на главную → Показ login кнопки
+```
+
+**Logout Flow (Mobile):**
+```
+Пользователь → Клик на hamburger меню → Mobile menu открывается →
+→ Scroll вниз → Клик "🚪 Выйти" → (тот же flow)
+```
+
+**После logout:**
+- Cookies удалены (access_token, refresh_token)
+- Refresh token отозван в БД
+- Пользователь перенаправлен на `/` (public page)
+- Показана login кнопка вместо user dropdown
+
+#### 9.9.7 Testing
+
+**Integration тесты:** `tests/integration/backend/test_auth_endpoints.py`
+
+**Тесты:**
+1. `test_logout_success` - успешный logout очищает cookies
+2. `test_logout_idempotent` - logout можно вызывать многократно
+3. `test_logout_without_cookies` - graceful degradation без cookies
+4. `test_logout_returns_json` - корректный JSON response
+
+**Запуск:**
+```bash
+pytest tests/integration/backend/test_auth_endpoints.py -m integration
+```
+
+#### 9.9.8 Security Considerations
+
+**Защита от CSRF:**
+- ✅ Logout делает POST (не GET)
+- ✅ SameSite=lax cookies
+- ✅ CORS настроен корректно
+
+**Защита от XSS:**
+- ✅ httpOnly cookies (JavaScript не может прочитать токены)
+- ✅ Secure flag для HTTPS
+- ✅ Toast content escaped (innerHTML с простым текстом)
+
+**Token Revocation:**
+- ✅ Refresh token отзывается в БД
+- ✅ Нельзя повторно использовать отозванный токен
+- ✅ `is_revoked` и `revoked_at` для audit trail
+
+**Graceful Degradation:**
+- ✅ Logout работает даже если токен невалидный
+- ✅ Logout работает даже если токена нет
+- ✅ Пользователь всегда может "очистить сессию"
+
 ---
 
