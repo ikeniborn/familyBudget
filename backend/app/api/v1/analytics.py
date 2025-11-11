@@ -992,6 +992,9 @@ async def get_waterfall_data(
         result = await session.execute(query)
         rows = result.all()
 
+        # DEBUG: Log query results
+        logger.info(f"[WATERFALL DEBUG] period={period}, start_date={start_date}, end_date={end_date}, rows_count={len(rows)}")
+
         # Build data structure
         period_data = {}
         articles_info = {}  # Track articles for drill-down
@@ -1047,6 +1050,10 @@ async def get_waterfall_data(
         initial_balance_result = await session.execute(initial_balance_query)
         initial_balance = initial_balance_result.scalar()
         initial_balance = float(initial_balance) if initial_balance is not None else 0.0
+
+        # DEBUG: Log initial balance and period data
+        logger.info(f"[WATERFALL DEBUG] initial_balance={initial_balance}, prev_period=({prev_start} to {prev_end})")
+        logger.info(f"[WATERFALL DEBUG] period_data keys: {list(period_data.keys())[:10] if period_data else []}")  # First 10 keys
 
         # Generate arrays based on period type
         labels = []

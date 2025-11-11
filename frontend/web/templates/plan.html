@@ -726,6 +726,7 @@ async function loadFacts() {
         if (filters.date_to) params.append('date_to', filters.date_to);
         if (filters.financial_center_id) params.append('financial_center_id', filters.financial_center_id);
         if (filters.cost_center_id) params.append('cost_center_id', filters.cost_center_id);
+        if (filters.search) params.append('search', filters.search);
 
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([
