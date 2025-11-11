@@ -28,7 +28,6 @@ class User(SQLModel, table=True):
         telegram_id: Unique identifier from Telegram (business key)
         username: Telegram username (optional)
         first_name: User's first name (optional)
-        last_name: User's last name (optional)
         is_admin: Admin flag for access control
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
@@ -63,11 +62,6 @@ class User(SQLModel, table=True):
         default=None,
         max_length=255,
         description="User's first name"
-    )
-    last_name: Optional[str] = Field(
-        default=None,
-        max_length=255,
-        description="User's last name"
     )
     is_admin: bool = Field(
         default=False,

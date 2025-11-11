@@ -21,8 +21,17 @@ from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
 from backend.app.schemas.admin import SystemStatsResponse
-from backend.app.schemas.user import UserCreate
-from backend.app.services.telegram_auth import validate_telegram_user
+from backend.app.schemas.user import (
+    UserCreate,
+    UserDetailResponse,
+    UserListResponse,
+    UserUpdate,
+    TelegramUserInfo,
+)
+from backend.app.services.telegram_auth import (
+    validate_telegram_user,
+    fetch_telegram_user_info
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
@@ -31,27 +40,6 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 # Request/Response Models
 # ============================================================================
-
-class UserResponse(BaseModel):
-    """User response model for admin."""
-    id: int
-    telegram_id: int
-    username: str | None
-    first_name: str | None
-    last_name: str | None
-    is_admin: bool
-    is_current: bool
-    valid_from: str
-    valid_to: str | None
-
-    class Config:
-        from_attributes = True
-
-
-class UserUpdateRequest(BaseModel):
-    """User update request model."""
-    is_admin: bool | None = None
-
 
 class UserStatsResponse(BaseModel):
     """User statistics response."""
@@ -97,60 +85,62 @@ class ArticleUpdateRequest(BaseModel):
 # Users Management Endpoints
 # ============================================================================
 
-@router.get("/users", response_model=List[UserResponse])
+@router.get("/users", response_model=UserListResponse)
 async def get_all_users(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    is_current: bool = Query(True, description="Filter by current users only")
-):
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of users returned"),
+    offset: int = Query(0, ge=0, description="Number of users skipped"),
+) -> UserListResponse:
     """
     Get all users (admin only).
 
-    Returns list of all registered users with their current status.
-    Can filter by is_current flag to see only active users or all historical records.
+    Returns list of all registered users with pagination.
+    Only returns current (active) user versions.
 
     Args:
         current_admin: Current admin user (from dependency)
         session: Database session
-        is_current: Whether to show only current (active) users
+        limit: Maximum number of results (1-1000, default: 100)
+        offset: Number of results to skip (default: 0)
 
     Returns:
-        List[UserResponse]: List of users
+        UserListResponse: List of users with pagination info
     """
-    query = select(User)
+    # Base query: only current versions
+    statement = select(User).where(User.is_current == True)  # noqa: E712
 
-    if is_current:
-        query = query.where(User.is_current == True)  # noqa: E712
+    # Count total (before pagination)
+    count_stmt = select(func.count()).select_from(statement.subquery())
+    total_result = await session.execute(count_stmt)
+    total = total_result.scalar_one()
 
-    query = query.order_by(User.telegram_id, User.valid_from.desc())
+    # Apply pagination and ordering (newest first)
+    statement = statement.order_by(User.created_at.desc())
+    statement = statement.limit(limit).offset(offset)
 
-    result = await session.execute(query)
+    # Execute query
+    result = await session.execute(statement)
     users = result.scalars().all()
 
-    return [
-        UserResponse(
-            id=user.id,
-            telegram_id=user.telegram_id,
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            is_admin=user.is_admin,
-            is_current=user.is_current,
-            valid_from=user.valid_from.isoformat(),
-            valid_to=user.valid_to.isoformat() if user.valid_to else None
-        )
-        for user in users
-    ]
+    return UserListResponse(
+        users=users,
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
 
 
-@router.get("/users/{user_id}", response_model=UserResponse)
+@router.get("/users/{user_id}", response_model=UserDetailResponse)
 async def get_user_by_id(
     user_id: int,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
-):
+) -> User:
     """
     Get specific user by ID (admin only).
+
+    Returns current user version with full SCD Type 2 details.
 
     Args:
         user_id: User ID to retrieve
@@ -158,89 +148,119 @@ async def get_user_by_id(
         session: Database session
 
     Returns:
-        UserResponse: User details
+        UserDetailResponse: User details with SCD Type 2 fields
 
     Raises:
         HTTPException: 404 if user not found
     """
-    query = select(User).where(User.id == user_id)
-    result = await session.execute(query)
+    # Load user (current version only)
+    statement = select(User).where(
+        User.id == user_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail=f"User with id={user_id} not found")
 
-    return UserResponse(
-        id=user.id,
-        telegram_id=user.telegram_id,
-        username=user.username,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        is_admin=user.is_admin,
-        is_current=user.is_current,
-        valid_from=user.valid_from.isoformat(),
-        valid_to=user.valid_to.isoformat() if user.valid_to else None
-    )
+    return user
 
 
-@router.get("/users/check-duplicate", response_model=bool)
-async def check_duplicate_user(
+@router.get("/users/telegram-info/{telegram_id}", response_model=TelegramUserInfo)
+async def get_telegram_user_info(
+    telegram_id: int,
     current_admin: CurrentAdmin,
-    telegram_id: int = Query(..., gt=0, description="Telegram ID to check"),
     session: AsyncSession = Depends(get_session)
-) -> bool:
+) -> TelegramUserInfo:
     """
-    Check if user with given telegram_id already exists (admin only).
+    Fetch user information from Telegram Bot API (admin only).
 
-    Used by admin panel to prevent duplicate user creation.
-    Only checks among current (active) users (is_current=True).
+    Retrieves username and first_name from Telegram for auto-filling
+    the user creation form. Also checks if user already exists in database.
+
+    Комбинированный подход:
+    - Сначала пытаемся получить данные из Telegram Bot API
+    - При ошибке возвращаем 404 с детальным сообщением
+    - Frontend может разрешить ручной ввод
 
     Args:
-        telegram_id: Telegram ID to check for duplicates
+        telegram_id: Telegram ID to fetch info for
         current_admin: Current admin user (from dependency)
         session: Database session
 
     Returns:
-        bool: True if user exists, False otherwise
+        TelegramUserInfo: User data from Telegram + exists_in_db flag
+
+    Raises:
+        HTTPException: 404 if user not found in Telegram or Bot API error
 
     Example:
-        GET /api/v1/admin/users/check-duplicate?telegram_id=123456789
-        Response: false
+        GET /api/v1/admin/users/telegram-info/123456789
+        Response: {
+            "telegram_id": 123456789,
+            "username": "johndoe",
+            "first_name": "John",
+            "exists_in_db": false
+        }
     """
+    # Fetch user data from Telegram Bot API
+    user_info = await fetch_telegram_user_info(telegram_id)
+
+    if user_info is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Не удалось получить информацию о пользователе {telegram_id} из Telegram. "
+                "Возможные причины: пользователь не существует, бот не запущен, "
+                "или пользователь не писал боту. "
+                "Вы можете ввести данные вручную."
+            )
+        )
+
+    # Check if user exists in our database
     query = select(User).where(
         User.telegram_id == telegram_id,
         User.is_current == True  # noqa: E712
     )
     result = await session.execute(query)
-    user = result.scalar_one_or_none()
+    existing_user = result.scalar_one_or_none()
 
-    return user is not None
+    # Return TelegramUserInfo with exists_in_db flag
+    return TelegramUserInfo(
+        telegram_id=user_info["telegram_id"],
+        username=user_info.get("username"),
+        first_name=user_info.get("first_name"),
+        exists_in_db=(existing_user is not None)
+    )
 
 
-@router.post("/users", response_model=UserResponse, status_code=201)
+@router.post("/users", response_model=UserDetailResponse, status_code=201)
 async def create_user(
-    create_data: UserCreate,
+    user_data: UserCreate,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
-):
+) -> User:
     """
     Create new user (admin only).
 
     Creates a new user record with SCD Type 2 fields.
-    Validates telegram_id uniqueness and existence via Telegram Bot API.
+    Validates telegram_id uniqueness in database.
+
+    **SCD Type 2 Behavior:**
+    - Creates initial version with is_current=True
+    - valid_from=now(), valid_to=9999-12-31
 
     Args:
-        create_data: User creation data (telegram_id, username, etc.)
+        user_data: User creation data (telegram_id, username, etc.)
         current_admin: Current admin user (from dependency)
         session: Database session
 
     Returns:
-        UserResponse: Created user record
+        UserDetailResponse: Created user record with SCD Type 2 fields
 
     Raises:
-        HTTPException: 400 if telegram_id already exists (duplicate)
-        HTTPException: 400 if telegram_id is invalid (not found in Telegram)
-        HTTPException: 500 for database or API errors
+        HTTPException: 409 if telegram_id already exists (duplicate)
 
     Example:
         POST /api/v1/admin/users
@@ -248,115 +268,108 @@ async def create_user(
             "telegram_id": 123456789,
             "username": "johndoe",
             "first_name": "John",
-            "last_name": "Doe",
             "is_admin": false
         }
     """
-    # Validation #1: Check uniqueness in database
-    # Only check among current (active) users
-    existing_user_query = select(User).where(
-        User.telegram_id == create_data.telegram_id,
+    # Check if user with this telegram_id already exists
+    statement = select(User).where(
+        User.telegram_id == user_data.telegram_id,
         User.is_current == True  # noqa: E712
     )
-    existing_user_result = await session.execute(existing_user_query)
-    existing_user = existing_user_result.scalar_one_or_none()
+    result = await session.execute(statement)
+    existing_user = result.scalar_one_or_none()
 
     if existing_user:
         raise HTTPException(
-            status_code=400,
-            detail=f"User with telegram_id {create_data.telegram_id} already exists"
+            status_code=409,
+            detail=(
+                f"User with telegram_id={user_data.telegram_id} "
+                "already exists"
+            )
         )
 
-    # Validation #2: Check if telegram_id exists in Telegram via Bot API
-    # This ensures we're creating valid users only
-    is_valid_telegram_user = await validate_telegram_user(create_data.telegram_id)
-
-    if not is_valid_telegram_user:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid telegram_id {create_data.telegram_id}. "
-                   "User not found in Telegram or bot hasn't interacted with this user. "
-                   "Please ensure the user has started a conversation with the bot."
-        )
-
-    # Create new user with SCD Type 2 fields
+    # Create new user (initial SCD Type 2 version)
+    now = datetime.utcnow()
     new_user = User(
-        telegram_id=create_data.telegram_id,
-        username=create_data.username,
-        first_name=create_data.first_name,
-        last_name=create_data.last_name,
-        is_admin=create_data.is_admin,
-        valid_from=datetime.utcnow(),
-        valid_to=None,
-        is_current=True
+        telegram_id=user_data.telegram_id,
+        username=user_data.username,
+        first_name=user_data.first_name,
+        is_admin=user_data.is_admin,
+        valid_from=now,
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+        is_current=True,
+        created_at=now,
+        updated_at=now,
     )
 
     session.add(new_user)
+    await session.commit()
+    await session.refresh(new_user)
 
-    try:
-        await session.commit()
-        await session.refresh(new_user)
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create user: {str(e)}"
-        )
-
-    return UserResponse(
-        id=new_user.id,
-        telegram_id=new_user.telegram_id,
-        username=new_user.username,
-        first_name=new_user.first_name,
-        last_name=new_user.last_name,
-        is_admin=new_user.is_admin,
-        is_current=new_user.is_current,
-        valid_from=new_user.valid_from.isoformat(),
-        valid_to=new_user.valid_to.isoformat() if new_user.valid_to else None
-    )
+    return new_user
 
 
-@router.put("/users/{user_id}", response_model=UserResponse)
-async def update_user(
+@router.put("/users/{user_id}", response_model=UserDetailResponse)
+async def update_user_role(
     user_id: int,
-    update_data: UserUpdateRequest,
+    user_data: UserUpdate,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
-):
+) -> User:
     """
-    Update user (admin only).
+    Update user role (admin only, SCD Type 2).
 
-    Currently supports updating:
-    - is_admin: Grant or revoke admin privileges
+    **Admin Only:** Only admin users can update user roles.
 
-    Note: Uses SCD Type 2 - creates new record with valid_from=NOW() and closes old one.
+    **SCD Type 2 Behavior:**
+    - Creates NEW version with is_current=True
+    - Old version: is_current=False, valid_to=now()
+    - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
+
+    **Use Cases:**
+    - Promote user to admin: is_admin=True
+    - Demote admin to regular user: is_admin=False
 
     Args:
         user_id: User ID to update
-        update_data: Update request data
+        user_data: Update request data (is_admin field)
         current_admin: Current admin user (from dependency)
         session: Database session
 
     Returns:
-        UserResponse: Updated user
+        UserDetailResponse: Updated user (new version created)
 
     Raises:
         HTTPException: 404 if user not found
         HTTPException: 400 if trying to demote last admin
     """
-    # Get current user version
-    query = select(User).where(
+    # Load current version
+    statement = select(User).where(
         User.id == user_id,
         User.is_current == True  # noqa: E712
     )
-    result = await session.execute(query)
-    user = result.scalar_one_or_none()
+    result = await session.execute(statement)
+    old_user = result.scalar_one_or_none()
 
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    if not old_user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Prepare update data
+    update_data = user_data.model_dump()
+
+    # Check if is_admin actually changed
+    from backend.app.services import has_changes, create_new_version
+
+    changed, changed_fields = has_changes(old_user, update_data)
+    if not changed:
+        # No change, return existing user
+        return old_user
 
     # Prevent demoting the last admin
-    if update_data.is_admin is not None and not update_data.is_admin:
+    if update_data.get("is_admin") is False and old_user.is_admin:
         # Check if this is the last admin
         admin_count_query = select(func.count(User.id)).where(
             User.is_admin == True,  # noqa: E712
@@ -372,40 +385,15 @@ async def update_user(
                 detail="Cannot demote the last admin. Promote another user to admin first."
             )
 
-    # Apply SCD Type 2 update
-    from datetime import datetime
-
-    # Close old record
-    user.valid_to = datetime.utcnow()
-    user.is_current = False
-    session.add(user)
-
-    # Create new record
-    new_user = User(
-        telegram_id=user.telegram_id,
-        username=user.username,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        is_admin=update_data.is_admin if update_data.is_admin is not None else user.is_admin,
-        valid_from=datetime.utcnow(),
-        valid_to=None,
-        is_current=True
+    # Create new version using SCD2 service
+    new_user = await create_new_version(
+        session=session,
+        old_instance=old_user,
+        updates=update_data,
+        changed_fields=changed_fields,
     )
-    session.add(new_user)
-    await session.commit()
-    await session.refresh(new_user)
 
-    return UserResponse(
-        id=new_user.id,
-        telegram_id=new_user.telegram_id,
-        username=new_user.username,
-        first_name=new_user.first_name,
-        last_name=new_user.last_name,
-        is_admin=new_user.is_admin,
-        is_current=new_user.is_current,
-        valid_from=new_user.valid_from.isoformat(),
-        valid_to=new_user.valid_to.isoformat() if new_user.valid_to else None
-    )
+    return new_user
 
 
 @router.get("/users/stats/summary", response_model=List[UserStatsResponse])

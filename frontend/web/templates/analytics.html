@@ -3,8 +3,7 @@
 {% block extra_head %}
 <!-- ECharts library -->
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
-<!-- CalendarWidget for custom date range -->
-<script src="/shared/static/js/calendar-widget.js?v=PLACEHOLDER"></script>
+<!-- DateFormatter utility (CalendarWidget already included in base.html) -->
 <script src="/shared/static/js/dateFormatter.js?v=PLACEHOLDER"></script>
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
 {% endblock %}
@@ -808,12 +807,114 @@ function updatePieChart(data) {
         }));
     }
 
+    // Adaptive layout based on screen width
+    const screenWidth = window.innerWidth;
+    const isMobile = screenWidth < 640;
+    const isTablet = screenWidth >= 640 && screenWidth < 1024;
+
+    // Adjust chart container height based on number of categories and screen size
+    const chartDom = document.getElementById('chart-pie');
+    const numCategories = chartData.length;
+
+    // Calculate required height for legend
+    const legendItemWidth = isMobile ? 100 : 130;  // Approximate width per legend item
+    const containerWidth = chartDom.offsetWidth;
+    const itemsPerRow = Math.floor(containerWidth / legendItemWidth);
+    const legendRows = Math.ceil(numCategories / itemsPerRow);
+    const legendHeight = legendRows * (isMobile ? 25 : 30);  // Height per row
+
+    // Base height + legend height + padding
+    const minHeight = isMobile ? 280 : 400;
+    const dynamicHeight = Math.max(minHeight, minHeight + legendHeight + 80);
+    chartDom.style.height = `${dynamicHeight}px`;
+
+    // Rebuild chart with new height
+    pieChart.dispose();
+    pieChart = echarts.init(chartDom);
+
+    // Adaptive configuration
+    let legendConfig, seriesConfig;
+
+    if (isMobile) {
+        // Mobile: legend below chart, smaller pie radius
+        legendConfig = {
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 5,
+            itemWidth: 10,
+            itemHeight: 10,
+            textStyle: {
+                fontSize: 10
+            },
+            formatter: function(name) {
+                return name.length > 12 ? name.substring(0, 12) + '...' : name;
+            }
+        };
+        seriesConfig = {
+            radius: ['25%', '45%'],
+            center: ['50%', '35%'],  // Move up to make room for legend
+            label: {
+                show: true,
+                formatter: '{d}%',
+                fontSize: 10
+            }
+        };
+    } else if (isTablet) {
+        // Tablet: medium size
+        legendConfig = {
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 10,
+            itemWidth: 12,
+            itemHeight: 12,
+            textStyle: {
+                fontSize: 11
+            },
+            formatter: function(name) {
+                return name.length > 14 ? name.substring(0, 14) + '...' : name;
+            }
+        };
+        seriesConfig = {
+            radius: ['28%', '50%'],
+            center: ['50%', '40%'],
+            label: {
+                show: true,
+                formatter: '{d}%',
+                fontSize: 11
+            }
+        };
+    } else {
+        // Desktop: full size
+        legendConfig = {
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 15,
+            itemWidth: 14,
+            itemHeight: 14,
+            textStyle: {
+                fontSize: 12
+            },
+            formatter: function(name) {
+                return name.length > 15 ? name.substring(0, 15) + '...' : name;
+            }
+        };
+        seriesConfig = {
+            radius: ['30%', '55%'],
+            center: ['50%', '43%'],
+            label: {
+                show: true,
+                formatter: '{d}%',
+                fontSize: 12
+            }
+        };
+    }
+
     const option = {
         title: {
             text: `${typeLabel} по категориям (${periodLabel})`,
             left: 'center',
             textStyle: {
-                fontSize: 16,
+                fontSize: isMobile ? 14 : 16,
                 fontWeight: 'normal'
             }
         },
@@ -852,35 +953,24 @@ function updatePieChart(data) {
                 return html;
             }
         },
-        legend: {
-            orient: 'horizontal',
-            left: 'center',
-            bottom: 15,  // Increased spacing from bottom
-            formatter: function(name) {
-                return name.length > 15 ? name.substring(0, 15) + '...' : name;
-            }
-        },
+        legend: legendConfig,
         series: [
             {
                 name: typeLabel,
                 type: 'pie',
-                radius: ['30%', '55%'],  // Reduced radius for more space
-                center: ['50%', '43%'],  // Move center slightly up
+                radius: seriesConfig.radius,
+                center: seriesConfig.center,
                 avoidLabelOverlap: true,
                 itemStyle: {
                     borderRadius: 10,
                     borderColor: '#fff',
                     borderWidth: 2
                 },
-                label: {
-                    show: true,
-                    formatter: '{d}%',
-                    fontSize: 12
-                },
+                label: seriesConfig.label,
                 emphasis: {
                     label: {
                         show: true,
-                        fontSize: 14,
+                        fontSize: isMobile ? 12 : 14,
                         fontWeight: 'bold'
                     },
                     itemStyle: {

@@ -325,14 +325,10 @@ run_alembic_migrations() {
         success "Database migrations completed successfully"
     fi
 
-    # Run bootstrap script to create first admin user (idempotent)
-    step "Creating first admin user (if not exists)..."
-    if compose_cmd exec -T backend bash -c "cd /app && PYTHONPATH=/app python backend/db/create_first_admin.py" >> "$LOG_FILE" 2>&1; then
-        success "Admin user bootstrap completed"
-    else
-        warning "Bootstrap script failed (admin may already exist)"
-        # Not a fatal error - admin might already exist
-    fi
+    # Admin user is created automatically by baseline migration (v5.1.0+)
+    # The migration reads ADMIN_TELEGRAM_ID from environment and creates admin if not exists
+    # See: backend/db/migrations/versions/20251110_e2558a31af07_baseline_v5_1_0_consolidated.py
+    info "Admin user created automatically during migration (via ADMIN_TELEGRAM_ID)"
 
     return 0
 }

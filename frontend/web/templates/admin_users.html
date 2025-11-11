@@ -50,7 +50,10 @@
                 <label class="label">
                     <span class="label-text">📱 Telegram ID*</span>
                 </label>
-                <input type="number" id="create-telegram-id" name="telegram_id" required placeholder="Введите Telegram ID" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+                <div class="flex gap-2">
+                    <input type="number" id="create-telegram-id" name="telegram_id" required placeholder="Введите Telegram ID" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200 flex-1" />
+                    <button type="button" class="btn btn-outline btn-primary" onclick="checkTelegramId()">🔍 Проверить</button>
+                </div>
                 <label class="label">
                     <span class="label-text-alt" id="telegram-id-hint">Числовой ID пользователя в Telegram</span>
                 </label>
@@ -67,12 +70,6 @@
                     <span class="label-text font-medium">📝 Имя</span>
                 </label>
                 <input type="text" id="create-first-name" name="first_name" maxlength="255" placeholder="Введите имя" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text font-medium">📝 Фамилия</span>
-                </label>
-                <input type="text" id="create-last-name" name="last_name" maxlength="255" placeholder="Введите фамилию" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
             </div>
             <div class="form-control">
                 <label class="label cursor-pointer justify-start gap-3">
@@ -110,12 +107,6 @@
                 <input type="text" id="edit-first-name" name="first_name" maxlength="255" placeholder="Введите имя" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
             </div>
             <div class="form-control">
-                <label class="label">
-                    <span class="label-text font-medium">📝 Фамилия</span>
-                </label>
-                <input type="text" id="edit-last-name" name="last_name" maxlength="255" placeholder="Введите фамилию" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
-            </div>
-            <div class="form-control">
                 <label class="label cursor-pointer justify-start gap-3">
                     <input type="checkbox" id="edit-is-admin" name="is_admin" class="checkbox" />
                     <span class="label-text">🔑 Администратор</span>
@@ -143,15 +134,6 @@ let usersData = [];
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
     loadStats();
-
-    // Add event listener for telegram_id duplicate check
-    const telegramIdInput = document.getElementById('create-telegram-id');
-    if (telegramIdInput) {
-        telegramIdInput.addEventListener('input', (e) => {
-            const telegramId = parseInt(e.target.value);
-            checkDuplicateTelegramId(telegramId);
-        });
-    }
 });
 
 // Toggle user filter (current vs all history)
@@ -186,7 +168,9 @@ async function loadUsers() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const users = await response.json();
+        const data = await response.json();
+        // Backend returns UserListResponse: {users: [...], total, limit, offset}
+        const users = data.users || data;  // Support both new and old format
         usersData = users;
         renderUsersTable(users);
     } catch (error) {
@@ -329,59 +313,54 @@ function closeCreateModal() {
     errorDiv.classList.add('hidden');
 }
 
-// Check duplicate telegram_id (real-time validation)
-let checkDuplicateTimeout;
-async function checkDuplicateTelegramId(telegramId) {
-    const input = document.getElementById('create-telegram-id');
-    const errorDiv = document.getElementById('telegram-id-error');
-    const submitBtn = document.querySelector('#create-form button[type="submit"]');
+// Check Telegram ID (on-demand validation)
+async function checkTelegramId() {
+    const telegramIdInput = document.getElementById('create-telegram-id');
+    const telegram_id = parseInt(telegramIdInput.value);
 
-    // Clear previous timeout
-    if (checkDuplicateTimeout) {
-        clearTimeout(checkDuplicateTimeout);
-    }
-
-    // Validate input
-    if (!telegramId || telegramId <= 0) {
-        input.classList.remove('input-error');
-        errorDiv.classList.add('hidden');
-        submitBtn.disabled = false;
+    // Validation
+    if (!telegram_id || telegram_id <= 0) {
+        showNotification('Введите корректный Telegram ID', 'error');
         return;
     }
 
-    // Debounce API call (wait 500ms after user stops typing)
-    checkDuplicateTimeout = setTimeout(async () => {
-        try {
-            const response = await fetch(`/api/v1/admin/users/check-duplicate?telegram_id=${telegramId}`, {
-                credentials: 'include',
-            });
+    try {
+        // Вызов нового endpoint
+        const response = await fetch(`/api/v1/admin/users/telegram-info/${telegram_id}`, {
+            credentials: 'include'
+        });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.ok) {
+            const data = await response.json();
+
+            // Проверка exists_in_db
+            if (data.exists_in_db) {
+                showNotification(`Пользователь с ID ${telegram_id} уже существует`, 'error');
+                return;
             }
 
-            const isDuplicate = await response.json();
-
-            if (isDuplicate) {
-                // Show error
-                input.classList.add('input-error');
-                errorDiv.textContent = '⚠️ Пользователь с таким Telegram ID уже существует';
-                errorDiv.classList.remove('hidden');
-                submitBtn.disabled = true;
-            } else {
-                // Clear error
-                input.classList.remove('input-error');
-                errorDiv.classList.add('hidden');
-                submitBtn.disabled = false;
+            // Автозаполнение
+            if (data.username) {
+                document.getElementById('create-username').value = data.username;
             }
-        } catch (error) {
-            console.error('Error checking duplicate:', error);
-            // On error, allow submission (backend will validate)
-            input.classList.remove('input-error');
-            errorDiv.classList.add('hidden');
-            submitBtn.disabled = false;
+            if (data.first_name) {
+                document.getElementById('create-first-name').value = data.first_name;
+            }
+
+            showNotification('Данные получены из Telegram', 'success');
+        } else if (response.status === 404) {
+            // 404 = Telegram Bot API error
+            const error = await response.json();
+            showNotification(error.detail || 'Пользователь не найден в Telegram', 'warning');
+            // НЕ блокируем форму - разрешаем ручной ввод
+        } else {
+            throw new Error(`HTTP ${response.status}`);
         }
-    }, 500);
+    } catch (error) {
+        console.error('Error checking Telegram ID:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`Ошибка: ${errorMessage}`, 'error');
+    }
 }
 
 // Create user
@@ -393,7 +372,6 @@ async function createUser(event) {
         telegram_id: parseInt(formData.get('telegram_id')),
         username: formData.get('username') || null,
         first_name: formData.get('first_name') || null,
-        last_name: formData.get('last_name') || null,
         is_admin: formData.get('is_admin') === 'on'
     };
 
@@ -416,11 +394,11 @@ async function createUser(event) {
         closeCreateModal();
         await loadUsers();
         await loadStats();
-        showNotification('✅ Пользователь успешно создан!', 'success');
+        showNotification('Пользователь успешно создан!', 'success');
     } catch (error) {
         console.error('Error creating user:', error);
         const errorMessage = error?.message || String(error);
-        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+        showNotification(`Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -504,7 +482,6 @@ function showEditUserModal(userId) {
     document.getElementById('edit-id').value = user.id;
     document.getElementById('edit-username').value = user.username || '';
     document.getElementById('edit-first-name').value = user.first_name || '';
-    document.getElementById('edit-last-name').value = user.last_name || '';
     document.getElementById('edit-is-admin').checked = user.is_admin;
 
     document.getElementById('edit-modal').showModal();
@@ -526,7 +503,6 @@ async function updateUser(event) {
     const data = {
         username: formData.get('username') || null,
         first_name: formData.get('first_name') || null,
-        last_name: formData.get('last_name') || null,
         is_admin: formData.get('is_admin') === 'on'
     };
 
@@ -546,11 +522,11 @@ async function updateUser(event) {
         closeEditModal();
         await loadUsers();
         await loadStats();
-        showNotification('✅ Пользователь успешно обновлен!', 'success');
+        showNotification('Пользователь успешно обновлен!', 'success');
     } catch (error) {
         console.error('Error updating user:', error);
         const errorMessage = error?.message || String(error);
-        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+        showNotification(`Ошибка: ${errorMessage}`, 'error');
     }
 }
 
@@ -561,11 +537,17 @@ function showNotification(message, type) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
-    if (type === 'error') {
-        alert('❌ ' + message);
-    } else {
-        alert(message);
-    }
+    // Добавляем иконки к сообщениям
+    const icons = {
+        'success': '✅',
+        'error': '❌',
+        'warning': '⚠️'
+    };
+
+    const icon = icons[type] || '';
+    const displayMessage = icon ? `${icon} ${message}` : message;
+
+    alert(displayMessage);
 }
 </script>
 {% endblock %}

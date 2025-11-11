@@ -164,6 +164,98 @@ async def validate_telegram_user(telegram_id: int) -> bool:
         return False
 
 
+async def fetch_telegram_user_info(telegram_id: int) -> Optional[Dict[str, any]]:
+    """
+    Fetch user information from Telegram using Bot API.
+
+    Uses Telegram Bot API method getChat to retrieve user data including
+    username and first_name. This is useful for auto-filling form fields
+    when admin creates a new user manually.
+
+    Args:
+        telegram_id: Telegram user ID to fetch info for
+
+    Returns:
+        Optional[Dict]: User data dict or None if failed
+        {
+            "telegram_id": int,
+            "username": Optional[str],
+            "first_name": Optional[str]
+        }
+
+    Example:
+        >>> user_info = await fetch_telegram_user_info(123456789)
+        >>> if user_info:
+        ...     print(f"Username: {user_info['username']}")
+        ...     print(f"First name: {user_info['first_name']}")
+        ... else:
+        ...     print("Failed to fetch user info")
+
+    Raises:
+        No exceptions raised - returns None on any error
+
+    Security Notes:
+        - Only requires bot token (no additional credentials)
+        - Uses official Telegram Bot API getChat method
+        - Bot must have interacted with the user OR user must have a public profile
+        - Returns None for:
+          - Non-existent Telegram IDs
+          - Users who never interacted with the bot (if profile is private)
+          - Network/API errors
+          - Invalid bot token
+
+    Related:
+        - Admin user creation form
+        - Auto-fill functionality
+        - TelegramUserInfo schema
+    """
+    try:
+        # Telegram Bot API getChat endpoint
+        url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getChat"
+
+        # Make request to Telegram API
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                url,
+                params={"chat_id": telegram_id},
+                timeout=10.0
+            )
+
+        # Check if request was successful
+        if response.status_code != 200:
+            return None
+
+        # Parse response
+        data = response.json()
+
+        # Validate response structure
+        if not data.get("ok"):
+            return None
+
+        # Extract user data from result
+        result = data.get("result", {})
+        if not result:
+            return None
+
+        # Verify it's a user (not a group/channel)
+        chat_type = result.get("type")
+        if chat_type != "private":
+            return None
+
+        # Extract user information
+        user_info = {
+            "telegram_id": telegram_id,
+            "username": result.get("username"),  # May be None
+            "first_name": result.get("first_name")  # May be None
+        }
+
+        return user_info
+
+    except Exception:
+        # Return None on any error (network, parsing, etc.)
+        return None
+
+
 def validate_telegram_auth(data: Dict[str, any]) -> bool:
     """
     Validate Telegram OAuth authentication data.

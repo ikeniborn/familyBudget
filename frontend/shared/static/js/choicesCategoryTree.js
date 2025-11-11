@@ -31,6 +31,10 @@
  */
 
 class ChoicesCategoryTree {
+    // Static cache to avoid duplicate API calls across instances
+    static _cache = new Map();  // key: "type:showInactive" -> { data: [], timestamp: Date }
+    static _pendingRequests = new Map();  // key: "type:showInactive" -> Promise
+
     /**
      * Initialize category tree selector.
      *
@@ -114,6 +118,26 @@ class ChoicesCategoryTree {
      * Uses Bearer token (WebApp) or cookie-based auth (web interface).
      */
     async loadCategories() {
+        // Generate cache key based on type and showInactive
+        const cacheKey = `${this.options.type}:${this.options.showInactive}`;
+
+        // Check cache first (30 second TTL)
+        const cached = ChoicesCategoryTree._cache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp) < 30000) {
+            console.log(`[ChoicesCategoryTree] Using cached categories for ${cacheKey}`);
+            this.categories = cached.data;
+            return;
+        }
+
+        // Check if request is already in flight
+        const pendingRequest = ChoicesCategoryTree._pendingRequests.get(cacheKey);
+        if (pendingRequest) {
+            console.log(`[ChoicesCategoryTree] Waiting for pending request for ${cacheKey}`);
+            this.categories = await pendingRequest;
+            return;
+        }
+
+        // Create new request
         const url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000&include_inactive=${this.options.showInactive}`;
 
         console.log(`[ChoicesCategoryTree] Loading categories from: ${url}`);
@@ -134,27 +158,43 @@ class ChoicesCategoryTree {
             console.log('[ChoicesCategoryTree] Using cookie-based authentication');
         }
 
-        const response = await fetch(url, {
+        // Create and store promise
+        const requestPromise = fetch(url, {
             headers: headers,
             credentials: 'same-origin',  // Include cookies
-        });
+        }).then(async response => {
+            if (!response.ok) {
+                // Graceful degradation for 401 Unauthorized (user not authenticated)
+                if (response.status === 401) {
+                    console.log('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
+                    return [];  // Empty categories array
+                }
 
-        if (!response.ok) {
-            // Graceful degradation for 401 Unauthorized (user not authenticated)
-            if (response.status === 401) {
-                console.log('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
-                this.categories = [];  // Empty categories array
-                return;  // Silent fail - don't throw error
+                // For other errors, throw with detailed status
+                throw new Error(`Failed to load categories: HTTP ${response.status} ${response.statusText}`);
             }
 
-            // For other errors, throw with detailed status
-            throw new Error(`Failed to load categories: HTTP ${response.status} ${response.statusText}`);
-        }
+            const data = await response.json();
+            const categories = data.articles || [];
 
-        const data = await response.json();
-        this.categories = data.articles || [];
+            // Cache the result
+            ChoicesCategoryTree._cache.set(cacheKey, {
+                data: categories,
+                timestamp: Date.now()
+            });
 
-        console.log(`[ChoicesCategoryTree] Loaded ${this.categories.length} categories`);
+            console.log(`[ChoicesCategoryTree] Loaded ${categories.length} categories (cached for 30s)`);
+
+            return categories;
+        }).finally(() => {
+            // Remove from pending requests
+            ChoicesCategoryTree._pendingRequests.delete(cacheKey);
+        });
+
+        // Store pending request
+        ChoicesCategoryTree._pendingRequests.set(cacheKey, requestPromise);
+
+        this.categories = await requestPromise;
     }
 
     /**

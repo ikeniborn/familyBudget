@@ -1,7 +1,7 @@
 -- ============================================================================
 -- INSERT: t_d_cost_center
 -- Description: Cost centers (МВЗ) dimension
--- Generated: 2025-11-09 19:58:38
+-- Generated: 2025-11-10 21:41:36
 -- ============================================================================
 
 -- Insert cost centers (shared across all users)
