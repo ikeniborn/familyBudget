@@ -1111,6 +1111,10 @@ async def get_heatmap_data(
                 else:
                     current_date = date(current_date.year, current_date.month + 1, 1)
 
+            # Развернуть порядок для отображения сверху вниз (Янв вверху, Дек внизу)
+            yAxis.reverse()
+            data.reverse()
+
         else:
             # Custom range или старая логика: по дням
             data = []
