@@ -241,8 +241,10 @@
         </aside>
     </footer>
 
-    <!-- Calendar Widget Script -->
+    <!-- Calendar Widget Script (only for authenticated users) -->
+    {% if user %}
     <script src="/shared/static/js/calendar-widget.min.js?v=PLACEHOLDER"></script>
+    {% endif %}
 
     {% block extra_scripts %}{% endblock %}
 
