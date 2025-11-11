@@ -340,13 +340,24 @@ function updatePlanFactChart(data) {
                     }
                 });
 
-                // Calculate difference
+                // Calculate difference (План - Факт: положительное = экономия, отрицательное = превышение)
                 if (params.length === 2) {
-                    const diff = params[1].value - params[0].value;
-                    const diffPercent = params[0].value > 0 ? ((diff / params[0].value) * 100).toFixed(1) : 0;
+                    const diff = params[0].value - params[1].value;  // План - Факт
+                    const diffPercent = params[0].value > 0 ? ((Math.abs(diff) / params[0].value) * 100).toFixed(1) : 0;
                     const diffColor = diff >= 0 ? '#4CAF50' : '#f44336';
                     const modeHint = isCumulative ? ' (накопительно)' : '';
-                    result += `<span style="color: ${diffColor}">Разница${modeHint}: ${diff.toFixed(2)} ₽ (${diffPercent}%)</span>`;
+
+                    // Label based on sign
+                    let label = '';
+                    if (diff > 0) {
+                        label = 'Экономия';
+                    } else if (diff < 0) {
+                        label = 'Превышение';
+                    } else {
+                        label = 'В пределах плана';
+                    }
+
+                    result += `<span style="color: ${diffColor}">${label}${modeHint}: ${diff.toFixed(2)} ₽ (${diffPercent}%)</span>`;
                 }
 
                 return result;
