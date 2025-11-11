@@ -12,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
+from sqlalchemy import case
 from sqlmodel import func, select, text
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -1025,13 +1026,13 @@ async def get_waterfall_data(
 
         initial_balance_query = select(
             func.sum(
-                func.case(
+                case(
                     (Article.type == "income", Fact.amount),
                     else_=0
                 )
             ) -
             func.sum(
-                func.case(
+                case(
                     (Article.type == "expense", Fact.amount),
                     else_=0
                 )
