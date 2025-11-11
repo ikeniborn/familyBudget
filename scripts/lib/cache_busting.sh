@@ -40,6 +40,7 @@ update_cache_versions() {
         "${repo_dir}/frontend/web/templates/plan.html"
         "${repo_dir}/frontend/web/templates/index.html"
         "${repo_dir}/frontend/web/templates/analytics.html"
+        "${repo_dir}/frontend/web/templates/notifications.html"
     )
 
     local updated_count=0
@@ -119,6 +120,7 @@ check_cache_versions() {
         "${repo_dir}/frontend/web/templates/plan.html"
         "${repo_dir}/frontend/web/templates/index.html"
         "${repo_dir}/frontend/web/templates/analytics.html"
+        "${repo_dir}/frontend/web/templates/notifications.html"
     )
 
     for file in "${files[@]}"; do

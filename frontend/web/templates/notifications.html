@@ -141,8 +141,7 @@
     </div>
 </div>
 
-<!-- DateFormatter Component (CalendarWidget уже подключен в base.html) -->
-<script src="/shared/static/js/dateFormatter.min.js?v=PLACEHOLDER"></script>
+<!-- BudgetShared bundle already included in base.html -->
 
 <script>
 // Global state
@@ -154,7 +153,7 @@ let currentNotifications = [];
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
     // Инициализация CalendarWidget для фильтров дат (Range Picker)
-    new CalendarWidget({
+    new BudgetShared.CalendarWidget({
         mode: 'range',
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
@@ -176,10 +175,10 @@ async function loadNotifications() {
 
         // Convert dates from DD.MM.YYYY to YYYY-MM-DD format for API
         const dateFromValue = document.getElementById('filter-date-from').value;
-        const dateFromFilter = dateFromValue ? DateFormatter.formatForAPI(dateFromValue) : null;
+        const dateFromFilter = dateFromValue ? BudgetShared.DateFormatter.formatForAPI(dateFromValue) : null;
 
         const dateToValue = document.getElementById('filter-date-to').value;
-        const dateToFilter = dateToValue ? DateFormatter.formatForAPI(dateToValue) : null;
+        const dateToFilter = dateToValue ? BudgetShared.DateFormatter.formatForAPI(dateToValue) : null;
 
         // Build query parameters
         const params = new URLSearchParams({

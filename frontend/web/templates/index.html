@@ -161,8 +161,7 @@
 <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
 <script src="/static/js/vendor/choices.min.js"></script>
 
-<!-- ChoicesCategoryTree Component -->
-<script src="/shared/static/js/choicesCategoryTree.min.js?v=PLACEHOLDER"></script>
+<!-- BudgetShared bundle (includes ChoicesCategoryTree) already included in base.html -->
 
 <script>
 // Глобальные переменные для CategoryTreeSelect компонентов
@@ -315,7 +314,7 @@ async function loadTransactionCategories() {
             await transactionCategoryTreeSelect.updateType(transactionType);
         } else {
             // Initialize CategoryTreeSelect for transaction form
-            transactionCategoryTreeSelect = new ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
+            transactionCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
                 type: transactionType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
@@ -351,7 +350,7 @@ async function loadPlanCategories() {
             await planCategoryTreeSelect.updateType(planType);
         } else {
             // Initialize CategoryTreeSelect for plan form
-            planCategoryTreeSelect = new ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
+            planCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
                 type: planType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
