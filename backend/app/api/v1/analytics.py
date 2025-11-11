@@ -979,6 +979,7 @@ async def get_waterfall_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
+            Fact.record_type == "fact",  # Only actual transactions, not plans
             Article.is_current == True  # noqa: E712
         )
 
