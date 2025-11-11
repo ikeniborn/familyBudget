@@ -294,13 +294,11 @@ async def get_plan_fact_data(
 
         # Агрегация по неделям или месяцам в зависимости от date_format
         if date_format == "day":
-            # Для периодов ≤7 дней: показывать отдельные дни с днями недели
-            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+            # Для периода месяц: показывать числа месяца (1-31)
             current_date = start_date
             while current_date <= end_date:
-                # День недели (0=Пн, 6=Вс)
-                weekday = current_date.weekday()
-                day_label = day_names_ru[weekday]
+                # Число месяца (1-31)
+                day_label = str(current_date.day)
 
                 labels.append(day_label)
                 fact_data.append(fact_by_date.get(current_date, 0.0))
@@ -474,26 +472,14 @@ async def get_trends_data(
         income_data = []
         expense_data = []
 
-        if period == "month" and (end_date - start_date).days <= 7:
-            # Для периодов ≤7 дней: показывать отдельные дни с днями недели
-            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+        if period == "month":
+            # Для period='month': агрегация по дням календарного месяца (числа 1-31)
             current_date = start_date
             while current_date <= end_date:
-                weekday = current_date.weekday()
-                day_label = day_names_ru[weekday]
-
+                # Число месяца (1-31)
+                day_label = str(current_date.day)
                 day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
                 labels.append(day_label)
-                income_data.append(day_data["income"])
-                expense_data.append(day_data["expense"])
-                current_date += timedelta(days=1)
-
-        elif period == "month":
-            # Для period='month': агрегация по дням календарного месяца
-            current_date = start_date
-            while current_date <= end_date:
-                day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
-                labels.append(current_date.strftime("%d.%m"))
                 income_data.append(day_data["income"])
                 expense_data.append(day_data["expense"])
                 current_date += timedelta(days=1)
@@ -789,12 +775,11 @@ async def get_waterfall_data(
         cumulative_balance = 0.0
 
         if label_format == "day":
-            # Для периодов с группировкой по дням: показывать дни с днями недели
-            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+            # Для периода месяц: показывать числа месяца (1-31)
             current_date = start_date
             while current_date <= end_date:
-                weekday = current_date.weekday()
-                day_label = day_names_ru[weekday]
+                # Число месяца (1-31)
+                day_label = str(current_date.day)
 
                 day_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
                 income = day_info["income"]
@@ -835,14 +820,22 @@ async def get_waterfall_data(
                 categories_data.append(week_articles)
 
         elif label_format == "month":
-            # Для quarter/year: агрегация по месяцам
-            if period == "quarter":
-                periods_count = 3
-            else:  # year
-                periods_count = 12
+            # Для quarter/year: агрегация по календарным месяцам
+            month_names_ru = [
+                "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
+            ]
 
-            rolling_months_data = get_rolling_months(periods_count, end_date, include_incomplete=True)
-            for month_start, month_end, month_label in rolling_months_data:
+            current_date = start_date
+            while current_date <= end_date:
+                # Первый и последний день текущего месяца
+                month_start = date(current_date.year, current_date.month, 1)
+                import calendar as cal_module
+                _, last_day = cal_module.monthrange(current_date.year, current_date.month)
+                month_end = date(current_date.year, current_date.month, last_day)
+                # Обрезать до end_date если месяц неполный
+                month_end = min(month_end, end_date)
+
                 # Агрегировать данные за месяц из period_data (ключи - даты)
                 month_income = 0.0
                 month_expense = 0.0
@@ -857,11 +850,19 @@ async def get_waterfall_data(
                 month_balance = month_income - month_expense
                 cumulative_balance += month_balance
 
+                # Label: "Янв 2025"
+                month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 labels.append(month_label)
                 income_data.append(month_income)
                 expense_data.append(month_expense)
                 balance_data.append(cumulative_balance)
                 categories_data.append(month_articles)
+
+                # Переход к следующему месяцу
+                if current_date.month == 12:
+                    current_date = date(current_date.year + 1, 1, 1)
+                else:
+                    current_date = date(current_date.year, current_date.month + 1, 1)
 
         else:
             # Custom range или старая логика: group by day
@@ -969,9 +970,9 @@ async def get_heatmap_data(
         elif period:
             # Calculate date range and aggregation based on CALENDAR period (from 1st day to today)
             if period == "month":
-                # Current calendar month → aggregate by days
+                # Current calendar month → aggregate by weeks (weeks × weekdays grid)
                 start_date, end_date = get_current_calendar_month(today)
-                aggregation = "day"
+                aggregation = "week"
             elif period == "quarter":
                 # Current calendar quarter → aggregate by months
                 start_date, end_date = get_current_calendar_quarter(today)
@@ -1061,15 +1062,24 @@ async def get_heatmap_data(
             yAxis = []
             data = []
 
-            # Определить количество месяцев
-            if period == "quarter":
-                periods_count = 3
-            else:  # year
-                periods_count = 12
+            # Итерация по календарным месяцам от start_date до end_date
+            month_names_ru = [
+                "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
+            ]
 
-            rolling_months_data = get_rolling_months(periods_count, end_date, include_incomplete=True)
+            current_date = start_date
+            while current_date <= end_date:
+                # Первый и последний день текущего месяца
+                month_start = date(current_date.year, current_date.month, 1)
+                import calendar as cal_module
+                _, last_day = cal_module.monthrange(current_date.year, current_date.month)
+                month_end = date(current_date.year, current_date.month, last_day)
+                # Обрезать до end_date если месяц неполный
+                month_end = min(month_end, end_date)
 
-            for month_start, month_end, month_label in rolling_months_data:
+                # Label: "Янв 2025"
+                month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 yAxis.append(month_label)
 
                 # Агрегировать по 4 неделям внутри месяца
@@ -1077,10 +1087,10 @@ async def get_heatmap_data(
                 month_data = [0.0] * 4
 
                 # Найти все даты в месяце
-                current_date = month_start
-                while current_date <= month_end:
+                iter_date = month_start
+                while iter_date <= month_end:
                     # Определить номер недели внутри месяца (0-3)
-                    day_of_month = current_date.day
+                    day_of_month = iter_date.day
                     if day_of_month <= 7:
                         week_of_month = 0  # Н1
                     elif day_of_month <= 14:
@@ -1090,10 +1100,16 @@ async def get_heatmap_data(
                     else:
                         week_of_month = 3  # Н4 (дни 22-31)
 
-                    month_data[week_of_month] += data_by_date.get(current_date, 0.0)
-                    current_date += timedelta(days=1)
+                    month_data[week_of_month] += data_by_date.get(iter_date, 0.0)
+                    iter_date += timedelta(days=1)
 
                 data.append(month_data)
+
+                # Переход к следующему месяцу
+                if current_date.month == 12:
+                    current_date = date(current_date.year + 1, 1, 1)
+                else:
+                    current_date = date(current_date.year, current_date.month + 1, 1)
 
         else:
             # Custom range или старая логика: по дням
