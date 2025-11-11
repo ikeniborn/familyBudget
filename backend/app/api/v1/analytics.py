@@ -1203,6 +1203,7 @@ async def get_waterfall_data(
             "expense": [],
             "balance": [],
             "categories": [],
+            "initial_balance": 0.0,  # CRITICAL: Must be present for frontend
             "period": period or "month",
             "year": date.today().year,
             "article_id": article_id,
