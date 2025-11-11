@@ -111,10 +111,11 @@ async def update_user_profile(
         return None
 
     # Check if user data changed
+    # Use getattr() for nullable fields to prevent AttributeError
     data_changed = (
-        existing_user.username != username
+        getattr(existing_user, 'username', None) != username
         or existing_user.first_name != first_name
-        or existing_user.last_name != last_name
+        or getattr(existing_user, 'last_name', None) != last_name
     )
 
     # If data unchanged, return existing user

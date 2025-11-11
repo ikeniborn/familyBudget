@@ -170,6 +170,61 @@ class TestSCD2RefreshTokenRevocation:
         # 4. session.flush should NOT be called (no new version created)
         mock_session.flush.assert_not_called()
 
+    async def test_scd2_handles_null_last_name(self, monkeypatch):
+        """
+        Test that update_user_profile handles NULL last_name without AttributeError.
+
+        Scenario:
+            - User exists with last_name = NULL (Telegram user without last name)
+            - Update profile with same data
+            - Should NOT crash with AttributeError
+        """
+        # Mock database session
+        mock_session = AsyncMock()
+
+        # Mock user with NULL last_name
+        existing_user = User(
+            id=1,
+            telegram_id=123456789,
+            username="user",
+            first_name="First",
+            last_name=None,  # NULL last_name
+            is_admin=False,
+            is_current=True,
+            valid_from=datetime(2025, 1, 1),
+            valid_to=datetime(9999, 12, 31),
+            created_at=datetime(2025, 1, 1),
+            updated_at=datetime(2025, 1, 1),
+        )
+
+        # Mock get_user_by_telegram_id
+        async def mock_get_user(session, telegram_id):
+            return existing_user
+
+        monkeypatch.setattr(
+            "backend.app.services.auth_service.get_user_by_telegram_id",
+            mock_get_user
+        )
+
+        # Call update_user_profile with NULL last_name
+        result = await update_user_profile(
+            session=mock_session,
+            telegram_id=123456789,
+            first_name="First",
+            last_name=None,  # NULL value
+            username="user",
+        )
+
+        # Assertions
+        # 1. Should NOT crash with AttributeError
+        assert result is not None
+
+        # 2. Should return existing user (no change)
+        assert result == existing_user
+
+        # 3. session.exec should NOT be called (no token revocation)
+        mock_session.exec.assert_not_called()
+
 
 @pytest.mark.unit
 class TestRefreshTokenRevocationLogic:
