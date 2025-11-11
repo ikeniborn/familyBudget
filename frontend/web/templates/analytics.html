@@ -425,18 +425,29 @@ function updatePeriodDisplay(period, dateFrom = null, dateTo = null) {
 
         switch (period) {
             case 'month':
-                const monthStart = new Date(today);
-                monthStart.setDate(today.getDate() - 27);
-                text = `Выбран месяц: ${formatDate(monthStart)} — ${formatDate(today)}`;
+                // Current calendar month (from 1st day to today)
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day
+                const monthDisplayEnd = today < monthEnd ? today : monthEnd;
+                text = `Выбран месяц: ${formatDate(monthStart)} — ${formatDate(monthDisplayEnd)}`;
                 break;
             case 'quarter':
-                const quarterStart = new Date(today.getFullYear(), today.getMonth() - 2, 1);
-                text = `Выбран квартал: ${formatDate(quarterStart)} — ${formatDate(today)}`;
+                // Current calendar quarter (from Q start to today)
+                const currentMonth = today.getMonth();
+                const quarterNum = Math.floor(currentMonth / 3) + 1;
+                const quarterFirstMonth = (quarterNum - 1) * 3;
+                const quarterStart = new Date(today.getFullYear(), quarterFirstMonth, 1);
+                const quarterLastMonth = quarterFirstMonth + 2;
+                const quarterEnd = new Date(today.getFullYear(), quarterLastMonth + 1, 0);
+                const quarterDisplayEnd = today < quarterEnd ? today : quarterEnd;
+                text = `Выбран квартал Q${quarterNum}: ${formatDate(quarterStart)} — ${formatDate(quarterDisplayEnd)}`;
                 break;
             case 'year':
-                const yearStart = new Date(today);
-                yearStart.setDate(today.getDate() - 364);
-                text = `Выбран год: ${formatDate(yearStart)} — ${formatDate(today)}`;
+                // Current calendar year (from Jan 1 to today)
+                const yearStart = new Date(today.getFullYear(), 0, 1); // Jan 1
+                const yearEnd = new Date(today.getFullYear(), 11, 31); // Dec 31
+                const yearDisplayEnd = today < yearEnd ? today : yearEnd;
+                text = `Выбран год ${today.getFullYear()}: ${formatDate(yearStart)} — ${formatDate(yearDisplayEnd)}`;
                 break;
         }
     }

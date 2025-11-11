@@ -22,6 +22,9 @@ from backend.app.schemas.analytics import (
     RecommendedAmountsResponse,
 )
 from backend.app.utils.date_helpers import (
+    get_current_calendar_month,
+    get_current_calendar_quarter,
+    get_current_calendar_year,
     get_iso_week_number,
     get_quarter_bounds,
     get_rolling_months,
@@ -216,40 +219,39 @@ async def get_plan_fact_data(
                 periods_count = days_diff
                 date_format = None  # Russian day names
             elif days_diff <= 31:
-                period = "month"  # Group by day
+                period = "month"  # Group by day (8-31 days)
                 periods_count = days_diff
                 date_format = "%d"
-            elif days_diff <= 93:
-                period = "quarter"  # Group by month
-                periods_count = 3  # ~3 months
-                date_format = None
+            elif days_diff <= 91:
+                period = "quarter"  # Group by week (32-91 days)
+                periods_count = (days_diff + 6) // 7  # Number of weeks
+                date_format = "week"
+            elif days_diff <= 365:
+                period = "year"  # Group by month (92-365 days)
+                periods_count = 12  # Max 12 months
+                date_format = "month"
             else:
-                period = "year"  # Group by month
-                periods_count = 12
-                date_format = None
+                period = "year"  # Group by year (>365 days)
+                periods_count = (end_date.year - start_date.year) + 1
+                date_format = "year"
         elif period:
-            # Calculate date range based on ROLLING period
+            # Calculate date range based on CALENDAR period (from 1st day to today)
             if period == "month":
-                # Last 4 calendar weeks (same as week period for this endpoint)
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]
-                end_date = rolling_weeks[-1][1]
-                periods_count = 4  # 4 weeks
-                date_format = "week"  # Special: ISO week labels
+                # Current calendar month (from 1st day to today)
+                start_date, end_date = get_current_calendar_month(today)
+                periods_count = (end_date - start_date).days + 1  # Days in current month
+                date_format = "day"  # Show by days
             elif period == "quarter":
-                # Rolling 3 months (current + 2 months back)
-                rolling_months = get_rolling_months(3, today, include_incomplete=True)
-                start_date = rolling_months[0][0]  # First day of first month
-                end_date = rolling_months[-1][1]  # End of last month (today)
-                periods_count = 3  # 3 months
-                date_format = "month"  # Special: month labels
+                # Current calendar quarter (from Q start to today)
+                start_date, end_date = get_current_calendar_quarter(today)
+                # Count months from quarter start to current month
+                periods_count = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month + 1
+                date_format = "month"  # Show by months
             else:  # year
-                # Rolling 12 months (current + 11 months back)
-                rolling_months = get_rolling_months(12, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
-                end_date = rolling_months[-1][1]
-                periods_count = 12  # 12 months
-                date_format = "month"  # Special: month labels
+                # Current calendar year (from Jan 1 to today)
+                start_date, end_date = get_current_calendar_year(today)
+                periods_count = end_date.month  # Months from Jan to current
+                date_format = "month"  # Show by months
         else:
             raise HTTPException(400, "Укажите period или date_from/date_to")
 
@@ -292,13 +294,11 @@ async def get_plan_fact_data(
 
         # Агрегация по неделям или месяцам в зависимости от date_format
         if date_format == "day":
-            # Для периодов ≤7 дней: показывать отдельные дни с днями недели
-            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+            # Для периода месяц: показывать числа месяца (1-31)
             current_date = start_date
             while current_date <= end_date:
-                # День недели (0=Пн, 6=Вс)
-                weekday = current_date.weekday()
-                day_label = day_names_ru[weekday]
+                # Число месяца (1-31)
+                day_label = str(current_date.day)
 
                 labels.append(day_label)
                 fact_data.append(fact_by_date.get(current_date, 0.0))
@@ -322,9 +322,21 @@ async def get_plan_fact_data(
                 fact_data.append(week_fact)
                 plan_data.append(week_plan)
         elif date_format == "month":
-            # Для quarter/year периодов: группировать по месяцам
-            rolling_months_data = get_rolling_months(periods_count, end_date, include_incomplete=True)
-            for month_start, month_end, month_label in rolling_months_data:
+            # Для quarter/year периодов: группировать по календарным месяцам
+            month_names_ru = [
+                "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
+            ]
+            current_date = start_date
+            while current_date <= end_date:
+                # Первый и последний день текущего месяца
+                month_start = date(current_date.year, current_date.month, 1)
+                import calendar as cal_module
+                _, last_day = cal_module.monthrange(current_date.year, current_date.month)
+                month_end = date(current_date.year, current_date.month, last_day)
+                # Обрезать до end_date если месяц неполный
+                month_end = min(month_end, end_date)
+
                 # Агрегировать факты за месяц
                 month_fact = sum(
                     amount for d, amount in fact_by_date.items()
@@ -335,9 +347,18 @@ async def get_plan_fact_data(
                     amount for d, amount in plan_by_date.items()
                     if month_start <= d <= month_end
                 )
+
+                # Label: "Янв 2025"
+                month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 labels.append(month_label)
                 fact_data.append(month_fact)
                 plan_data.append(month_plan)
+
+                # Переход к следующему месяцу
+                if current_date.month == 12:
+                    current_date = date(current_date.year + 1, 1, 1)
+                else:
+                    current_date = date(current_date.year, current_date.month + 1, 1)
         else:
             # Для custom range или старой логики: группировать по дням
             current_date = start_date
@@ -402,26 +423,24 @@ async def get_trends_data(
             if days_diff <= 7:
                 period = "month"  # Group by day
             elif days_diff <= 31:
-                period = "month"  # Group by day/week
+                period = "month"  # Group by day (8-31 days)
+            elif days_diff <= 91:
+                period = "quarter"  # Group by week (32-91 days)
+            elif days_diff <= 365:
+                period = "year"  # Group by month (92-365 days)
             else:
-                period = "year"  # Group by month
+                period = "year"  # Group by year (>365 days)
         elif period:
-            # Calculate date range based on ROLLING period
+            # Calculate date range based on CALENDAR period (from 1st day to today)
             if period == "month":
-                # Last 4 calendar weeks
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]
-                end_date = rolling_weeks[-1][1]
+                # Current calendar month (from 1st day to today)
+                start_date, end_date = get_current_calendar_month(today)
             elif period == "quarter":
-                # Rolling 3 months
-                rolling_months = get_rolling_months(3, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
-                end_date = rolling_months[-1][1]
+                # Current calendar quarter (from Q start to today)
+                start_date, end_date = get_current_calendar_quarter(today)
             else:  # year
-                # Rolling 12 months (current + 11 months back)
-                rolling_months = get_rolling_months(12, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
-                end_date = rolling_months[-1][1]
+                # Current calendar year (from Jan 1 to today)
+                start_date, end_date = get_current_calendar_year(today)
         else:
             raise HTTPException(400, "Укажите period или date_from/date_to")
 
@@ -453,42 +472,34 @@ async def get_trends_data(
         income_data = []
         expense_data = []
 
-        if period == "month" and (end_date - start_date).days <= 7:
-            # Для периодов ≤7 дней: показывать отдельные дни с днями недели
-            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+        if period == "month":
+            # Для period='month': агрегация по дням календарного месяца (числа 1-31)
             current_date = start_date
             while current_date <= end_date:
-                weekday = current_date.weekday()
-                day_label = day_names_ru[weekday]
-
+                # Число месяца (1-31)
+                day_label = str(current_date.day)
                 day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
                 labels.append(day_label)
                 income_data.append(day_data["income"])
                 expense_data.append(day_data["expense"])
                 current_date += timedelta(days=1)
 
-        elif period == "month":
-            # Для period='month': агрегация по 4 календарным неделям с ISO labels
-            rolling_weeks_data = get_rolling_weeks(4, end_date, include_incomplete=True)
-            for week_start, week_end, iso_label in rolling_weeks_data:
-                # Aggregate week data
-                week_income = sum(
-                    data["income"] for d, data in data_by_date.items()
-                    if week_start <= d <= week_end
-                )
-                week_expense = sum(
-                    data["expense"] for d, data in data_by_date.items()
-                    if week_start <= d <= week_end
-                )
+        elif period == "quarter" or period == "year":
+            # Для quarter/year: агрегация по календарным месяцам
+            month_names_ru = [
+                "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
+            ]
+            current_date = start_date
+            while current_date <= end_date:
+                # Первый и последний день текущего месяца
+                month_start = date(current_date.year, current_date.month, 1)
+                import calendar as cal_module
+                _, last_day = cal_module.monthrange(current_date.year, current_date.month)
+                month_end = date(current_date.year, current_date.month, last_day)
+                # Обрезать до end_date если месяц неполный
+                month_end = min(month_end, end_date)
 
-                labels.append(iso_label)
-                income_data.append(week_income)
-                expense_data.append(week_expense)
-
-        elif period == "quarter":
-            # Для quarter: агрегация по rolling 3 месяцам
-            rolling_months_data = get_rolling_months(3, end_date, include_incomplete=True)
-            for month_start, month_end, month_label in rolling_months_data:
                 # Aggregate month data
                 month_income = sum(
                     data["income"] for d, data in data_by_date.items()
@@ -499,27 +510,17 @@ async def get_trends_data(
                     if month_start <= d <= month_end
                 )
 
+                # Label: "Янв 2025"
+                month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 labels.append(month_label)
                 income_data.append(month_income)
                 expense_data.append(month_expense)
 
-        else:  # year
-            # Для year: агрегация по rolling 12 месяцам
-            rolling_months_data = get_rolling_months(12, end_date, include_incomplete=True)
-            for month_start, month_end, month_label in rolling_months_data:
-                # Aggregate month data
-                month_income = sum(
-                    data["income"] for d, data in data_by_date.items()
-                    if month_start <= d <= month_end
-                )
-                month_expense = sum(
-                    data["expense"] for d, data in data_by_date.items()
-                    if month_start <= d <= month_end
-                )
-
-                labels.append(month_label)
-                income_data.append(month_income)
-                expense_data.append(month_expense)
+                # Переход к следующему месяцу
+                if current_date.month == 12:
+                    current_date = date(current_date.year + 1, 1, 1)
+                else:
+                    current_date = date(current_date.year, current_date.month + 1, 1)
 
         return {
             "labels": labels,
@@ -576,22 +577,19 @@ async def get_category_breakdown(
             end_date = date_to
             period = "custom"  # Mark as custom range
         elif period:
-            # Calculate start date based on ROLLING period
+            # Calculate start date based on CALENDAR period (from 1st day to today)
             if period == "month":
-                # Last 4 calendar weeks (same as week)
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]
+                # Current calendar month (from 1st day to today)
+                start_date, end_date = get_current_calendar_month(today)
             elif period == "quarter":
-                # Rolling 3 months
-                rolling_months = get_rolling_months(3, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
+                # Current calendar quarter (from Q start to today)
+                start_date, end_date = get_current_calendar_quarter(today)
             elif period == "year":
-                # Rolling 12 months
-                rolling_months = get_rolling_months(12, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
+                # Current calendar year (from Jan 1 to today)
+                start_date, end_date = get_current_calendar_year(today)
             else:  # all
                 start_date = date(2000, 1, 1)  # Far past
-            end_date = today
+                end_date = today
         else:
             raise HTTPException(400, "Укажите period или date_from/date_to")
 
@@ -684,40 +682,38 @@ async def get_waterfall_data(
             # Auto-determine grouping based on days difference
             days_diff = (end_date - start_date).days + 1
             if days_diff <= 31:
-                period = "month"  # Group by day
+                period = "month"  # Group by day (≤31 days)
                 group_by_expr = Fact.fact_date
                 label_format = "%d"
-            elif days_diff <= 93:
-                period = "quarter"  # Group by week
+            elif days_diff <= 91:
+                period = "quarter"  # Group by week (32-91 days)
                 group_by_expr = func.extract("week", Fact.fact_date)
                 label_format = "W%W"
-            else:
-                period = "year"  # Group by month
+            elif days_diff <= 365:
+                period = "year"  # Group by month (92-365 days)
                 group_by_expr = func.extract("month", Fact.fact_date)
                 label_format = "month"
+            else:
+                period = "year"  # Group by year (>365 days)
+                group_by_expr = func.extract("year", Fact.fact_date)
+                label_format = "year"
         elif period:
-            # Calculate date range and grouping based on ROLLING period
+            # Calculate date range and grouping based on CALENDAR period (from 1st day to today)
             if period == "month":
-                # Last 4 calendar weeks
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]
-                end_date = rolling_weeks[-1][1]
+                # Current calendar month (from 1st day to today)
+                start_date, end_date = get_current_calendar_month(today)
                 group_by_expr = Fact.fact_date
-                label_format = "week"  # Use ISO week labels
+                label_format = "day"  # Group by days
             elif period == "quarter":
-                # Rolling 3 months
-                rolling_months = get_rolling_months(3, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
-                end_date = rolling_months[-1][1]
+                # Current calendar quarter (from Q start to today)
+                start_date, end_date = get_current_calendar_quarter(today)
                 group_by_expr = Fact.fact_date
-                label_format = "month"  # Use month labels
+                label_format = "month"  # Group by months
             else:  # year
-                # Rolling 12 months
-                rolling_months = get_rolling_months(12, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
-                end_date = rolling_months[-1][1]
+                # Current calendar year (from Jan 1 to today)
+                start_date, end_date = get_current_calendar_year(today)
                 group_by_expr = Fact.fact_date
-                label_format = "month"  # Use month labels
+                label_format = "month"  # Group by months
         else:
             raise HTTPException(400, "Укажите period или date_from/date_to")
 
@@ -779,12 +775,11 @@ async def get_waterfall_data(
         cumulative_balance = 0.0
 
         if label_format == "day":
-            # Для периодов с группировкой по дням: показывать дни с днями недели
-            day_names_ru = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
+            # Для периода месяц: показывать числа месяца (1-31)
             current_date = start_date
             while current_date <= end_date:
-                weekday = current_date.weekday()
-                day_label = day_names_ru[weekday]
+                # Число месяца (1-31)
+                day_label = str(current_date.day)
 
                 day_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
                 income = day_info["income"]
@@ -825,14 +820,22 @@ async def get_waterfall_data(
                 categories_data.append(week_articles)
 
         elif label_format == "month":
-            # Для quarter/year: агрегация по месяцам
-            if period == "quarter":
-                periods_count = 3
-            else:  # year
-                periods_count = 12
+            # Для quarter/year: агрегация по календарным месяцам
+            month_names_ru = [
+                "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
+            ]
 
-            rolling_months_data = get_rolling_months(periods_count, end_date, include_incomplete=True)
-            for month_start, month_end, month_label in rolling_months_data:
+            current_date = start_date
+            while current_date <= end_date:
+                # Первый и последний день текущего месяца
+                month_start = date(current_date.year, current_date.month, 1)
+                import calendar as cal_module
+                _, last_day = cal_module.monthrange(current_date.year, current_date.month)
+                month_end = date(current_date.year, current_date.month, last_day)
+                # Обрезать до end_date если месяц неполный
+                month_end = min(month_end, end_date)
+
                 # Агрегировать данные за месяц из period_data (ключи - даты)
                 month_income = 0.0
                 month_expense = 0.0
@@ -847,11 +850,19 @@ async def get_waterfall_data(
                 month_balance = month_income - month_expense
                 cumulative_balance += month_balance
 
+                # Label: "Янв 2025"
+                month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 labels.append(month_label)
                 income_data.append(month_income)
                 expense_data.append(month_expense)
                 balance_data.append(cumulative_balance)
                 categories_data.append(month_articles)
+
+                # Переход к следующему месяцу
+                if current_date.month == 12:
+                    current_date = date(current_date.year + 1, 1, 1)
+                else:
+                    current_date = date(current_date.year, current_date.month + 1, 1)
 
         else:
             # Custom range или старая логика: group by day
@@ -948,29 +959,27 @@ async def get_heatmap_data(
             days_diff = (end_date - start_date).days + 1
             if days_diff <= 7:
                 aggregation = "day"
-            elif days_diff <= 30:
-                aggregation = "week"
+            elif days_diff <= 31:
+                aggregation = "day"  # Show by day (8-31 days)
+            elif days_diff <= 91:
+                aggregation = "week"  # Show by week (32-91 days)
+            elif days_diff <= 365:
+                aggregation = "month"  # Show by month (92-365 days)
             else:
-                aggregation = "month"
+                aggregation = "year"  # Show by year (>365 days)
         elif period:
-            # Calculate date range and aggregation based on period
+            # Calculate date range and aggregation based on CALENDAR period (from 1st day to today)
             if period == "month":
-                # Last 4 calendar weeks → aggregate by weeks
-                rolling_weeks = get_rolling_weeks(4, today, include_incomplete=True)
-                start_date = rolling_weeks[0][0]
-                end_date = rolling_weeks[-1][1]
+                # Current calendar month → aggregate by weeks (weeks × weekdays grid)
+                start_date, end_date = get_current_calendar_month(today)
                 aggregation = "week"
             elif period == "quarter":
-                # Rolling 3 months → aggregate by months (not weeks)
-                rolling_months = get_rolling_months(3, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
-                end_date = rolling_months[-1][1]
+                # Current calendar quarter → aggregate by months
+                start_date, end_date = get_current_calendar_quarter(today)
                 aggregation = "month"
             else:  # year
-                # Rolling 12 months → aggregate by months
-                rolling_months = get_rolling_months(12, today, include_incomplete=True)
-                start_date = rolling_months[0][0]
-                end_date = rolling_months[-1][1]
+                # Current calendar year → aggregate by months
+                start_date, end_date = get_current_calendar_year(today)
                 aggregation = "month"
         else:
             raise HTTPException(400, "Укажите period или date_from/date_to")
@@ -1053,15 +1062,24 @@ async def get_heatmap_data(
             yAxis = []
             data = []
 
-            # Определить количество месяцев
-            if period == "quarter":
-                periods_count = 3
-            else:  # year
-                periods_count = 12
+            # Итерация по календарным месяцам от start_date до end_date
+            month_names_ru = [
+                "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
+                "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
+            ]
 
-            rolling_months_data = get_rolling_months(periods_count, end_date, include_incomplete=True)
+            current_date = start_date
+            while current_date <= end_date:
+                # Первый и последний день текущего месяца
+                month_start = date(current_date.year, current_date.month, 1)
+                import calendar as cal_module
+                _, last_day = cal_module.monthrange(current_date.year, current_date.month)
+                month_end = date(current_date.year, current_date.month, last_day)
+                # Обрезать до end_date если месяц неполный
+                month_end = min(month_end, end_date)
 
-            for month_start, month_end, month_label in rolling_months_data:
+                # Label: "Янв 2025"
+                month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 yAxis.append(month_label)
 
                 # Агрегировать по 4 неделям внутри месяца
@@ -1069,10 +1087,10 @@ async def get_heatmap_data(
                 month_data = [0.0] * 4
 
                 # Найти все даты в месяце
-                current_date = month_start
-                while current_date <= month_end:
+                iter_date = month_start
+                while iter_date <= month_end:
                     # Определить номер недели внутри месяца (0-3)
-                    day_of_month = current_date.day
+                    day_of_month = iter_date.day
                     if day_of_month <= 7:
                         week_of_month = 0  # Н1
                     elif day_of_month <= 14:
@@ -1082,10 +1100,20 @@ async def get_heatmap_data(
                     else:
                         week_of_month = 3  # Н4 (дни 22-31)
 
-                    month_data[week_of_month] += data_by_date.get(current_date, 0.0)
-                    current_date += timedelta(days=1)
+                    month_data[week_of_month] += data_by_date.get(iter_date, 0.0)
+                    iter_date += timedelta(days=1)
 
                 data.append(month_data)
+
+                # Переход к следующему месяцу
+                if current_date.month == 12:
+                    current_date = date(current_date.year + 1, 1, 1)
+                else:
+                    current_date = date(current_date.year, current_date.month + 1, 1)
+
+            # Развернуть порядок для отображения сверху вниз (Янв вверху, Дек внизу)
+            yAxis.reverse()
+            data.reverse()
 
         else:
             # Custom range или старая логика: по дням
