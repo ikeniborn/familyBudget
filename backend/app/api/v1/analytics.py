@@ -179,6 +179,29 @@ def calculate_cumulative(data: List[float]) -> List[float]:
     return cumulative
 
 
+def get_previous_period(start_date: date, end_date: date) -> Tuple[date, date]:
+    """
+    Calculate previous period boundaries by shifting backwards by period length.
+
+    Used for waterfall chart initial balance calculation.
+
+    Example:
+        Input:  15.10.2025 - 10.11.2025 (27 days)
+        Output: 18.09.2025 - 14.10.2025 (27 days before)
+
+    Args:
+        start_date: Start of current period
+        end_date: End of current period
+
+    Returns:
+        Tuple of (prev_start_date, prev_end_date)
+    """
+    period_length = (end_date - start_date).days + 1
+    prev_end = start_date - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=period_length - 1)
+    return prev_start, prev_end
+
+
 # ==================== Analytics Endpoints ====================
 
 
@@ -993,6 +1016,37 @@ async def get_waterfall_data(
                     "amount": amount
                 })
 
+        # Calculate initial balance from previous period
+        prev_start, prev_end = get_previous_period(start_date, end_date)
+
+        initial_balance_query = select(
+            func.sum(
+                func.case(
+                    (Article.type == "income", Fact.amount),
+                    else_=0
+                )
+            ) -
+            func.sum(
+                func.case(
+                    (Article.type == "expense", Fact.amount),
+                    else_=0
+                )
+            )
+        ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+            Fact.fact_date >= prev_start,
+            Fact.fact_date <= prev_end,
+            Fact.record_type == "fact",  # Only actual transactions, not plans
+            Article.is_current == True  # noqa: E712
+        )
+
+        # Add article filter if specified (for drill-down)
+        if article_id:
+            initial_balance_query = initial_balance_query.where(Article.id == article_id)
+
+        initial_balance_result = await session.execute(initial_balance_query)
+        initial_balance = initial_balance_result.scalar()
+        initial_balance = float(initial_balance) if initial_balance is not None else 0.0
+
         # Generate arrays based on period type
         labels = []
         income_data = []
@@ -1000,7 +1054,7 @@ async def get_waterfall_data(
         balance_data = []
         categories_data = []  # For drill-down links
 
-        cumulative_balance = 0.0
+        cumulative_balance = initial_balance
 
         if label_format == "day":
             # Для периода месяц: показывать числа месяца (1-31)
@@ -1117,6 +1171,7 @@ async def get_waterfall_data(
             "expense": expense_data,
             "balance": balance_data,
             "categories": categories_data,  # For drill-down
+            "initial_balance": initial_balance,  # Starting balance from previous period
             "period": period,
             "year": today.year,
             "article_id": article_id,
@@ -1267,15 +1322,24 @@ async def get_heatmap_data(
             # Получить rolling weeks
             rolling_weeks_data = get_rolling_weeks(4, end_date, include_incomplete=True)
 
-            for week_start, week_end, iso_label in rolling_weeks_data:
+            # Build date_mapping for tooltip display (month period only)
+            # Format: {yIndex: {xIndex: "DD.MM.YYYY"}}
+            date_mapping = {}
+
+            for week_idx, (week_start, week_end, iso_label) in enumerate(rolling_weeks_data):
                 yAxis.append(iso_label)
 
                 # Генерация данных для недели
                 week_data = []
+                date_mapping[week_idx] = {}
+
                 for day_offset in range(7):  # Mon-Sun
                     current_date = week_start + timedelta(days=day_offset)
                     if current_date <= week_end:
                         amount = data_by_date.get(current_date, 0.0)
+                        # Add date string for tooltip
+                        if start_date <= current_date <= end_date:
+                            date_mapping[week_idx][day_offset] = current_date.strftime("%d.%m.%Y")
                     else:
                         amount = 0.0  # Beyond week_end
                     week_data.append(amount)
@@ -1356,7 +1420,7 @@ async def get_heatmap_data(
             yAxis = [""]
 
         # Return data for all branches (single_week, week, month, else)
-        return {
+        result = {
             "data": data,  # 2D array: [row][col] where row=yAxis, col=xAxis
             "xAxis": xAxis,  # Labels for X-axis (horizontal)
             "yAxis": yAxis,  # Labels for Y-axis (vertical)
@@ -1367,6 +1431,12 @@ async def get_heatmap_data(
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat()
         }
+
+        # Add date_mapping for week aggregation (month period)
+        if aggregation == "week" and 'date_mapping' in locals():
+            result["date_mapping"] = date_mapping
+
+        return result
 
     except Exception as e:
         logger.error(f"Error in /heatmap: {str(e)}", exc_info=True)

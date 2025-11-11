@@ -19,7 +19,7 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
-from sqlalchemy import func
+from sqlalchemy import func, text
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -238,8 +238,12 @@ async def list_facts(
         statement = statement.where(Article.type == article_type)
 
     if search:
-        # Case-insensitive search in description
-        statement = statement.where(BudgetFact.description.ilike(f"%{search}%"))
+        # Trigram similarity search using pg_trgm extension
+        # % operator performs fuzzy matching and uses GIN index for performance
+        # This is faster than ILIKE '%search%' on large tables
+        statement = statement.where(
+            text("description % :search_term")
+        ).params(search_term=search)
 
     if amount_min is not None:
         statement = statement.where(BudgetFact.amount >= amount_min)

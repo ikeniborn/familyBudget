@@ -5,6 +5,14 @@
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle already included in base.html -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+
+<!-- Fix z-index for ECharts tooltips -->
+<style>
+    /* Ensure ECharts tooltips don't overlap with header */
+    .echarts-tooltip {
+        z-index: 40 !important; /* Below header (z-50), above content */
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -51,9 +59,9 @@
 
                     <!-- Custom Range Picker (hidden by default) -->
                     <div id="custom-range-container" class="flex flex-wrap items-center gap-2" style="display: none;">
-                        <input type="text" id="date-from" class="input input-sm input-bordered w-40" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <input type="text" id="date-from" class="input input-sm input-bordered w-48" placeholder="ДД.ММ.ГГГГ" readonly>
                         <span class="text-sm">—</span>
-                        <input type="text" id="date-to" class="input input-sm input-bordered w-40" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <input type="text" id="date-to" class="input input-sm input-bordered w-48" placeholder="ДД.ММ.ГГГГ" readonly>
                         <button class="btn btn-sm btn-primary" onclick="applyCustomRange()">Применить</button>
                         <button class="btn btn-sm btn-ghost" onclick="cancelCustomRange()">Отмена</button>
                     </div>
@@ -1203,10 +1211,11 @@ function updateWaterfallChart(data) {
     const waterfallData = [];
     const labels = [];
 
-    // Add starting point
+    // Add starting point (from previous period balance)
+    const initialBalance = data.initial_balance || 0;
     labels.push('Начало');
     waterfallData.push({
-        value: 0,
+        value: initialBalance,
         itemStyle: { color: '#90CAF9' }
     });
 
@@ -1259,7 +1268,7 @@ function updateWaterfallChart(data) {
 
                 // Skip first (Start) and last (Total)
                 if (labelIndex === 0) {
-                    return '<strong>Начало</strong><br/>Начальный баланс: 0 ₽';
+                    return `<strong>Начало</strong><br/>Начальный баланс: ${initialBalance.toFixed(2)} ₽`;
                 }
 
                 if (labelIndex === labels.length - 1) {
@@ -1583,6 +1592,12 @@ function updateHeatmapChart(data) {
                 } else if (data.aggregation === 'week') {
                     // Weekly: show day + week
                     tooltipText = `<strong>${xLabel}, ${yLabel}</strong><br/>`;
+
+                    // Add date if available (for month period only)
+                    if (data.date_mapping && data.date_mapping[params.value[1]] && data.date_mapping[params.value[1]][params.value[0]]) {
+                        const dateStr = data.date_mapping[params.value[1]][params.value[0]];
+                        tooltipText += `<span class="text-xs opacity-70">${dateStr}</span><br/>`;
+                    }
                 } else {
                     // Monthly: show week/day + month
                     tooltipText = `<strong>${yLabel}, ${xLabel}</strong><br/>`;
