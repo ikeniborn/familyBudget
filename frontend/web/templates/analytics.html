@@ -96,11 +96,24 @@
             <!-- Global Type Filter (applies to Plan-Fact, Pie Chart, Heatmap) -->
             <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="global-type-label">
                 <div class="card-body p-3">
-                    <div class="flex flex-wrap items-center gap-3">
-                        <label id="global-type-label" class="font-semibold text-sm">Тип категорий:</label>
-                        <div class="btn-group">
-                            <button class="btn btn-sm btn-primary" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true">Расходы</button>
-                            <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')" aria-pressed="false">Доходы</button>
+                    <div class="flex flex-col gap-3">
+                        <!-- Type Filter -->
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label id="global-type-label" class="font-semibold text-sm">Тип категорий:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true">Расходы</button>
+                                <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')" aria-pressed="false">Доходы</button>
+                            </div>
+                        </div>
+
+                        <!-- Chart Mode Filter (for Plan-Fact only) -->
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label id="chart-mode-label" class="font-semibold text-sm">Режим графика (План vs Факт):</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-primary" id="chart-mode-cumulative" onclick="updateChartMode('cumulative')" aria-pressed="true" title="Накопительный итог с начала периода">Накопительно</button>
+                                <button class="btn btn-sm btn-outline" id="chart-mode-normal" onclick="updateChartMode('normal')" aria-pressed="false" title="Значения за каждый период">По периодам</button>
+                            </div>
+                            <span class="text-xs text-base-content/60" id="chart-mode-hint">Накопительный итог с начала периода</span>
                         </div>
                     </div>
                 </div>
@@ -150,6 +163,10 @@ let waterfallCategoriesData = [];
 // Global type filter (applies to Plan-Fact, Pie, Heatmap)
 let currentGlobalType = 'expense';
 
+// Chart mode filter (for Plan-Fact chart: normal vs cumulative)
+// Load from localStorage or default to 'cumulative'
+let currentChartMode = localStorage.getItem('budgetChartMode') || 'cumulative';
+
 // Custom date range state
 let customRangeActive = false;
 let customDateFrom = null;
@@ -173,6 +190,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Sync chart mode UI with saved preference
+    syncChartModeUI();
 
     // Initial load with default period (month)
     const defaultPeriod = 'month';
@@ -242,7 +262,7 @@ function initPlanFactChart() {
 // Load Plan vs Fact data from API
 async function loadPlanFactData(period) {
     try {
-        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}&article_type=${currentGlobalType}`);
+        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -298,10 +318,26 @@ function updatePlanFactChart(data) {
                 type: 'shadow'
             },
             formatter: function(params) {
-                let result = `${params[0].axisValue}<br/>`;
-                params.forEach(param => {
+                const isCumulative = data.chart_mode === 'cumulative';
+                let result = `<strong>${params[0].axisValue}</strong><br/>`;
+
+                params.forEach((param, index) => {
                     const value = param.value.toFixed(2);
-                    result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+                    const seriesName = param.seriesName;
+
+                    if (isCumulative) {
+                        // Show both period value and cumulative value
+                        const periodValue = index === 0
+                            ? (data.plan_period && data.plan_period[param.dataIndex] || 0)
+                            : (data.fact_period && data.fact_period[param.dataIndex] || 0);
+
+                        result += `${param.marker} ${seriesName}:<br/>`;
+                        result += `&nbsp;&nbsp;За период: ${periodValue.toFixed(2)} ₽<br/>`;
+                        result += `&nbsp;&nbsp;<strong>Накопительно: ${value} ₽</strong><br/>`;
+                    } else {
+                        // Normal mode: just show the value
+                        result += `${param.marker} ${seriesName}: ${value} ₽<br/>`;
+                    }
                 });
 
                 // Calculate difference
@@ -309,7 +345,8 @@ function updatePlanFactChart(data) {
                     const diff = params[1].value - params[0].value;
                     const diffPercent = params[0].value > 0 ? ((diff / params[0].value) * 100).toFixed(1) : 0;
                     const diffColor = diff >= 0 ? '#4CAF50' : '#f44336';
-                    result += `<span style="color: ${diffColor}">Разница: ${diff.toFixed(2)} ₽ (${diffPercent}%)</span>`;
+                    const modeHint = isCumulative ? ' (накопительно)' : '';
+                    result += `<span style="color: ${diffColor}">Разница${modeHint}: ${diff.toFixed(2)} ₽ (${diffPercent}%)</span>`;
                 }
 
                 return result;
@@ -1026,6 +1063,52 @@ function updateGlobalType(type) {
     }
 }
 
+// Update chart mode (normal vs cumulative) for Plan-Fact chart
+function updateChartMode(mode) {
+    currentChartMode = mode;
+
+    // Save to localStorage
+    localStorage.setItem('budgetChartMode', mode);
+
+    // Update UI
+    syncChartModeUI();
+
+    // Reload Plan-Fact chart with new mode
+    if (customRangeActive) {
+        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
+        loadPlanFactDataCustom(isoFrom, isoTo);
+    } else {
+        loadPlanFactData(currentPeriod);
+    }
+}
+
+// Sync chart mode UI with current state
+function syncChartModeUI() {
+    // Update button states
+    document.querySelectorAll('#chart-mode-cumulative, #chart-mode-normal').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    const activeBtn = document.getElementById(`chart-mode-${currentChartMode}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline');
+        activeBtn.classList.add('btn-primary');
+        activeBtn.setAttribute('aria-pressed', 'true');
+    }
+
+    // Update hint text
+    const hintText = currentChartMode === 'cumulative'
+        ? 'Накопительный итог с начала периода'
+        : 'Значения за каждый период';
+    const hintElement = document.getElementById('chart-mode-hint');
+    if (hintElement) {
+        hintElement.textContent = hintText;
+    }
+}
+
 // Note: updatePeriod function is defined earlier in the file
 
 // Initialize Waterfall chart
@@ -1645,7 +1728,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadPlanFactDataCustom(dateFrom, dateTo) {
     try {
-        const response = await fetch(`/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}`);
+        const response = await fetch(`/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         updatePlanFactChart(data);
