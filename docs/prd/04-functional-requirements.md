@@ -1680,4 +1680,138 @@ const subtitleText = (data.start_date && data.end_date)
 
 ---
 
+### 4.13 Analytics Calendar-Based Periods (v5.1.4 - COMPLETED)
+
+**Версия:** v5.1.4
+**Дата:** 2025-11-11
+**Статус:** ✅ COMPLETED
+**Branch:** `feature/calendar-based-periods`
+
+#### Описание
+
+Переход от rolling periods к calendar-based periods для предустановленных фильтров (Месяц/Квартал/Год) в аналитике. Основная цель - анализировать данные по календарным границам (от 1 числа месяца, начала квартала, января) вместо скользящих периодов относительно текущей даты. Custom range сохраняет rolling logic с обновленными порогами агрегации.
+
+#### Изменения в периодах
+
+**До (v5.1.3 - rolling periods):**
+- **Месяц**: 4 rolling недели (~28 дней назад → сегодня)
+- **Квартал**: 3 rolling месяца (текущий + 2 назад)
+- **Год**: 12 rolling месяцев (текущий + 11 назад)
+
+**После (v5.1.4 - calendar-based):**
+- **Месяц**: Текущий календарный месяц (от 1 числа → сегодня или последний день)
+- **Квартал**: Текущий календарный квартал (от первого месяца → сегодня или последний день)
+- **Год**: Текущий календарный год (от 1 января → сегодня или 31 декабря)
+- **Custom**: Rolling-based с обновленными порогами агрегации:
+  - ≤7 дней → по дням
+  - 8-31 день → по дням (было: недели)
+  - 32-91 день → по неделям (было: 93 дня)
+  - 92-365 дней → по месяцам
+  - >365 дней → по годам
+
+#### Backend Changes
+
+**Новые функции в `backend/app/utils/date_helpers.py`** (+110 lines)
+
+```python
+def get_current_calendar_month(target_date: date) -> Tuple[date, date]
+    """Возвращает границы текущего календарного месяца (1 число → конец месяца)"""
+
+def get_current_calendar_quarter(target_date: date) -> Tuple[date, date]
+    """Возвращает границы текущего календарного квартала (Q1-Q4)"""
+
+def get_current_calendar_year(target_date: date) -> Tuple[date, date]
+    """Возвращает границы текущего календарного года (янв 1 → дек 31)"""
+```
+
+**Изменения в `backend/app/api/v1/analytics.py`** (~200 lines changed)
+
+Все 5 endpoints обновлены с calendar-based logic для предустановленных периодов:
+
+##### Endpoints
+1. **GET `/api/v1/analytics/plan-fact`** - заменена rolling logic на calendar
+2. **GET `/api/v1/analytics/trends`** - заменена rolling logic на calendar
+3. **GET `/api/v1/analytics/category-breakdown`** - заменена rolling logic на calendar
+4. **GET `/api/v1/analytics/waterfall`** - заменена rolling logic на calendar
+5. **GET `/api/v1/analytics/heatmap`** - заменена rolling logic на calendar
+
+##### Custom Range Thresholds (обновлены во всех endpoints)
+- **Старые пороги:** ≤30 дней, ≤93 дней
+- **Новые пороги:** ≤31 дней, ≤91 дней, ≤365 дней, >365 дней
+- **Агрегация для 8-31 дней:** по дням (было: по неделям)
+
+#### Frontend Changes
+
+**`frontend/web/templates/analytics.html`** (~30 lines changed)
+
+**JavaScript - функция `updatePeriodDisplay()`:**
+
+```javascript
+case 'month':
+    // Текущий календарный месяц (от 1 числа до сегодня)
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    text = `Выбран месяц: ${formatDate(monthStart)} — ${formatDate(today)}`;
+    break;
+
+case 'quarter':
+    // Текущий календарный квартал (Q1-Q4)
+    const quarterNum = Math.floor(today.getMonth() / 3) + 1;
+    const quarterStart = new Date(today.getFullYear(), (quarterNum - 1) * 3, 1);
+    text = `Выбран квартал Q${quarterNum}: ${formatDate(quarterStart)} — ${formatDate(today)}`;
+    break;
+
+case 'year':
+    // Текущий календарный год (от 1 января до сегодня)
+    const yearStart = new Date(today.getFullYear(), 0, 1);
+    text = `Выбран год ${today.getFullYear()}: ${formatDate(yearStart)} — ${formatDate(today)}`;
+    break;
+```
+
+#### Files Changed
+
+**Backend:**
+- `backend/app/utils/date_helpers.py` (+110 lines - 3 новые функции)
+- `backend/app/api/v1/analytics.py` (~200 lines changed - 5 endpoints + custom range thresholds)
+
+**Frontend:**
+- `frontend/web/templates/analytics.html` (~30 lines changed - updatePeriodDisplay function)
+
+**Documentation:**
+- `docs/prd/04-functional-requirements.md` (этот файл)
+
+#### Technical Decisions
+
+**Почему calendar-based для предустановленных фильтров?**
+- Бизнес-требование: анализ по календарным границам (месяц = ноябрь 2025, год = 2025)
+- Easier comparison: "ноябрь vs октябрь" понятнее чем "последние 28 дней"
+- Alignment с бухгалтерией: отчеты за календарные периоды
+
+**Почему rolling для custom range?**
+- Гибкость: пользователь выбирает любой диапазон
+- Auto-detection: система определяет оптимальную агрегацию
+- Last selected date: rolling от последней выбранной даты
+
+**Почему обновили пороги custom range?**
+- 31 день вместо 30: полный февраль (28-29 дней) + запас
+- 91 день вместо 93: ровно 13 недель = 1 квартал
+- Добавлен >365: support для multi-year диапазонов
+
+#### Validation
+
+- ✅ Python syntax: `python3 -m py_compile backend/app/utils/date_helpers.py`
+- ✅ Python syntax: `python3 -m py_compile backend/app/api/v1/analytics.py`
+
+#### Breaking Changes
+
+- ⚠️ Предустановленные фильтры теперь показывают календарные границы вместо rolling
+- ⚠️ Количество точек на графиках изменилось (дни месяца вместо недель)
+- ✅ API response format остался совместимым
+
+#### Migration Notes
+
+**Data Migration:**
+- ✅ Не требуется (изменения только в логике)
+
+---
+
 

@@ -266,3 +266,114 @@ def get_quarter_bounds(target_date: date) -> Tuple[date, date, str]:
     quarter_label = f"{start_month_name} — {end_month_name} {year}"
 
     return quarter_start, quarter_end, quarter_label
+
+
+# ============================================================================
+# Calendar-Based Period Functions (для предустановленных фильтров)
+# ============================================================================
+
+
+def get_current_calendar_month(target_date: date) -> Tuple[date, date]:
+    """
+    Получить границы текущего календарного месяца.
+
+    Возвращает период от 1 числа месяца до последнего дня месяца
+    (или до target_date, если месяц еще не завершен).
+
+    Args:
+        target_date: Дата внутри месяца (обычно today)
+
+    Returns:
+        Tuple[month_start, month_end_or_today]
+        - month_start: 1 число текущего месяца
+        - month_end_or_today: min(последний день месяца, target_date)
+
+    Examples:
+        >>> get_current_calendar_month(date(2025, 11, 8))
+        (date(2025, 11, 1), date(2025, 11, 8))  # Неполный месяц
+
+        >>> get_current_calendar_month(date(2025, 11, 30))
+        (date(2025, 11, 1), date(2025, 11, 30))  # Полный месяц
+    """
+    # Первый день месяца
+    month_start = date(target_date.year, target_date.month, 1)
+
+    # Последний день месяца
+    _, last_day = calendar.monthrange(target_date.year, target_date.month)
+    month_end = date(target_date.year, target_date.month, last_day)
+
+    # Если target_date раньше конца месяца, обрезаем до target_date
+    return month_start, min(month_end, target_date)
+
+
+def get_current_calendar_quarter(target_date: date) -> Tuple[date, date]:
+    """
+    Получить границы текущего календарного квартала.
+
+    Календарный квартал:
+    - Q1: Январь-Март (месяцы 1-3)
+    - Q2: Апрель-Июнь (месяцы 4-6)
+    - Q3: Июль-Сентябрь (месяцы 7-9)
+    - Q4: Октябрь-Декабрь (месяцы 10-12)
+
+    Args:
+        target_date: Дата внутри квартала (обычно today)
+
+    Returns:
+        Tuple[quarter_start, quarter_end_or_today]
+        - quarter_start: 1 число первого месяца квартала
+        - quarter_end_or_today: min(последний день квартала, target_date)
+
+    Examples:
+        >>> get_current_calendar_quarter(date(2025, 11, 8))
+        (date(2025, 10, 1), date(2025, 11, 8))  # Q4 неполный
+
+        >>> get_current_calendar_quarter(date(2025, 3, 31))
+        (date(2025, 1, 1), date(2025, 3, 31))  # Q1 полный
+    """
+    # Определить номер квартала (Q1=1, Q2=2, Q3=3, Q4=4)
+    quarter_num = (target_date.month - 1) // 3 + 1
+
+    # Первый месяц квартала (Q1→1, Q2→4, Q3→7, Q4→10)
+    first_month = (quarter_num - 1) * 3 + 1
+    quarter_start = date(target_date.year, first_month, 1)
+
+    # Последний месяц квартала (Q1→3, Q2→6, Q3→9, Q4→12)
+    last_month = first_month + 2
+    _, last_day = calendar.monthrange(target_date.year, last_month)
+    quarter_end = date(target_date.year, last_month, last_day)
+
+    # Если target_date раньше конца квартала, обрезаем до target_date
+    return quarter_start, min(quarter_end, target_date)
+
+
+def get_current_calendar_year(target_date: date) -> Tuple[date, date]:
+    """
+    Получить границы текущего календарного года.
+
+    Возвращает период от 1 января до 31 декабря
+    (или до target_date, если год еще не завершен).
+
+    Args:
+        target_date: Дата внутри года (обычно today)
+
+    Returns:
+        Tuple[year_start, year_end_or_today]
+        - year_start: 1 января текущего года
+        - year_end_or_today: min(31 декабря, target_date)
+
+    Examples:
+        >>> get_current_calendar_year(date(2025, 11, 8))
+        (date(2025, 1, 1), date(2025, 11, 8))  # Неполный год
+
+        >>> get_current_calendar_year(date(2025, 12, 31))
+        (date(2025, 1, 1), date(2025, 12, 31))  # Полный год
+    """
+    # Первый день года
+    year_start = date(target_date.year, 1, 1)
+
+    # Последний день года
+    year_end = date(target_date.year, 12, 31)
+
+    # Если target_date раньше конца года, обрезаем до target_date
+    return year_start, min(year_end, target_date)
