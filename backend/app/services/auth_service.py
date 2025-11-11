@@ -124,6 +124,24 @@ async def update_user_profile(
     # If data changed, create new version (SCD2)
     now = datetime.utcnow()
 
+    # CRITICAL FIX: Revoke all active refresh tokens for the old user version
+    # This prevents "zombie tokens" that reference an inactive user (is_current=FALSE)
+    # Forces re-authentication on all devices when user profile data changes
+    # Fixes: 500 error on repeated login with changed profile data
+    from backend.app.models.refresh_token import RefreshToken
+
+    old_tokens_stmt = (
+        select(RefreshToken)
+        .where(RefreshToken.user_id == existing_user.id)
+        .where(RefreshToken.is_revoked == False)  # noqa: E712
+    )
+    old_tokens_result = await session.exec(old_tokens_stmt)
+    old_tokens = old_tokens_result.all()
+
+    for token in old_tokens:
+        token.revoke()  # Sets is_revoked=True, revoked_at=now()
+        session.add(token)
+
     # Close old version
     existing_user.is_current = False
     existing_user.valid_to = now
