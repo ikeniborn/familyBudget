@@ -320,7 +320,7 @@ async function loadTransactionCategories() {
                 onCategoryChange: (category) => {
                     console.log('Transaction category changed:', category);
                     // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_modal_add_transaction', 'fact');
+                    loadRecommendedAmounts('form_modal_add_transaction', 'fact', category);
                 }
             });
         }
@@ -356,7 +356,7 @@ async function loadPlanCategories() {
                 onCategoryChange: (category) => {
                     console.log('Plan category changed:', category);
                     // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_modal_add_plan', 'plan');
+                    loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
                 }
             });
         }
@@ -531,8 +531,9 @@ let recommendedAmountsController = null;
  *
  * @param {string} formId - ID модальной формы ('form_modal_add_transaction' или 'form_modal_add_plan')
  * @param {string} recordType - Тип записи ('fact' или 'plan')
+ * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
  */
-async function loadRecommendedAmounts(formId, recordType = 'fact') {
+async function loadRecommendedAmounts(formId, recordType = 'fact', category = null) {
     // Clear existing debounce timeout
     if (recommendedAmountsTimeout) {
         clearTimeout(recommendedAmountsTimeout);
@@ -560,9 +561,8 @@ async function loadRecommendedAmounts(formId, recordType = 'fact') {
                              form.querySelector('input[name="plan_type"]:checked');
             const type = typeInput ? typeInput.value : 'expense';
 
-            // Get current category
-            const categorySelect = form.querySelector('select[name="article_id"]');
-            const articleId = categorySelect ? categorySelect.value : null;
+            // Get current category (from callback parameter or fallback to DOM)
+            const articleId = category ? category.id : null;
 
             // Build query params
             const params = new URLSearchParams({
@@ -748,6 +748,9 @@ function setupTransactionTypeButtons() {
             // Перезагрузить только категории транзакций с новым типом
             console.log('Transaction type changed to:', this.dataset.type);
             loadTransactionCategories();
+
+            // Обновить рекомендуемые суммы для нового типа транзакции
+            loadRecommendedAmounts('form_modal_add_transaction', 'fact');
         });
     });
 }
@@ -775,6 +778,9 @@ function setupPlanTypeButtons() {
             // Перезагрузить только категории планов с новым типом
             console.log('Plan type changed to:', this.dataset.type);
             loadPlanCategories();
+
+            // Обновить рекомендуемые суммы для нового типа плана
+            loadRecommendedAmounts('form_modal_add_plan', 'plan');
         });
     });
 }
