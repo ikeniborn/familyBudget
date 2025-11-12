@@ -362,6 +362,15 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Инициализация CalendarWidget для edit modal (Single Date Picker)
+    new BudgetShared.CalendarWidget({
+        mode: 'single',
+        inputElement: document.getElementById('edit-date'),
+        onSelect: (date) => {
+            console.log('Выбрана дата для edit modal:', date);
+        }
+    });
+
     // Event listener for article_type filter change - reload categories
     document.getElementById('filter-article-type').addEventListener('change', function(e) {
         const selectedType = e.target.value;
@@ -974,6 +983,25 @@ async function showEditModal(factId) {
                 storeChoicesCount: editCategoryTreeSelect?.choices?._store?.choices?.length
             });
         }, 10000);
+    }
+
+    // Initialize CalendarWidget for edit modal date input
+    const editDateInput = document.getElementById('edit-date');
+    if (editDateInput) {
+        // Remove existing calendar widget if any
+        const existingCalendar = editDateInput.parentElement.querySelector('.calendar-widget');
+        if (existingCalendar) {
+            existingCalendar.remove();
+        }
+
+        // Initialize new CalendarWidget
+        new BudgetShared.CalendarWidget({
+            mode: 'single',
+            inputElement: editDateInput,
+            onSelect: (date) => {
+                console.log('Выбрана дата для edit modal:', date);
+            }
+        });
     }
 
     document.getElementById('edit-modal').showModal();
