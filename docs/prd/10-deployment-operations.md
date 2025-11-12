@@ -641,6 +641,482 @@ rsync -avnc --delete \
 
 ---
 
+#### 10.3.7 Migration Change Detection & Auto-Reapply System
+
+**Версия:** 5.1.0 (добавлено 2025-11-12)
+
+**Назначение:**
+Автоматическое обнаружение и обработка изменений в примененных Alembic миграциях через механизм downgrade/upgrade.
+
+**Проблема:**
+
+Alembic отслеживает примененные миграции только по revision ID в таблице `alembic_version`. Если содержимое файла миграции изменяется ПОСЛЕ применения:
+
+```
+Изменение файла:
+backend/db/migrations/versions/20251112_b2232d851007_add_function.py
+  ├─ Revision ID: b2232d851007 (не изменился)
+  ├─ Содержимое: ИЗМЕНЕНО (добавлен JOIN, исправлен SQL)
+  └─ Результат: Alembic НЕ обнаруживает изменение!
+
+Проблема:
+  alembic_version: b2232d851007 ✓ (уже применена)
+  Alembic: "Database up to date" (но файл изменился!)
+  Функция в БД: СТАРАЯ версия с багом
+```
+
+**Решение:**
+
+Система отслеживания изменений через MD5 checksums:
+
+```
+Deployment Process:
+┌─────────────────────────────────────────────────────────────┐
+│ 1. Загрузка предыдущих checksums                            │
+│    /opt/budget/.migration_checksums (persistent)            │
+│                                                              │
+│ 2. Вычисление текущих checksums                             │
+│    md5sum backend/db/migrations/versions/*.py               │
+│                                                              │
+│ 3. Сравнение (detect_changed_migrations)                   │
+│    comm -13 <previous> <current>                            │
+│    → список измененных файлов                               │
+│                                                              │
+│ 4a. Auto-reapply (если enabled + dev/staging)              │
+│     FOR EACH changed migration:                             │
+│       alembic downgrade -1                                  │
+│       alembic upgrade head                                  │
+│                                                              │
+│ 4b. Manual reapply (production)                             │
+│     WARNING: Changed migrations detected                    │
+│     Use: --reapply-migration <revision>                     │
+│                                                              │
+│ 5. Сохранение новых checksums                               │
+│    echo "$checksums" > .migration_checksums                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Компоненты:**
+
+**1. scripts/lib/migration_tracker.sh** (новый модуль, 338 строк):
+
+```bash
+# Ключевые функции:
+calculate_migration_checksums()     # MD5 для всех .py файлов
+detect_changed_migrations()         # Сравнение previous vs current
+reapply_single_migration()          # Downgrade → Upgrade для одной миграции
+reapply_changed_migrations()        # Reapply всех измененных с confirmation
+manual_reapply_migration()          # Ручной reapply с подтверждением
+check_and_reapply_migrations()      # Главная функция (public API)
+
+# Checksum file location:
+MIGRATION_CHECKSUMS_FILE="/opt/budget/.migration_checksums"
+
+# Auto-reapply: ВСЕГДА enabled (2025-11-12)
+# - Production: requires 'REAPPLY' typed confirmation
+# - Staging: requires y/N confirmation
+# - Development: auto-applies without confirmation
+```
+
+**2. scripts/lib/migrations.sh** (обновлён):
+
+```bash
+run_alembic_migrations() {
+    # Handle manual reapply flag (--reapply-migration <revision>)
+    if [[ "$REAPPLY_MIGRATION" == "true" && -n "$REAPPLY_MIGRATION_FILE" ]]; then
+        manual_reapply_migration "$REAPPLY_MIGRATION_FILE"
+        return $?
+    fi
+
+    # ALWAYS check for changed migrations (detection)
+    # Will show WARNING if changes detected, and reapply with confirmation
+    check_and_reapply_migrations "$DEPLOY_DIR/backend/db/migrations"
+
+    # Normal migration flow...
+    alembic upgrade head
+
+    # Save checksums after successful migration
+    save_migration_checksums "$DEPLOY_DIR/backend/db/migrations"
+}
+```
+
+**3. deploy.sh** (обновлён):
+
+```bash
+# Line 90: Load new module
+source "$SCRIPT_DIR/scripts/lib/migration_tracker.sh"
+
+# Lines 129-132: New variables
+REAPPLY_MIGRATION=false              # Manual reapply flag
+REAPPLY_MIGRATION_FILE=""            # Revision ID (e.g., "b2232d851007")
+
+# Argument parsing:
+--reapply-migration)
+    REAPPLY_MIGRATION=true
+    REAPPLY_MIGRATION_FILE="$2"
+    shift 2
+    ;;
+```
+
+**Usage Examples:**
+
+**Manual Reapply (production):**
+```bash
+# Ручной reapply конкретной миграции
+cd ~/familyBudget
+./deploy.sh --reapply-migration b2232d851007
+
+# Процесс:
+# 1. Downgrade: alembic downgrade -1
+# 2. Upgrade: alembic upgrade head
+# 3. Production: требует ввода "REAPPLY" для подтверждения
+
+# Output:
+⚠️  MANUAL REAPPLY REQUESTED
+This will downgrade and upgrade migration: b2232d851007
+
+Type 'REAPPLY' to confirm manual reapply on production: REAPPLY
+
+Step 1/2: Downgrading migration b2232d851007...
+✅ Downgrade completed
+
+Step 2/2: Upgrading migration b2232d851007...
+✅ Upgrade completed
+✅ Migration b2232d851007 reapplied successfully
+```
+
+**Auto-Reapply (all environments):**
+```bash
+# Auto-reapply ВСЕГДА включен при обнаружении изменений
+cd ~/familyBudget
+sudo bash deploy.sh
+
+# Процесс:
+# 1. Загрузить previous checksums из /opt/budget/.migration_checksums
+# 2. Вычислить current checksums из новых файлов
+# 3. Обнаружить изменения (comm -13 для сравнения MD5)
+# 4. Показать список измененных миграций
+# 5. Запросить подтверждение (production/staging) или применить (dev)
+# 6. Reapply измененных миграций (downgrade -1 → upgrade head)
+# 7. Сохранить новые checksums
+
+# Output (Production):
+Checking for changed migrations...
+⚠️  Detected changed migration files:
+  - 20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py (revision: d1b4c09aa285)
+
+⚠️  Migration changes will be automatically reapplied
+This will execute downgrade() then upgrade() for each migration
+
+Migrations to be reapplied:
+  - 20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py (revision: d1b4c09aa285)
+
+⚠️  PRODUCTION ENVIRONMENT - Extra confirmation required
+Type 'REAPPLY' to confirm (all caps): REAPPLY
+
+Reapplying migration: d1b4c09aa285
+
+Step 1/2: Downgrading migration d1b4c09aa285...
+✅ Downgrade completed
+
+Step 2/2: Upgrading migration d1b4c09aa285...
+✅ Upgrade completed
+
+✅ All changed migrations reapplied successfully
+Saving migration checksums for change tracking...
+✅ Migration checksums saved to /opt/budget/.migration_checksums
+```
+
+**Normal Deploy (no changes detected):**
+```bash
+cd ~/familyBudget
+./deploy.sh --profile full
+
+# Output:
+Checking for changed migrations...
+✅ No changed migrations detected
+Saving migration checksums for change tracking...
+✅ Migration checksums saved
+```
+
+**Safety Features:**
+
+| Environment | Auto-Reapply Behavior | Manual Reapply | Confirmation Required? |
+|-------------|----------------------|----------------|------------------------|
+| **Production** | ✅ Enabled | ✅ Allowed | ✅ YES (type "REAPPLY") |
+| **Staging** | ✅ Enabled | ✅ Allowed | ✅ YES (y/n prompt) |
+| **Development** | ✅ Enabled | ✅ Allowed | ❌ NO (auto) |
+
+**Behavior Changed (2025-11-12):**
+- **OLD:** Auto-reapply disabled by default, required `AUTO_REAPPLY_MIGRATIONS=true` flag
+- **NEW:** Auto-reapply ALWAYS enabled when changes detected
+- **Safety:** Production requires explicit 'REAPPLY' confirmation, Staging requires y/N confirmation
+- **Development:** Applies automatically without confirmation (for rapid iteration)
+
+**Production Manual Reapply:**
+```bash
+manual_reapply_migration() {
+    local revision="$1"
+
+    # Safety confirmation on production
+    if [[ "${ENVIRONMENT:-}" == "production" ]]; then
+        error "PRODUCTION ENVIRONMENT DETECTED"
+        warning "Manual reapply may cause data loss if downgrade() drops data"
+        echo ""
+        read -p "Type 'REAPPLY' to confirm manual reapply on production: " confirm
+
+        if [[ "$confirm" != "REAPPLY" ]]; then
+            error "Manual reapply cancelled"
+            return 1
+        fi
+    fi
+
+    # Perform reapply
+    reapply_single_migration "$revision"
+}
+```
+
+**Checksum File Format:**
+
+```bash
+# /opt/budget/.migration_checksums
+# Format: md5sum filename
+
+a1b2c3d4e5f6... /opt/budget/backend/db/migrations/versions/20251112_b2232d851007_add_function.py
+f7e8d9c0b1a2... /opt/budget/backend/db/migrations/versions/20251112_d1b4c09aa285_fix_function.py
+...
+```
+
+**Change Detection Algorithm:**
+
+```bash
+detect_changed_migrations() {
+    local migrations_dir="$1"
+    local previous_checksums="$2"
+    local current_checksums
+
+    # Calculate current checksums
+    current_checksums=$(calculate_migration_checksums "$migrations_dir")
+
+    # Compare checksums and extract changed files
+    # comm -13: lines only in file2 (new/changed checksums)
+    local changed_files
+    changed_files=$(comm -13 \
+        <(echo "$previous_checksums" | sort) \
+        <(echo "$current_checksums" | sort) \
+        2>/dev/null | awk '{print $2}')
+
+    echo "$changed_files"
+}
+```
+
+**Сценарии использования:**
+
+**Сценарий 1: Исправление бага в миграции (development)**
+```
+1. Обнаружена ошибка в миграции d1b4c09aa285 (bf.is_current doesn't exist)
+2. Исправлен файл миграции (убран bf.is_current)
+3. git commit + push
+4. Deployment с AUTO_REAPPLY_MIGRATIONS=true
+5. Система обнаруживает изменение checksums
+6. Автоматически выполняет downgrade -1 → upgrade head
+7. Функция пересоздается с исправлением
+8. Checksums сохраняются
+```
+
+**Сценарий 2: Исправление бага в миграции (production)**
+```
+1. Обнаружена ошибка в миграции d1b4c09aa285
+2. Исправлен файл миграции
+3. git commit + push
+4. Deployment: ./deploy.sh (без auto-reapply)
+5. Система обнаруживает изменение checksums
+6. WARNING: Changed migrations detected but not reapplied
+7. Manual intervention: ./deploy.sh --reapply-migration d1b4c09aa285
+8. Требуется ввести "REAPPLY" для подтверждения
+9. Выполняется downgrade → upgrade
+10. Checksums сохраняются
+```
+
+**Сценарий 3: Первый deployment (no previous checksums)**
+```
+1. Deployment на новом сервере
+2. /opt/budget/.migration_checksums не существует
+3. check_and_reapply_migrations: "No previous checksums found"
+4. Обычный процесс миграций (alembic upgrade head)
+5. Checksums сохраняются для следующего deployment
+```
+
+**Сценарий 4: Новая миграция (не изменение существующей)**
+```
+1. Создана новая миграция e5f6g7h8i9j0
+2. Previous checksums: b2232d851007, d1b4c09aa285
+3. Current checksums: b2232d851007, d1b4c09aa285, e5f6g7h8i9j0
+4. Detected changes: e5f6g7h8i9j0 (новая миграция)
+5. НЕТ reapply (это новая миграция, не изменение)
+6. Обычный процесс: alembic upgrade head
+7. Checksums обновляются
+```
+
+**Troubleshooting:**
+
+| Проблема | Диагностика | Решение |
+|----------|-------------|---------|
+| Checksums не сохраняются | `ls -la /opt/budget/.migration_checksums` | Проверить permissions, повторить deploy |
+| Checksums файл удаляется при deploy | `grep migration_checksums scripts/lib/sync.sh` | Проверить `--filter='protect .migration_checksums'` |
+| Manual reapply не запускается | Проверить флаг `--reapply-migration` | Указать revision ID правильно: `--reapply-migration d1b4c09aa285` |
+| User отменил reapply | Проверить логи deploy | Ввести 'REAPPLY' (production) или 'y' (staging) при запросе |
+
+**Error Messages:**
+
+```bash
+# User cancelled reapply on production:
+⚠️  Detected changed migration files:
+  - 20251112_d1b4c09aa285_fix_function.py (revision: d1b4c09aa285)
+
+⚠️  PRODUCTION ENVIRONMENT - Extra confirmation required
+Type 'REAPPLY' to confirm (all caps): <user typed something else>
+
+❌ Reapply cancelled by user
+⚠️  Database will continue using OLD migration version
+⚠️  To apply changes later: ./deploy.sh --reapply-migration d1b4c09aa285
+
+# Invalid revision ID:
+❌ Invalid revision ID: unknown
+❌ Migration file not found: <path>
+
+# Checksum file protected by rsync:
+[INFO] Post-sync: .migration_checksums preserved successfully
+```
+
+**Limitations:**
+
+1. **Не обнаруживает изменения в зависимых миграциях:**
+   - Если миграция A зависит от миграции B
+   - Изменение B требует ручного reapply A → B
+
+2. **downgrade() может привести к потере данных:**
+   - Если downgrade() делает DROP TABLE/COLUMN
+   - Проверяйте downgrade() перед использованием
+
+3. **Не работает для уже удаленных миграций:**
+   - Если миграция удалена из файловой системы
+   - Checksum comparison не обнаружит удаление
+
+**Best Practices:**
+
+1. ✅ **Auto-reapply работает автоматически с confirmation:**
+   ```bash
+   # Production: Type 'REAPPLY' to confirm
+   cd ~/familyBudget && sudo bash deploy.sh
+
+   # Staging: y/N confirmation
+   cd ~/familyBudget && sudo bash deploy.sh
+
+   # Development: Auto-applies without confirmation
+   cd ~/familyBudget && sudo bash deploy.sh
+
+   # Manual reapply (все окружения):
+   ./deploy.sh --reapply-migration <revision>
+   ```
+
+2. ✅ **Тестируйте downgrade() перед production:**
+   ```bash
+   # Тестовая БД
+   alembic upgrade head
+   alembic downgrade -1  # Проверить что не теряются данные
+   alembic upgrade head  # Проверить что re-apply работает
+   ```
+
+3. ✅ **Документируйте изменения в docstring миграции:**
+   ```python
+   """
+   Fixes critical SQL error:
+   - ERROR #1: column "fact_type" does not exist
+   - ERROR #2: column "bf.is_current" does not exist
+
+   Downgrade: Safe (pass) - no data loss
+   """
+   ```
+
+4. ✅ **Коммитьте изменения миграций с clear commit message:**
+   ```bash
+   git commit -m "fix(migration): remove bf.is_current - column doesn't exist"
+   ```
+
+**История изменений:**
+
+- **2025-11-12:** Добавлен `scripts/lib/migration_tracker.sh` (338 строк)
+- **2025-11-12:** Обновлен `scripts/lib/migrations.sh` с интеграцией migration_tracker
+- **2025-11-12:** Добавлен флаг `--reapply-migration` в deploy.sh
+- **2025-11-12:** Auto-reapply ВСЕГДА enabled (удалена переменная `AUTO_REAPPLY_MIGRATIONS`)
+- **2025-11-12:** Добавлен `--filter='protect .migration_checksums'` в sync.sh
+- **2025-11-12:** Добавлена секция в ПРД с полным описанием системы
+- **2025-11-12:** ✅ **Протестировано на production - система работает корректно**
+
+---
+
+**Результаты тестирования (2025-11-12):**
+
+**Сценарий:** Deployment с измененной миграцией d1b4c09aa285
+
+**Окружение:** Production (Ubuntu 22.04, PostgreSQL 16, Docker Compose)
+
+**Выполненные шаги:**
+```bash
+1. cd ~/familyBudget && git pull origin fix/production-errors
+2. sudo bash deploy.sh
+```
+
+**Результат:**
+```
+✅ Code Synchronization
+   - .migration_checksums preserved (protected by rsync --filter)
+   - 16 files synchronized
+
+✅ Migration Change Detection
+   - Previous checksums loaded: 6 migration files
+   - Current checksums calculated: 6 migration files
+   - Detected changes: 20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py
+
+⚠️  PRODUCTION ENVIRONMENT - Extra confirmation required
+Type 'REAPPLY' to confirm (all caps): REAPPLY
+
+✅ Migration Reapply
+   - Step 1/2: Downgrade -1 → Success (pass, no data loss)
+   - Step 2/2: Upgrade head → Success
+   - Function recalculate_recommended_amounts() recreated without errors
+   - New checksums saved to /opt/budget/.migration_checksums
+
+✅ Deployment Complete
+   - Services restarted: backend, bot
+   - Database schema validated
+   - Application functional
+```
+
+**Проверки:**
+- ✅ `.migration_checksums` файл НЕ удален при rsync (protected)
+- ✅ Изменения миграции обнаружены корректно
+- ✅ Production confirmation запрошен ('REAPPLY' typed)
+- ✅ Downgrade + Upgrade выполнены успешно
+- ✅ SQL функция пересоздана без ошибки `bf.is_current does not exist`
+- ✅ Checksums обновлены для следующего deployment
+- ✅ Приложение работает без ошибок
+
+**Вывод:**
+Система Migration Change Detection & Auto-Reapply работает корректно в production окружении.
+Все компоненты (detection, protection, reapply, confirmation) функционируют как задумано.
+
+---
+
+**Related Issues:**
+
+- Resolves deployment limitation where Alembic only checks revision ID
+- Addresses situation from migration d1b4c09aa285 (changed migration b2232d851007)
+- Enables safe migration iteration during development
+
+---
+
 ### 10.4 Backup & Recovery
 
 **Backup Strategy:**

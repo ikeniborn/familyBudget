@@ -37,7 +37,9 @@ Options:
   --clean                         Clean deployment (remove volumes) - WARNING: DELETES DATA!
   --sync-mode MODE                Code sync mode: mirror|update|clean|skip (default: interactive)
   --repo-dir PATH                 Repository directory path (default: auto-detect)
-  --reapply-migration FILE        Force re-apply specific migration (e.g., 009_create_additional_indexes.sql)
+  --reapply-migration REVISION    Force reapply specific migration (downgrade then upgrade)
+                                  Example: --reapply-migration b2232d851007
+                                  WARNING: May cause data loss if downgrade() drops data!
 
 Sync Modes:
   mirror   - Full sync with --delete (removes files not in repository)
@@ -47,11 +49,12 @@ Sync Modes:
   skip     - No code synchronization (use current code in /opt/budget)
 
 Examples:
-  ./deploy.sh                            # Interactive sync mode + deploy
-  ./deploy.sh --sync-mode mirror         # Mirror sync + deploy
-  ./deploy.sh --sync-mode skip           # Deploy without code sync
-  ./deploy.sh --repo-dir ~/familyBudget  # Specify repository path
-  ./deploy.sh --reapply-migration 009_create_additional_indexes.sql  # Re-apply modified migration
+  ./deploy.sh                                # Interactive sync mode + deploy
+  ./deploy.sh --sync-mode mirror             # Mirror sync + deploy
+  ./deploy.sh --sync-mode skip               # Deploy without code sync
+  ./deploy.sh --repo-dir ~/familyBudget      # Specify repository path
+  ./deploy.sh --reapply-migration b2232d851007  # Manually reapply specific migration (downgrade/upgrade)
+  AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh   # Enable auto-detection of changed migrations (dev/staging only)
 
 Workflow:
   1. Detects repository directory (current dir, ~/familyBudget, or ask)

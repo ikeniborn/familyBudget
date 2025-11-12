@@ -215,12 +215,6 @@
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">📝 Описание</span>
-                </label>
-                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
-            </div>
-            <div class="form-control">
-                <label class="label">
                     <span class="label-text">🏦 Финансовый центр (ЦФО)*</span>
                 </label>
                 <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
@@ -236,6 +230,12 @@
                     <option value="">-- Не указано --</option>
                     <!-- Populated dynamically -->
                 </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Описание</span>
+                </label>
+                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
             </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
@@ -359,6 +359,15 @@ document.addEventListener('DOMContentLoaded', function() {
         endInputElement: document.getElementById('filter-date-to'),
         onSelect: (startDate, endDate) => {
             console.log('Выбран диапазон дат для плана:', startDate, endDate);
+        }
+    });
+
+    // Инициализация CalendarWidget для edit modal (Single Date Picker)
+    new BudgetShared.CalendarWidget({
+        mode: 'single',
+        inputElement: document.getElementById('edit-date'),
+        onSelect: (date) => {
+            console.log('Выбрана дата для edit modal:', date);
         }
     });
 
@@ -935,7 +944,7 @@ async function showEditModal(factId) {
             if (editCategoryTreeSelect &&
                 editCategoryTreeSelect.choices &&
                 editCategoryTreeSelect.categoryMap &&
-                editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
+                editCategoryTreeSelect.categoryMap.size > 0) {  // ← FIX: Check map is loaded, not specific category
 
                 // Get choices from the correct location: _store.choices
                 const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
@@ -944,14 +953,19 @@ async function showEditModal(factId) {
 
                 if (choicesStore.length > 0) {
                     clearInterval(initCheckInterval);
-                    console.log('[Edit Modal] Setting category to:', fact.article_id);
 
-                    // Use the public API method
-                    await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+                    // Try to set the category (may fail if archived/inactive)
+                    if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
+                        console.log('[Edit Modal] Setting category to:', fact.article_id);
+                        await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
 
-                    // Verify it was set
-                    const selectedValue = editSelect.value;
-                    console.log('[Edit Modal] Category set. Dropdown value:', selectedValue);
+                        // Verify it was set
+                        const selectedValue = editSelect.value;
+                        console.log('[Edit Modal] Category set. Dropdown value:', selectedValue);
+                    } else {
+                        console.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
+                        // Leave default "-- Выберите категорию --" selected
+                    }
                 }
             }
         }, 150); // Check every 150ms
@@ -959,15 +973,35 @@ async function showEditModal(factId) {
         // Safety timeout to prevent infinite loop
         setTimeout(() => {
             clearInterval(initCheckInterval);
-            console.error('[Edit Modal] Initialization timeout - giving up after 10 seconds');
+            console.warn('[Edit Modal] Initialization timeout - giving up after 10 seconds');
             console.log('[Edit Modal] Debug state:', {
                 hasInstance: !!editCategoryTreeSelect,
                 hasChoices: !!editCategoryTreeSelect?.choices,
                 hasMap: !!editCategoryTreeSelect?.categoryMap,
+                mapSize: editCategoryTreeSelect?.categoryMap?.size,
                 categoryExists: editCategoryTreeSelect?.categoryMap?.has(fact.article_id),
                 storeChoicesCount: editCategoryTreeSelect?.choices?._store?.choices?.length
             });
         }, 10000);
+    }
+
+    // Initialize CalendarWidget for edit modal date input
+    const editDateInput = document.getElementById('edit-date');
+    if (editDateInput) {
+        // Remove existing calendar widget if any
+        const existingCalendar = editDateInput.parentElement.querySelector('.calendar-widget');
+        if (existingCalendar) {
+            existingCalendar.remove();
+        }
+
+        // Initialize new CalendarWidget
+        new BudgetShared.CalendarWidget({
+            mode: 'single',
+            inputElement: editDateInput,
+            onSelect: (date) => {
+                console.log('Выбрана дата для edit modal:', date);
+            }
+        });
     }
 
     document.getElementById('edit-modal').showModal();
@@ -1226,19 +1260,23 @@ async function createPlan(event) {
     event.preventDefault();
 
     const formData = new FormData(event.target);
+
+    // Преобразовать plan_month (YYYY-MM) в fact_date (YYYY-MM-01)
+    const planMonth = formData.get('plan_month'); // "2025-11"
+    const factDate = `${planMonth}-01`; // "2025-11-01"
+
     const data = {
         record_type: 'plan',
-        fact_type: formData.get('plan_type'), // 'expense' или 'income'
         amount: parseFloat(formData.get('amount')),
         article_id: parseInt(formData.get('article_id')),
         financial_center_id: parseInt(formData.get('financial_center_id')),
         cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-        plan_month: formData.get('plan_month'),
+        fact_date: factDate, // Обязательное поле - первое число месяца плана
         description: formData.get('description') || null
     };
 
     try {
-        const response = await fetch('/api/v1/budget-facts', {
+        const response = await fetch('/api/v1/facts', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1250,7 +1288,7 @@ async function createPlan(event) {
             showToast('План успешно создан!', 'success');
             create_modal.close();
             event.target.reset();
-            loadFacts(); // Перезагрузить список планов
+            await loadFacts(); // Перезагрузить список планов
 
             // Переинициализировать кнопки периода
             setupCreatePlanPeriodButtons();

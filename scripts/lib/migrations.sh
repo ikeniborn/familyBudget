@@ -4,7 +4,7 @@
 #
 # Module for managing database migrations
 #
-# Dependencies: config.sh, utils.sh
+# Dependencies: config.sh, utils.sh, migration_tracker.sh
 #
 
 # =============================================================================
@@ -22,6 +22,34 @@ run_alembic_migrations() {
         error "PostgreSQL service is not healthy, cannot run migrations"
         return 1
     fi
+
+    # Handle manual reapply flag (--reapply-migration <revision>)
+    if [[ "$REAPPLY_MIGRATION" == "true" && -n "$REAPPLY_MIGRATION_FILE" ]]; then
+        warning "Manual reapply requested for revision: $REAPPLY_MIGRATION_FILE"
+        echo ""
+
+        # Call manual_reapply_migration from migration_tracker.sh
+        if manual_reapply_migration "$REAPPLY_MIGRATION_FILE"; then
+            success "Manual reapply completed successfully"
+            return 0
+        else
+            error "Manual reapply failed"
+            return 1
+        fi
+    fi
+
+    # ALWAYS check for changed migrations (detection)
+    info "Checking for changed migrations..."
+    echo ""
+
+    # Call check_and_reapply_migrations from migration_tracker.sh
+    # Will show WARNING if changes detected, and reapply only if AUTO_REAPPLY_MIGRATIONS=true
+    if ! check_and_reapply_migrations "$DEPLOY_DIR/backend/db/migrations"; then
+        warning "Changed migrations detected but not reapplied"
+        info "Continuing with normal migration flow..."
+    fi
+
+    echo ""
 
     # Check current Alembic revision
     info "Checking current migration status..."
@@ -68,6 +96,15 @@ run_alembic_migrations() {
             info "Database updated: $current_revision → $new_revision"
         elif [[ "$new_revision" == "$current_revision" ]]; then
             info "Database already up to date (revision: $new_revision)"
+        fi
+
+        # Save migration checksums for change detection on next deployment
+        echo ""
+        info "Saving migration checksums for change tracking..."
+        if save_migration_checksums "$DEPLOY_DIR/backend/db/migrations"; then
+            info "Migration checksums saved to $MIGRATION_CHECKSUMS_FILE"
+        else
+            warning "Failed to save migration checksums (change detection may not work)"
         fi
 
         return 0

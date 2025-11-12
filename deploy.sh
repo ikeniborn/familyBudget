@@ -87,7 +87,8 @@ source "$SCRIPT_DIR/scripts/lib/status.sh"      # Depends on config.sh, utils.sh
 # Phase 2 modules
 source "$SCRIPT_DIR/scripts/lib/postgres.sh"    # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/services.sh"    # Depends on config.sh, utils.sh
-source "$SCRIPT_DIR/scripts/lib/migrations.sh"  # Depends on config.sh, utils.sh
+source "$SCRIPT_DIR/scripts/lib/migration_tracker.sh"  # Depends on config.sh, utils.sh (NEW - v5.1.0+)
+source "$SCRIPT_DIR/scripts/lib/migrations.sh"  # Depends on config.sh, utils.sh, migration_tracker.sh
 source "$SCRIPT_DIR/scripts/lib/firewall.sh"    # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/backup_integration.sh"  # Depends on config.sh, utils.sh
 
@@ -125,9 +126,10 @@ CLEAN_DEPLOY=false
 COMPOSE_PROFILE=""
 SYNC_MODE=""  # mirror|update|clean|skip (empty = interactive)
 REPO_DIR_OVERRIDE=""  # User-specified repository directory
-REAPPLY_MIGRATION=false  # Force reapply specific migration
-REAPPLY_MIGRATION_FILE=""  # Migration file to reapply (e.g., "009_create_additional_indexes.sql")
+REAPPLY_MIGRATION=false  # Manual reapply specific migration (downgrade/upgrade)
+REAPPLY_MIGRATION_FILE=""  # Revision ID to reapply (e.g., "b2232d851007")
 MIGRATIONS_ONLY=false  # Run only migrations without rebuilding containers
+AUTO_REAPPLY_MIGRATIONS="${AUTO_REAPPLY_MIGRATIONS:-false}"  # Auto-detect changed migrations (disabled by default)
 # Note: BUILD_IMAGES removed - now always enabled via 'docker compose up --build'
 
 # PostgreSQL state tracking (prevent race conditions)
