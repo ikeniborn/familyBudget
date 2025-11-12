@@ -1458,7 +1458,7 @@ async def get_recommended_amounts(
         gt=0,
         description="Optional category ID filter (omit for global recommendations)"
     ),
-    type: Optional[str] = Query(
+    article_type: Optional[str] = Query(
         None,
         regex="^(income|expense)$",
         description="Optional transaction type filter: 'income' or 'expense' (omit for all types)"
@@ -1483,7 +1483,7 @@ async def get_recommended_amounts(
 
     Query Parameters:
         - article_id: Optional category filter (NULL = global recommendations)
-        - type: Optional type filter ('income' | 'expense' | NULL = all)
+        - article_type: Optional type filter ('income' | 'expense' | NULL = all)
         - record_type: 'fact' (actual transactions) or 'plan' (planned transactions)
         - period: Analysis period ('month' | 'quarter' | 'year')
 
@@ -1493,9 +1493,9 @@ async def get_recommended_amounts(
         - metadata: Detailed calculation info (sample_size, min/max/avg, period_days)
 
     Examples:
-        GET /api/v1/analytics/recommended-amounts?record_type=fact&type=expense
+        GET /api/v1/analytics/recommended-amounts?record_type=fact&article_type=expense
         GET /api/v1/analytics/recommended-amounts?article_id=5&record_type=fact
-        GET /api/v1/analytics/recommended-amounts?record_type=plan&type=income
+        GET /api/v1/analytics/recommended-amounts?record_type=plan&article_type=income
 
     Notes:
         - Pre-calculated values are populated by nightly scheduler (recalculate_recommended_amounts)
@@ -1525,7 +1525,7 @@ async def get_recommended_amounts(
 
     result = await session.execute(
         cache_query,
-        {"article_id": article_id, "type": type, "record_type": record_type, "period": period}
+        {"article_id": article_id, "type": article_type, "record_type": record_type, "period": period}
     )
     row = result.first()
 
@@ -1555,12 +1555,12 @@ async def get_recommended_amounts(
     # Step 2: Cache miss - fallback to defaults
     # Note: On-demand calculation via PostgreSQL function removed
     # Pre-calculated values are populated by nightly scheduler (recalculate_recommended_amounts)
-    # Determine default key based on record_type and type
-    if type is None:
-        # If type is not specified, default to expense for facts, income for plans
+    # Determine default key based on record_type and article_type
+    if article_type is None:
+        # If article_type is not specified, default to expense for facts, income for plans
         default_type = "expense" if record_type == "fact" else "income"
     else:
-        default_type = type
+        default_type = article_type
 
     default_key = (record_type, default_type)
     default_amounts = DEFAULT_AMOUNTS.get(default_key, DEFAULT_AMOUNTS[("fact", "expense")])
