@@ -94,15 +94,27 @@ CREATE TABLE t_recommended_amounts (
 **Cache Strategy:**
 
 1. **Nightly pre-computation** (scheduler at 02:00 UTC):
-   - Top 20 популярных категорий
-   - Пересчет для month/quarter/year periods
+   - **Все листовые категории** (maximum coverage)
+   - **Adaptive period per category:** 90→180→270→360 дней
+     - Frequent categories: 90 days (fresh recommendations)
+     - Rare categories: up to 360 days (historical data)
+   - Пересчет для quarter period (semantic period)
    - Полная замена старых результатов
 
-2. **On-demand calculation** (при cache miss):
+2. **Adaptive Period Algorithm:**
+   - Для каждой leaf категории индивидуально:
+     - Try 90 days: IF sample_size ≥ 20 → compute K-means
+     - Else try 180 days: IF sample_size ≥ 20 → compute K-means
+     - Else try 270 days: IF sample_size ≥ 20 → compute K-means
+     - Else try 360 days: IF sample_size ≥ 20 → compute K-means
+     - Else skip category (insufficient data)
+   - **metadata.days_analyzed** хранит использованный период (transparency)
+
+3. **On-demand calculation** (при cache miss):
    - Расчет K-means для редких категорий
    - Сохранение в cache для повторного использования
 
-3. **TTL: 24 hours** (через WHERE clause):
+4. **TTL: 24 hours** (через WHERE clause):
    ```sql
    WHERE last_updated >= NOW() - INTERVAL '24 hours'
    ```
@@ -110,6 +122,8 @@ CREATE TABLE t_recommended_amounts (
 **Результат:**
 - Cache HIT: 15ms (вместо 850ms K-means calculation)
 - **56x faster** для часто используемых категорий
+- **80-95% category coverage** (vs 3 categories with TOP-10 limit)
+- **Fresh data for frequent categories** (90 days), historical for rare (360 days)
 
 **Заменяет:** Redis cache для analytics.
 
