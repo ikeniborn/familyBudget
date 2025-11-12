@@ -347,6 +347,89 @@ let filters = {
     cost_center_id: null
 };
 
+// Debounce state for recommended amounts
+let recommendedAmountsTimeout = null;
+let recommendedAmountsController = null;
+
+/**
+ * Load recommended amounts from API and update quick amount buttons.
+ *
+ * @param {string} formId - ID модальной формы ('form_create_modal')
+ * @param {string} recordType - Тип записи ('fact')
+ * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
+ */
+async function loadRecommendedAmounts(formId, recordType = 'fact', category = null) {
+    // Clear existing debounce timeout
+    if (recommendedAmountsTimeout) {
+        clearTimeout(recommendedAmountsTimeout);
+    }
+
+    // Cancel pending API call
+    if (recommendedAmountsController) {
+        recommendedAmountsController.abort();
+    }
+
+    // Debounce: wait 300ms after last call
+    recommendedAmountsTimeout = setTimeout(async () => {
+        try {
+            recommendedAmountsController = new AbortController();
+
+            // Get form elements
+            const form = document.getElementById(formId);
+            if (!form) {
+                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
+                return;
+            }
+
+            // Get current type (income/expense)
+            const typeInput = form.querySelector('input[name="record_type"]:checked');
+            const type = typeInput ? typeInput.value : 'expense';
+
+            // Get current category (from callback parameter, not DOM!)
+            const articleId = category ? category.id : null;
+
+            // Build query params
+            const params = new URLSearchParams({
+                record_type: recordType,
+                period: 'quarter',  // 90 days analysis
+            });
+
+            if (articleId && articleId !== '') {
+                params.append('article_id', articleId);
+            }
+
+            if (type) {
+                params.append('type', type);
+            }
+
+            // Call API
+            const response = await fetch(`/api/v1/analytics/recommended-amounts?${params.toString()}`, {
+                signal: recommendedAmountsController.signal,
+                credentials: 'include',  // Include cookies for auth
+            });
+
+            if (!response.ok) {
+                console.error(`[loadRecommendedAmounts] API error: ${response.status}`);
+                return;
+            }
+
+            const data = await response.json();
+
+            // Update button labels with new amounts
+            updateQuickAmountButtons(formId, data.amounts);
+
+            console.log(`[loadRecommendedAmounts] Updated amounts for ${formId}:`, data.amounts, data.metadata);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('[loadRecommendedAmounts] Request cancelled (debounce)');
+            } else {
+                console.error('[loadRecommendedAmounts] Failed to load:', error);
+            }
+        }
+    }, 300); // 300ms debounce
+}
+
 // Load data on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
@@ -476,6 +559,8 @@ async function loadArticles() {
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     console.log('Category changed in create modal:', category);
+                    // Update recommended amounts based on selected category
+                    loadRecommendedAmounts('form_create_modal', 'fact', category);
                 }
             });
         }
