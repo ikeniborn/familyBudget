@@ -215,12 +215,6 @@
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">📝 Описание</span>
-                </label>
-                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
-            </div>
-            <div class="form-control">
-                <label class="label">
                     <span class="label-text">🏦 Финансовый центр (ЦФО)*</span>
                 </label>
                 <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
@@ -236,6 +230,12 @@
                     <option value="">-- Не указано --</option>
                     <!-- Populated dynamically -->
                 </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Описание</span>
+                </label>
+                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
             </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
@@ -1238,7 +1238,7 @@ async function createPlan(event) {
     };
 
     try {
-        const response = await fetch('/api/v1/budget-facts', {
+        const response = await fetch('/api/v1/facts', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
