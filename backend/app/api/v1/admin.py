@@ -972,6 +972,7 @@ async def get_all_facts(
     record_type: str | None = Query(None, description="Filter by record type (fact or plan)"),
     financial_center_id: int | None = Query(None, description="Filter by financial center ID"),
     cost_center_id: int | None = Query(None, description="Filter by cost center ID"),
+    search: str | None = Query(None, max_length=200, description="Search in description"),
     limit: int = Query(50, ge=1, le=500, description="Results per page"),
     offset: int = Query(0, ge=0, description="Pagination offset")
 ):
@@ -990,6 +991,7 @@ async def get_all_facts(
         record_type: Filter by record type (fact or plan)
         financial_center_id: Filter by financial center
         cost_center_id: Filter by cost center
+        search: Search in description (case-insensitive substring)
         limit: Number of results per page (max 500)
         offset: Pagination offset
 
@@ -997,6 +999,11 @@ async def get_all_facts(
         List[FactResponse]: List of facts
     """
     from datetime import date
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # DEBUG: Log all query parameters
+    logger.info(f"[SEARCH DEBUG] get_all_facts called with: search={search!r}, record_type={record_type!r}, limit={limit}, offset={offset}")
 
     # Build query with joins (including FinancialCenter and CostCenter)
     query = (
@@ -1022,6 +1029,12 @@ async def get_all_facts(
 
     if cost_center_id is not None:
         query = query.where(Fact.cost_center_id == cost_center_id)
+
+    if search is not None:
+        # Substring search using ILIKE with pg_trgm GIN index
+        # GIN index on description (gin_trgm_ops) speeds up ILIKE queries significantly
+        logger.info(f"[SEARCH DEBUG] get_all_facts: Applying search filter '{search}'")
+        query = query.where(Fact.description.ilike(f"%{search}%"))
 
     if date_from is not None:
         try:
