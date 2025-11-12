@@ -1340,7 +1340,7 @@ async function createFact(event) {
             showToast('Транзакция успешно создана!', 'success');
             create_modal.close();
             event.target.reset();
-            loadFacts(); // Перезагрузить список транзакций
+            await loadFacts(); // Перезагрузить список транзакций
 
             // Установить дату обратно на сегодня
             const createFactDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
