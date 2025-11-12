@@ -999,11 +999,6 @@ async def get_all_facts(
         List[FactResponse]: List of facts
     """
     from datetime import date
-    import logging
-    logger = logging.getLogger(__name__)
-
-    # DEBUG: Log all query parameters
-    logger.info(f"[SEARCH DEBUG] get_all_facts called with: search={search!r}, record_type={record_type!r}, limit={limit}, offset={offset}")
 
     # Build query with joins (including FinancialCenter and CostCenter)
     query = (
@@ -1033,7 +1028,6 @@ async def get_all_facts(
     if search is not None:
         # Substring search using ILIKE with pg_trgm GIN index
         # GIN index on description (gin_trgm_ops) speeds up ILIKE queries significantly
-        logger.info(f"[SEARCH DEBUG] get_all_facts: Applying search filter '{search}'")
         query = query.where(Fact.description.ilike(f"%{search}%"))
 
     if date_from is not None:
