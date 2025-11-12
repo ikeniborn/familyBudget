@@ -165,7 +165,7 @@ check_code_changes() {
     local repo_dir=$1
 
     # Use rsync --dry-run to detect changes
-    # IMPORTANT: .npm-isolated/ excluded (lives in /opt/budget only, not copied)
+    # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (live in /opt/budget only, not copied)
     local changes=$(rsync -avnc \
         --exclude='.env' \
         --exclude='data/' \
@@ -176,6 +176,7 @@ check_code_changes() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
+        --exclude='.migration_checksums' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | wc -l)
 
     if [[ $changes -gt 0 ]]; then
@@ -210,11 +211,12 @@ sync_mirror() {
     echo ""
 
     # Show preview of changes
-    # IMPORTANT: .npm-isolated/ PROTECTED from deletion (production-only)
-    # Uses --filter='protect' to prevent rsync --delete from removing it
+    # IMPORTANT: .npm-isolated/ and .migration_checksums PROTECTED from deletion (production-only)
+    # Uses --filter='protect' to prevent rsync --delete from removing them
     info "Preview of changes (first 20 files):"
     rsync -avnc \
         --filter='protect .npm-isolated/' \
+        --filter='protect .migration_checksums' \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -224,6 +226,7 @@ sync_mirror() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
+        --exclude='.migration_checksums' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -241,11 +244,15 @@ sync_mirror() {
 
     # Perform sync
     # CRITICAL FIX (2025-11-08): Protect .npm-isolated/ from deletion
+    # CRITICAL FIX (2025-11-12): Protect .migration_checksums from deletion
     # Problem: rsync --delete removes files from destination not in source
     # Solution: --filter='protect' prevents deletion even with --delete flag
-    # .npm-isolated/ lives ONLY in production (/opt/budget), NOT in repository
+    # Protected files live ONLY in production (/opt/budget), NOT in repository:
+    #   - .npm-isolated/ (233 npm packages for build)
+    #   - .migration_checksums (MD5 checksums for migration change detection)
     if rsync -avc --delete \
         --filter='protect .npm-isolated/' \
+        --filter='protect .migration_checksums' \
         --exclude='.env' \
         --exclude='data/' \
         --exclude='logs/' \
@@ -255,6 +262,7 @@ sync_mirror() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
+        --exclude='.migration_checksums' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -296,7 +304,7 @@ sync_update() {
     echo ""
 
     # Show preview
-    # IMPORTANT: .npm-isolated/ excluded (production-only, not synced)
+    # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (production-only, not synced)
     info "Preview of changes (first 20 files):"
     rsync -avnc \
         --exclude='.env' \
@@ -308,6 +316,7 @@ sync_update() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
+        --exclude='.migration_checksums' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -324,7 +333,7 @@ sync_update() {
     info "Proceeding with update sync (auto-confirmed)..."
 
     # 1. Perform rsync (update/add files)
-    # IMPORTANT: .npm-isolated/ excluded (production-only directory)
+    # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (production-only directories/files)
     info "Step 1/2: Syncing new and modified files..."
     if ! rsync -avc \
         --exclude='.env' \
@@ -336,6 +345,7 @@ sync_update() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
+        --exclude='.migration_checksums' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -369,6 +379,7 @@ sync_update() {
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
         ! -path "./.npm-isolated/*" \
+        ! -name ".migration_checksums" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
         ! -name "install.sh" \
@@ -382,7 +393,7 @@ sync_update() {
         2>/dev/null | sed 's|^./||' | sort) > "$temp_repo_list"
 
     # Generate list of files in deploy directory
-    # IMPORTANT: Exclude .npm-isolated/* from cleanup (production-only)
+    # IMPORTANT: Exclude .npm-isolated/* and .migration_checksums from cleanup (production-only)
     (cd "$DEPLOY_DIR" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
@@ -393,6 +404,7 @@ sync_update() {
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
         ! -path "./.npm-isolated/*" \
+        ! -name ".migration_checksums" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
         ! -name "install.sh" \
@@ -442,6 +454,7 @@ sync_clean() {
     warning "Protected (NOT deleted):"
     warning "  - .env file"
     warning "  - .npm-isolated/ (production npm environment)"
+    warning "  - .migration_checksums (migration change detection)"
     warning "  - logs/ and data/ directories (contents cleared)"
     warning "  - Current deploy.log (for troubleshooting)"
     echo ""
@@ -527,7 +540,7 @@ sync_clean() {
     find "$DEPLOY_DIR" -maxdepth 1 -type f ! -name '.env' ! -name 'deploy.log' -delete 2>/dev/null || true
 
     # Step 5: Copy everything from repository (except .env and directories we already handled)
-    # IMPORTANT: .npm-isolated/ excluded (will be managed separately in production)
+    # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (will be managed separately in production)
     info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
@@ -538,6 +551,7 @@ sync_clean() {
         --exclude='__pycache__/' \
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
+        --exclude='.migration_checksums' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
 
         # Ensure logs/ and data/ directories exist
@@ -608,7 +622,7 @@ sync_code_to_deploy() {
             echo "Select sync mode:"
             echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
             echo "      Removes files from /opt/budget not in repository"
-            echo "      Protected: .env, .npm-isolated/, backups/, data/, logs/"
+            echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, data/, logs/"
             echo ""
             echo "  [2] Update only (rsync)"
             echo "      Updates existing + adds new files"
@@ -617,7 +631,7 @@ sync_code_to_deploy() {
             echo "  [3] Clean + copy (DANGEROUS!)"
             echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
             echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-            echo "      Protected: .env, .npm-isolated/, logs/ and data/ directories (contents cleared)"
+            echo "      Protected: .env, .npm-isolated/, .migration_checksums, logs/ and data/ directories (contents cleared)"
             echo ""
             echo "  [4] Skip synchronization"
             echo "      Deploy without updating code"
@@ -654,12 +668,15 @@ sync_code_to_deploy() {
     fi
 
     # ARCHITECTURE NOTE (2025-11-08):
-    # .npm-isolated/ now lives in /opt/budget (production-only)
-    # It is NOT synchronized from repository (excluded in all rsync commands above)
-    # This provides:
+    # Production-only files live in /opt/budget (NOT synchronized from repository):
+    #   1. .npm-isolated/ - npm packages (233 packages, ~100-200MB)
+    #   2. .migration_checksums - MD5 checksums for migration change detection
+    #
+    # These are excluded in all rsync commands above. This provides:
     #   - Faster deploys (~100-200MB not copied)
     #   - No permission issues during sync
-    #   - Clear separation: source code in repo, build tools in production
+    #   - Clear separation: source code in repo, build tools + state in production
+    #   - Persistent migration change detection across deployments
     #
     # To set up npm environment: run install.sh (creates /opt/budget/.npm-isolated)
 
