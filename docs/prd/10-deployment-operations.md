@@ -704,32 +704,33 @@ Deployment Process:
 # Ключевые функции:
 calculate_migration_checksums()     # MD5 для всех .py файлов
 detect_changed_migrations()         # Сравнение previous vs current
-reapply_single_migration()          # Downgrade → Upgrade
-is_auto_reapply_allowed()           # Environment-based safety check
+reapply_single_migration()          # Downgrade → Upgrade для одной миграции
+reapply_changed_migrations()        # Reapply всех измененных с confirmation
 manual_reapply_migration()          # Ручной reapply с подтверждением
 check_and_reapply_migrations()      # Главная функция (public API)
 
 # Checksum file location:
 MIGRATION_CHECKSUMS_FILE="/opt/budget/.migration_checksums"
 
-# Auto-reapply configuration:
-AUTO_REAPPLY_ENABLED="${AUTO_REAPPLY_MIGRATIONS:-false}"  # Default: disabled
+# Auto-reapply: ВСЕГДА enabled (2025-11-12)
+# - Production: requires 'REAPPLY' typed confirmation
+# - Staging: requires y/N confirmation
+# - Development: auto-applies without confirmation
 ```
 
 **2. scripts/lib/migrations.sh** (обновлён):
 
 ```bash
 run_alembic_migrations() {
-    # Handle manual reapply flag
+    # Handle manual reapply flag (--reapply-migration <revision>)
     if [[ "$REAPPLY_MIGRATION" == "true" && -n "$REAPPLY_MIGRATION_FILE" ]]; then
         manual_reapply_migration "$REAPPLY_MIGRATION_FILE"
         return $?
     fi
 
-    # Auto-detect changed migrations (if enabled)
-    if [[ "$AUTO_REAPPLY_MIGRATIONS" == "true" ]]; then
-        check_and_reapply_migrations "$DEPLOY_DIR/backend/db/migrations"
-    fi
+    # ALWAYS check for changed migrations (detection)
+    # Will show WARNING if changes detected, and reapply with confirmation
+    check_and_reapply_migrations "$DEPLOY_DIR/backend/db/migrations"
 
     # Normal migration flow...
     alembic upgrade head
@@ -748,7 +749,6 @@ source "$SCRIPT_DIR/scripts/lib/migration_tracker.sh"
 # Lines 129-132: New variables
 REAPPLY_MIGRATION=false              # Manual reapply flag
 REAPPLY_MIGRATION_FILE=""            # Revision ID (e.g., "b2232d851007")
-AUTO_REAPPLY_MIGRATIONS="${AUTO_REAPPLY_MIGRATIONS:-false}"  # Auto-detect (disabled by default)
 
 # Argument parsing:
 --reapply-migration)
@@ -785,23 +785,34 @@ Step 2/2: Upgrading migration b2232d851007...
 ✅ Migration b2232d851007 reapplied successfully
 ```
 
-**Auto-Reapply (dev/staging):**
+**Auto-Reapply (all environments):**
 ```bash
-# Включить авто-обнаружение изменений
+# Auto-reapply ВСЕГДА включен при обнаружении изменений
 cd ~/familyBudget
-AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh
+sudo bash deploy.sh
 
 # Процесс:
-# 1. Загрузить previous checksums
-# 2. Вычислить current checksums
-# 3. Обнаружить изменения (comm -13)
-# 4. Reapply измененных миграций автоматически
-# 5. Сохранить новые checksums
+# 1. Загрузить previous checksums из /opt/budget/.migration_checksums
+# 2. Вычислить current checksums из новых файлов
+# 3. Обнаружить изменения (comm -13 для сравнения MD5)
+# 4. Показать список измененных миграций
+# 5. Запросить подтверждение (production/staging) или применить (dev)
+# 6. Reapply измененных миграций (downgrade -1 → upgrade head)
+# 7. Сохранить новые checksums
 
-# Output:
+# Output (Production):
 Checking for changed migrations...
 ⚠️  Detected changed migration files:
   - 20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py (revision: d1b4c09aa285)
+
+⚠️  Migration changes will be automatically reapplied
+This will execute downgrade() then upgrade() for each migration
+
+Migrations to be reapplied:
+  - 20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py (revision: d1b4c09aa285)
+
+⚠️  PRODUCTION ENVIRONMENT - Extra confirmation required
+Type 'REAPPLY' to confirm (all caps): REAPPLY
 
 Reapplying migration: d1b4c09aa285
 
@@ -830,32 +841,17 @@ Saving migration checksums for change tracking...
 
 **Safety Features:**
 
-| Environment | Auto-Reapply Allowed? | Manual Reapply | Confirmation Required? |
+| Environment | Auto-Reapply Behavior | Manual Reapply | Confirmation Required? |
 |-------------|----------------------|----------------|------------------------|
-| **Production** | ❌ BLOCKED | ✅ Allowed | ✅ YES (type "REAPPLY") |
-| **Staging** | ✅ Allowed (if enabled) | ✅ Allowed | ✅ YES (y/n prompt) |
-| **Development** | ✅ Allowed (if enabled) | ✅ Allowed | ❌ NO |
+| **Production** | ✅ Enabled | ✅ Allowed | ✅ YES (type "REAPPLY") |
+| **Staging** | ✅ Enabled | ✅ Allowed | ✅ YES (y/n prompt) |
+| **Development** | ✅ Enabled | ✅ Allowed | ❌ NO (auto) |
 
-**Safety Checks:**
-
-```bash
-is_auto_reapply_allowed() {
-    # Check environment variable
-    if [[ "$AUTO_REAPPLY_ENABLED" != "true" ]]; then
-        return 1  # Disabled
-    fi
-
-    # Safety: NEVER auto-reapply on production
-    if [[ "${ENVIRONMENT:-}" == "production" ]]; then
-        warning "Auto-reapply disabled on production environment"
-        warning "Use --reapply-migration <revision> flag for manual reapply"
-        return 1
-    fi
-
-    # Allowed on dev/staging
-    return 0
-}
-```
+**Behavior Changed (2025-11-12):**
+- **OLD:** Auto-reapply disabled by default, required `AUTO_REAPPLY_MIGRATIONS=true` flag
+- **NEW:** Auto-reapply ALWAYS enabled when changes detected
+- **Safety:** Production requires explicit 'REAPPLY' confirmation, Staging requires y/N confirmation
+- **Development:** Applies automatically without confirmation (for rapid iteration)
 
 **Production Manual Reapply:**
 ```bash
@@ -966,24 +962,31 @@ detect_changed_migrations() {
 
 | Проблема | Диагностика | Решение |
 |----------|-------------|---------|
-| Auto-reapply не работает | `echo $AUTO_REAPPLY_MIGRATIONS` | Установить `AUTO_REAPPLY_MIGRATIONS=true` |
 | Checksums не сохраняются | `ls -la /opt/budget/.migration_checksums` | Проверить permissions, повторить deploy |
-| Manual reapply не запускается | Проверить флаг `--reapply-migration` | Указать revision ID правильно |
-| Production блокирует auto-reapply | `echo $ENVIRONMENT` | Ожидаемое поведение, использовать manual reapply |
+| Checksums файл удаляется при deploy | `grep migration_checksums scripts/lib/sync.sh` | Проверить `--filter='protect .migration_checksums'` |
+| Manual reapply не запускается | Проверить флаг `--reapply-migration` | Указать revision ID правильно: `--reapply-migration d1b4c09aa285` |
+| User отменил reapply | Проверить логи deploy | Ввести 'REAPPLY' (production) или 'y' (staging) при запросе |
 
 **Error Messages:**
 
 ```bash
-# Changed migrations detected but auto-reapply disabled:
+# User cancelled reapply on production:
 ⚠️  Detected changed migration files:
   - 20251112_d1b4c09aa285_fix_function.py (revision: d1b4c09aa285)
 
-❌ Auto-reapply not allowed in current environment
-Changed migrations detected but not reapplied
-To manually reapply, use: ./deploy.sh --reapply-migration d1b4c09aa285
+⚠️  PRODUCTION ENVIRONMENT - Extra confirmation required
+Type 'REAPPLY' to confirm (all caps): <user typed something else>
+
+❌ Reapply cancelled by user
+⚠️  Database will continue using OLD migration version
+⚠️  To apply changes later: ./deploy.sh --reapply-migration d1b4c09aa285
 
 # Invalid revision ID:
 ❌ Invalid revision ID: unknown
+❌ Migration file not found: <path>
+
+# Checksum file protected by rsync:
+[INFO] Post-sync: .migration_checksums preserved successfully
 ```
 
 **Limitations:**
@@ -1002,12 +1005,18 @@ To manually reapply, use: ./deploy.sh --reapply-migration d1b4c09aa285
 
 **Best Practices:**
 
-1. ✅ **Используйте auto-reapply только на dev/staging:**
+1. ✅ **Auto-reapply работает автоматически с confirmation:**
    ```bash
-   # Development
-   AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh
+   # Production: Type 'REAPPLY' to confirm
+   cd ~/familyBudget && sudo bash deploy.sh
 
-   # Production (manual only)
+   # Staging: y/N confirmation
+   cd ~/familyBudget && sudo bash deploy.sh
+
+   # Development: Auto-applies without confirmation
+   cd ~/familyBudget && sudo bash deploy.sh
+
+   # Manual reapply (все окружения):
    ./deploy.sh --reapply-migration <revision>
    ```
 
@@ -1015,8 +1024,8 @@ To manually reapply, use: ./deploy.sh --reapply-migration d1b4c09aa285
    ```bash
    # Тестовая БД
    alembic upgrade head
-   alembic downgrade -1
-   alembic upgrade head
+   alembic downgrade -1  # Проверить что не теряются данные
+   alembic upgrade head  # Проверить что re-apply работает
    ```
 
 3. ✅ **Документируйте изменения в docstring миграции:**
@@ -1025,6 +1034,8 @@ To manually reapply, use: ./deploy.sh --reapply-migration d1b4c09aa285
    Fixes critical SQL error:
    - ERROR #1: column "fact_type" does not exist
    - ERROR #2: column "bf.is_current" does not exist
+
+   Downgrade: Safe (pass) - no data loss
    """
    ```
 
@@ -1038,7 +1049,8 @@ To manually reapply, use: ./deploy.sh --reapply-migration d1b4c09aa285
 - **2025-11-12:** Добавлен `scripts/lib/migration_tracker.sh` (338 строк)
 - **2025-11-12:** Обновлен `scripts/lib/migrations.sh` с интеграцией migration_tracker
 - **2025-11-12:** Добавлен флаг `--reapply-migration` в deploy.sh
-- **2025-11-12:** Добавлена переменная `AUTO_REAPPLY_MIGRATIONS`
+- **2025-11-12:** Auto-reapply ВСЕГДА enabled (удалена переменная `AUTO_REAPPLY_MIGRATIONS`)
+- **2025-11-12:** Добавлен `--filter='protect .migration_checksums'` в sync.sh
 - **2025-11-12:** Добавлена секция в ПРД с полным описанием системы
 
 **Related Issues:**
