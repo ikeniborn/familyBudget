@@ -53,7 +53,7 @@ class RecommendedAmountsMetadata(BaseModel):
     )
 
     period_days: int = Field(
-        ...,
+        90,  # Default to quarter (90 days) for backward compatibility with cached data
         gt=0,
         description="Analysis period in days (7=week, 30=month, 90=quarter, 365=year)",
         examples=[7, 30, 90, 365]
