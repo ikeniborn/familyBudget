@@ -38,19 +38,18 @@ run_alembic_migrations() {
         fi
     fi
 
-    # Auto-detect changed migrations (if enabled)
-    if [[ "$AUTO_REAPPLY_MIGRATIONS" == "true" ]]; then
-        info "Auto-reapply enabled - checking for changed migrations..."
-        echo ""
+    # ALWAYS check for changed migrations (detection)
+    info "Checking for changed migrations..."
+    echo ""
 
-        # Call check_and_reapply_migrations from migration_tracker.sh
-        if ! check_and_reapply_migrations "$DEPLOY_DIR/backend/db/migrations"; then
-            warning "Changed migrations detected but auto-reapply failed or disabled"
-            info "Continuing with normal migration flow..."
-        fi
-
-        echo ""
+    # Call check_and_reapply_migrations from migration_tracker.sh
+    # Will show WARNING if changes detected, and reapply only if AUTO_REAPPLY_MIGRATIONS=true
+    if ! check_and_reapply_migrations "$DEPLOY_DIR/backend/db/migrations"; then
+        warning "Changed migrations detected but not reapplied"
+        info "Continuing with normal migration flow..."
     fi
+
+    echo ""
 
     # Check current Alembic revision
     info "Checking current migration status..."

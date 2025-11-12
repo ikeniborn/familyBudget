@@ -200,9 +200,27 @@ reapply_changed_migrations() {
 
     # Safety check: auto-reapply allowed?
     if ! is_auto_reapply_allowed; then
-        error "Auto-reapply not allowed in current environment"
-        info "Changed migrations detected but not reapplied"
-        info "To manually reapply, use: ./deploy.sh --reapply-migration <revision>"
+        echo ""
+        warning "⚠️  MIGRATION CHANGES DETECTED BUT NOT APPLIED"
+        echo ""
+        info "Changed migrations are NOT automatically reapplied by default for safety."
+        info "The database still uses the OLD version of these migrations."
+        echo ""
+        info "To apply the changes, use one of the following methods:"
+        echo ""
+        echo "  1. Manual reapply (recommended for production):"
+        echo "     cd ~/familyBudget"
+        echo "$changed_files" | while read -r file; do
+            local revision=$(extract_revision_from_file "$file")
+            echo "     ./deploy.sh --reapply-migration $revision"
+        done
+        echo ""
+        echo "  2. Auto-reapply on next deployment (dev/staging only):"
+        echo "     AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh"
+        echo ""
+        warning "Note: Reapply will execute downgrade() then upgrade() for the migration"
+        warning "      Check downgrade() code to ensure no data loss!"
+        echo ""
         return 1
     fi
 
