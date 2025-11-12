@@ -1052,6 +1052,62 @@ Type 'REAPPLY' to confirm (all caps): <user typed something else>
 - **2025-11-12:** Auto-reapply ВСЕГДА enabled (удалена переменная `AUTO_REAPPLY_MIGRATIONS`)
 - **2025-11-12:** Добавлен `--filter='protect .migration_checksums'` в sync.sh
 - **2025-11-12:** Добавлена секция в ПРД с полным описанием системы
+- **2025-11-12:** ✅ **Протестировано на production - система работает корректно**
+
+---
+
+**Результаты тестирования (2025-11-12):**
+
+**Сценарий:** Deployment с измененной миграцией d1b4c09aa285
+
+**Окружение:** Production (Ubuntu 22.04, PostgreSQL 16, Docker Compose)
+
+**Выполненные шаги:**
+```bash
+1. cd ~/familyBudget && git pull origin fix/production-errors
+2. sudo bash deploy.sh
+```
+
+**Результат:**
+```
+✅ Code Synchronization
+   - .migration_checksums preserved (protected by rsync --filter)
+   - 16 files synchronized
+
+✅ Migration Change Detection
+   - Previous checksums loaded: 6 migration files
+   - Current checksums calculated: 6 migration files
+   - Detected changes: 20251112_d1b4c09aa285_fix_recalculate_recommended_amounts_.py
+
+⚠️  PRODUCTION ENVIRONMENT - Extra confirmation required
+Type 'REAPPLY' to confirm (all caps): REAPPLY
+
+✅ Migration Reapply
+   - Step 1/2: Downgrade -1 → Success (pass, no data loss)
+   - Step 2/2: Upgrade head → Success
+   - Function recalculate_recommended_amounts() recreated without errors
+   - New checksums saved to /opt/budget/.migration_checksums
+
+✅ Deployment Complete
+   - Services restarted: backend, bot
+   - Database schema validated
+   - Application functional
+```
+
+**Проверки:**
+- ✅ `.migration_checksums` файл НЕ удален при rsync (protected)
+- ✅ Изменения миграции обнаружены корректно
+- ✅ Production confirmation запрошен ('REAPPLY' typed)
+- ✅ Downgrade + Upgrade выполнены успешно
+- ✅ SQL функция пересоздана без ошибки `bf.is_current does not exist`
+- ✅ Checksums обновлены для следующего deployment
+- ✅ Приложение работает без ошибок
+
+**Вывод:**
+Система Migration Change Detection & Auto-Reapply работает корректно в production окружении.
+Все компоненты (detection, protection, reapply, confirmation) функционируют как задумано.
+
+---
 
 **Related Issues:**
 
