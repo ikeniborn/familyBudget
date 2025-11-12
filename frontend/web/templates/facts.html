@@ -1003,7 +1003,7 @@ async function showEditModal(factId) {
             if (editCategoryTreeSelect &&
                 editCategoryTreeSelect.choices &&
                 editCategoryTreeSelect.categoryMap &&
-                editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
+                editCategoryTreeSelect.categoryMap.size > 0) {  // ← FIX: Check map is loaded, not specific category
 
                 // Get choices from the correct location: _store.choices
                 const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
@@ -1012,14 +1012,19 @@ async function showEditModal(factId) {
 
                 if (choicesStore.length > 0) {
                     clearInterval(initCheckInterval);
-                    console.log('[Edit Modal] Setting category to:', fact.article_id);
 
-                    // Use the public API method
-                    await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+                    // Try to set the category (may fail if archived/inactive)
+                    if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
+                        console.log('[Edit Modal] Setting category to:', fact.article_id);
+                        await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
 
-                    // Verify it was set
-                    const selectedValue = editSelect.value;
-                    console.log('[Edit Modal] Category set. Dropdown value:', selectedValue);
+                        // Verify it was set
+                        const selectedValue = editSelect.value;
+                        console.log('[Edit Modal] Category set. Dropdown value:', selectedValue);
+                    } else {
+                        console.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
+                        // Leave default "-- Выберите категорию --" selected
+                    }
                 }
             }
         }, 150); // Check every 150ms
@@ -1027,11 +1032,12 @@ async function showEditModal(factId) {
         // Safety timeout to prevent infinite loop
         setTimeout(() => {
             clearInterval(initCheckInterval);
-            console.error('[Edit Modal] Initialization timeout - giving up after 10 seconds');
+            console.warn('[Edit Modal] Initialization timeout - giving up after 10 seconds');
             console.log('[Edit Modal] Debug state:', {
                 hasInstance: !!editCategoryTreeSelect,
                 hasChoices: !!editCategoryTreeSelect?.choices,
                 hasMap: !!editCategoryTreeSelect?.categoryMap,
+                mapSize: editCategoryTreeSelect?.categoryMap?.size,
                 categoryExists: editCategoryTreeSelect?.categoryMap?.has(fact.article_id),
                 storeChoicesCount: editCategoryTreeSelect?.choices?._store?.choices?.length
             });
