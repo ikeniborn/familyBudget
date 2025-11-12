@@ -157,16 +157,18 @@ def upgrade() -> None:
             -- ==============================================================
             FOR rec IN
                 SELECT
-                    fact_type AS type,
-                    record_type,
-                    ARRAY_AGG(amount ORDER BY amount) AS amounts_array,
+                    a.type,
+                    bf.record_type,
+                    ARRAY_AGG(bf.amount ORDER BY bf.amount) AS amounts_array,
                     COUNT(*) AS sample_size
-                FROM t_f_budget_fact
+                FROM t_f_budget_fact bf
+                INNER JOIN t_d_article a ON bf.article_id = a.id
                 WHERE
-                    fact_date >= CURRENT_DATE - INTERVAL '90 days'
-                    AND amount > 0
-                    AND is_current = TRUE
-                GROUP BY fact_type, record_type
+                    bf.fact_date >= CURRENT_DATE - INTERVAL '90 days'
+                    AND bf.amount > 0
+                    AND bf.is_current = TRUE
+                    AND a.is_current = TRUE
+                GROUP BY a.type, bf.record_type
                 HAVING COUNT(*) >= min_sample_size
             LOOP
                 -- Apply K-means clustering
@@ -212,19 +214,20 @@ def upgrade() -> None:
             FOR rec IN
                 SELECT
                     bf.article_id,
-                    bf.fact_type AS type,
+                    a.type,
                     bf.record_type,
                     ARRAY_AGG(bf.amount ORDER BY bf.amount) AS amounts_array,
                     COUNT(*) AS sample_size,
                     aus.usage_count
                 FROM t_f_budget_fact bf
-                INNER JOIN t_article_usage_stats aus
-                    ON bf.article_id = aus.article_id
+                INNER JOIN t_d_article a ON bf.article_id = a.id
+                INNER JOIN t_article_usage_stats aus ON bf.article_id = aus.article_id
                 WHERE
                     bf.fact_date >= CURRENT_DATE - INTERVAL '90 days'
                     AND bf.amount > 0
                     AND bf.is_current = TRUE
-                GROUP BY bf.article_id, bf.fact_type, bf.record_type, aus.usage_count
+                    AND a.is_current = TRUE
+                GROUP BY bf.article_id, a.type, bf.record_type, aus.usage_count
                 HAVING COUNT(*) >= min_sample_size
                 ORDER BY aus.usage_count DESC
                 LIMIT 10
