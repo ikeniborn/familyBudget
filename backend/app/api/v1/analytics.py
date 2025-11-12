@@ -1460,14 +1460,17 @@ async def get_recommended_amounts(
     ),
     type: Optional[str] = Query(
         None,
+        regex="^(income|expense)$",
         description="Optional transaction type filter: 'income' or 'expense' (omit for all types)"
     ),
     record_type: str = Query(
         "fact",
+        regex="^(fact|plan)$",
         description="Record type: 'fact' (actual transactions) or 'plan' (planned transactions)"
     ),
     period: str = Query(
         "quarter",
+        regex="^(month|quarter|year)$",
         description="Analysis period: 'month' (30d), 'quarter' (90d), 'year' (365d)"
     ),
 ):
