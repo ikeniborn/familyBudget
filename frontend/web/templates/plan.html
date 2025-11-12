@@ -1214,6 +1214,9 @@ function setupCreatePlanTypeButtons() {
                 // This prevents Choices.js "multiple instances" error
                 createCategoryTreeSelect.updateType(createType);
             }
+
+            // Обновить рекомендуемые суммы для нового типа плана
+            loadRecommendedAmounts('form_modal_add_plan', 'plan');
         });
     });
 }

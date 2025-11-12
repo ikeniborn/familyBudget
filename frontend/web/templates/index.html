@@ -748,6 +748,9 @@ function setupTransactionTypeButtons() {
             // Перезагрузить только категории транзакций с новым типом
             console.log('Transaction type changed to:', this.dataset.type);
             loadTransactionCategories();
+
+            // Обновить рекомендуемые суммы для нового типа транзакции
+            loadRecommendedAmounts('form_modal_add_transaction', 'fact');
         });
     });
 }
@@ -775,6 +778,9 @@ function setupPlanTypeButtons() {
             // Перезагрузить только категории планов с новым типом
             console.log('Plan type changed to:', this.dataset.type);
             loadPlanCategories();
+
+            // Обновить рекомендуемые суммы для нового типа плана
+            loadRecommendedAmounts('form_modal_add_plan', 'plan');
         });
     });
 }

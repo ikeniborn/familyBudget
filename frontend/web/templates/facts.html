@@ -1281,6 +1281,9 @@ function setupCreateTransactionTypeButtons() {
                 // This prevents Choices.js "multiple instances" error
                 createCategoryTreeSelect.updateType(createType);
             }
+
+            // Обновить рекомендуемые суммы для нового типа транзакции
+            loadRecommendedAmounts('form_modal_add_transaction', 'fact');
         });
     });
 }
