@@ -303,6 +303,7 @@ curl -X POST http://localhost:8000/api/v1/auth/telegram \
 | `record_type` | string | Нет | Фильтр по типу: "fact", "plan", null (все) |
 | `financial_center_id` | integer | Нет | Фильтр по финансовому центру (ЦФО) |
 | `cost_center_id` | integer | Нет | Фильтр по центру затрат (МВЗ) |
+| `search` | string | Нет | Поиск по описанию (case-insensitive substring, max_length: 200) |
 | `limit` | integer | Нет | Записей на страницу (default: 50, max: 500) |
 | `offset` | integer | Нет | Offset для пагинации (default: 0) |
 

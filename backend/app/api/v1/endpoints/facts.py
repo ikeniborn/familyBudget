@@ -238,7 +238,9 @@ async def list_facts(
         statement = statement.where(Article.type == article_type)
 
     if search:
-        # Case-insensitive search in description
+        # Substring search using ILIKE with pg_trgm GIN index
+        # GIN index on description (gin_trgm_ops) speeds up ILIKE queries significantly
+        # This provides case-insensitive substring matching with good performance
         statement = statement.where(BudgetFact.description.ilike(f"%{search}%"))
 
     if amount_min is not None:

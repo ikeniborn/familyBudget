@@ -93,8 +93,8 @@
             </label>
 
             {% if user %}
-                <!-- User Dropdown Menu -->
-                <div class="dropdown dropdown-end">
+                <!-- User Dropdown Menu (hidden on mobile, visible on desktop) -->
+                <div class="dropdown dropdown-end hidden lg:flex">
                     <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
                         <!-- Avatar -->
                         {% if user.photo_url %}
