@@ -221,6 +221,9 @@ async def list_facts(
     # Shared family budget - NO user isolation filter
     # All authenticated users see all transactions
 
+    # DEBUG: Log ALL query parameters
+    logger.info(f"[SEARCH DEBUG] list_facts called with: search={search!r}, record_type={record_type!r}, limit={limit}, offset={offset}")
+
     # Apply filters
     if date_from:
         statement = statement.where(BudgetFact.fact_date >= date_from)
