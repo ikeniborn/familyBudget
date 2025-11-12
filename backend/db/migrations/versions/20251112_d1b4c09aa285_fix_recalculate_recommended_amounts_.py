@@ -24,7 +24,6 @@ t_f_budget_fact:
   - NO fact_type column, NO is_current column
   
   
-  вав
 
 t_d_article (SCD Type 2):
   - id, name
