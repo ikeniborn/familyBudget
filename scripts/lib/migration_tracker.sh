@@ -15,10 +15,6 @@
 # Checksum file location (persistent across deployments)
 MIGRATION_CHECKSUMS_FILE="${DEPLOY_DIR}/.migration_checksums"
 
-# Auto-reapply enabled (can be overridden via env variable)
-# Default: disabled on production, enabled on dev/staging
-AUTO_REAPPLY_ENABLED="${AUTO_REAPPLY_MIGRATIONS:-false}"
-
 # =============================================================================
 # CHECKSUM FUNCTIONS
 # =============================================================================
@@ -120,25 +116,6 @@ extract_revision_from_file() {
 # REAPPLY LOGIC
 # =============================================================================
 
-# Check if auto-reapply is allowed
-# Returns: 0 if allowed, 1 if not allowed
-is_auto_reapply_allowed() {
-    # Check environment variable
-    if [[ "$AUTO_REAPPLY_ENABLED" != "true" ]]; then
-        return 1
-    fi
-
-    # Safety: NEVER auto-reapply on production (require manual flag)
-    if [[ "${ENVIRONMENT:-}" == "production" ]]; then
-        warning "Auto-reapply disabled on production environment"
-        warning "Use --reapply-migration <revision> flag for manual reapply"
-        return 1
-    fi
-
-    # Allowed on dev/staging
-    return 0
-}
-
 # Reapply single migration (downgrade then upgrade)
 # Args: revision_id
 # Returns: 0 on success, 1 on failure
@@ -198,49 +175,45 @@ reapply_changed_migrations() {
     done
     echo ""
 
-    # Safety check: auto-reapply allowed?
-    if ! is_auto_reapply_allowed; then
+    # User confirmation on production and staging (extra safety)
+    if [[ "${ENVIRONMENT:-}" == "production" || "${ENVIRONMENT:-}" == "staging" ]]; then
+        warning "⚠️  Migration changes will be automatically reapplied"
+        warning "This will execute downgrade() then upgrade() for each migration"
         echo ""
-        warning "⚠️  MIGRATION CHANGES DETECTED BUT NOT APPLIED"
-        echo ""
-        info "Changed migrations are NOT automatically reapplied by default for safety."
-        info "The database still uses the OLD version of these migrations."
-        echo ""
-        info "To apply the changes, use one of the following methods:"
-        echo ""
-        echo "  1. Manual reapply (recommended for production):"
-        echo "     cd ~/familyBudget"
+        warning "Migrations to be reapplied:"
         echo "$changed_files" | while read -r file; do
             local revision=$(extract_revision_from_file "$file")
-            echo "     ./deploy.sh --reapply-migration $revision"
-        done
-        echo ""
-        echo "  2. Auto-reapply on next deployment (dev/staging only):"
-        echo "     AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh"
-        echo ""
-        warning "Note: Reapply will execute downgrade() then upgrade() for the migration"
-        warning "      Check downgrade() code to ensure no data loss!"
-        echo ""
-        return 1
-    fi
-
-    # User confirmation on staging (extra safety)
-    if [[ "${ENVIRONMENT:-}" == "staging" ]]; then
-        warning "This will downgrade and upgrade the following migrations:"
-        echo "$changed_files" | while read -r file; do
-            local revision=$(extract_revision_from_file "$file")
-            echo "  - $revision"
+            echo "  - $(basename "$file") (revision: $revision)"
         done
         echo ""
 
-        read -p "Continue with auto-reapply? [y/N]: " -n 1 -r confirm
-        echo ""
+        if [[ "${ENVIRONMENT:-}" == "production" ]]; then
+            warning "⚠️  PRODUCTION ENVIRONMENT - Extra confirmation required"
+            read -p "Type 'REAPPLY' to confirm (all caps): " confirm
+            echo ""
 
-        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-            info "Auto-reapply cancelled by user"
-            return 1
+            if [[ "$confirm" != "REAPPLY" ]]; then
+                error "Reapply cancelled by user"
+                warning "Database will continue using OLD migration version"
+                warning "To apply changes later: ./deploy.sh --reapply-migration <revision>"
+                return 1
+            fi
+        else
+            # Staging - simple y/N confirmation
+            read -p "Continue with auto-reapply? [y/N]: " -n 1 -r confirm
+            echo ""
+
+            if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                info "Reapply cancelled by user"
+                warning "Database will continue using OLD migration version"
+                return 1
+            fi
         fi
+    else
+        # Development - auto-reapply without confirmation
+        info "Development environment detected - auto-reapplying without confirmation"
     fi
+    echo ""
 
     # Reapply each changed migration
     local failed_migrations=()
