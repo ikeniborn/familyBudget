@@ -80,12 +80,12 @@ detect_changed_migrations() {
     current_checksums=$(calculate_migration_checksums "$migrations_dir")
 
     if [[ -z "$previous_checksums" ]]; then
-        info "No previous checksums found - first deployment or checksums cleared"
+        info "No previous checksums found - first deployment or checksums cleared" >&2
         return 0
     fi
 
     if [[ -z "$current_checksums" ]]; then
-        warning "No current migration files found"
+        warning "No current migration files found" >&2
         return 0
     fi
 
