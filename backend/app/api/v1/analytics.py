@@ -1019,7 +1019,7 @@ async def get_waterfall_data(
             if days_diff <= 31:
                 # <= 31 days: Group by calendar dates (daily)
                 period = "month"
-                group_by_expr = func.date_trunc("day", Fact.fact_date)
+                group_by_expr = Fact.fact_date  # v5.1.3: use fact_date directly for DATE field
                 label_format = "day"
             elif days_diff <= 91:
                 # > 31 and <= 91 days: Group by calendar weeks (weekly)
