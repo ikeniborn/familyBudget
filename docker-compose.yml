@@ -118,6 +118,9 @@ services:
 
       # CORS
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8000,https://${DOMAIN}}
+      # SECURITY FIX: Pass CORS_ORIGINS as JSON array for Pydantic Settings
+      # Format: JSON array of strings (required by Pydantic list[str] parsing)
+      CORS_ORIGINS: ${CORS_ORIGINS:-["https://${DOMAIN}","https://web.telegram.org","https://oauth.telegram.org"]}
 
       # Domain
       DOMAIN: ${DOMAIN:-localhost}

@@ -50,16 +50,45 @@ class Settings(BaseSettings):
     @classmethod
     def parse_cors_origins(cls, v):
         """
-        Parse comma-separated string to list.
+        Parse CORS origins from various formats.
 
-        Supports both string (comma-separated) and list inputs.
+        Supports:
+        1. Comma-separated string: "https://example.com,https://app.example.com"
+        2. JSON array string: '["https://example.com","https://app.example.com"]'
+        3. Python list: ["https://example.com", "https://app.example.com"]
+
+        Returns:
+            list[str]: List of origin URLs
 
         Examples:
             "https://example.com,https://app.example.com" -> ["https://example.com", "https://app.example.com"]
+            '["https://example.com"]' -> ["https://example.com"]
             ["https://example.com"] -> ["https://example.com"]
         """
+        # Already a list - return as is
+        if isinstance(v, list):
+            return v
+
+        # String input - try to parse
         if isinstance(v, str):
+            # Empty string -> empty list
+            if not v or v.strip() == "":
+                return []
+
+            # Try to parse as JSON array first (from env vars in docker-compose)
+            if v.strip().startswith("["):
+                try:
+                    import json
+                    parsed = json.loads(v)
+                    if isinstance(parsed, list):
+                        return parsed
+                except (json.JSONDecodeError, ValueError):
+                    pass  # Fall through to comma-separated parsing
+
+            # Parse as comma-separated string
             return [origin.strip() for origin in v.split(",") if origin.strip()]
+
+        # Unknown type - return as is and let validation fail
         return v
 
     @field_validator("CORS_ORIGINS")
