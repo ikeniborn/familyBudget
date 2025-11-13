@@ -400,28 +400,26 @@ async def get_plan_fact_data(
         if date_from and date_to:
             start_date = date_from
             end_date = date_to
-            # Auto-determine grouping based on days difference
+            # Auto-determine grouping based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
-            if days_diff <= 7:
-                period = "month"  # Group by day
+
+            if days_diff <= 31:
+                # <= 31 days: Group by calendar dates (daily)
+                period = "month"
                 periods_count = days_diff
-                date_format = None  # Russian day names
-            elif days_diff <= 31:
-                period = "month"  # Group by day (8-31 days)
-                periods_count = days_diff
-                date_format = "%d"
+                date_format = "%d" if days_diff > 7 else None  # Russian day names for <= 7 days
             elif days_diff <= 91:
-                period = "quarter"  # Group by week (32-91 days)
-                periods_count = (days_diff + 6) // 7  # Number of weeks
+                # > 31 and <= 91 days: Group by calendar weeks (weekly)
+                period = "quarter"
+                periods_count = (days_diff + 6) // 7  # Number of weeks (rounded up)
                 date_format = "week"
-            elif days_diff <= 365:
-                period = "year"  # Group by month (92-365 days)
-                periods_count = 12  # Max 12 months
-                date_format = "month"
             else:
-                period = "year"  # Group by year (>365 days)
-                periods_count = (end_date.year - start_date.year) + 1
-                date_format = "year"
+                # > 91 days: Group by calendar months (monthly)
+                period = "year"
+                # Calculate actual number of months in the range
+                months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+                periods_count = months_diff
+                date_format = "month"
         elif period:
             # Calculate date range based on CALENDAR period (from 1st day to today)
             if period == "month":
@@ -693,18 +691,17 @@ async def get_trends_data(
         if date_from and date_to:
             start_date = date_from
             end_date = date_to
-            # Auto-determine grouping based on days difference
+            # Auto-determine grouping based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
-            if days_diff <= 7:
-                period = "month"  # Group by day
-            elif days_diff <= 31:
-                period = "month"  # Group by day (8-31 days)
+            if days_diff <= 31:
+                # <= 31 days: Group by calendar dates (daily)
+                period = "month"
             elif days_diff <= 91:
-                period = "quarter"  # Group by week (32-91 days)
-            elif days_diff <= 365:
-                period = "year"  # Group by month (92-365 days)
+                # > 31 and <= 91 days: Group by calendar weeks (weekly)
+                period = "quarter"
             else:
-                period = "year"  # Group by year (>365 days)
+                # > 91 days: Group by calendar months (monthly)
+                period = "year"
         elif period:
             # Calculate date range based on CALENDAR period (from 1st day to today)
             if period == "month":
@@ -1286,18 +1283,17 @@ async def get_heatmap_data(
         if date_from and date_to:
             start_date = date_from
             end_date = date_to
-            # Auto-determine aggregation based on days difference
+            # Auto-determine aggregation based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
-            if days_diff <= 7:
+            if days_diff <= 31:
+                # <= 31 days: aggregate by calendar dates (daily)
                 aggregation = "day"
-            elif days_diff <= 31:
-                aggregation = "day"  # Show by day (8-31 days)
             elif days_diff <= 91:
-                aggregation = "week"  # Show by week (32-91 days)
-            elif days_diff <= 365:
-                aggregation = "month"  # Show by month (92-365 days)
+                # > 31 and <= 91 days: aggregate by calendar weeks (weekly)
+                aggregation = "week"
             else:
-                aggregation = "year"  # Show by year (>365 days)
+                # > 91 days: aggregate by calendar months (monthly)
+                aggregation = "month"
         elif period:
             # Calculate date range and aggregation based on CALENDAR period (from 1st day to today)
             if period == "month":
