@@ -221,7 +221,7 @@ json.decoder.JSONDecodeError: Expecting value
 
 **Root Cause:** Pydantic Settings expects `list[str]` fields as JSON arrays, but we passed comma-separated strings.
 
-### Resolution Applied
+### Resolution Applied (Attempt 1)
 **Commit:** `0eb8d11` - Added CORS_ORIGINS parser supporting multiple formats
 
 1. **docker-compose.yml:** Added CORS_ORIGINS as JSON array env var
@@ -233,6 +233,31 @@ json.decoder.JSONDecodeError: Expecting value
    - JSON array strings (from docker-compose)
    - Comma-separated strings (from .env)
    - Python lists (direct usage)
+
+**Issue:** Still failed with same error on re-deploy
+
+### Resolution Applied (Final Fix)
+**Commit:** `0fa8a35` - Fixed Pydantic Settings auto-parsing + improved deploy logging
+
+**Root Cause Analysis:**
+Pydantic Settings automatically tries to parse fields with type `list[str]` as JSON from environment variables **before** calling custom validators. When it encounters a comma-separated string from .env, it tries to parse it as JSON and fails before our validator runs.
+
+**Solution:**
+1. **config.py:** Changed CORS_ORIGINS type from `list[str]` to `str | list[str]`
+   ```python
+   # Before (auto-parses as JSON):
+   CORS_ORIGINS: list[str] = Field(default_factory=list)
+
+   # After (no auto-parsing):
+   CORS_ORIGINS: str | list[str] = Field(default="")
+   ```
+   This prevents automatic JSON parsing and allows our validator to handle both formats.
+
+2. **services.sh:** Added detailed deployment logging
+   - Shows container status after startup
+   - Waits 10 seconds for container stabilization
+   - Auto-detects unhealthy containers
+   - Displays logs for problematic containers automatically
 
 ### Verification
 ```bash
