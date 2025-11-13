@@ -1147,6 +1147,9 @@ function updateGlobalType(type) {
         loadHeatmapData(currentPeriod);
     }
 
+    // Clear category filter when switching type (v5.1.3 bugfix)
+    currentCategoryIds = [];
+
     // Re-initialize category filter with new type (v5.1.3)
     if (typeof initCategoryFilter === 'function') {
         initCategoryFilter();
@@ -2061,10 +2064,12 @@ function initCategoryFilter() {
             categoryChoices = null;
         }
 
-        // Initialize ChoicesCategoryTree with current type (expense/income)
+        // Initialize ChoicesCategoryTree with current type (expense/income) (v5.1.3)
         categoryChoices = new BudgetShared.ChoicesCategoryTree('#categories-filter', {
             type: currentGlobalType,  // 'expense' or 'income'
-            onSelect: (selectedArticles) => {
+            multiple: true,           // Enable multi-select for filter (v5.1.3)
+            showPath: false,          // Hide breadcrumbs for filter page (v5.1.3)
+            onChange: (selectedArticles) => {  // Changed from onSelect to onChange (v5.1.3)
                 updateCategoryFilter(selectedArticles);
             }
         });

@@ -1028,10 +1028,13 @@
          * @param {Object} options - Configuration options
          * @param {string} options.type - Category type ('income' or 'expense')
          * @param {Object} [options.auth] - OPTIONAL: Auth instance with getToken() method (for WebApp Bearer token)
-         * @param {Function} options.onCategoryChange - Callback when category changes
+         * @param {Function} options.onChange - Callback when category changes (receives category object or array for multiple)
+         * @param {Function} [options.onCategoryChange] - DEPRECATED: Use onChange instead
          * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
          * @param {boolean} options.showLeafOnly - Show only leaf categories (default: true)
          * @param {boolean} options.showInactive - Include archived categories (default: false)
+         * @param {boolean} options.multiple - Enable multiple selection (default: false) (v5.1.3)
+         * @param {boolean} options.showPath - Show breadcrumb path under selector (default: true) (v5.1.3)
          */
         constructor(selector, options = {}) {
             this.selector = selector;
@@ -1048,10 +1051,13 @@
             this.auth = options.auth || null;  // Store auth instance (nullable)
             this.options = {
                 type: options.type || 'expense',
-                onCategoryChange: options.onCategoryChange || null,
+                // Support both new onChange and legacy onCategoryChange (v5.1.3)
+                onChange: options.onChange || options.onCategoryChange || null,
                 apiBaseUrl: options.apiBaseUrl || '/api/v1',
                 showLeafOnly: options.showLeafOnly !== false,  // Default true
                 showInactive: options.showInactive || false,  // Default false - hide archived categories
+                multiple: options.multiple || false,  // Default false (v5.1.3)
+                showPath: options.showPath !== false,  // Default true (v5.1.3)
             };
 
             this.choices = null;
@@ -1083,13 +1089,15 @@
                 // Initialize Choices.js
                 this.initChoices(displayCategories);
 
-                // Setup path display
-                this.setupPathDisplay();
+                // Setup path display (only if showPath is enabled) (v5.1.3)
+                if (this.options.showPath) {
+                    this.setupPathDisplay();
 
-                // Restore selected value if exists
-                const selectedId = this.element.value;
-                if (selectedId) {
-                    await this.updatePathDisplay(parseInt(selectedId));
+                    // Restore selected value if exists
+                    const selectedId = this.element.value;
+                    if (selectedId) {
+                        await this.updatePathDisplay(parseInt(selectedId));
+                    }
                 }
 
                 console.log('[ChoicesCategoryTree] Initialized successfully');
@@ -1237,6 +1245,7 @@
                 noChoicesText: 'Нет доступных категорий',
                 itemSelectText: '',
                 shouldSort: false,  // Keep our API sorting (by usage_count)
+                removeItemButton: this.options.multiple,  // Show X button for multiple mode (v5.1.3)
 
                 // Fuzzy search configuration (built-in Fuse.js)
                 fuseOptions: {
@@ -1308,22 +1317,41 @@
          * @param {Event} event - Change event
          */
         async handleCategoryChange(event) {
-            const categoryId = parseInt(event.target.value);
+            // v5.1.3: Support multiple selection
+            if (this.options.multiple) {
+                // Multiple mode: getValue() returns array of selected values
+                const selectedValues = this.choices.getValue(true);  // true = value only
+                const selectedCategories = selectedValues.map(id => this.categoryMap.get(parseInt(id))).filter(Boolean);
 
-            if (!categoryId) {
-                this.pathDisplay.textContent = '';
-                return;
-            }
+                console.log(`[ChoicesCategoryTree] Categories changed (multiple):`, selectedValues);
 
-            console.log(`[ChoicesCategoryTree] Category changed: ${categoryId}`);
+                // Call user callback with array
+                if (this.options.onChange) {
+                    this.options.onChange(selectedCategories);
+                }
+            } else {
+                // Single mode: traditional behavior
+                const categoryId = parseInt(event.target.value);
 
-            // Update path display
-            await this.updatePathDisplay(categoryId);
+                if (!categoryId) {
+                    if (this.pathDisplay) {
+                        this.pathDisplay.textContent = '';
+                    }
+                    return;
+                }
 
-            // Call user callback
-            if (this.options.onCategoryChange) {
-                const category = this.categoryMap.get(categoryId);
-                this.options.onCategoryChange(category);
+                console.log(`[ChoicesCategoryTree] Category changed: ${categoryId}`);
+
+                // Update path display (only in single mode with showPath)
+                if (this.options.showPath) {
+                    await this.updatePathDisplay(categoryId);
+                }
+
+                // Call user callback with single category
+                if (this.options.onChange) {
+                    const category = this.categoryMap.get(categoryId);
+                    this.options.onChange(category);
+                }
             }
         }
 
