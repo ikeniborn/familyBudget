@@ -119,7 +119,7 @@ Bot: ✅ Расход добавлен:
   - При ошибке загрузки: сообщение об ошибке "Ошибка загрузки транзакций. Попробуйте обновить страницу."
 
 - **Страница аналитики (`/analytics`):**
-  - **График "План vs Факт"**: 📊 "Нет данных" + "Добавьте транзакции или планы для просмотра графика"
+  - **График "План&Факт"**: 📊 "Нет данных" + "Добавьте транзакции или планы для просмотра графика"
   - **График "Динамика"**: 📈 "Нет данных" + "Добавьте транзакции для просмотра динамики"
   - **График "Структура"** (Pie): 🥧 "Нет данных" + "Добавьте транзакции для просмотра распределения по категориям"
   - **График "Waterfall"**: 💧 "Нет данных" + "Добавьте транзакции для просмотра денежного потока"
@@ -348,7 +348,7 @@ const option = {
 #### 8.3.1 Analytics Page Refactoring (v5.1.2 - 2025-11-08)
 
 **Changes Overview:**
-- Упрощены фильтры (удалены Факт/План кроме План vs Факт)
+- Упрощены фильтры (удалены Факт/План кроме План&Факт)
 - Добавлен Custom Date Range picker
 - Изменен grid layout (План-Факт full width, остальные 2x2)
 - Обновлена heatmap (заголовок + динамические цвета)
@@ -395,7 +395,7 @@ const option = {
     <!-- Plan vs Fact Chart (Full Width) -->
     <div class="card bg-base-100 shadow-lg col-span-full">
         <div class="card-body p-3">
-            <h2 class="card-title text-base mb-1">📊 План vs Факт</h2>
+            <h2 class="card-title text-base mb-1">📊 План&Факт</h2>
             <!-- Фильтр типа категории (Расходы/Доходы) -->
             <div id="chart-plan-fact" class="chart-container"></div>
         </div>
@@ -467,6 +467,111 @@ const heatmapOption = {
 **Цветовая логика:**
 - **Расходы (expense):** Красные оттенки от светло-розового (#ffebee) до темно-красного (#f44336)
 - **Доходы (income):** Зеленые оттенки от светло-зеленого (#eef5ee) до темно-зеленого (#2e7d32)
+
+---
+
+#### 8.3.2 Mobile Adaptation & UI Improvements (v5.1.3 - 2025-11-13)
+
+**Changes Overview:**
+- Адаптация метрик на /facts и /notifications под мобильные устройства (breakpoint sm: 640px)
+- Перенос кнопок "Накопительно/По периодам" в периметр графика План&Факт
+- Переименование "План vs Факт" → "План&Факт" (13 вхождений в 7 файлах)
+
+##### Metrics Responsive Behavior (/facts, /notifications)
+
+**Implementation (2025-11-13):**
+
+```html
+<!-- Before: horizontal only -->
+<div class="stats shadow w-full">
+
+<!-- After: responsive (vertical on mobile, horizontal on sm+) -->
+<div class="stats stats-vertical sm:stats-horizontal shadow w-full">
+```
+
+**Responsive behavior:**
+- **Mobile (< sm: 640px):** Вертикальное расположение метрик (stats-vertical)
+- **Desktop (≥ sm: 640px):** Горизонтальное расположение метрик (stats-horizontal)
+
+**Rationale:** DaisyUI стандартный breakpoint sm (640px) для mobile/desktop разделения.
+
+##### Plan-Fact Chart Mode Buttons Relocation
+
+**Before (v5.1.2):**
+- Кнопки "Накопительно/По периодам" находились в глобальных фильтрах (Global Type Filter card)
+- Удалены из глобальной секции
+
+**After (v5.1.3):**
+- Кнопки перенесены ВНУТРЬ card графика План&Факт
+- Расположены под заголовком "📊 План&Факт"
+- Используют компактный размер (btn-sm) для экономии места
+
+```html
+<div class="card bg-base-100 shadow-lg">
+    <div class="card-body p-3">
+        <h2 class="card-title text-base mb-1">📊 План&Факт</h2>
+
+        <!-- Chart Mode Filter (moved from global filters) -->
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="text-sm text-base-content/70">Режим:</span>
+            <div class="btn-group btn-group-sm">
+                <button class="btn btn-sm btn-primary" id="chart-mode-cumulative" onclick="updateChartMode('cumulative')">Накопительно</button>
+                <button class="btn btn-sm btn-outline" id="chart-mode-normal" onclick="updateChartMode('normal')">По периодам</button>
+            </div>
+            <span class="text-xs text-base-content/60" id="chart-mode-hint">Накопительный итог с начала периода</span>
+        </div>
+
+        <div id="chart-plan-fact" class="chart-container"></div>
+    </div>
+</div>
+```
+
+**Rationale:**
+- Кнопки режима графика относятся ТОЛЬКО к графику План&Факт, не к другим графикам
+- Размещение внутри card улучшает визуальную группировку и UX
+- Экономит место в глобальных фильтрах
+
+##### Terminology Update: "План vs Факт" → "План&Факт"
+
+**Files changed (7 files, 13 occurrences):**
+
+| File | Occurrences | Changes |
+|------|-------------|---------|
+| `frontend/web/templates/analytics.html` | 2 | Заголовок графика, label фильтра режима |
+| `frontend/webapp/summary.html` | 2 | `<title>`, page-title |
+| `bot/handlers/summary.py` | 3 | Сообщения бота |
+| `bot/README.md` | 1 | Документация команды `/summary` |
+| `docs/prd/04-functional-requirements.md` | 4 | Технические описания FR-010 |
+| `docs/prd/08-ui-design.md` | 1 | Описание empty state |
+
+**Rationale:**
+- Использование "&" (амперсанд) вместо "vs" делает название короче и лаконичнее
+- Более нейтральная формулировка (не "противопоставление", а "связь")
+- Единообразие терминологии во всем проекте
+
+##### Pending Enhancements (TODO for v5.1.4)
+
+Следующие улучшения запланированы для будущих релизов:
+
+1. **CFO Filter (Фильтр по ЦФО):**
+   - Добавить в Period Filter card после выбора периода
+   - Простой dropdown с опцией "Все центры"
+   - Применяется ко ВСЕМ графикам
+   - Требует JS интеграция: `loadCFOList()`, `updateCFOFilter()`, API endpoint `/api/v1/financial-centers/list`
+
+2. **Category Filter (Фильтр по категориям):**
+   - Добавить в Global Type Filter card после переключателя Расходы/Доходы
+   - Множественный выбор (Choices.js + ChoicesCategoryTree)
+   - Применяется к: План&Факт, Разбивка по категориям, Тепловая карта
+   - Требует JS интеграция: `initCategoryFilter()`, `updateCategoryFilter()`, reload при смене типа
+
+3. **Heatmap Zero Values Color (Белый цвет для нулей):**
+   - Изменить visualMap с continuous на piecewise
+   - Явно задать белый цвет (#FFFFFF) для value = 0
+   - Остальные значения: существующие градиенты (красный/зеленый)
+   - Требует изменение в `loadHeatmapChart()` функции
+
+---
 
 ### 8.4 HTMX Integration Patterns
 
