@@ -302,7 +302,22 @@ function initPlanFactChart() {
 // Load Plan vs Fact data from API
 async function loadPlanFactData(period) {
     try {
-        const response = await fetch(`/api/v1/analytics/plan-fact?period=${period}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`);
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/plan-fact?period=${period}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -631,7 +646,15 @@ function initTrendsChart() {
 // Load Trends data from API
 async function loadTrendsData(period) {
     try {
-        const response = await fetch(`/api/v1/analytics/trends?period=${period}&record_type=fact`);
+        // Build query string with CFO filter (v5.1.3)
+        let url = `/api/v1/analytics/trends?period=${period}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        const response = await fetch(url);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -810,7 +833,22 @@ function initPieChart() {
 // Load Pie chart data from API
 async function loadPieData(type, period) {
     try {
-        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&period=${period}&record_type=fact`);
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/category-breakdown?type=${type}&period=${period}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1112,6 +1150,11 @@ function updateGlobalType(type) {
         loadPieData(type, currentPeriod);
         loadHeatmapData(currentPeriod);
     }
+
+    // Re-initialize category filter with new type (v5.1.3)
+    if (typeof initCategoryFilter === 'function') {
+        initCategoryFilter();
+    }
 }
 
 // Update chart mode (normal vs cumulative) for Plan-Fact chart
@@ -1175,6 +1218,11 @@ async function loadWaterfallData(period = 'year', articleId = null) {
         let url = `/api/v1/analytics/waterfall?period=${period}`;
         if (articleId) {
             url += `&article_id=${articleId}`;
+        }
+
+        // Add CFO filter if specified (v5.1.3)
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
         }
 
         const response = await fetch(url);
@@ -1502,7 +1550,22 @@ function initHeatmapChart() {
 // Load Heatmap data from API
 async function loadHeatmapData(period = 'quarter') {
     try {
-        const response = await fetch(`/api/v1/analytics/heatmap?period=${period}&article_type=${currentGlobalType}&record_type=fact`);
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/heatmap?period=${period}&article_type=${currentGlobalType}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1798,7 +1861,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
 async function loadPlanFactDataCustom(dateFrom, dateTo) {
     try {
-        const response = await fetch(`/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`);
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         updatePlanFactChart(data);
@@ -1810,7 +1888,15 @@ async function loadPlanFactDataCustom(dateFrom, dateTo) {
 
 async function loadTrendsDataCustom(dateFrom, dateTo) {
     try {
-        const response = await fetch(`/api/v1/analytics/trends?date_from=${dateFrom}&date_to=${dateTo}&record_type=fact`);
+        // Build query string with CFO filter (v5.1.3)
+        let url = `/api/v1/analytics/trends?date_from=${dateFrom}&date_to=${dateTo}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         updateTrendsChart(data);
@@ -1822,7 +1908,22 @@ async function loadTrendsDataCustom(dateFrom, dateTo) {
 
 async function loadPieDataCustom(type, dateFrom, dateTo) {
     try {
-        const response = await fetch(`/api/v1/analytics/category-breakdown?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&record_type=fact`);
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/category-breakdown?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         updatePieChart(data);
@@ -1837,6 +1938,11 @@ async function loadWaterfallDataCustom(dateFrom, dateTo, articleId = null) {
         let url = `/api/v1/analytics/waterfall?date_from=${dateFrom}&date_to=${dateTo}`;
         if (articleId) url += `&article_id=${articleId}`;
 
+        // Add CFO filter if specified (v5.1.3)
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
@@ -1849,7 +1955,22 @@ async function loadWaterfallDataCustom(dateFrom, dateTo, articleId = null) {
 
 async function loadHeatmapDataCustom(dateFrom, dateTo) {
     try {
-        const response = await fetch(`/api/v1/analytics/heatmap?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&record_type=fact`);
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/heatmap?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         updateHeatmapChart(data);
@@ -1932,9 +2053,12 @@ function updateCFOFilter() {
 
     console.log('CFO filter updated:', currentCFOId);
 
-    // Reload all charts with new CFO filter
-    // TODO: Pass currentCFOId to API calls in loadPlanFactData(), loadPieData(), loadHeatmapData()
-    // For now, this is a placeholder - full implementation requires backend API changes
+    // Reload all charts with new CFO filter (v5.1.3)
+    if (planFactChart) loadPlanFactData(currentGlobalPeriod);
+    if (pieChart) loadPieData(currentGlobalType, currentGlobalPeriod);
+    if (heatmapChart) loadHeatmapData(currentGlobalPeriod);
+    if (trendsChart) loadTrendsData(currentGlobalPeriod);
+    if (waterfallChart) loadWaterfallData(currentWaterfallPeriod);
 }
 
 /**
@@ -1969,9 +2093,10 @@ function updateCategoryFilter(selectedArticles) {
 
     console.log('Category filter updated:', currentCategoryIds);
 
-    // Reload affected charts (Plan-Fact, Pie, Heatmap)
-    // TODO: Pass currentCategoryIds to API calls
-    // For now, this is a placeholder - full implementation requires backend API changes
+    // Reload affected charts (Plan-Fact, Pie, Heatmap) - v5.1.3
+    if (planFactChart) loadPlanFactData(currentGlobalPeriod);
+    if (pieChart) loadPieData(currentGlobalType, currentGlobalPeriod);
+    if (heatmapChart) loadHeatmapData(currentGlobalPeriod);
 }
 
 // Note: When updateGlobalType() is called (switching between expense/income),
