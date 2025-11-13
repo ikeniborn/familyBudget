@@ -245,12 +245,17 @@ async def telegram_callback(
     # Step 7: Create redirect response to dashboard
     redirect = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
 
+    # Step 7.5: Determine secure cookie flag based on environment
+    # In production with SSL, cookies should be secure=True (HTTPS only)
+    # In development (HTTP), secure=False to allow cookies to work
+    secure_cookie = settings.APP_ENV == "production" and settings.SSL_TYPE != "none"
+
     # Step 8: Set JWT access token in httpOnly cookie
     redirect.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,  # Prevent JavaScript access (XSS protection)
-        secure=True,  # HTTPS only (set to False for local development if needed)
+        secure=secure_cookie,  # HTTPS only in production with SSL
         samesite="lax",  # CSRF protection
         max_age=60 * 60 * 24 * 7,  # 7 days in seconds
     )
@@ -260,7 +265,7 @@ async def telegram_callback(
         key="refresh_token",
         value=refresh_token,
         httponly=True,  # Prevent JavaScript access (XSS protection)
-        secure=True,  # HTTPS only
+        secure=secure_cookie,  # HTTPS only in production with SSL
         samesite="lax",  # CSRF protection
         max_age=60 * 60 * 24 * 30,  # 30 days in seconds
     )

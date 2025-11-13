@@ -8,6 +8,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from backend.app.core.config import get_settings
+
 
 class CSPMiddleware(BaseHTTPMiddleware):
     """
@@ -18,6 +20,7 @@ class CSPMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
+        settings = get_settings()
         response: Response = await call_next(request)
 
         # Check if request is for webapp
@@ -70,7 +73,11 @@ class CSPMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
         # HSTS (only in production with HTTPS)
-        # Uncomment when deploying to production with HTTPS
-        # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Enable Strict-Transport-Security header in production with SSL
+        # This prevents SSL stripping attacks and enforces HTTPS
+        if settings.APP_ENV == "production" and settings.SSL_TYPE == "letsencrypt":
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains; preload"
+            )
 
         return response
