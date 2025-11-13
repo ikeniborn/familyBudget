@@ -1150,8 +1150,18 @@ function updateGlobalType(type) {
     // Clear category filter when switching type (v5.1.3 bugfix)
     currentCategoryIds = [];
 
-    // Re-initialize category filter with new type (v5.1.3)
-    if (typeof initCategoryFilter === 'function') {
+    // Update category filter with new type (v5.1.3)
+    // Use updateType() for efficiency instead of destroy + recreate
+    if (categoryChoices && typeof categoryChoices.updateType === 'function') {
+        categoryChoices.updateType(type).catch(error => {
+            console.error('Failed to update category filter type:', error);
+            // Fallback to full reinitialization if updateType fails
+            if (typeof initCategoryFilter === 'function') {
+                initCategoryFilter();
+            }
+        });
+    } else if (typeof initCategoryFilter === 'function') {
+        // Create new instance if doesn't exist yet
         initCategoryFilter();
     }
 }
