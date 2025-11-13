@@ -118,7 +118,7 @@
                         <div class="flex flex-wrap items-center gap-3">
                             <label id="global-type-label" class="font-semibold text-sm">Тип категорий:</label>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-primary" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true">Расходы</button>
+                                <button class="btn btn-sm btn-error" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true">Расходы</button>
                                 <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')" aria-pressed="false">Доходы</button>
                             </div>
                         </div>
@@ -1121,18 +1121,34 @@ function updateGlobalType(type) {
     currentGlobalType = type;
     currentPieType = type;  // Keep for Pie chart compatibility
 
-    // Update active button and ARIA states
-    document.querySelectorAll('#global-type-expense, #global-type-income').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-    const activeBtn = document.getElementById(`global-type-${type}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-    activeBtn.setAttribute('aria-pressed', 'true');
+    // Clear category filter BEFORE reloading charts (v5.1.3 bugfix)
+    currentCategoryIds = [];
 
-    // Reload charts that depend on global type filter
+    // Update active button and ARIA states (v5.1.3: expense=red, income=green)
+    const expenseBtn = document.getElementById('global-type-expense');
+    const incomeBtn = document.getElementById('global-type-income');
+
+    if (type === 'expense') {
+        // Expense active (red)
+        expenseBtn.classList.remove('btn-outline');
+        expenseBtn.classList.add('btn-error');
+        expenseBtn.setAttribute('aria-pressed', 'true');
+        // Income inactive (outline)
+        incomeBtn.classList.remove('btn-success');
+        incomeBtn.classList.add('btn-outline');
+        incomeBtn.setAttribute('aria-pressed', 'false');
+    } else {
+        // Income active (green)
+        incomeBtn.classList.remove('btn-outline');
+        incomeBtn.classList.add('btn-success');
+        incomeBtn.setAttribute('aria-pressed', 'true');
+        // Expense inactive (outline)
+        expenseBtn.classList.remove('btn-error');
+        expenseBtn.classList.add('btn-outline');
+        expenseBtn.setAttribute('aria-pressed', 'false');
+    }
+
+    // Reload charts that depend on global type filter (AFTER clearing category filter)
     if (customRangeActive) {
         // Custom range mode
         const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
@@ -1146,9 +1162,6 @@ function updateGlobalType(type) {
         loadPieData(type, currentPeriod);
         loadHeatmapData(currentPeriod);
     }
-
-    // Clear category filter when switching type (v5.1.3 bugfix)
-    currentCategoryIds = [];
 
     // Update category filter with new type (v5.1.3)
     // Use updateType() for efficiency instead of destroy + recreate
