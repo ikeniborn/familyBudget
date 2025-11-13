@@ -549,27 +549,112 @@ const heatmapOption = {
 - Более нейтральная формулировка (не "противопоставление", а "связь")
 - Единообразие терминологии во всем проекте
 
-##### Pending Enhancements (TODO for v5.1.4)
+##### New Filters Implementation (v5.1.3 - Completed)
 
-Следующие улучшения запланированы для будущих релизов:
+**1. CFO Filter (Финансовый центр)**
 
-1. **CFO Filter (Фильтр по ЦФО):**
-   - Добавить в Period Filter card после выбора периода
-   - Простой dropdown с опцией "Все центры"
-   - Применяется ко ВСЕМ графикам
-   - Требует JS интеграция: `loadCFOList()`, `updateCFOFilter()`, API endpoint `/api/v1/financial-centers/list`
+**HTML (Period Filter card):**
+```html
+<!-- CFO Filter (Financial Center) -->
+<div class="flex flex-wrap items-center gap-3 mt-3">
+    <label for="cfo-filter" class="font-semibold text-sm">Финансовый центр:</label>
+    <select id="cfo-filter" class="select select-sm select-bordered w-full sm:w-64" onchange="updateCFOFilter()">
+        <option value="all" selected>Все центры</option>
+        <!-- Options loaded dynamically via loadCFOList() -->
+    </select>
+</div>
+```
 
-2. **Category Filter (Фильтр по категориям):**
-   - Добавить в Global Type Filter card после переключателя Расходы/Доходы
-   - Множественный выбор (Choices.js + ChoicesCategoryTree)
-   - Применяется к: План&Факт, Разбивка по категориям, Тепловая карта
-   - Требует JS интеграция: `initCategoryFilter()`, `updateCategoryFilter()`, reload при смене типа
+**JavaScript:**
+- `loadCFOList()` - загружает список ЦФО из `/api/v1/financial-centers/list`
+- `updateCFOFilter()` - обновляет глобальную переменную `currentCFOId`
+- **Применяется:** Ко ВСЕМ графикам (при полной интеграции с backend)
 
-3. **Heatmap Zero Values Color (Белый цвет для нулей):**
-   - Изменить visualMap с continuous на piecewise
-   - Явно задать белый цвет (#FFFFFF) для value = 0
-   - Остальные значения: существующие градиенты (красный/зеленый)
-   - Требует изменение в `loadHeatmapChart()` функции
+**Status:** ✅ HTML + JS инициализация реализованы. Backend интеграция требует изменений в API endpoints (добавить параметр `cfo_id`).
+
+---
+
+**2. Category Filter (Фильтр по категориям)**
+
+**HTML (Global Type Filter card):**
+```html
+<!-- Category Filter (multiple selection) -->
+<div class="flex flex-col gap-2">
+    <label for="categories-filter" class="font-semibold text-sm">Фильтр по категориям:</label>
+    <select id="categories-filter" class="choices-category-tree" multiple data-placeholder="Выберите категории...">
+        <!-- Options loaded via ChoicesCategoryTree -->
+    </select>
+    <p class="text-xs text-base-content/60">
+        Применяется к: План&Факт, Разбивка по категориям, Тепловая карта
+    </p>
+</div>
+```
+
+**JavaScript:**
+- `initCategoryFilter()` - инициализирует `BudgetShared.ChoicesCategoryTree` с multiselect
+- `updateCategoryFilter(selectedArticles)` - обновляет `currentCategoryIds[]`
+- **Библиотеки:** budgetShared.js (ChoicesCategoryTree), Choices.js
+- **Применяется:** К Plan-Fact, Pie, Heatmap
+
+**Status:** ✅ HTML + JS инициализация реализованы. Backend интеграция требует изменений в API endpoints (добавить параметр `article_ids[]`).
+
+---
+
+**3. Heatmap Zero Values Color (Белый для нулей)**
+
+**Implementation (v5.1.3):**
+
+```javascript
+visualMap: {
+    type: 'piecewise',  // Changed from default continuous
+    pieces: [
+        {
+            value: 0,
+            color: '#FFFFFF',  // White for zero values
+            label: 'Нет данных (0)'
+        },
+        {
+            min: 0.01,
+            max: maxValue,
+            color: null,  // Use inRange gradient
+            label: 'Данные'
+        }
+    ],
+    inRange: {
+        // Red for expenses, green for income (non-zero values)
+        color: currentGlobalType === 'expense'
+            ? ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']
+            : ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
+    },
+    calculable: true,
+    orient: 'horizontal',
+    left: 'center',
+    bottom: '0%'
+}
+```
+
+**Color Logic:**
+- **0:** #FFFFFF (белый) - нет данных
+- **> 0 (Расходы):** Красный градиент (#ffebee → #f44336)
+- **> 0 (Доходы):** Зеленый градиент (#eef5ee → #2e7d32)
+
+**Status:** ✅ Полностью реализовано. ECharts piecewise visualMap с явным белым цветом для нуля.
+
+---
+
+##### Backend Integration TODO (для полной функциональности фильтров)
+
+**API Endpoints требуют обновления:**
+
+1. `/api/v1/analytics/plan-fact` - добавить параметры `cfo_id`, `article_ids[]`
+2. `/api/v1/analytics/pie` - добавить параметры `cfo_id`, `article_ids[]`
+3. `/api/v1/analytics/heatmap` - добавить параметры `cfo_id`, `article_ids[]`
+4. `/api/v1/analytics/trends` - добавить параметр `cfo_id`
+5. `/api/v1/analytics/waterfall` - добавить параметр `cfo_id`
+
+**Frontend функции (уже реализованы, ожидают backend):**
+- `updateCFOFilter()` - вызывает перезагрузку графиков с `currentCFOId`
+- `updateCategoryFilter()` - вызывает перезагрузку с `currentCategoryIds[]`
 
 ---
 

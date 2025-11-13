@@ -68,6 +68,15 @@
 
                     <!-- Period Display Text -->
                     <div id="period-display" class="text-sm text-base-content/70"></div>
+
+                    <!-- CFO Filter (Financial Center) -->
+                    <div class="flex flex-wrap items-center gap-3 mt-3">
+                        <label for="cfo-filter" class="font-semibold text-sm">Финансовый центр:</label>
+                        <select id="cfo-filter" class="select select-sm select-bordered w-full sm:w-64" onchange="updateCFOFilter()">
+                            <option value="all" selected>Все центры</option>
+                            <!-- Options will be loaded dynamically via JS from /api/v1/financial-centers/list -->
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -112,6 +121,17 @@
                                 <button class="btn btn-sm btn-primary" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true">Расходы</button>
                                 <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')" aria-pressed="false">Доходы</button>
                             </div>
+                        </div>
+
+                        <!-- Category Filter (multiple selection) -->
+                        <div class="flex flex-col gap-2">
+                            <label for="categories-filter" class="font-semibold text-sm">Фильтр по категориям:</label>
+                            <select id="categories-filter" class="choices-category-tree" multiple data-placeholder="Выберите категории...">
+                                <!-- Options will be loaded dynamically via ChoicesCategoryTree (budgetShared.js) -->
+                            </select>
+                            <p class="text-xs text-base-content/60">
+                                Применяется к: План&Факт, Разбивка по категориям, Тепловая карта
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -182,6 +202,11 @@ let customDateFrom = null;
 let customDateTo = null;
 let rangePicker = null;
 
+// New filters (v5.1.3)
+let currentCFOId = null;  // null = all centers
+let currentCategoryIds = [];  // [] = all categories
+let categoryChoices = null;  // Choices.js instance
+
 // Period mapping for different chart types
 // Backend now handles all period logic directly, so we pass period as-is
 
@@ -199,6 +224,12 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Initialize CFO filter
+    loadCFOList();
+
+    // Initialize category filter
+    initCategoryFilter();
 
     // Sync chart mode UI with saved preference
     syncChartModeUI();
@@ -1637,19 +1668,31 @@ function updateHeatmapChart(data) {
             }
         },
         visualMap: {
-            min: 0,
-            max: maxValue > 0 ? maxValue : 1000,
-            calculable: true,
-            orient: 'horizontal',
-            left: 'center',
-            bottom: '0%',
+            type: 'piecewise',
+            pieces: [
+                {
+                    value: 0,
+                    color: '#FFFFFF',  // White for zero values (v5.1.3)
+                    label: 'Нет данных (0)'
+                },
+                {
+                    min: 0.01,
+                    max: maxValue > 0 ? maxValue : 1000,
+                    // Color gradient for non-zero values
+                    color: null,  // Use inRange colors
+                    label: 'Данные'
+                }
+            ],
             inRange: {
-                // Red shades for expenses, green shades for income
+                // Red shades for expenses, green shades for income (for non-zero values)
                 color: currentGlobalType === 'expense'
                     ? ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']
                     : ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
             },
-            text: ['Высокий', 'Низкий'],
+            calculable: true,
+            orient: 'horizontal',
+            left: 'center',
+            bottom: '0%',
             textStyle: {
                 fontSize: 11
             }
@@ -1846,6 +1889,94 @@ function exportTrendsData(format) {
     // Open in new tab to trigger download
     window.open(url, '_blank');
 }
+
+// ============================================================================
+// NEW FILTERS (v5.1.3): CFO and Category filters
+// ============================================================================
+
+/**
+ * Load CFO (Financial Centers) list from API
+ */
+async function loadCFOList() {
+    try {
+        const response = await fetch('/api/v1/financial-centers/list');
+        if (!response.ok) {
+            console.error('Failed to load CFO list:', response.statusText);
+            return;
+        }
+
+        const data = await response.json();
+        const select = document.getElementById('cfo-filter');
+
+        // Add CFO options
+        data.financial_centers.forEach(cfo => {
+            const option = document.createElement('option');
+            option.value = cfo.financial_center_id;
+            option.textContent = cfo.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading CFO list:', error);
+    }
+}
+
+/**
+ * Update CFO filter - called when user selects a financial center
+ */
+function updateCFOFilter() {
+    const select = document.getElementById('cfo-filter');
+    const selectedValue = select.value;
+
+    // Update global state
+    currentCFOId = selectedValue === 'all' ? null : parseInt(selectedValue);
+
+    console.log('CFO filter updated:', currentCFOId);
+
+    // Reload all charts with new CFO filter
+    // TODO: Pass currentCFOId to API calls in loadPlanFactData(), loadPieData(), loadHeatmapData()
+    // For now, this is a placeholder - full implementation requires backend API changes
+}
+
+/**
+ * Initialize category filter using ChoicesCategoryTree
+ */
+function initCategoryFilter() {
+    if (typeof BudgetShared === 'undefined' || !BudgetShared.ChoicesCategoryTree) {
+        console.warn('BudgetShared.ChoicesCategoryTree not available');
+        return;
+    }
+
+    try {
+        // Initialize ChoicesCategoryTree with current type (expense/income)
+        categoryChoices = new BudgetShared.ChoicesCategoryTree('#categories-filter', {
+            type: currentGlobalType,  // 'expense' or 'income'
+            onSelect: (selectedArticles) => {
+                updateCategoryFilter(selectedArticles);
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing category filter:', error);
+    }
+}
+
+/**
+ * Update category filter - called when user selects categories
+ * @param {Array} selectedArticles - Array of selected article objects {id, name, ...}
+ */
+function updateCategoryFilter(selectedArticles) {
+    // Update global state
+    currentCategoryIds = selectedArticles.map(a => a.id);
+
+    console.log('Category filter updated:', currentCategoryIds);
+
+    // Reload affected charts (Plan-Fact, Pie, Heatmap)
+    // TODO: Pass currentCategoryIds to API calls
+    // For now, this is a placeholder - full implementation requires backend API changes
+}
+
+// Note: When updateGlobalType() is called (switching between expense/income),
+// the category filter should be re-initialized with the new type:
+// Original updateGlobalType function should call: initCategoryFilter()
 </script>
 
 <style>
