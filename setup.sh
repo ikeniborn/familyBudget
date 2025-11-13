@@ -999,16 +999,19 @@ create_env_file() {
     fi
 
     # CORS - Allowed Origins (based on deployment profile and SSL)
+    # SECURITY FIX: Include Telegram origins for Telegram Login Widget and WebApp
     local allowed_origins
+    local telegram_origins="https://web.telegram.org,https://oauth.telegram.org"
+
     if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" && "${CONFIG[SSL_TYPE]}" == "letsencrypt" ]]; then
-        # Full profile with SSL: HTTPS domain
-        allowed_origins="https://${CONFIG[DOMAIN]}"
+        # Full profile with SSL: HTTPS domain + Telegram origins
+        allowed_origins="https://${CONFIG[DOMAIN]},${telegram_origins}"
     elif [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
-        # Full profile without SSL: HTTP domain
-        allowed_origins="http://${CONFIG[DOMAIN]}"
+        # Full profile without SSL: HTTP domain + Telegram origins
+        allowed_origins="http://${CONFIG[DOMAIN]},${telegram_origins}"
     else
-        # Basic profile: localhost with backend port
-        allowed_origins="http://localhost:${CONFIG[BACKEND_PORT]}"
+        # Basic profile: localhost with backend port + Telegram origins
+        allowed_origins="http://localhost:${CONFIG[BACKEND_PORT]},${telegram_origins}"
     fi
     sed -i "s|^ALLOWED_ORIGINS=.*|ALLOWED_ORIGINS=${allowed_origins}|" "$env_file"
 

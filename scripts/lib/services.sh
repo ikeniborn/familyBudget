@@ -61,10 +61,52 @@ start_services() {
 
     if [[ "$DETACH_MODE" == "true" ]]; then
         info "Starting services in detached mode (background)..."
+        local start_result=0
+
         if [[ -n "$COMPOSE_PROFILE" ]]; then
             compose_cmd --profile "$COMPOSE_PROFILE" up --build -d >> "$LOG_FILE" 2>&1
+            start_result=$?
         else
             compose_cmd up --build -d >> "$LOG_FILE" 2>&1
+            start_result=$?
+        fi
+
+        # Show detailed container status
+        info "Checking container status..."
+        echo "" | tee -a "$LOG_FILE"
+        compose_cmd ps -a | tee -a "$LOG_FILE"
+        echo "" | tee -a "$LOG_FILE"
+
+        # Wait for containers to stabilize (give healthchecks time to run)
+        info "Waiting for containers to stabilize (10 seconds)..."
+        sleep 10
+
+        # Check for unhealthy containers
+        local unhealthy_containers=$(compose_cmd ps --format json 2>/dev/null | jq -r 'select(.Health == "unhealthy") | .Name' 2>/dev/null || echo "")
+
+        if [[ -n "$unhealthy_containers" ]]; then
+            warning "Found unhealthy containers:"
+            echo "$unhealthy_containers" | tee -a "$LOG_FILE"
+
+            # Show logs for each unhealthy container
+            while IFS= read -r container; do
+                if [[ -n "$container" ]]; then
+                    warning "Showing logs for unhealthy container: $container"
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a "$LOG_FILE"
+                    compose_cmd logs --tail=50 "${container#familybudget-}" 2>&1 | tee -a "$LOG_FILE"
+                    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" | tee -a "$LOG_FILE"
+                fi
+            done <<< "$unhealthy_containers"
+        fi
+
+        if [[ $start_result -eq 0 ]]; then
+            if [[ -n "$unhealthy_containers" ]]; then
+                warning "Services started but some containers are unhealthy. Check logs above."
+            else
+                success "Services started successfully"
+            fi
+        else
+            error "Failed to start services. Check $LOG_FILE for details."
         fi
     else
         info "Starting services in foreground mode..."
@@ -74,12 +116,6 @@ start_services() {
             compose_cmd up --build
         fi
         return 0
-    fi
-
-    if [[ $? -eq 0 ]]; then
-        success "Services started successfully"
-    else
-        error "Failed to start services. Check $LOG_FILE for details."
     fi
 }
 
