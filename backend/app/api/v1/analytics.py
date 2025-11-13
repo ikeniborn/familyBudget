@@ -1084,9 +1084,18 @@ async def get_waterfall_data(
         articles_info = {}  # Track articles for drill-down
 
         for row in rows:
-            # For all cases, keep period_key as is (date object or int from SQL)
-            # Don't convert date to int - we need full date for aggregation
-            period_key = row.period_key if row.period_key else 0
+            # Convert period_key to date object (v5.1.3 critical fix for date_trunc)
+            # date_trunc returns timestamp/datetime, we need date for period_data keys
+            period_key_raw = row.period_key if row.period_key else 0
+
+            if period_key_raw == 0:
+                period_key = 0
+            elif isinstance(period_key_raw, date) and not isinstance(period_key_raw, datetime):
+                # Already a date object
+                period_key = period_key_raw
+            else:
+                # datetime or timestamp - convert to date
+                period_key = period_key_raw.date() if hasattr(period_key_raw, 'date') else period_key_raw
 
             if period_key not in period_data:
                 period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
