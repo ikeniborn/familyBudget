@@ -321,69 +321,67 @@ collect_deployment_parameters() {
         fi
 
         # Check if code synchronization needed
-        local needs_sync=false
+        local has_changes=false
         if [[ ! -d "$DEPLOY_DIR" ]]; then
-            needs_sync=true
+            has_changes=true
             info "Deployment directory does not exist: $DEPLOY_DIR"
         elif ! check_code_changes "$repo_dir"; then
             # check_code_changes returns 1 if changes detected
-            needs_sync=true
+            has_changes=true
         fi
 
-        if [[ "$needs_sync" == "true" ]]; then
-            info "Code synchronization required"
-            echo ""
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            print_message "$BLUE" "  STEP 1: Select Sync Mode"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-            echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
-            echo "      Removes files from /opt/budget not in repository"
-            echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, data/, logs/"
-            echo ""
-            echo "  [2] Update only (rsync)"
-            echo "      Updates existing + adds new files"
-            echo "      Old files NOT deleted (may leave artifacts)"
-            echo ""
-            echo "  [3] Clean + copy (DANGEROUS!)"
-            echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
-            echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-            echo "      Protected: .env, .npm-isolated/, .migration_checksums (directories cleared)"
-            echo ""
-            echo "  [4] Skip synchronization"
-            echo "      Deploy without updating code"
-            echo ""
-
-            read -p "Select [1-4]: " mode_choice
-            echo ""
-
-            case $mode_choice in
-                1)
-                    SYNC_MODE="mirror"
-                    ;;
-                2)
-                    SYNC_MODE="update"
-                    ;;
-                3)
-                    SYNC_MODE="clean"
-                    ;;
-                4)
-                    SYNC_MODE="skip"
-                    ;;
-                *)
-                    error "Invalid choice"
-                    exit 1
-                    ;;
-            esac
-
-            success "Sync mode selected: $SYNC_MODE"
-            echo ""
+        # ALWAYS show sync mode selection (mandatory choice)
+        if [[ "$has_changes" == "true" ]]; then
+            info "Code changes detected"
         else
-            # No changes detected
-            SYNC_MODE="skip"
-            info "No code changes detected - sync will be skipped"
-            echo ""
+            info "No code changes detected (you can still force sync if needed)"
         fi
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        print_message "$BLUE" "  STEP 1: Select Sync Mode"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
+        echo "      Removes files from /opt/budget not in repository"
+        echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, data/, logs/"
+        echo ""
+        echo "  [2] Update only (rsync)"
+        echo "      Updates existing + adds new files"
+        echo "      Old files NOT deleted (may leave artifacts)"
+        echo ""
+        echo "  [3] Clean + copy (DANGEROUS!)"
+        echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
+        echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
+        echo "      Protected: .env, .npm-isolated/, .migration_checksums (directories cleared)"
+        echo ""
+        echo "  [4] Skip synchronization"
+        echo "      Deploy without updating code"
+        echo ""
+
+        read -p "Select [1-4]: " mode_choice
+        echo ""
+
+        case $mode_choice in
+            1)
+                SYNC_MODE="mirror"
+                ;;
+            2)
+                SYNC_MODE="update"
+                ;;
+            3)
+                SYNC_MODE="clean"
+                ;;
+            4)
+                SYNC_MODE="skip"
+                ;;
+            *)
+                error "Invalid choice"
+                exit 1
+                ;;
+        esac
+
+        success "Sync mode selected: $SYNC_MODE"
+        echo ""
     else
         info "Sync mode preset: $SYNC_MODE"
         echo ""
