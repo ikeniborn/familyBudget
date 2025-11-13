@@ -125,6 +125,7 @@ RUN_MIGRATIONS=true
 CLEAN_DEPLOY=false
 COMPOSE_PROFILE=""
 SYNC_MODE=""  # mirror|update|clean|skip (empty = interactive)
+CLEANUP_MODE=""  # skip|smart|full (empty = interactive) (v5.1.3)
 REPO_DIR_OVERRIDE=""  # User-specified repository directory
 REAPPLY_MIGRATION=false  # Manual reapply specific migration (downgrade/upgrade)
 REAPPLY_MIGRATION_FILE=""  # Revision ID to reapply (e.g., "b2232d851007")
@@ -278,6 +279,206 @@ parse_args() {
     done
 }
 
+# =============================================================================
+# COLLECT DEPLOYMENT PARAMETERS (v5.1.3)
+# =============================================================================
+# Collect all user choices UPFRONT before starting deployment:
+# 1. Sync mode (mirror/update/clean/skip)
+# 2. Cleanup action (skip/smart/full)
+#
+# This allows users to see ALL questions at once, then deploy runs unattended.
+#
+# Note: Skip if parameters already set via CLI or non-interactive mode.
+collect_deployment_parameters() {
+    # Skip if running migrations-only mode
+    if [[ "$MIGRATIONS_ONLY" == "true" ]]; then
+        return 0
+    fi
+
+    # Skip if non-interactive (no TTY)
+    if [[ ! -t 0 ]]; then
+        info "Non-interactive mode: using defaults (sync=mirror, cleanup=smart)"
+        SYNC_MODE="${SYNC_MODE:-mirror}"
+        CLEANUP_MODE="${CLEANUP_MODE:-smart}"
+        return 0
+    fi
+
+    echo "========================================================================"
+    print_message "$CYAN" "       Deployment Parameter Selection"
+    echo "========================================================================"
+    echo ""
+
+    # =========================================================================
+    # STEP 1: SELECT SYNC MODE
+    # =========================================================================
+    if [[ -z "$SYNC_MODE" ]]; then
+        # Detect repository directory
+        local repo_dir
+        repo_dir=$(detect_repository_dir)
+        if [[ $? -ne 0 ]]; then
+            error "$repo_dir"  # Error message from detect_repository_dir
+            exit 1
+        fi
+
+        # Check if code synchronization needed
+        local needs_sync=false
+        if [[ ! -d "$DEPLOY_DIR" ]]; then
+            needs_sync=true
+            info "Deployment directory does not exist: $DEPLOY_DIR"
+        elif ! check_code_changes "$repo_dir"; then
+            # check_code_changes returns 1 if changes detected
+            needs_sync=true
+        fi
+
+        if [[ "$needs_sync" == "true" ]]; then
+            info "Code synchronization required"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            print_message "$BLUE" "  STEP 1: Select Sync Mode"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
+            echo "      Removes files from /opt/budget not in repository"
+            echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, data/, logs/"
+            echo ""
+            echo "  [2] Update only (rsync)"
+            echo "      Updates existing + adds new files"
+            echo "      Old files NOT deleted (may leave artifacts)"
+            echo ""
+            echo "  [3] Clean + copy (DANGEROUS!)"
+            echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
+            echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
+            echo "      Protected: .env, .npm-isolated/, .migration_checksums (directories cleared)"
+            echo ""
+            echo "  [4] Skip synchronization"
+            echo "      Deploy without updating code"
+            echo ""
+
+            read -p "Select [1-4]: " mode_choice
+            echo ""
+
+            case $mode_choice in
+                1)
+                    SYNC_MODE="mirror"
+                    ;;
+                2)
+                    SYNC_MODE="update"
+                    ;;
+                3)
+                    SYNC_MODE="clean"
+                    ;;
+                4)
+                    SYNC_MODE="skip"
+                    ;;
+                *)
+                    error "Invalid choice"
+                    exit 1
+                    ;;
+            esac
+
+            success "Sync mode selected: $SYNC_MODE"
+            echo ""
+        else
+            # No changes detected
+            SYNC_MODE="skip"
+            info "No code changes detected - sync will be skipped"
+            echo ""
+        fi
+    else
+        info "Sync mode preset: $SYNC_MODE"
+        echo ""
+    fi
+
+    # =========================================================================
+    # STEP 2: SELECT CLEANUP ACTION
+    # =========================================================================
+    # Only ask if:
+    # - Not in clean sync mode (clean mode auto-cleans everything)
+    # - CLEANUP_MODE not already set
+    # - Old deployments exist
+    if [[ "${SYNC_MODE}" != "clean" ]] && [[ -z "$CLEANUP_MODE" ]] && [[ "${CLEAN_DEPLOY:-false}" != "true" ]]; then
+        # Check for old deployment artifacts
+        local old_containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null | wc -l)
+        local old_networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
+        local old_volumes=$(docker volume ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
+
+        if [[ $old_containers -gt 0 || $old_networks -gt 0 || $old_volumes -gt 0 ]]; then
+            # Old deployment found - ask what to do
+            warning "Found old deployment artifacts:"
+            if [[ $old_containers -gt 0 ]]; then
+                echo "  - Containers: $old_containers"
+            fi
+            if [[ $old_networks -gt 0 ]]; then
+                echo "  - Networks: $old_networks"
+            fi
+            if [[ $old_volumes -gt 0 ]]; then
+                echo "  - Volumes: $old_volumes"
+            fi
+            echo ""
+
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            print_message "$BLUE" "  STEP 2: Choose Cleanup Action"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            warning "Old deployments may cause network conflicts!"
+            echo ""
+            echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
+            echo "  [2] Smart cleanup - auto-detect changes & restart strategy (RECOMMENDED)"
+            echo "      ✓ Analyzes git diff to determine if PostgreSQL needs restart"
+            echo "      ✓ Keeps PostgreSQL running for frontend/backend changes only"
+            echo "      ✓ Full restart for DB migrations or config changes"
+            echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
+            echo "      ⚠️  Requires sudo/root privileges"
+            echo ""
+
+            # Flush stdout/stderr before reading input (prevents terminal buffer issues)
+            sync 2>/dev/null || true
+            read -r -p "Select [1-3]: " cleanup_choice < /dev/tty
+            echo ""
+
+            case $cleanup_choice in
+                1)
+                    CLEANUP_MODE="skip"
+                    ;;
+                2)
+                    CLEANUP_MODE="smart"
+                    ;;
+                3)
+                    CLEANUP_MODE="full"
+                    ;;
+                *)
+                    error "Invalid choice. Please select 1-3."
+                    exit 1
+                    ;;
+            esac
+
+            success "Cleanup mode selected: $CLEANUP_MODE"
+            echo ""
+        else
+            # No old deployment - skip cleanup
+            CLEANUP_MODE="skip"
+            info "No old deployment found - cleanup not needed"
+            echo ""
+        fi
+    elif [[ "${SYNC_MODE}" == "clean" ]]; then
+        # Clean sync mode - cleanup auto-handled
+        CLEANUP_MODE="auto"
+        info "Cleanup mode: auto (handled by clean sync)"
+        echo ""
+    elif [[ -n "$CLEANUP_MODE" ]]; then
+        info "Cleanup mode preset: $CLEANUP_MODE"
+        echo ""
+    fi
+
+    echo "========================================================================"
+    print_message "$GREEN" "       Parameters Collected - Starting Deployment"
+    echo "========================================================================"
+    echo ""
+    info "Sync mode:    $SYNC_MODE"
+    info "Cleanup mode: ${CLEANUP_MODE:-skip}"
+    echo ""
+}
+
 main() {
     # Parse arguments
     parse_args "$@"
@@ -390,6 +591,11 @@ main() {
 
     validate_env
     echo ""
+
+    # COLLECT DEPLOYMENT PARAMETERS (v5.1.3)
+    # Ask user for sync mode + cleanup action UPFRONT
+    # This allows deployment to run unattended after parameter selection
+    collect_deployment_parameters
 
     # PRE-FLIGHT CHECK: Verify npm environment exists BEFORE sync
     # This prevents issues if rsync accidentally deletes .npm-isolated/
