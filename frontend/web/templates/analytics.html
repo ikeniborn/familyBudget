@@ -510,9 +510,26 @@ function updatePeriodDisplay(period, dateFrom = null, dateTo = null) {
     const displayEl = document.getElementById('period-display');
     if (!displayEl) return;
 
+    // Helper to calculate days difference
+    const calculateDays = (start, end) => {
+        const diffMs = end.getTime() - start.getTime();
+        return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
+    };
+
+    // Helper to format days count
+    const formatDays = (days) => {
+        if (days === 1) return '1 день';
+        if (days >= 2 && days <= 4) return `${days} дня`;
+        return `${days} дней`;
+    };
+
     let text = '';
     if (dateFrom && dateTo) {
-        text = `Выбран период: ${dateFrom} — ${dateTo}`;
+        // Custom range - parse dates and calculate days (v5.1.3)
+        const startDate = BudgetShared.DateFormatter.parse(dateFrom);
+        const endDate = BudgetShared.DateFormatter.parse(dateTo);
+        const daysCount = calculateDays(startDate, endDate);
+        text = `Выбран период: ${dateFrom} — ${dateTo} (${formatDays(daysCount)})`;
     } else {
         const today = new Date();
         const formatDate = (date) => {
@@ -528,7 +545,8 @@ function updatePeriodDisplay(period, dateFrom = null, dateTo = null) {
                 const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
                 const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day
                 const monthDisplayEnd = today < monthEnd ? today : monthEnd;
-                text = `Выбран месяц: ${formatDate(monthStart)} — ${formatDate(monthDisplayEnd)}`;
+                const monthDays = calculateDays(monthStart, monthDisplayEnd);
+                text = `Выбран месяц: ${formatDate(monthStart)} — ${formatDate(monthDisplayEnd)} (${formatDays(monthDays)})`;
                 break;
             case 'quarter':
                 // Current calendar quarter (from Q start to today)
@@ -539,14 +557,16 @@ function updatePeriodDisplay(period, dateFrom = null, dateTo = null) {
                 const quarterLastMonth = quarterFirstMonth + 2;
                 const quarterEnd = new Date(today.getFullYear(), quarterLastMonth + 1, 0);
                 const quarterDisplayEnd = today < quarterEnd ? today : quarterEnd;
-                text = `Выбран квартал Q${quarterNum}: ${formatDate(quarterStart)} — ${formatDate(quarterDisplayEnd)}`;
+                const quarterDays = calculateDays(quarterStart, quarterDisplayEnd);
+                text = `Выбран квартал Q${quarterNum}: ${formatDate(quarterStart)} — ${formatDate(quarterDisplayEnd)} (${formatDays(quarterDays)})`;
                 break;
             case 'year':
                 // Current calendar year (from Jan 1 to today)
                 const yearStart = new Date(today.getFullYear(), 0, 1); // Jan 1
                 const yearEnd = new Date(today.getFullYear(), 11, 31); // Dec 31
                 const yearDisplayEnd = today < yearEnd ? today : yearEnd;
-                text = `Выбран год ${today.getFullYear()}: ${formatDate(yearStart)} — ${formatDate(yearDisplayEnd)}`;
+                const yearDays = calculateDays(yearStart, yearDisplayEnd);
+                text = `Выбран год ${today.getFullYear()}: ${formatDate(yearStart)} — ${formatDate(yearDisplayEnd)} (${formatDays(yearDays)})`;
                 break;
         }
     }

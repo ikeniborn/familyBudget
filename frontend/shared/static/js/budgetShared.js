@@ -607,13 +607,13 @@
                   </button>
 
                   <div class="flex items-center gap-2">
-                    <select class="select select-sm select-bordered" data-action="select-month" aria-label="Выбрать месяц">
+                    <select class="select select-bordered h-10" data-action="select-month" aria-label="Выбрать месяц">
                       ${CalendarWidget.MONTH_NAMES.map((name, i) =>
                         `<option value="${i}" ${i === this.currentMonth ? 'selected' : ''}>${name}</option>`
                       ).join('')}
                     </select>
 
-                    <select class="select select-sm select-bordered" data-action="select-year" aria-label="Выбрать год">
+                    <select class="select select-bordered h-10" data-action="select-year" aria-label="Выбрать год">
                       ${this._generateYearOptions()}
                     </select>
                   </div>
@@ -831,13 +831,24 @@
                 this._handleDateSelection(date);
             });
 
-            // Click outside to close
+            // Click outside to close (v5.1.3 bugfix: don't close on internal actions)
             document.addEventListener('click', (e) => {
-                if (this.isOpen &&
-                    !this.calendarElement.contains(e.target) &&
-                    !this.triggerButton.contains(e.target)) {
-                    this.close();
+                if (!this.isOpen) return;
+
+                // Don't close if clicking inside calendar (including navigation arrows/selects)
+                if (this.calendarElement.contains(e.target)) return;
+
+                // Don't close if clicking on trigger button
+                if (this.triggerButton && this.triggerButton.contains(e.target)) return;
+
+                // Check if there are additional trigger buttons (range mode)
+                const allButtons = document.querySelectorAll('button[aria-label="Открыть календарь"]');
+                for (const btn of allButtons) {
+                    if (btn.contains(e.target)) return;
                 }
+
+                // Close if clicking outside
+                this.close();
             });
 
             // Keyboard navigation
@@ -880,32 +891,67 @@
             }
 
             if (this.mode === 'range') {
-                if (!this.startDate || (this.startDate && this.endDate)) {
-                    // Start new range
-                    this.startDate = date;
-                    this.endDate = null;
-                    this.selectingEnd = true;
-                    const displayDate = DateFormatter.formatForDisplay(this._formatDateISO(date));
-                    this.startInputElement.value = displayDate;
-                    this.endInputElement.value = '';
-                    this._render();
-                } else {
-                    // Select end date
-                    if (date < this.startDate) {
-                        // Swap if end < start
-                        this.endDate = this.startDate;
+                // v5.1.3 bugfix: Preserve existing dates when changing one of them
+                if (this.selectingEnd) {
+                    // Selecting END date - preserve START date
+                    this.endDate = date;
+
+                    // Swap if end < start
+                    if (this.startDate && date < this.startDate) {
+                        const temp = this.startDate;
                         this.startDate = date;
-                    } else {
-                        this.endDate = date;
+                        this.endDate = temp;
                     }
 
-                    const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                    // Update inputs
+                    if (this.startDate) {
+                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                        this.startInputElement.value = startDisplay;
+                    }
                     const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                    this.startInputElement.value = startDisplay;
                     this.endInputElement.value = endDisplay;
-                    this.selectingEnd = false;
-                    this.onSelect(startDisplay, endDisplay);
-                    this.close();
+
+                    // If both dates selected, trigger callback and close
+                    if (this.startDate && this.endDate) {
+                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                        this.onSelect(startDisplay, endDisplay);
+                        this.close();
+                    } else {
+                        // Only end date selected, keep calendar open to select start
+                        this.selectingEnd = false;
+                        this._render();
+                    }
+                } else {
+                    // Selecting START date - preserve END date
+                    this.startDate = date;
+
+                    // Swap if end < start
+                    if (this.endDate && this.endDate < date) {
+                        const temp = this.endDate;
+                        this.endDate = date;
+                        this.startDate = temp;
+                    }
+
+                    // Update inputs
+                    const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                    this.startInputElement.value = startDisplay;
+                    if (this.endDate) {
+                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                        this.endInputElement.value = endDisplay;
+                    }
+
+                    // If both dates selected, trigger callback and close
+                    if (this.startDate && this.endDate) {
+                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                        this.onSelect(startDisplay, endDisplay);
+                        this.close();
+                    } else {
+                        // Only start date selected, switch to selecting end
+                        this.selectingEnd = true;
+                        this._render();
+                    }
                 }
             }
         }
@@ -967,13 +1013,9 @@
             this.isOpen = true;
             this.calendarElement.classList.remove('hidden');
 
-            // v5.1.3 bugfix: If opening for end date input in range mode
-            if (forceSelectingEnd && this.mode === 'range' && this.startDate) {
-                // User clicked on end date button - prepare to select end date
-                this.selectingEnd = true;
-                // Clear end date so user can select new one
-                this.endDate = null;
-                this.endInputElement.value = '';
+            // v5.1.3 bugfix: Set selection mode based on which input was clicked
+            if (this.mode === 'range') {
+                this.selectingEnd = forceSelectingEnd;
             }
 
             this._render(); // Re-render to show current selection

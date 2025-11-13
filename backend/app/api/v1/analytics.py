@@ -751,7 +751,7 @@ async def get_trends_data(
         expense_data = []
 
         if period == "month":
-            # Для period='month': агрегация по дням календарного месяца (числа 1-31)
+            # Для period='month' (≤31 дней): агрегация по календарным датам (daily)
             current_date = start_date
             while current_date <= end_date:
                 # Число месяца (1-31)
@@ -762,8 +762,40 @@ async def get_trends_data(
                 expense_data.append(day_data["expense"])
                 current_date += timedelta(days=1)
 
-        elif period == "quarter" or period == "year":
-            # Для quarter/year: агрегация по календарным месяцам
+        elif period == "quarter":
+            # Для period='quarter' (>31 и ≤91 дней): агрегация по календарным неделям (weekly) (v5.1.3 fix)
+            # Iterate through weeks from start_date to end_date
+            current_date = start_date
+            # Find the Monday of the week containing start_date
+            week_start = current_date - timedelta(days=current_date.weekday())
+
+            while week_start <= end_date:
+                week_end = week_start + timedelta(days=6)
+                # Don't go beyond the overall range
+                actual_week_end = min(week_end, end_date)
+                actual_week_start = max(week_start, start_date)
+
+                # Aggregate week data
+                week_income = sum(
+                    data["income"] for d, data in data_by_date.items()
+                    if actual_week_start <= d <= actual_week_end
+                )
+                week_expense = sum(
+                    data["expense"] for d, data in data_by_date.items()
+                    if actual_week_start <= d <= actual_week_end
+                )
+
+                # Label: "Нед дд.мм-дд.мм"
+                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
+                labels.append(week_label)
+                income_data.append(week_income)
+                expense_data.append(week_expense)
+
+                # Move to next week
+                week_start += timedelta(days=7)
+
+        elif period == "year":
+            # Для period='year' (>91 дней): агрегация по календарным месяцам (monthly)
             month_names_ru = [
                 "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
@@ -970,24 +1002,23 @@ async def get_waterfall_data(
         if date_from and date_to:
             start_date = date_from
             end_date = date_to
-            # Auto-determine grouping based on days difference
+            # Auto-determine grouping based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
             if days_diff <= 31:
-                period = "month"  # Group by day (≤31 days)
-                group_by_expr = Fact.fact_date
-                label_format = "%d"
+                # <= 31 days: Group by calendar dates (daily)
+                period = "month"
+                group_by_expr = func.date_trunc("day", Fact.fact_date)
+                label_format = "day"
             elif days_diff <= 91:
-                period = "quarter"  # Group by week (32-91 days)
-                group_by_expr = func.extract("week", Fact.fact_date)
-                label_format = "W%W"
-            elif days_diff <= 365:
-                period = "year"  # Group by month (92-365 days)
-                group_by_expr = func.extract("month", Fact.fact_date)
-                label_format = "month"
+                # > 31 and <= 91 days: Group by calendar weeks (weekly)
+                period = "quarter"
+                group_by_expr = func.date_trunc("week", Fact.fact_date)
+                label_format = "week"
             else:
-                period = "year"  # Group by year (>365 days)
-                group_by_expr = func.extract("year", Fact.fact_date)
-                label_format = "year"
+                # > 91 days: Group by calendar months (monthly)
+                period = "year"
+                group_by_expr = func.date_trunc("month", Fact.fact_date)
+                label_format = "month"
         elif period:
             # Calculate date range and grouping based on CALENDAR period (from 1st day to today)
             if period == "month":
@@ -1127,73 +1158,56 @@ async def get_waterfall_data(
                 current_date += timedelta(days=1)
 
         elif label_format == "week":
-            # Для month периода: агрегация по 4 календарным неделям
-            rolling_weeks_data = get_rolling_weeks(4, end_date, include_incomplete=True)
-            for week_start, week_end, iso_label in rolling_weeks_data:
-                # Агрегировать данные за неделю из period_data (ключи - даты)
-                week_income = 0.0
-                week_expense = 0.0
-                week_articles = []
+            # Для custom range >31 и ≤91 дней: агрегация по календарным неделям (v5.1.3 fix)
+            # period_data keys are week start dates (Mondays) from date_trunc('week')
+            # Sort them to ensure chronological order
+            sorted_weeks = sorted([k for k in period_data.keys() if isinstance(k, date)])
 
-                for day_date in period_data.keys():
-                    if isinstance(day_date, date) and week_start <= day_date <= week_end:
-                        week_income += period_data[day_date]["income"]
-                        week_expense += period_data[day_date]["expense"]
-                        week_articles.extend(period_data[day_date].get("articles", []))
-
+            for week_start_date in sorted_weeks:
+                week_data = period_data[week_start_date]
+                week_income = week_data["income"]
+                week_expense = week_data["expense"]
                 week_balance = week_income - week_expense
                 cumulative_balance += week_balance
 
-                labels.append(iso_label)
+                # Format label as "Нед 1 (дд.мм-дд.мм)" for better clarity
+                week_end_date = week_start_date + timedelta(days=6)
+                # Ensure week_end doesn't exceed the overall end_date
+                week_end_date = min(week_end_date, end_date)
+
+                week_label = f"Нед {week_start_date.strftime('%d.%m')}-{week_end_date.strftime('%d.%m')}"
+
+                labels.append(week_label)
                 income_data.append(week_income)
                 expense_data.append(week_expense)
                 balance_data.append(cumulative_balance)
-                categories_data.append(week_articles)
+                categories_data.append(week_data.get("articles", []))
 
         elif label_format == "month":
-            # Для quarter/year: агрегация по календарным месяцам
+            # Для custom range >91 дней: агрегация по календарным месяцам (v5.1.3 fix)
             month_names_ru = [
                 "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
             ]
 
-            current_date = start_date
-            while current_date <= end_date:
-                # Первый и последний день текущего месяца
-                month_start = date(current_date.year, current_date.month, 1)
-                import calendar as cal_module
-                _, last_day = cal_module.monthrange(current_date.year, current_date.month)
-                month_end = date(current_date.year, current_date.month, last_day)
-                # Обрезать до end_date если месяц неполный
-                month_end = min(month_end, end_date)
+            # period_data keys are month start dates (1st of month) from date_trunc('month')
+            # Sort them to ensure chronological order
+            sorted_months = sorted([k for k in period_data.keys() if isinstance(k, date)])
 
-                # Агрегировать данные за месяц из period_data (ключи - даты)
-                month_income = 0.0
-                month_expense = 0.0
-                month_articles = []
-
-                for day_date in period_data.keys():
-                    if isinstance(day_date, date) and month_start <= day_date <= month_end:
-                        month_income += period_data[day_date]["income"]
-                        month_expense += period_data[day_date]["expense"]
-                        month_articles.extend(period_data[day_date].get("articles", []))
-
+            for month_start_date in sorted_months:
+                month_data = period_data[month_start_date]
+                month_income = month_data["income"]
+                month_expense = month_data["expense"]
                 month_balance = month_income - month_expense
                 cumulative_balance += month_balance
 
                 # Label: "Янв 2025"
-                month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
+                month_label = f"{month_names_ru[month_start_date.month - 1]} {month_start_date.year}"
                 labels.append(month_label)
                 income_data.append(month_income)
                 expense_data.append(month_expense)
                 balance_data.append(cumulative_balance)
-                categories_data.append(month_articles)
-
-                # Переход к следующему месяцу
-                if current_date.month == 12:
-                    current_date = date(current_date.year + 1, 1, 1)
-                else:
-                    current_date = date(current_date.year, current_date.month + 1, 1)
+                categories_data.append(month_data.get("articles", []))
 
         else:
             # Custom range или старая логика: group by day
@@ -1365,23 +1379,32 @@ async def get_heatmap_data(
             data = [week_data]  # Single row
 
         elif aggregation == "week":
-            # Для периода "месяц": 4 недели × 7 дней grid
+            # Для custom range >31 и ≤91 дней: недели × 7 дней grid (v5.1.3 fix)
             # X-axis: дни недели (Пн-Вс)
-            # Y-axis: ISO номера недель
+            # Y-axis: недели (Нед дд.мм-дд.мм)
             day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
             xAxis = day_names
             yAxis = []
             data = []
 
-            # Получить rolling weeks
-            rolling_weeks_data = get_rolling_weeks(4, end_date, include_incomplete=True)
-
-            # Build date_mapping for tooltip display (month period only)
+            # Build date_mapping for tooltip display
             # Format: {yIndex: {xIndex: "DD.MM.YYYY"}}
             date_mapping = {}
 
-            for week_idx, (week_start, week_end, iso_label) in enumerate(rolling_weeks_data):
-                yAxis.append(iso_label)
+            # Generate ALL weeks in custom range (not just last 4)
+            # Find Monday of the week containing start_date
+            week_start = start_date - timedelta(days=start_date.weekday())
+
+            week_idx = 0
+            while week_start <= end_date:
+                week_end = week_start + timedelta(days=6)
+                # Don't go beyond the overall range
+                actual_week_end = min(week_end, end_date)
+                actual_week_start = max(week_start, start_date)
+
+                # Label: "Нед дд.мм-дд.мм"
+                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
+                yAxis.append(week_label)
 
                 # Генерация данных для недели
                 week_data = []
@@ -1389,16 +1412,19 @@ async def get_heatmap_data(
 
                 for day_offset in range(7):  # Mon-Sun
                     current_date = week_start + timedelta(days=day_offset)
-                    if current_date <= week_end:
+                    # Only include data if within the actual range
+                    if start_date <= current_date <= end_date:
                         amount = data_by_date.get(current_date, 0.0)
-                        # Add date string for tooltip
-                        if start_date <= current_date <= end_date:
-                            date_mapping[week_idx][day_offset] = current_date.strftime("%d.%m.%Y")
+                        date_mapping[week_idx][day_offset] = current_date.strftime("%d.%m.%Y")
                     else:
-                        amount = 0.0  # Beyond week_end
+                        amount = 0.0  # Outside range
                     week_data.append(amount)
 
                 data.append(week_data)
+
+                # Move to next week
+                week_start += timedelta(days=7)
+                week_idx += 1
 
         elif aggregation == "month":
             # Для периода "квартал/год": месяцы × недели grid
