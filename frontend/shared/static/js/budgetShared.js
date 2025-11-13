@@ -784,6 +784,9 @@
                 const target = e.target.closest('[data-action]');
                 if (!target) return;
 
+                // Stop propagation to prevent "click outside" handler from closing calendar (v5.1.3 bugfix)
+                e.stopPropagation();
+
                 const action = target.dataset.action;
 
                 switch (action) {
@@ -809,6 +812,9 @@
             this.calendarElement.addEventListener('change', (e) => {
                 const target = e.target;
 
+                // Stop propagation to prevent "click outside" handler (v5.1.3 bugfix)
+                e.stopPropagation();
+
                 if (target.dataset.action === 'select-month') {
                     this.currentMonth = parseInt(target.value);
                     this._render();
@@ -824,6 +830,9 @@
             this.calendarElement.addEventListener('click', (e) => {
                 const dateButton = e.target.closest('[data-date]');
                 if (!dateButton || dateButton.disabled) return;
+
+                // Stop propagation to prevent "click outside" handler (v5.1.3 bugfix)
+                e.stopPropagation();
 
                 const dateStr = dateButton.dataset.date;
                 const date = new Date(dateStr + 'T00:00:00'); // Parse as local time

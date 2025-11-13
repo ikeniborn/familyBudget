@@ -752,10 +752,22 @@ async def get_trends_data(
 
         if period == "month":
             # Для period='month' (≤31 дней): агрегация по календарным датам (daily)
+            month_names_short = [
+                "янв", "фев", "мар", "апр", "май", "июн",
+                "июл", "авг", "сен", "окт", "ноя", "дек"
+            ]
+
+            # Check if period crosses month boundary (v5.1.3: show month if crosses)
+            crosses_month = start_date.month != end_date.month or start_date.year != end_date.year
+
             current_date = start_date
             while current_date <= end_date:
-                # Число месяца (1-31)
-                day_label = str(current_date.day)
+                # Show month name if period crosses month boundary
+                if crosses_month:
+                    day_label = f"{current_date.day} {month_names_short[current_date.month - 1]}"
+                else:
+                    day_label = str(current_date.day)
+
                 day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
                 labels.append(day_label)
                 income_data.append(day_data["income"])
@@ -1137,11 +1149,22 @@ async def get_waterfall_data(
         cumulative_balance = initial_balance
 
         if label_format == "day":
-            # Для периода месяц: показывать числа месяца (1-31)
+            # Для периода ≤31 день: показывать дни (v5.1.3: с месяцем если пересекает границу)
+            month_names_short = [
+                "янв", "фев", "мар", "апр", "май", "июн",
+                "июл", "авг", "сен", "окт", "ноя", "дек"
+            ]
+
+            # Check if period crosses month boundary
+            crosses_month = start_date.month != end_date.month or start_date.year != end_date.year
+
             current_date = start_date
             while current_date <= end_date:
-                # Число месяца (1-31)
-                day_label = str(current_date.day)
+                # Show month name if period crosses month boundary
+                if crosses_month:
+                    day_label = f"{current_date.day} {month_names_short[current_date.month - 1]}"
+                else:
+                    day_label = str(current_date.day)
 
                 day_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
                 income = day_info["income"]
@@ -1159,29 +1182,36 @@ async def get_waterfall_data(
 
         elif label_format == "week":
             # Для custom range >31 и ≤91 дней: агрегация по календарным неделям (v5.1.3 fix)
-            # period_data keys are week start dates (Mondays) from date_trunc('week')
-            # Sort them to ensure chronological order
-            sorted_weeks = sorted([k for k in period_data.keys() if isinstance(k, date)])
+            # Generate ALL weeks in range, even if no data exists
+            # Find Monday of the week containing start_date
+            week_start = start_date - timedelta(days=start_date.weekday())
 
-            for week_start_date in sorted_weeks:
-                week_data = period_data[week_start_date]
+            while week_start <= end_date:
+                # Find the Monday from date_trunc result (if exists in period_data)
+                # period_data keys are week start dates (Mondays) from date_trunc('week')
+                week_data = period_data.get(week_start, {"income": 0.0, "expense": 0.0, "articles": []})
+
                 week_income = week_data["income"]
                 week_expense = week_data["expense"]
                 week_balance = week_income - week_expense
                 cumulative_balance += week_balance
 
-                # Format label as "Нед 1 (дд.мм-дд.мм)" for better clarity
-                week_end_date = week_start_date + timedelta(days=6)
-                # Ensure week_end doesn't exceed the overall end_date
-                week_end_date = min(week_end_date, end_date)
+                # Format label as "Нед дд.мм-дд.мм"
+                week_end = week_start + timedelta(days=6)
+                # Don't go beyond the overall range
+                actual_week_end = min(week_end, end_date)
+                actual_week_start = max(week_start, start_date)
 
-                week_label = f"Нед {week_start_date.strftime('%d.%m')}-{week_end_date.strftime('%d.%m')}"
+                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
 
                 labels.append(week_label)
                 income_data.append(week_income)
                 expense_data.append(week_expense)
                 balance_data.append(cumulative_balance)
                 categories_data.append(week_data.get("articles", []))
+
+                # Move to next week
+                week_start += timedelta(days=7)
 
         elif label_format == "month":
             # Для custom range >91 дней: агрегация по календарным месяцам (v5.1.3 fix)
@@ -1190,24 +1220,32 @@ async def get_waterfall_data(
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
             ]
 
-            # period_data keys are month start dates (1st of month) from date_trunc('month')
-            # Sort them to ensure chronological order
-            sorted_months = sorted([k for k in period_data.keys() if isinstance(k, date)])
+            # Generate ALL months in range, even if no data exists
+            current_date = date(start_date.year, start_date.month, 1)  # First day of start month
 
-            for month_start_date in sorted_months:
-                month_data = period_data[month_start_date]
+            while current_date <= end_date:
+                # Find month start from date_trunc result (if exists in period_data)
+                # period_data keys are month start dates (1st of month) from date_trunc('month')
+                month_data = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
+
                 month_income = month_data["income"]
                 month_expense = month_data["expense"]
                 month_balance = month_income - month_expense
                 cumulative_balance += month_balance
 
                 # Label: "Янв 2025"
-                month_label = f"{month_names_ru[month_start_date.month - 1]} {month_start_date.year}"
+                month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 labels.append(month_label)
                 income_data.append(month_income)
                 expense_data.append(month_expense)
                 balance_data.append(cumulative_balance)
                 categories_data.append(month_data.get("articles", []))
+
+                # Move to next month
+                if current_date.month == 12:
+                    current_date = date(current_date.year + 1, 1, 1)
+                else:
+                    current_date = date(current_date.year, current_date.month + 1, 1)
 
         else:
             # Custom range или старая логика: group by day
