@@ -38,7 +38,8 @@ class Settings(BaseSettings):
     ADMIN_TELEGRAM_ID: int  # Telegram ID of the admin user
 
     # CORS
-    CORS_ORIGINS: list[str] = Field(default_factory=list)
+    # Use str | list[str] to prevent Pydantic Settings from auto-parsing as JSON
+    CORS_ORIGINS: str | list[str] = Field(default="")
 
     # SSL
     SSL_TYPE: str = "letsencrypt"  # SSL certificate type: none, letsencrypt, self-signed, existing
