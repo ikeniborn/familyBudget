@@ -869,7 +869,7 @@ async function loadPieData(type, period) {
                 top: 'middle',
                 textStyle: { color: '#f44336' }
             }
-        });
+        }, true);  // notMerge: true - clear old data
     }
 }
 
@@ -884,7 +884,7 @@ function updatePieChart(data) {
             'Нет данных',
             'Добавьте транзакции для просмотра распределения по категориям'
         );
-        pieChart.setOption(emptyOption);
+        pieChart.setOption(emptyOption, true);  // notMerge: true - clear old data (v5.1.3 bugfix)
         return;
     }
 
@@ -1113,7 +1113,7 @@ function updatePieChart(data) {
         ]
     };
 
-    pieChart.setOption(option);
+    pieChart.setOption(option, true);  // notMerge: true - clear old data (v5.1.3 bugfix)
 }
 
 // Update global type filter (applies to Plan-Fact, Pie, Heatmap)
@@ -2055,7 +2055,7 @@ function updateCFOFilter() {
     if (pieChart) loadPieData(currentGlobalType, currentPeriod);
     if (heatmapChart) loadHeatmapData(currentPeriod);
     if (trendsChart) loadTrendsData(currentPeriod);
-    if (waterfallChart) loadWaterfallData(currentWaterfallPeriod);
+    if (waterfallChart) loadWaterfallData(currentPeriod, currentWaterfallArticleId);
 }
 
 /**

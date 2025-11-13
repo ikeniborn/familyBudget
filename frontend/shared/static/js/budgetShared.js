@@ -1319,6 +1319,12 @@
         async handleCategoryChange(event) {
             // v5.1.3: Support multiple selection
             if (this.options.multiple) {
+                // Check if choices instance exists (v5.1.3 bugfix)
+                if (!this.choices) {
+                    console.warn('[ChoicesCategoryTree] handleCategoryChange called but choices is null');
+                    return;
+                }
+
                 // Multiple mode: getValue() returns array of selected values
                 const selectedValues = this.choices.getValue(true);  // true = value only
                 const selectedCategories = selectedValues.map(id => this.categoryMap.get(parseInt(id))).filter(Boolean);
