@@ -72,7 +72,7 @@
                     <!-- CFO Filter (Financial Center) -->
                     <div class="flex flex-wrap items-center gap-3 mt-3">
                         <label for="cfo-filter" class="font-semibold text-sm">Финансовый центр:</label>
-                        <select id="cfo-filter" class="select select-sm select-bordered w-full sm:w-64" onchange="updateCFOFilter()">
+                        <select id="cfo-filter" class="select select-bordered w-full sm:w-64" onchange="updateCFOFilter()">
                             <option value="all" selected>Все центры</option>
                             <!-- Options will be loaded dynamically via JS from /api/v1/financial-centers/list -->
                         </select>
@@ -129,9 +129,6 @@
                             <select id="categories-filter" class="choices-category-tree" multiple data-placeholder="Выберите категории...">
                                 <!-- Options will be loaded dynamically via ChoicesCategoryTree (budgetShared.js) -->
                             </select>
-                            <p class="text-xs text-base-content/60">
-                                Применяется к: План&Факт, Разбивка по категориям, Тепловая карта
-                            </p>
                         </div>
                     </div>
                 </div>
@@ -149,7 +146,6 @@
                             <button class="btn btn-sm btn-primary" id="chart-mode-cumulative" onclick="updateChartMode('cumulative')" aria-pressed="true" title="Накопительный итог с начала периода">Накопительно</button>
                             <button class="btn btn-sm btn-outline" id="chart-mode-normal" onclick="updateChartMode('normal')" aria-pressed="false" title="Значения за каждый период">По периодам</button>
                         </div>
-                        <span class="text-xs text-base-content/60" id="chart-mode-hint">Накопительный итог с начала периода</span>
                     </div>
 
                     <div id="chart-plan-fact" class="chart-container" role="img" aria-label="Гистограмма сравнения плановых и фактических расходов"></div>
@@ -1731,26 +1727,14 @@ function updateHeatmapChart(data) {
             }
         },
         visualMap: {
-            type: 'piecewise',
-            pieces: [
-                {
-                    value: 0,
-                    color: '#FFFFFF',  // White for zero values (v5.1.3)
-                    label: 'Нет данных (0)'
-                },
-                {
-                    min: 0.01,
-                    max: maxValue > 0 ? maxValue : 1000,
-                    // Color gradient for non-zero values
-                    color: null,  // Use inRange colors
-                    label: 'Данные'
-                }
-            ],
+            type: 'continuous',
+            min: 0,
+            max: maxValue > 0 ? maxValue : 1000,
+            // Color gradient: white for zero, then shades of red/green
             inRange: {
-                // Red shades for expenses, green shades for income (for non-zero values)
                 color: currentGlobalType === 'expense'
-                    ? ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']
-                    : ['#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
+                    ? ['#FFFFFF', '#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']
+                    : ['#FFFFFF', '#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']
             },
             calculable: true,
             orient: 'horizontal',
@@ -2020,7 +2004,7 @@ function exportTrendsData(format) {
  */
 async function loadCFOList() {
     try {
-        const response = await fetch('/api/v1/financial-centers/list');
+        const response = await fetch('/api/v1/financial-centers/?limit=1000');
         if (!response.ok) {
             console.error('Failed to load CFO list:', response.statusText);
             return;
@@ -2032,7 +2016,7 @@ async function loadCFOList() {
         // Add CFO options
         data.financial_centers.forEach(cfo => {
             const option = document.createElement('option');
-            option.value = cfo.financial_center_id;
+            option.value = cfo.id;  // Fixed: use 'id' instead of 'financial_center_id' (v5.1.3)
             option.textContent = cfo.name;
             select.appendChild(option);
         });
@@ -2071,6 +2055,12 @@ function initCategoryFilter() {
     }
 
     try {
+        // Destroy previous instance if exists (v5.1.3 bugfix)
+        if (categoryChoices && typeof categoryChoices.destroy === 'function') {
+            categoryChoices.destroy();
+            categoryChoices = null;
+        }
+
         // Initialize ChoicesCategoryTree with current type (expense/income)
         categoryChoices = new BudgetShared.ChoicesCategoryTree('#categories-filter', {
             type: currentGlobalType,  // 'expense' or 'income'

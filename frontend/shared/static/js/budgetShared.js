@@ -517,16 +517,18 @@
                 this._createSingleButton(this.inputElement);
             } else {
                 // Range mode: create buttons for BOTH startInputElement and endInputElement
-                this._createSingleButton(this.startInputElement);
-                this._createSingleButton(this.endInputElement);
+                this._createSingleButton(this.startInputElement, false);  // isEndInput = false
+                this._createSingleButton(this.endInputElement, true);     // isEndInput = true (v5.1.3 bugfix)
             }
         }
 
         /**
          * Create a single calendar button for an input element
          * @private
+         * @param {HTMLElement} targetInput - Input element to attach button to
+         * @param {boolean} isEndInput - True if this is the end date input (range mode only)
          */
-        _createSingleButton(targetInput) {
+        _createSingleButton(targetInput, isEndInput = false) {
             // Create button
             const button = document.createElement('button');
             button.type = 'button';
@@ -560,7 +562,12 @@
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                this.open();
+                // v5.1.3 bugfix: If clicking end input button in range mode, force selecting end date
+                if (isEndInput && this.mode === 'range') {
+                    this.open(true);  // forceSelectingEnd = true
+                } else {
+                    this.open();
+                }
             });
         }
 
@@ -954,10 +961,21 @@
 
         /**
          * Open calendar
+         * @param {boolean} forceSelectingEnd - Force selecting end date in range mode (v5.1.3 bugfix)
          */
-        open() {
+        open(forceSelectingEnd = false) {
             this.isOpen = true;
             this.calendarElement.classList.remove('hidden');
+
+            // v5.1.3 bugfix: If opening for end date input in range mode
+            if (forceSelectingEnd && this.mode === 'range' && this.startDate) {
+                // User clicked on end date button - prepare to select end date
+                this.selectingEnd = true;
+                // Clear end date so user can select new one
+                this.endDate = null;
+                this.endInputElement.value = '';
+            }
+
             this._render(); // Re-render to show current selection
         }
 
