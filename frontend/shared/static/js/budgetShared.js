@@ -517,16 +517,18 @@
                 this._createSingleButton(this.inputElement);
             } else {
                 // Range mode: create buttons for BOTH startInputElement and endInputElement
-                this._createSingleButton(this.startInputElement);
-                this._createSingleButton(this.endInputElement);
+                this._createSingleButton(this.startInputElement, false);  // isEndInput = false
+                this._createSingleButton(this.endInputElement, true);     // isEndInput = true (v5.1.3 bugfix)
             }
         }
 
         /**
          * Create a single calendar button for an input element
          * @private
+         * @param {HTMLElement} targetInput - Input element to attach button to
+         * @param {boolean} isEndInput - True if this is the end date input (range mode only)
          */
-        _createSingleButton(targetInput) {
+        _createSingleButton(targetInput, isEndInput = false) {
             // Create button
             const button = document.createElement('button');
             button.type = 'button';
@@ -560,7 +562,12 @@
             button.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                this.open();
+                // v5.1.3 bugfix: If clicking end input button in range mode, force selecting end date
+                if (isEndInput && this.mode === 'range') {
+                    this.open(true);  // forceSelectingEnd = true
+                } else {
+                    this.open();
+                }
             });
         }
 
@@ -600,13 +607,13 @@
                   </button>
 
                   <div class="flex items-center gap-2">
-                    <select class="select select-sm select-bordered" data-action="select-month" aria-label="Выбрать месяц">
+                    <select class="select select-bordered h-10" data-action="select-month" aria-label="Выбрать месяц">
                       ${CalendarWidget.MONTH_NAMES.map((name, i) =>
                         `<option value="${i}" ${i === this.currentMonth ? 'selected' : ''}>${name}</option>`
                       ).join('')}
                     </select>
 
-                    <select class="select select-sm select-bordered" data-action="select-year" aria-label="Выбрать год">
+                    <select class="select select-bordered h-10" data-action="select-year" aria-label="Выбрать год">
                       ${this._generateYearOptions()}
                     </select>
                   </div>
@@ -777,6 +784,9 @@
                 const target = e.target.closest('[data-action]');
                 if (!target) return;
 
+                // Stop propagation to prevent "click outside" handler from closing calendar (v5.1.3 bugfix)
+                e.stopPropagation();
+
                 const action = target.dataset.action;
 
                 switch (action) {
@@ -802,6 +812,9 @@
             this.calendarElement.addEventListener('change', (e) => {
                 const target = e.target;
 
+                // Stop propagation to prevent "click outside" handler (v5.1.3 bugfix)
+                e.stopPropagation();
+
                 if (target.dataset.action === 'select-month') {
                     this.currentMonth = parseInt(target.value);
                     this._render();
@@ -824,13 +837,24 @@
                 this._handleDateSelection(date);
             });
 
-            // Click outside to close
+            // Click outside to close (v5.1.3 bugfix: don't close on internal actions)
             document.addEventListener('click', (e) => {
-                if (this.isOpen &&
-                    !this.calendarElement.contains(e.target) &&
-                    !this.triggerButton.contains(e.target)) {
-                    this.close();
+                if (!this.isOpen) return;
+
+                // Don't close if clicking inside calendar (including navigation arrows/selects)
+                if (this.calendarElement.contains(e.target)) return;
+
+                // Don't close if clicking on trigger button
+                if (this.triggerButton && this.triggerButton.contains(e.target)) return;
+
+                // Check if there are additional trigger buttons (range mode)
+                const allButtons = document.querySelectorAll('button[aria-label="Открыть календарь"]');
+                for (const btn of allButtons) {
+                    if (btn.contains(e.target)) return;
                 }
+
+                // Close if clicking outside
+                this.close();
             });
 
             // Keyboard navigation
@@ -873,32 +897,67 @@
             }
 
             if (this.mode === 'range') {
-                if (!this.startDate || (this.startDate && this.endDate)) {
-                    // Start new range
-                    this.startDate = date;
-                    this.endDate = null;
-                    this.selectingEnd = true;
-                    const displayDate = DateFormatter.formatForDisplay(this._formatDateISO(date));
-                    this.startInputElement.value = displayDate;
-                    this.endInputElement.value = '';
-                    this._render();
-                } else {
-                    // Select end date
-                    if (date < this.startDate) {
-                        // Swap if end < start
-                        this.endDate = this.startDate;
+                // v5.1.3 bugfix: Preserve existing dates when changing one of them
+                if (this.selectingEnd) {
+                    // Selecting END date - preserve START date
+                    this.endDate = date;
+
+                    // Swap if end < start
+                    if (this.startDate && date < this.startDate) {
+                        const temp = this.startDate;
                         this.startDate = date;
-                    } else {
-                        this.endDate = date;
+                        this.endDate = temp;
                     }
 
-                    const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                    // Update inputs
+                    if (this.startDate) {
+                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                        this.startInputElement.value = startDisplay;
+                    }
                     const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                    this.startInputElement.value = startDisplay;
                     this.endInputElement.value = endDisplay;
-                    this.selectingEnd = false;
-                    this.onSelect(startDisplay, endDisplay);
-                    this.close();
+
+                    // If both dates selected, trigger callback and close
+                    if (this.startDate && this.endDate) {
+                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                        this.onSelect(startDisplay, endDisplay);
+                        this.close();
+                    } else {
+                        // Only end date selected, keep calendar open to select start
+                        this.selectingEnd = false;
+                        this._render();
+                    }
+                } else {
+                    // Selecting START date - preserve END date
+                    this.startDate = date;
+
+                    // Swap if end < start
+                    if (this.endDate && this.endDate < date) {
+                        const temp = this.endDate;
+                        this.endDate = date;
+                        this.startDate = temp;
+                    }
+
+                    // Update inputs
+                    const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                    this.startInputElement.value = startDisplay;
+                    if (this.endDate) {
+                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                        this.endInputElement.value = endDisplay;
+                    }
+
+                    // If both dates selected, trigger callback and close
+                    if (this.startDate && this.endDate) {
+                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                        this.onSelect(startDisplay, endDisplay);
+                        this.close();
+                    } else {
+                        // Only start date selected, switch to selecting end
+                        this.selectingEnd = true;
+                        this._render();
+                    }
                 }
             }
         }
@@ -954,10 +1013,17 @@
 
         /**
          * Open calendar
+         * @param {boolean} forceSelectingEnd - Force selecting end date in range mode (v5.1.3 bugfix)
          */
-        open() {
+        open(forceSelectingEnd = false) {
             this.isOpen = true;
             this.calendarElement.classList.remove('hidden');
+
+            // v5.1.3 bugfix: Set selection mode based on which input was clicked
+            if (this.mode === 'range') {
+                this.selectingEnd = forceSelectingEnd;
+            }
+
             this._render(); // Re-render to show current selection
         }
 
@@ -1010,10 +1076,13 @@
          * @param {Object} options - Configuration options
          * @param {string} options.type - Category type ('income' or 'expense')
          * @param {Object} [options.auth] - OPTIONAL: Auth instance with getToken() method (for WebApp Bearer token)
-         * @param {Function} options.onCategoryChange - Callback when category changes
+         * @param {Function} options.onChange - Callback when category changes (receives category object or array for multiple)
+         * @param {Function} [options.onCategoryChange] - DEPRECATED: Use onChange instead
          * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
          * @param {boolean} options.showLeafOnly - Show only leaf categories (default: true)
          * @param {boolean} options.showInactive - Include archived categories (default: false)
+         * @param {boolean} options.multiple - Enable multiple selection (default: false) (v5.1.3)
+         * @param {boolean} options.showPath - Show breadcrumb path under selector (default: true) (v5.1.3)
          */
         constructor(selector, options = {}) {
             this.selector = selector;
@@ -1030,10 +1099,13 @@
             this.auth = options.auth || null;  // Store auth instance (nullable)
             this.options = {
                 type: options.type || 'expense',
-                onCategoryChange: options.onCategoryChange || null,
+                // Support both new onChange and legacy onCategoryChange (v5.1.3)
+                onChange: options.onChange || options.onCategoryChange || null,
                 apiBaseUrl: options.apiBaseUrl || '/api/v1',
                 showLeafOnly: options.showLeafOnly !== false,  // Default true
                 showInactive: options.showInactive || false,  // Default false - hide archived categories
+                multiple: options.multiple || false,  // Default false (v5.1.3)
+                showPath: options.showPath !== false,  // Default true (v5.1.3)
             };
 
             this.choices = null;
@@ -1065,13 +1137,15 @@
                 // Initialize Choices.js
                 this.initChoices(displayCategories);
 
-                // Setup path display
-                this.setupPathDisplay();
+                // Setup path display (only if showPath is enabled) (v5.1.3)
+                if (this.options.showPath) {
+                    this.setupPathDisplay();
 
-                // Restore selected value if exists
-                const selectedId = this.element.value;
-                if (selectedId) {
-                    await this.updatePathDisplay(parseInt(selectedId));
+                    // Restore selected value if exists
+                    const selectedId = this.element.value;
+                    if (selectedId) {
+                        await this.updatePathDisplay(parseInt(selectedId));
+                    }
                 }
 
                 console.log('[ChoicesCategoryTree] Initialized successfully');
@@ -1219,6 +1293,7 @@
                 noChoicesText: 'Нет доступных категорий',
                 itemSelectText: '',
                 shouldSort: false,  // Keep our API sorting (by usage_count)
+                removeItemButton: this.options.multiple,  // Show X button for multiple mode (v5.1.3)
 
                 // Fuzzy search configuration (built-in Fuse.js)
                 fuseOptions: {
@@ -1290,22 +1365,47 @@
          * @param {Event} event - Change event
          */
         async handleCategoryChange(event) {
-            const categoryId = parseInt(event.target.value);
+            // v5.1.3: Support multiple selection
+            if (this.options.multiple) {
+                // Check if choices instance exists (v5.1.3 bugfix)
+                if (!this.choices) {
+                    console.warn('[ChoicesCategoryTree] handleCategoryChange called but choices is null');
+                    return;
+                }
 
-            if (!categoryId) {
-                this.pathDisplay.textContent = '';
-                return;
-            }
+                // Multiple mode: getValue() returns array of selected values
+                const selectedValues = this.choices.getValue(true);  // true = value only
+                const selectedCategories = selectedValues.map(id => this.categoryMap.get(parseInt(id))).filter(Boolean);
 
-            console.log(`[ChoicesCategoryTree] Category changed: ${categoryId}`);
+                console.log(`[ChoicesCategoryTree] Categories changed (multiple):`, selectedValues);
 
-            // Update path display
-            await this.updatePathDisplay(categoryId);
+                // Call user callback with array
+                if (this.options.onChange) {
+                    this.options.onChange(selectedCategories);
+                }
+            } else {
+                // Single mode: traditional behavior
+                const categoryId = parseInt(event.target.value);
 
-            // Call user callback
-            if (this.options.onCategoryChange) {
-                const category = this.categoryMap.get(categoryId);
-                this.options.onCategoryChange(category);
+                if (!categoryId) {
+                    if (this.pathDisplay) {
+                        this.pathDisplay.textContent = '';
+                    }
+                    return;
+                }
+
+                console.log(`[ChoicesCategoryTree] Category changed: ${categoryId}`);
+
+                // Update path display (only in single mode with showPath)
+                if (this.options.showPath) {
+                    await this.updatePathDisplay(categoryId);
+                }
+
+                // Call user callback with single category
+                if (this.options.onChange) {
+                    const category = this.categoryMap.get(categoryId);
+                    this.options.onChange(category);
+                }
             }
         }
 

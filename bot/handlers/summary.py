@@ -118,7 +118,7 @@ async def summary_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Show period selection keyboard
     await update.message.reply_text(
-        "📊 *Сводка: План vs Факт*\n\n" "Выберите период для анализа:",
+        "📊 *Сводка: План&Факт*\n\n" "Выберите период для анализа:",
         reply_markup=build_period_keyboard(),
         parse_mode="Markdown",
     )
@@ -318,7 +318,7 @@ def format_plan_vs_fact_summary(
         str: Formatted summary message (Markdown)
 
     Example output:
-        📊 **Сводка: План vs Факт**
+        📊 **Сводка: План&Факт**
         📅 Месяц: 01.10.2025 - 31.10.2025
 
         💰 **ИТОГО:**
@@ -343,7 +343,7 @@ def format_plan_vs_fact_summary(
           Факт:  6 000.00 ₽
           ⚠️ 120% (превышение: 1 000.00 ₽)
     """
-    message_parts = ["📊 *Сводка: План vs Факт*"]
+    message_parts = ["📊 *Сводка: План&Факт*"]
 
     # Date range
     if date_from == date_to:

@@ -358,6 +358,8 @@ async def get_plan_fact_data(
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", regex="^(income|expense)$"),
     chart_mode: str = Query("cumulative", regex="^(normal|cumulative)$"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
+    article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -398,28 +400,26 @@ async def get_plan_fact_data(
         if date_from and date_to:
             start_date = date_from
             end_date = date_to
-            # Auto-determine grouping based on days difference
+            # Auto-determine grouping based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
-            if days_diff <= 7:
-                period = "month"  # Group by day
+
+            if days_diff <= 31:
+                # <= 31 days: Group by calendar dates (daily)
+                period = "month"
                 periods_count = days_diff
-                date_format = None  # Russian day names
-            elif days_diff <= 31:
-                period = "month"  # Group by day (8-31 days)
-                periods_count = days_diff
-                date_format = "%d"
+                date_format = "%d" if days_diff > 7 else None  # Russian day names for <= 7 days
             elif days_diff <= 91:
-                period = "quarter"  # Group by week (32-91 days)
-                periods_count = (days_diff + 6) // 7  # Number of weeks
+                # > 31 and <= 91 days: Group by calendar weeks (weekly)
+                period = "quarter"
+                periods_count = (days_diff + 6) // 7  # Number of weeks (rounded up)
                 date_format = "week"
-            elif days_diff <= 365:
-                period = "year"  # Group by month (92-365 days)
-                periods_count = 12  # Max 12 months
-                date_format = "month"
             else:
-                period = "year"  # Group by year (>365 days)
-                periods_count = (end_date.year - start_date.year) + 1
-                date_format = "year"
+                # > 91 days: Group by calendar months (monthly)
+                period = "year"
+                # Calculate actual number of months in the range
+                months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+                periods_count = months_diff
+                date_format = "month"
         elif period:
             # Calculate date range based on CALENDAR period (from 1st day to today)
             if period == "month":
@@ -452,7 +452,17 @@ async def get_plan_fact_data(
             Fact.record_type == "fact",
             Article.type == article_type,
             Article.is_current == True  # noqa: E712
-        ).group_by(Fact.fact_date).order_by(Fact.fact_date)
+        )
+
+        # Apply CFO filter if specified (v5.1.3)
+        if cfo_id is not None:
+            fact_query = fact_query.where(Fact.financial_center_id == cfo_id)
+
+        # Apply category filter if specified (v5.1.3)
+        if article_ids:
+            fact_query = fact_query.where(Fact.article_id.in_(article_ids))
+
+        fact_query = fact_query.group_by(Fact.fact_date).order_by(Fact.fact_date)
 
         fact_result = await session.execute(fact_query)
         fact_by_date = {row.fact_date: float(row.total) for row in fact_result.all()}
@@ -468,7 +478,17 @@ async def get_plan_fact_data(
             Fact.record_type == "plan",
             Article.type == article_type,
             Article.is_current == True  # noqa: E712
-        ).group_by(Fact.fact_date).order_by(Fact.fact_date)
+        )
+
+        # Apply CFO filter if specified (v5.1.3)
+        if cfo_id is not None:
+            plan_query = plan_query.where(Fact.financial_center_id == cfo_id)
+
+        # Apply category filter if specified (v5.1.3)
+        if article_ids:
+            plan_query = plan_query.where(Fact.article_id.in_(article_ids))
+
+        plan_query = plan_query.group_by(Fact.fact_date).order_by(Fact.fact_date)
 
         plan_result = await session.execute(plan_query)
         plan_by_date = {row.fact_date: float(row.total) for row in plan_result.all()}
@@ -646,6 +666,7 @@ async def get_trends_data(
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -670,18 +691,17 @@ async def get_trends_data(
         if date_from and date_to:
             start_date = date_from
             end_date = date_to
-            # Auto-determine grouping based on days difference
+            # Auto-determine grouping based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
-            if days_diff <= 7:
-                period = "month"  # Group by day
-            elif days_diff <= 31:
-                period = "month"  # Group by day (8-31 days)
+            if days_diff <= 31:
+                # <= 31 days: Group by calendar dates (daily)
+                period = "month"
             elif days_diff <= 91:
-                period = "quarter"  # Group by week (32-91 days)
-            elif days_diff <= 365:
-                period = "year"  # Group by month (92-365 days)
+                # > 31 and <= 91 days: Group by calendar weeks (weekly)
+                period = "quarter"
             else:
-                period = "year"  # Group by year (>365 days)
+                # > 91 days: Group by calendar months (monthly)
+                period = "year"
         elif period:
             # Calculate date range based on CALENDAR period (from 1st day to today)
             if period == "month":
@@ -707,7 +727,13 @@ async def get_trends_data(
             Fact.fact_date <= end_date,
             Fact.record_type == record_type,
             Article.is_current == True  # noqa: E712
-        ).group_by(Fact.fact_date, Article.type).order_by(Fact.fact_date)
+        )
+
+        # Apply CFO filter if specified (v5.1.3)
+        if cfo_id is not None:
+            query = query.where(Fact.financial_center_id == cfo_id)
+
+        query = query.group_by(Fact.fact_date, Article.type).order_by(Fact.fact_date)
 
         result = await session.execute(query)
         rows = result.all()
@@ -725,19 +751,63 @@ async def get_trends_data(
         expense_data = []
 
         if period == "month":
-            # Для period='month': агрегация по дням календарного месяца (числа 1-31)
+            # Для period='month' (≤31 дней): агрегация по календарным датам (daily)
+            month_names_short = [
+                "янв", "фев", "мар", "апр", "май", "июн",
+                "июл", "авг", "сен", "окт", "ноя", "дек"
+            ]
+
+            # Check if period crosses month boundary (v5.1.3: show month if crosses)
+            crosses_month = start_date.month != end_date.month or start_date.year != end_date.year
+
             current_date = start_date
             while current_date <= end_date:
-                # Число месяца (1-31)
-                day_label = str(current_date.day)
+                # Show month name if period crosses month boundary
+                if crosses_month:
+                    day_label = f"{current_date.day} {month_names_short[current_date.month - 1]}"
+                else:
+                    day_label = str(current_date.day)
+
                 day_data = data_by_date.get(current_date, {"income": 0.0, "expense": 0.0})
                 labels.append(day_label)
                 income_data.append(day_data["income"])
                 expense_data.append(day_data["expense"])
                 current_date += timedelta(days=1)
 
-        elif period == "quarter" or period == "year":
-            # Для quarter/year: агрегация по календарным месяцам
+        elif period == "quarter":
+            # Для period='quarter' (>31 и ≤91 дней): агрегация по календарным неделям (weekly) (v5.1.3 fix)
+            # Iterate through weeks from start_date to end_date
+            current_date = start_date
+            # Find the Monday of the week containing start_date
+            week_start = current_date - timedelta(days=current_date.weekday())
+
+            while week_start <= end_date:
+                week_end = week_start + timedelta(days=6)
+                # Don't go beyond the overall range
+                actual_week_end = min(week_end, end_date)
+                actual_week_start = max(week_start, start_date)
+
+                # Aggregate week data
+                week_income = sum(
+                    data["income"] for d, data in data_by_date.items()
+                    if actual_week_start <= d <= actual_week_end
+                )
+                week_expense = sum(
+                    data["expense"] for d, data in data_by_date.items()
+                    if actual_week_start <= d <= actual_week_end
+                )
+
+                # Label: "Нед дд.мм-дд.мм"
+                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
+                labels.append(week_label)
+                income_data.append(week_income)
+                expense_data.append(week_expense)
+
+                # Move to next week
+                week_start += timedelta(days=7)
+
+        elif period == "year":
+            # Для period='year' (>91 дней): агрегация по календарным месяцам (monthly)
             month_names_ru = [
                 "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
@@ -801,6 +871,8 @@ async def get_category_breakdown(
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
+    article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -856,7 +928,17 @@ async def get_category_breakdown(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
             Article.is_current == True  # noqa: E712
-        ).group_by(Article.name).order_by(func.sum(Fact.amount).desc())
+        )
+
+        # Apply CFO filter if specified (v5.1.3)
+        if cfo_id is not None:
+            query = query.where(Fact.financial_center_id == cfo_id)
+
+        # Apply category filter if specified (v5.1.3)
+        if article_ids:
+            query = query.where(Fact.article_id.in_(article_ids))
+
+        query = query.group_by(Article.name).order_by(func.sum(Fact.amount).desc())
 
         result = await session.execute(query)
         rows = result.all()
@@ -905,6 +987,7 @@ async def get_waterfall_data(
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_id: int | None = Query(None, description="Filter by specific article (for drill-down)"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -931,24 +1014,23 @@ async def get_waterfall_data(
         if date_from and date_to:
             start_date = date_from
             end_date = date_to
-            # Auto-determine grouping based on days difference
+            # Auto-determine grouping based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
             if days_diff <= 31:
-                period = "month"  # Group by day (≤31 days)
-                group_by_expr = Fact.fact_date
-                label_format = "%d"
+                # <= 31 days: Group by calendar dates (daily)
+                period = "month"
+                group_by_expr = Fact.fact_date  # v5.1.3: use fact_date directly for DATE field
+                label_format = "day"
             elif days_diff <= 91:
-                period = "quarter"  # Group by week (32-91 days)
-                group_by_expr = func.extract("week", Fact.fact_date)
-                label_format = "W%W"
-            elif days_diff <= 365:
-                period = "year"  # Group by month (92-365 days)
-                group_by_expr = func.extract("month", Fact.fact_date)
-                label_format = "month"
+                # > 31 and <= 91 days: Group by calendar weeks (weekly)
+                period = "quarter"
+                group_by_expr = func.date_trunc("week", Fact.fact_date)
+                label_format = "week"
             else:
-                period = "year"  # Group by year (>365 days)
-                group_by_expr = func.extract("year", Fact.fact_date)
-                label_format = "year"
+                # > 91 days: Group by calendar months (monthly)
+                period = "year"
+                group_by_expr = func.date_trunc("month", Fact.fact_date)
+                label_format = "month"
         elif period:
             # Calculate date range and grouping based on CALENDAR period (from 1st day to today)
             if period == "month":
@@ -988,6 +1070,10 @@ async def get_waterfall_data(
         if article_id:
             query = query.where(Article.id == article_id)
 
+        # Apply CFO filter if specified (v5.1.3)
+        if cfo_id is not None:
+            query = query.where(Fact.financial_center_id == cfo_id)
+
         query = query.group_by(group_by_expr, Article.type, Article.id, Article.name).order_by(group_by_expr)
 
         result = await session.execute(query)
@@ -998,9 +1084,18 @@ async def get_waterfall_data(
         articles_info = {}  # Track articles for drill-down
 
         for row in rows:
-            # For all cases, keep period_key as is (date object or int from SQL)
-            # Don't convert date to int - we need full date for aggregation
-            period_key = row.period_key if row.period_key else 0
+            # Convert period_key to date object (v5.1.3 critical fix for date_trunc)
+            # date_trunc returns timestamp/datetime, we need date for period_data keys
+            period_key_raw = row.period_key if row.period_key else 0
+
+            if period_key_raw == 0:
+                period_key = 0
+            elif isinstance(period_key_raw, date) and not isinstance(period_key_raw, datetime):
+                # Already a date object
+                period_key = period_key_raw
+            else:
+                # datetime or timestamp - convert to date
+                period_key = period_key_raw.date() if hasattr(period_key_raw, 'date') else period_key_raw
 
             if period_key not in period_data:
                 period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
@@ -1045,6 +1140,10 @@ async def get_waterfall_data(
         if article_id:
             initial_balance_query = initial_balance_query.where(Article.id == article_id)
 
+        # Apply CFO filter if specified (v5.1.3)
+        if cfo_id is not None:
+            initial_balance_query = initial_balance_query.where(Fact.financial_center_id == cfo_id)
+
         initial_balance_result = await session.execute(initial_balance_query)
         initial_balance = initial_balance_result.scalar()
         initial_balance = float(initial_balance) if initial_balance is not None else 0.0
@@ -1059,11 +1158,22 @@ async def get_waterfall_data(
         cumulative_balance = initial_balance
 
         if label_format == "day":
-            # Для периода месяц: показывать числа месяца (1-31)
+            # Для периода ≤31 день: показывать дни (v5.1.3: с месяцем если пересекает границу)
+            month_names_short = [
+                "янв", "фев", "мар", "апр", "май", "июн",
+                "июл", "авг", "сен", "окт", "ноя", "дек"
+            ]
+
+            # Check if period crosses month boundary
+            crosses_month = start_date.month != end_date.month or start_date.year != end_date.year
+
             current_date = start_date
             while current_date <= end_date:
-                # Число месяца (1-31)
-                day_label = str(current_date.day)
+                # Show month name if period crosses month boundary
+                if crosses_month:
+                    day_label = f"{current_date.day} {month_names_short[current_date.month - 1]}"
+                else:
+                    day_label = str(current_date.day)
 
                 day_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
                 income = day_info["income"]
@@ -1080,57 +1190,55 @@ async def get_waterfall_data(
                 current_date += timedelta(days=1)
 
         elif label_format == "week":
-            # Для month периода: агрегация по 4 календарным неделям
-            rolling_weeks_data = get_rolling_weeks(4, end_date, include_incomplete=True)
-            for week_start, week_end, iso_label in rolling_weeks_data:
-                # Агрегировать данные за неделю из period_data (ключи - даты)
-                week_income = 0.0
-                week_expense = 0.0
-                week_articles = []
+            # Для custom range >31 и ≤91 дней: агрегация по календарным неделям (v5.1.3 fix)
+            # Generate ALL weeks in range, even if no data exists
+            # Find Monday of the week containing start_date
+            week_start = start_date - timedelta(days=start_date.weekday())
 
-                for day_date in period_data.keys():
-                    if isinstance(day_date, date) and week_start <= day_date <= week_end:
-                        week_income += period_data[day_date]["income"]
-                        week_expense += period_data[day_date]["expense"]
-                        week_articles.extend(period_data[day_date].get("articles", []))
+            while week_start <= end_date:
+                # Find the Monday from date_trunc result (if exists in period_data)
+                # period_data keys are week start dates (Mondays) from date_trunc('week')
+                week_data = period_data.get(week_start, {"income": 0.0, "expense": 0.0, "articles": []})
 
+                week_income = week_data["income"]
+                week_expense = week_data["expense"]
                 week_balance = week_income - week_expense
                 cumulative_balance += week_balance
 
-                labels.append(iso_label)
+                # Format label as "Нед дд.мм-дд.мм"
+                week_end = week_start + timedelta(days=6)
+                # Don't go beyond the overall range
+                actual_week_end = min(week_end, end_date)
+                actual_week_start = max(week_start, start_date)
+
+                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
+
+                labels.append(week_label)
                 income_data.append(week_income)
                 expense_data.append(week_expense)
                 balance_data.append(cumulative_balance)
-                categories_data.append(week_articles)
+                categories_data.append(week_data.get("articles", []))
+
+                # Move to next week
+                week_start += timedelta(days=7)
 
         elif label_format == "month":
-            # Для quarter/year: агрегация по календарным месяцам
+            # Для custom range >91 дней: агрегация по календарным месяцам (v5.1.3 fix)
             month_names_ru = [
                 "Янв", "Фев", "Мар", "Апр", "Май", "Июн",
                 "Июл", "Авг", "Сен", "Окт", "Ноя", "Дек"
             ]
 
-            current_date = start_date
+            # Generate ALL months in range, even if no data exists
+            current_date = date(start_date.year, start_date.month, 1)  # First day of start month
+
             while current_date <= end_date:
-                # Первый и последний день текущего месяца
-                month_start = date(current_date.year, current_date.month, 1)
-                import calendar as cal_module
-                _, last_day = cal_module.monthrange(current_date.year, current_date.month)
-                month_end = date(current_date.year, current_date.month, last_day)
-                # Обрезать до end_date если месяц неполный
-                month_end = min(month_end, end_date)
+                # Find month start from date_trunc result (if exists in period_data)
+                # period_data keys are month start dates (1st of month) from date_trunc('month')
+                month_data = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
 
-                # Агрегировать данные за месяц из period_data (ключи - даты)
-                month_income = 0.0
-                month_expense = 0.0
-                month_articles = []
-
-                for day_date in period_data.keys():
-                    if isinstance(day_date, date) and month_start <= day_date <= month_end:
-                        month_income += period_data[day_date]["income"]
-                        month_expense += period_data[day_date]["expense"]
-                        month_articles.extend(period_data[day_date].get("articles", []))
-
+                month_income = month_data["income"]
+                month_expense = month_data["expense"]
                 month_balance = month_income - month_expense
                 cumulative_balance += month_balance
 
@@ -1140,9 +1248,9 @@ async def get_waterfall_data(
                 income_data.append(month_income)
                 expense_data.append(month_expense)
                 balance_data.append(cumulative_balance)
-                categories_data.append(month_articles)
+                categories_data.append(month_data.get("articles", []))
 
-                # Переход к следующему месяцу
+                # Move to next month
                 if current_date.month == 12:
                     current_date = date(current_date.year + 1, 1, 1)
                 else:
@@ -1206,6 +1314,8 @@ async def get_heatmap_data(
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", regex="^(income|expense)$"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
+    cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
+    article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -1234,18 +1344,17 @@ async def get_heatmap_data(
         if date_from and date_to:
             start_date = date_from
             end_date = date_to
-            # Auto-determine aggregation based on days difference
+            # Auto-determine aggregation based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
-            if days_diff <= 7:
+            if days_diff <= 31:
+                # <= 31 days: aggregate by calendar dates (daily)
                 aggregation = "day"
-            elif days_diff <= 31:
-                aggregation = "day"  # Show by day (8-31 days)
             elif days_diff <= 91:
-                aggregation = "week"  # Show by week (32-91 days)
-            elif days_diff <= 365:
-                aggregation = "month"  # Show by month (92-365 days)
+                # > 31 and <= 91 days: aggregate by calendar weeks (weekly)
+                aggregation = "week"
             else:
-                aggregation = "year"  # Show by year (>365 days)
+                # > 91 days: aggregate by calendar months (monthly)
+                aggregation = "month"
         elif period:
             # Calculate date range and aggregation based on CALENDAR period (from 1st day to today)
             if period == "month":
@@ -1274,7 +1383,17 @@ async def get_heatmap_data(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
             Article.is_current == True  # noqa: E712
-        ).group_by(Fact.fact_date)
+        )
+
+        # Apply CFO filter if specified (v5.1.3)
+        if cfo_id is not None:
+            query = query.where(Fact.financial_center_id == cfo_id)
+
+        # Apply category filter if specified (v5.1.3)
+        if article_ids:
+            query = query.where(Fact.article_id.in_(article_ids))
+
+        query = query.group_by(Fact.fact_date)
 
         result = await session.execute(query)
         rows = result.all()
@@ -1307,23 +1426,32 @@ async def get_heatmap_data(
             data = [week_data]  # Single row
 
         elif aggregation == "week":
-            # Для периода "месяц": 4 недели × 7 дней grid
+            # Для custom range >31 и ≤91 дней: недели × 7 дней grid (v5.1.3 fix)
             # X-axis: дни недели (Пн-Вс)
-            # Y-axis: ISO номера недель
+            # Y-axis: недели (Нед дд.мм-дд.мм)
             day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
             xAxis = day_names
             yAxis = []
             data = []
 
-            # Получить rolling weeks
-            rolling_weeks_data = get_rolling_weeks(4, end_date, include_incomplete=True)
-
-            # Build date_mapping for tooltip display (month period only)
+            # Build date_mapping for tooltip display
             # Format: {yIndex: {xIndex: "DD.MM.YYYY"}}
             date_mapping = {}
 
-            for week_idx, (week_start, week_end, iso_label) in enumerate(rolling_weeks_data):
-                yAxis.append(iso_label)
+            # Generate ALL weeks in custom range (not just last 4)
+            # Find Monday of the week containing start_date
+            week_start = start_date - timedelta(days=start_date.weekday())
+
+            week_idx = 0
+            while week_start <= end_date:
+                week_end = week_start + timedelta(days=6)
+                # Don't go beyond the overall range
+                actual_week_end = min(week_end, end_date)
+                actual_week_start = max(week_start, start_date)
+
+                # Label: "Нед дд.мм-дд.мм"
+                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
+                yAxis.append(week_label)
 
                 # Генерация данных для недели
                 week_data = []
@@ -1331,16 +1459,19 @@ async def get_heatmap_data(
 
                 for day_offset in range(7):  # Mon-Sun
                     current_date = week_start + timedelta(days=day_offset)
-                    if current_date <= week_end:
+                    # Only include data if within the actual range
+                    if start_date <= current_date <= end_date:
                         amount = data_by_date.get(current_date, 0.0)
-                        # Add date string for tooltip
-                        if start_date <= current_date <= end_date:
-                            date_mapping[week_idx][day_offset] = current_date.strftime("%d.%m.%Y")
+                        date_mapping[week_idx][day_offset] = current_date.strftime("%d.%m.%Y")
                     else:
-                        amount = 0.0  # Beyond week_end
+                        amount = 0.0  # Outside range
                     week_data.append(amount)
 
                 data.append(week_data)
+
+                # Move to next week
+                week_start += timedelta(days=7)
+                week_idx += 1
 
         elif aggregation == "month":
             # Для периода "квартал/год": месяцы × недели grid
