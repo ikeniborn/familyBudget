@@ -8,9 +8,19 @@
 2. JavaScript получает данные от Telegram: `{id, first_name, hash, ...}`
 3. POST `/api/v1/auth/telegram` с данными
 4. Backend валидирует hash: `HMAC-SHA256(data, SHA256(bot_token))`
-5. Создание/обновление user в БД
+5. **Автосоздание/обновление user в БД:**
+   - Если пользователя нет → создать с `is_active=False` (неактивный)
+   - Если пользователь есть → обновить профиль (SCD Type 2)
+   - Проверить `is_active`: если `False` → 403 Forbidden с сообщением "Ожидает активации"
+   - Обновить `last_login_at = NOW()`
 6. Генерация JWT токена (python-jose)
 7. Set-Cookie с `httpOnly`, `secure`, `sameSite=strict`
+
+**NEW: User Activation Flow:**
+- Новые пользователи создаются автоматически с `is_active=False`
+- Админ видит неактивных пользователей в `/admin/users`
+- Админ активирует пользователя через кнопку "Активировать"
+- После активации пользователь может войти в систему
 
 **Hash Validation Example (Python):**
 

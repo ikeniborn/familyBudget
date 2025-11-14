@@ -62,6 +62,12 @@ class UserCreate(BaseModel):
         examples=[False, True]
     )
 
+    is_active: bool = Field(
+        default=False,
+        description="User activation status (default: False, admin must activate)",
+        examples=[False, True]
+    )
+
 
 class UserUpdate(BaseModel):
     """
@@ -71,18 +77,24 @@ class UserUpdate(BaseModel):
     Regular users cannot update their own data (comes from Telegram).
 
     Validation Rules:
-        - Only is_admin field can be updated
-        - Used for promoting/demoting admins
+        - is_admin and is_active fields can be updated
+        - Used for promoting/demoting admins and activating/deactivating users
 
     Notes:
         - User data (name, username) comes from Telegram OAuth
         - Cannot be manually updated
-        - SCD Type 2 update creates new version
+        - is_active changes: Simple UPDATE (NOT SCD Type 2)
+        - is_admin changes: SCD Type 2 update creates new version
     """
 
     is_admin: bool = Field(
         ...,
         description="Admin status flag",
+        examples=[True, False]
+    )
+    is_active: bool = Field(
+        default=True,
+        description="User activation status (controlled by admin)",
         examples=[True, False]
     )
 
@@ -134,6 +146,17 @@ class UserDetailResponse(BaseModel):
         examples=[False, True]
     )
 
+    is_active: bool = Field(
+        description="User activation status (controlled by admin)",
+        examples=[True, False]
+    )
+
+    last_login_at: Optional[datetime] = Field(
+        default=None,
+        description="Timestamp of last successful login",
+        examples=["2025-11-14T10:30:00Z", None]
+    )
+
     # SCD Type 2 fields
     valid_from: datetime = Field(
         description="Start of validity period",
@@ -172,6 +195,8 @@ class UserDetailResponse(BaseModel):
                 "last_name": "Doe",
                 "photo_url": "/static/avatars/1.jpg",
                 "is_admin": False,
+                "is_active": True,
+                "last_login_at": "2025-11-14T10:30:00Z",
                 "valid_from": "2025-10-13T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
                 "is_current": True,

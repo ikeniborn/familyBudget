@@ -31,6 +31,8 @@ class User(SQLModel, table=True):
         last_name: User's last name (optional)
         photo_url: Local path to cached profile photo (optional)
         is_admin: Admin flag for access control
+        is_active: User activation status (controlled by admin, default=False)
+        last_login_at: Timestamp of last successful login (optional)
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
         is_current: Flag indicating if this is the current version
@@ -79,6 +81,18 @@ class User(SQLModel, table=True):
         default=False,
         nullable=False,
         description="Admin access flag"
+    )
+    is_active: bool = Field(
+        default=False,
+        nullable=False,
+        index=True,
+        description="User activation status (controlled by admin). New users are inactive by default."
+    )
+    last_login_at: Optional[datetime] = Field(
+        default=None,
+        nullable=True,
+        index=True,
+        description="Timestamp of last successful login"
     )
 
     # SCD Type 2 fields
