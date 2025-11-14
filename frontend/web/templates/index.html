@@ -189,12 +189,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа транзакции (Расход/Доход)
     setupTransactionTypeButtons();
 
-    // Установить текущую дату для транзакции (DD.MM.YYYY формат)
-    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
-    if (factDateInput) {
-        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
-    }
-
     // Инициализация CalendarWidget для create modal
     new BudgetShared.CalendarWidget({
         mode: 'single',
@@ -203,6 +197,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Выбрана дата для новой транзакции:', date);
         }
     });
+
+    // Установить текущую дату для транзакции ПОСЛЕ инициализации CalendarWidget (DD.MM.YYYY формат)
+    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    if (factDateInput) {
+        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+    }
 
     // Инициализация кнопок периода планирования
     updatePlanPeriodButtons(); // Обновить тексты кнопок (Янв 2025, Фев 2025, и т.д.)
