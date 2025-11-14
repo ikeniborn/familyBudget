@@ -721,8 +721,11 @@ async def get_system_stats(
     facts_count_result = await session.execute(facts_count_query)
     total_facts = facts_count_result.scalar() or 0
 
-    # Active users (users who created at least one transaction - audit trail)
-    active_users_query = select(func.count(func.distinct(Fact.user_id)))
+    # Active users (users with is_active=True)
+    active_users_query = select(func.count(User.id)).where(
+        User.is_current == True,  # noqa: E712
+        User.is_active == True    # noqa: E712
+    )
     active_users_result = await session.execute(active_users_query)
     total_active_users = active_users_result.scalar() or 0
 
