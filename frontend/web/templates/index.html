@@ -177,10 +177,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа транзакции (Расход/Доход)
     setupTransactionTypeButtons();
 
-    // Установить текущую дату для транзакции
+    // Установить текущую дату для транзакции (DD.MM.YYYY формат)
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
-        factDateInput.value = new Date().toISOString().split('T')[0];
+        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
     }
 
     // Инициализация кнопок периода планирования
@@ -522,10 +522,63 @@ function setTransactionDate(daysOffset) {
     if (dateInput) {
         const date = new Date();
         date.setDate(date.getDate() + daysOffset);
-        dateInput.value = date.toISOString().split('T')[0];
+        // Use DD.MM.YYYY format
+        dateInput.value = BudgetShared.DateFormatter.formatForDisplay(date.toISOString().split('T')[0]);
         dateInput.focus();
     }
 }
+
+// Открыть календарь для выбора даты транзакции
+let transactionCalendarWidget = null;
+
+function openTransactionCalendar() {
+    const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    if (!dateInput) return;
+
+    // Создать контейнер для календаря если его нет
+    let calendarContainer = document.getElementById('transaction-calendar-container');
+    if (!calendarContainer) {
+        calendarContainer = document.createElement('div');
+        calendarContainer.id = 'transaction-calendar-container';
+        calendarContainer.className = 'absolute z-50 mt-1 bg-base-100 shadow-lg rounded-lg p-4 border border-base-300';
+        calendarContainer.style.display = 'none';
+        dateInput.parentElement.appendChild(calendarContainer);
+    }
+
+    // Показать/скрыть календарь
+    if (calendarContainer.style.display === 'none') {
+        calendarContainer.style.display = 'block';
+
+        // Создать CalendarWidget если еще нет
+        if (!transactionCalendarWidget) {
+            transactionCalendarWidget = new BudgetShared.CalendarWidget({
+                mode: 'single',
+                container: '#transaction-calendar-container',
+                onDateSelect: (selectedDate) => {
+                    // selectedDate в формате YYYY-MM-DD
+                    dateInput.value = BudgetShared.DateFormatter.formatForDisplay(selectedDate);
+                    calendarContainer.style.display = 'none';
+                    dateInput.focus();
+                }
+            });
+        }
+    } else {
+        calendarContainer.style.display = 'none';
+    }
+}
+
+// Закрыть календарь при клике вне его
+document.addEventListener('click', function(e) {
+    const calendarContainer = document.getElementById('transaction-calendar-container');
+    const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    const calendarButton = document.querySelector('#form_modal_add_transaction button[onclick*="openTransactionCalendar"]');
+
+    if (calendarContainer && calendarContainer.style.display === 'block') {
+        if (!calendarContainer.contains(e.target) && e.target !== dateInput && e.target !== calendarButton && !calendarButton?.contains(e.target)) {
+            calendarContainer.style.display = 'none';
+        }
+    }
+});
 
 // ============ Smart Amount Suggestions Functions ============
 
