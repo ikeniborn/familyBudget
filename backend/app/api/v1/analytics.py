@@ -1449,10 +1449,10 @@ async def get_heatmap_data(
                 actual_week_end = min(week_end, end_date)
                 actual_week_start = max(week_start, start_date)
 
-                # Label: ISO week number (Неделя N)
+                # Label: ISO week number only
                 # Use Monday of the week for ISO week calculation
                 iso_week = get_iso_week_number(week_start)
-                week_label = f"Неделя {iso_week}"
+                week_label = str(iso_week)
                 yAxis.append(week_label)
 
                 # Генерация данных для недели
