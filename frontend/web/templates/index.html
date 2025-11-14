@@ -170,14 +170,19 @@ let planCategoryTreeSelect = null;
 
 // Открыть модальное окно добавления транзакции с инициализацией даты
 function openAddTransactionModal() {
-    // Установить текущую дату в формате DD.MM.YYYY
-    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
-    if (factDateInput) {
-        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
-    }
-
-    // Открыть модальное окно
+    // Открыть модальное окно сначала
     modal_add_transaction.showModal();
+
+    // Установить текущую дату в формате DD.MM.YYYY после открытия модального окна
+    // Используем setTimeout для гарантии, что DOM готов
+    setTimeout(() => {
+        const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+        if (factDateInput) {
+            const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+            factDateInput.value = todayFormatted;
+            console.log('Установлена дата при открытии модального окна:', todayFormatted);
+        }
+    }, 0);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
