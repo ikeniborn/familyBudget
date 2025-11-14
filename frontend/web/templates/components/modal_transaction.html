@@ -87,19 +87,9 @@
                     <button type="button" class="btn btn-sm btn-outline flex-1" onclick="setTransactionDate(0)">Сегодня</button>
                     <button type="button" class="btn btn-sm btn-outline flex-1" onclick="setTransactionDate(-1)">Вчера</button>
                 </div>
-                <div class="relative">
-                    <input type="text" name="fact_date" required
-                           class="input input-bordered w-full transaction-date-input pr-10"
-                           placeholder="ДД.ММ.ГГГГ"
-                           maxlength="10"
-                           autocomplete="off" />
-                    <button type="button"
-                            class="btn btn-ghost btn-sm absolute right-0 top-0 h-full px-3"
-                            onclick="openTransactionCalendar()"
-                            title="Выбрать дату из календаря">
-                        📅
-                    </button>
-                </div>
+                <input type="date" name="fact_date" required
+                       class="input input-bordered w-full transaction-date-input"
+                       max="9999-12-31" />
             </div>
 
             <!-- Описание -->

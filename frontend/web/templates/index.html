@@ -170,10 +170,10 @@ let planCategoryTreeSelect = null;
 
 // Открыть модальное окно добавления транзакции с инициализацией даты
 function openAddTransactionModal() {
-    // Установить текущую дату в формате DD.MM.YYYY
+    // Установить текущую дату в формате YYYY-MM-DD (нативный date input)
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
-        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+        factDateInput.value = BudgetShared.DateFormatter.today(); // уже в формате YYYY-MM-DD
     }
 
     // Открыть модальное окно
@@ -189,10 +189,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа транзакции (Расход/Доход)
     setupTransactionTypeButtons();
 
-    // Установить текущую дату для транзакции (DD.MM.YYYY формат)
+    // Установить текущую дату для транзакции (YYYY-MM-DD формат для нативного date input)
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
-        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+        factDateInput.value = BudgetShared.DateFormatter.today(); // уже в формате YYYY-MM-DD
     }
 
     // Инициализация кнопок периода планирования
@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
             article_id: parseInt(formData.get('article_id')),
             financial_center_id: parseInt(formData.get('financial_center_id')),
             cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')), // v5.1.3: форматирование даты
+            fact_date: formData.get('fact_date'), // уже в формате YYYY-MM-DD (нативный date input)
             description: formData.get('description') || null
         };
 
@@ -246,10 +246,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     htmx.trigger(quickStatsEl, 'htmx:load');
                 }
 
-                // Установить дату обратно на сегодня (v5.1.3: как в facts.html)
+                // Установить дату обратно на сегодня
                 const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
                 if (transactionDateInput) {
-                    transactionDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+                    transactionDateInput.value = BudgetShared.DateFormatter.today(); // YYYY-MM-DD
                 }
             } else {
                 const error = await response.json();
@@ -541,63 +541,11 @@ function setTransactionDate(daysOffset) {
     if (dateInput) {
         const date = new Date();
         date.setDate(date.getDate() + daysOffset);
-        // Use DD.MM.YYYY format
-        dateInput.value = BudgetShared.DateFormatter.formatForDisplay(date.toISOString().split('T')[0]);
+        // Use YYYY-MM-DD format (native date input)
+        dateInput.value = date.toISOString().split('T')[0];
         dateInput.focus();
     }
 }
-
-// Открыть календарь для выбора даты транзакции
-let transactionCalendarWidget = null;
-
-function openTransactionCalendar() {
-    const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
-    if (!dateInput) return;
-
-    // Создать контейнер для календаря если его нет
-    let calendarContainer = document.getElementById('transaction-calendar-container');
-    if (!calendarContainer) {
-        calendarContainer = document.createElement('div');
-        calendarContainer.id = 'transaction-calendar-container';
-        calendarContainer.className = 'absolute z-50 mt-1 bg-base-100 shadow-lg rounded-lg p-4 border border-base-300';
-        calendarContainer.style.display = 'none';
-        dateInput.parentElement.appendChild(calendarContainer);
-    }
-
-    // Показать/скрыть календарь
-    if (calendarContainer.style.display === 'none') {
-        calendarContainer.style.display = 'block';
-
-        // Создать CalendarWidget если еще нет
-        if (!transactionCalendarWidget) {
-            transactionCalendarWidget = new BudgetShared.CalendarWidget({
-                mode: 'single',
-                container: '#transaction-calendar-container',
-                onDateSelect: (selectedDate) => {
-                    // selectedDate в формате YYYY-MM-DD
-                    dateInput.value = BudgetShared.DateFormatter.formatForDisplay(selectedDate);
-                    calendarContainer.style.display = 'none';
-                    dateInput.focus();
-                }
-            });
-        }
-    } else {
-        calendarContainer.style.display = 'none';
-    }
-}
-
-// Закрыть календарь при клике вне его
-document.addEventListener('click', function(e) {
-    const calendarContainer = document.getElementById('transaction-calendar-container');
-    const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
-    const calendarButton = document.querySelector('#form_modal_add_transaction button[onclick*="openTransactionCalendar"]');
-
-    if (calendarContainer && calendarContainer.style.display === 'block') {
-        if (!calendarContainer.contains(e.target) && e.target !== dateInput && e.target !== calendarButton && !calendarButton?.contains(e.target)) {
-            calendarContainer.style.display = 'none';
-        }
-    }
-});
 
 // ============ Smart Amount Suggestions Functions ============
 
