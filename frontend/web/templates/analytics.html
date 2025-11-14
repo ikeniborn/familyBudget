@@ -59,9 +59,9 @@
 
                     <!-- Custom Range Picker (hidden by default) -->
                     <div id="custom-range-container" class="flex flex-wrap items-center gap-2" style="display: none;">
-                        <input type="text" id="date-from" class="input input-sm input-bordered w-48" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <input type="date" id="date-from" class="input input-sm input-bordered w-48">
                         <span class="text-sm">—</span>
-                        <input type="text" id="date-to" class="input input-sm input-bordered w-48" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <input type="date" id="date-to" class="input input-sm input-bordered w-48">
                         <button class="btn btn-sm btn-primary" onclick="applyCustomRange()">Применить</button>
                         <button class="btn btn-sm btn-ghost" onclick="cancelCustomRange()">Отмена</button>
                     </div>
@@ -208,18 +208,8 @@ let categoryChoices = null;  // Choices.js instance
 
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize CalendarWidget for custom date range
-    if (typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
-        rangePicker = new BudgetShared.CalendarWidget({
-            startInputElement: document.getElementById('date-from'),
-            endInputElement: document.getElementById('date-to'),
-            mode: 'range',
-            onSelect: (startDate, endDate) => {
-                customDateFrom = startDate;  // DD.MM.YYYY format
-                customDateTo = endDate;
-            }
-        });
-    }
+    // Custom date range now uses native date inputs (type="date")
+    // No CalendarWidget needed - browser provides native date picker
 
     // Initialize CFO filter
     loadCFOList();
@@ -599,28 +589,28 @@ function toggleCustomRange() {
 
 // Apply custom date range
 function applyCustomRange() {
-    if (!customDateFrom || !customDateTo) {
+    // Read values from native date inputs (YYYY-MM-DD format)
+    const dateFromInput = document.getElementById('date-from');
+    const dateToInput = document.getElementById('date-to');
+
+    const isoFrom = dateFromInput.value;
+    const isoTo = dateToInput.value;
+
+    if (!isoFrom || !isoTo) {
         alert('Пожалуйста, выберите диапазон дат');
         return;
     }
 
     customRangeActive = true;
 
-    // Update period display
-    updatePeriodDisplay(null, customDateFrom, customDateTo);
+    // Store for later use (in YYYY-MM-DD format)
+    customDateFrom = isoFrom;
+    customDateTo = isoTo;
 
-    // Convert DD.MM.YYYY to YYYY-MM-DD for API
-    const toISODate = (ruDate) => {
-        if (typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
-            return BudgetShared.DateFormatter.formatForAPI(ruDate);
-        }
-        // Fallback manual conversion
-        const [day, month, year] = ruDate.split('.');
-        return `${year}-${month}-${day}`;
-    };
-
-    const isoFrom = toISODate(customDateFrom);
-    const isoTo = toISODate(customDateTo);
+    // Update period display (convert to DD.MM.YYYY for display)
+    const displayFrom = BudgetShared.DateFormatter.formatForDisplay(isoFrom);
+    const displayTo = BudgetShared.DateFormatter.formatForDisplay(isoTo);
+    updatePeriodDisplay(null, displayFrom, displayTo);
 
     // Reload all charts with custom dates
     loadPlanFactDataCustom(isoFrom, isoTo);
@@ -1170,12 +1160,10 @@ function updateGlobalType(type) {
 
     // Reload charts that depend on global type filter (AFTER clearing category filter)
     if (customRangeActive) {
-        // Custom range mode
-        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
-        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
-        loadPlanFactDataCustom(isoFrom, isoTo);
-        loadPieDataCustom(type, isoFrom, isoTo);
-        loadHeatmapDataCustom(isoFrom, isoTo);
+        // Custom range mode (customDateFrom/To already in YYYY-MM-DD format)
+        loadPlanFactDataCustom(customDateFrom, customDateTo);
+        loadPieDataCustom(type, customDateFrom, customDateTo);
+        loadHeatmapDataCustom(customDateFrom, customDateTo);
     } else {
         // Period mode
         loadPlanFactData(currentPeriod);
@@ -1211,9 +1199,8 @@ function updateChartMode(mode) {
 
     // Reload Plan-Fact chart with new mode
     if (customRangeActive) {
-        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
-        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
-        loadPlanFactDataCustom(isoFrom, isoTo);
+        // customDateFrom/To already in YYYY-MM-DD format
+        loadPlanFactDataCustom(customDateFrom, customDateTo);
     } else {
         loadPlanFactData(currentPeriod);
     }
