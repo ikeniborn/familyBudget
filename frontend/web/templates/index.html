@@ -212,6 +212,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // ВАЖНО: Установить дату ПОСЛЕ инициализации CalendarWidget (для синхронизации)
+    if (factDateInput) {
+        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+        factDateInput.value = todayFormatted;
+        console.log('[DOMContentLoaded] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
+    }
+
     // Инициализация кнопок периода планирования
     updatePlanPeriodButtons(); // Обновить тексты кнопок (Янв 2025, Фев 2025, и т.д.)
     setupPlanPeriodButtons(); // Установить обработчики кликов
