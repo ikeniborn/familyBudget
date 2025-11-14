@@ -195,17 +195,41 @@ async def telegram_callback(
             detail="Invalid authentication data - hash validation failed",
         )
 
-    # Step 3: Get existing user (NO auto-creation) ⚠️ SECURITY CRITICAL
+    # Step 3: Get existing user OR create new inactive user ⚠️ SECURITY CRITICAL
+    telegram_id = int(query_params["id"])
     user = await get_user_by_telegram_id(
         session=session,
-        telegram_id=int(query_params["id"]),
+        telegram_id=telegram_id,
     )
 
-    # Step 3.1: Check if user exists in database
+    # Step 3.1: Auto-create new user if not exists (PRD FR-030 compliance)
     if user is None:
+        from datetime import datetime
+
+        # Create new inactive user (admin must activate)
+        user = User(
+            telegram_id=telegram_id,
+            username=query_params.get("username"),
+            first_name=query_params["first_name"],
+            last_name=query_params.get("last_name"),
+            is_admin=False,
+            is_active=False,  # NEW: Inactive by default
+            valid_from=datetime.utcnow(),
+            valid_to=datetime(9999, 12, 31, 23, 59, 59),
+            is_current=True,
+        )
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+
+    # Step 3.2: Check if user is active (NEW SECURITY CHECK)
+    if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied - user not registered by administrator. Please contact admin to create your account.",
+            detail=(
+                "Your account is pending activation. "
+                "Please contact admin or start the bot @ikenibornbudgetbot to request access."
+            ),
         )
 
     # Step 3.1.5: Download and cache avatar if provided
@@ -225,6 +249,14 @@ async def telegram_callback(
         username=query_params.get("username"),
         photo_url=local_photo_path,
     )
+
+    # Step 3.3: Update last_login_at (NEW: Track user activity)
+    # Do this AFTER update_user_profile to avoid losing changes in SCD Type 2
+    from datetime import datetime
+    user.last_login_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
 
     # Step 4: Generate JWT access token
     access_token = create_access_token(user_id=user.id)

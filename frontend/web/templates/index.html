@@ -7,23 +7,23 @@
     {% if user %}
         <!-- Welcome Section -->
         <div class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box">
-            <div class="hero-content text-center py-12">
+            <div class="hero-content text-center py-6">
                 <div class="max-w-md">
-                    <h1 class="text-4xl font-bold mb-4">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
-                    <p class="text-lg opacity-80">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
+                    <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
+                    <p class="opacity-80">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
                 </div>
             </div>
         </div>
 
         <!-- Quick Stats Section -->
         <div class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-                <h2 class="card-title text-2xl mb-4">📊 Быстрая статистика</h2>
+            <div class="card-body py-4">
+                <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
                 <div id="quick-stats"
                      hx-get="/api/v1/analytics/quick-stats-html"
                      hx-trigger="load"
                      hx-swap="innerHTML"
-                     class="min-h-[200px] flex items-center justify-center">
+                     class="min-h-[100px] flex items-center justify-center">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
             </div>
@@ -43,7 +43,7 @@
                             Панель аналитики
                         </a>
 
-                        <button onclick="modal_add_transaction.showModal()" class="btn btn-outline btn-success justify-start gap-3">
+                        <button onclick="openAddTransactionModal()" class="btn btn-outline btn-success justify-start gap-3">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             </svg>
@@ -168,6 +168,24 @@
 let transactionCategoryTreeSelect = null;
 let planCategoryTreeSelect = null;
 
+// Открыть модальное окно добавления транзакции с инициализацией даты
+function openAddTransactionModal() {
+    // Открыть модальное окно сначала
+    modal_add_transaction.showModal();
+
+    // Проверить и установить дату, если поле пустое (например, после сброса формы)
+    setTimeout(() => {
+        const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+        if (factDateInput && !factDateInput.value) {
+            const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+            factDateInput.value = todayFormatted;
+            console.log('[openAddTransactionModal] Поле даты пустое, установлена текущая дата:', todayFormatted);
+        } else if (factDateInput) {
+            console.log('[openAddTransactionModal] Поле даты уже заполнено:', factDateInput.value);
+        }
+    }, 50); // Увеличил delay до 50ms для надёжности
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Загрузить категории, ЦФО и МВЗ для обеих форм
     loadCategories();
@@ -177,11 +195,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа транзакции (Расход/Доход)
     setupTransactionTypeButtons();
 
-    // Установить текущую дату для транзакции
+    // Установить текущую дату ДО инициализации CalendarWidget (DD.MM.YYYY формат)
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
-        factDateInput.value = new Date().toISOString().split('T')[0];
+        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+        factDateInput.value = todayFormatted;
+        console.log('[DOMContentLoaded] Установлена дата ДО инициализации CalendarWidget:', todayFormatted);
     }
+
+    // Инициализация CalendarWidget для create modal
+    new BudgetShared.CalendarWidget({
+        mode: 'single',
+        inputElement: factDateInput,
+        onSelect: (date) => {
+            console.log('Выбрана дата для новой транзакции:', date);
+        }
+    });
 
     // Инициализация кнопок периода планирования
     updatePlanPeriodButtons(); // Обновить тексты кнопок (Янв 2025, Фев 2025, и т.д.)
@@ -204,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
             article_id: parseInt(formData.get('article_id')),
             financial_center_id: parseInt(formData.get('financial_center_id')),
             cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')), // v5.1.3: форматирование даты
+            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')), // DD.MM.YYYY → YYYY-MM-DD
             description: formData.get('description') || null
         };
 
@@ -223,11 +252,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 modal_add_transaction.close();
                 e.target.reset();
 
-                // Обновить список транзакций и статистику
-                htmx.trigger('#recent-transactions', 'load');
-                htmx.trigger('#quick-stats', 'load');
+                // Обновить список транзакций и статистику (правильный HTMX trigger)
+                const recentTransactionsEl = document.getElementById('recent-transactions');
+                const quickStatsEl = document.getElementById('quick-stats');
 
-                // Установить дату обратно на сегодня (v5.1.3: как в facts.html)
+                if (recentTransactionsEl) {
+                    htmx.trigger(recentTransactionsEl, 'load');
+                }
+                if (quickStatsEl) {
+                    htmx.trigger(quickStatsEl, 'load');
+                }
+
+                // Установить дату обратно на сегодня
                 const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
                 if (transactionDateInput) {
                     transactionDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
@@ -522,7 +558,8 @@ function setTransactionDate(daysOffset) {
     if (dateInput) {
         const date = new Date();
         date.setDate(date.getDate() + daysOffset);
-        dateInput.value = date.toISOString().split('T')[0];
+        // Use DD.MM.YYYY format
+        dateInput.value = BudgetShared.DateFormatter.formatForDisplay(date.toISOString().split('T')[0]);
         dateInput.focus();
     }
 }

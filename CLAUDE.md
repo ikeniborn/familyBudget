@@ -259,6 +259,42 @@ class FactCreate(BaseModel):
 
 ---
 
+## 👥 User Management (NEW: v5.1+)
+
+**User Model Fields:**
+- `is_active: bool` - User activation status (controlled by admin, default=False)
+- `last_login_at: Optional[datetime]` - Timestamp of last successful login
+
+**NEW: Auto-Create + Activation Flow (PRD FR-030 compliance):**
+
+```python
+# Auth Flow (auth.py:198-240)
+# 1. User logs in via Telegram Login Widget
+# 2. If user NOT exists → auto-create with is_active=False
+# 3. If is_active=False → 403 Forbidden "Ожидает активации"
+# 4. If is_active=True → update last_login_at, generate JWT
+
+# Admin activation (admin.py:400-451)
+PUT /api/v1/admin/users/{user_id}/activate  # Simple UPDATE (NOT SCD Type 2)
+PUT /api/v1/admin/users/{user_id}/deactivate  # Cannot deactivate self
+PUT /api/v1/admin/users/{user_id}/refresh-profile  # Fetch from Telegram Bot API
+GET /api/v1/admin/users?is_active=true/false  # Filter by activation status
+```
+
+**Important:**
+- ✅ `is_active` changes: Simple UPDATE (НЕ SCD Type 2) - это access control флаг
+- ✅ `last_login_at` changes: Simple UPDATE (НЕ SCD Type 2) - это audit trail
+- ✅ Profile changes (name, username): SCD Type 2 (business data)
+- ✅ Новые пользователи видны админу в `/admin/users` с badge "⏳ Ожидает активации"
+
+**Admin UI Features:**
+- Таблица: "Последний вход" колонка, combined status badges (is_active + is_current)
+- Фильтры: Активные / Неактивные / Все
+- Кнопки: Активировать, Деактивировать, Обновить из Telegram
+- Статистика: "⏳ Ожидают активации" badge
+
+---
+
 ## 🔧 Troubleshooting
 
 ### Import Errors

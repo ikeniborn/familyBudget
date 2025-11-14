@@ -1,12 +1,12 @@
 {% macro transaction_modal(modal_id='modal_add_transaction') %}
 <dialog id="{{ modal_id }}" class="modal">
-    <div class="modal-box w-11/12 max-w-2xl">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[95vh] overflow-y-auto">
         <form method="dialog">
             <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
         </form>
-        <h3 class="font-bold text-lg mb-4">➕ Добавить транзакцию</h3>
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">➕ Добавить транзакцию</h3>
 
-        <form id="form_{{ modal_id }}" class="space-y-4">
+        <form id="form_{{ modal_id }}" class="space-y-2 sm:space-y-4">
             <!-- Тип транзакции -->
             <div class="form-control">
                 <label class="label">
@@ -80,16 +80,18 @@
             <!-- Дата -->
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">Дата</span>
+                    <span class="label-text">Дата *</span>
                 </label>
                 <!-- Quick Date Shortcuts -->
-                <div class="flex gap-2 mb-2">
+                <div class="flex gap-2 mb-1 sm:mb-2">
                     <button type="button" class="btn btn-sm btn-outline flex-1" onclick="setTransactionDate(0)">Сегодня</button>
                     <button type="button" class="btn btn-sm btn-outline flex-1" onclick="setTransactionDate(-1)">Вчера</button>
                 </div>
                 <input type="text" name="fact_date" required
                        class="input input-bordered w-full transaction-date-input"
-                       placeholder="ДД.ММ.ГГГГ" />
+                       placeholder="ДД.ММ.ГГГГ"
+                       maxlength="10"
+                       autocomplete="off" />
             </div>
 
             <!-- Описание -->

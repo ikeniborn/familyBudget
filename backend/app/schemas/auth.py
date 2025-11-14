@@ -104,6 +104,7 @@ class UserResponse(BaseModel):
         last_name: User's last name (optional)
         photo_url: Local path to cached profile photo (optional)
         is_admin: Admin status flag
+        is_active: User activation status (controlled by admin)
 
     Example:
         >>> user = UserResponse(
@@ -150,6 +151,11 @@ class UserResponse(BaseModel):
         description="Admin status flag",
         examples=[False]
     )
+    is_active: bool = Field(
+        default=False,
+        description="User activation status (controlled by admin)",
+        examples=[True, False]
+    )
 
     model_config = {
         "from_attributes": True,  # Enable ORM mode for SQLModel compatibility
@@ -161,7 +167,8 @@ class UserResponse(BaseModel):
                 "first_name": "John",
                 "last_name": "Doe",
                 "photo_url": "/static/avatars/1.jpg",
-                "is_admin": False
+                "is_admin": False,
+                "is_active": True
             }
         }
     }

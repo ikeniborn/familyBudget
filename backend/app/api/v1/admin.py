@@ -92,6 +92,7 @@ async def get_all_users(
     session: AsyncSession = Depends(get_session),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of users returned"),
     offset: int = Query(0, ge=0, description="Number of users skipped"),
+    is_active: bool | None = Query(None, description="Filter by activation status (None=all, True=active, False=inactive)"),
 ) -> UserListResponse:
     """
     Get all users (admin only).
@@ -99,17 +100,24 @@ async def get_all_users(
     Returns list of all registered users with pagination.
     Only returns current (active) user versions.
 
+    **NEW:** Supports filtering by is_active status.
+
     Args:
         current_admin: Current admin user (from dependency)
         session: Database session
         limit: Maximum number of results (1-1000, default: 100)
         offset: Number of results to skip (default: 0)
+        is_active: Filter by activation status (None=all, True=active, False=inactive)
 
     Returns:
         UserListResponse: List of users with pagination info
     """
     # Base query: only current versions
     statement = select(User).where(User.is_current == True)  # noqa: E712
+
+    # NEW: Filter by is_active if provided
+    if is_active is not None:
+        statement = statement.where(User.is_active == is_active)
 
     # Count total (before pagination)
     count_stmt = select(func.count()).select_from(statement.subquery())
@@ -397,6 +405,224 @@ async def update_user_role(
     return new_user
 
 
+@router.put("/users/{user_id}/activate", response_model=UserDetailResponse)
+async def activate_user(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Activate user (admin only).
+
+    **Admin Only:** Only admin users can activate/deactivate users.
+
+    **NOT SCD Type 2:** is_active is an access control flag, not business data.
+    Simple UPDATE is used instead of creating new version.
+
+    Args:
+        user_id: User ID to activate
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: Updated user with is_active=True
+
+    Raises:
+        HTTPException: 404 if user not found
+    """
+    # Load current version
+    statement = select(User).where(
+        User.id == user_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Simple UPDATE (NOT SCD Type 2)
+    user.is_active = True
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    logger.info(
+        f"User {user_id} activated by admin {current_admin.id} "
+        f"(telegram_id={user.telegram_id}, username={user.username})"
+    )
+
+    return user
+
+
+@router.put("/users/{user_id}/deactivate", response_model=UserDetailResponse)
+async def deactivate_user(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Deactivate user (admin only).
+
+    **Admin Only:** Only admin users can activate/deactivate users.
+
+    **NOT SCD Type 2:** is_active is an access control flag, not business data.
+    Simple UPDATE is used instead of creating new version.
+
+    **Security:** Cannot deactivate self (current admin).
+
+    Args:
+        user_id: User ID to deactivate
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: Updated user with is_active=False
+
+    Raises:
+        HTTPException: 404 if user not found
+        HTTPException: 400 if trying to deactivate self
+    """
+    # Load current version
+    statement = select(User).where(
+        User.id == user_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Prevent deactivating self
+    if user.id == current_admin.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot deactivate your own account"
+        )
+
+    # Simple UPDATE (NOT SCD Type 2)
+    user.is_active = False
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    logger.info(
+        f"User {user_id} deactivated by admin {current_admin.id} "
+        f"(telegram_id={user.telegram_id}, username={user.username})"
+    )
+
+    return user
+
+
+@router.put("/users/{user_id}/refresh-profile", response_model=UserDetailResponse)
+async def refresh_user_profile_from_telegram(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Fetch fresh user data from Telegram and update profile (admin only).
+
+    **Admin Only:** Only admin users can refresh user profiles.
+
+    **Requires:** User must have started the Telegram bot (@ikenibornbudgetbot).
+    Bot uses Telegram Bot API to fetch user info.
+
+    **Updates (SCD Type 2):**
+    - username
+    - first_name
+    - last_name
+    - photo_url (downloads fresh avatar)
+
+    Args:
+        user_id: User ID to refresh
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: Updated user with fresh data from Telegram
+
+    Raises:
+        HTTPException: 404 if user not found or not in Telegram bot
+        HTTPException: 500 if Telegram API error
+    """
+    # Load current version
+    statement = select(User).where(
+        User.id == user_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Fetch from Telegram Bot API
+    try:
+        telegram_info = await fetch_telegram_user_info(user.telegram_id)
+    except Exception as e:
+        logger.error(f"Failed to fetch Telegram info for user {user_id}: {e}")
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"Failed to fetch user info from Telegram. "
+                f"User may not have started the bot @ikenibornbudgetbot. "
+                f"Please ask them to send /start to the bot."
+            )
+        )
+
+    if not telegram_info:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                f"User not found in Telegram bot. "
+                f"Please ask them to send /start to @ikenibornbudgetbot."
+            )
+        )
+
+    # Download fresh avatar if available
+    local_photo_path = None
+    if telegram_info.get("photo_url"):
+        from backend.app.services.avatar_service import download_user_avatar
+        try:
+            local_photo_path = await download_user_avatar(
+                telegram_photo_url=telegram_info["photo_url"],
+                user_id=user.id
+            )
+        except Exception as e:
+            logger.warning(f"Failed to download avatar for user {user_id}: {e}")
+            # Continue without avatar update
+
+    # Update profile using SCD Type 2
+    from backend.app.services.auth_service import update_user_profile
+    updated_user = await update_user_profile(
+        session=session,
+        telegram_id=user.telegram_id,
+        first_name=telegram_info.get("first_name"),
+        last_name=telegram_info.get("last_name"),
+        username=telegram_info.get("username"),
+        photo_url=local_photo_path,
+    )
+
+    logger.info(
+        f"User {user_id} profile refreshed from Telegram by admin {current_admin.id}"
+    )
+
+    return updated_user
+
+
 @router.get("/users/stats/summary", response_model=List[UserStatsResponse])
 async def get_users_stats(
     current_admin: CurrentAdmin,
@@ -495,8 +721,11 @@ async def get_system_stats(
     facts_count_result = await session.execute(facts_count_query)
     total_facts = facts_count_result.scalar() or 0
 
-    # Active users (users who created at least one transaction - audit trail)
-    active_users_query = select(func.count(func.distinct(Fact.user_id)))
+    # Active users (users with is_active=True)
+    active_users_query = select(func.count(User.id)).where(
+        User.is_current == True,  # noqa: E712
+        User.is_active == True    # noqa: E712
+    )
     active_users_result = await session.execute(active_users_query)
     total_active_users = active_users_result.scalar() or 0
 

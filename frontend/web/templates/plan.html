@@ -43,13 +43,13 @@
                         <label class="label">
                             <span class="label-text font-medium">Дата с</span>
                         </label>
-                        <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
+                        <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
                     <div class="form-control">
                         <label class="label">
                             <span class="label-text font-medium">Дата по</span>
                         </label>
-                        <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
+                        <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
                 </div>
             </div>
@@ -188,9 +188,9 @@
 
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">
-    <div class="modal-box max-w-2xl">
-        <h3 class="font-bold text-lg mb-4">✏️ Редактировать плановую запись</h3>
-        <form id="edit-form" onsubmit="updateFact(event)" class="space-y-4">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[95vh] overflow-y-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать плановую запись</h3>
+        <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2 sm:space-y-4">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-control">
                 <label class="label">
@@ -435,13 +435,14 @@ document.addEventListener('DOMContentLoaded', function() {
         await createPlan(e);
     });
 
-    // Инициализация CalendarWidget для фильтров дат (Range Picker)
+    // Initialize CalendarWidget for filter date range
     new BudgetShared.CalendarWidget({
         mode: 'range',
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
         onSelect: (startDate, endDate) => {
             console.log('Выбран диапазон дат для плана:', startDate, endDate);
+            applyFilters(); // Auto-apply on selection
         }
     });
 
@@ -1231,18 +1232,92 @@ async function batchDelete() {
     }
 }
 
-// Utility: Show notification
+// Utility: Show notification (toast instead of alert)
 function showNotification(message, type) {
     // Handle error objects properly
     if (typeof message === 'object' && message !== null) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
-    if (type === 'error') {
-        alert('❌ ' + message);
-    } else {
-        alert(message);
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+        document.body.appendChild(toastContainer);
     }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.style.cssText = `
+        background: ${type === 'error' ? '#ef4444' : '#10b981'};
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 300px;
+        max-width: 500px;
+        font-size: 14px;
+        line-height: 1.5;
+        animation: slideIn 0.3s ease-out;
+        cursor: pointer;
+    `;
+    toast.textContent = message;
+
+    // Add animation keyframes if not exists
+    if (!document.getElementById('toast-animations')) {
+        const style = document.createElement('style');
+        style.id = 'toast-animations';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Add to container
+    toastContainer.appendChild(toast);
+
+    // Auto-dismiss after 5 seconds
+    const dismissTimeout = setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+
+    // Click to dismiss
+    toast.addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    });
 }
 
 // Export filtered facts (system-wide for admins)

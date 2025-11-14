@@ -209,17 +209,15 @@ let categoryChoices = null;  // Choices.js instance
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize CalendarWidget for custom date range
-    if (typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
-        rangePicker = new BudgetShared.CalendarWidget({
-            startInputElement: document.getElementById('date-from'),
-            endInputElement: document.getElementById('date-to'),
-            mode: 'range',
-            onSelect: (startDate, endDate) => {
-                customDateFrom = startDate;  // DD.MM.YYYY format
-                customDateTo = endDate;
-            }
-        });
-    }
+    new BudgetShared.CalendarWidget({
+        mode: 'range',
+        startInputElement: document.getElementById('date-from'),
+        endInputElement: document.getElementById('date-to'),
+        onSelect: (startDate, endDate) => {
+            customDateFrom = startDate;  // DD.MM.YYYY format
+            customDateTo = endDate;
+        }
+    });
 
     // Initialize CFO filter
     loadCFOList();
@@ -610,17 +608,8 @@ function applyCustomRange() {
     updatePeriodDisplay(null, customDateFrom, customDateTo);
 
     // Convert DD.MM.YYYY to YYYY-MM-DD for API
-    const toISODate = (ruDate) => {
-        if (typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
-            return BudgetShared.DateFormatter.formatForAPI(ruDate);
-        }
-        // Fallback manual conversion
-        const [day, month, year] = ruDate.split('.');
-        return `${year}-${month}-${day}`;
-    };
-
-    const isoFrom = toISODate(customDateFrom);
-    const isoTo = toISODate(customDateTo);
+    const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+    const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
 
     // Reload all charts with custom dates
     loadPlanFactDataCustom(isoFrom, isoTo);
@@ -1170,7 +1159,7 @@ function updateGlobalType(type) {
 
     // Reload charts that depend on global type filter (AFTER clearing category filter)
     if (customRangeActive) {
-        // Custom range mode
+        // Custom range mode (convert DD.MM.YYYY to YYYY-MM-DD)
         const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
         const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
         loadPlanFactDataCustom(isoFrom, isoTo);
@@ -1211,6 +1200,7 @@ function updateChartMode(mode) {
 
     // Reload Plan-Fact chart with new mode
     if (customRangeActive) {
+        // Convert DD.MM.YYYY to YYYY-MM-DD
         const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
         const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
         loadPlanFactDataCustom(isoFrom, isoTo);
@@ -1770,7 +1760,10 @@ function updateHeatmapChart(data) {
             },
             axisLabel: {
                 fontSize: 12
-            }
+            },
+            // v5.1.4: inverse only for months (show oldest at top, newest at bottom)
+            // For weeks with ISO numbers: false (show smallest week numbers at top)
+            inverse: data.aggregation === 'month'
         },
         visualMap: {
             type: 'continuous',

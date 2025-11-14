@@ -23,6 +23,10 @@
                 <div class="flex flex-wrap gap-2">
                     <button class="btn btn-sm btn-primary" id="filter-current" onclick="toggleUserFilter('current')">✅ Текущие</button>
                     <button class="btn btn-sm btn-outline" id="filter-all" onclick="toggleUserFilter('all')">📜 Вся история</button>
+                    <div class="divider divider-horizontal"></div>
+                    <button class="btn btn-sm btn-outline" id="filter-active" onclick="toggleActiveFilter(true)">✅ Активные</button>
+                    <button class="btn btn-sm btn-outline" id="filter-inactive" onclick="toggleActiveFilter(false)">⏳ Неактивные</button>
+                    <button class="btn btn-sm btn-outline" id="filter-all-active" onclick="toggleActiveFilter(null)">Все</button>
                     <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -128,6 +132,7 @@
 <script>
 // Global state
 let currentFilter = 'current';
+let currentActiveFilter = null;  // NEW: null=all, true=active, false=inactive
 let usersData = [];
 
 // Load users on page load
@@ -153,6 +158,34 @@ function toggleUserFilter(filter) {
     loadUsers();
 }
 
+// NEW: Toggle active filter (active vs inactive vs all)
+function toggleActiveFilter(isActive) {
+    currentActiveFilter = isActive;
+
+    // Update active button (DaisyUI)
+    document.querySelectorAll('#filter-active, #filter-inactive, #filter-all-active').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    });
+
+    let activeBtn;
+    if (isActive === true) {
+        activeBtn = document.getElementById('filter-active');
+    } else if (isActive === false) {
+        activeBtn = document.getElementById('filter-inactive');
+    } else {
+        activeBtn = document.getElementById('filter-all-active');
+    }
+
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline');
+        activeBtn.classList.add('btn-primary');
+    }
+
+    // Reload users
+    loadUsers();
+}
+
 // Load users from API
 async function loadUsers() {
     const container = document.getElementById('users-table-container');
@@ -160,7 +193,14 @@ async function loadUsers() {
 
     try {
         const isCurrent = currentFilter === 'current';
-        const response = await fetch(`/api/v1/admin/users?is_current=${isCurrent}`, {
+        let url = `/api/v1/admin/users?is_current=${isCurrent}`;
+
+        // NEW: Add is_active filter if set
+        if (currentActiveFilter !== null) {
+            url += `&is_active=${currentActiveFilter}`;
+        }
+
+        const response = await fetch(url, {
             credentials: 'include',
         });
 
@@ -200,6 +240,7 @@ function renderUsersTable(users) {
                         <th>📝 Имя</th>
                         <th>🔑 Роль</th>
                         <th>✅ Статус</th>
+                        <th>📅 Последний вход</th>
                         <th>📅 Создан</th>
                         <th>📅 Закрыт</th>
                         <th>⚙️ Действия</th>
@@ -213,11 +254,20 @@ function renderUsersTable(users) {
         const roleLabel = user.is_admin
             ? '<span class="badge badge-warning gap-1">🔑 Админ</span>'
             : '<span class="badge badge-info gap-1">👤 Пользователь</span>';
-        const statusLabel = user.is_current
-            ? '<span class="badge badge-success gap-1">✅ Активен</span>'
-            : '<span class="badge badge-ghost gap-1">📜 История</span>';
+
+        // NEW: Combined status badge (is_active + is_current)
+        const statusLabel = user.is_active
+            ? '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Активен</span>'
+            : '<span class="badge badge-warning gap-1 whitespace-nowrap">⏳ Ожидает</span>';
+        const historyBadge = !user.is_current
+            ? '<span class="badge badge-ghost gap-1 ml-1 whitespace-nowrap">📜 История</span>'
+            : '';
+
         const validFrom = formatDate(user.valid_from);
         const validTo = user.valid_to ? formatDate(user.valid_to) : '—';
+
+        // NEW: Format last_login_at
+        const lastLogin = user.last_login_at ? formatDate(user.last_login_at) : 'Никогда';
 
         // Avatar HTML
         const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
@@ -239,8 +289,9 @@ function renderUsersTable(users) {
                 <td>${avatarHTML}</td>
                 <td>${user.username || '—'}</td>
                 <td class="font-medium">${displayName}</td>
-                <td>${roleLabel}</td>
-                <td>${statusLabel}</td>
+                <td><div class="flex flex-wrap gap-1">${roleLabel}</div></td>
+                <td><div class="flex flex-wrap gap-1">${statusLabel}${historyBadge}</div></td>
+                <td>${lastLogin}</td>
                 <td>${validFrom}</td>
                 <td>${validTo}</td>
                 <td>
@@ -261,16 +312,27 @@ function renderUsersTable(users) {
 
 // Render action buttons for user
 function renderActions(user) {
+    const editBtn = `<button class="btn btn-sm btn-outline btn-secondary gap-1" onclick="showEditUserModal(${user.id})">✏️ Редактировать</button>`;
+
+    // Admin toggle button
     const adminBtn = user.is_admin
         ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="toggleAdmin(${user.id}, false)">🔓 Снять админа</button>`
         : `<button class="btn btn-sm btn-primary gap-1" onclick="toggleAdmin(${user.id}, true)">🔑 Сделать админом</button>`;
 
-    const editBtn = `<button class="btn btn-sm btn-outline btn-secondary gap-1" onclick="showEditUserModal(${user.id})">✏️ Редактировать</button>`;
+    // NEW: Activate/Deactivate button
+    const activateBtn = user.is_active
+        ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="deactivateUser(${user.id})" title="Деактивировать пользователя">⏸️ Деактивировать</button>`
+        : `<button class="btn btn-sm btn-success gap-1" onclick="activateUser(${user.id})" title="Активировать пользователя">✅ Активировать</button>`;
+
+    // NEW: Refresh profile button
+    const refreshBtn = `<button class="btn btn-sm btn-outline btn-info gap-1" onclick="refreshUserProfile(${user.id})" title="Обновить данные из Telegram">🔄 Обновить</button>`;
 
     return `
         <div class="flex gap-1 flex-wrap">
             ${editBtn}
+            ${activateBtn}
             ${adminBtn}
+            ${refreshBtn}
         </div>
     `;
 }
@@ -308,6 +370,93 @@ async function toggleAdmin(userId, makeAdmin) {
         showNotification(message, 'success');
     } catch (error) {
         console.error('Error toggling admin:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// NEW: Activate user
+async function activateUser(userId) {
+    if (!confirm('✅ Вы уверены, что хотите активировать пользователя?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/activate`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        showNotification('✅ Пользователь активирован!', 'success');
+    } catch (error) {
+        console.error('Error activating user:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// NEW: Deactivate user
+async function deactivateUser(userId) {
+    if (!confirm('⏸️ Вы уверены, что хотите деактивировать пользователя?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/deactivate`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        showNotification('⏸️ Пользователь деактивирован!', 'success');
+    } catch (error) {
+        console.error('Error deactivating user:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// NEW: Refresh user profile from Telegram
+async function refreshUserProfile(userId) {
+    if (!confirm('🔄 Обновить данные пользователя из Telegram?\n\nПользователь должен был запустить бота @ikenibornbudgetbot.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/refresh-profile`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        showNotification('🔄 Профиль обновлён из Telegram!', 'success');
+    } catch (error) {
+        console.error('Error refreshing profile:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
@@ -448,6 +597,7 @@ function renderStats(stats) {
     const totalFacts = stats.total_facts;
     const totalArticles = stats.total_articles;
     const activeUsers = stats.total_active_users;
+    const inactiveUsers = totalUsers - activeUsers;  // NEW: Calculate inactive
 
     container.innerHTML = `
         <div class="stat">
@@ -464,6 +614,14 @@ function renderStats(stats) {
             </div>
             <div class="stat-title">Активных</div>
             <div class="stat-value text-success">${activeUsers}</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-warning">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div class="stat-title">⏳ Ожидают активации</div>
+            <div class="stat-value text-warning">${inactiveUsers}</div>
         </div>
 
         <div class="stat">

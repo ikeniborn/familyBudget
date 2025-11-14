@@ -1,12 +1,12 @@
 {% macro plan_modal(modal_id='modal_add_plan') %}
 <dialog id="{{ modal_id }}" class="modal">
-    <div class="modal-box w-11/12 max-w-2xl">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[95vh] overflow-y-auto">
         <form method="dialog">
             <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
         </form>
-        <h3 class="font-bold text-lg mb-4">📝 Добавить план</h3>
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">📝 Добавить план</h3>
 
-        <form id="form_{{ modal_id }}" class="space-y-4">
+        <form id="form_{{ modal_id }}" class="space-y-2 sm:space-y-4">
             <!-- Тип плана -->
             <div class="form-control">
                 <label class="label">
