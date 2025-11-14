@@ -17,13 +17,13 @@
 
         <!-- Quick Stats Section -->
         <div class="card bg-base-100 shadow-xl">
-            <div class="card-body">
-                <h2 class="card-title text-2xl mb-4">📊 Быстрая статистика</h2>
+            <div class="card-body py-4">
+                <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
                 <div id="quick-stats"
                      hx-get="/api/v1/analytics/quick-stats-html"
                      hx-trigger="load"
                      hx-swap="innerHTML"
-                     class="min-h-[200px] flex items-center justify-center">
+                     class="min-h-[100px] flex items-center justify-center">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
             </div>
