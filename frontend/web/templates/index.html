@@ -43,7 +43,7 @@
                             Панель аналитики
                         </a>
 
-                        <button onclick="modal_add_transaction.showModal()" class="btn btn-outline btn-success justify-start gap-3">
+                        <button onclick="openAddTransactionModal()" class="btn btn-outline btn-success justify-start gap-3">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                             </svg>
@@ -168,6 +168,18 @@
 let transactionCategoryTreeSelect = null;
 let planCategoryTreeSelect = null;
 
+// Открыть модальное окно добавления транзакции с инициализацией даты
+function openAddTransactionModal() {
+    // Установить текущую дату в формате DD.MM.YYYY
+    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    if (factDateInput) {
+        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+    }
+
+    // Открыть модальное окно
+    modal_add_transaction.showModal();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Загрузить категории, ЦФО и МВЗ для обеих форм
     loadCategories();
@@ -223,9 +235,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 modal_add_transaction.close();
                 e.target.reset();
 
-                // Обновить список транзакций и статистику
-                htmx.trigger('#recent-transactions', 'load');
-                htmx.trigger('#quick-stats', 'load');
+                // Обновить список транзакций и статистику (правильный HTMX trigger)
+                const recentTransactionsEl = document.getElementById('recent-transactions');
+                const quickStatsEl = document.getElementById('quick-stats');
+
+                if (recentTransactionsEl) {
+                    htmx.trigger(recentTransactionsEl, 'htmx:load');
+                }
+                if (quickStatsEl) {
+                    htmx.trigger(quickStatsEl, 'htmx:load');
+                }
 
                 // Установить дату обратно на сегодня (v5.1.3: как в facts.html)
                 const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
