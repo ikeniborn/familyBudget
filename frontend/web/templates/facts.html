@@ -578,6 +578,13 @@ async function loadArticles() {
                     console.log('Выбрана дата для create modal:', date);
                 }
             });
+
+            // ВАЖНО: Установить дату ПОСЛЕ инициализации CalendarWidget (для синхронизации)
+            const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(
+                BudgetShared.DateFormatter.today()
+            );
+            createDateInput.value = todayFormatted;
+            console.log('[loadCategories] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
         }
     } catch (error) {
         console.error('Error loading articles:', error);
