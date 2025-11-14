@@ -254,10 +254,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const quickStatsEl = document.getElementById('quick-stats');
 
                 if (recentTransactionsEl) {
-                    htmx.trigger(recentTransactionsEl, 'htmx:load');
+                    htmx.trigger(recentTransactionsEl, 'load');
                 }
                 if (quickStatsEl) {
-                    htmx.trigger(quickStatsEl, 'htmx:load');
+                    htmx.trigger(quickStatsEl, 'load');
                 }
 
                 // Установить дату обратно на сегодня

@@ -378,6 +378,19 @@ async def get_recent_facts_html(
         articles_result = await session.execute(articles_stmt)
         articles = {a.id: a for a in articles_result.scalars().all()}
 
+        # Load financial centers for fact details
+        from backend.app.models.financial_center import FinancialCenter
+        financial_center_ids = {fact.financial_center_id for fact in facts if fact.financial_center_id}
+        if financial_center_ids:
+            fcs_stmt = select(FinancialCenter).where(
+                FinancialCenter.id.in_(financial_center_ids),
+                FinancialCenter.is_current == True  # noqa: E712
+            )
+            fcs_result = await session.execute(fcs_stmt)
+            financial_centers = {fc.id: fc for fc in fcs_result.scalars().all()}
+        else:
+            financial_centers = {}
+
         # Format money helper
         def format_money(amount: Decimal) -> str:
             return f"{float(amount):,.2f}".replace(",", " ")
@@ -390,6 +403,7 @@ async def get_recent_facts_html(
                     <tr>
                         <th>Дата</th>
                         <th>Категория</th>
+                        <th>ЦФО</th>
                         <th>Сумма</th>
                         <th>Описание</th>
                     </tr>
@@ -412,6 +426,10 @@ async def get_recent_facts_html(
             # Article icon based on type
             article_icon = "💰" if article.type == "income" else "💸"
 
+            # Financial center name
+            financial_center = financial_centers.get(fact.financial_center_id)
+            fc_name = financial_center.name if financial_center else "—"
+
             # Description (truncate if too long)
             description = fact.description if fact.description else "—"
             if len(description) > 50:
@@ -421,6 +439,7 @@ async def get_recent_facts_html(
                     <tr>
                         <td class="whitespace-nowrap">{fact_date_str}</td>
                         <td>{article_icon} {article.name}</td>
+                        <td class="whitespace-nowrap">{fc_name}</td>
                         <td class="{amount_class} whitespace-nowrap">{amount_prefix}{format_money(fact.amount)} ₽</td>
                         <td class="max-w-xs truncate">{description}</td>
                     </tr>
