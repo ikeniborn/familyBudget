@@ -87,9 +87,11 @@
                     <button type="button" class="btn btn-sm btn-outline flex-1" onclick="setTransactionDate(0)">Сегодня</button>
                     <button type="button" class="btn btn-sm btn-outline flex-1" onclick="setTransactionDate(-1)">Вчера</button>
                 </div>
-                <input type="date" name="fact_date" required
+                <input type="text" name="fact_date" required
                        class="input input-bordered w-full transaction-date-input"
-                       max="9999-12-31" />
+                       placeholder="ДД.ММ.ГГГГ"
+                       maxlength="10"
+                       autocomplete="off" />
             </div>
 
             <!-- Описание -->

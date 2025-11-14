@@ -170,10 +170,10 @@ let planCategoryTreeSelect = null;
 
 // Открыть модальное окно добавления транзакции с инициализацией даты
 function openAddTransactionModal() {
-    // Установить текущую дату в формате YYYY-MM-DD (нативный date input)
+    // Установить текущую дату в формате DD.MM.YYYY
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
-        factDateInput.value = BudgetShared.DateFormatter.today(); // уже в формате YYYY-MM-DD
+        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
     }
 
     // Открыть модальное окно
@@ -189,11 +189,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа транзакции (Расход/Доход)
     setupTransactionTypeButtons();
 
-    // Установить текущую дату для транзакции (YYYY-MM-DD формат для нативного date input)
+    // Установить текущую дату для транзакции (DD.MM.YYYY формат)
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
-        factDateInput.value = BudgetShared.DateFormatter.today(); // уже в формате YYYY-MM-DD
+        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
     }
+
+    // Инициализация CalendarWidget для create modal
+    new BudgetShared.CalendarWidget({
+        mode: 'single',
+        inputElement: document.querySelector('#form_modal_add_transaction input[name="fact_date"]'),
+        onSelect: (date) => {
+            console.log('Выбрана дата для новой транзакции:', date);
+        }
+    });
 
     // Инициализация кнопок периода планирования
     updatePlanPeriodButtons(); // Обновить тексты кнопок (Янв 2025, Фев 2025, и т.д.)
@@ -216,7 +225,7 @@ document.addEventListener('DOMContentLoaded', function() {
             article_id: parseInt(formData.get('article_id')),
             financial_center_id: parseInt(formData.get('financial_center_id')),
             cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-            fact_date: formData.get('fact_date'), // уже в формате YYYY-MM-DD (нативный date input)
+            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')), // DD.MM.YYYY → YYYY-MM-DD
             description: formData.get('description') || null
         };
 
@@ -249,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Установить дату обратно на сегодня
                 const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
                 if (transactionDateInput) {
-                    transactionDateInput.value = BudgetShared.DateFormatter.today(); // YYYY-MM-DD
+                    transactionDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
                 }
             } else {
                 const error = await response.json();
@@ -541,8 +550,8 @@ function setTransactionDate(daysOffset) {
     if (dateInput) {
         const date = new Date();
         date.setDate(date.getDate() + daysOffset);
-        // Use YYYY-MM-DD format (native date input)
-        dateInput.value = date.toISOString().split('T')[0];
+        // Use DD.MM.YYYY format
+        dateInput.value = BudgetShared.DateFormatter.formatForDisplay(date.toISOString().split('T')[0]);
         dateInput.focus();
     }
 }

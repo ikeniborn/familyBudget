@@ -43,13 +43,13 @@
                         <label class="label">
                             <span class="label-text font-medium">Дата с</span>
                         </label>
-                        <input type="date" id="filter-date-from" class="input input-bordered w-full">
+                        <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
                     <div class="form-control">
                         <label class="label">
                             <span class="label-text font-medium">Дата по</span>
                         </label>
-                        <input type="date" id="filter-date-to" class="input input-bordered w-full">
+                        <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
                 </div>
             </div>
@@ -435,12 +435,16 @@ document.addEventListener('DOMContentLoaded', function() {
         await createPlan(e);
     });
 
-    // Filter date inputs now use native date pickers (type="date")
-    // No CalendarWidget needed - browser provides native date picker
-
-    // Auto-apply filters when date inputs change
-    document.getElementById('filter-date-from').addEventListener('change', applyFilters);
-    document.getElementById('filter-date-to').addEventListener('change', applyFilters);
+    // Initialize CalendarWidget for filter date range
+    new BudgetShared.CalendarWidget({
+        mode: 'range',
+        startInputElement: document.getElementById('filter-date-from'),
+        endInputElement: document.getElementById('filter-date-to'),
+        onSelect: (startDate, endDate) => {
+            console.log('Выбран диапазон дат для плана:', startDate, endDate);
+            applyFilters(); // Auto-apply on selection
+        }
+    });
 
     // Инициализация CalendarWidget для edit modal (Single Date Picker)
     new BudgetShared.CalendarWidget({
@@ -749,9 +753,12 @@ function applyFilters() {
     filters.article_id = document.getElementById('filter-article').value || null;
     filters.article_type = document.getElementById('filter-article-type').value || null;
 
-    // Native date inputs already provide YYYY-MM-DD format
-    filters.date_from = document.getElementById('filter-date-from').value || null;
-    filters.date_to = document.getElementById('filter-date-to').value || null;
+    // Convert dates from DD.MM.YYYY to YYYY-MM-DD format for API
+    const dateFromValue = document.getElementById('filter-date-from').value;
+    filters.date_from = dateFromValue ? BudgetShared.DateFormatter.formatForAPI(dateFromValue) : null;
+
+    const dateToValue = document.getElementById('filter-date-to').value;
+    filters.date_to = dateToValue ? BudgetShared.DateFormatter.formatForAPI(dateToValue) : null;
 
     filters.financial_center_id = document.getElementById('filter-financial-center').value || null;
     filters.cost_center_id = document.getElementById('filter-cost-center').value || null;
