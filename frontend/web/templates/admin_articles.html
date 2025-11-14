@@ -38,9 +38,9 @@
 
 <!-- Create Article Modal -->
 <dialog id="create-modal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">✨ Создать новую категорию</h3>
-        <form id="create-form" onsubmit="createArticle(event)" class="space-y-4">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[95vh] overflow-y-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новую категорию</h3>
+        <form id="create-form" onsubmit="createArticle(event)" class="space-y-2 sm:space-y-4">
             <div class="form-control">
                 <label class="label">
                     <span class="label-text">📝 Название*</span>
@@ -78,9 +78,9 @@
 
 <!-- Edit Article Modal -->
 <dialog id="edit-modal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">✏️ Редактировать категорию</h3>
-        <form id="edit-form" onsubmit="updateArticle(event)" class="space-y-4">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[95vh] overflow-y-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать категорию</h3>
+        <form id="edit-form" onsubmit="updateArticle(event)" class="space-y-2 sm:space-y-4">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-control">
                 <label class="label">

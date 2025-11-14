@@ -11,7 +11,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление финансовых транзакций с расширенными фильтрами</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-success gap-1" onclick="create_modal.showModal()" title="Добавить новую транзакцию">
+                <button class="btn btn-sm btn-success gap-1" onclick="openCreateModal()" title="Добавить новую транзакцию">
                     ➕ Добавить транзакцию
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
@@ -441,10 +441,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа транзакции для create_modal
     setupCreateTransactionTypeButtons();
 
-    // Установить текущую дату для create_modal
+    // Установить текущую дату для create_modal (DD.MM.YYYY формат для CalendarWidget)
     const createFactDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
     if (createFactDateInput) {
-        createFactDateInput.value = BudgetShared.DateFormatter.today();
+        createFactDateInput.value = BudgetShared.DateFormatter.formatForDisplay(
+            BudgetShared.DateFormatter.today()
+        );
     }
 
     // Обработчик отправки формы создания транзакции
@@ -1561,6 +1563,22 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         toast.remove();
     }, 3000);
+}
+
+// Функция открытия модального окна создания транзакции с проверкой даты
+function openCreateModal() {
+    create_modal.showModal();
+
+    // Проверить и установить дату, если поле пустое (после сброса формы)
+    setTimeout(() => {
+        const factDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+        if (factDateInput && !factDateInput.value) {
+            factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(
+                BudgetShared.DateFormatter.today()
+            );
+            console.log('[openCreateModal] Установлена текущая дата:', factDateInput.value);
+        }
+    }, 50);
 }
 </script>
 {% endblock %}

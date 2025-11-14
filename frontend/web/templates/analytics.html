@@ -1491,10 +1491,10 @@ function resetWaterfallDrilldown() {
 
 // Show drill-down modal with category list
 function showWaterfallDrilldownModal(periodLabel, categories) {
-    // Build modal HTML
+    // Build modal HTML (with mobile optimization: max-h-[95vh] overflow-y-auto)
     let modalHtml = `
         <div id="waterfall-drilldown-modal" class="modal" style="display: block;">
-            <div class="modal-content">
+            <div class="modal-content max-h-[95vh] overflow-y-auto">
                 <div class="modal-header">
                     <h3>Детализация: ${periodLabel}</h3>
                     <span class="modal-close" onclick="closeWaterfallDrilldownModal()">&times;</span>
