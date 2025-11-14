@@ -173,16 +173,17 @@ function openAddTransactionModal() {
     // Открыть модальное окно сначала
     modal_add_transaction.showModal();
 
-    // Установить текущую дату в формате DD.MM.YYYY после открытия модального окна
-    // Используем setTimeout для гарантии, что DOM готов
+    // Проверить и установить дату, если поле пустое (например, после сброса формы)
     setTimeout(() => {
         const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
-        if (factDateInput) {
+        if (factDateInput && !factDateInput.value) {
             const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
             factDateInput.value = todayFormatted;
-            console.log('Установлена дата при открытии модального окна:', todayFormatted);
+            console.log('[openAddTransactionModal] Поле даты пустое, установлена текущая дата:', todayFormatted);
+        } else if (factDateInput) {
+            console.log('[openAddTransactionModal] Поле даты уже заполнено:', factDateInput.value);
         }
-    }, 0);
+    }, 50); // Увеличил delay до 50ms для надёжности
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -194,20 +195,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа транзакции (Расход/Доход)
     setupTransactionTypeButtons();
 
+    // Установить текущую дату ДО инициализации CalendarWidget (DD.MM.YYYY формат)
+    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    if (factDateInput) {
+        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+        factDateInput.value = todayFormatted;
+        console.log('[DOMContentLoaded] Установлена дата ДО инициализации CalendarWidget:', todayFormatted);
+    }
+
     // Инициализация CalendarWidget для create modal
     new BudgetShared.CalendarWidget({
         mode: 'single',
-        inputElement: document.querySelector('#form_modal_add_transaction input[name="fact_date"]'),
+        inputElement: factDateInput,
         onSelect: (date) => {
             console.log('Выбрана дата для новой транзакции:', date);
         }
     });
-
-    // Установить текущую дату для транзакции ПОСЛЕ инициализации CalendarWidget (DD.MM.YYYY формат)
-    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
-    if (factDateInput) {
-        factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
-    }
 
     // Инициализация кнопок периода планирования
     updatePlanPeriodButtons(); // Обновить тексты кнопок (Янв 2025, Фев 2025, и т.д.)
