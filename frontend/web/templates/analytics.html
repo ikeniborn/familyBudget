@@ -1761,7 +1761,9 @@ function updateHeatmapChart(data) {
             axisLabel: {
                 fontSize: 12
             },
-            inverse: true  // v5.1.3: Display Y-axis top-to-bottom (oldest at top, newest at bottom)
+            // v5.1.4: inverse only for months (show oldest at top, newest at bottom)
+            // For weeks with ISO numbers: false (show smallest week numbers at top)
+            inverse: data.aggregation === 'month'
         },
         visualMap: {
             type: 'continuous',

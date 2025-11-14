@@ -1347,10 +1347,10 @@ async def get_heatmap_data(
             # Auto-determine aggregation based on days difference (v5.1.3 fix)
             days_diff = (end_date - start_date).days + 1
             if days_diff <= 31:
-                # <= 31 days: aggregate by calendar dates (daily)
-                aggregation = "day"
+                # <= 31 days: aggregate by calendar weeks with ISO week number
+                aggregation = "week"
             elif days_diff <= 91:
-                # > 31 and <= 91 days: aggregate by calendar weeks (weekly)
+                # > 31 and <= 91 days: aggregate by calendar weeks with ISO week number
                 aggregation = "week"
             else:
                 # > 91 days: aggregate by calendar months (monthly)
@@ -1426,9 +1426,9 @@ async def get_heatmap_data(
             data = [week_data]  # Single row
 
         elif aggregation == "week":
-            # Для custom range >31 и ≤91 дней: недели × 7 дней grid (v5.1.3 fix)
+            # Для custom range ≤91 дней: недели × 7 дней grid (v5.1.4)
             # X-axis: дни недели (Пн-Вс)
-            # Y-axis: недели (Нед дд.мм-дд.мм)
+            # Y-axis: недели (ISO номер недели в году)
             day_names = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
             xAxis = day_names
             yAxis = []
@@ -1449,8 +1449,10 @@ async def get_heatmap_data(
                 actual_week_end = min(week_end, end_date)
                 actual_week_start = max(week_start, start_date)
 
-                # Label: "Нед дд.мм-дд.мм"
-                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
+                # Label: ISO week number (Неделя N)
+                # Use Monday of the week for ISO week calculation
+                iso_week = get_iso_week_number(week_start)
+                week_label = f"Неделя {iso_week}"
                 yAxis.append(week_label)
 
                 # Генерация данных для недели
