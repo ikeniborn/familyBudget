@@ -430,6 +430,13 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
     }, 300); // 300ms debounce
 }
 
+// Utility function to truncate text to specified length
+function truncateText(text, maxLength = 30) {
+    if (!text || text === '—') return text;
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+}
+
 // Load data on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadUsers();
@@ -940,6 +947,7 @@ function renderFactsTable(facts) {
     facts.forEach(fact => {
         const amountClass = fact.article_type === 'income' ? 'text-success font-bold' : 'text-error font-bold';
         const description = fact.description || '—';
+        const descriptionTruncated = truncateText(description, 30);
         const financialCenter = fact.financial_center_name || '—';
         const costCenter = fact.cost_center_name || '—';
         const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
@@ -953,7 +961,7 @@ function renderFactsTable(facts) {
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
                 <td>${fact.article_name || '—'}</td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
-                <td class="max-w-xs truncate" title="${description}">${description}</td>
+                <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td>${fact.user_name || '—'}</td>
                 <td>
                     <div class="flex gap-1">

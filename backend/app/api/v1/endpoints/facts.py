@@ -402,8 +402,8 @@ async def get_recent_facts_html(
                 <thead>
                     <tr>
                         <th>Дата</th>
-                        <th>Категория</th>
                         <th>ЦФО</th>
+                        <th>Категория</th>
                         <th>Сумма</th>
                         <th>Описание</th>
                     </tr>
@@ -432,16 +432,17 @@ async def get_recent_facts_html(
 
             # Description (truncate if too long)
             description = fact.description if fact.description else "—"
-            if len(description) > 50:
-                description = description[:47] + "..."
+            description_full = description  # For title attribute
+            if len(description) > 30:
+                description = description[:30] + "..."
 
             html += f"""
                     <tr>
                         <td class="whitespace-nowrap">{fact_date_str}</td>
-                        <td>{article_icon} {article.name}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
+                        <td>{article_icon} {article.name}</td>
                         <td class="{amount_class} whitespace-nowrap">{amount_prefix}{format_money(fact.amount)} ₽</td>
-                        <td class="max-w-xs truncate">{description}</td>
+                        <td class="max-w-xs truncate" title="{description_full}">{description}</td>
                     </tr>
             """
 
