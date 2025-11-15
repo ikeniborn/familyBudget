@@ -1,0 +1,841 @@
+{% extends "base.html" %}
+{% from "components/modal_transaction.html" import transaction_modal %}
+{% from "components/modal_plan.html" import plan_modal %}
+
+{% block content %}
+<div class="space-y-6">
+    {% if user %}
+        <!-- Welcome Section -->
+        <div class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box">
+            <div class="hero-content text-center py-6">
+                <div class="max-w-md">
+                    <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
+                    <p class="opacity-80">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats Section -->
+        <div class="card bg-base-100 shadow-xl">
+            <div class="card-body py-4">
+                <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
+                <div id="quick-stats"
+                     hx-get="/api/v1/analytics/quick-stats-html"
+                     hx-trigger="load"
+                     hx-swap="innerHTML"
+                     class="min-h-[100px] flex items-center justify-center">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Width Layout: Quick Stats, Quick Actions, Recent Transactions -->
+        <div class="grid grid-cols-1 gap-6">
+            <!-- Quick Actions -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">💡 Быстрые действия</h2>
+                    <div class="flex flex-col sm:flex-row flex-wrap gap-3">
+                        <a href="/analytics" class="btn btn-outline btn-primary justify-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Панель аналитики
+                        </a>
+
+                        <button onclick="openAddTransactionModal()" class="btn btn-outline btn-success justify-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Добавить транзакцию
+                        </button>
+
+                        <button onclick="modal_add_plan.showModal()" class="btn btn-outline btn-info justify-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                            </svg>
+                            Добавить план
+                        </button>
+
+                        <div class="divider my-2 w-full">Telegram Bot</div>
+
+                        <div class="alert alert-info shadow-sm w-full">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <div>
+                                <div class="text-sm font-semibold">Используйте Telegram Bot для быстрого доступа</div>
+                                <div class="text-xs opacity-80">Отправьте /start боту @ikenibornbudgetbot для управления транзакциями</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Transactions -->
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">📈 Последние транзакции</h2>
+                    <div id="recent-transactions"
+                         hx-get="/api/v1/facts/recent-html?limit=5"
+                         hx-trigger="load"
+                         hx-swap="innerHTML"
+                         class="min-h-[200px]">
+                        <div class="flex items-center justify-center py-8">
+                            <span class="loading loading-spinner loading-lg text-primary"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+    {% else %}
+        <!-- Login Section (Not Authenticated) -->
+        <div class="hero min-h-[60vh] bg-gradient-to-r from-primary/20 to-secondary/20 rounded-box">
+            <div class="hero-content text-center">
+                <div class="max-w-md">
+                    <h1 class="text-5xl font-bold mb-6">💰 Семейный бюджет</h1>
+                    <p class="text-xl mb-8">
+                        Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом с легкостью.
+                    </p>
+
+                    <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-lg gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.053 5.56-5.023c.242-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.654-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
+                        </svg>
+                        Войти через Telegram
+                    </a>
+
+                    <div class="mt-6 text-sm opacity-70">
+                        <p>Безопасная аутентификация через Telegram OAuth</p>
+                        <p class="mt-1">с валидацией HMAC-SHA256</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features for Non-Authenticated Users -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body items-center text-center">
+                    <div class="text-5xl mb-4">📊</div>
+                    <h2 class="card-title">Аналитика</h2>
+                    <p class="opacity-70">Красивые интерактивные графики на базе ECharts</p>
+                </div>
+            </div>
+
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body items-center text-center">
+                    <div class="text-5xl mb-4">🤖</div>
+                    <h2 class="card-title">Telegram Bot</h2>
+                    <p class="opacity-70">Управляйте бюджетом прямо из Telegram</p>
+                </div>
+            </div>
+
+            <div class="card bg-base-100 shadow-xl">
+                <div class="card-body items-center text-center">
+                    <div class="text-5xl mb-4">🔒</div>
+                    <h2 class="card-title">Конфиденциальность</h2>
+                    <p class="opacity-70">Ваши данные защищены и изолированы</p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% if user %}
+    <!-- Modal: Добавить транзакцию -->
+    {{ transaction_modal('modal_add_transaction') }}
+
+    <!-- Modal: Добавить план -->
+    {{ plan_modal('modal_add_plan') }}
+{% endif %}
+
+{% endblock %}
+
+{% block extra_scripts %}
+{% if user %}
+<!-- Choices.js Library -->
+<link rel="stylesheet" href="/static/css/vendor/choices.min.css">
+<link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
+<script src="/static/js/vendor/choices.min.js"></script>
+
+<!-- BudgetShared bundle (includes ChoicesCategoryTree) already included in base.html -->
+
+<script>
+// Глобальные переменные для CategoryTreeSelect компонентов
+let transactionCategoryTreeSelect = null;
+let planCategoryTreeSelect = null;
+
+// Открыть модальное окно добавления транзакции с инициализацией даты
+function openAddTransactionModal() {
+    // Открыть модальное окно сначала
+    modal_add_transaction.showModal();
+
+    // Проверить и установить дату, если поле пустое (например, после сброса формы)
+    setTimeout(() => {
+        const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+        if (factDateInput && !factDateInput.value) {
+            const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+            factDateInput.value = todayFormatted;
+            debugLog('[openAddTransactionModal] Поле даты пустое, установлена текущая дата:', todayFormatted);
+        } else if (factDateInput) {
+            debugLog('[openAddTransactionModal] Поле даты уже заполнено:', factDateInput.value);
+        }
+    }, 50); // Увеличил delay до 50ms для надёжности
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Загрузить категории, ЦФО и МВЗ для обеих форм
+    loadCategories();
+    loadFinancialCenters();
+    loadCostCenters();
+
+    // Инициализация кнопок типа транзакции (Расход/Доход)
+    setupTransactionTypeButtons();
+
+    // Установить текущую дату ДО инициализации CalendarWidget (DD.MM.YYYY формат)
+    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    if (factDateInput) {
+        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+        factDateInput.value = todayFormatted;
+        debugLog('[DOMContentLoaded] Установлена дата ДО инициализации CalendarWidget:', todayFormatted);
+    }
+
+    // Инициализация CalendarWidget для create modal
+    new BudgetShared.CalendarWidget({
+        mode: 'single',
+        inputElement: factDateInput,
+        onSelect: (date) => {
+            debugLog('Выбрана дата для новой транзакции:', date);
+        }
+    });
+
+    // ВАЖНО: Установить дату ПОСЛЕ инициализации CalendarWidget (для синхронизации)
+    if (factDateInput) {
+        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+        factDateInput.value = todayFormatted;
+        debugLog('[DOMContentLoaded] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
+    }
+
+    // Инициализация кнопок периода планирования
+    updatePlanPeriodButtons(); // Обновить тексты кнопок (Янв 2025, Фев 2025, и т.д.)
+    setupPlanPeriodButtons(); // Установить обработчики кликов
+
+    // Инициализация кнопок типа плана (Расход/Доход)
+    setupPlanTypeButtons(); // Установить обработчики кликов и перезагрузку категорий
+
+    // Обработчик отправки формы транзакции
+    document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+
+        // v5.1.3: Унификация с facts.html - использовать fact_type вместо transaction_type
+        const data = {
+            record_type: 'fact',
+            fact_type: formData.get('record_type'), // v5.1.3: было transaction_type
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')), // DD.MM.YYYY → YYYY-MM-DD
+            description: formData.get('description') || null
+        };
+
+        try {
+            const response = await fetch('/api/v1/facts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include', // v5.1.3: включить cookies для аутентификации
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast('Транзакция успешно создана!', 'success');
+                modal_add_transaction.close();
+                e.target.reset();
+
+                // Обновить список транзакций и статистику (правильный HTMX trigger)
+                const recentTransactionsEl = document.getElementById('recent-transactions');
+                const quickStatsEl = document.getElementById('quick-stats');
+
+                if (recentTransactionsEl) {
+                    htmx.trigger(recentTransactionsEl, 'load');
+                }
+                if (quickStatsEl) {
+                    htmx.trigger(quickStatsEl, 'load');
+                }
+
+                // Установить дату обратно на сегодня
+                const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+                if (transactionDateInput) {
+                    transactionDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+                }
+            } else {
+                const error = await response.json();
+                showToast('Ошибка: ' + (error.detail || 'Не удалось создать транзакцию'), 'error');
+            }
+        } catch (error) {
+            console.error('Error creating transaction:', error);
+            showToast('Ошибка подключения к серверу', 'error');
+        }
+    });
+
+    // Обработчик отправки формы плана
+    document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+
+        // v5.1.3: Унификация с plan.html - преобразовать plan_month (YYYY-MM) в fact_date (YYYY-MM-01)
+        const planMonth = formData.get('plan_month'); // "2025-11"
+        const factDate = `${planMonth}-01`; // "2025-11-01"
+
+        // v5.1.3: Убрано поле transaction_type - не используется для планов
+        const data = {
+            record_type: 'plan',
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            fact_date: factDate, // Обязательное поле - первое число месяца плана
+            description: formData.get('description') || null
+        };
+
+        try {
+            const response = await fetch('/api/v1/facts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include', // v5.1.3: включить cookies для аутентификации
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast('План успешно создан!', 'success');
+                modal_add_plan.close();
+                e.target.reset();
+
+                // Переинициализировать кнопки периода (v5.1.3: как в plan.html)
+                setupPlanPeriodButtons();
+            } else {
+                const error = await response.json();
+                showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+            }
+        } catch (error) {
+            console.error('Error creating plan:', error);
+            showToast('Ошибка подключения к серверу', 'error');
+        }
+    });
+});
+
+// Загрузить категории для обеих форм (первоначальная загрузка)
+async function loadCategories() {
+    try {
+        await loadTransactionCategories();
+        await loadPlanCategories();
+        debugLog('[index.html] Categories loaded successfully');
+    } catch (error) {
+        console.error('Failed to load categories:', error);
+        showToast('Ошибка при загрузке категорий', 'error');
+    }
+}
+
+// Загрузить категории только для формы транзакций
+async function loadTransactionCategories() {
+    try {
+        // Check if select element exists (defense in depth)
+        const selectElement = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
+        if (!selectElement) {
+            debugLog('[loadTransactionCategories] Select element not found - skipping initialization');
+            return;
+        }
+
+        // Get current transaction type
+        const transactionType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
+
+        if (transactionCategoryTreeSelect) {
+            // Update existing instance (more efficient than destroy/recreate)
+            await transactionCategoryTreeSelect.updateType(transactionType);
+        } else {
+            // Initialize CategoryTreeSelect for transaction form
+            transactionCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
+                type: transactionType,
+                showLeafOnly: true,
+                onCategoryChange: (category) => {
+                    debugLog('Transaction category changed:', category);
+                    // Update recommended amounts based on selected category
+                    loadRecommendedAmounts('form_modal_add_transaction', 'fact', category);
+                }
+            });
+        }
+
+        debugLog('[index.html] Transaction categories loaded');
+    } catch (error) {
+        console.error('Failed to load transaction categories:', error);
+        showToast('Ошибка при загрузке категорий транзакций', 'error');
+    }
+}
+
+// Загрузить категории только для формы планов
+async function loadPlanCategories() {
+    try {
+        // Check if select element exists (defense in depth)
+        const selectElement = document.querySelector('#form_modal_add_plan select[name="article_id"]');
+        if (!selectElement) {
+            debugLog('[loadPlanCategories] Select element not found - skipping initialization');
+            return;
+        }
+
+        // Get current plan type
+        const planType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
+
+        if (planCategoryTreeSelect) {
+            // Update existing instance (more efficient than destroy/recreate)
+            await planCategoryTreeSelect.updateType(planType);
+        } else {
+            // Initialize CategoryTreeSelect for plan form
+            planCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
+                type: planType,
+                showLeafOnly: true,
+                onCategoryChange: (category) => {
+                    debugLog('Plan category changed:', category);
+                    // Update recommended amounts based on selected category
+                    loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+                }
+            });
+        }
+
+        debugLog('[index.html] Plan categories loaded');
+    } catch (error) {
+        console.error('Failed to load plan categories:', error);
+        showToast('Ошибка при загрузке категорий планов', 'error');
+    }
+}
+
+// Загрузить список ЦФО (Центров финансовой ответственности)
+async function loadFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true&is_current=true');
+        if (!response.ok) {
+            // Graceful degradation for 401 Unauthorized (user not authenticated)
+            if (response.status === 401) {
+                debugLog('[loadFinancialCenters] User not authenticated - financial centers not loaded');
+                return;  // Silent fail - don't show error toast
+            }
+
+            // For other errors, show error toast
+            console.warn('Failed to fetch financial centers: HTTP', response.status);
+            showToast('Не удалось загрузить список ЦФО', 'error');
+            return;
+        }
+
+        const data = await response.json();
+        const centers = data.financial_centers || [];
+
+        if (centers.length === 0) {
+            console.warn('No financial centers returned from API');
+            showToast('Список ЦФО пуст. Пожалуйста, создайте ЦФО в справочнике.', 'warning');
+            return;
+        }
+
+        // Заполнить select в обеих формах
+        const selects = [
+            document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]'),
+            document.querySelector('#form_modal_add_plan select[name="financial_center_id"]')
+        ];
+
+        selects.forEach(select => {
+            if (!select) return;
+
+            // Очистить кроме первой опции
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            // Добавить ЦФО
+            centers.forEach(fc => {
+                const option = document.createElement('option');
+                option.value = fc.id;
+                option.textContent = fc.name;
+                select.appendChild(option);
+            });
+        });
+
+        console.log(`Loaded ${centers.length} financial centers`);
+    } catch (error) {
+        console.error('Failed to load financial centers:', error);
+        showToast('Ошибка при загрузке ЦФО', 'error');
+    }
+}
+
+// Загрузить список МВЗ (Мест возникновения затрат)
+async function loadCostCenters() {
+    try {
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true&is_current=true');
+        if (!response.ok) {
+            console.warn('Failed to fetch cost centers: HTTP', response.status);
+            // МВЗ опциональное поле, не показываем error toast
+            debugLog('Cost centers not loaded - this is optional');
+            return;
+        }
+
+        const data = await response.json();
+        const centers = data.cost_centers || [];
+
+        // МВЗ опциональное, пустой список не критичен
+        if (centers.length === 0) {
+            debugLog('No cost centers available - this is optional');
+            return;
+        }
+
+        // Заполнить select в обеих формах
+        const selects = [
+            document.querySelector('#form_modal_add_transaction select[name="cost_center_id"]'),
+            document.querySelector('#form_modal_add_plan select[name="cost_center_id"]')
+        ];
+
+        selects.forEach(select => {
+            if (!select) return;
+
+            // Очистить кроме первой опции ("-- Не выбрано --")
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            // Добавить МВЗ
+            centers.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+        });
+
+        console.log(`Loaded ${centers.length} cost centers`);
+    } catch (error) {
+        console.error('Failed to load cost centers:', error);
+        // Не показываем error toast, т.к. МВЗ опциональное поле
+        debugLog('Cost centers error is non-critical');
+    }
+}
+
+// Показать уведомление (toast)
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} shadow-lg fixed bottom-4 right-4 w-auto max-w-md z-50`;
+    toast.innerHTML = `
+        <div>
+            <span>${message}</span>
+        </div>
+    `;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Quick Amount для формы транзакции
+function setTransactionAmount(value) {
+    const amountInput = document.querySelector('#form_modal_add_transaction input[name="amount"]');
+    if (amountInput) {
+        amountInput.value = value.toFixed(2);
+        amountInput.focus();
+    }
+}
+
+// Quick Amount для формы плана
+function setPlanAmount(value) {
+    const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
+    if (amountInput) {
+        amountInput.value = value.toFixed(2);
+        amountInput.focus();
+    }
+}
+
+// Quick Date для формы транзакции
+function setTransactionDate(daysOffset) {
+    const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    if (dateInput) {
+        const date = new Date();
+        date.setDate(date.getDate() + daysOffset);
+        // Use DD.MM.YYYY format
+        dateInput.value = BudgetShared.DateFormatter.formatForDisplay(date.toISOString().split('T')[0]);
+        dateInput.focus();
+    }
+}
+
+// ============ Smart Amount Suggestions Functions ============
+
+// Debounce tracking for recommended amounts API calls
+let recommendedAmountsTimeout = null;
+let recommendedAmountsController = null;
+
+/**
+ * Load recommended amounts from API and update quick amount buttons.
+ *
+ * @param {string} formId - ID модальной формы ('form_modal_add_transaction' или 'form_modal_add_plan')
+ * @param {string} recordType - Тип записи ('fact' или 'plan')
+ * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
+ */
+async function loadRecommendedAmounts(formId, recordType = 'fact', category = null) {
+    // Clear existing debounce timeout
+    if (recommendedAmountsTimeout) {
+        clearTimeout(recommendedAmountsTimeout);
+    }
+
+    // Cancel pending API call
+    if (recommendedAmountsController) {
+        recommendedAmountsController.abort();
+    }
+
+    // Debounce: wait 300ms after last call
+    recommendedAmountsTimeout = setTimeout(async () => {
+        try {
+            recommendedAmountsController = new AbortController();
+
+            // Get form elements
+            const form = document.getElementById(formId);
+            if (!form) {
+                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
+                return;
+            }
+
+            // Get current type (income/expense)
+            const typeInput = form.querySelector('input[name="record_type"]:checked') ||
+                             form.querySelector('input[name="plan_type"]:checked');
+            const type = typeInput ? typeInput.value : 'expense';
+
+            // Get current category (from callback parameter or fallback to DOM)
+            const articleId = category ? category.id : null;
+
+            // Build query params
+            const params = new URLSearchParams({
+                record_type: recordType,
+                period: 'quarter',  // 90 days analysis
+            });
+
+            if (articleId && articleId !== '') {
+                params.append('article_id', articleId);
+            }
+
+            if (type) {
+                params.append('article_type', type);
+            }
+
+            // Call API
+            const response = await fetch(`/api/v1/analytics/recommended-amounts?${params.toString()}`, {
+                signal: recommendedAmountsController.signal,
+                credentials: 'include',  // Include cookies for auth
+            });
+
+            if (!response.ok) {
+                console.error(`[loadRecommendedAmounts] API error: ${response.status}`);
+                return;
+            }
+
+            const data = await response.json();
+
+            // Update button labels with new amounts
+            updateQuickAmountButtons(formId, data.amounts);
+
+            console.log(`[loadRecommendedAmounts] Updated amounts for ${formId}:`, data.amounts, data.metadata);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
+            } else {
+                console.error('[loadRecommendedAmounts] Failed to load:', error);
+            }
+        }
+    }, 300); // 300ms debounce
+}
+
+/**
+ * Update quick amount button labels with new amounts.
+ *
+ * @param {string} formId - ID модальной формы
+ * @param {Array<number>} amounts - Array of 4 recommended amounts
+ */
+function updateQuickAmountButtons(formId, amounts) {
+    if (!amounts || amounts.length !== 4) {
+        console.warn('[updateQuickAmountButtons] Invalid amounts array:', amounts);
+        return;
+    }
+
+    // Find buttons in the specified form
+    const form = document.getElementById(formId);
+    if (!form) {
+        console.warn(`[updateQuickAmountButtons] Form ${formId} not found`);
+        return;
+    }
+
+    // Find quick amount buttons (need to select parent container then buttons)
+    const buttons = form.querySelectorAll('.btn[onclick*="Amount"]');
+
+    amounts.forEach((amount, index) => {
+        if (buttons[index]) {
+            const amountValue = parseFloat(amount);
+
+            // Update button text with formatted amount
+            buttons[index].textContent = formatAmountForButton(amountValue) + ' ₽';
+
+            // Update onclick handler
+            const funcName = formId.includes('transaction') ? 'setTransactionAmount' : 'setPlanAmount';
+            buttons[index].setAttribute('onclick', `${funcName}(${amountValue})`);
+        }
+    });
+}
+
+/**
+ * Format amount for button display.
+ *
+ * Examples:
+ * - 100 → "100"
+ * - 1000 → "1k"
+ * - 1500 → "1.5k"
+ * - 10000 → "10k"
+ *
+ * @param {number} amount - Amount to format
+ * @returns {string} Formatted amount string
+ */
+function formatAmountForButton(amount) {
+    if (amount >= 1000) {
+        const thousands = amount / 1000;
+        // Check if it's a round number
+        if (Number.isInteger(thousands)) {
+            return `${thousands}k`;
+        } else {
+            return `${thousands.toFixed(1)}k`;
+        }
+    }
+    return amount.toString();
+}
+
+// ============ Plan Period Buttons Functions ============
+
+// Обновить тексты кнопок периода планирования
+function updatePlanPeriodButtons() {
+    const monthNamesShort = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const now = new Date();
+
+    const buttons = [
+        { id: 'plan_period_btn_1', offset: 0 },
+        { id: 'plan_period_btn_2', offset: 1 },
+        { id: 'plan_period_btn_3', offset: 2 }
+    ];
+
+    buttons.forEach(btn => {
+        const button = document.getElementById(btn.id);
+        if (!button) return;
+
+        const targetDate = new Date(now.getFullYear(), now.getMonth() + btn.offset, 1);
+        const monthIndex = targetDate.getMonth();
+        const year = targetDate.getFullYear();
+
+        button.textContent = `${monthNamesShort[monthIndex]} ${year}`;
+        button.dataset.year = year;
+        button.dataset.month = String(monthIndex + 1).padStart(2, '0');
+    });
+}
+
+// Установить обработчики для кнопок периода
+function setupPlanPeriodButtons() {
+    const periodButtons = document.querySelectorAll('.period-btn');
+    const hiddenInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
+
+    if (!hiddenInput || periodButtons.length === 0) return;
+
+    periodButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать btn-active у всех кнопок
+            periodButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Добавить btn-active к текущей кнопке
+            this.classList.add('btn-active');
+
+            // Установить значение в hidden input (YYYY-MM)
+            const year = this.dataset.year;
+            const month = this.dataset.month;
+            hiddenInput.value = `${year}-${month}`;
+
+            debugLog('Selected plan period:', hiddenInput.value);
+        });
+    });
+
+    // Установить значение по умолчанию (текущая кнопка btn-active)
+    const activeButton = document.querySelector('.period-btn.btn-active');
+    if (activeButton && activeButton.dataset.year && activeButton.dataset.month) {
+        hiddenInput.value = `${activeButton.dataset.year}-${activeButton.dataset.month}`;
+    }
+}
+
+// Установить обработчики для кнопок типа транзакции
+function setupTransactionTypeButtons() {
+    const typeButtons = document.querySelectorAll('.transaction-type-btn');
+
+    if (typeButtons.length === 0) return;
+
+    typeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать btn-active у всех кнопок
+            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Добавить btn-active к текущей кнопке
+            this.classList.add('btn-active');
+
+            // Отметить соответствующий radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+
+            // Перезагрузить только категории транзакций с новым типом
+            debugLog('Transaction type changed to:', this.dataset.type);
+            loadTransactionCategories();
+
+            // Обновить рекомендуемые суммы для нового типа транзакции
+            loadRecommendedAmounts('form_modal_add_transaction', 'fact');
+        });
+    });
+}
+
+// Установить обработчики для кнопок типа плана
+function setupPlanTypeButtons() {
+    const typeButtons = document.querySelectorAll('.plan-type-btn');
+
+    if (typeButtons.length === 0) return;
+
+    typeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Убрать btn-active у всех кнопок
+            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Добавить btn-active к текущей кнопке
+            this.classList.add('btn-active');
+
+            // Отметить соответствующий radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+
+            // Перезагрузить только категории планов с новым типом
+            debugLog('Plan type changed to:', this.dataset.type);
+            loadPlanCategories();
+
+            // Обновить рекомендуемые суммы для нового типа плана
+            loadRecommendedAmounts('form_modal_add_plan', 'plan');
+        });
+    });
+}
+</script>
+
+{% endif %}
+{% endblock %}

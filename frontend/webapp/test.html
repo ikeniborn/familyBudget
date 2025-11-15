@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Test - Семейный бюджет Web App</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Web App Test Page</h1>
+
+        <div class="card">
+            <div class="card-title">Environment</div>
+            <div class="card-content" id="env-info">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Theme</div>
+            <div class="card-content" id="theme-info">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">User</div>
+            <div class="card-content" id="user-info">Loading...</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Modules Test</div>
+            <div class="card-content">
+                <div id="modules-status">Testing...</div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-primary btn-block" id="test-api">Test API</button>
+            <button class="btn btn-secondary btn-block" id="test-haptic">Test Haptic</button>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/theme.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/validators.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
+
+    <script>
+        // Test page specific code
+        window.pageInit = async function(app) {
+            console.log('Test page init');
+
+            // Display environment info
+            const envInfo = document.getElementById('env-info');
+            envInfo.innerHTML = `
+                <div>Platform: ${app.tg.platform}</div>
+                <div>Version: ${app.tg.version}</div>
+                <div>Viewport: ${app.tg.viewportHeight}x${app.tg.viewportStableHeight}</div>
+            `;
+
+            // Display theme info
+            const themeInfo = document.getElementById('theme-info');
+            const theme = app.theme.getParams();
+            themeInfo.innerHTML = `
+                <div>Color scheme: ${app.tg.colorScheme}</div>
+                <div>BG color: ${theme.bg_color}</div>
+                <div>Text color: ${theme.text_color}</div>
+                <div>Button color: ${theme.button_color}</div>
+            `;
+
+            // Display user info
+            const userInfo = document.getElementById('user-info');
+            const user = app.auth.getUser();
+            if (user) {
+                userInfo.innerHTML = `
+                    <div>ID: ${user.id}</div>
+                    <div>Name: ${user.first_name} ${user.last_name || ''}</div>
+                    <div>Username: @${user.username || 'N/A'}</div>
+                    <div>Admin: ${user.is_admin ? 'Yes' : 'No'}</div>
+                `;
+            } else {
+                userInfo.innerHTML = 'Not authenticated';
+            }
+
+            // Test modules
+            const modulesStatus = document.getElementById('modules-status');
+            const modules = [];
+
+            try {
+                if (typeof Auth !== 'undefined') modules.push('✅ Auth');
+                if (typeof APIClient !== 'undefined') modules.push('✅ APIClient');
+                if (typeof UI !== 'undefined') modules.push('✅ UI');
+                if (typeof Theme !== 'undefined') modules.push('✅ Theme');
+                if (typeof Storage !== 'undefined') modules.push('✅ Storage');
+                if (typeof Validators !== 'undefined') modules.push('✅ Validators');
+                if (typeof BudgetApp !== 'undefined') modules.push('✅ BudgetApp');
+
+                modulesStatus.innerHTML = modules.join('<br>');
+            } catch (error) {
+                modulesStatus.innerHTML = `❌ Error: ${error.message}`;
+            }
+
+            // Test API button
+            document.getElementById('test-api').addEventListener('click', async () => {
+                app.ui.showLoading('Testing API...');
+
+                try {
+                    // Test articles endpoint
+                    const result = await app.api.listArticles({ type: 'expense', is_current: true });
+                    app.ui.hideLoading('Test API');
+                    app.ui.showSuccess(`API works! Found ${result.articles?.length || 0} articles.`);
+                } catch (error) {
+                    app.ui.hideLoading('Test API');
+                    app.ui.showError(`API Error: ${error.message}`);
+                }
+            });
+
+            // Test haptic button
+            document.getElementById('test-haptic').addEventListener('click', () => {
+                app.ui.hapticMedium();
+                app.ui.showSuccess('Haptic feedback triggered!');
+            });
+
+            // Setup BackButton
+            app.setupBackButton();
+
+            console.log('Test page ready');
+        };
+    </script>
+</body>
+</html>

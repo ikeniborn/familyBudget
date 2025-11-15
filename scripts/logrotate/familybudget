@@ -1,0 +1,74 @@
+# Family Budget - Log Rotation Configuration
+# ============================================================================
+#
+# Installation:
+#   sudo cp scripts/logrotate/familybudget /etc/logrotate.d/familybudget
+#   sudo chmod 644 /etc/logrotate.d/familybudget
+#
+# Test:
+#   sudo logrotate -d /etc/logrotate.d/familybudget
+#
+# Force run:
+#   sudo logrotate -f /etc/logrotate.d/familybudget
+#
+# ============================================================================
+
+# Application logs
+/var/log/familybudget/*.log {
+    # Rotate daily
+    daily
+
+    # Keep 30 days of logs
+    rotate 30
+
+    # Compress old logs (gzip)
+    compress
+    delaycompress
+
+    # Create new log file after rotation
+    create 0640 root root
+
+    # Don't error if log file is missing
+    missingok
+
+    # Don't rotate if empty
+    notifempty
+
+    # Use date as suffix
+    dateext
+    dateformat -%Y%m%d
+
+    # Shared scripts for all logs
+    sharedscripts
+
+    # Post-rotation script (optional)
+    postrotate
+        # Reload services if needed
+        # systemctl reload familybudget-backup.service 2>/dev/null || true
+    endscript
+}
+
+# Backup logs (inside project directory)
+/opt/familybudget/backups/logs/*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    create 0640 root root
+    missingok
+    notifempty
+    dateext
+    dateformat -%Y%m%d
+}
+
+# Cron logs
+/var/log/familybudget/cron.log {
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    create 0640 root root
+    missingok
+    notifempty
+    dateext
+}

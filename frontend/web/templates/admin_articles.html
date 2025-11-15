@@ -1,0 +1,777 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">📁 Управление категориями бюджета</h1>
+        <p class="text-base-content/70">Создавайте и редактируйте категории доходов и расходов с иерархической структурой</p>
+    </div>
+
+    <!-- Articles Table -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">📊 Категории</h2>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-primary" id="filter-all" onclick="toggleTypeFilter('all')">📋 Все</button>
+                    <button class="btn btn-sm btn-outline" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
+                    <button class="btn btn-sm btn-outline" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
+                    <button class="btn btn-sm btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
+                    <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Новая категория
+                    </button>
+                </div>
+            </div>
+
+            <div id="articles-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Article Modal -->
+<dialog id="create-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новую категорию</h3>
+        <form id="create-form" onsubmit="createArticle(event)" class="space-y-2 sm:space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Введите название категории" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🏷️ Тип*</span>
+                </label>
+                <select id="create-type" name="type" required class="select select-bordered">
+                    <option value="income">💰 Доход</option>
+                    <option value="expense">💸 Расход</option>
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📂 Родительская категория</span>
+                </label>
+                <select id="create-parent" name="parent_id" class="select select-bordered">
+                    <option value="">-- Корневой уровень --</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">✅ Создать</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Edit Article Modal -->
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать категорию</h3>
+        <form id="edit-form" onsubmit="updateArticle(event)" class="space-y-2 sm:space-y-4">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">💰 Тип*</span>
+                </label>
+                <select id="edit-type" name="type" required class="select select-bordered">
+                    <option value="expense">💸 Расход</option>
+                    <option value="income">💵 Доход</option>
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📂 Родительская категория</span>
+                </label>
+                <select id="edit-parent" name="parent_id" class="select select-bordered">
+                    <option value="">-- Корневой уровень --</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label cursor-pointer">
+                    <span class="label-text">✅ Активная категория</span>
+                    <input type="checkbox" id="edit-is-active" name="is_active" class="checkbox" checked />
+                </label>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Неактивные категории скрыты из выбора при добавлении транзакций. Изменение статуса применится ко всем подкатегориям рекурсивно.
+                </p>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let currentType = 'all';
+let showArchived = false;
+let articlesData = [];
+
+// Load articles on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadArticles();
+
+    // Добавляем обработчик изменения типа в модальном окне создания
+    // для динамического обновления списка родительских статей
+    document.getElementById('create-type').addEventListener('change', function() {
+        populateParentSelect('create-parent', this.value);
+    });
+});
+
+// Toggle type filter (all/income/expense)
+function toggleTypeFilter(type) {
+    currentType = type;
+
+    // Update active button (DaisyUI)
+    document.querySelectorAll('#filter-all, #filter-income, #filter-expense').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    });
+    const activeBtn = document.getElementById(`filter-${type}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+
+    // Reload articles
+    loadArticles();
+}
+
+// Load articles from API
+async function loadArticles() {
+    const container = document.getElementById('articles-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        let url = `/api/v1/admin/articles?is_current=true&include_inactive=${showArchived}`;
+
+        const response = await fetch(url, {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        articlesData = await response.json();
+        renderArticlesTable(articlesData);
+    } catch (error) {
+        console.error('Error loading articles:', error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки категорий: ${error.message}</span></div>`;
+    }
+}
+
+// Render articles table with hierarchy
+function renderArticlesTable(articles) {
+    const container = document.getElementById('articles-table-container');
+
+    // Filter by current type (all/income/expense)
+    const filtered = currentType === 'all'
+        ? articles
+        : articles.filter(a => a.type === currentType);
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.</div>';
+        return;
+    }
+
+    // Build hierarchy tree
+    const tree = buildTree(filtered);
+
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
+                <thead>
+                    <tr>
+                        <th>📝 Название</th>
+                        <th>🏷️ Тип</th>
+                        <th>👤 Владелец</th>
+                        <th>⚙️ Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // Render tree recursively
+    html += renderTreeNodes(tree, 0);
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Build hierarchy tree
+function buildTree(articles) {
+    const map = {};
+    const roots = [];
+
+    // Create map
+    articles.forEach(article => {
+        map[article.id] = { ...article, children: [] };
+    });
+
+    // Build tree
+    articles.forEach(article => {
+        if (article.parent_id && map[article.parent_id]) {
+            map[article.parent_id].children.push(map[article.id]);
+        } else {
+            roots.push(map[article.id]);
+        }
+    });
+
+    return roots;
+}
+
+// Render tree nodes recursively
+function renderTreeNodes(nodes, level) {
+    let html = '';
+
+    nodes.forEach(node => {
+        const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
+        const prefix = level > 0 ? '↳ ' : '';
+        const ownerLabel = node.user_name || '—';
+        const typeLabel = node.type === 'income' ? '💰 Доход' : '💸 Расход';
+        const typeBadge = node.type === 'income'
+            ? '<span class="badge badge-success gap-1">' + typeLabel + '</span>'
+            : '<span class="badge badge-ghost gap-1">' + typeLabel + '</span>';
+
+        // Archived badge
+        const archivedBadge = !node.is_active
+            ? '<span class="badge badge-warning ml-2">📦 Архивная</span>'
+            : '';
+
+        // Action buttons - show Archive or Restore depending on is_active status
+        const actionButtons = node.is_active
+            ? `
+                <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
+                <button class="btn btn-sm btn-warning gap-1" onclick="archiveArticle(${node.id})">📦 Архивировать</button>
+                <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+              `
+            : `
+                <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
+                <button class="btn btn-sm btn-success gap-1" onclick="restoreArticle(${node.id})">♻️ Восстановить</button>
+                <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+              `;
+
+        html += `
+            <tr data-article-id="${node.id}">
+                <td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
+                <td>${typeBadge}</td>
+                <td>${ownerLabel}</td>
+                <td>
+                    <div class="flex gap-1">
+                        ${actionButtons}
+                    </div>
+                </td>
+            </tr>
+        `;
+
+        // Render children recursively
+        if (node.children.length > 0) {
+            html += renderTreeNodes(node.children, level + 1);
+        }
+    });
+
+    return html;
+}
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-modal').showModal();
+    // Устанавливаем тип на основе фильтра, если он не 'all'
+    const initialType = currentType !== 'all' ? currentType : 'expense';
+    document.getElementById('create-type').value = initialType;
+    populateParentSelect('create-parent', initialType);
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').close();
+    document.getElementById('create-form').reset();
+}
+
+// Populate parent select dropdown
+function populateParentSelect(selectId, type, excludeArticleId = null) {
+    const select = document.getElementById(selectId);
+
+    // Clear existing options (except first)
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Get articles of same type (exclude current article if editing)
+    const sameType = articlesData.filter(a => a.type === type && a.id != excludeArticleId);
+
+    // Build tree for proper ordering
+    const tree = buildTree(sameType);
+
+    // Add options with hierarchy
+    function addOptions(nodes, level) {
+        nodes.forEach(node => {
+            // Create visual tree structure with non-breaking spaces
+            // Using \u00A0 (non-breaking space) to prevent browser from collapsing whitespace
+            let prefix = '';
+            if (level > 0) {
+                // Each level adds 2 non-breaking spaces for indentation
+                prefix = '\u00A0\u00A0'.repeat(level - 1) + '└─\u00A0';
+            }
+
+            const option = document.createElement('option');
+            option.value = node.id;
+            option.textContent = prefix + node.name;
+
+            // Add visual indicator for parent categories
+            if (node.children.length > 0) {
+                option.textContent += ' 📁';
+            }
+
+            select.appendChild(option);
+
+            if (node.children.length > 0) {
+                addOptions(node.children, level + 1);
+            }
+        });
+    }
+
+    addOptions(tree, 0);
+}
+
+// Create article
+async function createArticle(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        name: formData.get('name'),
+        type: formData.get('type'),
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null
+    };
+
+    try {
+        const response = await fetch('/api/v1/admin/articles', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Add helpful hints based on error type
+            if (errorMessage.includes('родительская категория') || errorMessage.includes('parent')) {
+                errorMessage += '\n\n💡 Совет: Измените родительскую категорию или удалите привязку (выберите "-- Корневой уровень --")';
+            } else if (errorMessage.includes('уже существует') || errorMessage.includes('already exists')) {
+                errorMessage += '\n\n💡 Совет: Измените имя категории или выберите другой тип';
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        // Success
+        closeCreateModal();
+        await loadArticles();
+        showNotification('✅ Категория успешно создана!', 'success');
+    } catch (error) {
+        console.error('Error creating article:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Show edit modal
+function showEditModal(articleId) {
+    const article = articlesData.find(a => a.id === articleId);
+    if (!article) return;
+
+    document.getElementById('edit-id').value = article.id;
+    document.getElementById('edit-name').value = article.name;
+    document.getElementById('edit-type').value = article.type;
+    populateParentSelect('edit-parent', article.type, article.id);
+    document.getElementById('edit-parent').value = article.parent_id || '';
+    document.getElementById('edit-is-active').checked = article.is_active !== false;
+
+    // Add event listener for type change to update parent list dynamically
+    const editTypeSelect = document.getElementById('edit-type');
+    const editParentSelect = document.getElementById('edit-parent');
+    const originalType = article.type;
+    const originalParentId = article.parent_id;
+
+    // Remove old listener if exists
+    editTypeSelect.replaceWith(editTypeSelect.cloneNode(true));
+    const newEditTypeSelect = document.getElementById('edit-type');
+    newEditTypeSelect.value = article.type;
+
+    newEditTypeSelect.addEventListener('change', function() {
+        const newType = this.value;
+        const oldParentId = editParentSelect.value;
+
+        // Update parent select with new type (exclude current article)
+        populateParentSelect('edit-parent', newType, article.id);
+
+        // Check if old parent is still valid (same type)
+        if (oldParentId && originalType !== newType) {
+            const oldParentArticle = articlesData.find(a => a.id == oldParentId);
+            if (oldParentArticle && oldParentArticle.type !== newType) {
+                // Parent has different type - clear selection and show warning
+                editParentSelect.value = '';
+                showNotification(
+                    `⚠️ Родительская категория "${oldParentArticle.name}" имеет тип "${oldParentArticle.type}". ` +
+                    `Выберите новую родительскую категорию с типом "${newType}" или оставьте корневой уровень.`,
+                    'warning'
+                );
+            } else {
+                // Try to keep the same parent if it's compatible
+                editParentSelect.value = oldParentId || '';
+            }
+        }
+    });
+
+    document.getElementById('edit-modal').showModal();
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').close();
+    document.getElementById('edit-form').reset();
+}
+
+// Update article
+async function updateArticle(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const articleId = formData.get('id');
+    const data = {
+        name: formData.get('name'),
+        type: formData.get('type'),
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
+        is_active: document.getElementById('edit-is-active').checked
+    };
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Add helpful hints based on error type
+            if (errorMessage.includes('родительская категория') || errorMessage.includes('parent')) {
+                errorMessage += '\n\n💡 Совет: Измените родительскую категорию или удалите привязку (выберите "-- Корневой уровень --")';
+            } else if (errorMessage.includes('уже существует') || errorMessage.includes('already exists')) {
+                errorMessage += '\n\n💡 Совет: Измените имя категории или выберите другой тип';
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        // Success
+        closeEditModal();
+        await loadArticles();
+        showNotification('✅ Категория успешно обновлена!', 'success');
+    } catch (error) {
+        console.error('Error updating article:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Deactivate article
+async function deactivateArticle(articleId) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить эту категорию? Она будет закрыта с valid_to=NOW() (SCD Type 2).')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        // Success
+        await loadArticles();
+        showNotification('✅ Категория успешно удалена!', 'success');
+    } catch (error) {
+        console.error('Error deactivating article:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Toggle archived filter
+function toggleArchivedFilter() {
+    showArchived = !showArchived;
+
+    const btn = document.getElementById('filter-archived');
+    if (showArchived) {
+        btn.classList.remove('btn-outline');
+        btn.classList.add('btn-primary');
+        btn.textContent = '📦 Скрыть архивные';
+    } else {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.textContent = '📦 Архивные';
+    }
+
+    loadArticles();
+}
+
+// Helper: Format FastAPI error detail (handles both string and array)
+function formatErrorDetail(detail) {
+    if (!detail) return 'Неизвестная ошибка';
+
+    // If detail is a string, return it directly
+    if (typeof detail === 'string') {
+        return detail;
+    }
+
+    // If detail is an array (FastAPI validation errors)
+    if (Array.isArray(detail)) {
+        return detail.map(err => {
+            const location = err.loc ? err.loc.join(' → ') : '';
+            const message = err.msg || '';
+            return location ? `${location}: ${message}` : message;
+        }).join('; ');
+    }
+
+    // Fallback: stringify object
+    return JSON.stringify(detail);
+}
+
+// Archive article and all descendants
+async function archiveArticle(articleId) {
+    if (!confirm('📦 Архивировать эту категорию?\n\nВсе подкатегории будут также архивированы рекурсивно.\nИсторические данные сохранятся.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: false })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            const errorMessage = formatErrorDetail(error.detail);
+            throw new Error(errorMessage);
+        }
+
+        await loadArticles();
+        showNotification('✅ Категория и все подкатегории архивированы!', 'success');
+    } catch (error) {
+        console.error('Error archiving article:', error);
+        showNotification(`❌ Ошибка архивирования: ${error.message}`, 'error');
+    }
+}
+
+// Restore article and all descendants
+async function restoreArticle(articleId) {
+    if (!confirm('♻️ Восстановить эту категорию?\n\nВсе подкатегории будут также восстановлены рекурсивно.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: true })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            const errorMessage = formatErrorDetail(error.detail);
+            throw new Error(errorMessage);
+        }
+
+        await loadArticles();
+        showNotification('✅ Категория и все подкатегории восстановлены!', 'success');
+    } catch (error) {
+        console.error('Error restoring article:', error);
+        showNotification(`❌ Ошибка восстановления: ${error.message}`, 'error');
+    }
+}
+
+// Utility: Show notification (toast instead of alert)
+function showNotification(message, type) {
+    // Handle error objects properly
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
+    // Create toast container if it doesn't exist
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.style.cssText = `
+        background: ${type === 'error' ? '#ef4444' : '#10b981'};
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 300px;
+        max-width: 500px;
+        font-size: 14px;
+        line-height: 1.5;
+        animation: slideIn 0.3s ease-out;
+        cursor: pointer;
+    `;
+    toast.textContent = message;
+
+    // Add animation keyframes if not exists
+    if (!document.getElementById('toast-animations')) {
+        const style = document.createElement('style');
+        style.id = 'toast-animations';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Add to container
+    toastContainer.appendChild(toast);
+
+    // Auto-dismiss after 5 seconds
+    const dismissTimeout = setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+
+    // Click to dismiss
+    toast.addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    });
+}
+</script>
+{% endblock %}

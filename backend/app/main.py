@@ -1,0 +1,262 @@
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.exceptions import HTTPException, RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
+
+from backend.app.api.health import router as health_router
+from backend.app.api.v1.router import api_router
+from backend.app.api.web.router import web_router
+from backend.app.core.config import get_settings
+from backend.app.core.exceptions import APIException
+from backend.app.core.logging import setup_logging, get_logger
+from backend.app.db.session import close_db, init_db
+from backend.app.middleware import JWTAuthMiddleware
+from backend.app.scheduler import start_scheduler, stop_scheduler
+from backend.app.middleware.csp_middleware import CSPMiddleware
+from backend.app.middleware.error_handler import (
+    api_exception_handler,
+    database_exception_handler,
+    generic_exception_handler,
+    http_exception_handler,
+)
+from backend.app.middleware.logging_middleware import LoggingMiddleware
+from backend.app.middleware.validation_error_handler import (
+    validation_exception_handler,
+    value_error_handler,
+)
+
+# Setup structured logging
+setup_logging(level="INFO")
+logger = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for startup and shutdown events.
+
+    Startup:
+        - Initialize database connection
+        - Auto-fetch bot username if not configured
+    Shutdown:
+        - Clean up database connections
+    """
+    # Startup
+    logger.info("Application starting up")
+
+    # Initialize database
+    await init_db()
+    logger.info("Database initialized successfully")
+
+    # Start background scheduler (cron jobs)
+    await start_scheduler()
+    logger.info("Background scheduler started successfully")
+
+    # Auto-fetch Telegram bot username if not configured
+    if settings.TELEGRAM_BOT_USERNAME is None:
+        logger.info("TELEGRAM_BOT_USERNAME not configured, fetching from Telegram API...")
+        from backend.app.services.telegram_auth import get_bot_username
+
+        try:
+            bot_username = await get_bot_username()
+            if bot_username:
+                # Update settings with fetched username
+                settings.TELEGRAM_BOT_USERNAME = bot_username
+                logger.info(f"Bot username auto-configured: @{bot_username}")
+            else:
+                logger.warning(
+                    "Failed to auto-fetch bot username. "
+                    "Please set TELEGRAM_BOT_USERNAME in .env file for web login to work."
+                )
+        except Exception as e:
+            logger.error(f"Error fetching bot username: {e}")
+            logger.warning(
+                "Please set TELEGRAM_BOT_USERNAME in .env file for web login to work."
+            )
+    else:
+        logger.info(f"Using configured bot username: @{settings.TELEGRAM_BOT_USERNAME}")
+
+    yield
+
+    # Shutdown
+    logger.info("Application shutting down")
+
+    # Stop background scheduler
+    await stop_scheduler()
+    logger.info("Background scheduler stopped")
+
+    await close_db()
+    logger.info("Database connections closed")
+
+
+settings = get_settings()
+
+# OpenAPI Tags Metadata
+tags_metadata = [
+    {
+        "name": "Authentication",
+        "description": """
+        **Telegram OAuth authentication endpoints.**
+
+        Handles user authentication via Telegram Login Widget with HMAC-SHA256 hash validation.
+        JWT tokens are issued as httpOnly cookies for security.
+
+        **Security:** Critical endpoints with hash validation and SCD Type 2 user versioning.
+        """,
+    },
+    {
+        "name": "Articles",
+        "description": """
+        **Budget category management (CRUD operations).**
+
+        Articles represent hierarchical budget categories (income/expense).
+        Supports parent-child relationships via closure table for efficient queries.
+
+        **Features:**
+        - SCD Type 2 versioning for audit trail
+        - User data isolation (users see own + global articles)
+        - Admin-only global articles
+        - Hierarchy operations (subtree, ancestors, breadcrumbs)
+        """,
+    },
+    {
+        "name": "Facts",
+        "description": """
+        **Budget transaction management (CRUD operations).**
+
+        Facts represent actual income/expense transactions.
+        Simple transactional records without SCD Type 2 versioning.
+
+        **Features:**
+        - User data isolation
+        - Date range filtering for reports
+        - Aggregation endpoint for income/expense summaries
+        - Validation: no future dates, positive amounts only
+        """,
+    },
+    {
+        "name": "Users",
+        "description": """
+        **User management endpoints (admin-focused).**
+
+        User data comes from Telegram OAuth and cannot be manually edited.
+        Admins can promote/demote users via role updates.
+
+        **Features:**
+        - SCD Type 2 versioning for role changes
+        - Admin-only list all users
+        - Regular users can view own profile
+        - Role management (promote/demote admins)
+        """,
+    },
+]
+
+app = FastAPI(
+    title="Family Budget API",
+    description="""
+    **Production-ready REST API for family budget management.**
+
+    ## Features
+
+    - 🔐 **Telegram OAuth Authentication** - Secure login via Telegram Login Widget
+    - 📊 **Hierarchical Budget Categories** - Flexible category organization with parent-child relationships
+    - 💰 **Transaction Tracking** - Record and manage income/expense transactions
+    - 👥 **Multi-User Support** - User data isolation with admin capabilities
+    - 📈 **Reporting** - Aggregated summaries and date range filtering
+    - 🔄 **Audit Trail** - SCD Type 2 versioning for articles and users
+    - 🛡️ **Security** - JWT tokens, httpOnly cookies, HMAC-SHA256 validation
+    - 🚀 **Performance** - Efficient hierarchy queries via closure table
+
+    ## Architecture
+
+    - **FastAPI** - Modern async web framework
+    - **PostgreSQL** - Reliable ACID-compliant database
+    - **SQLModel** - Type-safe ORM with Pydantic integration
+    - **JWT** - Stateless authentication with httpOnly cookies
+    - **SCD Type 2** - Slowly Changing Dimension pattern for audit trails
+
+    ## Authentication
+
+    All endpoints (except `/health` and `/auth/telegram`) require authentication via JWT token in cookie.
+    Use `/auth/telegram` endpoint to obtain access token.
+    """,
+    version="4.0.0",
+    lifespan=lifespan,
+    tags_metadata=tags_metadata,
+    contact={
+        "name": "Family Budget API Support",
+        "url": "https://github.com/yourusername/familyBudget",
+        "email": "support@familybudget.example.com",
+    },
+    license_info={
+        "name": "MIT License",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    openapi_tags=tags_metadata,
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Security middleware (CSP, XSS protection, etc.)
+app.add_middleware(CSPMiddleware)
+
+# Logging middleware (before JWT for request tracing)
+app.add_middleware(LoggingMiddleware)
+
+# JWT Authentication middleware
+app.add_middleware(JWTAuthMiddleware)
+
+# Exception handlers (order matters: specific before generic)
+# 1. Validation errors (most specific)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(ValidationError, validation_exception_handler)
+
+# 2. Custom API exceptions
+app.add_exception_handler(APIException, api_exception_handler)
+
+# 3. FastAPI HTTP exceptions
+app.add_exception_handler(HTTPException, http_exception_handler)
+
+# 4. Database exceptions
+app.add_exception_handler(SQLAlchemyError, database_exception_handler)
+
+# 5. Generic value errors
+app.add_exception_handler(ValueError, value_error_handler)
+
+# 6. Catch-all for any unhandled exceptions (most generic)
+app.add_exception_handler(Exception, generic_exception_handler)
+
+
+# Configure static files and templates using centralized paths
+from backend.app.core.paths import FrontendPaths
+
+# Mount static files
+app.mount("/static", StaticFiles(directory=str(FrontendPaths.WEB_STATIC)), name="static")
+
+# Mount webapp files (Telegram Web Apps)
+# Serves HTML, JS, CSS for Web Apps at /webapp/*
+app.mount("/webapp", StaticFiles(directory=str(FrontendPaths.WEBAPP), html=True), name="webapp")
+
+# Mount shared files (Common JS/CSS modules for web and webapp)
+app.mount("/shared", StaticFiles(directory=str(FrontendPaths.SHARED)), name="shared")
+
+# Setup Jinja2 templates
+templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
+
+# Include routers
+app.include_router(health_router)  # Health endpoints at /health, /ready, /ping
+app.include_router(api_router)  # API endpoints at /api/v1
+app.include_router(web_router)  # Web pages at /

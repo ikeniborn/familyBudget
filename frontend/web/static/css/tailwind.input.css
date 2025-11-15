@@ -1,0 +1,11 @@
+/**
+ * Tailwind CSS Input File
+ *
+ * This file is the input for Tailwind CSS build process.
+ * Build command: npm run build:css
+ * Output: frontend/web/static/css/vendor/tailwind-daisyui.min.css
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

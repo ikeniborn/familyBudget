@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">📊 Мониторинг системы</h1>
+        <p class="text-base-content/70">Информация о состоянии и производительности системы в реальном времени</p>
+    </div>
+
+    <!-- Status Overview -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">🔍 Общий статус</h2>
+                <div class="flex items-center gap-2" id="overall-status">
+                    <span class="loading loading-spinner loading-sm"></span>
+                    <span class="text-sm">Загрузка...</span>
+                </div>
+            </div>
+
+            <div class="stats stats-vertical lg:stats-horizontal shadow w-full" id="status-cards">
+                <div class="stat">
+                    <div class="stat-figure text-primary">
+                        <span class="loading loading-spinner loading-lg"></span>
+                    </div>
+                    <div class="stat-title">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Component Health -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">💊 Состояние компонентов</h2>
+                <button class="btn btn-sm btn-primary" onclick="refreshMonitoring()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Обновить
+                </button>
+            </div>
+
+            <div id="components-container">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Resources -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">💻 Системные ресурсы</h2>
+                <span class="text-sm text-base-content/60" id="last-updated">Последнее обновление: --</span>
+            </div>
+
+            <div id="resources-container">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Statistics -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">📈 Статистика базы данных</h2>
+
+            <div class="stats stats-vertical lg:stats-horizontal shadow w-full" id="db-stats-container">
+                <div class="stat">
+                    <div class="stat-figure text-primary">
+                        <span class="loading loading-spinner loading-lg"></span>
+                    </div>
+                    <div class="stat-title">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let autoRefreshInterval = null;
+let autoRefreshEnabled = true;
+const REFRESH_INTERVAL = 5000; // 5 seconds
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadMonitoringData();
+    startAutoRefresh();
+});
+
+// Start auto-refresh
+function startAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+
+    autoRefreshInterval = setInterval(() => {
+        if (autoRefreshEnabled) {
+            loadMonitoringData();
+        }
+    }, REFRESH_INTERVAL);
+}
+
+// Stop auto-refresh
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+// Manual refresh
+function refreshMonitoring() {
+    loadMonitoringData();
+}
+
+// Load monitoring data
+async function loadMonitoringData() {
+    try {
+        const response = await fetch('/health/detailed', {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderMonitoringData(data);
+        updateLastRefreshed();
+    } catch (error) {
+        console.error('Error loading monitoring data:', error);
+        showError('Не удалось загрузить данные мониторинга');
+    }
+}
+
+// Render all monitoring data
+function renderMonitoringData(data) {
+    renderOverallStatus(data.status);
+    renderStatusCards(data);
+    renderComponents(data.components);
+    renderSystemResources(data.system);
+    renderDatabaseStats(data.components.database);
+}
+
+// Render overall status indicator
+function renderOverallStatus(status) {
+    const container = document.getElementById('overall-status');
+
+    const statusConfig = {
+        'healthy': { class: 'badge-success', icon: '✓', text: 'Система работает' },
+        'degraded': { class: 'badge-warning', icon: '⚠', text: 'Снижена производительность' },
+        'unhealthy': { class: 'badge-error', icon: '✗', text: 'Проблемы с системой' }
+    };
+
+    const config = statusConfig[status] || statusConfig['unhealthy'];
+
+    container.innerHTML = `
+        <span class="badge ${config.class} gap-2">
+            ${config.icon} ${config.text}
+        </span>
+    `;
+}
+
+// Render status cards
+function renderStatusCards(data) {
+    const container = document.getElementById('status-cards');
+
+    const uptimeHours = (data.uptime_seconds / 3600).toFixed(2);
+    const uptimeDays = (data.uptime_seconds / 86400).toFixed(2);
+
+    container.innerHTML = `
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Версия</div>
+            <div class="stat-value text-primary text-2xl">${data.version}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Время работы</div>
+            <div class="stat-value text-secondary text-2xl">${uptimeHours}ч</div>
+            <div class="stat-desc">${uptimeDays} дней</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Текущее время</div>
+            <div class="stat-value text-accent text-xl">${new Date(data.timestamp).toLocaleTimeString('ru-RU')}</div>
+            <div class="stat-desc">${new Date(data.timestamp).toLocaleDateString('ru-RU')}</div>
+        </div>
+    `;
+}
+
+// Render components health
+function renderComponents(components) {
+    const container = document.getElementById('components-container');
+
+    let html = '<div class="space-y-3">';
+
+    for (const [name, component] of Object.entries(components)) {
+        const statusBadge = component.status === 'up'
+            ? '<span class="badge badge-success gap-1">✓ UP</span>'
+            : '<span class="badge badge-error gap-1">✗ DOWN</span>';
+
+        const alertClass = component.status === 'up' ? 'alert-success' : 'alert-error';
+        const latency = component.latency_ms ? `${component.latency_ms.toFixed(2)} ms` : '--';
+
+        html += `
+            <div class="alert ${alertClass}">
+                <div class="flex-1">
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="font-bold text-lg">${name.charAt(0).toUpperCase() + name.slice(1)}</h3>
+                        ${statusBadge}
+                    </div>
+                    <div class="text-sm opacity-80">
+                        <p>${component.message || 'Дополнительная информация отсутствует'}</p>
+                        ${component.latency_ms ? `<p class="mt-1">⚡ Задержка: <strong>${latency}</strong></p>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Render system resources
+function renderSystemResources(system) {
+    const container = document.getElementById('resources-container');
+
+    const cpuColor = getProgressColor(system.cpu_percent);
+    const memoryColor = getProgressColor(system.memory_percent);
+    const diskColor = getProgressColor(system.disk_percent);
+
+    container.innerHTML = `
+        <div class="space-y-6">
+            <!-- CPU -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-semibold">💻 Использование CPU</span>
+                    <span class="text-lg font-bold">${system.cpu_percent.toFixed(1)}%</span>
+                </div>
+                <progress class="progress ${cpuColor} w-full h-4" value="${system.cpu_percent}" max="100"></progress>
+                <div class="text-sm text-base-content/60 mt-1">Ядер: ${system.cpu_count}</div>
+            </div>
+
+            <!-- Memory -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-semibold">💾 Использование памяти</span>
+                    <span class="text-lg font-bold">${system.memory_percent.toFixed(1)}%</span>
+                </div>
+                <progress class="progress ${memoryColor} w-full h-4" value="${system.memory_percent}" max="100"></progress>
+                <div class="text-sm text-base-content/60 mt-1">${system.memory_used_gb.toFixed(2)} GB / ${system.memory_total_gb.toFixed(2)} GB</div>
+            </div>
+
+            <!-- Disk -->
+            <div>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="font-semibold">💿 Использование диска</span>
+                    <span class="text-lg font-bold">${system.disk_percent.toFixed(1)}%</span>
+                </div>
+                <progress class="progress ${diskColor} w-full h-4" value="${system.disk_percent}" max="100"></progress>
+                <div class="text-sm text-base-content/60 mt-1">${system.disk_used_gb.toFixed(2)} GB / ${system.disk_total_gb.toFixed(2)} GB</div>
+            </div>
+
+            <!-- Platform Info -->
+            <div class="divider"></div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <div class="text-sm text-base-content/60">Платформа</div>
+                    <div class="font-semibold">${system.platform}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-base-content/60">Версия ОС</div>
+                    <div class="font-semibold">${system.platform_version}</div>
+                </div>
+                <div>
+                    <div class="text-sm text-base-content/60">Python</div>
+                    <div class="font-semibold">${system.python_version}</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Render database statistics
+function renderDatabaseStats(dbComponent) {
+    const container = document.getElementById('db-stats-container');
+
+    // Extract stats from message
+    const message = dbComponent.message || '';
+    const usersMatch = message.match(/Users: (\d+)/);
+    const factsMatch = message.match(/Facts: (\d+)/);
+
+    const totalUsers = usersMatch ? usersMatch[1] : '--';
+    const totalFacts = factsMatch ? factsMatch[1] : '--';
+
+    const statusBadge = dbComponent.status === 'up' ? 'badge-success' : 'badge-error';
+
+    container.innerHTML = `
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Пользователей</div>
+            <div class="stat-value text-primary">${totalUsers}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Транзакций</div>
+            <div class="stat-value text-secondary">${totalFacts}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Задержка БД</div>
+            <div class="stat-value text-accent text-2xl">${dbComponent.latency_ms ? dbComponent.latency_ms.toFixed(2) : '--'} мс</div>
+        </div>
+        <div class="stat">
+            <div class="stat-title">Статус БД</div>
+            <div class="stat-value">
+                <span class="badge ${statusBadge} badge-lg gap-2">
+                    ${dbComponent.status === 'up' ? '✓' : '✗'} ${dbComponent.status.toUpperCase()}
+                </span>
+            </div>
+        </div>
+    `;
+}
+
+// Helper: Get progress color based on resource usage
+function getProgressColor(percent) {
+    if (percent < 70) return 'progress-success';
+    if (percent < 85) return 'progress-warning';
+    return 'progress-error';
+}
+
+// Update last refreshed timestamp
+function updateLastRefreshed() {
+    const element = document.getElementById('last-updated');
+    const now = new Date();
+    element.textContent = `Последнее обновление: ${now.toLocaleTimeString('ru-RU')}`;
+}
+
+// Show error notification
+function showError(message) {
+    const container = document.getElementById('overall-status');
+    container.innerHTML = `
+        <span class="badge badge-error gap-2">✗ ${message}</span>
+    `;
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    stopAutoRefresh();
+});
+</script>
+{% endblock %}

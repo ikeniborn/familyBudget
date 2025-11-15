@@ -1,0 +1,727 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">👥 Управление пользователями</h1>
+        <p class="text-base-content/70">Просматривайте и управляйте учетными записями пользователей и правами доступа</p>
+    </div>
+
+    <!-- Stats Summary -->
+    <div class="stats stats-vertical lg:stats-horizontal shadow-lg w-full" id="stats-container">
+        <div class="stat flex items-center justify-center min-h-[100px]">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">👤 Зарегистрированные пользователи</h2>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-primary" id="filter-current" onclick="toggleUserFilter('current')">✅ Текущие</button>
+                    <button class="btn btn-sm btn-outline" id="filter-all" onclick="toggleUserFilter('all')">📜 Вся история</button>
+                    <div class="divider divider-horizontal"></div>
+                    <button class="btn btn-sm btn-outline" id="filter-active" onclick="toggleActiveFilter(true)">✅ Активные</button>
+                    <button class="btn btn-sm btn-outline" id="filter-inactive" onclick="toggleActiveFilter(false)">⏳ Неактивные</button>
+                    <button class="btn btn-sm btn-outline" id="filter-all-active" onclick="toggleActiveFilter(null)">Все</button>
+                    <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        Добавить пользователя
+                    </button>
+                </div>
+            </div>
+
+            <div id="users-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<dialog id="create-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Добавить нового пользователя</h3>
+        <form id="create-form" onsubmit="createUser(event)" class="space-y-2 sm:space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📱 Telegram ID*</span>
+                </label>
+                <div class="flex gap-2">
+                    <input type="number" id="create-telegram-id" name="telegram_id" required placeholder="Введите Telegram ID" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200 flex-1" />
+                    <button type="button" class="btn btn-outline btn-primary" onclick="checkTelegramId()">🔍 Проверить</button>
+                </div>
+                <label class="label">
+                    <span class="label-text-alt" id="telegram-id-hint">Числовой ID пользователя в Telegram</span>
+                </label>
+                <div id="telegram-id-error" class="text-error text-sm mt-1 hidden"></div>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">👤 Username</span>
+                </label>
+                <input type="text" id="create-username" name="username" maxlength="255" placeholder="@username (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-medium">📝 Имя</span>
+                </label>
+                <input type="text" id="create-first-name" name="first_name" maxlength="255" placeholder="Введите имя" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+            </div>
+            <div class="form-control">
+                <label class="label cursor-pointer justify-start gap-3">
+                    <input type="checkbox" id="create-is-admin" name="is_admin" class="checkbox" />
+                    <span class="label-text">🔑 Администратор</span>
+                </label>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">✅ Создать</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Edit User Modal -->
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать пользователя</h3>
+        <form id="edit-form" onsubmit="updateUser(event)" class="space-y-2 sm:space-y-4">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">👤 Username</span>
+                </label>
+                <input type="text" id="edit-username" name="username" maxlength="255" placeholder="@username (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text font-medium">📝 Имя</span>
+                </label>
+                <input type="text" id="edit-first-name" name="first_name" maxlength="255" placeholder="Введите имя" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+            </div>
+            <div class="form-control">
+                <label class="label cursor-pointer justify-start gap-3">
+                    <input type="checkbox" id="edit-is-admin" name="is_admin" class="checkbox" />
+                    <span class="label-text">🔑 Администратор</span>
+                </label>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let currentFilter = 'current';
+let currentActiveFilter = null;  // NEW: null=all, true=active, false=inactive
+let usersData = [];
+
+// Load users on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadUsers();
+    loadStats();
+});
+
+// Toggle user filter (current vs all history)
+function toggleUserFilter(filter) {
+    currentFilter = filter;
+
+    // Update active button (DaisyUI)
+    document.querySelectorAll('#filter-current, #filter-all').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    });
+    const activeBtn = document.getElementById(`filter-${filter}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+
+    // Reload users
+    loadUsers();
+}
+
+// NEW: Toggle active filter (active vs inactive vs all)
+function toggleActiveFilter(isActive) {
+    currentActiveFilter = isActive;
+
+    // Update active button (DaisyUI)
+    document.querySelectorAll('#filter-active, #filter-inactive, #filter-all-active').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    });
+
+    let activeBtn;
+    if (isActive === true) {
+        activeBtn = document.getElementById('filter-active');
+    } else if (isActive === false) {
+        activeBtn = document.getElementById('filter-inactive');
+    } else {
+        activeBtn = document.getElementById('filter-all-active');
+    }
+
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline');
+        activeBtn.classList.add('btn-primary');
+    }
+
+    // Reload users
+    loadUsers();
+}
+
+// Load users from API
+async function loadUsers() {
+    const container = document.getElementById('users-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        const isCurrent = currentFilter === 'current';
+        let url = `/api/v1/admin/users?is_current=${isCurrent}`;
+
+        // NEW: Add is_active filter if set
+        if (currentActiveFilter !== null) {
+            url += `&is_active=${currentActiveFilter}`;
+        }
+
+        const response = await fetch(url, {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        // Backend returns UserListResponse: {users: [...], total, limit, offset}
+        const users = data.users || data;  // Support both new and old format
+        usersData = users;
+        renderUsersTable(users);
+    } catch (error) {
+        console.error('Error loading users:', error);
+        const errorMessage = error?.message || String(error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки пользователей: ${errorMessage}</span></div>`;
+    }
+}
+
+// Render users table
+function renderUsersTable(users) {
+    const container = document.getElementById('users-table-container');
+
+    if (users.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">👤 Пользователи не найдены</div>';
+        return;
+    }
+
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
+                <thead>
+                    <tr>
+                        <th>📱 Telegram ID</th>
+                        <th>📷 Фото</th>
+                        <th>👤 Username</th>
+                        <th>📝 Имя</th>
+                        <th>🔑 Роль</th>
+                        <th>✅ Статус</th>
+                        <th>📅 Последний вход</th>
+                        <th>📅 Создан</th>
+                        <th>📅 Закрыт</th>
+                        <th>⚙️ Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    users.forEach(user => {
+        const displayName = user.first_name || user.username || `User ${user.telegram_id}`;
+        const roleLabel = user.is_admin
+            ? '<span class="badge badge-warning gap-1">🔑 Админ</span>'
+            : '<span class="badge badge-info gap-1">👤 Пользователь</span>';
+
+        // NEW: Combined status badge (is_active + is_current)
+        const statusLabel = user.is_active
+            ? '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Активен</span>'
+            : '<span class="badge badge-warning gap-1 whitespace-nowrap">⏳ Ожидает</span>';
+        const historyBadge = !user.is_current
+            ? '<span class="badge badge-ghost gap-1 ml-1 whitespace-nowrap">📜 История</span>'
+            : '';
+
+        const validFrom = formatDate(user.valid_from);
+        const validTo = user.valid_to ? formatDate(user.valid_to) : '—';
+
+        // NEW: Format last_login_at
+        const lastLogin = user.last_login_at ? formatDate(user.last_login_at) : 'Никогда';
+
+        // Avatar HTML
+        const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
+        const avatarHTML = user.photo_url
+            ? `<div class="avatar">
+                   <div class="w-8 h-8 rounded-full">
+                       <img src="${user.photo_url}" alt="${displayName}" loading="lazy" />
+                   </div>
+               </div>`
+            : `<div class="avatar placeholder">
+                   <div class="bg-neutral-focus text-neutral-content rounded-full w-8 h-8">
+                       <span class="text-xs">${initial}</span>
+                   </div>
+               </div>`;
+
+        html += `
+            <tr>
+                <td class="font-mono">${user.telegram_id}</td>
+                <td>${avatarHTML}</td>
+                <td>${user.username || '—'}</td>
+                <td class="font-medium">${displayName}</td>
+                <td><div class="flex flex-wrap gap-1">${roleLabel}</div></td>
+                <td><div class="flex flex-wrap gap-1">${statusLabel}${historyBadge}</div></td>
+                <td>${lastLogin}</td>
+                <td>${validFrom}</td>
+                <td>${validTo}</td>
+                <td>
+                    ${user.is_current ? renderActions(user) : '—'}
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Render action buttons for user
+function renderActions(user) {
+    const editBtn = `<button class="btn btn-sm btn-outline btn-secondary gap-1" onclick="showEditUserModal(${user.id})">✏️ Редактировать</button>`;
+
+    // Admin toggle button
+    const adminBtn = user.is_admin
+        ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="toggleAdmin(${user.id}, false)">🔓 Снять админа</button>`
+        : `<button class="btn btn-sm btn-primary gap-1" onclick="toggleAdmin(${user.id}, true)">🔑 Сделать админом</button>`;
+
+    // NEW: Activate/Deactivate button
+    const activateBtn = user.is_active
+        ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="deactivateUser(${user.id})" title="Деактивировать пользователя">⏸️ Деактивировать</button>`
+        : `<button class="btn btn-sm btn-success gap-1" onclick="activateUser(${user.id})" title="Активировать пользователя">✅ Активировать</button>`;
+
+    // NEW: Refresh profile button
+    const refreshBtn = `<button class="btn btn-sm btn-outline btn-info gap-1" onclick="refreshUserProfile(${user.id})" title="Обновить данные из Telegram">🔄 Обновить</button>`;
+
+    return `
+        <div class="flex gap-1 flex-wrap">
+            ${editBtn}
+            ${activateBtn}
+            ${adminBtn}
+            ${refreshBtn}
+        </div>
+    `;
+}
+
+// Toggle admin privileges
+async function toggleAdmin(userId, makeAdmin) {
+    const action = makeAdmin ? 'выдать' : 'забрать';
+    if (!confirm(`🔑 Вы уверены, что хотите ${action} права администратора?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                is_admin: makeAdmin
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        // Show success message
+        const message = makeAdmin ? '✅ Права администратора выданы!' : '✅ Права администратора сняты!';
+        showNotification(message, 'success');
+    } catch (error) {
+        console.error('Error toggling admin:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// NEW: Activate user
+async function activateUser(userId) {
+    if (!confirm('✅ Вы уверены, что хотите активировать пользователя?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/activate`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        showNotification('✅ Пользователь активирован!', 'success');
+    } catch (error) {
+        console.error('Error activating user:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// NEW: Deactivate user
+async function deactivateUser(userId) {
+    if (!confirm('⏸️ Вы уверены, что хотите деактивировать пользователя?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/deactivate`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        showNotification('⏸️ Пользователь деактивирован!', 'success');
+    } catch (error) {
+        console.error('Error deactivating user:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// NEW: Refresh user profile from Telegram
+async function refreshUserProfile(userId) {
+    if (!confirm('🔄 Обновить данные пользователя из Telegram?\n\nПользователь должен был запустить бота @ikenibornbudgetbot.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/refresh-profile`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        showNotification('🔄 Профиль обновлён из Telegram!', 'success');
+    } catch (error) {
+        console.error('Error refreshing profile:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-modal').showModal();
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').close();
+    document.getElementById('create-form').reset();
+    // Reset validation state
+    const input = document.getElementById('create-telegram-id');
+    const errorDiv = document.getElementById('telegram-id-error');
+    input.classList.remove('input-error');
+    errorDiv.classList.add('hidden');
+}
+
+// Check Telegram ID (on-demand validation)
+async function checkTelegramId() {
+    const telegramIdInput = document.getElementById('create-telegram-id');
+    const telegram_id = parseInt(telegramIdInput.value);
+
+    // Validation
+    if (!telegram_id || telegram_id <= 0) {
+        showNotification('Введите корректный Telegram ID', 'error');
+        return;
+    }
+
+    try {
+        // Вызов нового endpoint
+        const response = await fetch(`/api/v1/admin/users/telegram-info/${telegram_id}`, {
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+
+            // Проверка exists_in_db
+            if (data.exists_in_db) {
+                showNotification(`Пользователь с ID ${telegram_id} уже существует`, 'error');
+                return;
+            }
+
+            // Автозаполнение
+            if (data.username) {
+                document.getElementById('create-username').value = data.username;
+            }
+            if (data.first_name) {
+                document.getElementById('create-first-name').value = data.first_name;
+            }
+
+            showNotification('Данные получены из Telegram', 'success');
+        } else if (response.status === 404) {
+            // 404 = Telegram Bot API error
+            const error = await response.json();
+            showNotification(error.detail || 'Пользователь не найден в Telegram', 'warning');
+            // НЕ блокируем форму - разрешаем ручной ввод
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Error checking Telegram ID:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Create user
+async function createUser(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        telegram_id: parseInt(formData.get('telegram_id')),
+        username: formData.get('username') || null,
+        first_name: formData.get('first_name') || null,
+        is_admin: formData.get('is_admin') === 'on'
+    };
+
+    try {
+        const response = await fetch('/api/v1/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        closeCreateModal();
+        await loadUsers();
+        await loadStats();
+        showNotification('Пользователь успешно создан!', 'success');
+    } catch (error) {
+        console.error('Error creating user:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Load statistics
+async function loadStats() {
+    const container = document.getElementById('stats-container');
+
+    try {
+        const response = await fetch('/api/v1/admin/users/stats/system', {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const stats = await response.json();
+        renderStats(stats);
+    } catch (error) {
+        console.error('Error loading stats:', error);
+        container.innerHTML = '<div class="stat"><div class="stat-title text-error">❌ Ошибка загрузки статистики</div></div>';
+    }
+}
+
+// Render statistics cards
+function renderStats(stats) {
+    const container = document.getElementById('stats-container');
+
+    // stats is now an object (SystemStatsResponse), not an array
+    const totalUsers = stats.total_users;
+    const totalFacts = stats.total_facts;
+    const totalArticles = stats.total_articles;
+    const activeUsers = stats.total_active_users;
+    const inactiveUsers = totalUsers - activeUsers;  // NEW: Calculate inactive
+
+    container.innerHTML = `
+        <div class="stat">
+            <div class="stat-figure text-primary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+            </div>
+            <div class="stat-title">Всего пользователей</div>
+            <div class="stat-value text-primary">${totalUsers}</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-success">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div class="stat-title">Активных</div>
+            <div class="stat-value text-success">${activeUsers}</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-warning">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div class="stat-title">⏳ Ожидают активации</div>
+            <div class="stat-value text-warning">${inactiveUsers}</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-secondary">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path></svg>
+            </div>
+            <div class="stat-title">Всего транзакций</div>
+            <div class="stat-value text-secondary">${totalFacts}</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+            </div>
+            <div class="stat-title">Всего категорий</div>
+            <div class="stat-value text-accent">${totalArticles}</div>
+        </div>
+    `;
+}
+
+// Utility: Format date
+function formatDate(isoString) {
+    const date = new Date(isoString);
+    return date.toLocaleDateString('ru-RU', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+// Show edit user modal
+function showEditUserModal(userId) {
+    const user = usersData.find(u => u.id === userId);
+    if (!user) return;
+
+    document.getElementById('edit-id').value = user.id;
+    document.getElementById('edit-username').value = user.username || '';
+    document.getElementById('edit-first-name').value = user.first_name || '';
+    document.getElementById('edit-is-admin').checked = user.is_admin;
+
+    document.getElementById('edit-modal').showModal();
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').close();
+    document.getElementById('edit-form').reset();
+}
+
+// Update user
+async function updateUser(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const userId = formData.get('id');
+
+    const data = {
+        username: formData.get('username') || null,
+        first_name: formData.get('first_name') || null,
+        is_admin: formData.get('is_admin') === 'on'
+    };
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        closeEditModal();
+        await loadUsers();
+        await loadStats();
+        showNotification('Пользователь успешно обновлен!', 'success');
+    } catch (error) {
+        console.error('Error updating user:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Utility: Show notification
+function showNotification(message, type) {
+    // Handle error objects properly
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
+    // Добавляем иконки к сообщениям
+    const icons = {
+        'success': '✅',
+        'error': '❌',
+        'warning': '⚠️'
+    };
+
+    const icon = icons[type] || '';
+    const displayMessage = icon ? `${icon} ${message}` : message;
+
+    alert(displayMessage);
+}
+</script>
+{% endblock %}

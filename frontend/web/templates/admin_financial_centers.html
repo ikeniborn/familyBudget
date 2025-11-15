@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">🏦 Управление финансовыми центрами (ЦФО)</h1>
+        <p class="text-base-content/70">Управляйте банковскими счетами, кошельками, наличными и другими финансовыми активами</p>
+    </div>
+
+    <!-- Financial Centers Table -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">🏦 Финансовые центры</h2>
+                <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Новый ЦФО
+                </button>
+            </div>
+
+            <div id="centers-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Financial Center Modal -->
+<dialog id="create-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новый ЦФО</h3>
+        <form id="create-form" onsubmit="createCenter(event)" class="space-y-2 sm:space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Например: Сбербанк Текущий счет" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📄 Описание</span>
+                </label>
+                <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">✅ Создать</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Edit Financial Center Modal -->
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать ЦФО</h3>
+        <form id="edit-form" onsubmit="updateCenter(event)" class="space-y-2 sm:space-y-4">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📄 Описание</span>
+                </label>
+                <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
+            </div>
+            <div class="alert alert-info">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>Изменения создадут новую версию записи (SCD Type 2)</span>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let centersData = [];
+
+// Load centers on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadCenters();
+});
+
+// Load financial centers from API
+async function loadCenters() {
+    const container = document.getElementById('centers-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        let url = '/api/v1/financial-centers?limit=1000';
+
+        const response = await fetch(url, {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        centersData = data.financial_centers || [];
+
+        renderCentersTable(centersData);
+    } catch (error) {
+        console.error('Error loading financial centers:', error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки ЦФО: ${error.message}</span></div>`;
+    }
+}
+
+// Render centers table
+function renderCentersTable(centers) {
+    const container = document.getElementById('centers-table-container');
+
+    if (centers.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">🏦 ЦФО не найдены. Нажмите "➕ Новый ЦФО" для создания.</div>';
+        return;
+    }
+
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
+                <thead>
+                    <tr>
+                        <th>📝 Название</th>
+                        <th>📄 Описание</th>
+                        <th>📅 Создан</th>
+                        <th>⚙️ Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    centers.forEach(center => {
+        const description = center.description || '—';
+        const validFrom = new Date(center.valid_from).toLocaleDateString('ru-RU');
+
+        html += `
+            <tr data-center-id="${center.id}">
+                <td class="font-medium">${center.name}</td>
+                <td>${description}</td>
+                <td>${validFrom}</td>
+                <td>
+                    <div class="flex gap-1">
+                        <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${center.id})">✏️ Изменить</button>
+                        <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deleteCenter(${center.id})">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-modal').showModal();
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').close();
+    document.getElementById('create-form').reset();
+}
+
+// Create financial center
+async function createCenter(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const data = {
+        name: formData.get('name'),
+        description: formData.get('description') || null
+    };
+
+    try {
+        const response = await fetch('/api/v1/financial-centers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        closeCreateModal();
+        await loadCenters();
+        showNotification('✅ ЦФО успешно создан!', 'success');
+    } catch (error) {
+        console.error('Error creating financial center:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Show edit modal
+function showEditModal(centerId) {
+    const center = centersData.find(c => c.id === centerId);
+    if (!center) return;
+
+    document.getElementById('edit-id').value = center.id;
+    document.getElementById('edit-name').value = center.name;
+    document.getElementById('edit-description').value = center.description || '';
+
+    document.getElementById('edit-modal').showModal();
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').close();
+    document.getElementById('edit-form').reset();
+}
+
+// Update financial center
+async function updateCenter(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const centerId = formData.get('id');
+    const data = {
+        name: formData.get('name'),
+        description: formData.get('description') || null
+    };
+
+    try {
+        const response = await fetch(`/api/v1/financial-centers/${centerId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        closeEditModal();
+        await loadCenters();
+        showNotification('✅ ЦФО успешно обновлен (создана новая версия SCD2)!', 'success');
+    } catch (error) {
+        console.error('Error updating financial center:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Delete financial center
+async function deleteCenter(centerId) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить этот ЦФО? Запись будет закрыта с valid_to=NOW() (SCD Type 2).')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/financial-centers/${centerId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        await loadCenters();
+        showNotification('✅ ЦФО успешно удален!', 'success');
+    } catch (error) {
+        console.error('Error deleting financial center:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Utility: Show notification
+function showNotification(message, type) {
+    // Handle error objects properly
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
+    if (type === 'error') {
+        alert('❌ ' + message);
+    } else {
+        alert(message);
+    }
+}
+</script>
+{% endblock %}

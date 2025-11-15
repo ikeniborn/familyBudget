@@ -1,0 +1,271 @@
+/**
+ * Choices.js - Tailwind CSS Theme
+ *
+ * Custom styles for Choices.js to integrate with Tailwind CSS design system.
+ * Compatible with DaisyUI components.
+ *
+ * @version 1.0.0
+ * @requires choices.min.css
+ * @requires tailwindcss
+ */
+
+/* Container */
+.choices-tailwind {
+    @apply mb-0 text-base;
+}
+
+/* Inner container - matches Tailwind input styling */
+.choices-tailwind .choices__inner {
+    @apply min-h-[44px] px-3 py-2 text-base bg-white border border-gray-300 rounded-lg transition-colors duration-150;
+}
+
+.choices-tailwind .choices__inner:focus,
+.choices-tailwind.is-focused .choices__inner {
+    @apply border-blue-500 ring-2 ring-blue-100 outline-none;
+}
+
+.choices-tailwind.is-disabled .choices__inner {
+    @apply bg-gray-100 opacity-60 cursor-not-allowed;
+}
+
+/* Dark mode - inner container */
+.dark .choices-tailwind .choices__inner {
+    @apply bg-gray-800 border-gray-600 text-white;
+}
+
+.dark .choices-tailwind.is-focused .choices__inner {
+    @apply border-blue-400 ring-blue-900;
+}
+
+.dark .choices-tailwind.is-disabled .choices__inner {
+    @apply bg-gray-700;
+}
+
+/* Input */
+.choices-tailwind .choices__input {
+    @apply text-base text-gray-900 bg-transparent py-1;
+}
+
+.choices-tailwind .choices__input::placeholder {
+    @apply text-gray-400;
+}
+
+.dark .choices-tailwind .choices__input {
+    @apply text-white;
+}
+
+.dark .choices-tailwind .choices__input::placeholder {
+    @apply text-gray-500;
+}
+
+/* Selected item (single select) */
+.choices-tailwind .choices__list--single .choices__item {
+    @apply text-gray-900 py-1;
+}
+
+.dark .choices-tailwind .choices__list--single .choices__item {
+    @apply text-white;
+}
+
+.choices-tailwind .choices__placeholder {
+    @apply text-gray-400 opacity-100;
+}
+
+.dark .choices-tailwind .choices__placeholder {
+    @apply text-gray-500;
+}
+
+/* Dropdown */
+.choices-tailwind .choices__list--dropdown {
+    @apply bg-white border border-gray-300 rounded-lg mt-1 shadow-lg max-h-[280px] overflow-y-auto z-50;
+}
+
+.dark .choices-tailwind .choices__list--dropdown {
+    @apply bg-gray-800 border-gray-600 shadow-2xl;
+}
+
+.choices-tailwind .choices__list--dropdown .choices__list {
+    @apply max-h-[280px];
+}
+
+/* Dropdown items */
+.choices-tailwind .choices__list--dropdown .choices__item {
+    @apply px-4 py-3 text-base text-gray-900 transition-colors duration-150;
+}
+
+.dark .choices-tailwind .choices__list--dropdown .choices__item {
+    @apply text-white;
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item--selectable {
+    @apply cursor-pointer;
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item--selectable:hover,
+.choices-tailwind .choices__list--dropdown .choices__item--selectable.is-highlighted {
+    @apply bg-gray-100;
+}
+
+.dark .choices-tailwind .choices__list--dropdown .choices__item--selectable:hover,
+.dark .choices-tailwind .choices__list--dropdown .choices__item--selectable.is-highlighted {
+    @apply bg-gray-700;
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item--selectable:active {
+    @apply bg-blue-500 text-white;
+}
+
+.dark .choices-tailwind .choices__list--dropdown .choices__item--selectable:active {
+    @apply bg-blue-600;
+}
+
+.choices-tailwind .choices__item--disabled {
+    @apply text-gray-400 cursor-not-allowed opacity-50;
+}
+
+.dark .choices-tailwind .choices__item--disabled {
+    @apply text-gray-500;
+}
+
+/* Search input in dropdown */
+.choices-tailwind .choices__input--cloned {
+    @apply text-base text-gray-900 bg-transparent;
+}
+
+.dark .choices-tailwind .choices__input--cloned {
+    @apply text-white;
+}
+
+/* Group headings */
+.choices-tailwind .choices__group .choices__heading {
+    @apply text-sm font-semibold px-4 py-2 text-gray-500 uppercase tracking-wide;
+}
+
+.dark .choices-tailwind .choices__group .choices__heading {
+    @apply text-gray-400;
+}
+
+/* Empty state */
+.choices-tailwind .choices__item--choice.has-no-results,
+.choices-tailwind .choices__item--choice.has-no-choices {
+    @apply text-gray-400 py-4 text-center;
+}
+
+.dark .choices-tailwind .choices__item--choice.has-no-results,
+.dark .choices-tailwind .choices__item--choice.has-no-choices {
+    @apply text-gray-500;
+}
+
+/* Remove button (for multiple select) */
+.choices-tailwind .choices__button {
+    @apply bg-transparent border-0 text-gray-400 text-xl px-2 cursor-pointer transition-colors duration-150;
+}
+
+.choices-tailwind .choices__button:hover {
+    @apply text-red-500;
+}
+
+.dark .choices-tailwind .choices__button {
+    @apply text-gray-500;
+}
+
+.dark .choices-tailwind .choices__button:hover {
+    @apply text-red-400;
+}
+
+/* Loading state */
+.choices-tailwind .choices__list--dropdown .is-loading {
+    @apply opacity-60;
+}
+
+/* Path display (custom element) */
+.category-path {
+    @apply mt-2 text-sm text-gray-500 leading-relaxed break-words;
+}
+
+.dark .category-path {
+    @apply text-gray-400;
+}
+
+.category-path:empty {
+    @apply hidden;
+}
+
+/* Accessibility */
+.choices-tailwind:focus-visible {
+    @apply outline-2 outline-blue-500 outline-offset-2;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+    .choices-tailwind .choices__inner {
+        @apply min-h-[48px] text-base;  /* Prevent zoom on iOS */
+    }
+
+    .choices-tailwind .choices__list--dropdown .choices__item {
+        @apply py-3.5 text-base;
+    }
+}
+
+/* Scrollbar styling for dropdown (WebKit) */
+.choices-tailwind .choices__list--dropdown::-webkit-scrollbar {
+    @apply w-2;
+}
+
+.choices-tailwind .choices__list--dropdown::-webkit-scrollbar-track {
+    @apply bg-transparent;
+}
+
+.choices-tailwind .choices__list--dropdown::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded;
+}
+
+.dark .choices-tailwind .choices__list--dropdown::-webkit-scrollbar-thumb {
+    @apply bg-gray-600;
+}
+
+.choices-tailwind .choices__list--dropdown::-webkit-scrollbar-thumb:hover {
+    @apply bg-blue-500;
+}
+
+.dark .choices-tailwind .choices__list--dropdown::-webkit-scrollbar-thumb:hover {
+    @apply bg-blue-400;
+}
+
+/* DaisyUI integration */
+.choices-tailwind.input-bordered .choices__inner {
+    @apply border-base-300;
+}
+
+.choices-tailwind.input-primary .choices__inner {
+    @apply border-primary;
+}
+
+.choices-tailwind.input-primary.is-focused .choices__inner {
+    @apply border-primary ring-primary ring-opacity-20;
+}
+
+.choices-tailwind.input-secondary .choices__inner {
+    @apply border-secondary;
+}
+
+.choices-tailwind.input-secondary.is-focused .choices__inner {
+    @apply border-secondary ring-secondary ring-opacity-20;
+}
+
+.choices-tailwind.input-error .choices__inner {
+    @apply border-error;
+}
+
+.choices-tailwind.input-error.is-focused .choices__inner {
+    @apply border-error ring-error ring-opacity-20;
+}
+
+/* Size variants */
+.choices-tailwind.input-sm .choices__inner {
+    @apply min-h-[36px] px-2.5 py-1.5 text-sm;
+}
+
+.choices-tailwind.input-lg .choices__inner {
+    @apply min-h-[52px] px-4 py-3 text-lg;
+}

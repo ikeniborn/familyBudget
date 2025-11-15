@@ -1,5 +1,0 @@
-streamlit
-pytz
-plotly
-polars-lts-cpu
-streamlit-telegram-login

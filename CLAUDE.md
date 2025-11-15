@@ -2,161 +2,730 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
+---
 
-Family Budget Management System - a microservices-based application for tracking family finances with Google Sheets integration.
+## Проект: Family Budget
 
-## Architecture
+Полнофункциональная система управления семейным бюджетом с Telegram Bot интерфейсом и веб-аналитикой.
 
-### Core Services (Docker Compose)
-- **budget-api** (port 8888): FastAPI backend with JWT authentication and Redis caching
-- **budget-ui** (port 8501): Streamlit frontend with Telegram OAuth
-- **postgres** (port 5432): Main database with Russian schema (budgetdb) - optimized with indexes and connection pooling
-- **redis** (port 6379): In-memory cache for API responses with configurable TTL
-- **couchdb** (port 5984): Document database for additional storage
-- **traefik**: Reverse proxy with automatic SSL/TLS from Let's Encrypt Production
-- **backup**: Automated daily backups for PostgreSQL (2 AM) and CouchDB (3 AM) with 7-day retention
+**Версия:** 5.0.0-beta
+**Архитектура:** FastAPI (Backend) + Telegram Bot + PostgreSQL + HTMX (Frontend)
+**Язык документации:** Русский (ru)
 
-### Project Structure
-```
-/api/                # FastAPI backend with JWT auth
-  /utils/            # Auth, models, Redis client, optimized DB
-/app/budget/         # Streamlit UI with Telegram OAuth
-/db/                 # Database configurations and backups
-  /postgresql/       # PostgreSQL configs, DDL, backups
-  /couchdb/          # CouchDB configs and backups
-  /backup/           # Backup service with cron jobs
-/service/            # Infrastructure services
-  /traefik/          # Reverse proxy with Production SSL
-/google/             # Google Apps Script integration
-  /src/              # GAS source files for Sheets automation
-```
+---
 
-## Common Commands
+## 🎯 Быстрый старт для Claude Code
 
-### Development
+### Команды для разработки
+
 ```bash
-# Start all services (development)
-docker-compose -f docker-compose-dev.yaml up -d
+# Backend dev server (из корня проекта!)
+uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Start all services (production)
-docker-compose up -d
+# Telegram Bot (требует backend)
+cd bot && python main.py
 
-# View logs
-docker-compose logs -f [service-name]
+# Docker (production) - ТОЛЬКО из git repository!
+cd ~/familyBudget && ./deploy.sh --profile full
 
-# Restart a service
-docker-compose restart [service-name]
+# Alembic миграции
+cd backend/db/migrations
+alembic upgrade head    # Применить
+alembic current         # Текущая ревизия
 
-# Generate Traefik dashboard password
-./service/traefik/generate-password.sh admin yourpassword
+# Полный сброс БД (⚠️ УДАЛИТ ВСЕ ДАННЫЕ!)
+docker compose down -v && docker compose up -d
 
-# Switch to Production SSL certificates
-./apply_production_ssl.sh
-
-# Manual backup
-docker-compose exec backup /scripts/backup-postgres.sh
-docker-compose exec backup /scripts/backup-couchdb.sh
-
-# Restore from backup
-docker-compose exec backup /scripts/restore-postgres.sh /backups/postgres_budgetdb_YYYYMMDD_HHMMSS.sql.gz
-
-# Apply database optimizations
-docker-compose exec postgres psql -U budget -d budgetdb -f /docker-entrypoint-initdb.d/add_indexes.sql
+# Тестирование
+pytest -m unit                    # Быстрые тесты
+pytest -m integration             # С БД
+pytest --cov=backend --cov-report=html  # Coverage
 ```
 
-### Code Formatting
+---
+
+## 🏗️ npm Окружение (Production)
+
+**Расположение:** `/opt/budget/.npm-isolated/` - НЕ копируется при deploy
+
+**Защита от удаления:** `rsync --filter='protect .npm-isolated/'` в scripts/lib/sync.sh
+
 ```bash
-# Format Python code
-black . --line-length=180
+sudo ./install.sh  # Установка (233 пакета)
 ```
 
-### Database Access
+---
+
+## 🧪 Тестирование
+
 ```bash
-# PostgreSQL
-psql -h localhost -p 5432 -U budget -d budgetdb
-# Password: Check .env file for POSTGRES_PASSWORD_BUDGET
-
-# CouchDB Admin
-# URL: http://localhost:5984/_utils
-# User: admin, Password: Check .env file for COUCHDB_PASSWORD
+pytest -m unit          # Быстрые (моки)
+pytest -m integration   # С БД
+pytest -m e2e           # Full stack
+pytest --cov=backend --cov-report=html  # Coverage
+ruff check . && black . && mypy .       # Quality
 ```
 
-## Key Implementation Details
+**Markers:** `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.slow`
 
-### Database Schema (PostgreSQL)
-- All tables use Russian naming: `t_d_` prefix for dimensions, `t_f_` for facts
-- Main fact table: `t_f_registry` - stores all financial transactions
-- Dimension tables: users, periods, cost_centers, financial_centers, nomenclatures
-- Use `id_` prefix for ID columns, `nm_` for names, `dt_` for dates
-- **Optimizations Applied**:
-  - Indexes on all foreign keys for faster JOINs
-  - Composite indexes for common query patterns
-  - Connection pooling (10-20 connections)
-  - Parameterized queries to prevent SQL injection
+**Ключевые файлы:**
+- `backend/app/main.py:39-96` - Lifespan + scheduler
+- `backend/app/services/scd2_service.py` - SCD Type 2
+- `backend/app/services/hierarchy_service.py` - Closure Table
+- `bot/handlers/add.py` - ConversationHandler
 
-### API Endpoints (FastAPI)
-- Base URL: `https://api.${TRAEFIK_DOMAIN}`
-- Authentication: JWT tokens via `/token` endpoint
-- All endpoints protected with authentication middleware
-- **Performance Features**:
-  - Redis caching with @cache_result decorator (5min default, 1hr for static data)
-  - Cache invalidation on POST/PUT/DELETE operations
-  - Connection pooling with asyncpg (10-20 connections)
-  - Parameterized queries via queries.py module
-- **Key Modules**:
-  - Models: `/api/utils/models.py`
-  - Auth: `/api/utils/auth.py`
-  - Cache: `/api/utils/redis_client.py`
-  - Optimized DB: `/api/utils/postgres_optimized.py`
-  - SQL queries: `/api/utils/queries.py`
+---
 
-### UI (Streamlit)
-- Telegram OAuth authentication required
-- JWT token management via auth_client.py
-- Forms for transaction entry in `/app/budget/utils/forms.py`
-- API client with auth in `/app/budget/utils/api.py`
+## 🚀 Deployment Модули (scripts/lib/)
 
-### Google Apps Script
-- Automated budget tracking and reporting
-- Trello integration for task management
-- Portfolio tracking with crypto prices
-- Build with: `cd google && npm run build`
+**17+ модулей в 3 фазах загрузки:**
 
-## Environment Variables
+**Phase 1 (Core):** config.sh, utils.sh, validation.sh, status.sh
+**Phase 2 (Services):** postgres.sh, services.sh, migrations.sh, firewall.sh
+**Phase 3 (Complex):** sync.sh, cache_busting.sh, docker.sh, network.sh, ssl.sh
 
-### Common
-- `TRAEFIK_DOMAIN` - Your domain name
-- `ACME_EMAIL` - Email for Let's Encrypt
-- `JWT_SECRET_KEY` - Secret key for JWT tokens
+**Модульная архитектура** - каждый модуль независим, переиспользуется между install.sh/setup.sh/deploy.sh
 
-### Database
-- `POSTGRES_HOST=10.5.0.2`
-- `POSTGRES_DB_BUDGET=budgetdb`
-- `POSTGRES_USER_BUDGET=budget`
-- `POSTGRES_PASSWORD_BUDGET` - Database password
+**КРИТИЧНО:** deploy.sh ТОЛЬКО из git repo (`~/familyBudget`), НЕ из `/opt/budget`
 
-### Services
-- `API_URL=https://api.${TRAEFIK_DOMAIN}`
+---
 
-## Important Notes
+## 🏗️ Архитектура Backend (Layered)
 
-1. **Network**: All services use `app_network` (10.5.0.0/16)
-2. **Healthchecks**: Configured for all services in docker-compose.yaml
-3. **Resource Limits**: Services have CPU and memory constraints
-4. **Backups**: 
-   - Automated daily backups (PostgreSQL 2 AM, CouchDB 3 AM)
-   - 7-day retention with automatic cleanup
-   - Backup service runs in dedicated container with cron
-5. **SSL**: Production Let's Encrypt certificates via Traefik
-6. **Security**: 
-   - JWT auth for API, Telegram OAuth for UI
-   - Rate limiting and security headers via Traefik
-   - SQL injection protection through parameterized queries
-   - Connection pooling for database security
-7. **Configuration**: All secrets in single `.env` file
-8. **Performance**:
-   - Redis caching with configurable TTL (5min default, 1hr for static)
-   - Database indexes on all foreign keys
-   - Connection pooling (10-20 connections)
-   - Optimized SQL queries in queries.py module
+**Request Flow:** Middleware → Router → Endpoint → Service → Model
+
+**Слои:**
+- **Middleware** (`jwt_middleware.py`) - JWT auth, logging, CSP
+- **Router** (`api/v1/router.py`) - URL routing
+- **Endpoint** (`endpoints/*.py`) - HTTP handlers
+- **Service** (`services/*.py`) - Business logic (SCD2, Hierarchy, JWT)
+- **Model** (`models/*.py`) - SQLModel ORM
+- **Schema** (`schemas/*.py`) - Pydantic validation
+
+---
+
+## ⚠️ Критически важные паттерны
+
+### 1. SCD Type 2 (Slowly Changing Dimension)
+
+**Назначение:** Полная история изменений с версионированием
+
+**Таблицы:** `t_d_user`, `t_d_article`, `t_d_financial_center`, `t_d_cost_center`
+
+**Алгоритм (scd2_service.py):**
+1. Close old version: `is_current=False, valid_to=now`
+2. Create new version: `valid_from=now, is_current=True`
+3. Atomic commit
+
+```python
+# ✅ ПРАВИЛЬНО
+from backend.app.services.scd2_service import create_new_version
+new_article = await create_new_version(session, old_article, updates)
+
+# ❌ НЕПРАВИЛЬНО - потеря истории
+article.name = "New Name"
+await session.commit()
+```
+
+### 2. Closure Table (иерархии категорий)
+
+**Назначение:** Эффективные иерархические запросы O(1)
+
+**Таблица:** `t_d_article_hierarchy` - все ancestor-descendant пары (precomputed)
+
+```python
+# ✅ ПРАВИЛЬНО - hierarchy_service.py
+from backend.app.services.hierarchy_service import get_subtree, get_ancestors
+children = await get_subtree(session, parent_id, include_self=False)
+path = await get_ancestors(session, article_id)
+
+# ❌ НЕПРАВИЛЬНО - рекурсия (O(N), N+1 queries)
+def get_children_recursive(parent_id): ...
+```
+
+---
+
+### 3. Shared Family Budget Model
+
+**АРХИТЕКТУРНОЕ РЕШЕНИЕ:** Fact таблицы **SHARED** (НЕ isolated)
+
+**Правила:**
+- Все пользователи видят ВСЕ транзакции
+- Любой может создавать/редактировать/удалять
+- `user_id` только для audit trail
+- БЕЗ фильтрации по `user_id` в queries
+- БЕЗ ownership checks
+
+```python
+# ✅ ПРАВИЛЬНО
+statement = select(BudgetFact)  # NO user_id filter
+fact = BudgetFact(**data, user_id=current_user.id)  # Audit only
+
+# ❌ НЕПРАВИЛЬНО
+statement = select(BudgetFact).where(
+    BudgetFact.user_id == current_user.id  # WRONG!
+)
+if fact.user_id != current_user.id:  # WRONG!
+    raise HTTPException(403)
+```
+
+**Обоснование:** ПРД - семейная прозрачность (2-5 человек)
+
+---
+
+### 4. Shared References (Dimension Tables)
+
+**Правила:**
+- **CREATE/UPDATE/DELETE:** Только админы
+- **READ:** Все пользователи
+- БЕЗ user_id фильтрации
+- `user_id` только для audit trail
+
+**Таблицы:** `t_d_article`, `t_d_financial_center`, `t_d_cost_center`
+
+```python
+# ✅ ПРАВИЛЬНО
+@router.post("/articles")
+async def create_article(data: ArticleCreate, current_user: CurrentUser):
+    if not current_user.is_admin:
+        raise HTTPException(403)
+    article = Article(**data, user_id=current_user.id)  # Audit
+
+@router.get("/articles")
+async def list_articles(session: AsyncSession):
+    return await session.exec(
+        select(Article).where(Article.is_current == True)
+    ).all()  # NO user_id filter
+
+# ❌ НЕПРАВИЛЬНО
+stmt = select(Article).where(Article.user_id == current_user.id)  # WRONG!
+```
+
+---
+
+### 5. Archived Categories (is_active флаг)
+
+**Правила:**
+- Архивация **рекурсивная** (parent + все descendants)
+- Архивные **видны в аналитике** с badge "(архив)"
+- `is_active` изменения **НЕ создают SCD Type 2 версию**
+
+```python
+# ✅ ПРАВИЛЬНО - hierarchy_service.py
+from backend.app.services.hierarchy_service import archive_recursive
+count = await archive_recursive(session, article_id)  # Recursively archives
+
+# Фильтрация в dropdowns
+if not include_inactive:
+    statement = statement.where(Article.is_active == True)
+```
+
+**Обоснование НЕ SCD2:** is_active - это UI visibility, НЕ бизнес-данные
+
+---
+
+## 🛡️ Security Guidelines
+
+### Authentication
+
+**ВСЕГДА используй `CurrentUser` dependency:**
+
+```python
+from backend.app.core.dependencies import CurrentUser
+
+@router.get("/facts")
+async def list_facts(current_user: CurrentUser):
+    # current_user.id, .is_admin, .telegram_id
+    pass
+```
+
+**Flow:** JWT cookie → `jwt_middleware.py` → `request.state.user` → `CurrentUser`
+
+### Validation
+
+**ВСЕГДА используй Pydantic схемы:**
+
+```python
+class FactCreate(BaseModel):
+    amount: Decimal = Field(gt=0)
+    fact_date: date
+
+    @field_validator('fact_date')
+    def validate_not_future(cls, v):
+        if v > date.today():
+            raise ValueError("Cannot be future")
+        return v
+```
+
+---
+
+## 👥 User Management (NEW: v5.1+)
+
+**User Model Fields:**
+- `is_active: bool` - User activation status (controlled by admin, default=False)
+- `last_login_at: Optional[datetime]` - Timestamp of last successful login
+
+**NEW: Auto-Create + Activation Flow (PRD FR-030 compliance):**
+
+```python
+# Auth Flow (auth.py:198-240)
+# 1. User logs in via Telegram Login Widget
+# 2. If user NOT exists → auto-create with is_active=False
+# 3. If is_active=False → 403 Forbidden "Ожидает активации"
+# 4. If is_active=True → update last_login_at, generate JWT
+
+# Admin activation (admin.py:400-451)
+PUT /api/v1/admin/users/{user_id}/activate  # Simple UPDATE (NOT SCD Type 2)
+PUT /api/v1/admin/users/{user_id}/deactivate  # Cannot deactivate self
+PUT /api/v1/admin/users/{user_id}/refresh-profile  # Fetch from Telegram Bot API
+GET /api/v1/admin/users?is_active=true/false  # Filter by activation status
+```
+
+**Important:**
+- ✅ `is_active` changes: Simple UPDATE (НЕ SCD Type 2) - это access control флаг
+- ✅ `last_login_at` changes: Simple UPDATE (НЕ SCD Type 2) - это audit trail
+- ✅ Profile changes (name, username): SCD Type 2 (business data)
+- ✅ Новые пользователи видны админу в `/admin/users` с badge "⏳ Ожидает активации"
+
+**Admin UI Features:**
+- Таблица: "Последний вход" колонка, combined status badges (is_active + is_current)
+- Фильтры: Активные / Неактивные / Все
+- Кнопки: Активировать, Деактивировать, Обновить из Telegram
+- Статистика: "⏳ Ожидают активации" badge
+
+---
+
+## 🔧 Troubleshooting
+
+### Import Errors
+```python
+# ❌ НЕПРАВИЛЬНО
+from app.models.article import Article
+
+# ✅ ПРАВИЛЬНО - absolute imports
+from backend.app.models.article import Article
+```
+
+### Docker Network Conflicts
+```bash
+./deploy.sh  # Выбрать: [2] Smart cleanup
+```
+
+### JWT Token не работает
+```bash
+# Проверка
+grep JWT_SECRET /opt/budget/.env  # 64 hex chars
+
+# Решение
+openssl rand -hex 32  # Новый secret
+nano /opt/budget/.env
+docker compose restart backend
+```
+
+### Cache Busting
+
+**⚠️ КРИТИЧНО - НИКОГДА НЕ ЗАПУСКАЙ CACHE BUSTING ЛОКАЛЬНО!**
+
+Cache busting выполняется **ТОЛЬКО на сервере** при deploy:
+
+```bash
+# ✅ ПРАВИЛЬНО - на сервере
+cd ~/familyBudget && ./deploy.sh --profile full
+# deploy.sh автоматически вызывает: scripts/lib/cache_busting.sh auto
+
+# ❌ НЕПРАВИЛЬНО - локально в репозитории
+bash scripts/lib/cache_busting.sh auto  # НЕ ДЕЛАЙ ЭТО!
+```
+
+**Правила:**
+
+1. **В репозитории:** ВСЕ статические файлы должны иметь `?v=PLACEHOLDER`
+   ```html
+   <script src="/static/js/app.js?v=PLACEHOLDER"></script>
+   <link href="/static/css/style.css?v=PLACEHOLDER">
+   ```
+
+2. **При deploy:** `scripts/lib/cache_busting.sh` **автоматически** заменяет `PLACEHOLDER` → `timestamp`
+   ```html
+   <!-- После deploy на сервере: -->
+   <script src="/static/js/app.js?v=20251110_0725"></script>
+   ```
+
+3. **НЕ коммить** файлы с timestamp вместо PLACEHOLDER
+4. **НЕ редактировать** `?v=` версии вручную
+5. **Добавлять новые HTML templates** в `scripts/lib/cache_busting.sh`:
+   - В функцию `update_cache_versions()` (строка ~26)
+   - В функцию `check_cache_versions()` (строка ~104)
+
+**Почему важно:**
+- Git diff показывает реальные изменения, не шум от версий
+- Одна версия для всех статиков = простой откат при проблемах
+- Timestamp генерируется на сервере = гарантирует уникальность
+
+### Database Migration Errors
+```bash
+# Сброс БД (⚠️ УДАЛИТ ВСЕ ДАННЫЕ!)
+docker compose down -v && docker compose up -d
+```
+
+---
+
+## 🗂️ Структура проекта
+
+```
+familyBudget/
+├── backend/app/
+│   ├── api/v1/endpoints/    # REST API (facts, articles, auth, analytics)
+│   ├── models/              # SQLModel ORM (article, fact, user, hierarchy)
+│   ├── schemas/             # Pydantic validation
+│   ├── services/            # Business logic (scd2, hierarchy, jwt, telegram_auth)
+│   ├── middleware/          # JWT auth, logging, CSP
+│   ├── core/                # Config, dependencies, auth helpers
+│   ├── db/migrations/       # Alembic migrations
+│   └── main.py              # FastAPI app + scheduler
+├── bot/
+│   ├── handlers/            # Command handlers (/start, /add, /summary)
+│   ├── utils/               # API client, SessionManager, notifications
+│   └── main.py
+├── frontend/
+│   ├── webapp/              # Telegram Web Apps (8 HTML forms + 7 JS modules)
+│   ├── web/                 # Web UI (HTMX + Jinja2 templates)
+│   └── shared/              # Shared JS/CSS modules
+├── tests/                   # unit/ integration/ e2e/
+├── scripts/lib/             # 17+ deployment modules
+└── deploy.sh, setup.sh, install.sh
+```
+
+---
+
+## 📦 Tech Stack
+
+**Backend:** FastAPI 0.109, SQLModel 0.0.14, asyncpg 0.29, Alembic 1.13, python-telegram-bot 20.7, APScheduler 3.10
+
+**Frontend Web Apps:** Vanilla ES6+ (7 modules: app, api, auth, ui, validators, theme, storage) - ~190KB bundle
+
+**Testing:** pytest, pytest-asyncio, pytest-cov, black, ruff, mypy
+
+**Infrastructure:** Docker, PostgreSQL 16, Nginx, UFW
+
+---
+
+## 🎨 Frontend Shared Modules (BudgetShared)
+
+**Unified Bundle:** Все переиспользуемые JS модули объединены в `budgetShared.js`
+
+**Расположение:** `frontend/shared/static/js/budgetShared.js` (~56KB source, ~25KB minified, ~7KB gzipped)
+
+### Архитектура
+
+```javascript
+window.BudgetShared = {
+    DateFormatter: class,      // Форматирование дат (API ↔ UI)
+    CalendarWidget: class,     // Интерактивные календари (range/single)
+    ChoicesCategoryTree: class, // Иерархические селекторы категорий
+    version: '1.0.0'
+};
+```
+
+**Зависимости:**
+- `CalendarWidget` → использует `DateFormatter` внутри
+- `ChoicesCategoryTree` → использует Choices.js (подключается отдельно)
+
+### Development vs Production
+
+**Development (локально):**
+```html
+<!-- Используй source файл -->
+<script src="/shared/static/js/budgetShared.js?v=PLACEHOLDER"></script>
+```
+
+**Production (после deploy):**
+```html
+<!-- deploy.sh автоматически создаёт .min.js -->
+<script src="/shared/static/js/budgetShared.min.js?v=20251110_0725"></script>
+```
+
+**Workflow:**
+1. Редактируй `budgetShared.js` (source)
+2. При deploy: `scripts/lib/minify.sh` → создаёт `budgetShared.min.js`
+3. При deploy: `scripts/lib/cache_busting.sh` → заменяет `PLACEHOLDER` на timestamp
+
+### Использование
+
+**DateFormatter:**
+```javascript
+// Форматирование для API (YYYY-MM-DD)
+const apiDate = BudgetShared.DateFormatter.formatForAPI(new Date());
+
+// Форматирование для отображения (DD.MM.YYYY)
+const displayDate = BudgetShared.DateFormatter.formatForDisplay("2025-11-10");
+
+// Получить сегодня (API формат)
+const today = BudgetShared.DateFormatter.today();
+
+// Инициализация нативного <input type="date">
+BudgetShared.DateFormatter.initNativeDateInput('#fact_date', {
+    max: BudgetShared.DateFormatter.today()
+});
+```
+
+**CalendarWidget:**
+```javascript
+// Range режим (от - до)
+new BudgetShared.CalendarWidget({
+    mode: 'range',
+    container: '#calendar-container',
+    onDateSelect: (from, to) => {
+        console.log('Selected:', from, to);
+    }
+});
+
+// Single режим (одна дата)
+new BudgetShared.CalendarWidget({
+    mode: 'single',
+    container: '#calendar-container',
+    onDateSelect: (date) => {
+        console.log('Selected:', date);
+    }
+});
+```
+
+**ChoicesCategoryTree:**
+```javascript
+// Webapp (Bearer token auth)
+new BudgetShared.ChoicesCategoryTree('#article_select', {
+    type: 'expense',  // 'expense' | 'income'
+    token: 'Bearer xxx',
+    onSelect: (article) => {
+        console.log('Selected:', article);
+    }
+});
+
+// Web (cookie auth)
+new BudgetShared.ChoicesCategoryTree('#article_select', {
+    type: 'expense',
+    onSelect: (article) => {
+        console.log('Selected:', article);
+    }
+});
+```
+
+### Подключение в HTML Templates
+
+**Web templates (base.html):**
+```html
+<script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+```
+
+**Webapp templates (add.html, edit.html, addplan.html):**
+```html
+<script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+```
+
+### Важные правила
+
+✅ **ВСЕГДА:**
+- Используй namespace `BudgetShared.*` для всех классов
+- Подключай `budgetShared.min.js` с `?v=PLACEHOLDER`
+- Редактируй только source файл (`budgetShared.js`)
+- НЕ редактируй `budgetShared.min.js` (auto-generated)
+
+❌ **НИКОГДА:**
+- НЕ используй старые прямые импорты (`dateFormatter.min.js`, `calendar-widget.min.js`)
+- НЕ создавай инстансы без namespace (`new CalendarWidget()` → WRONG)
+- НЕ коммить `.min.js` файлы (создаются при deploy)
+
+### Исходные модули
+
+**Старые файлы остаются как source:**
+- `frontend/shared/static/js/dateFormatter.js` (source)
+- `frontend/shared/static/js/calendar-widget.js` (source)
+- `frontend/shared/static/js/choicesCategoryTree.js` (source)
+
+**НЕ используй напрямую** - только через `budgetShared.js`
+
+---
+
+## 📋 Database Management (Alembic v2.0)
+
+**СТАТУС:** Alembic-Only с 2025-11-09 (schema/*.sql → DEPRECATED)
+
+```
+backend/db/
+├── migrations/           # Alembic (CURRENT)
+│   ├── versions/        # Migration files
+│   └── archive/         # Old migrations
+└── deprecated/schema/   # DO NOT USE
+```
+
+---
+
+### sql/ vs Alembic
+
+**КРИТИЧНО:**
+- **Alembic** - DDL (CREATE/ALTER TABLE, INDEX, PARTITION)
+- **sql/queries/** - DML (INSERT данных из CSV)
+
+**НЕ смешивай:** DDL в sql/ вызовет конфликты партиций
+
+---
+
+### Процесс изменения БД
+
+**Создание миграции:**
+```bash
+cd backend/db/migrations
+alembic revision -m "add_table"
+# ИЛИ autogenerate
+alembic revision --autogenerate -m "sync_model"
+
+# Редактировать
+nano versions/YYYYMMDD_*.py
+
+# Тестировать (ВАЖНО!)
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head
+
+# Коммит
+git add versions/*.py && git commit -m "feat(db): ..."
+```
+
+**Применение:**
+```bash
+# Dev
+alembic upgrade head
+
+# Production
+cd ~/familyBudget && ./deploy.sh --migrations-only
+```
+
+**Откат:**
+```bash
+alembic downgrade -1  # Последняя
+alembic downgrade -2  # 2 миграции
+```
+
+### Best Practices
+
+✅ **ВСЕГДА:**
+- Тестируй upgrade + downgrade + upgrade
+- Пиши полный downgrade() (не `pass`)
+- Используй описательные имена
+
+❌ **НИКОГДА:**
+- НЕ редактируй примененные миграции
+- НЕ используй deprecated schema/
+- НЕ пропускай миграции (только `alembic upgrade head`)
+
+---
+
+## 🚀 Deployment
+
+### Первоначальная установка
+```bash
+cd ~/familyBudget
+sudo ./install.sh    # Docker, UFW
+./setup.sh           # .env configuration
+./deploy.sh --profile full
+```
+
+### Обновление
+```bash
+cd ~/familyBudget && git pull
+./deploy.sh --profile full  # Полный деплой (~3 мин)
+```
+
+### Варианты деплоя
+
+| Сценарий | Команда | Время |
+|----------|---------|-------|
+| **Новая миграция БД** | `--migrations-only` | ~10 сек |
+| **Обновление кода** | `--no-migrate` | ~2 мин |
+| **Полное обновление** | `--profile full` | ~3 мин |
+
+### ⚠️ КРИТИЧНО
+
+**✓ Запускай deploy.sh из git repo:**
+```bash
+cd ~/familyBudget && ./deploy.sh
+```
+
+**✗ НЕ запускай из /opt/budget:**
+```bash
+cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
+```
+
+**Почему:** scripts/lib/ модули только в repository
+
+---
+
+## 🎨 Стиль кода
+
+**Python:** PEP 8, type hints, async/await, Black (100 chars), Ruff, mypy
+
+**Naming:**
+- Таблицы: `t_d_*` (dimension), `t_f_*` (fact)
+- API: kebab-case, Python: snake_case, Classes: PascalCase
+
+**Git:** Conventional Commits (`feat:`, `fix:`, `refactor:`)
+
+**Imports:** stdlib → third-party → local (absolute: `backend.app.*`)
+
+---
+
+## 🤖 Telegram Bot
+
+**Handler Types:**
+- **CommandHandler** - `/start`, `/today` (одношаговые)
+- **ConversationHandler** - `/add`, `/edit` (multi-step с состоянием)
+- **CallbackQueryHandler** - Inline buttons
+
+**API Client:** `bot/utils/api_client.py` - JWT Bearer auth, auto token refresh
+
+---
+
+## 🎯 Claude Skills
+
+**6 Skills для автоматизации:**
+- `api-development` - REST API endpoints, Pydantic схемы
+- `db-management` - Миграции, SCD2, Closure Table
+- `testing` - Unit/integration/e2e, coverage
+- `bot-development` - Telegram bot команды
+- `deployment` - Production deploy, Docker
+- `monitoring` - Логи, performance
+
+📚 **[SKILLS.md](./SKILLS.md)** - Полная документация
+
+---
+
+## ⚡ Важные напоминания
+
+**ВСЕГДА:**
+1. ✅ Absolute imports (`from backend.app.*`)
+2. ✅ `CurrentUser` dependency для auth
+3. ✅ `SCD2Service` для dimension updates
+4. ✅ `HierarchyService` для категорий
+5. ✅ БЕЗ `user_id` фильтрации (Shared Family Budget)
+6. ✅ Admin checks для dimension CREATE/UPDATE/DELETE
+7. ✅ Тесты с pytest markers
+8. ✅ Alembic для изменений БД
+9. ✅ Используй `?v=PLACEHOLDER` для всех статических файлов в HTML
+
+**НИКОГДА НЕ делай:**
+- ❌ НЕ запускай `scripts/lib/cache_busting.sh` локально (только на сервере при deploy!)
+- ❌ НЕ коммить HTML с timestamp версиями (`?v=20251110_0725`) - только `?v=PLACEHOLDER`
+- ❌ НЕ редактируй `?v=` версии вручную
+- ❌ НЕ редактируй `frontend/**/static/**/*.min.js` - minified files (auto)
+- ❌ НЕ используй `backend/db/deprecated/schema/*.sql` - archived DDL (use Alembic!)
+- ❌ НЕ редактируй `/opt/budget/**/*` напрямую (sync from ~/familyBudget)
+
+**Workflow изменений:**
+```bash
+# 1. Редактируй в ~/familyBudget (git repo)
+# 2. git add . && git commit -m "feat: ..."
+# 3. cd ~/familyBudget && ./deploy.sh --profile full
+# НЕ редактируй /opt/budget напрямую!
+```
+
+---
+
+**Версия:** 5.0 | **Обновлено:** 2025-11-09
