@@ -98,74 +98,99 @@
 - Сразу добавляйте entry в Draft Release в GitHub
 - При накоплении достаточного количества - публикуйте
 
-## Автоматизация через GitHub Actions (опционально)
+## Автоматизация через GitHub Actions (НАСТРОЕНО ✓)
 
-Для автоматической генерации changelog из PR можно использовать **Release Drafter**:
+**Release Drafter уже настроен в проекте!** Он автоматически генерирует changelog из Pull Requests.
 
-1. Создайте файл `.github/release-drafter.yml`:
+### Как это работает
 
-```yaml
-name-template: 'v$RESOLVED_VERSION'
-tag-template: 'v$RESOLVED_VERSION'
-categories:
-  - title: '✨ Features'
-    labels:
-      - 'feature'
-      - 'enhancement'
-  - title: '🐛 Bug Fixes'
-    labels:
-      - 'fix'
-      - 'bugfix'
-  - title: '📝 Documentation'
-    labels:
-      - 'documentation'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
-version-resolver:
-  major:
-    labels:
-      - 'major'
-  minor:
-    labels:
-      - 'minor'
-  patch:
-    labels:
-      - 'patch'
-  default: patch
-template: |
-  ## Changes
+1. **При создании/обновлении PR:**
+   - GitHub Actions запускает Release Drafter
+   - PR анализируется по labels
+   - Автоматически обновляется Draft Release
 
-  $CHANGES
+2. **Автоматическое определение версии:**
+   - `major`, `breaking` → v2.0.0 (breaking changes)
+   - `feature`, `minor` → v1.3.0 (новая функциональность)
+   - `fix`, `patch` → v1.2.1 (исправления)
+
+3. **Автоматическое добавление labels:**
+   - Ветка `feat/*` → label `feature`
+   - Ветка `fix/*` → label `fix`
+   - Ветка `docs/*` → label `documentation`
+
+### Обязательные PR Labels
+
+**ВАЖНО:** Каждый PR ДОЛЖЕН иметь хотя бы один label из категорий:
+
+| Label | Категория | Использование |
+|-------|-----------|---------------|
+| `feature`, `enhancement`, `feat` | ✨ Features | Новая функциональность |
+| `fix`, `bugfix`, `bug` | 🐛 Bug Fixes | Исправления ошибок |
+| `performance`, `perf` | ⚡ Performance | Оптимизация |
+| `refactor`, `refactoring` | 🔧 Refactoring | Рефакторинг |
+| `documentation`, `docs` | 📝 Documentation | Документация |
+| `infrastructure`, `chore`, `ci` | 🚀 Infrastructure | DevOps, CI/CD |
+| `security` | 🔒 Security | Безопасность |
+| `breaking`, `major` | ⚠️ Breaking Changes | Критичные изменения |
+
+### Workflow для разработчиков
+
+**Шаг 1: Создайте ветку с правильным префиксом**
+```bash
+git checkout -b feat/my-feature   # → автоматически label "feature"
+git checkout -b fix/bug-123       # → автоматически label "fix"
+git checkout -b docs/update-guide # → автоматически label "documentation"
 ```
 
-2. Создайте workflow `.github/workflows/release-drafter.yml`:
-
-```yaml
-name: Release Drafter
-
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    types: [opened, reopened, synchronize]
-
-permissions:
-  contents: read
-
-jobs:
-  update_release_draft:
-    permissions:
-      contents: write
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: release-drafter/release-drafter@v5
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+**Шаг 2: Создайте PR с Conventional Commits заголовком**
+```bash
+gh pr create --title "feat: Add analytics filter" --label feature,minor
 ```
 
-3. Добавляйте labels к PR (feature, fix, documentation и т.д.)
-4. Release Drafter автоматически создаст Draft Release с changelog
+**Шаг 3: Release Drafter автоматически:**
+- Создаст/обновит Draft Release
+- Добавит ваш PR в соответствующую категорию
+- Определит версию по labels
+
+**Шаг 4: После накопления изменений - публикуйте Release**
+1. GitHub → Releases → Draft releases
+2. Проверьте автоматически сгенерированный changelog
+3. Отредактируйте при необходимости
+4. Publish release
+
+### Конфигурация Release Drafter
+
+**Файлы:**
+- `.github/release-drafter.yml` - конфигурация категорий и версий
+- `.github/workflows/release-drafter.yml` - GitHub Actions workflow
+
+**Документация:**
+- `docs/PR_LABELS_GUIDE.md` - подробное руководство по labels
+
+### Примеры
+
+**Пример PR:**
+```yaml
+Title: "feat: Add financial center filter to analytics"
+Labels: feature, minor
+Branch: feat/analytics-fc-filter
+
+→ Автоматический changelog entry:
+### ✨ Features
+- feat: Add financial center filter to analytics @ikeniborn (#42)
+
+→ Version: 1.2.0 → 1.3.0
+```
+
+**Проверить Draft Release:**
+```bash
+# Через браузер
+https://github.com/ikeniborn/familyBudget/releases
+
+# Через gh CLI
+gh release list --exclude-drafts=false
+```
 
 ## Полезные ссылки
 
