@@ -280,7 +280,7 @@
 **Технические детали:**
 - Frontend: аналогично реализации FR-010 (Plan-Fact cumulative mode)
 - Backend: cumulative sum calculation для income/expense данных
-- Default режим: normal (по периодам)
+- Default режим: cumulative (накопительно)
 
 ---
 

@@ -111,10 +111,10 @@
                     <div class="flex flex-wrap items-center gap-2 mb-2">
                         <span class="text-sm text-base-content/70">Режим:</span>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-sm btn-outline" id="trends-mode-cumulative" onclick="updateTrendsMode('cumulative')" aria-pressed="false">
+                            <button class="btn btn-sm btn-primary" id="trends-mode-cumulative" onclick="updateTrendsMode('cumulative')" aria-pressed="true">
                                 Накопительно
                             </button>
-                            <button class="btn btn-sm btn-primary" id="trends-mode-normal" onclick="updateTrendsMode('normal')" aria-pressed="true">
+                            <button class="btn btn-sm btn-outline" id="trends-mode-normal" onclick="updateTrendsMode('normal')" aria-pressed="false">
                                 По периодам
                             </button>
                         </div>
@@ -207,8 +207,8 @@ let currentGlobalType = 'expense';
 let currentChartMode = localStorage.getItem('budgetChartMode') || 'cumulative';
 
 // Trends chart mode filter (normal vs cumulative)
-// Load from localStorage or default to 'normal'
-let currentTrendsMode = localStorage.getItem('budgetTrendsMode') || 'normal';
+// Load from localStorage or default to 'cumulative'
+let currentTrendsMode = localStorage.getItem('budgetTrendsMode') || 'cumulative';
 
 // Custom date range state
 let customRangeActive = false;
