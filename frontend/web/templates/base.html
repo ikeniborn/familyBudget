@@ -25,6 +25,62 @@
             opacity: 0;
             position: absolute;
         }
+
+        /* Фиксация модальных окон для мобильных устройств */
+        /* Проблема: на iOS Safari адресная строка скрывается при скролле,
+           что изменяет значение vh и приводит к "прыжкам" модального окна */
+
+        /* CSS переменная для реальной высоты viewport (обновляется через JS) */
+        :root {
+            --real-vh: 1vh;
+        }
+
+        /* Переопределение DaisyUI modal для предотвращения растягивания */
+        @media (max-width: 640px) {
+            /* Модальное окно - фиксированная позиция */
+            .modal {
+                position: fixed !important;
+                inset: 0;
+            }
+
+            /* Modal box - используем dvh (dynamic viewport height) с fallback */
+            .modal-box {
+                /* Современные браузеры: используем dvh (учитывает динамическую высоту) */
+                max-height: 85dvh !important;
+
+                /* Fallback для старых браузеров: используем CSS переменную из JS */
+                max-height: calc(var(--real-vh, 1vh) * 85) !important;
+
+                /* Центрирование */
+                margin-top: auto !important;
+                margin-bottom: auto !important;
+
+                /* Прокрутка внутри */
+                overflow-y: auto !important;
+
+                /* Предотвращение скролла body */
+                overscroll-behavior: contain;
+            }
+
+            /* Предотвращение скролла body когда модальное окно открыто */
+            .modal:modal {
+                overflow: hidden;
+            }
+
+            body:has(.modal[open]) {
+                overflow: hidden;
+                position: fixed;
+                width: 100%;
+            }
+        }
+
+        /* Desktop - более высокие модальные окна */
+        @media (min-width: 640px) {
+            .modal-box {
+                max-height: 90dvh !important;
+                max-height: calc(var(--real-vh, 1vh) * 90) !important;
+            }
+        }
     </style>
 
     <!-- Choices.js -->
@@ -340,6 +396,31 @@
                 showToast('Ошибка при выходе из системы', 'error');
             }
         }
+
+        // Mobile Modal Fix: Calculate real viewport height for iOS Safari
+        // Проблема: На iOS Safari адресная строка скрывается при скролле,
+        // что изменяет значение vh. Это приводит к "прыжкам" модального окна.
+        // Решение: Вычисляем реальную высоту viewport и обновляем CSS переменную
+        function updateRealVH() {
+            // Получаем реальную высоту viewport (window.innerHeight учитывает адресную строку)
+            const vh = window.innerHeight * 0.01;
+            // Обновляем CSS переменную --real-vh
+            document.documentElement.style.setProperty('--real-vh', `${vh}px`);
+        }
+
+        // Вызываем при загрузке страницы
+        updateRealVH();
+
+        // Вызываем при изменении размера окна (когда скрывается/показывается адресная строка)
+        window.addEventListener('resize', updateRealVH);
+
+        // Вызываем при изменении ориентации устройства
+        window.addEventListener('orientationchange', () => {
+            // Небольшая задержка для корректного вычисления после изменения ориентации
+            setTimeout(updateRealVH, 100);
+        });
+
+        console.log('[Mobile Modal Fix] Initialized real viewport height calculation');
     </script>
 </body>
 </html>
