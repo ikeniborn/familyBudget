@@ -1,45 +1,45 @@
 # FastAPI Framework
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
-jinja2==3.1.3
-aiofiles==23.2.1
+fastapi==0.115.5
+uvicorn[standard]==0.30.6
+jinja2==3.1.6
+aiofiles==24.1.0
 
 # Database
-sqlmodel==0.0.14
+sqlmodel==0.0.22
 asyncpg==0.29.0
-psycopg2-binary==2.9.9  # Required for Alembic migrations (sync driver)
-alembic==1.13.1
+psycopg2-binary==2.9.10  # Required for Alembic migrations (sync driver)
+alembic==1.14.0
 
 # Authentication & Security
 python-jose[cryptography]==3.3.0
-python-multipart==0.0.6
+python-multipart==0.0.20
 
 # Configuration
-pydantic-settings==2.1.0
-python-dotenv==1.0.0
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
 
 # Logging
-python-json-logger==2.0.7
+python-json-logger==3.2.1
 
 # Monitoring
-psutil==5.9.8
+psutil==6.1.1
 
 # Background Jobs
-apscheduler==3.10.4
+apscheduler==3.11.0
 
 # Export functionality
-openpyxl==3.1.2        # Excel (xlsx) generation
-reportlab==4.0.9       # PDF generation
+openpyxl==3.1.5        # Excel (xlsx) generation
+reportlab==4.2.5       # PDF generation
 
 # Telegram
-python-telegram-bot==20.7
+python-telegram-bot==21.10
 
 # Testing
-pytest==7.4.4
-pytest-asyncio==0.23.3
-pytest-cov==4.1.0
-httpx==0.25.2
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+httpx==0.28.1
 
 # Development
-black==24.1.1
-ruff==0.1.14
+black==24.10.0
+ruff==0.8.4
