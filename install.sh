@@ -374,6 +374,64 @@ create_directories() {
     fi
 
     success "Deployment directory structure created: $DEPLOY_DIR"
+}
+
+# Create CouchDB notes directory structure (isolated from Family Budget)
+create_notes_directories() {
+    info "Creating CouchDB notes directory structure in /opt/notes..."
+
+    # Create /opt/notes directory if it doesn't exist
+    if [[ ! -d "/opt/notes" ]]; then
+        mkdir -p /opt/notes
+        info "Created notes directory: /opt/notes"
+    else
+        info "Notes directory already exists: /opt/notes"
+    fi
+
+    # Create subdirectories
+    local notes_dirs=(
+        "/opt/notes/data"
+        "/opt/notes/backups"
+        "/opt/notes/logs"
+    )
+
+    for dir in "${notes_dirs[@]}"; do
+        if [[ ! -d "$dir" ]]; then
+            mkdir -p "$dir"
+            info "Created directory: $dir"
+        else
+            info "Directory already exists: $dir"
+        fi
+    done
+
+    # Set permissions (700 for data security, 755 for backups/logs)
+    info "Setting notes directory permissions..."
+    chmod 700 /opt/notes/data
+    chmod 755 /opt/notes/backups
+    chmod 755 /opt/notes/logs
+
+    # Set ownership (to the user who ran sudo)
+    local username="${SUDO_USER:-$USER}"
+    if [[ "$username" != "root" ]]; then
+        chown -R "$username:$username" /opt/notes
+        info "Set ownership: $username:$username on /opt/notes"
+    fi
+
+    # Copy local.ini template from repository if exists
+    if [[ -f "$REPO_DIR/notes/local.ini" ]]; then
+        cp "$REPO_DIR/notes/local.ini" /opt/notes/local.ini || \
+            warning "Failed to copy notes/local.ini"
+        # Set correct ownership on copied file
+        if [[ "$username" != "root" ]]; then
+            chown "$username:$username" /opt/notes/local.ini
+        fi
+        info "Copied: notes/local.ini"
+    else
+        warning "notes/local.ini not found in repository"
+        warning "CouchDB may not start without this configuration file"
+    fi
+
+    success "CouchDB notes directory structure created: /opt/notes"
 
     # Copy template files from repository
     info "Copying template files to deployment directory..."
@@ -842,6 +900,9 @@ main() {
     echo ""
 
     create_directories
+    echo ""
+
+    create_notes_directories
     echo ""
 
     install_nodejs

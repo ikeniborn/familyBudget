@@ -257,6 +257,43 @@ services:
   # See scripts/ssl_certificate_manager.sh for certificate management
   # Auto-renewal configured via cron (twice daily)
 
+  # CouchDB Notes Storage (Optional - isolated from Family Budget)
+  couchdb:
+    image: couchdb:3.3
+    container_name: familybudget-couchdb
+    restart: unless-stopped
+    stop_grace_period: 30s
+    stop_signal: SIGTERM
+    environment:
+      COUCHDB_USER: ${COUCHDB_USER:-admin}
+      COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:?COUCHDB_PASSWORD is required if CouchDB is enabled}
+    volumes:
+      # CouchDB data is isolated in /opt/notes (not /opt/budget)
+      - /opt/notes/data:/opt/couchdb/data
+      - /opt/notes/local.ini:/opt/couchdb/etc/local.ini:ro
+    # Port 5984 bound to localhost ONLY - access through nginx reverse proxy
+    # No direct external access to CouchDB for security
+    ports:
+      - "127.0.0.1:5984:5984"
+    networks:
+      - familybudget
+    profiles:
+      - full  # Only start with full profile (requires nginx)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5984/_up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
 volumes:
   postgres_data:
     driver: local
