@@ -46,10 +46,10 @@
             /* Modal box - используем dvh (dynamic viewport height) с fallback */
             .modal-box {
                 /* Современные браузеры: используем dvh (учитывает динамическую высоту) */
-                max-height: 85dvh !important;
+                max-height: 90dvh !important;
 
                 /* Fallback для старых браузеров: используем CSS переменную из JS */
-                max-height: calc(var(--real-vh, 1vh) * 85) !important;
+                max-height: calc(var(--real-vh, 1vh) * 90) !important;
 
                 /* Центрирование */
                 margin-top: auto !important;
@@ -77,8 +77,8 @@
         /* Desktop - более высокие модальные окна */
         @media (min-width: 640px) {
             .modal-box {
-                max-height: 90dvh !important;
-                max-height: calc(var(--real-vh, 1vh) * 90) !important;
+                max-height: 95dvh !important;
+                max-height: calc(var(--real-vh, 1vh) * 95) !important;
             }
         }
     </style>
