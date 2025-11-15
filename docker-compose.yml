@@ -264,6 +264,8 @@ services:
     restart: unless-stopped
     stop_grace_period: 30s
     stop_signal: SIGTERM
+    env_file:
+      - /opt/notes/.env
     environment:
       COUCHDB_USER: ${COUCHDB_USER:-admin}
       COUCHDB_PASSWORD: ${COUCHDB_PASSWORD:?COUCHDB_PASSWORD is required if CouchDB is enabled}
