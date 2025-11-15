@@ -1,64 +1,128 @@
 # Release Drafter Configuration
-# Автоматическая генерация changelog из Pull Requests
+# Автоматическое создание draft releases на основе merged PR
+# Документация: https://github.com/release-drafter/release-drafter
 
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 
-# Категории для группировки изменений
+# Категории для группировки изменений в changelog
 categories:
-  - title: '✨ Features'
+  - title: '🚀 Features'
     labels:
       - 'feature'
       - 'enhancement'
-      - 'feat'
+    collapse-after: 10
+
   - title: '🐛 Bug Fixes'
     labels:
       - 'fix'
       - 'bugfix'
       - 'bug'
+    collapse-after: 10
+
   - title: '⚡ Performance'
     labels:
       - 'performance'
       - 'perf'
+
   - title: '🔧 Refactoring'
     labels:
       - 'refactor'
       - 'refactoring'
+
   - title: '📝 Documentation'
     labels:
       - 'documentation'
       - 'docs'
-  - title: '🚀 Infrastructure'
+
+  - title: '🏗️ Infrastructure'
     labels:
       - 'infrastructure'
       - 'chore'
       - 'ci'
       - 'deployment'
+
+  - title: '🧪 Tests'
+    labels:
+      - 'test'
+      - 'testing'
+
   - title: '🔒 Security'
     labels:
       - 'security'
-  - title: '⚠️ Deprecations'
-    labels:
-      - 'deprecation'
 
-# Формат каждой строки в changelog
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+# Автоматическое присвоение labels на основе названия ветки или PR title
+autolabeler:
+  - label: 'feature'
+    branch:
+      - '/^feat(ure)?[/-].+/'
+    title:
+      - '/^feat(\(.+\))?:/i'
 
-# Шаблон для группировки без категории
-change-title-escapes: '\<*_&'
+  - label: 'fix'
+    branch:
+      - '/^fix[/-].+/'
+    title:
+      - '/^fix(\(.+\))?:/i'
 
-# Автоматическое определение версии на основе labels
+  - label: 'performance'
+    branch:
+      - '/^perf[/-].+/'
+    title:
+      - '/^perf(\(.+\))?:/i'
+
+  - label: 'refactor'
+    branch:
+      - '/^refactor[/-].+/'
+    title:
+      - '/^refactor(\(.+\))?:/i'
+
+  - label: 'documentation'
+    branch:
+      - '/^docs?[/-].+/'
+    title:
+      - '/^docs?(\(.+\))?:/i'
+
+  - label: 'infrastructure'
+    branch:
+      - '/^(chore|ci|deploy)[/-].+/'
+    title:
+      - '/^(chore|ci)(\(.+\))?:/i'
+
+  - label: 'test'
+    branch:
+      - '/^test[/-].+/'
+    title:
+      - '/^test(\(.+\))?:/i'
+
+  - label: 'security'
+    title:
+      - '/^security(\(.+\))?:/i'
+
+# Шаблон changelog для draft release
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+# Изменения, которые нужно исключить из changelog
+exclude-labels:
+  - 'skip-changelog'
+  - 'dependencies'
+  - 'dependency-update'
+
+# Определение версии (semver: major.minor.patch)
 version-resolver:
   major:
     labels:
       - 'major'
       - 'breaking'
-      - 'breaking-change'
   minor:
     labels:
       - 'minor'
       - 'feature'
-      - 'feat'
       - 'enhancement'
   patch:
     labels:
@@ -67,62 +131,32 @@ version-resolver:
       - 'bugfix'
       - 'bug'
       - 'documentation'
-      - 'docs'
+      - 'chore'
   default: patch
 
-# Автоматические labels на основе branch names
-autolabeler:
-  - label: 'feature'
-    branch:
-      - '/^feat(ure)?[/-].+/'
-  - label: 'fix'
-    branch:
-      - '/^fix[/-].+/'
-  - label: 'refactor'
-    branch:
-      - '/^refactor[/-].+/'
-  - label: 'documentation'
-    branch:
-      - '/^docs?[/-].+/'
-  - label: 'chore'
-    branch:
-      - '/^chore[/-].+/'
-  - label: 'performance'
-    branch:
-      - '/^perf[/-].+/'
+# Фильтрация contributors
+exclude-contributors:
+  - 'dependabot'
 
-# Шаблон Release Notes
-template: |
-  ## Изменения
+# Шаблон для каждого изменения
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 
-  $CHANGES
+# Шаблон для contributor без PR
+no-contributors-template: 'No new contributors'
 
-  ## Участники
-
-  $CONTRIBUTORS
-
-  ---
-
-  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
-
-# Exclude labels - PR с этими labels не попадут в changelog
-exclude-labels:
-  - 'skip-changelog'
-  - 'wip'
-  - 'work-in-progress'
-  - 'duplicate'
-  - 'invalid'
-
-# Заменители для улучшенного форматирования
+# Заменить labels на более читаемые названия
 replacers:
-  - search: '/\[([A-Z]+-\d+)\]/g'
-    replace: '[$1](https://github.com/$OWNER/$REPOSITORY/issues/$1)'
-  - search: '/##(\d+)/g'
-    replace: '[#$1](https://github.com/$OWNER/$REPOSITORY/pull/$1)'
-
-# Сортировка PR
-sort-by: title
-sort-direction: ascending
-
-# Предварительный релиз
-prerelease: false
+  - search: '/^feat(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^fix(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^perf(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^refactor(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^docs?(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^(chore|ci)(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^test(\(.+\))?:\s*/i'
+    replace: ''
