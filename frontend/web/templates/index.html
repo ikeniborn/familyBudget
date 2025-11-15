@@ -179,9 +179,9 @@ function openAddTransactionModal() {
         if (factDateInput && !factDateInput.value) {
             const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
             factDateInput.value = todayFormatted;
-            console.log('[openAddTransactionModal] Поле даты пустое, установлена текущая дата:', todayFormatted);
+            debugLog('[openAddTransactionModal] Поле даты пустое, установлена текущая дата:', todayFormatted);
         } else if (factDateInput) {
-            console.log('[openAddTransactionModal] Поле даты уже заполнено:', factDateInput.value);
+            debugLog('[openAddTransactionModal] Поле даты уже заполнено:', factDateInput.value);
         }
     }, 50); // Увеличил delay до 50ms для надёжности
 }
@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (factDateInput) {
         const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
         factDateInput.value = todayFormatted;
-        console.log('[DOMContentLoaded] Установлена дата ДО инициализации CalendarWidget:', todayFormatted);
+        debugLog('[DOMContentLoaded] Установлена дата ДО инициализации CalendarWidget:', todayFormatted);
     }
 
     // Инициализация CalendarWidget для create modal
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mode: 'single',
         inputElement: factDateInput,
         onSelect: (date) => {
-            console.log('Выбрана дата для новой транзакции:', date);
+            debugLog('Выбрана дата для новой транзакции:', date);
         }
     });
 
@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (factDateInput) {
         const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
         factDateInput.value = todayFormatted;
-        console.log('[DOMContentLoaded] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
+        debugLog('[DOMContentLoaded] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
     }
 
     // Инициализация кнопок периода планирования
@@ -339,7 +339,7 @@ async function loadCategories() {
     try {
         await loadTransactionCategories();
         await loadPlanCategories();
-        console.log('[index.html] Categories loaded successfully');
+        debugLog('[index.html] Categories loaded successfully');
     } catch (error) {
         console.error('Failed to load categories:', error);
         showToast('Ошибка при загрузке категорий', 'error');
@@ -352,7 +352,7 @@ async function loadTransactionCategories() {
         // Check if select element exists (defense in depth)
         const selectElement = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
         if (!selectElement) {
-            console.log('[loadTransactionCategories] Select element not found - skipping initialization');
+            debugLog('[loadTransactionCategories] Select element not found - skipping initialization');
             return;
         }
 
@@ -368,14 +368,14 @@ async function loadTransactionCategories() {
                 type: transactionType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
-                    console.log('Transaction category changed:', category);
+                    debugLog('Transaction category changed:', category);
                     // Update recommended amounts based on selected category
                     loadRecommendedAmounts('form_modal_add_transaction', 'fact', category);
                 }
             });
         }
 
-        console.log('[index.html] Transaction categories loaded');
+        debugLog('[index.html] Transaction categories loaded');
     } catch (error) {
         console.error('Failed to load transaction categories:', error);
         showToast('Ошибка при загрузке категорий транзакций', 'error');
@@ -388,7 +388,7 @@ async function loadPlanCategories() {
         // Check if select element exists (defense in depth)
         const selectElement = document.querySelector('#form_modal_add_plan select[name="article_id"]');
         if (!selectElement) {
-            console.log('[loadPlanCategories] Select element not found - skipping initialization');
+            debugLog('[loadPlanCategories] Select element not found - skipping initialization');
             return;
         }
 
@@ -404,14 +404,14 @@ async function loadPlanCategories() {
                 type: planType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
-                    console.log('Plan category changed:', category);
+                    debugLog('Plan category changed:', category);
                     // Update recommended amounts based on selected category
                     loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
                 }
             });
         }
 
-        console.log('[index.html] Plan categories loaded');
+        debugLog('[index.html] Plan categories loaded');
     } catch (error) {
         console.error('Failed to load plan categories:', error);
         showToast('Ошибка при загрузке категорий планов', 'error');
@@ -425,7 +425,7 @@ async function loadFinancialCenters() {
         if (!response.ok) {
             // Graceful degradation for 401 Unauthorized (user not authenticated)
             if (response.status === 401) {
-                console.log('[loadFinancialCenters] User not authenticated - financial centers not loaded');
+                debugLog('[loadFinancialCenters] User not authenticated - financial centers not loaded');
                 return;  // Silent fail - don't show error toast
             }
 
@@ -481,7 +481,7 @@ async function loadCostCenters() {
         if (!response.ok) {
             console.warn('Failed to fetch cost centers: HTTP', response.status);
             // МВЗ опциональное поле, не показываем error toast
-            console.log('Cost centers not loaded - this is optional');
+            debugLog('Cost centers not loaded - this is optional');
             return;
         }
 
@@ -490,7 +490,7 @@ async function loadCostCenters() {
 
         // МВЗ опциональное, пустой список не критичен
         if (centers.length === 0) {
-            console.log('No cost centers available - this is optional');
+            debugLog('No cost centers available - this is optional');
             return;
         }
 
@@ -521,7 +521,7 @@ async function loadCostCenters() {
     } catch (error) {
         console.error('Failed to load cost centers:', error);
         // Не показываем error toast, т.к. МВЗ опциональное поле
-        console.log('Cost centers error is non-critical');
+        debugLog('Cost centers error is non-critical');
     }
 }
 
@@ -649,7 +649,7 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.log('[loadRecommendedAmounts] Request cancelled (debounce)');
+                debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
             } else {
                 console.error('[loadRecommendedAmounts] Failed to load:', error);
             }
@@ -765,7 +765,7 @@ function setupPlanPeriodButtons() {
             const month = this.dataset.month;
             hiddenInput.value = `${year}-${month}`;
 
-            console.log('Selected plan period:', hiddenInput.value);
+            debugLog('Selected plan period:', hiddenInput.value);
         });
     });
 
@@ -797,7 +797,7 @@ function setupTransactionTypeButtons() {
             }
 
             // Перезагрузить только категории транзакций с новым типом
-            console.log('Transaction type changed to:', this.dataset.type);
+            debugLog('Transaction type changed to:', this.dataset.type);
             loadTransactionCategories();
 
             // Обновить рекомендуемые суммы для нового типа транзакции
@@ -827,7 +827,7 @@ function setupPlanTypeButtons() {
             }
 
             // Перезагрузить только категории планов с новым типом
-            console.log('Plan type changed to:', this.dataset.type);
+            debugLog('Plan type changed to:', this.dataset.type);
             loadPlanCategories();
 
             // Обновить рекомендуемые суммы для нового типа плана

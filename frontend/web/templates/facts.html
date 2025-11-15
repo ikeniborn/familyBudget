@@ -422,7 +422,7 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
 
         } catch (error) {
             if (error.name === 'AbortError') {
-                console.log('[loadRecommendedAmounts] Request cancelled (debounce)');
+                debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
             } else {
                 console.error('[loadRecommendedAmounts] Failed to load:', error);
             }
@@ -461,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
         onSelect: (startDate, endDate) => {
-            console.log('Выбран диапазон дат:', startDate, endDate);
+            debugLog('Выбран диапазон дат:', startDate, endDate);
             applyFilters(); // Auto-apply on selection
         }
     });
@@ -471,7 +471,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mode: 'single',
         inputElement: document.getElementById('edit-date'),
         onSelect: (date) => {
-            console.log('Выбрана дата для edit modal:', date);
+            debugLog('Выбрана дата для edit modal:', date);
         }
     });
 
@@ -479,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('filter-article-type').addEventListener('change', function(e) {
         const selectedType = e.target.value;
         reloadArticleFilter(selectedType);
-        console.log('Article type filter changed to:', selectedType || 'all');
+        debugLog('Article type filter changed to:', selectedType || 'all');
     });
 
     // Инициализация CalendarWidget для create modal будет выполнена позже
@@ -561,7 +561,7 @@ async function loadArticles() {
                 type: createType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
-                    console.log('Category changed in create modal:', category);
+                    debugLog('Category changed in create modal:', category);
                     // Update recommended amounts based on selected category
                     loadRecommendedAmounts('form_create_modal', 'fact', category);
                 }
@@ -575,7 +575,7 @@ async function loadArticles() {
                 mode: 'single',
                 inputElement: createDateInput,
                 onSelect: (date) => {
-                    console.log('Выбрана дата для create modal:', date);
+                    debugLog('Выбрана дата для create modal:', date);
                 }
             });
 
@@ -584,7 +584,7 @@ async function loadArticles() {
                 BudgetShared.DateFormatter.today()
             );
             createDateInput.value = todayFormatted;
-            console.log('[loadCategories] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
+            debugLog('[loadCategories] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
         }
     } catch (error) {
         console.error('Error loading articles:', error);
@@ -1087,7 +1087,7 @@ async function showEditModal(factId) {
             type: categoryType,
             showLeafOnly: true,
             onCategoryChange: (category) => {
-                console.log('Category changed in edit modal:', category);
+                debugLog('Category changed in edit modal:', category);
             }
         });
 
@@ -1103,19 +1103,19 @@ async function showEditModal(factId) {
                 // Get choices from the correct location: _store.choices
                 const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
 
-                console.log('[Edit Modal] Init check - choices loaded:', choicesStore.length, 'article_id:', fact.article_id);
+                debugLog('[Edit Modal] Init check - choices loaded:', choicesStore.length, 'article_id:', fact.article_id);
 
                 if (choicesStore.length > 0) {
                     clearInterval(initCheckInterval);
 
                     // Try to set the category (may fail if archived/inactive)
                     if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
-                        console.log('[Edit Modal] Setting category to:', fact.article_id);
+                        debugLog('[Edit Modal] Setting category to:', fact.article_id);
                         await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
 
                         // Verify it was set
                         const selectedValue = editSelect.value;
-                        console.log('[Edit Modal] Category set. Dropdown value:', selectedValue);
+                        debugLog('[Edit Modal] Category set. Dropdown value:', selectedValue);
                     } else {
                         console.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
                         // Leave default "-- Выберите категорию --" selected
@@ -1128,7 +1128,7 @@ async function showEditModal(factId) {
         setTimeout(() => {
             clearInterval(initCheckInterval);
             console.warn('[Edit Modal] Initialization timeout - giving up after 10 seconds');
-            console.log('[Edit Modal] Debug state:', {
+            debugLog('[Edit Modal] Debug state:', {
                 hasInstance: !!editCategoryTreeSelect,
                 hasChoices: !!editCategoryTreeSelect?.choices,
                 hasMap: !!editCategoryTreeSelect?.categoryMap,
@@ -1159,7 +1159,7 @@ async function showEditModal(factId) {
             mode: 'single',
             inputElement: editDateInput,
             onSelect: (date) => {
-                console.log('Выбрана дата для edit modal:', date);
+                debugLog('Выбрана дата для edit modal:', date);
             }
         });
     }
@@ -1444,7 +1444,7 @@ function setupCreateTransactionTypeButtons() {
 
             // Перезагрузить категории с новым типом
             const createType = this.dataset.type;
-            console.log('Transaction type changed to:', createType);
+            debugLog('Transaction type changed to:', createType);
             if (createCategoryTreeSelect && allCategories.length > 0) {
                 // Use updateType() method instead of destroy + recreate
                 // This prevents Choices.js "multiple instances" error
@@ -1477,7 +1477,7 @@ function setupEditCategoryTypeButtons() {
 
             // Перезагрузить категории с новым типом
             const newType = this.dataset.type;
-            console.log('Edit modal category type changed to:', newType);
+            debugLog('Edit modal category type changed to:', newType);
 
             if (editCategoryTreeSelect && allCategories.length > 0) {
                 // Use updateType() method instead of destroy + recreate
@@ -1583,7 +1583,7 @@ function openCreateModal() {
             factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(
                 BudgetShared.DateFormatter.today()
             );
-            console.log('[openCreateModal] Установлена текущая дата:', factDateInput.value);
+            debugLog('[openCreateModal] Установлена текущая дата:', factDateInput.value);
         }
     }, 50);
 }
