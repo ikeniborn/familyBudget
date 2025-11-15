@@ -32,9 +32,9 @@
 
 <!-- Create Cost Center Modal -->
 <dialog id="create-modal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">✨ Создать новый МВЗ</h3>
-        <form id="create-form" onsubmit="createCenter(event)" class="space-y-4">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новый МВЗ</h3>
+        <form id="create-form" onsubmit="createCenter(event)" class="space-y-2 sm:space-y-4">
             <div class="form-control">
                 <label class="label">
                     <span class="label-text">📝 Название*</span>
@@ -60,9 +60,9 @@
 
 <!-- Edit Cost Center Modal -->
 <dialog id="edit-modal" class="modal">
-    <div class="modal-box">
-        <h3 class="font-bold text-lg mb-4">✏️ Редактировать МВЗ</h3>
-        <form id="edit-form" onsubmit="updateCenter(event)" class="space-y-4">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать МВЗ</h3>
+        <form id="edit-form" onsubmit="updateCenter(event)" class="space-y-2 sm:space-y-4">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-control">
                 <label class="label">

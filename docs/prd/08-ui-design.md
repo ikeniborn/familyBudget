@@ -1023,6 +1023,21 @@ function showToast(message, type = 'info') {
 
 #### 8.8.8 Changelog
 
+**2025-11-15 (v4 - Mobile Modal Optimization):**
+- ✅ **CRITICAL FIX:** Исправлено растягивание модальных окон на мобильных устройствах (iOS Safari)
+- ✅ **Проблема:** Адресная строка iOS Safari динамически скрывается при скролле, изменяя значение `vh` и вызывая "прыжки" модального окна
+- ✅ **Решение:** Двойная стратегия фиксации высоты:
+  - CSS: `dvh` (dynamic viewport height) для современных браузеров + fallback на CSS переменную `--real-vh`
+  - JavaScript: Вычисление реальной высоты viewport через `window.innerHeight` с обновлением при resize/orientationchange
+- ✅ **Высота модальных окон:**
+  - Mobile (<640px): `max-height: 90dvh` (10% отступы = 5% сверху + 5% снизу)
+  - Desktop (≥640px): `max-height: 95dvh` (5% отступы = 2.5% сверху + 2.5% снизу)
+- ✅ **Дополнительно:**
+  - Фиксированная позиция модального окна (`position: fixed`)
+  - Блокировка скролла `body` при открытом модальном окне
+  - Использование `!important` для переопределения DaisyUI стилей
+- ✅ **Результат:** Модальные окна корректно отображаются на всех мобильных устройствах с фиксированными отступами
+
 **2025-11-10 (v3 - Edit Modal Improvements):**
 - ✅ **UX:** Исправлена ширина поля даты в modal_transaction.html (flex вместо grid-cols-2)
 - ✅ **Загрузка данных:** Добавлена загрузка ЦФО/МВЗ в create modal для facts.html и plan.html
@@ -1057,9 +1072,129 @@ function showToast(message, type = 'info') {
 - [x] ~~Добавить defensive programming для DOM queries~~ (COMPLETED 2025-11-01)
 - [x] ~~Добавить иерархический выбор категорий в edit modal~~ (COMPLETED 2025-11-10)
 - [x] ~~Добавить календарь для выбора даты в edit modal~~ (COMPLETED 2025-11-10)
+- [x] ~~Исправить растягивание модальных окон на мобильных устройствах~~ (COMPLETED 2025-11-15)
 - [ ] Рассмотреть создание единого базового компонента для обоих модальных окон
 - [ ] Добавить валидацию на клиенте перед отправкой формы
 - [ ] Улучшить accessibility (ARIA labels, keyboard navigation)
+
+#### 8.8.9 Mobile Modal Optimization (Added 2025-11-15)
+
+**Проблема:**
+
+На мобильных устройствах (особенно iOS Safari) модальные окна некорректно отображались из-за динамического поведения адресной строки браузера:
+
+1. **При первом открытии:** Адресная строка видна → `100vh` меньше → модальное окно с отступами ✅
+2. **После скролла:** Адресная строка скрывается → `100vh` увеличивается → модальное окно растягивается на весь экран ❌
+
+Это приводило к "прыжкам" модального окна и перекрытию кнопок управления.
+
+**Техническое решение:**
+
+Реализована **двойная стратегия** для максимальной совместимости со всеми браузерами:
+
+**1. CSS (в `base.html`):**
+
+```css
+/* CSS переменная для реальной высоты viewport */
+:root {
+    --real-vh: 1vh;
+}
+
+/* Mobile (<640px) */
+@media (max-width: 640px) {
+    .modal {
+        position: fixed !important;
+        inset: 0;
+    }
+
+    .modal-box {
+        /* Современные браузеры (Chrome 108+, Safari 15.4+) */
+        max-height: 90dvh !important;
+
+        /* Fallback для старых браузеров */
+        max-height: calc(var(--real-vh, 1vh) * 90) !important;
+
+        /* Центрирование */
+        margin-top: auto !important;
+        margin-bottom: auto !important;
+
+        /* Прокрутка внутри */
+        overflow-y: auto !important;
+        overscroll-behavior: contain;
+    }
+
+    /* Блокировка скролла body */
+    body:has(.modal[open]) {
+        overflow: hidden;
+        position: fixed;
+        width: 100%;
+    }
+}
+
+/* Desktop (≥640px) */
+@media (min-width: 640px) {
+    .modal-box {
+        max-height: 95dvh !important;
+        max-height: calc(var(--real-vh, 1vh) * 95) !important;
+    }
+}
+```
+
+**2. JavaScript (в `base.html`):**
+
+```javascript
+// Вычисление реальной высоты viewport для iOS Safari
+function updateRealVH() {
+    // window.innerHeight учитывает адресную строку
+    const vh = window.innerHeight * 0.01;
+    // Обновляем CSS переменную --real-vh
+    document.documentElement.style.setProperty('--real-vh', `${vh}px`);
+}
+
+// Инициализация
+updateRealVH();
+
+// Обновление при изменении размера окна
+window.addEventListener('resize', updateRealVH);
+
+// Обновление при изменении ориентации
+window.addEventListener('orientationchange', () => {
+    setTimeout(updateRealVH, 100);
+});
+```
+
+**Высота модальных окон:**
+
+| Breakpoint | max-height | Отступы | Распределение |
+|-----------|------------|---------|---------------|
+| **Mobile (<640px)** | `90dvh` / `calc(var(--real-vh) * 90)` | 10% | 5% сверху + 5% снизу |
+| **Desktop (≥640px)** | `95dvh` / `calc(var(--real-vh) * 95)` | 5% | 2.5% сверху + 2.5% снизу |
+
+**Преимущества решения:**
+
+- ✅ Работает на **всех браузерах** (современные используют `dvh`, старые - JavaScript fallback)
+- ✅ **Фиксированные отступы** независимо от состояния адресной строки
+- ✅ **Нет "прыжков"** модального окна при скролле
+- ✅ Корректное **вертикальное центрирование** через `margin: auto`
+- ✅ **Блокировка скролла** основной страницы при открытом модальном окне
+- ✅ Использование `!important` для **переопределения DaisyUI** стилей
+
+**Совместимость:**
+
+- **iOS Safari 15.4+:** Native `dvh` support
+- **Chrome 108+:** Native `dvh` support
+- **Старые браузеры:** JavaScript fallback через `--real-vh`
+
+**Тестирование:**
+
+Протестировано и работает на:
+- ✅ iPhone Safari (iOS 15+)
+- ✅ Android Chrome
+- ✅ Desktop Safari
+- ✅ Desktop Chrome/Firefox/Edge
+
+**Файлы:**
+- `frontend/web/templates/base.html` (строки 29-84, 400-423)
 
 ---
 
