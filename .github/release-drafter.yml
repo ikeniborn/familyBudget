@@ -1,0 +1,162 @@
+# Release Drafter Configuration
+# Автоматическое создание draft releases на основе merged PR
+# Документация: https://github.com/release-drafter/release-drafter
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+# Категории для группировки изменений в changelog
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+    collapse-after: 10
+
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+    collapse-after: 10
+
+  - title: '⚡ Performance'
+    labels:
+      - 'performance'
+      - 'perf'
+
+  - title: '🔧 Refactoring'
+    labels:
+      - 'refactor'
+      - 'refactoring'
+
+  - title: '📝 Documentation'
+    labels:
+      - 'documentation'
+      - 'docs'
+
+  - title: '🏗️ Infrastructure'
+    labels:
+      - 'infrastructure'
+      - 'chore'
+      - 'ci'
+      - 'deployment'
+
+  - title: '🧪 Tests'
+    labels:
+      - 'test'
+      - 'testing'
+
+  - title: '🔒 Security'
+    labels:
+      - 'security'
+
+# Автоматическое присвоение labels на основе названия ветки или PR title
+autolabeler:
+  - label: 'feature'
+    branch:
+      - '/^feat(ure)?[/-].+/'
+    title:
+      - '/^feat(\(.+\))?:/i'
+
+  - label: 'fix'
+    branch:
+      - '/^fix[/-].+/'
+    title:
+      - '/^fix(\(.+\))?:/i'
+
+  - label: 'performance'
+    branch:
+      - '/^perf[/-].+/'
+    title:
+      - '/^perf(\(.+\))?:/i'
+
+  - label: 'refactor'
+    branch:
+      - '/^refactor[/-].+/'
+    title:
+      - '/^refactor(\(.+\))?:/i'
+
+  - label: 'documentation'
+    branch:
+      - '/^docs?[/-].+/'
+    title:
+      - '/^docs?(\(.+\))?:/i'
+
+  - label: 'infrastructure'
+    branch:
+      - '/^(chore|ci|deploy)[/-].+/'
+    title:
+      - '/^(chore|ci)(\(.+\))?:/i'
+
+  - label: 'test'
+    branch:
+      - '/^test[/-].+/'
+    title:
+      - '/^test(\(.+\))?:/i'
+
+  - label: 'security'
+    title:
+      - '/^security(\(.+\))?:/i'
+
+# Шаблон changelog для draft release
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+# Изменения, которые нужно исключить из changelog
+exclude-labels:
+  - 'skip-changelog'
+  - 'dependencies'
+  - 'dependency-update'
+
+# Определение версии (semver: major.minor.patch)
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking'
+  minor:
+    labels:
+      - 'minor'
+      - 'feature'
+      - 'enhancement'
+  patch:
+    labels:
+      - 'patch'
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+      - 'documentation'
+      - 'chore'
+  default: patch
+
+# Фильтрация contributors
+exclude-contributors:
+  - 'dependabot'
+
+# Шаблон для каждого изменения
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+
+# Шаблон для contributor без PR
+no-contributors-template: 'No new contributors'
+
+# Заменить labels на более читаемые названия
+replacers:
+  - search: '/^feat(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^fix(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^perf(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^refactor(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^docs?(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^(chore|ci)(\(.+\))?:\s*/i'
+    replace: ''
+  - search: '/^test(\(.+\))?:\s*/i'
+    replace: ''
