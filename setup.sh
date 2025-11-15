@@ -1061,7 +1061,17 @@ create_notes_env_file() {
     if [[ ! -d "/opt/notes" ]]; then
         info "Creating /opt/notes directory..."
         mkdir -p /opt/notes
-        success "Created /opt/notes directory"
+
+        # Set correct ownership (same as DEPLOY_DIR)
+        local deploy_owner
+        deploy_owner=$(stat -c '%U' "$DEPLOY_DIR" 2>/dev/null || echo "$SUDO_USER")
+
+        if [[ -n "$deploy_owner" && "$deploy_owner" != "root" ]]; then
+            chown -R "$deploy_owner:$deploy_owner" "/opt/notes"
+            success "Created /opt/notes directory (owner: $deploy_owner)"
+        else
+            success "Created /opt/notes directory"
+        fi
     fi
 
     # Create .env file for CouchDB with isolated configuration
@@ -1083,7 +1093,19 @@ EOF
     # Set secure permissions (only owner can read/write)
     chmod 600 "$notes_env_file"
 
-    success "CouchDB .env created: $notes_env_file (permissions: 600)"
+    # Set correct ownership (same as DEPLOY_DIR owner)
+    # Get owner of DEPLOY_DIR
+    local deploy_owner
+    deploy_owner=$(stat -c '%U' "$DEPLOY_DIR" 2>/dev/null || echo "$SUDO_USER")
+
+    if [[ -n "$deploy_owner" && "$deploy_owner" != "root" ]]; then
+        chown "$deploy_owner:$deploy_owner" "$notes_env_file"
+        success "CouchDB .env created: $notes_env_file (owner: $deploy_owner, permissions: 600)"
+    else
+        success "CouchDB .env created: $notes_env_file (permissions: 600)"
+        warning "Running as root - you may need to adjust ownership manually"
+    fi
+
     info "CouchDB will use this isolated configuration"
 }
 
