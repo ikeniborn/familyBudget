@@ -1,4 +1,4 @@
-# GitHub Changelog - Краткая справка
+# 16. Changelog & Release Management
 
 ## Быстрый старт
 

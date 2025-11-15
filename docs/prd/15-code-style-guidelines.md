@@ -1,4 +1,4 @@
-# Code Style Guidelines - Family Budget Project
+# 15. Code Style Guidelines
 
 ## Философия: Минималистичный самодокументируемый код
 
