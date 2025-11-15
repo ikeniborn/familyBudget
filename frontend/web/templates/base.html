@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Семейный бюджет - Track your income and expenses with powerful analytics">
     <meta name="theme-color" content="#4CAF50">
+    <meta name="app-env" content="{{ app_env|default('production') }}">
     <title>{% block title %}{{ page_title }}{% endblock %} - Семейный бюджет</title>
 
     <!-- Favicon -->
@@ -89,6 +90,9 @@
 
     <!-- Extra Styles (from child templates) -->
     {% block extra_styles %}{% endblock %}
+
+    <!-- Debug Logger (conditional logging for development) -->
+    <script src="/shared/static/js/debugLog.js?v=PLACEHOLDER"></script>
 
     <!-- HTMX -->
     <script src="/static/js/vendor/htmx.min.js?v=PLACEHOLDER"></script>
@@ -420,7 +424,7 @@
             setTimeout(updateRealVH, 100);
         });
 
-        console.log('[Mobile Modal Fix] Initialized real viewport height calculation');
+        debugLog('[Mobile Modal Fix] Initialized real viewport height calculation');
     </script>
 </body>
 </html>
