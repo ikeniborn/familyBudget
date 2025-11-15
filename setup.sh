@@ -933,6 +933,124 @@ configure_s3_backup() {
     fi
 }
 
+# Configure CouchDB Notes (Optional)
+configure_couchdb() {
+    section "CouchDB Notes Configuration (Optional)"
+
+    echo ""
+    info "CouchDB provides document storage for notes (Obsidian, etc.)"
+    info "Isolated from Family Budget with separate domain and data directory"
+    echo ""
+    warning "Requirements:"
+    echo "  - DEPLOYMENT_PROFILE=full (nginx + SSL)"
+    echo "  - Subdomain DNS configured (e.g., notes.yourdomain.com)"
+    echo "  - Let's Encrypt SSL certificate will be auto-generated"
+    echo ""
+    warning "You can skip this now and configure later by editing .env file"
+    echo ""
+
+    prompt_yes_no "Enable CouchDB Notes?" "ENABLE_COUCHDB" "n"
+
+    if [[ "${CONFIG[ENABLE_COUCHDB]}" == "y" ]]; then
+        echo ""
+        info "CouchDB Notes Configuration"
+        echo ""
+
+        # Generate strong password
+        info "Generating CouchDB admin password..."
+        local couchdb_password
+        couchdb_password=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
+        CONFIG["COUCHDB_PASSWORD"]="$couchdb_password"
+        success "Generated secure password (32 characters)"
+        echo ""
+
+        # CouchDB admin username (default: admin)
+        CONFIG["COUCHDB_USER"]="admin"
+
+        # Notes subdomain
+        echo "Notes Domain (subdomain for CouchDB access):"
+        echo "  Requirements:"
+        echo "    - Must be different from main DOMAIN"
+        echo "    - DNS must be configured to point to this server"
+        echo "    - SSL certificate will be auto-generated via Let's Encrypt"
+        echo ""
+        echo "  Examples:"
+        echo "    - Production: notes.yourdomain.com"
+        echo "    - Development: notes.localhost (HTTP only, no SSL)"
+        echo ""
+
+        local notes_domain_valid=false
+        while [[ "$notes_domain_valid" == false ]]; do
+            read -p "Notes Domain [default: notes.localhost]: " notes_domain
+            notes_domain="${notes_domain:-notes.localhost}"
+
+            # Validate domain format
+            if [[ "$notes_domain" == "notes.localhost" ]]; then
+                warning "Using notes.localhost - HTTP only, no SSL (development mode)"
+                notes_domain_valid=true
+            elif [[ "$notes_domain" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+                # Check if different from main domain
+                if [[ "$notes_domain" == "${CONFIG[DOMAIN]}" ]]; then
+                    error "Notes domain must be different from main domain: ${CONFIG[DOMAIN]}"
+                    echo "Please use a subdomain (e.g., notes.${CONFIG[DOMAIN]})"
+                else
+                    notes_domain_valid=true
+                fi
+            else
+                error "Invalid domain format: $notes_domain"
+                echo "Please use format: notes.yourdomain.com"
+            fi
+        done
+
+        CONFIG["NOTES_DOMAIN"]="$notes_domain"
+
+        # Set directory paths
+        CONFIG["NOTES_DATA_DIR"]="/opt/notes/data"
+        CONFIG["NOTES_BACKUP_DIR"]="/opt/notes/backups"
+        CONFIG["NOTES_LOG_DIR"]="/opt/notes/logs"
+
+        echo ""
+        success "CouchDB Notes configured"
+        echo ""
+        info "Summary:"
+        echo "  ✓ Admin User: ${CONFIG[COUCHDB_USER]}"
+        echo "  ✓ Password: [hidden - 32 characters]"
+        echo "  ✓ Domain: ${CONFIG[NOTES_DOMAIN]}"
+        echo "  ✓ Data Directory: ${CONFIG[NOTES_DATA_DIR]}"
+        echo ""
+        warning "Access: https://${CONFIG[NOTES_DOMAIN]}"
+        if [[ "${CONFIG[NOTES_DOMAIN]}" != "notes.localhost" ]]; then
+            warning "Ensure DNS is configured before running deploy.sh"
+        fi
+        echo ""
+
+        # Copy nginx template if exists
+        if [[ -f "$REPO_DIR/nginx/conf.d/notes.conf.template" ]]; then
+            info "Copying nginx template for CouchDB..."
+            cp "$REPO_DIR/nginx/conf.d/notes.conf.template" "$DEPLOY_DIR/nginx/conf.d/" || \
+                warning "Failed to copy nginx notes template"
+            success "Nginx template copied"
+        else
+            warning "Nginx notes template not found: $REPO_DIR/nginx/conf.d/notes.conf.template"
+        fi
+
+    else
+        # User skipped CouchDB configuration
+        CONFIG["ENABLE_COUCHDB"]="n"
+        CONFIG["COUCHDB_USER"]="admin"
+        CONFIG["COUCHDB_PASSWORD"]=""
+        CONFIG["NOTES_DOMAIN"]="notes.localhost"
+        CONFIG["NOTES_DATA_DIR"]="/opt/notes/data"
+        CONFIG["NOTES_BACKUP_DIR"]="/opt/notes/backups"
+        CONFIG["NOTES_LOG_DIR"]="/opt/notes/logs"
+
+        echo ""
+        success "CouchDB Notes skipped"
+        info "You can enable CouchDB later by editing .env file"
+        info "Set: ENABLE_COUCHDB=y and configure COUCHDB_PASSWORD, NOTES_DOMAIN"
+    fi
+}
+
 # Create .env file
 create_env_file() {
     section "Creating .env File"
@@ -1266,6 +1384,9 @@ main() {
     echo ""
 
     configure_s3_backup
+    echo ""
+
+    configure_couchdb
     echo ""
 
     create_env_file

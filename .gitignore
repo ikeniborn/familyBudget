@@ -251,6 +251,7 @@ frontend-api/
 workflow/
 requests/
 !requests/task template.md
+plans/
 
 # Uploads and temporary files
 uploads/

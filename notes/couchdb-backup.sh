@@ -1,19 +1,56 @@
 #!/bin/bash
 set -uo pipefail
 
-# Configuration
-BACKUP_DIR="/home/ikeniborn/app/web/db/couchdb/backup"
-LOG_FILE="${BACKUP_DIR}/backup.log"
+# =============================================================================
+# CouchDB Notes Backup Script
+# =============================================================================
+# Backs up CouchDB databases and uploads to S3-compatible storage
+# Uses environment variables from /opt/budget/.env
+#
+# Requirements:
+#   - Docker container: familybudget-couchdb
+#   - Python 3 with boto3: pip3 install boto3
+#   - S3 credentials in .env: S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_NAME
+#
+# Usage:
+#   bash /opt/budget/notes/couchdb-backup.sh
+#
+# Cron (daily at 3 AM):
+#   0 3 * * * cd /opt/budget && bash notes/couchdb-backup.sh >> /opt/notes/logs/backup.log 2>&1
+#
+
+# Load environment variables from .env
+ENV_FILE="/opt/budget/.env"
+if [[ -f "$ENV_FILE" ]]; then
+    # Export variables from .env (excluding comments and empty lines)
+    set -a
+    source "$ENV_FILE" 2>/dev/null || true
+    set +a
+else
+    echo "WARNING: .env file not found: $ENV_FILE"
+    echo "Using default configuration"
+fi
+
+# Configuration (with .env fallback to defaults)
+BACKUP_DIR="${NOTES_BACKUP_DIR:-/opt/notes/backups}"
+LOG_FILE="${NOTES_LOG_DIR:-/opt/notes/logs}/backup.log"
 RETENTION_DAYS=7
 DATE_FORMAT="+%Y%m%d"
 BACKUP_NAME="couchdb-$(date -u ${DATE_FORMAT}).tar.gz"
 OLD_BACKUP_NAME="couchdb-$(date -d "${RETENTION_DAYS} days ago" ${DATE_FORMAT}).tar.gz"
-DOCKER_VOLUME="web_couchdb-data"
-S3_BUCKET="yandex/ikeniborn-obsidian-couchdb"
-MC_BIN="/opt/minio-binaries/mc"
-COUCHDB_CONTAINER="couchdb"
-COUCHDB_URL="http://admin:2L6uEoNMjW9rVnPgy37t@localhost:5984"
-COUCHDB_HOST_URL="http://admin:2L6uEoNMjW9rVnPgy37t@localhost:5984"  # Direct access from host
+
+# Docker configuration
+COUCHDB_CONTAINER="familybudget-couchdb"
+
+# CouchDB credentials (from .env)
+COUCHDB_USER="${COUCHDB_USER:-admin}"
+COUCHDB_PASSWORD="${COUCHDB_PASSWORD:?ERROR: COUCHDB_PASSWORD not set in .env}"
+COUCHDB_URL="http://${COUCHDB_USER}:${COUCHDB_PASSWORD}@localhost:5984"
+COUCHDB_HOST_URL="http://${COUCHDB_USER}:${COUCHDB_PASSWORD}@localhost:5984"
+
+# S3 configuration (from .env)
+S3_UPLOAD_SCRIPT="/opt/budget/scripts/s3_upload.py"
+S3_PREFIX="couchdb-backups/"  # Prefix in S3 bucket
 
 # Resource limits
 CPU_LIMIT="0.5"  # 50% of one CPU
@@ -127,8 +164,18 @@ if [[ ! -d "${BACKUP_DIR}" ]]; then
     error_exit "Backup directory ${BACKUP_DIR} does not exist"
 fi
 
-if [[ ! -x "${MC_BIN}" ]]; then
-    error_exit "MinIO client not found at ${MC_BIN}"
+# Check if Python 3 is available for S3 upload
+if ! command -v python3 >/dev/null 2>&1; then
+    error_exit "python3 is not installed (required for S3 upload)"
+fi
+
+# Check if S3 upload script exists
+if [[ ! -f "${S3_UPLOAD_SCRIPT}" ]]; then
+    log "WARNING: S3 upload script not found: ${S3_UPLOAD_SCRIPT}"
+    log "S3 upload will be skipped. Backup will be local only."
+    S3_UPLOAD_ENABLED=false
+else
+    S3_UPLOAD_ENABLED=true
 fi
 
 update_progress "Prerequisites checked"
@@ -359,60 +406,31 @@ else
     error_exit "Backup file is corrupted"
 fi
 
-# Upload to S3 with bandwidth limit and progress
-log "Uploading backup to S3: ${S3_BUCKET}"
-log "Upload bandwidth limit: ${UPLOAD_BANDWIDTH}"
+# Upload to S3 using boto3
+if [[ "${S3_UPLOAD_ENABLED}" == "true" ]]; then
+    log "Uploading backup to S3..."
+    file_size_mb=$(du -m "${BACKUP_NAME}" | cut -f1)
+    log "📤 File size: ${file_size_mb}MB"
 
-# Show upload progress indicator
-upload_start_time=$(date +%s)
-file_size_mb=$(du -m "${BACKUP_NAME}" | cut -f1)
-log "📤 Starting upload of ${file_size_mb}MB file... (this may take several minutes)"
+    upload_start_time=$(date +%s)
 
-# Function to show upload progress
-show_upload_progress() {
-    local start_time=$1
-    local file_size_mb=$2
-    while true; do
-        current_time=$(date +%s)
-        elapsed=$((current_time - start_time))
-        
-        # Estimate progress based on time (rough estimation)
-        if [[ $elapsed -gt 0 ]]; then
-            # Rough estimate: 1MB per 10 seconds at 1MB bandwidth limit
-            estimated_progress=$((elapsed * 100 / (file_size_mb * 10)))
-            if [[ $estimated_progress -gt 100 ]]; then
-                estimated_progress=100
-            fi
-            printf "\r  🔄 Upload progress: ~%d%% (%ds elapsed)" "$estimated_progress" "$elapsed"
-        fi
-        sleep 2
-    done
-}
+    # Upload using Python script (with .env credentials)
+    if python3 "${S3_UPLOAD_SCRIPT}" "${BACKUP_DIR}/${BACKUP_NAME}" "${S3_PREFIX}" 2>&1 | tee -a "${LOG_FILE}"; then
+        upload_end_time=$(date +%s)
+        upload_duration=$((upload_end_time - upload_start_time))
 
-# Start background progress indicator
-show_upload_progress "$upload_start_time" "$file_size_mb" &
-progress_pid=$!
-
-# Use mc with progress output - capture exit code properly
-upload_output=""
-if upload_output=$("${MC_BIN}" cp --limit-upload "${UPLOAD_BANDWIDTH}" "${BACKUP_NAME}" "${S3_BUCKET}/" 2>&1); then
-    # Kill progress indicator
-    kill $progress_pid 2>/dev/null
-    wait $progress_pid 2>/dev/null
-    
-    upload_end_time=$(date +%s)
-    upload_duration=$((upload_end_time - upload_start_time))
-    printf "\r\033[K"  # Clear progress line
-    log "✅ Upload completed in ${upload_duration} seconds"
-    log "Upload details: ${upload_output}"
-    update_progress "Backup uploaded to S3"
+        log "✅ Upload completed in ${upload_duration} seconds"
+        update_progress "Backup uploaded to S3"
+    else
+        log "❌ S3 upload failed"
+        log "WARNING: Backup is available locally: ${BACKUP_DIR}/${BACKUP_NAME}"
+        log "S3 upload can be retried manually:"
+        log "  python3 ${S3_UPLOAD_SCRIPT} ${BACKUP_DIR}/${BACKUP_NAME} ${S3_PREFIX}"
+        # Don't exit - local backup is still valid
+    fi
 else
-    # Kill progress indicator
-    kill $progress_pid 2>/dev/null
-    wait $progress_pid 2>/dev/null
-    printf "\r\033[K"  # Clear progress line
-    log "❌ Upload failed. Output: ${upload_output}"
-    error_exit "Failed to upload backup to S3"
+    log "ℹ️  S3 upload skipped (S3_UPLOAD_SCRIPT not found or disabled)"
+    log "Backup is available locally: ${BACKUP_DIR}/${BACKUP_NAME}"
 fi
 
 # Clean up local old backups
@@ -421,14 +439,10 @@ if [[ -f "${OLD_BACKUP_NAME}" ]]; then
     rm -f "${OLD_BACKUP_NAME}" || log "WARNING: Failed to remove old local backup"
 fi
 
-# Clean up S3 old backups
-log "Checking for old backup in S3: ${OLD_BACKUP_NAME}"
-if "${MC_BIN}" ls "${S3_BUCKET}/${OLD_BACKUP_NAME}" &>/dev/null; then
-    log "Removing old S3 backup: ${OLD_BACKUP_NAME}"
-    "${MC_BIN}" rm "${S3_BUCKET}/${OLD_BACKUP_NAME}" || log "WARNING: Failed to remove old S3 backup"
-else
-    log "No old backup found in S3"
-fi
+# Note: S3 old backup cleanup should be done via S3 lifecycle policies
+# Manual cleanup can be done using AWS CLI or S3 web console
+log "ℹ️  S3 backup retention: Configure lifecycle policy in S3 bucket settings"
+log "   Recommended: Delete objects older than ${RETENTION_DAYS} days"
 
 # Clean up any backups older than retention period
 log "Cleaning up backups older than ${RETENTION_DAYS} days"
@@ -441,7 +455,10 @@ echo "=========================================="
 log "🎉 BACKUP PROCESS COMPLETED SUCCESSFULLY 🎉"
 log "Backup file: ${BACKUP_NAME}"
 log "Backup size: $(du -h "${BACKUP_NAME}" | cut -f1)"
-log "Uploaded to S3: ${S3_BUCKET}/${BACKUP_NAME}"
+log "Local path: ${BACKUP_DIR}/${BACKUP_NAME}"
+if [[ "${S3_UPLOAD_ENABLED}" == "true" ]]; then
+    log "S3 location: s3://${S3_BUCKET_NAME:-[bucket]}/${S3_PREFIX}${BACKUP_NAME}"
+fi
 echo "=========================================="
 
 # Final container health check
