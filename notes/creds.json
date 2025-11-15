@@ -1,0 +1,7 @@
+yandex
+  URL       : https://storage.yandexcloud.net
+  AccessKey : YCAJEMDZzBncSAWDzx6KCPPVr
+  SecretKey : YCPHePC8iLOVy0VCoCvSmrdwc-UPyg7mdzPWz_kA
+  API       : s3v4
+  Path      : auto
+  Src       : /root/.mc/config.json
