@@ -868,13 +868,13 @@ function renderFactsTable(facts) {
                     <tr>
                         <th><input type="checkbox" class="checkbox checkbox-sm" id="select-all" onchange="toggleSelectAll(this)"></th>
                         <th>ID</th>
-                        <th>👤 Пользователь</th>
-                        <th>📁 Категория</th>
-                        <th>💵 Сумма</th>
                         <th>📅 Дата</th>
                         <th>🏦 ЦФО</th>
                         <th>💼 МВЗ</th>
+                        <th>📁 Категория</th>
+                        <th>💵 Сумма</th>
                         <th>📝 Описание</th>
+                        <th>👤 Пользователь</th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -892,13 +892,13 @@ function renderFactsTable(facts) {
             <tr>
                 <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
                 <td><code class="badge badge-ghost">${fact.id}</code></td>
-                <td>${fact.user_name || '—'}</td>
-                <td>${fact.article_name || '—'}</td>
-                <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td>${formattedDate}</td>
                 <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
+                <td>${fact.article_name || '—'}</td>
+                <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td class="max-w-xs truncate" title="${description}">${description}</td>
+                <td>${fact.user_name || '—'}</td>
                 <td>
                     <div class="flex gap-1">
                         <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
