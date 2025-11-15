@@ -667,6 +667,7 @@ async def get_trends_data(
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
+    chart_mode: str = Query("normal", regex="^(normal|cumulative)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -680,9 +681,13 @@ async def get_trends_data(
         date_from: Optional start date for custom range (overrides period)
         date_to: Optional end date for custom range (overrides period)
         record_type: Type of records (fact or plan)
+        chart_mode: Display mode (normal or cumulative)
 
     Returns:
         Dict with labels, income, and expense arrays aggregated by period
+        - income_period: Original period values (only in cumulative mode)
+        - expense_period: Original period values (only in cumulative mode)
+        - chart_mode: The chart mode used
     """
     try:
         today = date.today()
@@ -844,12 +849,39 @@ async def get_trends_data(
                 else:
                     current_date = date(current_date.year, current_date.month + 1, 1)
 
+        # Calculate cumulative sums if cumulative mode
+        income_cumulative = []
+        expense_cumulative = []
+        income_period = []  # Original values for tooltip
+        expense_period = []  # Original values for tooltip
+
+        if chart_mode == "cumulative":
+            # Save original period values
+            income_period = income_data.copy()
+            expense_period = expense_data.copy()
+
+            # Calculate cumulative sums
+            income_sum = 0.0
+            expense_sum = 0.0
+            for i in range(len(income_data)):
+                income_sum += income_data[i]
+                expense_sum += expense_data[i]
+                income_cumulative.append(income_sum)
+                expense_cumulative.append(expense_sum)
+
+            # Replace data with cumulative
+            income_data = income_cumulative
+            expense_data = expense_cumulative
+
         return {
             "labels": labels,
             "income": income_data,
             "expense": expense_data,
+            "income_period": income_period if chart_mode == "cumulative" else None,
+            "expense_period": expense_period if chart_mode == "cumulative" else None,
             "period": period,
-            "record_type": record_type
+            "record_type": record_type,
+            "chart_mode": chart_mode
         }
 
     except Exception as e:
@@ -858,8 +890,11 @@ async def get_trends_data(
             "labels": [],
             "income": [],
             "expense": [],
+            "income_period": None,
+            "expense_period": None,
             "period": period or "month",
-            "record_type": record_type
+            "record_type": record_type,
+            "chart_mode": chart_mode
         }
 
 
