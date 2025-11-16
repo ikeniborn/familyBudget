@@ -19,11 +19,13 @@ Security Requirements:
 import hashlib
 import hmac
 import httpx
+import logging
 from typing import Dict, Optional
 
 from backend.app.core.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 async def get_bot_username() -> Optional[str]:
@@ -169,8 +171,8 @@ async def fetch_telegram_user_info(telegram_id: int) -> Optional[Dict[str, any]]
     Fetch user information from Telegram using Bot API.
 
     Uses Telegram Bot API method getChat to retrieve user data including
-    username and first_name. This is useful for auto-filling form fields
-    when admin creates a new user manually.
+    username, first_name, and photo_url. This is useful for auto-filling form fields
+    when admin creates a new user manually or refreshes user profile.
 
     Args:
         telegram_id: Telegram user ID to fetch info for
@@ -180,7 +182,8 @@ async def fetch_telegram_user_info(telegram_id: int) -> Optional[Dict[str, any]]
         {
             "telegram_id": int,
             "username": Optional[str],
-            "first_name": Optional[str]
+            "first_name": Optional[str],
+            "photo_url": Optional[str]
         }
 
     Example:
@@ -246,8 +249,43 @@ async def fetch_telegram_user_info(telegram_id: int) -> Optional[Dict[str, any]]
         user_info = {
             "telegram_id": telegram_id,
             "username": result.get("username"),  # May be None
-            "first_name": result.get("first_name")  # May be None
+            "first_name": result.get("first_name"),  # May be None
+            "photo_url": None  # Will be filled below if photo exists
         }
+
+        # Try to get profile photo
+        photo = result.get("photo")
+        if photo:
+            try:
+                # Get file_id (prefer big photo for better quality)
+                file_id = photo.get("big_file_id") or photo.get("small_file_id")
+
+                if file_id:
+                    # Call getFile to get file_path
+                    file_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getFile"
+                    async with httpx.AsyncClient() as file_client:
+                        file_response = await file_client.get(
+                            file_url,
+                            params={"file_id": file_id},
+                            timeout=10.0
+                        )
+
+                    if file_response.status_code == 200:
+                        file_data = file_response.json()
+                        if file_data.get("ok"):
+                            file_path = file_data["result"].get("file_path")
+                            if file_path:
+                                user_info["photo_url"] = (
+                                    f"https://api.telegram.org/file/bot"
+                                    f"{settings.TELEGRAM_BOT_TOKEN}/{file_path}"
+                                )
+                                logger.info(
+                                    f"Successfully retrieved photo URL for user {telegram_id}"
+                                )
+            except Exception as e:
+                logger.warning(
+                    f"Failed to retrieve photo for user {telegram_id}: {str(e)}"
+                )
 
         return user_info
 
