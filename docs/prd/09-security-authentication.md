@@ -9,7 +9,9 @@
 3. POST `/api/v1/auth/telegram` с данными
 4. Backend валидирует hash: `HMAC-SHA256(data, SHA256(bot_token))`
 5. **Автосоздание/обновление user в БД:**
-   - Если пользователя нет → создать с `is_active=False` (неактивный)
+   - Если пользователя нет → создать:
+     - Если `telegram_id == ADMIN_TELEGRAM_ID` → **is_admin=True, is_active=True** (автоактивация админа)
+     - Иначе → is_admin=False, is_active=False (неактивный, требует активации)
    - Если пользователь есть → обновить профиль (SCD Type 2)
    - Проверить `is_active`: если `False` → 403 Forbidden с сообщением "Ожидает активации"
    - Обновить `last_login_at = NOW()`
@@ -65,6 +67,15 @@ def create_access_token(user_id: int) -> str:
     token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
     return token
 ```
+
+### Примечание: Автоматическая активация админа
+
+Первый администратор (определяемый через переменную окружения `ADMIN_TELEGRAM_ID`)
+автоматически активируется при первом входе. Это необходимо для корректной работы
+системы после первоначальной установки, так как активировать пользователей может
+только уже активный администратор.
+
+**Реализация:** `backend/app/api/v1/endpoints/auth.py:205-223`
 
 ### 9.2 Authorization (RBAC)
 
