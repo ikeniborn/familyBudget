@@ -706,22 +706,51 @@ async function updateUser(event) {
 
 // Utility: Show notification
 function showNotification(message, type) {
-    // Handle error objects properly
+    // Normalize message
     if (typeof message === 'object' && message !== null) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
-    // Добавляем иконки к сообщениям
+    // DaisyUI alert classes
+    const alertClasses = {
+        'success': 'alert-success',
+        'error': 'alert-error',
+        'warning': 'alert-warning',
+        'info': 'alert-info'
+    };
+
     const icons = {
         'success': '✅',
         'error': '❌',
-        'warning': '⚠️'
+        'warning': '⚠️',
+        'info': 'ℹ️'
     };
 
+    const alertClass = alertClasses[type] || 'alert-info';
     const icon = icons[type] || '';
     const displayMessage = icon ? `${icon} ${message}` : message;
 
-    alert(displayMessage);
+    // Create toast container if not exists
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'toast toast-top toast-end';
+        document.body.appendChild(toastContainer);
+    }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert ${alertClass} shadow-lg`;
+    toast.innerHTML = `<span>${displayMessage}</span>`;
+
+    // Add to container
+    toastContainer.appendChild(toast);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
 }
 </script>
 {% endblock %}

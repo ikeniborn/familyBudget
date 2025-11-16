@@ -508,6 +508,23 @@ async def deactivate_user(
             detail="Cannot deactivate your own account"
         )
 
+    # Prevent deactivating the last active admin
+    if user.is_admin:
+        admin_count_query = select(func.count(User.id)).where(
+            User.is_admin == True,  # noqa: E712
+            User.is_active == True,  # noqa: E712
+            User.is_current == True,  # noqa: E712
+            User.id != user_id
+        )
+        admin_count_result = await session.execute(admin_count_query)
+        remaining_active_admins = admin_count_result.scalar()
+
+        if remaining_active_admins == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot deactivate the last active admin. Activate another admin first."
+            )
+
     # Simple UPDATE (NOT SCD Type 2)
     user.is_active = False
     user.updated_at = datetime.utcnow()
