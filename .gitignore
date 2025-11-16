@@ -250,6 +250,7 @@ frontend-api/
 # Workflow files (legacy)
 workflow/
 requests/
+plans/
 
 # Uploads and temporary files
 uploads/
