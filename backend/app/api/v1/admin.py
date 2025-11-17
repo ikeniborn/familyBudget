@@ -1118,21 +1118,32 @@ async def update_article(
         await cascade_update_type(new_article.id, new_article.type)
 
     # Return response with usage_count (not in Article model - comes from separate stats table)
-    return ArticleResponse(
-        id=new_article.id,
-        user_id=new_article.user_id,
-        parent_id=new_article.parent_id,
-        name=new_article.name,
-        type=new_article.type,
-        is_active=new_article.is_active,
-        valid_from=new_article.valid_from,
-        valid_to=new_article.valid_to,
-        is_current=new_article.is_current,
-        created_at=new_article.created_at,
-        updated_at=new_article.updated_at,
-        usage_count=0,  # Default for updated articles - stats recalculated daily
-        hierarchy=None
-    )
+    try:
+        logger.info(f"[DEBUG] Creating ArticleResponse for article_id={new_article.id}")
+        logger.info(f"[DEBUG] Article fields: id={new_article.id}, user_id={new_article.user_id}, "
+                   f"parent_id={new_article.parent_id}, name={new_article.name}, type={new_article.type}, "
+                   f"is_active={new_article.is_active}, is_current={new_article.is_current}")
+
+        response = ArticleResponse(
+            id=new_article.id,
+            user_id=new_article.user_id,
+            parent_id=new_article.parent_id,
+            name=new_article.name,
+            type=new_article.type,
+            is_active=new_article.is_active,
+            valid_from=new_article.valid_from,
+            valid_to=new_article.valid_to,
+            is_current=new_article.is_current,
+            created_at=new_article.created_at,
+            updated_at=new_article.updated_at,
+            usage_count=0,  # Default for updated articles - stats recalculated daily
+            hierarchy=None
+        )
+        logger.info(f"[DEBUG] ArticleResponse created successfully: {response}")
+        return response
+    except Exception as e:
+        logger.error(f"[ERROR] Failed to create ArticleResponse: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to serialize response: {str(e)}")
 
 
 @router.delete("/articles/{article_id}")
