@@ -21,6 +21,7 @@ from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
 from backend.app.schemas.admin import SystemStatsResponse
+from backend.app.schemas.article import ArticleUpdate
 from backend.app.schemas.user import (
     UserCreate,
     UserDetailResponse,
@@ -902,7 +903,7 @@ async def create_article(
 @router.put("/articles/{article_id}", response_model=ArticleResponse)
 async def update_article(
     article_id: int,
-    update_data: ArticleUpdateRequest,
+    update_data: ArticleUpdate,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
 ):
@@ -945,6 +946,8 @@ async def update_article(
         updates["type"] = update_data.type
     if update_data.parent_id is not None:
         updates["parent_id"] = update_data.parent_id
+    if update_data.is_active is not None:
+        updates["is_active"] = update_data.is_active
 
     # Validate parent_id if changing
     if "parent_id" in updates and updates["parent_id"] != article.parent_id:
