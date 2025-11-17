@@ -888,22 +888,22 @@ async def create_article(
     await session.commit()
     await session.refresh(new_article)
 
-    # Return response with usage_count (not in Article model - comes from separate stats table)
-    return ArticleResponse(
-        id=new_article.id,
-        user_id=new_article.user_id,
-        parent_id=new_article.parent_id,
-        name=new_article.name,
-        type=new_article.type,
-        is_active=new_article.is_active,
-        valid_from=new_article.valid_from,
-        valid_to=new_article.valid_to,
-        is_current=new_article.is_current,
-        created_at=new_article.created_at,
-        updated_at=new_article.updated_at,
-        usage_count=0,  # Default for newly created articles
-        hierarchy=None
-    )
+    # Return dict and let FastAPI serialize via response_model
+    return {
+        "id": new_article.id,
+        "user_id": new_article.user_id,
+        "parent_id": new_article.parent_id,
+        "name": new_article.name,
+        "type": new_article.type,
+        "is_active": new_article.is_active,
+        "valid_from": new_article.valid_from,
+        "valid_to": new_article.valid_to,
+        "is_current": new_article.is_current,
+        "created_at": new_article.created_at,
+        "updated_at": new_article.updated_at,
+        "usage_count": 0,  # Default for newly created articles
+        "hierarchy": None
+    }
 
 
 @router.put("/articles/{article_id}", response_model=ArticleResponse)
@@ -1027,22 +1027,22 @@ async def update_article(
     # Check if anything changed
     changed, changed_fields = has_changes(article, updates)
     if not changed:
-        # No changes, return existing article
-        return ArticleResponse(
-            id=article.id,
-            user_id=article.user_id,
-            parent_id=article.parent_id,
-            name=article.name,
-            type=article.type,
-            is_active=article.is_active,
-            valid_from=article.valid_from,
-            valid_to=article.valid_to,
-            is_current=article.is_current,
-            created_at=article.created_at,
-            updated_at=article.updated_at,
-            usage_count=0,  # Default - stats not loaded
-            hierarchy=None
-        )
+        # No changes, return existing article as dict
+        return {
+            "id": article.id,
+            "user_id": article.user_id,
+            "parent_id": article.parent_id,
+            "name": article.name,
+            "type": article.type,
+            "is_active": article.is_active,
+            "valid_from": article.valid_from,
+            "valid_to": article.valid_to,
+            "is_current": article.is_current,
+            "created_at": article.created_at,
+            "updated_at": article.updated_at,
+            "usage_count": 0,  # Default - stats not loaded
+            "hierarchy": None
+        }
 
     # Use SCD2Service to create new version (includes automatic child redirection)
     new_article = await create_new_version(
@@ -1122,33 +1122,23 @@ async def update_article(
         # Start cascade from the newly created article
         await cascade_update_type(new_article.id, new_article.type)
 
-    # Return response with usage_count (not in Article model - comes from separate stats table)
-    try:
-        logger.info(f"[DEBUG] Creating ArticleResponse for article_id={new_article.id}")
-        logger.info(f"[DEBUG] Article fields: id={new_article.id}, user_id={new_article.user_id}, "
-                   f"parent_id={new_article.parent_id}, name={new_article.name}, type={new_article.type}, "
-                   f"is_active={new_article.is_active}, is_current={new_article.is_current}")
-
-        response = ArticleResponse(
-            id=new_article.id,
-            user_id=new_article.user_id,
-            parent_id=new_article.parent_id,
-            name=new_article.name,
-            type=new_article.type,
-            is_active=new_article.is_active,
-            valid_from=new_article.valid_from,
-            valid_to=new_article.valid_to,
-            is_current=new_article.is_current,
-            created_at=new_article.created_at,
-            updated_at=new_article.updated_at,
-            usage_count=0,  # Default for updated articles - stats recalculated daily
-            hierarchy=None
-        )
-        logger.info(f"[DEBUG] ArticleResponse created successfully: {response}")
-        return response
-    except Exception as e:
-        logger.error(f"[ERROR] Failed to create ArticleResponse: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to serialize response: {str(e)}")
+    # Return dict and let FastAPI serialize via response_model
+    # ArticleResponse includes usage_count which is not in Article model (comes from separate stats table)
+    return {
+        "id": new_article.id,
+        "user_id": new_article.user_id,
+        "parent_id": new_article.parent_id,
+        "name": new_article.name,
+        "type": new_article.type,
+        "is_active": new_article.is_active,
+        "valid_from": new_article.valid_from,
+        "valid_to": new_article.valid_to,
+        "is_current": new_article.is_current,
+        "created_at": new_article.created_at,
+        "updated_at": new_article.updated_at,
+        "usage_count": 0,  # Default for updated articles - stats recalculated daily
+        "hierarchy": None
+    }
 
 
 @router.delete("/articles/{article_id}")
