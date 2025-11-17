@@ -210,6 +210,7 @@ function renderArticlesTable(articles) {
                     <tr>
                         <th>📝 Название</th>
                         <th>🏷️ Тип</th>
+                        <th>🔢 Код</th>
                         <th>👤 Владелец</th>
                         <th>⚙️ Действия</th>
                     </tr>
@@ -286,6 +287,7 @@ function renderTreeNodes(nodes, level) {
             <tr data-article-id="${node.id}">
                 <td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
                 <td>${typeBadge}</td>
+                <td class="font-mono text-sm">${node.code || '—'}</td>
                 <td>${ownerLabel}</td>
                 <td>
                     <div class="flex gap-1">
