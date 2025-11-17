@@ -6,14 +6,25 @@
 <!-- BudgetShared bundle already included in base.html -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
 
-<!-- ECharts tooltips are confined to chart containers via confine: true option -->
+<!-- ECharts tooltip z-index fix -->
 <style>
-    /* Note: Header has z-index: 40. Tooltips use confine: true to stay within chart bounds. */
+    /* Override ECharts default tooltip z-index to be below header (z-40) */
+    .echarts-tooltip,
+    div[class^='echarts-tooltip'],
+    div[class*=' echarts-tooltip'] {
+        z-index: 30 !important;
+    }
+
+    /* Ensure charts don't block header */
+    .chart-container canvas {
+        position: relative;
+        z-index: 1;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-6 pt-4">
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 class="text-3xl font-bold">📊 Панель аналитики</h1>
