@@ -143,6 +143,7 @@ function renderCentersTable(centers) {
                 <thead>
                     <tr>
                         <th>📝 Название</th>
+                        <th>🔢 Код</th>
                         <th>📄 Описание</th>
                         <th>📅 Создан</th>
                         <th>⚙️ Действия</th>
@@ -158,6 +159,7 @@ function renderCentersTable(centers) {
         html += `
             <tr data-center-id="${center.id}">
                 <td class="font-medium">${center.name}</td>
+                <td class="font-mono text-sm">${center.code || '—'}</td>
                 <td>${description}</td>
                 <td>${validFrom}</td>
                 <td>

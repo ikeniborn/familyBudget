@@ -21,6 +21,7 @@ from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
 from backend.app.schemas.admin import SystemStatsResponse
+from backend.app.schemas.article import ArticleUpdate
 from backend.app.schemas.user import (
     UserCreate,
     UserDetailResponse,
@@ -400,6 +401,7 @@ async def update_user_role(
         old_instance=old_user,
         updates=update_data,
         changed_fields=changed_fields,
+        changed_by_user_id=current_admin.id,
     )
 
     return new_user
@@ -886,23 +888,28 @@ async def create_article(
     await session.commit()
     await session.refresh(new_article)
 
-    return ArticleResponse(
-        id=new_article.id,
-        user_id=new_article.user_id,
-        parent_id=new_article.parent_id,
-        name=new_article.name,
-        type=new_article.type,
-        is_current=new_article.is_current,
-        valid_from=new_article.valid_from.isoformat(),
-        valid_to=new_article.valid_to.isoformat() if new_article.valid_to else None,
-        user_name=None
-    )
+    # Return dict with datetime converted to ISO strings for JSON serialization
+    return {
+        "id": new_article.id,
+        "user_id": new_article.user_id,
+        "parent_id": new_article.parent_id,
+        "name": new_article.name,
+        "type": new_article.type,
+        "is_active": new_article.is_active,
+        "valid_from": new_article.valid_from.isoformat(),
+        "valid_to": new_article.valid_to.isoformat(),
+        "is_current": new_article.is_current,
+        "created_at": new_article.created_at.isoformat(),
+        "updated_at": new_article.updated_at.isoformat(),
+        "usage_count": 0,  # Default for newly created articles
+        "hierarchy": None
+    }
 
 
 @router.put("/articles/{article_id}", response_model=ArticleResponse)
 async def update_article(
     article_id: int,
-    update_data: ArticleUpdateRequest,
+    update_data: ArticleUpdate,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
 ):
@@ -945,6 +952,8 @@ async def update_article(
         updates["type"] = update_data.type
     if update_data.parent_id is not None:
         updates["parent_id"] = update_data.parent_id
+    if update_data.is_active is not None:
+        updates["is_active"] = update_data.is_active
 
     # Validate parent_id if changing
     if "parent_id" in updates and updates["parent_id"] != article.parent_id:
@@ -1018,24 +1027,30 @@ async def update_article(
     # Check if anything changed
     changed, changed_fields = has_changes(article, updates)
     if not changed:
-        # No changes, return existing article
-        return ArticleResponse(
-            id=article.id,
-            user_id=article.user_id,
-            parent_id=article.parent_id,
-            name=article.name,
-            type=article.type,
-            valid_from=article.valid_from,
-            valid_to=article.valid_to,
-            is_current=article.is_current
-        )
+        # No changes, return existing article as dict with ISO datetime strings
+        return {
+            "id": article.id,
+            "user_id": article.user_id,
+            "parent_id": article.parent_id,
+            "name": article.name,
+            "type": article.type,
+            "is_active": article.is_active,
+            "valid_from": article.valid_from.isoformat(),
+            "valid_to": article.valid_to.isoformat(),
+            "is_current": article.is_current,
+            "created_at": article.created_at.isoformat(),
+            "updated_at": article.updated_at.isoformat(),
+            "usage_count": 0,  # Default - stats not loaded
+            "hierarchy": None
+        }
 
     # Use SCD2Service to create new version (includes automatic child redirection)
     new_article = await create_new_version(
         session=session,
         old_instance=article,
         updates=updates,
-        changed_fields=changed_fields
+        changed_fields=changed_fields,
+        changed_by_user_id=current_admin.id,
     )
 
     # UPDATE TRANSACTIONS: Repoint all transactions from old article_id to new article_id
@@ -1049,6 +1064,10 @@ async def update_article(
         .values(article_id=new_article.id)
     )
     await session.execute(update_stmt)
+    await session.commit()  # Commit transaction updates
+
+    # Refresh article to ensure it's not stale
+    await session.refresh(new_article)
 
     logger.info(
         f"Updated transactions: article_id {article.id} → {new_article.id} "
@@ -1079,7 +1098,8 @@ async def update_article(
                         session=session,
                         old_instance=child,
                         updates=child_updates,
-                        changed_fields=["type"]
+                        changed_fields=["type"],
+                        changed_by_user_id=current_admin.id,
                     )
 
                     # UPDATE TRANSACTIONS: Repoint child's transactions to new version
@@ -1089,6 +1109,7 @@ async def update_article(
                         .values(article_id=new_child.id)
                     )
                     await session.execute(update_child_stmt)
+                    await session.commit()  # Commit cascade transaction updates
 
                     logger.info(
                         f"CASCADE: Updated transactions for child: article_id {old_child_id} → {new_child.id} "
@@ -1101,17 +1122,23 @@ async def update_article(
         # Start cascade from the newly created article
         await cascade_update_type(new_article.id, new_article.type)
 
-    return ArticleResponse(
-        id=new_article.id,
-        user_id=new_article.user_id,
-        parent_id=new_article.parent_id,
-        name=new_article.name,
-        type=new_article.type,
-        is_current=new_article.is_current,
-        valid_from=new_article.valid_from.isoformat(),
-        valid_to=new_article.valid_to.isoformat() if new_article.valid_to else None,
-        user_name=None
-    )
+    # Return dict with datetime converted to ISO strings for JSON serialization
+    # ArticleResponse includes usage_count which is not in Article model (comes from separate stats table)
+    return {
+        "id": new_article.id,
+        "user_id": new_article.user_id,
+        "parent_id": new_article.parent_id,
+        "name": new_article.name,
+        "type": new_article.type,
+        "is_active": new_article.is_active,
+        "valid_from": new_article.valid_from.isoformat(),
+        "valid_to": new_article.valid_to.isoformat(),
+        "is_current": new_article.is_current,
+        "created_at": new_article.created_at.isoformat(),
+        "updated_at": new_article.updated_at.isoformat(),
+        "usage_count": 0,  # Default for updated articles - stats recalculated daily
+        "hierarchy": None
+    }
 
 
 @router.delete("/articles/{article_id}")

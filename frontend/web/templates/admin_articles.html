@@ -210,6 +210,7 @@ function renderArticlesTable(articles) {
                     <tr>
                         <th>📝 Название</th>
                         <th>🏷️ Тип</th>
+                        <th>🔢 Код</th>
                         <th>👤 Владелец</th>
                         <th>⚙️ Действия</th>
                     </tr>
@@ -286,6 +287,7 @@ function renderTreeNodes(nodes, level) {
             <tr data-article-id="${node.id}">
                 <td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
                 <td>${typeBadge}</td>
+                <td class="font-mono text-sm">${node.code || '—'}</td>
                 <td>${ownerLabel}</td>
                 <td>
                     <div class="flex gap-1">
@@ -535,7 +537,13 @@ async function updateArticle(event) {
             throw new Error(errorMessage);
         }
 
-        // Success
+        // Success - get new article data from response (SCD2 creates new version with new ID)
+        const updatedArticle = await response.json();
+
+        // CRITICAL: Update modal's hidden ID field with new ID from SCD2 version
+        // Without this, if user clicks "Save" again without closing modal, it will send old ID → 404
+        document.getElementById('edit-id').value = updatedArticle.id;
+
         closeEditModal();
         await loadArticles();
         showNotification('✅ Категория успешно обновлена!', 'success');
