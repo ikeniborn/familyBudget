@@ -537,7 +537,13 @@ async function updateArticle(event) {
             throw new Error(errorMessage);
         }
 
-        // Success
+        // Success - get new article data from response (SCD2 creates new version with new ID)
+        const updatedArticle = await response.json();
+
+        // CRITICAL: Update modal's hidden ID field with new ID from SCD2 version
+        // Without this, if user clicks "Save" again without closing modal, it will send old ID → 404
+        document.getElementById('edit-id').value = updatedArticle.id;
+
         closeEditModal();
         await loadArticles();
         showNotification('✅ Категория успешно обновлена!', 'success');
