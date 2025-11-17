@@ -8,9 +8,9 @@
 
 <!-- Fix z-index for ECharts tooltips -->
 <style>
-    /* Ensure ECharts tooltips don't overlap with header */
+    /* Ensure ECharts tooltips don't overlap with header (z-50) */
     .echarts-tooltip {
-        z-index: 40 !important; /* Below header (z-50), above content */
+        z-index: 30 !important; /* Below header (z-50), above content */
     }
 </style>
 {% endblock %}
