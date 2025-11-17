@@ -20,7 +20,7 @@ from backend.app.db.session import get_session_context
 from backend.app.models.notification import Notification
 from backend.app.models.user import User
 from backend.app.models.article import Article
-from backend.app.models.budget_fact import BudgetFact
+from backend.app.models.fact import BudgetFact
 
 logger = get_logger(__name__)
 
