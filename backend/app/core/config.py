@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     # Note: If not provided, will be auto-fetched from Telegram API at startup
     ADMIN_TELEGRAM_ID: int  # Telegram ID of the admin user
 
+    # Internal API
+    API_INTERNAL_KEY: str  # Shared secret for internal bot-to-backend communication
+
     # CORS
     # Use str | list[str] to prevent Pydantic Settings from auto-parsing as JSON
     CORS_ORIGINS: str | list[str] = Field(default="")

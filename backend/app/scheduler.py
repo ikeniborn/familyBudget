@@ -16,6 +16,8 @@ from sqlalchemy import text
 
 from backend.app.db.session import get_session_context
 from backend.app.core.logging import get_logger
+from backend.app.core.config import get_settings
+from backend.app.services.notification_service import NotificationService
 
 logger = get_logger(__name__)
 
@@ -80,6 +82,53 @@ async def recalculate_recommended_amounts_job():
         raise
 
 
+async def send_weekly_reports_job():
+    """
+    Job: Send weekly budget reports to all users (FR-005).
+
+    Sends summary of previous week (Mon-Sun) to all active users.
+    Includes plan vs actual, expense/income breakdown, usage percentage.
+
+    Schedule: Every Monday at 09:00 UTC
+    """
+    logger.info("[SCHEDULER] Starting weekly reports job")
+
+    try:
+        settings = get_settings()
+        notification_service = NotificationService(settings)
+        sent_count = await notification_service.send_weekly_reports()
+
+        logger.info(f"[SCHEDULER] Weekly reports job completed: {sent_count} reports sent")
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error in weekly reports job: {e}", exc_info=True)
+        raise
+
+
+async def check_budget_thresholds_job():
+    """
+    Job: Check budget thresholds for all articles (FR-006).
+
+    Checks current month budget vs actual for all expense categories.
+    Sends broadcast notification if threshold exceeded (default 90%).
+
+    Schedule: Daily at 18:00 UTC
+    """
+    logger.info("[SCHEDULER] Starting budget threshold check job")
+
+    try:
+        settings = get_settings()
+        notification_service = NotificationService(settings)
+        notifications_sent = await notification_service.check_all_budget_thresholds()
+
+        logger.info(
+            f"[SCHEDULER] Budget threshold check completed: "
+            f"{notifications_sent} notifications sent"
+        )
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error in budget threshold check job: {e}", exc_info=True)
+        raise
+
+
 def init_scheduler() -> AsyncIOScheduler:
     """
     Initialize and configure APScheduler.
@@ -127,7 +176,25 @@ def init_scheduler() -> AsyncIOScheduler:
     )
     logger.info("[SCHEDULER] Registered job: recalculate_recommended_amounts (daily at 02:00 UTC)")
 
-    # Add more jobs here as needed
+    # Job 3: Send weekly budget reports (every Monday at 09:00 UTC)
+    scheduler.add_job(
+        send_weekly_reports_job,
+        trigger=CronTrigger(day_of_week='mon', hour=9, minute=0),
+        id="send_weekly_reports",
+        name="Send Weekly Budget Reports (FR-005)",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: send_weekly_reports (every Monday at 09:00 UTC)")
+
+    # Job 4: Check budget thresholds (daily at 18:00 UTC)
+    scheduler.add_job(
+        check_budget_thresholds_job,
+        trigger=CronTrigger(hour=18, minute=0),
+        id="check_budget_thresholds",
+        name="Check Budget Thresholds (FR-006)",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: check_budget_thresholds (daily at 18:00 UTC)")
 
     return scheduler
 

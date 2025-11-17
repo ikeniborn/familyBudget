@@ -18,7 +18,7 @@ from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import CurrentUser, get_session
+from backend.app.core.dependencies import CurrentUser, InternalAPIKey, get_session
 from backend.app.models.notification import Notification
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.notification import (
@@ -39,6 +39,7 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 async def create_notification(
     notification_data: NotificationCreate,
     session: AsyncSession = Depends(get_session),
+    _: InternalAPIKey = None,
 ) -> NotificationRead:
     """
     Create notification record (internal bot use).
@@ -58,8 +59,8 @@ async def create_notification(
     - 500 Internal Server Error: Database error
 
     **Note:**
-    This endpoint has NO authentication requirement - it's for internal bot use.
-    In production, consider adding internal API key authentication.
+    This endpoint requires X-Api-Key header for internal authentication.
+    Used by Telegram bot and backend scheduler jobs.
     """
     # Create notification model from schema
     notification = Notification(**notification_data.model_dump())
@@ -83,6 +84,7 @@ async def check_duplicate_notification(
     period_start: Annotated[date, Query(description="Period start date (YYYY-MM-DD)")],
     period_end: Annotated[date, Query(description="Period end date (YYYY-MM-DD)")],
     session: AsyncSession = Depends(get_session),
+    _: InternalAPIKey = None,
 ) -> bool:
     """
     Check if broadcast notification already exists for this period.

@@ -664,9 +664,12 @@ class APIClient:
                 "period_end": period_end
             }
 
+            headers = {"X-Api-Key": settings.API_INTERNAL_KEY}
+
             response = await self.client.get(
                 "/notifications/check-duplicate",
-                params=params
+                params=params,
+                headers=headers
             )
             response.raise_for_status()
 
@@ -723,9 +726,12 @@ class APIClient:
             if user_id is not None:
                 notification_data["user_id"] = user_id
 
+            headers = {"X-Api-Key": settings.API_INTERNAL_KEY}
+
             response = await self.client.post(
                 "/notifications",
-                json=notification_data
+                json=notification_data,
+                headers=headers
             )
             response.raise_for_status()
 
