@@ -401,6 +401,7 @@ async def update_user_role(
         old_instance=old_user,
         updates=update_data,
         changed_fields=changed_fields,
+        changed_by_user_id=current_admin.id,
     )
 
     return new_user
@@ -1038,7 +1039,8 @@ async def update_article(
         session=session,
         old_instance=article,
         updates=updates,
-        changed_fields=changed_fields
+        changed_fields=changed_fields,
+        changed_by_user_id=current_admin.id,
     )
 
     # UPDATE TRANSACTIONS: Repoint all transactions from old article_id to new article_id
@@ -1082,7 +1084,8 @@ async def update_article(
                         session=session,
                         old_instance=child,
                         updates=child_updates,
-                        changed_fields=["type"]
+                        changed_fields=["type"],
+                        changed_by_user_id=current_admin.id,
                     )
 
                     # UPDATE TRANSACTIONS: Repoint child's transactions to new version
