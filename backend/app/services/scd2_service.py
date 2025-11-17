@@ -132,7 +132,6 @@ async def create_new_version(
     # Lazy imports to avoid circular dependencies
     from backend.app.models.version_link import (
         ArticleVersionLink,
-        UserVersionLink,
         FinancialCenterVersionLink,
         CostCenterVersionLink,
     )
@@ -145,14 +144,6 @@ async def create_new_version(
         link_record = ArticleVersionLink(
             old_article_id=old_instance_id,
             new_article_id=new_instance.id,
-            created_at=now,
-            changed_by_user_id=changed_by_user_id,
-            changed_fields=changed_fields,
-        )
-    elif isinstance(new_instance, User):
-        link_record = UserVersionLink(
-            old_user_id=old_instance_id,
-            new_user_id=new_instance.id,
             created_at=now,
             changed_by_user_id=changed_by_user_id,
             changed_fields=changed_fields,
@@ -173,6 +164,8 @@ async def create_new_version(
             changed_by_user_id=changed_by_user_id,
             changed_fields=changed_fields,
         )
+    # NOTE: User model does NOT have version_link table - user updates
+    # are rare (admin only) and tracked via SCD2 history in t_d_user directly
 
     if link_record:
         session.add(link_record)
