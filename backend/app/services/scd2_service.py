@@ -36,6 +36,7 @@ async def create_new_version(
     old_instance: T,
     updates: Dict[str, Any],
     changed_fields: Optional[list[str]] = None,
+    changed_by_user_id: Optional[int] = None,
 ) -> T:
     """
     Create new SCD Type 2 version by closing old version and creating new one.
@@ -51,6 +52,8 @@ async def create_new_version(
         updates: Dictionary of field updates to apply to new version
         changed_fields: Optional list of fields that actually changed
                        (for optimization - if None, creates new version anyway)
+        changed_by_user_id: Optional user ID who initiated the change
+                           (stored in version link table for audit trail)
 
     Returns:
         New version instance with is_current=True
@@ -124,6 +127,56 @@ async def create_new_version(
     session.add(new_instance)
     await session.commit()
     await session.refresh(new_instance)
+
+    # Step 4.5: Create version link record for audit trail
+    # Lazy imports to avoid circular dependencies
+    from backend.app.models.version_link import (
+        ArticleVersionLink,
+        UserVersionLink,
+        FinancialCenterVersionLink,
+        CostCenterVersionLink,
+    )
+    from backend.app.models.financial_center import FinancialCenter
+    from backend.app.models.cost_center import CostCenter
+
+    link_record = None
+
+    if isinstance(new_instance, Article):
+        link_record = ArticleVersionLink(
+            old_article_id=old_instance_id,
+            new_article_id=new_instance.id,
+            created_at=now,
+            changed_by_user_id=changed_by_user_id,
+            changed_fields=changed_fields,
+        )
+    elif isinstance(new_instance, User):
+        link_record = UserVersionLink(
+            old_user_id=old_instance_id,
+            new_user_id=new_instance.id,
+            created_at=now,
+            changed_by_user_id=changed_by_user_id,
+            changed_fields=changed_fields,
+        )
+    elif isinstance(new_instance, FinancialCenter):
+        link_record = FinancialCenterVersionLink(
+            old_fc_id=old_instance_id,
+            new_fc_id=new_instance.id,
+            created_at=now,
+            changed_by_user_id=changed_by_user_id,
+            changed_fields=changed_fields,
+        )
+    elif isinstance(new_instance, CostCenter):
+        link_record = CostCenterVersionLink(
+            old_cc_id=old_instance_id,
+            new_cc_id=new_instance.id,
+            created_at=now,
+            changed_by_user_id=changed_by_user_id,
+            changed_fields=changed_fields,
+        )
+
+    if link_record:
+        session.add(link_record)
+        await session.commit()
 
     # Step 5: For Article model - redirect children to new parent version
     # This maintains parent-child relationships across SCD Type 2 versioning
