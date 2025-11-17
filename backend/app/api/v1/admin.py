@@ -1064,6 +1064,10 @@ async def update_article(
         .values(article_id=new_article.id)
     )
     await session.execute(update_stmt)
+    await session.commit()  # Commit transaction updates
+
+    # Refresh article to ensure it's not stale
+    await session.refresh(new_article)
 
     logger.info(
         f"Updated transactions: article_id {article.id} → {new_article.id} "
@@ -1105,6 +1109,7 @@ async def update_article(
                         .values(article_id=new_child.id)
                     )
                     await session.execute(update_child_stmt)
+                    await session.commit()  # Commit cascade transaction updates
 
                     logger.info(
                         f"CASCADE: Updated transactions for child: article_id {old_child_id} → {new_child.id} "
