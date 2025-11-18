@@ -28,6 +28,12 @@ from backend.app.core.user_isolation import (
     get_user_id_for_create,
 )
 
+# Internal API authentication
+from backend.app.core.internal_auth import (
+    InternalAPIKey,
+    verify_internal_api_key,
+)
+
 __all__ = [
     # Configuration
     "get_settings",
@@ -40,6 +46,9 @@ __all__ = [
     "CurrentUser",
     "CurrentUserOptional",
     "CurrentAdmin",
+    # Internal API
+    "InternalAPIKey",
+    "verify_internal_api_key",
     # User isolation
     "apply_user_filter",
     "can_access_resource",

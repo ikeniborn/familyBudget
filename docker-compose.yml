@@ -107,6 +107,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRE_DAYS: ${JWT_EXPIRE_DAYS:-7}
+      API_INTERNAL_KEY: ${API_INTERNAL_KEY:?API_INTERNAL_KEY is required}
 
       # Telegram
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
@@ -194,6 +195,7 @@ services:
       # Backend API
       BACKEND_API_URL: http://backend:8000/api/v1
       BACKEND_API_KEY: ${BACKEND_API_KEY:-}
+      API_INTERNAL_KEY: ${API_INTERNAL_KEY:?API_INTERNAL_KEY is required}
 
       # Domain (for WebApp URL generation)
       DOMAIN: ${DOMAIN:-localhost}

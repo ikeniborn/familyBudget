@@ -22,6 +22,7 @@ class Settings:
     # Backend API Configuration
     BACKEND_API_URL: str = os.getenv("BACKEND_API_URL", "http://localhost:8000/api/v1")
     BACKEND_TIMEOUT: int = int(os.getenv("BACKEND_TIMEOUT", "30"))
+    API_INTERNAL_KEY: str = os.getenv("API_INTERNAL_KEY", "")
 
     # Domain (for WebApp URL generation)
     DOMAIN: str = os.getenv("DOMAIN", "localhost")

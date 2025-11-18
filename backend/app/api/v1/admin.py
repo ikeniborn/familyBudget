@@ -11,6 +11,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import text, update as sa_update
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -1056,8 +1057,6 @@ async def update_article(
     # UPDATE TRANSACTIONS: Repoint all transactions from old article_id to new article_id
     # This ensures historical transactions show under the new category attributes (e.g., new type)
     # Without this, old transactions would be "lost" in analytics filtered by new attributes
-    from sqlalchemy import update as sa_update
-
     update_stmt = (
         sa_update(Fact)
         .where(Fact.article_id == article.id)
@@ -1121,6 +1120,15 @@ async def update_article(
 
         # Start cascade from the newly created article
         await cascade_update_type(new_article.id, new_article.type)
+
+    # TRIGGER: Recalculate article usage statistics after category update
+    # This ensures usage_count is up-to-date for category selection UI sorting
+    try:
+        logger.info(f"Triggering article usage statistics recalculation after update of article {new_article.id}")
+        await session.execute(text("SELECT recalculate_article_usage_stats()"))
+        logger.info("Article usage statistics recalculated successfully")
+    except Exception as e:
+        logger.error(f"Error recalculating article usage statistics: {e}", exc_info=True)
 
     # Return dict with datetime converted to ISO strings for JSON serialization
     # ArticleResponse includes usage_count which is not in Article model (comes from separate stats table)
