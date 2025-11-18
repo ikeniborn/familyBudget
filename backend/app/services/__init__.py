@@ -8,6 +8,7 @@ This package contains business logic services organized by domain:
 - SCD Type 2 (Slowly Changing Dimension) operations
 - Hierarchy queries (Closure Table pattern)
 - Tinkoff CSV import parsing
+- Import execution (staging to BudgetFact)
 """
 
 from backend.app.services.hierarchy_service import (
@@ -22,6 +23,7 @@ from backend.app.services.hierarchy_service import (
     is_descendant_of,
     restore_recursive,
 )
+from backend.app.services.import_executor import ImportExecutor
 from backend.app.services.jwt import create_access_token, decode_access_token
 from backend.app.services.scd2_service import (
     create_new_version,
@@ -60,4 +62,5 @@ __all__ = [
     "restore_recursive",
     # Import service
     "TinkoffCSVParser",
+    "ImportExecutor",
 ]
