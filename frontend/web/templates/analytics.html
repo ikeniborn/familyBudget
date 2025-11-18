@@ -383,6 +383,7 @@ function updatePlanFactChart(data) {
         tooltip: {
             trigger: 'axis',
             confine: true,
+            extraCssText: 'z-index: 30 !important;',
             axisPointer: {
                 type: 'shadow'
             },
@@ -731,6 +732,7 @@ function updateTrendsChart(data) {
         tooltip: {
             trigger: 'axis',
             confine: true,
+            extraCssText: 'z-index: 30 !important;',
             axisPointer: {
                 type: 'cross',
                 label: {
@@ -1079,6 +1081,7 @@ function updatePieChart(data) {
         tooltip: {
             trigger: 'item',
             confine: true,
+            extraCssText: 'z-index: 30 !important;',
             formatter: function(params) {
                 // Специальный тултип для "Прочее"
                 if (params.name === 'Прочее' && params.data.othersData) {
@@ -1427,6 +1430,7 @@ function updateWaterfallChart(data) {
         tooltip: {
             trigger: 'axis',
             confine: true,
+            extraCssText: 'z-index: 30 !important;',
             axisPointer: {
                 type: 'shadow'
             },
@@ -1753,6 +1757,7 @@ function updateHeatmapChart(data) {
         tooltip: {
             position: 'top',
             confine: true,
+            extraCssText: 'z-index: 30 !important;',
             formatter: function(params) {
                 const xLabel = data.xAxis[params.value[0]];
                 const yLabel = data.yAxis[params.value[1]];
