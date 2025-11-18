@@ -95,14 +95,14 @@ async def get_all_users(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of users returned"),
     offset: int = Query(0, ge=0, description="Number of users skipped"),
     is_active: bool | None = Query(None, description="Filter by activation status (None=all, True=active, False=inactive)"),
+    is_current: bool = Query(True, description="Filter by current version (True=current, False=historical, default: True)"),
 ) -> UserListResponse:
     """
     Get all users (admin only).
 
     Returns list of all registered users with pagination.
-    Only returns current (active) user versions.
 
-    **NEW:** Supports filtering by is_active status.
+    **NEW:** Supports filtering by is_active and is_current status (for viewing user profile history).
 
     Args:
         current_admin: Current admin user (from dependency)
@@ -110,12 +110,13 @@ async def get_all_users(
         limit: Maximum number of results (1-1000, default: 100)
         offset: Number of results to skip (default: 0)
         is_active: Filter by activation status (None=all, True=active, False=inactive)
+        is_current: Filter by current version (True=current, False=historical, default: True)
 
     Returns:
         UserListResponse: List of users with pagination info
     """
-    # Base query: only current versions
-    statement = select(User).where(User.is_current == True)  # noqa: E712
+    # Base query: filter by is_current
+    statement = select(User).where(User.is_current == is_current)  # noqa: E712
 
     # NEW: Filter by is_active if provided
     if is_active is not None:
