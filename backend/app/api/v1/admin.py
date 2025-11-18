@@ -143,42 +143,6 @@ async def get_all_users(
     )
 
 
-@router.get("/users/{user_id}", response_model=UserDetailResponse)
-async def get_user_by_id(
-    user_id: int,
-    current_admin: CurrentAdmin,
-    session: AsyncSession = Depends(get_session)
-) -> User:
-    """
-    Get specific user by ID (admin only).
-
-    Returns current user version with full SCD Type 2 details.
-
-    Args:
-        user_id: User ID to retrieve
-        current_admin: Current admin user (from dependency)
-        session: Database session
-
-    Returns:
-        UserDetailResponse: User details with SCD Type 2 fields
-
-    Raises:
-        HTTPException: 404 if user not found
-    """
-    # Load user (current version only)
-    statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
-    )
-    result = await session.execute(statement)
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail=f"User with id={user_id} not found")
-
-    return user
-
-
 @router.get("/users/telegram-info/{telegram_id}", response_model=TelegramUserInfo)
 async def get_telegram_user_info(
     telegram_id: int,
@@ -245,6 +209,176 @@ async def get_telegram_user_info(
         first_name=user_info.get("first_name"),
         exists_in_db=(existing_user is not None)
     )
+
+
+
+@router.get("/users/stats/summary", response_model=List[UserStatsResponse])
+async def get_users_stats(
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get statistics for all users (admin only).
+
+    Returns aggregated stats for each user:
+    - Total number of facts
+    - Total number of articles
+    - Last fact date
+
+    Args:
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        List[UserStatsResponse]: List of user statistics
+    """
+    # Get all current users
+    users_query = select(User).where(User.is_current == True)  # noqa: E712
+    users_result = await session.execute(users_query)
+    users = users_result.scalars().all()
+
+    stats = []
+
+    for user in users:
+        # Count facts
+        facts_count_query = select(func.count(Fact.id)).where(Fact.user_id == user.id)
+        facts_count_result = await session.execute(facts_count_query)
+        total_facts = facts_count_result.scalar() or 0
+
+        # Count articles
+        articles_count_query = select(func.count(Article.id)).where(
+            Article.user_id == user.id,
+            Article.is_current == True  # noqa: E712
+        )
+        articles_count_result = await session.execute(articles_count_query)
+        total_articles = articles_count_result.scalar() or 0
+
+        # Get last fact date
+        last_fact_query = select(func.max(Fact.fact_date)).where(Fact.user_id == user.id)
+        last_fact_result = await session.execute(last_fact_query)
+        last_fact_date = last_fact_result.scalar()
+
+        stats.append(UserStatsResponse(
+            user_id=user.id,
+            username=user.username,
+            first_name=user.first_name,
+            total_facts=total_facts,
+            total_articles=total_articles,
+            last_fact_date=last_fact_date.isoformat() if last_fact_date else None
+        ))
+
+    return stats
+
+
+
+@router.get("/users/stats/system", response_model=SystemStatsResponse)
+async def get_system_stats(
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get system-wide statistics (admin only).
+
+    Follows Shared Family Budget Model principles:
+    - All metrics are GLOBAL (not filtered by user_id)
+    - Reflects the entire family budget system
+    - No per-user isolation for facts and articles
+
+    Returns aggregated stats for the entire system:
+    - Total number of users
+    - Total number of active users (who created at least one transaction)
+    - Total number of facts (Shared Family Budget)
+    - Total number of articles (Shared References)
+    - Last fact date (most recent transaction in the system)
+
+    Args:
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        SystemStatsResponse: System-wide statistics
+
+    See:
+        CLAUDE.md - Shared Family Budget Model documentation
+    """
+    # Total users (current versions only)
+    users_count_query = select(func.count(User.id)).where(User.is_current == True)  # noqa: E712
+    users_count_result = await session.execute(users_count_query)
+    total_users = users_count_result.scalar() or 0
+
+    # Total facts (Shared Family Budget - NO user_id filter!)
+    facts_count_query = select(func.count(Fact.id))
+    facts_count_result = await session.execute(facts_count_query)
+    total_facts = facts_count_result.scalar() or 0
+
+    # Active users (users with is_active=True)
+    active_users_query = select(func.count(User.id)).where(
+        User.is_current == True,  # noqa: E712
+        User.is_active == True    # noqa: E712
+    )
+    active_users_result = await session.execute(active_users_query)
+    total_active_users = active_users_result.scalar() or 0
+
+    # Total articles (Shared References - NO user_id filter!)
+    articles_count_query = select(func.count(Article.id)).where(
+        Article.is_current == True  # noqa: E712
+    )
+    articles_count_result = await session.execute(articles_count_query)
+    total_articles = articles_count_result.scalar() or 0
+
+    # Last fact date (most recent transaction in the system)
+    last_fact_query = select(func.max(Fact.fact_date))
+    last_fact_result = await session.execute(last_fact_query)
+    last_fact_date = last_fact_result.scalar()
+
+    return SystemStatsResponse(
+        total_users=total_users,
+        total_active_users=total_active_users,
+        total_facts=total_facts,
+        total_articles=total_articles,
+        last_fact_date=last_fact_date.isoformat() if last_fact_date else None
+    )
+
+
+# ============================================================================
+# Articles Management Endpoints
+# ============================================================================
+
+
+@router.get("/users/{user_id}", response_model=UserDetailResponse)
+async def get_user_by_id(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Get specific user by ID (admin only).
+
+    Returns current user version with full SCD Type 2 details.
+
+    Args:
+        user_id: User ID to retrieve
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: User details with SCD Type 2 fields
+
+    Raises:
+        HTTPException: 404 if user not found
+    """
+    # Load user (current version only)
+    statement = select(User).where(
+        User.id == user_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with id={user_id} not found")
+
+    return user
 
 
 @router.post("/users", response_model=UserDetailResponse, status_code=201)
@@ -643,137 +777,6 @@ async def refresh_user_profile_from_telegram(
 
     return updated_user
 
-
-@router.get("/users/stats/summary", response_model=List[UserStatsResponse])
-async def get_users_stats(
-    current_admin: CurrentAdmin,
-    session: AsyncSession = Depends(get_session)
-):
-    """
-    Get statistics for all users (admin only).
-
-    Returns aggregated stats for each user:
-    - Total number of facts
-    - Total number of articles
-    - Last fact date
-
-    Args:
-        current_admin: Current admin user (from dependency)
-        session: Database session
-
-    Returns:
-        List[UserStatsResponse]: List of user statistics
-    """
-    # Get all current users
-    users_query = select(User).where(User.is_current == True)  # noqa: E712
-    users_result = await session.execute(users_query)
-    users = users_result.scalars().all()
-
-    stats = []
-
-    for user in users:
-        # Count facts
-        facts_count_query = select(func.count(Fact.id)).where(Fact.user_id == user.id)
-        facts_count_result = await session.execute(facts_count_query)
-        total_facts = facts_count_result.scalar() or 0
-
-        # Count articles
-        articles_count_query = select(func.count(Article.id)).where(
-            Article.user_id == user.id,
-            Article.is_current == True  # noqa: E712
-        )
-        articles_count_result = await session.execute(articles_count_query)
-        total_articles = articles_count_result.scalar() or 0
-
-        # Get last fact date
-        last_fact_query = select(func.max(Fact.fact_date)).where(Fact.user_id == user.id)
-        last_fact_result = await session.execute(last_fact_query)
-        last_fact_date = last_fact_result.scalar()
-
-        stats.append(UserStatsResponse(
-            user_id=user.id,
-            username=user.username,
-            first_name=user.first_name,
-            total_facts=total_facts,
-            total_articles=total_articles,
-            last_fact_date=last_fact_date.isoformat() if last_fact_date else None
-        ))
-
-    return stats
-
-
-@router.get("/users/stats/system", response_model=SystemStatsResponse)
-async def get_system_stats(
-    current_admin: CurrentAdmin,
-    session: AsyncSession = Depends(get_session)
-):
-    """
-    Get system-wide statistics (admin only).
-
-    Follows Shared Family Budget Model principles:
-    - All metrics are GLOBAL (not filtered by user_id)
-    - Reflects the entire family budget system
-    - No per-user isolation for facts and articles
-
-    Returns aggregated stats for the entire system:
-    - Total number of users
-    - Total number of active users (who created at least one transaction)
-    - Total number of facts (Shared Family Budget)
-    - Total number of articles (Shared References)
-    - Last fact date (most recent transaction in the system)
-
-    Args:
-        current_admin: Current admin user (from dependency)
-        session: Database session
-
-    Returns:
-        SystemStatsResponse: System-wide statistics
-
-    See:
-        CLAUDE.md - Shared Family Budget Model documentation
-    """
-    # Total users (current versions only)
-    users_count_query = select(func.count(User.id)).where(User.is_current == True)  # noqa: E712
-    users_count_result = await session.execute(users_count_query)
-    total_users = users_count_result.scalar() or 0
-
-    # Total facts (Shared Family Budget - NO user_id filter!)
-    facts_count_query = select(func.count(Fact.id))
-    facts_count_result = await session.execute(facts_count_query)
-    total_facts = facts_count_result.scalar() or 0
-
-    # Active users (users with is_active=True)
-    active_users_query = select(func.count(User.id)).where(
-        User.is_current == True,  # noqa: E712
-        User.is_active == True    # noqa: E712
-    )
-    active_users_result = await session.execute(active_users_query)
-    total_active_users = active_users_result.scalar() or 0
-
-    # Total articles (Shared References - NO user_id filter!)
-    articles_count_query = select(func.count(Article.id)).where(
-        Article.is_current == True  # noqa: E712
-    )
-    articles_count_result = await session.execute(articles_count_query)
-    total_articles = articles_count_result.scalar() or 0
-
-    # Last fact date (most recent transaction in the system)
-    last_fact_query = select(func.max(Fact.fact_date))
-    last_fact_result = await session.execute(last_fact_query)
-    last_fact_date = last_fact_result.scalar()
-
-    return SystemStatsResponse(
-        total_users=total_users,
-        total_active_users=total_active_users,
-        total_facts=total_facts,
-        total_articles=total_articles,
-        last_fact_date=last_fact_date.isoformat() if last_fact_date else None
-    )
-
-
-# ============================================================================
-# Articles Management Endpoints
-# ============================================================================
 
 @router.get("/articles", response_model=List[ArticleResponse])
 async def get_all_articles(
