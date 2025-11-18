@@ -113,11 +113,16 @@ async def create_financial_center(
             detail="Only administrators can create financial centers"
         )
 
+    # Generate code for financial center
+    from backend.app.utils.code_generator import generate_code
+    generated_code = await generate_code(session, FinancialCenter)
+
     # Create financial center
     financial_center = FinancialCenter(
         user_id=current_user.id,
         name=financial_center_data.name,
         description=financial_center_data.description,
+        code=generated_code,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),

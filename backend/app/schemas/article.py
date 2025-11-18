@@ -218,6 +218,12 @@ class ArticleResponse(BaseModel):
         examples=["expense"]
     )
 
+    code: Optional[str] = Field(
+        default=None,
+        description="Business code for external integrations",
+        examples=["ART-1", "ART-2", None]
+    )
+
     is_active: bool = Field(
         description="Active status flag (True = visible in UI, False = archived)",
         examples=[True, False]

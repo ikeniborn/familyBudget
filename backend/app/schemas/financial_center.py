@@ -141,6 +141,12 @@ class FinancialCenterResponse(BaseModel):
         examples=["Sberbank Account"]
     )
 
+    code: Optional[str] = Field(
+        default=None,
+        description="Business code for external integrations",
+        examples=["CFO-1", "CFO-2", None]
+    )
+
     description: Optional[str] = Field(
         description="Optional description",
         examples=["Main checking account", None]

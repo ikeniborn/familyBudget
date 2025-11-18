@@ -60,10 +60,15 @@ class ArticleResponse(BaseModel):
     parent_id: int | None
     name: str
     type: str
+    code: str | None = None
     is_active: bool
     is_current: bool
     valid_from: str
     valid_to: str | None
+    created_at: str | None = None
+    updated_at: str | None = None
+    usage_count: int | None = None
+    hierarchy: dict | None = None
     user_name: str | None = None
 
     class Config:
@@ -75,6 +80,7 @@ class ArticleCreateRequest(BaseModel):
     parent_id: int | None = None
     name: str
     type: str  # "income" or "expense"
+    is_active: bool = True  # Default to active
 
 
 class ArticleUpdateRequest(BaseModel):
@@ -82,6 +88,7 @@ class ArticleUpdateRequest(BaseModel):
     name: str | None = None
     type: str | None = None  # "income" or "expense"
     parent_id: int | None = None
+    is_active: bool | None = None
 
 
 # ============================================================================
@@ -826,10 +833,15 @@ async def get_all_articles(
             parent_id=article.parent_id,
             name=article.name,
             type=article.type,
+            code=article.code,
             is_active=article.is_active,
             is_current=article.is_current,
             valid_from=article.valid_from.isoformat(),
             valid_to=article.valid_to.isoformat() if article.valid_to else None,
+            created_at=article.created_at.isoformat() if article.created_at else None,
+            updated_at=article.updated_at.isoformat() if article.updated_at else None,
+            usage_count=None,
+            hierarchy=None,
             user_name=user.username if user else None
         )
         for article, user in rows
@@ -879,14 +891,20 @@ async def create_article(
                 detail=f"Parent type ({parent.type}) must match child type ({create_data.type})"
             )
 
+    # Generate code for article
+    from backend.app.utils.code_generator import generate_code
+    generated_code = await generate_code(session, Article)
+
     # Create new article
     new_article = Article(
         user_id=current_admin.id,
         parent_id=create_data.parent_id,
         name=create_data.name,
         type=create_data.type,
+        code=generated_code,
+        is_active=create_data.is_active,
         valid_from=datetime.utcnow(),
-        valid_to=None,
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
         is_current=True
     )
     session.add(new_article)
@@ -900,6 +918,7 @@ async def create_article(
         "parent_id": new_article.parent_id,
         "name": new_article.name,
         "type": new_article.type,
+        "code": new_article.code,
         "is_active": new_article.is_active,
         "valid_from": new_article.valid_from.isoformat(),
         "valid_to": new_article.valid_to.isoformat(),
@@ -1039,6 +1058,7 @@ async def update_article(
             "parent_id": article.parent_id,
             "name": article.name,
             "type": article.type,
+            "code": article.code,
             "is_active": article.is_active,
             "valid_from": article.valid_from.isoformat(),
             "valid_to": article.valid_to.isoformat(),
@@ -1142,6 +1162,7 @@ async def update_article(
         "parent_id": new_article.parent_id,
         "name": new_article.name,
         "type": new_article.type,
+        "code": new_article.code,
         "is_active": new_article.is_active,
         "valid_from": new_article.valid_from.isoformat(),
         "valid_to": new_article.valid_to.isoformat(),

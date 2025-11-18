@@ -141,6 +141,12 @@ class CostCenterResponse(BaseModel):
         examples=["Home Renovation"]
     )
 
+    code: Optional[str] = Field(
+        default=None,
+        description="Business code for external integrations",
+        examples=["MVZ-1", "MVZ-2", None]
+    )
+
     description: Optional[str] = Field(
         description="Optional description",
         examples=["Kitchen and bathroom renovation", None]
