@@ -24,9 +24,9 @@
 
 ## Задачи
 
-1. ПЕреименовать кнопку Login d Вход
-2. https://budget-dev.ikeniborn.ru/admin/articles, https://budget-dev.ikeniborn.ru/admin/financial-centers, https://budget-dev.ikeniborn.ru/admin/cost-centers колонка код показывает пусто, но в БД данные есть. Прерь ендпоинты и схемы. Исправь пробелмы оттображения кода 
-
+1. В консоли приложения когда оно должго открыто появляется ошибка 
+Uncaught (in promise) Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received
+Определи причину такого поведения. Предложи варианты решения
 ---
 
 ## Процесс
