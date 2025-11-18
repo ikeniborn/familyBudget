@@ -75,6 +75,7 @@ class ArticleCreateRequest(BaseModel):
     parent_id: int | None = None
     name: str
     type: str  # "income" or "expense"
+    is_active: bool = True  # Default to active
 
 
 class ArticleUpdateRequest(BaseModel):
@@ -82,6 +83,7 @@ class ArticleUpdateRequest(BaseModel):
     name: str | None = None
     type: str | None = None  # "income" or "expense"
     parent_id: int | None = None
+    is_active: bool | None = None
 
 
 # ============================================================================
@@ -891,8 +893,9 @@ async def create_article(
         name=create_data.name,
         type=create_data.type,
         code=generated_code,
+        is_active=create_data.is_active,
         valid_from=datetime.utcnow(),
-        valid_to=None,
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
         is_current=True
     )
     session.add(new_article)
