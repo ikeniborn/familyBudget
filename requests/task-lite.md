@@ -1,4 +1,4 @@
-# Task Execution Template (Lite) v2.0 (Structured Output)
+# Task Execution
 
 **Назначение:** Упрощенный шаблон для точечных доработок и небольших задач без декомпозиции на фазы.
 
