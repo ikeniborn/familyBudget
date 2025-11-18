@@ -46,8 +46,8 @@ router = APIRouter(prefix="/import", tags=["Import"])
     responses=get_common_responses(include_400=True),
 )
 async def upload_tinkoff_csv(
+    current_user: CurrentUser,
     file: UploadFile = File(..., description="Tinkoff CSV file"),
-    current_user: CurrentUser = Depends(),
     session: AsyncSession = Depends(get_session),
     skip_failed: bool = Query(True, description="Skip FAILED transactions"),
     skip_internal_transfers: bool = Query(True, description="Skip internal transfers"),
@@ -119,7 +119,7 @@ async def upload_tinkoff_csv(
     responses=get_common_responses(),
 )
 async def list_staging(
-    current_user: CurrentUser = Depends(),
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(50, ge=1, le=100, description="Items per page"),
@@ -235,7 +235,7 @@ async def list_staging(
 async def update_staging_record(
     staging_id: int,
     update_data: ImportStagingUpdate,
-    current_user: CurrentUser = Depends(),
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
 ) -> ImportStagingResponse:
     """
@@ -392,7 +392,7 @@ async def update_staging_record(
 )
 async def bulk_update_staging(
     bulk_data: ImportStagingBulkUpdate,
-    current_user: CurrentUser = Depends(),
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
 ) -> ImportStagingBulkUpdateResponse:
     """
@@ -518,7 +518,7 @@ async def bulk_update_staging(
     responses=get_common_responses(),
 )
 async def execute_import(
-    current_user: CurrentUser = Depends(),
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
 ) -> ImportExecuteResponse:
     """
@@ -572,7 +572,7 @@ async def execute_import(
     responses=get_common_responses(),
 )
 async def cleanup_staging(
-    current_user: CurrentUser = Depends(),
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
     selected_only: bool = Query(
         True,
