@@ -60,10 +60,15 @@ class ArticleResponse(BaseModel):
     parent_id: int | None
     name: str
     type: str
+    code: str | None = None
     is_active: bool
     is_current: bool
     valid_from: str
     valid_to: str | None
+    created_at: str | None = None
+    updated_at: str | None = None
+    usage_count: int | None = None
+    hierarchy: dict | None = None
     user_name: str | None = None
 
     class Config:
@@ -833,6 +838,10 @@ async def get_all_articles(
             is_current=article.is_current,
             valid_from=article.valid_from.isoformat(),
             valid_to=article.valid_to.isoformat() if article.valid_to else None,
+            created_at=article.created_at.isoformat() if article.created_at else None,
+            updated_at=article.updated_at.isoformat() if article.updated_at else None,
+            usage_count=None,
+            hierarchy=None,
             user_name=user.username if user else None
         )
         for article, user in rows
