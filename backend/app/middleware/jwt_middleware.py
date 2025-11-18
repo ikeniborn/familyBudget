@@ -98,7 +98,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         is_public = self._is_public_endpoint(request.url.path)
 
         # For protected endpoints, require valid authentication
-        if not is_public and not hasattr(request.state, 'user_id'):
+        if not is_public and not hasattr(request.state, 'telegram_id'):
             # No valid token for protected endpoint
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -108,8 +108,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             )
 
         # Continue to next middleware/endpoint
-        # For public endpoints: may or may not have user_id set
-        # For protected endpoints: guaranteed to have user_id set
+        # For public endpoints: may or may not have telegram_id set
+        # For protected endpoints: guaranteed to have telegram_id set
         return await call_next(request)
 
     def _is_public_endpoint(self, path: str) -> bool:
