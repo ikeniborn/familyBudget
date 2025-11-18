@@ -880,12 +880,17 @@ async def create_article(
                 detail=f"Parent type ({parent.type}) must match child type ({create_data.type})"
             )
 
+    # Generate code for article
+    from backend.app.utils.code_generator import generate_code
+    generated_code = await generate_code(session, Article)
+
     # Create new article
     new_article = Article(
         user_id=current_admin.id,
         parent_id=create_data.parent_id,
         name=create_data.name,
         type=create_data.type,
+        code=generated_code,
         valid_from=datetime.utcnow(),
         valid_to=None,
         is_current=True
