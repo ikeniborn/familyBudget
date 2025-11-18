@@ -7,6 +7,7 @@ This package contains business logic services organized by domain:
 - User authentication and management
 - SCD Type 2 (Slowly Changing Dimension) operations
 - Hierarchy queries (Closure Table pattern)
+- Tinkoff CSV import parsing
 """
 
 from backend.app.services.hierarchy_service import (
@@ -32,6 +33,7 @@ from backend.app.services.scd2_service import (
     verify_no_concurrent_update,
 )
 from backend.app.services.telegram_auth import validate_telegram_auth
+from backend.app.services.tinkoff_csv_parser import TinkoffCSVParser
 
 __all__ = [
     "create_access_token",
@@ -56,4 +58,6 @@ __all__ = [
     "get_level",
     "archive_recursive",
     "restore_recursive",
+    # Import service
+    "TinkoffCSVParser",
 ]
