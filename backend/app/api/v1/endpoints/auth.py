@@ -263,8 +263,8 @@ async def telegram_callback(
     await session.commit()
     await session.refresh(user)
 
-    # Step 4: Generate JWT access token
-    access_token = create_access_token(user_id=user.id)
+    # Step 4: Generate JWT access token (using telegram_id for SCD Type 2 compatibility)
+    access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id)
 
     # Step 5: Generate JWT refresh token (30-day expiry)
     refresh_token, refresh_expires = create_refresh_token(user_id=user.id)
@@ -458,8 +458,8 @@ async def telegram_login(
         photo_url=local_photo_path,
     )
 
-    # Step 4: Generate JWT access token
-    access_token = create_access_token(user_id=user.id)
+    # Step 4: Generate JWT access token (using telegram_id for SCD Type 2 compatibility)
+    access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id)
 
     # Step 5: Generate JWT refresh token (30-day expiry)
     refresh_token, refresh_expires = create_refresh_token(user_id=user.id)
@@ -645,8 +645,8 @@ async def refresh_access_token(
             detail="User not found - Account may have been deleted"
         )
 
-    # Step 6: Generate new access token
-    new_access_token = create_access_token(user_id=user.id)
+    # Step 6: Generate new access token (using telegram_id for SCD Type 2 compatibility)
+    new_access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id)
 
     # Step 7: Generate new refresh token (rotation)
     new_refresh_token, new_refresh_expires = create_refresh_token(user_id=user.id)

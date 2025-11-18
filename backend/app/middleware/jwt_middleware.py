@@ -85,13 +85,14 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         token = self._extract_token(request)
 
         if token is not None:
-            # Validate token and extract user_id
-            user_id = decode_access_token(token)
+            # Validate token and extract telegram_id (business key, stable across SCD Type 2)
+            telegram_id = decode_access_token(token)
 
-            if user_id is not None:
-                # Token is valid - inject user_id into request state
+            if telegram_id is not None:
+                # Token is valid - inject telegram_id into request state
                 # This allows CurrentUserOptional to access authenticated user
-                request.state.user_id = user_id
+                # Using telegram_id (business key) instead of user_id (surrogate key) for SCD Type 2 compatibility
+                request.state.telegram_id = telegram_id
 
         # Check if endpoint is public
         is_public = self._is_public_endpoint(request.url.path)

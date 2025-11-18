@@ -45,35 +45,38 @@ ACCESS_TOKEN_EXPIRE_DAYS = settings.JWT_EXPIRY_DAYS
 REFRESH_TOKEN_EXPIRE_DAYS = 30  # Refresh tokens live longer
 
 
-def create_access_token(user_id: int) -> str:
+def create_access_token(user_id: int, telegram_id: int) -> str:
     """
     Create JWT access token for authenticated user.
 
-    Generates a signed JWT token with user_id claim and expiration time.
+    Generates a signed JWT token with user_id and telegram_id claims and expiration time.
     Token should be stored in httpOnly cookie for security.
 
     Args:
         user_id: Database user ID (surrogate key from t_d_user.id)
+        telegram_id: Telegram user ID (business key, stable across SCD Type 2 versions)
 
     Returns:
         str: Encoded JWT token string
 
     Example:
-        >>> token = create_access_token(user_id=123)
+        >>> token = create_access_token(user_id=123, telegram_id=740775802)
         >>> print(token)
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
 
     Notes:
         - Token lifetime: settings.JWT_EXPIRY_DAYS (default 7 days)
         - Algorithm: HS256
-        - Claims included: user_id, exp (expiration), iat (issued at)
+        - Claims included: user_id (legacy), telegram_id (SCD Type 2 safe), exp, iat
+        - telegram_id is the stable business key used to lookup users across SCD Type 2 versions
     """
     # Calculate expiration time
     expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
 
-    # Prepare claims
+    # Prepare claims (include both user_id for legacy and telegram_id for SCD Type 2)
     claims = {
-        "user_id": user_id,
+        "user_id": user_id,  # Legacy (for backward compatibility)
+        "telegram_id": telegram_id,  # Business key (stable across SCD Type 2 versions)
         "exp": expire,
         "iat": datetime.utcnow(),
     }
@@ -88,19 +91,19 @@ def decode_access_token(token: str) -> Optional[int]:
     """
     Decode and validate JWT access token.
 
-    Verifies token signature, checks expiration, and extracts user_id claim.
-    Returns None if token is invalid or expired.
+    Verifies token signature, checks expiration, and extracts telegram_id claim.
+    Falls back to user_id if telegram_id is not present (backward compatibility).
 
     Args:
         token: JWT token string to decode
 
     Returns:
-        Optional[int]: User ID if token is valid, None otherwise
+        Optional[int]: Telegram ID if token is valid, None otherwise
 
     Example:
-        >>> user_id = decode_access_token("eyJhbGciOiJIUzI1NiIs...")
-        >>> if user_id:
-        ...     print(f"Authenticated user: {user_id}")
+        >>> telegram_id = decode_access_token("eyJhbGciOiJIUzI1NiIs...")
+        >>> if telegram_id:
+        ...     print(f"Authenticated user: {telegram_id}")
         ... else:
         ...     print("Invalid or expired token")
 
@@ -108,18 +111,19 @@ def decode_access_token(token: str) -> Optional[int]:
         - Returns None for expired tokens
         - Returns None for invalid signatures
         - Returns None for malformed tokens
-        - Returns None if user_id claim is missing
+        - Prefers telegram_id claim (SCD Type 2 safe), falls back to user_id (legacy)
     """
     try:
         # Decode JWT and verify signature
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
-        # Extract user_id claim
+        # Prefer telegram_id (SCD Type 2 safe), fallback to user_id (legacy)
+        telegram_id: Optional[int] = payload.get("telegram_id")
+        if telegram_id is not None:
+            return telegram_id
+
+        # Fallback to user_id for backward compatibility with old tokens
         user_id: Optional[int] = payload.get("user_id")
-
-        if user_id is None:
-            return None
-
         return user_id
 
     except JWTError:

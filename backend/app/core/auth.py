@@ -29,18 +29,18 @@ async def get_current_user(
     """
     Get currently authenticated user from database.
 
-    Extracts user_id from request.state (set by JWT middleware in TASK-013)
-    and loads the current version of the user from the database.
+    Extracts telegram_id from request.state (set by JWT middleware in TASK-013)
+    and loads the current version of the user from the database using the stable business key.
 
     Args:
-        request: HTTP request with user_id in state (from JWT middleware)
+        request: HTTP request with telegram_id in state (from JWT middleware)
         session: Async database session
 
     Returns:
         User: Current user object (with is_current=True)
 
     Raises:
-        HTTPException: 401 if user_id not in request.state (shouldn't happen if middleware works)
+        HTTPException: 401 if telegram_id not in request.state (shouldn't happen if middleware works)
         HTTPException: 404 if user not found in database (user deleted)
 
     Example:
@@ -54,23 +54,24 @@ async def get_current_user(
 
     Notes:
         - This dependency requires JWT middleware to be active (TASK-013)
+        - Uses telegram_id (business key) instead of id (surrogate key) for SCD Type 2 compatibility
         - Only loads current version (WHERE is_current=True)
         - User object includes all fields (id, telegram_id, username, is_admin, etc.)
     """
-    # Extract user_id from request state (set by JWT middleware)
-    user_id = getattr(request.state, "user_id", None)
+    # Extract telegram_id from request state (set by JWT middleware)
+    telegram_id = getattr(request.state, "telegram_id", None)
 
-    if user_id is None:
+    if telegram_id is None:
         # This should never happen if JWT middleware is working correctly
         # But we check defensively
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required - User ID not found in request state"
+            detail="Authentication required - Telegram ID not found in request state"
         )
 
-    # Load user from database (current version only)
+    # Load user from database using telegram_id (business key, stable across SCD Type 2 versions)
     statement = select(User).where(
-        User.id == user_id,
+        User.telegram_id == telegram_id,  # Use business key instead of surrogate key
         User.is_current == True  # noqa: E712 (SQLModel requires == True, not 'is True')
     )
     result = await session.execute(statement)
@@ -138,7 +139,7 @@ async def get_current_user_optional(
     can optionally show user-specific content if authenticated.
 
     Args:
-        request: HTTP request with optional user_id in state
+        request: HTTP request with optional telegram_id in state
         session: Async database session
 
     Returns:
@@ -153,16 +154,16 @@ async def get_current_user_optional(
             return {"message": "Welcome, please log in"}
         ```
     """
-    # Extract user_id from request state (set by JWT middleware)
-    user_id = getattr(request.state, "user_id", None)
+    # Extract telegram_id from request state (set by JWT middleware)
+    telegram_id = getattr(request.state, "telegram_id", None)
 
-    if user_id is None:
+    if telegram_id is None:
         # No authentication - return None for public access
         return None
 
-    # Load user from database (current version only)
+    # Load user from database using telegram_id (business key, stable across SCD Type 2 versions)
     statement = select(User).where(
-        User.id == user_id,
+        User.telegram_id == telegram_id,  # Use business key instead of surrogate key
         User.is_current == True  # noqa: E712
     )
     result = await session.execute(statement)
