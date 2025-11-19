@@ -124,7 +124,7 @@ async def list_staging(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
     page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(50, ge=1, le=100, description="Items per page"),
+    page_size: int = Query(50, ge=1, le=10000, description="Items per page (max 10000 for filtering)"),
     is_selected: Optional[bool] = Query(None, description="Filter by is_selected flag"),
 ) -> ImportStagingListResponse:
     """

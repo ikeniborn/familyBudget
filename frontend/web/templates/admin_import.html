@@ -1165,8 +1165,8 @@ async function loadAllStagingData() {
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
-        // Load all data without pagination
-        const response = await fetch(`/api/v1/import/staging?page=1&page_size=999999`, {
+        // Load all data without pagination (max 10000 records)
+        const response = await fetch(`/api/v1/import/staging?page=1&page_size=10000`, {
             credentials: 'include'
         });
 
