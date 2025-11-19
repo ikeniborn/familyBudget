@@ -4,9 +4,12 @@ Health Check API Endpoints.
 Provides comprehensive health and readiness checks for monitoring systems.
 """
 
+import json
 import platform
+import subprocess
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import psutil
@@ -153,6 +156,92 @@ def get_system_info() -> dict[str, Any]:
             "platform": platform.system(),
             "python_version": sys.version.split()[0],
         }
+
+
+def check_backup_status() -> ComponentHealth:
+    """
+    Check backup status using check_backup_health.sh script.
+
+    Returns:
+        ComponentHealth: Backup status with latest backup info
+    """
+    try:
+        script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "check_backup_health.sh"
+
+        if not script_path.exists():
+            return ComponentHealth(
+                status="down",
+                message="Backup health check script not found"
+            )
+
+        result = subprocess.run(
+            [str(script_path), "--json"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False
+        )
+
+        if result.returncode not in [0, 1, 2]:
+            return ComponentHealth(
+                status="down",
+                message=f"Backup health check failed with exit code {result.returncode}"
+            )
+
+        backup_data = json.loads(result.stdout)
+
+        latest_backup = backup_data.get("backups", {}).get("latest", "")
+        backup_count = backup_data.get("backups", {}).get("count", 0)
+        overall_status = backup_data.get("status", {}).get("overall", "unhealthy")
+
+        if latest_backup and latest_backup != "":
+            parts = latest_backup.split("_")
+            if len(parts) >= 3:
+                date_str = parts[1]
+                time_str = parts[2].replace(".sql.gz", "")
+                formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+                formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+                backup_datetime = f"{formatted_date} {formatted_time}"
+            else:
+                backup_datetime = latest_backup
+
+            backup_path = Path(backup_data.get("backups", {}).get("directory", "")) / latest_backup
+            if backup_path.exists():
+                backup_size_mb = backup_path.stat().st_size / (1024 * 1024)
+                size_info = f", Size: {backup_size_mb:.2f} MB"
+            else:
+                size_info = ""
+
+            status_map = {
+                "healthy": "up",
+                "unhealthy": "down"
+            }
+
+            return ComponentHealth(
+                status=status_map.get(overall_status, "down"),
+                message=f"Latest: {backup_datetime}, File: {latest_backup}{size_info}, Total backups: {backup_count}"
+            )
+        else:
+            return ComponentHealth(
+                status="down",
+                message="No backups found"
+            )
+
+    except subprocess.TimeoutExpired:
+        return ComponentHealth(
+            status="down",
+            message="Backup health check timed out"
+        )
+    except json.JSONDecodeError as e:
+        return ComponentHealth(
+            status="down",
+            message=f"Failed to parse backup health check output: {str(e)}"
+        )
+    except Exception as e:
+        return ComponentHealth(
+            status="down",
+            message=f"Backup health check error: {str(e)}"
+        )
 
 
 def calculate_uptime() -> float:
@@ -329,7 +418,12 @@ async def detailed_health_check(
     if db_health.status == "up":
         db_health.message = f"Database operational. Users: {db_stats['total_users']}, Facts: {db_stats['total_facts']}"
 
-    components = {"database": db_health}
+    backup_health = check_backup_status()
+
+    components = {
+        "database": db_health,
+        "backup": backup_health
+    }
 
     # Determine overall status
     overall_status = determine_overall_status(components)

@@ -82,6 +82,19 @@
             </div>
         </div>
     </div>
+
+    <!-- Backup Status -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">💾 Статус бэкапирования</h2>
+
+            <div id="backup-container">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -151,6 +164,7 @@ function renderMonitoringData(data) {
     renderComponents(data.components);
     renderSystemResources(data.system);
     renderDatabaseStats(data.components.database);
+    renderBackupStatus(data.components.backup);
 }
 
 // Render overall status indicator
@@ -354,6 +368,75 @@ function renderDatabaseStats(dbComponent) {
                 <span class="badge ${statusBadge} badge-lg gap-2">
                     ${dbComponent.status === 'up' ? '✓' : '✗'} ${dbComponent.status.toUpperCase()}
                 </span>
+            </div>
+        </div>
+    `;
+}
+
+// Render backup status
+function renderBackupStatus(backupComponent) {
+    const container = document.getElementById('backup-container');
+
+    if (!backupComponent) {
+        container.innerHTML = `
+            <div class="alert alert-warning">
+                <span>⚠ Информация о бэкапах недоступна</span>
+            </div>
+        `;
+        return;
+    }
+
+    const message = backupComponent.message || '';
+
+    const latestMatch = message.match(/Latest: ([^,]+)/);
+    const fileMatch = message.match(/File: ([^,]+)/);
+    const sizeMatch = message.match(/Size: ([0-9.]+) MB/);
+    const countMatch = message.match(/Total backups: (\d+)/);
+
+    const latestBackup = latestMatch ? latestMatch[1] : '--';
+    const fileName = fileMatch ? fileMatch[1] : '--';
+    const fileSize = sizeMatch ? sizeMatch[1] + ' MB' : '--';
+    const totalBackups = countMatch ? countMatch[1] : '--';
+
+    const statusBadge = backupComponent.status === 'up' ? 'badge-success' : 'badge-error';
+    const alertClass = backupComponent.status === 'up' ? 'alert-success' : 'alert-error';
+    const statusIcon = backupComponent.status === 'up' ? '✓' : '✗';
+
+    container.innerHTML = `
+        <div class="alert ${alertClass}">
+            <div class="flex-1">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="font-bold text-lg">Последний бэкап</h3>
+                    <span class="badge ${statusBadge} gap-1">${statusIcon} ${backupComponent.status.toUpperCase()}</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-sm opacity-80 mb-1">📅 Дата и время</div>
+                        <div class="font-semibold text-lg">${latestBackup}</div>
+                    </div>
+
+                    <div>
+                        <div class="text-sm opacity-80 mb-1">📦 Размер файла</div>
+                        <div class="font-semibold text-lg">${fileSize}</div>
+                    </div>
+
+                    <div>
+                        <div class="text-sm opacity-80 mb-1">📄 Название файла</div>
+                        <div class="font-mono text-sm break-all">${fileName}</div>
+                    </div>
+
+                    <div>
+                        <div class="text-sm opacity-80 mb-1">🗂️ Всего бэкапов</div>
+                        <div class="font-semibold text-lg">${totalBackups}</div>
+                    </div>
+                </div>
+
+                ${backupComponent.status !== 'up' ? `
+                    <div class="mt-3 p-2 bg-base-100 rounded">
+                        <p class="text-sm"><strong>Сообщение:</strong> ${message}</p>
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;
