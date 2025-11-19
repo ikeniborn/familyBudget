@@ -265,7 +265,18 @@ async function uploadCSV(event) {
             try {
                 const data = await response.json();
                 console.error('Server error response:', data);
-                errorMessage = data.detail || JSON.stringify(data);
+
+                // Handle detail - can be string or object
+                if (data.detail) {
+                    if (typeof data.detail === 'string') {
+                        errorMessage = data.detail;
+                    } else {
+                        // detail is an object (e.g. Pydantic validation error)
+                        errorMessage = JSON.stringify(data.detail, null, 2);
+                    }
+                } else {
+                    errorMessage = JSON.stringify(data, null, 2);
+                }
             } catch (e) {
                 const text = await response.text();
                 console.error('Server error text:', text);
