@@ -477,6 +477,121 @@ collect_deployment_parameters() {
     echo ""
 }
 
+# =============================================================================
+# FIREWALL VALIDATION
+# =============================================================================
+
+validate_firewall_rules() {
+    step "Validating Firewall Rules"
+
+    # Check if UFW is installed
+    if ! command -v ufw &> /dev/null; then
+        warning "UFW not installed, skipping firewall validation"
+        return 0
+    fi
+
+    # Get current UFW status
+    local ufw_status
+    if ! ufw_status=$(sudo ufw status numbered 2>/dev/null); then
+        warning "Cannot read UFW status, skipping validation"
+        return 0
+    fi
+
+    local has_errors=false
+
+    # Check required ports
+    info "Checking required open ports..."
+
+    # SSH (22) - CRITICAL
+    if echo "$ufw_status" | grep -q "22/tcp.*ALLOW"; then
+        success "✓ Port 22 (SSH) is open"
+    else
+        error "✗ Port 22 (SSH) is NOT open - SSH access will be blocked!"
+        has_errors=true
+    fi
+
+    # HTTPS (443) - REQUIRED
+    if echo "$ufw_status" | grep -q "443/tcp.*ALLOW"; then
+        success "✓ Port 443 (HTTPS) is open"
+    else
+        warning "⚠ Port 443 (HTTPS) is NOT open - HTTPS will not work"
+        info "This is normal if SSL is not configured yet"
+    fi
+
+    echo ""
+    info "Checking security rules..."
+
+    # HTTP (80) - SHOULD BE CLOSED (except during certbot)
+    if echo "$ufw_status" | grep -q "80/tcp.*ALLOW"; then
+        warning "⚠ Port 80 (HTTP) is OPEN"
+        echo ""
+        warning "SECURITY ISSUE: Port 80 should be closed!"
+        info "Port 80 should only open temporarily during certbot renewal"
+        info "The deploy script will close it automatically"
+        echo ""
+    else
+        success "✓ Port 80 (HTTP) is closed (correct)"
+    fi
+
+    # PostgreSQL (5432) - Check if restricted
+    if echo "$ufw_status" | grep -q "5432.*ALLOW"; then
+        local pg_rules=$(echo "$ufw_status" | grep "5432.*ALLOW")
+
+        if echo "$pg_rules" | grep -q " from "; then
+            # Restricted access
+            local allowed_ip=$(echo "$pg_rules" | grep -oP 'from \K[0-9.]+' | head -1)
+            success "✓ PostgreSQL (5432) - restricted to IP: $allowed_ip"
+        else
+            # Open to all!
+            error "✗ PostgreSQL (5432) - OPEN TO ALL IPs!"
+            echo ""
+            error "CRITICAL SECURITY ISSUE: PostgreSQL is accessible from anywhere!"
+            echo ""
+            warning "ACTION REQUIRED:"
+            echo "  1. sudo ufw delete allow 5432/tcp"
+            echo "  2. sudo ufw allow from <YOUR_IP> to any port 5432"
+            echo "  OR re-run: ./setup.sh (choose PostgreSQL external access)"
+            echo ""
+            has_errors=true
+        fi
+    else
+        success "✓ PostgreSQL (5432) - closed (most secure)"
+    fi
+
+    echo ""
+
+    # Show current status
+    info "Current UFW rules:"
+    sudo ufw status numbered | grep -E "ALLOW|DENY" || echo "  (none)"
+    echo ""
+
+    # Error handling
+    if [[ "$has_errors" == "true" ]]; then
+        error "Firewall validation FAILED - critical security issues detected!"
+        echo ""
+        warning "RECOMMENDED ACTIONS:"
+        echo "  • Fix critical issues listed above"
+        echo "  • Re-run install.sh to reset firewall: sudo ./install.sh"
+        echo "  • Or manually fix rules and re-run deploy"
+        echo ""
+
+        read -p "Continue deployment anyway? (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            error "Deployment cancelled for security reasons"
+            exit 1
+        fi
+
+        warning "Continuing deployment with firewall issues (NOT RECOMMENDED)"
+        echo ""
+    else
+        success "Firewall validation passed"
+        echo ""
+    fi
+
+    return 0
+}
+
 main() {
     # Parse arguments
     parse_args "$@"
@@ -560,6 +675,9 @@ main() {
         fi
     fi
     echo ""
+
+    # Validate firewall rules before deployment
+    validate_firewall_rules
 
     # Check if HTTP/HTTPS ports are available (for full profile with nginx)
     if [[ "$COMPOSE_PROFILE" == "full" || "${DEPLOYMENT_PROFILE:-}" == "full" ]]; then

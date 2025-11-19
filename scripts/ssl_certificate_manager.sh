@@ -430,11 +430,28 @@ create_deploy_hook() {
 #!/bin/bash
 # Family Budget Certificate Renewal Deploy Hook
 # Called by certbot after successful certificate renewal
-# Reloads nginx to pick up new certificates
+# Reloads nginx to pick up new certificates and ensures port 80 is closed
 
 LOG_FILE="/var/log/letsencrypt/deploy-hook.log"
 
 echo "[$(date)] Certificate renewed for: $RENEWED_DOMAINS" >> "$LOG_FILE"
+
+# SECURITY: Close port 80 after renewal (certbot may have opened it)
+echo "[$(date)] Checking port 80 status..." >> "$LOG_FILE"
+if command -v ufw &> /dev/null; then
+    if sudo ufw status | grep -q "80/tcp.*ALLOW"; then
+        echo "[$(date)] Port 80 is open, closing for security..." >> "$LOG_FILE"
+        if sudo ufw delete allow 80/tcp 2>> "$LOG_FILE"; then
+            echo "[$(date)] ✅ Port 80 closed" >> "$LOG_FILE"
+        else
+            echo "[$(date)] ⚠ Failed to close port 80" >> "$LOG_FILE"
+        fi
+    else
+        echo "[$(date)] ✅ Port 80 already closed" >> "$LOG_FILE"
+    fi
+else
+    echo "[$(date)] ⚠ UFW not available, skipping port 80 check" >> "$LOG_FILE"
+fi
 
 # Reload nginx inside Docker container
 if docker ps --format '{{.Names}}' | grep -q "familybudget-nginx"; then
