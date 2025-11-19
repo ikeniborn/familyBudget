@@ -169,7 +169,6 @@ def check_backup_status() -> ComponentHealth:
         possible_paths = [
             Path(__file__).parent.parent.parent.parent / "scripts" / "check_backup_health.sh",
             Path("/opt/budget/scripts/check_backup_health.sh"),
-            Path("/opt/familybudget/scripts/check_backup_health.sh"),
         ]
 
         script_path = None
