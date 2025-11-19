@@ -171,27 +171,30 @@ document.addEventListener('DOMContentLoaded', function() {
 async function loadReferenceData() {
     try {
         // Load articles (current, active only)
-        const articlesResp = await fetch('/api/v1/admin/articles?is_current=true&include_inactive=false', {
+        const articlesResp = await fetch('/api/v1/articles?include_inactive=false', {
             credentials: 'include'
         });
         if (articlesResp.ok) {
-            articlesData = await articlesResp.json();
+            const data = await articlesResp.json();
+            articlesData = data.articles || [];
         }
 
         // Load financial centers (current only)
-        const fcResp = await fetch('/api/v1/admin/financial-centers?is_current=true', {
+        const fcResp = await fetch('/api/v1/financial-centers', {
             credentials: 'include'
         });
         if (fcResp.ok) {
-            financialCentersData = await fcResp.json();
+            const data = await fcResp.json();
+            financialCentersData = data.financial_centers || [];
         }
 
         // Load cost centers (current only)
-        const ccResp = await fetch('/api/v1/admin/cost-centers?is_current=true', {
+        const ccResp = await fetch('/api/v1/cost-centers', {
             credentials: 'include'
         });
         if (ccResp.ok) {
-            costCentersData = await ccResp.json();
+            const data = await ccResp.json();
+            costCentersData = data.cost_centers || [];
         }
 
         populateBulkDropdowns();
@@ -257,11 +260,18 @@ async function uploadCSV(event) {
             body: formData
         });
 
-        const data = await response.json();
-
         if (!response.ok) {
-            throw new Error(data.detail || `HTTP error! status: ${response.status}`);
+            let errorMessage = `HTTP ${response.status}`;
+            try {
+                const data = await response.json();
+                errorMessage = data.detail || errorMessage;
+            } catch (e) {
+                errorMessage = await response.text() || errorMessage;
+            }
+            throw new Error(errorMessage);
         }
+
+        const data = await response.json();
 
         // Show success
         resultDiv.innerHTML = `
