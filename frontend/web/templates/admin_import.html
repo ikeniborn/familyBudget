@@ -73,52 +73,54 @@
 
             <!-- Bulk Operations Toolbar -->
             <div class="bg-base-200 p-4 rounded-lg mb-4" id="bulk-toolbar">
-                <div class="flex flex-wrap gap-4 items-end">
-                    <div class="form-control">
-                        <label class="label cursor-pointer gap-2">
-                            <input type="checkbox" id="select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll()" />
-                            <span class="label-text font-semibold">Выбрать все</span>
-                        </label>
-                    </div>
+                <div class="flex flex-wrap gap-4 items-end justify-between">
+                    <div class="flex flex-wrap gap-4 items-end">
+                        <div class="form-control">
+                            <label class="label cursor-pointer gap-2">
+                                <input type="checkbox" id="select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll()" />
+                                <span class="label-text font-semibold">Выбрать все</span>
+                            </label>
+                        </div>
 
-                    <div class="divider divider-horizontal"></div>
+                        <div class="divider divider-horizontal"></div>
 
-                    <div class="form-control w-48">
-                        <label class="label py-0">
-                            <span class="label-text text-xs">Тип категории</span>
-                        </label>
-                        <select id="bulk-article-type" class="select select-bordered w-full" onchange="updateBulkCategoryType()">
-                            <option value="">-- Все типы --</option>
-                            <option value="expense">💸 Расходы</option>
-                            <option value="income">💰 Доходы</option>
-                        </select>
-                    </div>
+                        <div class="form-control w-48">
+                            <label class="label py-0">
+                                <span class="label-text text-xs">Тип категории</span>
+                            </label>
+                            <select id="bulk-article-type" class="select select-bordered w-full" onchange="updateBulkCategoryType()">
+                                <option value="">-- Все типы --</option>
+                                <option value="expense">💸 Расходы</option>
+                                <option value="income">💰 Доходы</option>
+                            </select>
+                        </div>
 
-                    <div class="form-control w-64">
-                        <label class="label py-0">
-                            <span class="label-text text-xs">Категория (массово)</span>
-                        </label>
-                        <select id="bulk-article" class="select select-bordered w-full">
-                            <option value="">-- Выберите категорию --</option>
-                        </select>
-                    </div>
+                        <div class="form-control w-64">
+                            <label class="label py-0">
+                                <span class="label-text text-xs">Категория (массово)</span>
+                            </label>
+                            <select id="bulk-article" class="select select-bordered w-full">
+                                <option value="">-- Выберите категорию --</option>
+                            </select>
+                        </div>
 
-                    <div class="form-control w-48">
-                        <label class="label py-0">
-                            <span class="label-text text-xs">ЦФО (массово)</span>
-                        </label>
-                        <select id="bulk-fc" class="select select-bordered w-full">
-                            <option value="">-- Выберите ЦФО --</option>
-                        </select>
-                    </div>
+                        <div class="form-control w-48">
+                            <label class="label py-0">
+                                <span class="label-text text-xs">ЦФО (массово)</span>
+                            </label>
+                            <select id="bulk-fc" class="select select-bordered w-full">
+                                <option value="">-- Выберите ЦФО --</option>
+                            </select>
+                        </div>
 
-                    <div class="form-control w-48">
-                        <label class="label py-0">
-                            <span class="label-text text-xs">МВЗ (массово)</span>
-                        </label>
-                        <select id="bulk-cc" class="select select-bordered w-full">
-                            <option value="">-- Выберите МВЗ --</option>
-                        </select>
+                        <div class="form-control w-48">
+                            <label class="label py-0">
+                                <span class="label-text text-xs">МВЗ (массово)</span>
+                            </label>
+                            <select id="bulk-cc" class="select select-bordered w-full">
+                                <option value="">-- Выберите МВЗ --</option>
+                            </select>
+                        </div>
                     </div>
 
                     <button class="btn btn-sm btn-primary" onclick="applyBulkUpdate()">
