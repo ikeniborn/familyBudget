@@ -127,6 +127,33 @@
                 </div>
             </div>
 
+            <!-- Search Filters -->
+            <div class="bg-base-200 p-4 rounded-lg mb-4" id="search-filters">
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">🔍 Поиск по категории Tinkoff</span>
+                        </label>
+                        <input type="text" id="search-tinkoff-category" placeholder="Фильтр по категории..." class="input input-bordered input-sm w-full" oninput="filterTable()" />
+                    </div>
+
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">🔍 Поиск по описанию</span>
+                        </label>
+                        <input type="text" id="search-description" placeholder="Фильтр по описанию..." class="input input-bordered input-sm w-full" oninput="filterTable()" />
+                    </div>
+
+                    <button class="btn btn-sm btn-ghost" onclick="clearFilters()">
+                        ❌ Очистить фильтры
+                    </button>
+
+                    <div class="text-sm text-base-content/70" id="filter-stats">
+                        Показано: <span id="visible-count">0</span> из <span id="total-count">0</span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Staging Table -->
             <div id="staging-table-container" class="overflow-x-auto">
                 <div class="flex items-center justify-center py-8">
@@ -465,7 +492,7 @@ function renderStagingTable() {
                 <td class="max-w-xs truncate" title="${record.tinkoff_description || ''}">${record.tinkoff_description || '-'}</td>
                 <td class="text-xs">${record.tinkoff_category || '-'}</td>
                 <td>
-                    <select class="select select-bordered select-sm" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
+                    <select class="select select-bordered select-sm w-48 max-w-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
                         <option value="">-- Выбрать --</option>
                         ${articlesData.map(a => `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${'  '.repeat(a.depth || 0)}${a.type === 'income' ? '💰' : '💸'} ${a.name}</option>`).join('')}
                     </select>
@@ -492,6 +519,9 @@ function renderStagingTable() {
 
     // Update select-all checkbox
     updateSelectAllCheckbox();
+
+    // Apply current filters
+    filterTable();
 }
 
 // Toggle select all
@@ -758,6 +788,44 @@ async function cleanupStaging(selectedOnly) {
 // Refresh staging
 async function refreshStaging() {
     await loadStagingData();
+}
+
+// Filter table (client-side filtering)
+function filterTable() {
+    const categoryFilter = document.getElementById('search-tinkoff-category')?.value.toLowerCase().trim() || '';
+    const descriptionFilter = document.getElementById('search-description')?.value.toLowerCase().trim() || '';
+
+    let visibleCount = 0;
+    const totalCount = stagingData.length;
+
+    stagingData.forEach(record => {
+        const row = document.getElementById(`row-${record.id}`);
+        if (!row) return;
+
+        const tinkoffCategory = (record.tinkoff_category || '').toLowerCase();
+        const tinkoffDescription = (record.tinkoff_description || '').toLowerCase();
+
+        const categoryMatch = !categoryFilter || tinkoffCategory.includes(categoryFilter);
+        const descriptionMatch = !descriptionFilter || tinkoffDescription.includes(descriptionFilter);
+
+        if (categoryMatch && descriptionMatch) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update filter stats
+    document.getElementById('visible-count').textContent = visibleCount;
+    document.getElementById('total-count').textContent = totalCount;
+}
+
+// Clear filters
+function clearFilters() {
+    document.getElementById('search-tinkoff-category').value = '';
+    document.getElementById('search-description').value = '';
+    filterTable();
 }
 </script>
 {% endblock %}
