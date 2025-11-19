@@ -35,10 +35,8 @@ echo "📋 3. Checking if t_import_staging table exists..."
 if [ -n "$POSTGRES_CONTAINER" ]; then
     echo "   Using postgres container: $POSTGRES_CONTAINER"
 
-    # Check if table exists by trying to query it
-    TABLE_CHECK=$(docker exec -i "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 't_import_staging');" 2>/dev/null | tr -d '[:space:]')
-
-    if [ "$TABLE_CHECK" = "t" ]; then
+    # Check if table exists by trying to query it (exit code 0 = success)
+    if docker exec -i "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT 1 FROM t_import_staging LIMIT 1;" >/dev/null 2>&1; then
         echo "✅ Table t_import_staging exists"
 
         echo ""
