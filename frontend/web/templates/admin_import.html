@@ -200,7 +200,6 @@ let stagingTotal = 0; // Total count from API (not limited by pagination)
 let articlesData = [];
 let financialCentersData = [];
 let costCentersData = [];
-let bulkCategoryTreeSelect = null;
 
 // Custom confirm dialog (русский язык)
 function showConfirmDialog(title, message) {
@@ -366,58 +365,43 @@ async function updateBulkCategoryType() {
     const selectedType = document.getElementById('bulk-article-type').value;
     const selectElement = document.getElementById('bulk-article');
 
-    // Destroy previous instance
-    if (bulkCategoryTreeSelect) {
-        bulkCategoryTreeSelect.destroy();
-        bulkCategoryTreeSelect = null;
+    // Clear select
+    selectElement.innerHTML = '<option value="">-- Выберите категорию --</option>';
+
+    // Filter articles by type if needed
+    let filteredArticles = articlesData;
+    if (selectedType) {
+        filteredArticles = articlesData.filter(a => a.type === selectedType);
     }
 
-    if (selectedType === '') {
-        // "Все типы" - показать все категории с иерархией
-        selectElement.innerHTML = '';  // Очистить без placeholder
+    // Сортировать и построить иерархию
+    const sorted = sortArticles(filteredArticles);
+    const tree = buildArticleTree(sorted);
+    const flatNodes = flattenArticleTree(tree);
 
-        // Сортировать и построить иерархию
-        const sorted = sortArticles(articlesData);
-        const tree = buildArticleTree(sorted);
-        const flatNodes = flattenArticleTree(tree);
+    flatNodes.forEach(node => {
+        const option = document.createElement('option');
+        option.value = node.id;
+        const indent = '›  '.repeat(node.level);
+        const icon = node.isLeaf ? '▸' : '📂';
+        option.textContent = `${indent}${icon} ${node.name}`;
 
-        flatNodes.forEach(node => {
-            const option = document.createElement('option');
-            option.value = node.id;
-            const indent = '›  '.repeat(node.level);
-            const icon = node.isLeaf ? '▸' : '📂';
-            option.textContent = `${indent}${icon} ${node.name}`;
+        // Disable parent categories
+        if (!node.isLeaf) {
+            option.disabled = true;
+            option.style.fontWeight = 'bold';
+            option.style.opacity = '0.7';
+        }
 
-            // Disable parent categories
-            if (!node.isLeaf) {
-                option.disabled = true;
-                option.style.fontWeight = 'bold';
-                option.style.opacity = '0.7';
-            }
+        // Цветовая индикация: расходы - красный, доходы - зеленый
+        if (node.type === 'expense') {
+            option.style.color = '#ef4444'; // red-500
+        } else if (node.type === 'income') {
+            option.style.color = '#10b981'; // green-500
+        }
 
-            selectElement.appendChild(option);
-        });
-
-        // Инициализировать Choices.js с placeholder в конфигурации
-        bulkCategoryTreeSelect = new Choices(selectElement, {
-            searchEnabled: false,
-            placeholderValue: '-- Выберите категорию --',
-            noResultsText: 'Категории не найдены',
-            itemSelectText: '',
-            shouldSort: false,
-            classNames: {
-                containerOuter: 'choices-tailwind'
-            }
-        });
-    } else {
-        // Конкретный тип (expense или income) - используем ChoicesCategoryTree
-        bulkCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#bulk-article', {
-            type: selectedType,
-            showLeafOnly: true,
-            showInactive: false,
-            showPath: false
-        });
-    }
+        selectElement.appendChild(option);
+    });
 }
 
 // Check and load existing staging data on page load
@@ -740,7 +724,15 @@ function renderStagingTable() {
                                 const indent = '›  '.repeat(node.level);
                                 const icon = node.isLeaf ? '▸' : '📂';
                                 const disabled = !node.isLeaf ? 'disabled' : '';
-                                const style = !node.isLeaf ? 'font-weight: bold; opacity: 0.7;' : '';
+                                let style = !node.isLeaf ? 'font-weight: bold; opacity: 0.7;' : '';
+
+                                // Цветовая индикация: расходы - красный, доходы - зеленый
+                                if (node.type === 'expense') {
+                                    style += ' color: #ef4444;'; // red-500
+                                } else if (node.type === 'income') {
+                                    style += ' color: #10b981;'; // green-500
+                                }
+
                                 return `<option value="${node.id}" ${node.id === record.article_id ? 'selected' : ''} ${disabled} style="${style}">${indent}${icon} ${node.name}</option>`;
                             }).join('');
                         })()}
