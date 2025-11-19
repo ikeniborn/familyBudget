@@ -4,11 +4,9 @@ Health Check API Endpoints.
 Provides comprehensive health and readiness checks for monitoring systems.
 """
 
-import json
-import os
 import platform
-import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -161,110 +159,69 @@ def get_system_info() -> dict[str, Any]:
 
 def check_backup_status() -> ComponentHealth:
     """
-    Check backup status using check_backup_health.sh script.
+    Check backup status by scanning backup directory.
+
+    Pure Python implementation - no bash scripts or Docker CLI needed.
 
     Returns:
         ComponentHealth: Backup status with latest backup info
     """
     try:
-        possible_paths = [
-            Path(__file__).parent.parent.parent.parent / "scripts" / "check_backup_health.sh",
-            Path("/opt/budget/scripts/check_backup_health.sh"),
-        ]
+        backup_dir = Path("/app/backups")
 
-        script_path = None
-        for path in possible_paths:
-            if path.exists():
-                script_path = path
-                break
-
-        if not script_path:
-            searched_paths = ", ".join(str(p) for p in possible_paths)
+        # Check if backup directory exists
+        if not backup_dir.exists():
             return ComponentHealth(
                 status="down",
-                message=f"Backup health check script not found. Searched: {searched_paths}"
+                message=f"Backup directory not found: {backup_dir}"
             )
 
-        result = subprocess.run(
-            [str(script_path), "--json"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-            env={
-                **os.environ.copy(),
-                "BACKUP_DIR": "/app/backups",
-                "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")
-            }
-        )
+        # Find all backup files (backup_YYYYMMDD_HHMMSS.sql.gz)
+        backup_files = list(backup_dir.glob("backup_*.sql.gz"))
 
-        if result.returncode not in [0, 1, 2]:
-            return ComponentHealth(
-                status="down",
-                message=f"Backup health check failed with exit code {result.returncode}. stderr: {result.stderr[:200]}"
-            )
-
-        if not result.stdout or result.stdout.strip() == "":
-            stderr_preview = result.stderr[:500] if result.stderr else "(empty)"
-            stdout_preview = result.stdout[:200] if result.stdout else "(empty)"
-            return ComponentHealth(
-                status="down",
-                message=f"Backup health check returned empty output. returncode: {result.returncode}, stdout: {stdout_preview}, stderr: {stderr_preview}"
-            )
-
-        backup_data = json.loads(result.stdout)
-
-        latest_backup = backup_data.get("backups", {}).get("latest", "")
-        backup_count = backup_data.get("backups", {}).get("count", 0)
-        overall_status = backup_data.get("status", {}).get("overall", "unhealthy")
-
-        if latest_backup and latest_backup != "":
-            parts = latest_backup.split("_")
-            if len(parts) >= 3:
-                date_str = parts[1]
-                time_str = parts[2].replace(".sql.gz", "")
-                formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
-                formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
-                backup_datetime = f"{formatted_date} {formatted_time}"
-            else:
-                backup_datetime = latest_backup
-
-            backup_path = Path(backup_data.get("backups", {}).get("directory", "")) / latest_backup
-            if backup_path.exists():
-                backup_size_mb = backup_path.stat().st_size / (1024 * 1024)
-                size_info = f", Size: {backup_size_mb:.2f} MB"
-            else:
-                size_info = ""
-
-            status_map = {
-                "healthy": "up",
-                "unhealthy": "down"
-            }
-
-            return ComponentHealth(
-                status=status_map.get(overall_status, "down"),
-                message=f"Latest: {backup_datetime}, File: {latest_backup}{size_info}, Total backups: {backup_count}"
-            )
-        else:
+        if not backup_files:
             return ComponentHealth(
                 status="down",
                 message="No backups found"
             )
 
-    except subprocess.TimeoutExpired:
+        # Sort by filename (contains timestamp) and get latest
+        backup_files.sort(reverse=True)
+        latest_backup = backup_files[0]
+
+        # Parse filename: backup_YYYYMMDD_HHMMSS.sql.gz
+        filename = latest_backup.name
+        parts = filename.split("_")
+
+        if len(parts) >= 3:
+            date_str = parts[1]  # YYYYMMDD
+            time_str = parts[2].replace(".sql.gz", "")  # HHMMSS
+
+            formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+            formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+            backup_datetime = f"{formatted_date} {formatted_time}"
+        else:
+            backup_datetime = filename
+
+        # Get file size
+        backup_size_mb = latest_backup.stat().st_size / (1024 * 1024)
+
+        # Check if backup is recent (< 26 hours old)
+        backup_age_seconds = time.time() - latest_backup.stat().st_mtime
+        backup_age_hours = backup_age_seconds / 3600
+
+        # Status: up if backup is recent and size > 100KB
+        status = "up" if (backup_age_hours < 26 and backup_size_mb > 0.1) else "down"
+
         return ComponentHealth(
-            status="down",
-            message="Backup health check timed out"
+            status=status,
+            message=f"Latest: {backup_datetime}, File: {filename}, Size: {backup_size_mb:.2f} MB, Total backups: {len(backup_files)}"
         )
-    except json.JSONDecodeError as e:
-        return ComponentHealth(
-            status="down",
-            message=f"Failed to parse backup health check output: {str(e)}"
-        )
+
     except Exception as e:
         return ComponentHealth(
             status="down",
-            message=f"Backup health check error: {str(e)}"
+            message=f"Backup check error: {str(e)}"
         )
 
 
