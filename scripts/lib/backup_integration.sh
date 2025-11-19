@@ -35,11 +35,16 @@ setup_backup_cron() {
     # Add cron job for daily backups at 2 AM (works with or without S3)
     local cron_cmd="0 2 * * * cd $DEPLOY_DIR && bash scripts/backup.sh >> logs/backup.log 2>&1"
 
-    # Check if cron job already exists
-    if crontab -l 2>/dev/null | grep -q "$DEPLOY_DIR/scripts/backup.sh"; then
-        info "Backup cron job already exists"
-    else
-        (crontab -l 2>/dev/null; echo "$cron_cmd") | crontab -
-        success "Backup cron job added (daily at 2 AM)"
+    # Remove any existing backup.sh cron entries (to avoid duplicates on redeploy)
+    local existing_cron=$(crontab -l 2>/dev/null || true)
+    local updated_cron=$(echo "$existing_cron" | grep -v "scripts/backup.sh" || true)
+
+    # Check if we actually removed something
+    if [[ "$existing_cron" != "$updated_cron" ]]; then
+        info "Removing old backup cron job(s)..."
     fi
+
+    # Add new cron entry
+    (echo "$updated_cron"; echo "$cron_cmd") | crontab -
+    success "Backup cron job configured (daily at 2 AM)"
 }
