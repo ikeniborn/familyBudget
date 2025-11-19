@@ -388,6 +388,17 @@ main() {
         esac
     done
 
+    # Load environment variables from .env
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        set -a
+        source "$PROJECT_ROOT/.env"
+        set +a
+    else
+        echo "ERROR: .env file not found at $PROJECT_ROOT/.env"
+        echo "Please run this script from the project directory or create .env file"
+        exit 2
+    fi
+
     # Initialize
     create_directories
     print_banner
