@@ -13,6 +13,7 @@ Schemas:
     CostCenters: CostCenterCreate, CostCenterUpdate, CostCenterResponse, CostCenterListResponse
     Facts: FactCreate, FactUpdate, FactResponse, FactListResponse, FactSummary
     Notifications: NotificationCreate, NotificationRead, NotificationList
+    Import: ImportUploadResponse, ImportStagingResponse, ImportStagingListResponse, ImportStagingUpdate, ImportStagingBulkUpdate, ImportExecuteResponse, ImportCleanupResponse
     Errors: ErrorResponse, ValidationErrorResponse, get_common_responses
 """
 
@@ -48,6 +49,16 @@ from backend.app.schemas.financial_center import (
     FinancialCenterListResponse,
     FinancialCenterResponse,
     FinancialCenterUpdate,
+)
+from backend.app.schemas.import_schema import (
+    ImportCleanupResponse,
+    ImportExecuteResponse,
+    ImportStagingBulkUpdate,
+    ImportStagingBulkUpdateResponse,
+    ImportStagingListResponse,
+    ImportStagingResponse,
+    ImportStagingUpdate,
+    ImportUploadResponse,
 )
 from backend.app.schemas.notification import (
     NotificationCreate,
@@ -98,6 +109,15 @@ __all__ = [
     "NotificationCreate",
     "NotificationRead",
     "NotificationList",
+    # Import schemas
+    "ImportUploadResponse",
+    "ImportStagingResponse",
+    "ImportStagingListResponse",
+    "ImportStagingUpdate",
+    "ImportStagingBulkUpdate",
+    "ImportStagingBulkUpdateResponse",
+    "ImportExecuteResponse",
+    "ImportCleanupResponse",
     # Error schemas
     "ErrorResponse",
     "ValidationErrorResponse",

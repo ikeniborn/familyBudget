@@ -1,0 +1,702 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">📥 Импорт транзакций Tinkoff</h1>
+        <p class="text-base-content/70">Загрузите CSV файл из Tinkoff, обогатите транзакции категориями и ЦФО, затем импортируйте в бюджет</p>
+    </div>
+
+    <!-- Upload CSV Section -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">📤 Шаг 1: Загрузка CSV</h2>
+            <form id="upload-form" onsubmit="uploadCSV(event)" class="space-y-4">
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">📄 Выберите CSV файл из Tinkoff</span>
+                    </label>
+                    <input type="file" id="csv-file" accept=".csv" required class="file-input file-input-bordered file-input-primary w-full max-w-xs" />
+                    <label class="label">
+                        <span class="label-text-alt">Формат: CSV экспорт из мобильного приложения Tinkoff</span>
+                    </label>
+                </div>
+
+                <div class="flex gap-2 items-center">
+                    <div class="form-control">
+                        <label class="label cursor-pointer gap-2">
+                            <input type="checkbox" id="skip-failed" checked class="checkbox checkbox-sm" />
+                            <span class="label-text">Пропустить FAILED транзакции</span>
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label class="label cursor-pointer gap-2">
+                            <input type="checkbox" id="skip-internal" checked class="checkbox checkbox-sm" />
+                            <span class="label-text">Пропустить внутренние переводы</span>
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary gap-2" id="upload-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Загрузить и разобрать CSV
+                </button>
+            </form>
+
+            <div id="upload-result" class="mt-4"></div>
+        </div>
+    </div>
+
+    <!-- Staging Table Section -->
+    <div class="card bg-base-100 shadow-lg" id="staging-section" style="display: none;">
+        <div class="card-body">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="card-title text-2xl">📋 Шаг 2: Обогащение транзакций</h2>
+                <div id="staging-stats" class="stats shadow">
+                    <div class="stat py-2 px-4">
+                        <div class="stat-title text-xs">Всего</div>
+                        <div class="stat-value text-2xl" id="stat-total">0</div>
+                    </div>
+                    <div class="stat py-2 px-4">
+                        <div class="stat-title text-xs">Выбрано</div>
+                        <div class="stat-value text-2xl text-primary" id="stat-selected">0</div>
+                    </div>
+                    <div class="stat py-2 px-4">
+                        <div class="stat-title text-xs">Готово к импорту</div>
+                        <div class="stat-value text-2xl text-success" id="stat-ready">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Operations Toolbar -->
+            <div class="bg-base-200 p-4 rounded-lg mb-4" id="bulk-toolbar">
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div class="form-control">
+                        <label class="label cursor-pointer gap-2">
+                            <input type="checkbox" id="select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll()" />
+                            <span class="label-text font-semibold">Выбрать все</span>
+                        </label>
+                    </div>
+
+                    <div class="divider divider-horizontal"></div>
+
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">Категория (массово)</span>
+                        </label>
+                        <select id="bulk-article" class="select select-bordered select-sm w-full">
+                            <option value="">-- Выберите категорию --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">ЦФО (массово)</span>
+                        </label>
+                        <select id="bulk-fc" class="select select-bordered select-sm w-full">
+                            <option value="">-- Выберите ЦФО --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">МВЗ (массово)</span>
+                        </label>
+                        <select id="bulk-cc" class="select select-bordered select-sm w-full">
+                            <option value="">-- Выберите МВЗ --</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-sm btn-primary" onclick="applyBulkUpdate()">
+                        ✅ Применить к выбранным
+                    </button>
+                </div>
+            </div>
+
+            <!-- Staging Table -->
+            <div id="staging-table-container" class="overflow-x-auto">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2 mt-4" id="action-buttons">
+                <button class="btn btn-success gap-2" onclick="executeImport()" id="execute-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Импортировать выбранные
+                </button>
+                <button class="btn btn-warning gap-2" onclick="cleanupStaging(true)">
+                    🗑️ Очистить выбранные
+                </button>
+                <button class="btn btn-error btn-outline gap-2" onclick="cleanupStaging(false)">
+                    ⚠️ Очистить все
+                </button>
+                <button class="btn btn-ghost gap-2" onclick="refreshStaging()">
+                    🔄 Обновить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Result Section -->
+    <div id="import-result-section" class="card bg-base-100 shadow-lg" style="display: none;">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">📊 Результат импорта</h2>
+            <div id="import-result-content"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global state
+let stagingData = [];
+let articlesData = [];
+let financialCentersData = [];
+let costCentersData = [];
+
+// Load reference data on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadReferenceData();
+});
+
+// Load articles, FC, CC for dropdowns
+async function loadReferenceData() {
+    try {
+        // Load articles (current, active only)
+        const articlesResp = await fetch('/api/v1/articles?include_inactive=false', {
+            credentials: 'include'
+        });
+        if (articlesResp.ok) {
+            const data = await articlesResp.json();
+            articlesData = data.articles || [];
+        }
+
+        // Load financial centers (current only)
+        const fcResp = await fetch('/api/v1/financial-centers', {
+            credentials: 'include'
+        });
+        if (fcResp.ok) {
+            const data = await fcResp.json();
+            financialCentersData = data.financial_centers || [];
+        }
+
+        // Load cost centers (current only)
+        const ccResp = await fetch('/api/v1/cost-centers', {
+            credentials: 'include'
+        });
+        if (ccResp.ok) {
+            const data = await ccResp.json();
+            costCentersData = data.cost_centers || [];
+        }
+
+        populateBulkDropdowns();
+    } catch (error) {
+        console.error('Error loading reference data:', error);
+    }
+}
+
+// Populate bulk operation dropdowns
+function populateBulkDropdowns() {
+    // Articles
+    const bulkArticle = document.getElementById('bulk-article');
+    bulkArticle.innerHTML = '<option value="">-- Выберите категорию --</option>';
+    articlesData.forEach(article => {
+        const indent = '  '.repeat(article.depth || 0);
+        const icon = article.type === 'income' ? '💰' : '💸';
+        bulkArticle.innerHTML += `<option value="${article.id}">${indent}${icon} ${article.name}</option>`;
+    });
+
+    // Financial Centers
+    const bulkFc = document.getElementById('bulk-fc');
+    bulkFc.innerHTML = '<option value="">-- Выберите ЦФО --</option>';
+    financialCentersData.forEach(fc => {
+        bulkFc.innerHTML += `<option value="${fc.id}">${fc.name}</option>`;
+    });
+
+    // Cost Centers
+    const bulkCc = document.getElementById('bulk-cc');
+    bulkCc.innerHTML = '<option value="">-- Выберите МВЗ --</option>';
+    bulkCc.innerHTML += '<option value="null">❌ Убрать МВЗ</option>';
+    costCentersData.forEach(cc => {
+        bulkCc.innerHTML += `<option value="${cc.id}">${cc.name}</option>`;
+    });
+}
+
+// Upload CSV
+async function uploadCSV(event) {
+    event.preventDefault();
+
+    const fileInput = document.getElementById('csv-file');
+    const skipFailed = document.getElementById('skip-failed').checked;
+    const skipInternal = document.getElementById('skip-internal').checked;
+    const uploadBtn = document.getElementById('upload-btn');
+    const resultDiv = document.getElementById('upload-result');
+
+    if (!fileInput.files || fileInput.files.length === 0) {
+        resultDiv.innerHTML = '<div class="alert alert-error"><span>❌ Выберите файл</span></div>';
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<span class="loading loading-spinner"></span> Загрузка...';
+    resultDiv.innerHTML = '';
+
+    try {
+        const url = `/api/v1/import/tinkoff-csv?skip_failed=${skipFailed}&skip_internal_transfers=${skipInternal}`;
+        const response = await fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        if (!response.ok) {
+            let errorMessage = `HTTP ${response.status}`;
+            try {
+                const data = await response.json();
+                console.error('Server error response:', data);
+
+                // Handle detail - can be string or object
+                if (data.detail) {
+                    if (typeof data.detail === 'string') {
+                        errorMessage = data.detail;
+                    } else {
+                        // detail is an object (e.g. Pydantic validation error)
+                        errorMessage = JSON.stringify(data.detail, null, 2);
+                    }
+                } else {
+                    errorMessage = JSON.stringify(data, null, 2);
+                }
+            } catch (e) {
+                const text = await response.text();
+                console.error('Server error text:', text);
+                errorMessage = text || errorMessage;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+
+        // Show success
+        resultDiv.innerHTML = `
+            <div class="alert alert-success">
+                <span>✅ CSV загружен успешно!</span>
+            </div>
+            <div class="stats stats-vertical sm:stats-horizontal shadow mt-2">
+                <div class="stat">
+                    <div class="stat-title">Обработано</div>
+                    <div class="stat-value text-primary">${data.total_parsed}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-title">Добавлено в staging</div>
+                    <div class="stat-value text-success">${data.total_inserted}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-title">Пропущено (FAILED)</div>
+                    <div class="stat-value text-warning">${data.skipped_failed || 0}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-title">Пропущено (внутренние)</div>
+                    <div class="stat-value text-warning">${data.skipped_internal || 0}</div>
+                </div>
+            </div>
+        `;
+
+        // Load staging table
+        await loadStagingData();
+        document.getElementById('staging-section').style.display = 'block';
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        resultDiv.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${error.message}</span></div>`;
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg> Загрузить и разобрать CSV';
+    }
+}
+
+// Load staging data from API
+async function loadStagingData() {
+    const container = document.getElementById('staging-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        const response = await fetch('/api/v1/import/staging?page=1&page_size=100', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        stagingData = data.items;
+
+        updateStats();
+        renderStagingTable();
+
+    } catch (error) {
+        console.error('Error loading staging:', error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки staging: ${error.message}</span></div>`;
+    }
+}
+
+// Update statistics
+function updateStats() {
+    const total = stagingData.length;
+    const selected = stagingData.filter(s => s.is_selected).length;
+    const ready = stagingData.filter(s => s.is_selected && s.article_id && s.financial_center_id).length;
+
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-selected').textContent = selected;
+    document.getElementById('stat-ready').textContent = ready;
+}
+
+// Render staging table
+function renderStagingTable() {
+    const container = document.getElementById('staging-table-container');
+
+    if (stagingData.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📝 Нет транзакций в staging. Загрузите CSV файл.</div>';
+        return;
+    }
+
+    let tableHTML = `
+        <table class="table table-zebra table-sm">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" class="checkbox checkbox-xs" id="select-all-header" onchange="toggleSelectAll()" /></th>
+                    <th>Дата</th>
+                    <th>Сумма</th>
+                    <th>Описание</th>
+                    <th>Категория Tinkoff</th>
+                    <th>Категория бюджета</th>
+                    <th>ЦФО</th>
+                    <th>МВЗ</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    stagingData.forEach(record => {
+        const amountClass = record.tinkoff_amount.startsWith('-') ? 'text-error' : 'text-success';
+        const isReady = record.article_id && record.financial_center_id;
+        const readyBadge = isReady ? '<span class="badge badge-success badge-xs">✓</span>' : '<span class="badge badge-warning badge-xs">!</span>';
+
+        tableHTML += `
+            <tr id="row-${record.id}">
+                <td>
+                    <input type="checkbox" class="checkbox checkbox-xs row-checkbox" data-id="${record.id}" ${record.is_selected ? 'checked' : ''} onchange="toggleRowSelection(${record.id})" />
+                </td>
+                <td>${record.tinkoff_date}</td>
+                <td class="${amountClass} font-mono">${record.tinkoff_amount}</td>
+                <td class="max-w-xs truncate" title="${record.tinkoff_description || ''}">${record.tinkoff_description || '-'}</td>
+                <td class="text-xs">${record.tinkoff_category || '-'}</td>
+                <td>
+                    <select class="select select-bordered select-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
+                        <option value="">-- Выбрать --</option>
+                        ${articlesData.map(a => `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${'  '.repeat(a.depth || 0)}${a.type === 'income' ? '💰' : '💸'} ${a.name}</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <select class="select select-bordered select-xs" id="fc-${record.id}" onchange="updateRecord(${record.id}, 'financial_center_id', this.value)">
+                        <option value="">-- Выбрать --</option>
+                        ${financialCentersData.map(fc => `<option value="${fc.id}" ${fc.id === record.financial_center_id ? 'selected' : ''}>${fc.name}</option>`).join('')}
+                    </select>
+                </td>
+                <td>
+                    <select class="select select-bordered select-xs" id="cc-${record.id}" onchange="updateRecord(${record.id}, 'cost_center_id', this.value)">
+                        <option value="">-- Нет --</option>
+                        ${costCentersData.map(cc => `<option value="${cc.id}" ${cc.id === record.cost_center_id ? 'selected' : ''}>${cc.name}</option>`).join('')}
+                    </select>
+                </td>
+                <td>${readyBadge}</td>
+            </tr>
+        `;
+    });
+
+    tableHTML += '</tbody></table>';
+    container.innerHTML = tableHTML;
+
+    // Update select-all checkbox
+    updateSelectAllCheckbox();
+}
+
+// Toggle select all
+function toggleSelectAll() {
+    const selectAllChecked = document.getElementById('select-all').checked || document.getElementById('select-all-header').checked;
+
+    stagingData.forEach(record => {
+        record.is_selected = selectAllChecked;
+        const checkbox = document.querySelector(`.row-checkbox[data-id="${record.id}"]`);
+        if (checkbox) checkbox.checked = selectAllChecked;
+    });
+
+    document.getElementById('select-all').checked = selectAllChecked;
+    document.getElementById('select-all-header').checked = selectAllChecked;
+
+    updateStats();
+}
+
+// Toggle row selection
+function toggleRowSelection(id) {
+    const record = stagingData.find(r => r.id === id);
+    if (record) {
+        record.is_selected = !record.is_selected;
+        updateSelectAllCheckbox();
+        updateStats();
+
+        // Update on server
+        updateRecord(id, 'is_selected', record.is_selected);
+    }
+}
+
+// Update select-all checkbox state
+function updateSelectAllCheckbox() {
+    const allChecked = stagingData.every(r => r.is_selected);
+    const someChecked = stagingData.some(r => r.is_selected);
+
+    const selectAll = document.getElementById('select-all');
+    const selectAllHeader = document.getElementById('select-all-header');
+
+    if (selectAll) {
+        selectAll.checked = allChecked;
+        selectAll.indeterminate = !allChecked && someChecked;
+    }
+
+    if (selectAllHeader) {
+        selectAllHeader.checked = allChecked;
+        selectAllHeader.indeterminate = !allChecked && someChecked;
+    }
+}
+
+// Update single record
+async function updateRecord(id, field, value) {
+    try {
+        const payload = {};
+        payload[field] = value === '' ? null : (field === 'is_selected' ? value : parseInt(value));
+
+        const response = await fetch(`/api/v1/import/staging/${id}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.detail || 'Update failed');
+        }
+
+        const updated = await response.json();
+
+        // Update local data
+        const index = stagingData.findIndex(r => r.id === id);
+        if (index !== -1) {
+            stagingData[index] = updated;
+            updateStats();
+        }
+
+    } catch (error) {
+        console.error('Update error:', error);
+        alert(`Ошибка обновления: ${error.message}`);
+        await loadStagingData(); // Reload to reset
+    }
+}
+
+// Apply bulk update
+async function applyBulkUpdate() {
+    const articleId = document.getElementById('bulk-article').value;
+    const fcId = document.getElementById('bulk-fc').value;
+    const ccId = document.getElementById('bulk-cc').value;
+
+    if (!articleId && !fcId && !ccId) {
+        alert('Выберите хотя бы одно поле для обновления');
+        return;
+    }
+
+    const selectedIds = stagingData.filter(r => r.is_selected).map(r => r.id);
+
+    if (selectedIds.length === 0) {
+        alert('Выберите транзакции для обновления');
+        return;
+    }
+
+    const payload = {
+        ids: selectedIds,
+        updates: {}
+    };
+
+    if (articleId) payload.updates.article_id = parseInt(articleId);
+    if (fcId) payload.updates.financial_center_id = parseInt(fcId);
+    if (ccId === 'null') {
+        payload.updates.cost_center_id = null;
+    } else if (ccId) {
+        payload.updates.cost_center_id = parseInt(ccId);
+    }
+
+    try {
+        const response = await fetch('/api/v1/import/staging/bulk', {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.detail || 'Bulk update failed');
+        }
+
+        const result = await response.json();
+        alert(`✅ Обновлено записей: ${result.updated_count}`);
+
+        // Reload staging
+        await loadStagingData();
+
+    } catch (error) {
+        console.error('Bulk update error:', error);
+        alert(`Ошибка массового обновления: ${error.message}`);
+    }
+}
+
+// Execute import
+async function executeImport() {
+    const ready = stagingData.filter(s => s.is_selected && s.article_id && s.financial_center_id).length;
+    const selected = stagingData.filter(s => s.is_selected).length;
+
+    if (selected === 0) {
+        alert('Выберите транзакции для импорта');
+        return;
+    }
+
+    if (ready < selected) {
+        const notReady = selected - ready;
+        if (!confirm(`${notReady} транзакций не готовы (не назначена категория или ЦФО). Они будут пропущены. Продолжить?`)) {
+            return;
+        }
+    }
+
+    const executeBtn = document.getElementById('execute-btn');
+    executeBtn.disabled = true;
+    executeBtn.innerHTML = '<span class="loading loading-spinner"></span> Импорт...';
+
+    try {
+        const response = await fetch('/api/v1/import/staging/execute', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.detail || 'Import failed');
+        }
+
+        const result = await response.json();
+
+        // Show result
+        const resultSection = document.getElementById('import-result-section');
+        const resultContent = document.getElementById('import-result-content');
+
+        let resultHTML = `
+            <div class="stats stats-vertical sm:stats-horizontal shadow">
+                <div class="stat">
+                    <div class="stat-title">✅ Успешно</div>
+                    <div class="stat-value text-success">${result.success_count}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-title">⚠️ Пропущено</div>
+                    <div class="stat-value text-warning">${result.skipped_count}</div>
+                </div>
+            </div>
+        `;
+
+        if (result.errors && result.errors.length > 0) {
+            resultHTML += '<div class="mt-4"><h3 class="font-bold mb-2">Ошибки:</h3><ul class="list-disc list-inside space-y-1">';
+            result.errors.forEach(err => {
+                resultHTML += `<li class="text-sm text-error">${err}</li>`;
+            });
+            resultHTML += '</ul></div>';
+        }
+
+        resultContent.innerHTML = resultHTML;
+        resultSection.style.display = 'block';
+
+        // Reload staging
+        await loadStagingData();
+
+        alert(`✅ Импорт завершен!\nУспешно: ${result.success_count}\nПропущено: ${result.skipped_count}`);
+
+    } catch (error) {
+        console.error('Import error:', error);
+        alert(`Ошибка импорта: ${error.message}`);
+    } finally {
+        executeBtn.disabled = false;
+        executeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Импортировать выбранные';
+    }
+}
+
+// Cleanup staging
+async function cleanupStaging(selectedOnly) {
+    const count = selectedOnly
+        ? stagingData.filter(s => s.is_selected).length
+        : stagingData.length;
+
+    if (count === 0) {
+        alert('Нет записей для удаления');
+        return;
+    }
+
+    const message = selectedOnly
+        ? `Удалить ${count} выбранных записей из staging?`
+        : `⚠️ Удалить ВСЕ ${count} записей из staging? Это действие необратимо!`;
+
+    if (!confirm(message)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/import/staging?selected_only=${selectedOnly}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.detail || 'Cleanup failed');
+        }
+
+        const result = await response.json();
+        alert(`✅ Удалено записей: ${result.deleted_count}`);
+
+        // Reload staging
+        await loadStagingData();
+
+        // Hide staging section if empty
+        if (stagingData.length === 0) {
+            document.getElementById('staging-section').style.display = 'none';
+        }
+
+    } catch (error) {
+        console.error('Cleanup error:', error);
+        alert(`Ошибка удаления: ${error.message}`);
+    }
+}
+
+// Refresh staging
+async function refreshStaging() {
+    await loadStagingData();
+}
+</script>
+{% endblock %}
