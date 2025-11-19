@@ -163,6 +163,9 @@
                 </div>
             </div>
 
+            <!-- Pagination -->
+            <div id="pagination-container" class="flex justify-center mt-4"></div>
+
             <!-- Action Buttons -->
             <div class="flex flex-col sm:flex-row gap-2 mt-4" id="action-buttons">
                 <button class="btn btn-success gap-2 w-full sm:w-auto" onclick="executeImport()" id="execute-btn">
@@ -202,6 +205,11 @@ let stagingTotal = 0; // Total count from API (not limited by pagination)
 let articlesData = [];
 let financialCentersData = [];
 let costCentersData = [];
+
+// Pagination state
+let currentPage = 1;
+const pageSize = 50;
+let totalPages = 1;
 
 // Custom confirm dialog (русский язык)
 function showConfirmDialog(title, message) {
@@ -576,7 +584,8 @@ async function uploadCSV(event) {
             </div>
         `;
 
-        // Load staging table
+        // Load staging table (reset to page 1)
+        currentPage = 1;
         await loadStagingData();
         document.getElementById('staging-section').style.display = 'block';
 
@@ -590,12 +599,12 @@ async function uploadCSV(event) {
 }
 
 // Load staging data from API
-async function loadStagingData() {
+async function loadStagingData(page = currentPage) {
     const container = document.getElementById('staging-table-container');
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
-        const response = await fetch('/api/v1/import/staging?page=1&page_size=100', {
+        const response = await fetch(`/api/v1/import/staging?page=${page}&page_size=${pageSize}`, {
             credentials: 'include'
         });
 
@@ -606,9 +615,12 @@ async function loadStagingData() {
         const data = await response.json();
         stagingData = data.items;
         stagingTotal = data.total; // Save total count from API
+        currentPage = page;
+        totalPages = Math.ceil(stagingTotal / pageSize);
 
         updateStats();
         renderStagingTable();
+        renderPagination();
 
     } catch (error) {
         console.error('Error loading staging:', error);
@@ -987,7 +999,8 @@ async function executeImport() {
             }
         }
 
-        // Reload staging
+        // Reload staging (reset to page 1)
+        currentPage = 1;
         await loadStagingData();
 
         showNotification(`Импорт завершен! Успешно: ${result.success_count}, Пропущено: ${result.skipped_count}`, 'success');
@@ -1036,7 +1049,10 @@ async function cleanupStaging(selectedOnly) {
         const result = await response.json();
         showNotification(`Удалено записей: ${result.deleted_count}`, 'success');
 
-        // Reload staging
+        // Reload staging (reset to page 1 if cleaning all)
+        if (!selectedOnly) {
+            currentPage = 1;
+        }
         await loadStagingData();
 
         // Hide staging section if empty
@@ -1099,6 +1115,106 @@ function clearFilters() {
     document.getElementById('search-tinkoff-category').value = '';
     document.getElementById('search-description').value = '';
     filterTable();
+}
+
+// Render pagination controls
+function renderPagination() {
+    const container = document.getElementById('pagination-container');
+
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let paginationHTML = '<div class="join">';
+
+    // Previous button
+    paginationHTML += `
+        <button class="join-item btn btn-sm ${currentPage === 1 ? 'btn-disabled' : ''}"
+                onclick="prevPage()"
+                ${currentPage === 1 ? 'disabled' : ''}>
+            «
+        </button>
+    `;
+
+    // Page numbers (show max 5 pages)
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage < maxVisiblePages - 1) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    // First page + ellipsis
+    if (startPage > 1) {
+        paginationHTML += `<button class="join-item btn btn-sm" onclick="goToPage(1)">1</button>`;
+        if (startPage > 2) {
+            paginationHTML += `<button class="join-item btn btn-sm btn-disabled">...</button>`;
+        }
+    }
+
+    // Page numbers
+    for (let i = startPage; i <= endPage; i++) {
+        paginationHTML += `
+            <button class="join-item btn btn-sm ${i === currentPage ? 'btn-active' : ''}"
+                    onclick="goToPage(${i})">
+                ${i}
+            </button>
+        `;
+    }
+
+    // Ellipsis + last page
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            paginationHTML += `<button class="join-item btn btn-sm btn-disabled">...</button>`;
+        }
+        paginationHTML += `<button class="join-item btn btn-sm" onclick="goToPage(${totalPages})">${totalPages}</button>`;
+    }
+
+    // Next button
+    paginationHTML += `
+        <button class="join-item btn btn-sm ${currentPage === totalPages ? 'btn-disabled' : ''}"
+                onclick="nextPage()"
+                ${currentPage === totalPages ? 'disabled' : ''}>
+            »
+        </button>
+    `;
+
+    paginationHTML += '</div>';
+
+    // Info text
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, stagingTotal);
+    paginationHTML += `
+        <div class="text-sm text-base-content/60 mt-2">
+            Показано ${start}-${end} из ${stagingTotal} записей
+        </div>
+    `;
+
+    container.innerHTML = paginationHTML;
+}
+
+// Navigate to specific page
+async function goToPage(page) {
+    if (page < 1 || page > totalPages || page === currentPage) {
+        return;
+    }
+    await loadStagingData(page);
+}
+
+// Navigate to next page
+async function nextPage() {
+    if (currentPage < totalPages) {
+        await goToPage(currentPage + 1);
+    }
+}
+
+// Navigate to previous page
+async function prevPage() {
+    if (currentPage > 1) {
+        await goToPage(currentPage - 1);
+    }
 }
 </script>
 {% endblock %}
