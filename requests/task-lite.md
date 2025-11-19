@@ -44,6 +44,8 @@ import:1492 Error loading all staging: Error: {"message":"Validation error","err
     at async filterTable (import:1411:9)
 loadAllStagingData	@	import:1492
 
+ИСпарвь фильтрацию загруденных строк. Не изменяй фукнциональность. Только исправь пробелму
+
 ---
 
 ## Процесс
