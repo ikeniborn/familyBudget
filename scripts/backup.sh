@@ -21,8 +21,8 @@
 #   POSTGRES_PASSWORD     PostgreSQL password (optional, for non-Docker mode)
 #
 # Environment Variables Optional (for S3):
-#   AWS_ACCESS_KEY_ID      Yandex Object Storage access key
-#   AWS_SECRET_ACCESS_KEY  Yandex Object Storage secret key
+#   S3_ACCESS_KEY_ID       S3/Yandex Object Storage access key
+#   S3_SECRET_ACCESS_KEY   S3/Yandex Object Storage secret key
 #   S3_BUCKET_NAME         S3 bucket name
 #   S3_ENDPOINT_URL        S3 endpoint URL (default: https://storage.yandexcloud.net)
 #
@@ -261,14 +261,20 @@ should_upload_to_s3() {
 }
 
 check_s3_config() {
-    if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$S3_BUCKET_NAME" ]; then
+    # Check S3_* variables from .env (matches docker-compose.yml naming)
+    if [ -z "$S3_ACCESS_KEY_ID" ] || [ -z "$S3_SECRET_ACCESS_KEY" ] || [ -z "$S3_BUCKET_NAME" ]; then
         log_warn "S3 credentials not configured, skipping upload"
-        log_warn "Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET_NAME to enable"
+        log_warn "Set S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_NAME to enable"
         return 1
     fi
 
+    # Export as AWS_* for aws-cli compatibility
+    export AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY_ID"
+    export AWS_SECRET_ACCESS_KEY="$S3_SECRET_ACCESS_KEY"
+
     debug "S3_BUCKET_NAME: $S3_BUCKET_NAME"
     debug "S3_ENDPOINT_URL: $S3_ENDPOINT_URL"
+    debug "AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:0:10}***"
 
     return 0
 }

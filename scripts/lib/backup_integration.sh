@@ -24,12 +24,12 @@ setup_backup_cron() {
     set +a
 
     # Check if S3 backup is configured (optional)
-    if [[ -n "${S3_BUCKET_NAME:-}" ]] && [[ -n "${AWS_ACCESS_KEY_ID:-}" ]]; then
+    if [[ -n "${S3_BUCKET_NAME:-}" ]] && [[ -n "${S3_ACCESS_KEY_ID:-}" ]]; then
         info "S3 backup is configured: s3://${S3_BUCKET_NAME}"
         info "Weekly S3 uploads will occur on Sundays"
     else
         info "S3 backup not configured - only local backups will be created"
-        info "To enable S3: configure S3_BUCKET_NAME, AWS_ACCESS_KEY_ID in .env"
+        info "To enable S3: configure S3_BUCKET_NAME, S3_ACCESS_KEY_ID in .env"
     fi
 
     # Add cron job for daily backups at 2 AM (works with or without S3)
