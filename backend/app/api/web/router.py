@@ -291,13 +291,13 @@ async def notifications(
     )
 
 
-@web_router.get("/admin/import", response_class=HTMLResponse)
-async def admin_import(
+@web_router.get("/import", response_class=HTMLResponse)
+async def import_page(
     request: Request,
-    current_admin: CurrentAdmin
+    current_user: CurrentUser
 ):
     """
-    Admin Tinkoff CSV import page (admin only).
+    Tinkoff CSV import page (all authenticated users).
 
     Provides interface for importing transactions from Tinkoff bank CSV:
     - Upload CSV file
@@ -315,7 +315,7 @@ async def admin_import(
         "admin_import.html",
         {
             "request": request,
-            "user": current_admin,
+            "user": current_user,
             "page_title": "Импорт Tinkoff"
         }
     )

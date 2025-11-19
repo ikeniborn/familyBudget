@@ -123,6 +123,7 @@
                 <li><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Транзакции</a></li>
                 <li><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">План</a></li>
                 <li><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}" aria-current="{% if '/notifications' in request.url.path %}page{% endif %}">🔔 Уведомления</a></li>
+                <li><a href="/import" class="{% if '/import' in request.url.path %}active{% endif %}" aria-current="{% if '/import' in request.url.path %}page{% endif %}">📥 Импорт</a></li>
                 {% endif %}
 
                 {% if user and user.is_admin %}
@@ -134,7 +135,6 @@
                             <li><a href="/admin/articles" class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Категории</a></li>
                             <li><a href="/admin/financial-centers" class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 ЦФО</a></li>
                             <li><a href="/admin/cost-centers" class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 МВЗ</a></li>
-                            <li><a href="/admin/import" class="{% if '/admin/import' in request.url.path %}active{% endif %}">📥 Импорт</a></li>
                             <li><a href="/admin/monitoring" class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
                         </ul>
                     </details>
@@ -271,6 +271,7 @@
                     <li><a href="/facts">Транзакции</a></li>
                     <li><a href="/plan">План</a></li>
                     <li><a href="/notifications">🔔 Уведомления</a></li>
+                    <li><a href="/import">📥 Импорт</a></li>
                     {% endif %}
 
                     {% if user and user.is_admin %}
@@ -279,7 +280,6 @@
                         <li><a href="/admin/articles">📁 Категории</a></li>
                         <li><a href="/admin/financial-centers">🏢 ЦФО</a></li>
                         <li><a href="/admin/cost-centers">💼 МВЗ</a></li>
-                        <li><a href="/admin/import">📥 Импорт</a></li>
                         <li><a href="/admin/monitoring">🔍 Мониторинг</a></li>
                     {% endif %}
                     {% if user %}
