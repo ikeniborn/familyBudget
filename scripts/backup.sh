@@ -194,21 +194,6 @@ remove_lock() {
     fi
 }
 
-create_directories() {
-    # Create directories FIRST (before any logging to file)
-    mkdir -p "$BACKUP_DIR"
-    mkdir -p "$LOG_DIR"
-
-    # Set permissions: 755 for directories (readable by all, writable by owner)
-    # This allows backend container (running as appuser) to read backups for health checks
-    chmod 755 "$BACKUP_DIR"
-    chmod 755 "$LOG_DIR"
-
-    # Now we can safely log (LOG_DIR exists)
-    log_info "Creating backup directories..."
-    log_success "Directories created: $BACKUP_DIR, $LOG_DIR"
-}
-
 perform_backup() {
     log_info "Starting PostgreSQL backup..."
     log_info "Target: $BACKUP_PATH"
@@ -381,6 +366,13 @@ generate_backup_report() {
 # ============================================================================
 
 main() {
+    # Create directories FIRST - before any logging to file
+    # This must happen BEFORE any log/debug/info calls that use tee
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$LOG_DIR"
+    chmod 755 "$BACKUP_DIR"
+    chmod 755 "$LOG_DIR"
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -417,8 +409,8 @@ main() {
     fi
 
     # Initialize
-    create_directories
     print_banner
+    log_info "Backup directories ready: $BACKUP_DIR, $LOG_DIR"
 
     # Create lock file
     if ! create_lock; then
