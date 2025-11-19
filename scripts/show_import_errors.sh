@@ -5,53 +5,44 @@
 echo "🔍 Checking backend logs for import errors..."
 echo ""
 
-# Detect docker compose command
-if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
-elif docker compose version &> /dev/null; then
-    DOCKER_COMPOSE="docker compose"
-else
-    echo "❌ Neither 'docker compose' nor 'docker-compose' found!"
+# Find backend container name
+BACKEND_CONTAINER=$(docker ps --filter "name=backend" --format "{{.Names}}" | head -1)
+
+if [ -z "$BACKEND_CONTAINER" ]; then
+    echo "❌ Backend container is NOT running!"
+    echo ""
+    echo "Current docker containers:"
+    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
     exit 1
 fi
 
-# Check if in /opt/budget
-if [ -f "docker-compose.yml" ] || [ -f "compose.yaml" ]; then
-    echo "✅ Found docker compose configuration"
-else
-    echo "⚠️  Not in docker compose directory. Trying /opt/budget..."
-    cd /opt/budget 2>/dev/null || {
-        echo "❌ Could not find docker compose directory!"
-        echo "   Please run from /opt/budget or ~/familyBudget"
-        exit 1
-    }
-fi
+echo "✅ Found backend container: $BACKEND_CONTAINER"
 
 echo ""
 echo "📊 Backend container status:"
-$DOCKER_COMPOSE ps backend
+docker ps --filter "name=backend" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🔴 ERRORS in last 200 lines:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-$DOCKER_COMPOSE logs backend --tail=200 | grep -i -A 5 -B 2 "error\|exception\|traceback\|failed"
+docker logs "$BACKEND_CONTAINER" --tail=200 2>&1 | grep -i -A 5 -B 2 "error\|exception\|traceback\|failed"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📥 IMPORT-related logs in last 200 lines:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-$DOCKER_COMPOSE logs backend --tail=200 | grep -i "import\|tinkoff\|staging\|csv"
+docker logs "$BACKEND_CONTAINER" --tail=200 2>&1 | grep -i "import\|tinkoff\|staging\|csv"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🔄 Last 30 lines of backend logs:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-$DOCKER_COMPOSE logs backend --tail=30
+docker logs "$BACKEND_CONTAINER" --tail=30 2>&1
 
 echo ""
 echo "💡 To follow live logs:"
-echo "   cd /opt/budget && $DOCKER_COMPOSE logs backend -f"
+echo "   docker logs $BACKEND_CONTAINER -f"
 echo ""
 echo "💡 To test import endpoint:"
 echo "   1. Open browser to https://budget-dev.ikeniborn.ru/import"

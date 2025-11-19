@@ -5,75 +5,79 @@
 echo "🔍 Checking Tinkoff Import Infrastructure..."
 echo ""
 
-# Detect docker compose command
-if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
-elif docker compose version &> /dev/null; then
-    DOCKER_COMPOSE="docker compose"
-else
-    echo "❌ Neither 'docker compose' nor 'docker-compose' found!"
-    exit 1
-fi
-
-echo "Using: $DOCKER_COMPOSE"
-echo ""
-
 DB_NAME="${DB_NAME:-familybudget}"
 DB_USER="${DB_USER:-postgres}"
+BUDGET_DIR="/opt/budget"
+
+# Find backend container name
+BACKEND_CONTAINER=$(docker ps --filter "name=backend" --format "{{.Names}}" | head -1)
+POSTGRES_CONTAINER=$(docker ps --filter "name=postgres" --format "{{.Names}}" | head -1)
 
 echo "📊 1. Checking if backend container is running..."
-if $DOCKER_COMPOSE ps backend | grep -q "Up"; then
-    echo "✅ Backend container is running"
+if [ -n "$BACKEND_CONTAINER" ]; then
+    echo "✅ Backend container is running: $BACKEND_CONTAINER"
     echo ""
     echo "📊 2. Checking Alembic migration status..."
-    $DOCKER_COMPOSE exec -T backend alembic current || {
+    docker exec -i "$BACKEND_CONTAINER" alembic current 2>/dev/null || {
         echo "⚠️  Could not check Alembic status"
     }
 else
-    echo "⚠️  Backend container is NOT running. Skipping Alembic check."
-    echo "   To start: cd /opt/budget && docker compose up -d"
+    echo "❌ Backend container is NOT running!"
+    echo "   To start: cd /opt/budget && docker-compose up -d backend"
+    echo ""
+    echo "   Current docker containers:"
+    docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
 fi
 
 echo ""
 echo "📋 3. Checking if t_import_staging table exists..."
-if $DOCKER_COMPOSE exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -c "\d t_import_staging" 2>/dev/null | grep -q "Table"; then
-    echo "✅ Table t_import_staging exists"
+if [ -n "$POSTGRES_CONTAINER" ]; then
+    if docker exec -i "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "\d t_import_staging" 2>/dev/null | grep -q "Table"; then
+        echo "✅ Table t_import_staging exists"
 
-    echo ""
-    echo "📊 4. Checking table structure..."
-    $DOCKER_COMPOSE exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -c "\d+ t_import_staging" 2>/dev/null
+        echo ""
+        echo "📊 4. Checking table structure..."
+        docker exec -i "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "\d+ t_import_staging" 2>/dev/null | head -30
 
-    echo ""
-    echo "📈 5. Checking staging records count..."
-    $DOCKER_COMPOSE exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) as staging_count FROM t_import_staging;" 2>/dev/null
+        echo ""
+        echo "📈 5. Checking staging records count..."
+        docker exec -i "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -c "SELECT COUNT(*) as staging_count FROM t_import_staging;" 2>/dev/null
+    else
+        echo "❌ Table t_import_staging does NOT exist!"
+        echo "   Need to run migration:"
+        echo "   docker exec -it $BACKEND_CONTAINER alembic upgrade head"
+    fi
 else
-    echo "❌ Table t_import_staging does NOT exist!"
-    echo "   Need to run migration: alembic upgrade head"
+    echo "❌ Postgres container is NOT running!"
 fi
 
 echo ""
-echo "🔑 6. Checking import endpoints in router..."
-if [ -f "backend/app/api/v1/router.py" ]; then
-    grep -n "import_router" backend/app/api/v1/router.py && echo "✅ import_router found in v1 router" || echo "⚠️  import_router not found in v1 router!"
+echo "🔑 6. Checking import endpoints in $BUDGET_DIR..."
+if [ -f "$BUDGET_DIR/backend/app/api/v1/router.py" ]; then
+    if grep -q "import_router" "$BUDGET_DIR/backend/app/api/v1/router.py"; then
+        echo "✅ import_router found in v1 router"
+    else
+        echo "❌ import_router NOT found in v1 router!"
+    fi
 else
-    echo "⚠️  Not in project root directory"
+    echo "⚠️  $BUDGET_DIR/backend/app/api/v1/router.py not found"
 fi
 
 echo ""
-echo "🔍 7. Checking import services..."
-if [ -f "backend/app/services/tinkoff_csv_parser.py" ]; then
+echo "🔍 7. Checking import services in $BUDGET_DIR..."
+if [ -f "$BUDGET_DIR/backend/app/services/tinkoff_csv_parser.py" ]; then
     echo "✅ tinkoff_csv_parser.py exists"
 else
     echo "❌ tinkoff_csv_parser.py NOT found!"
 fi
 
-if [ -f "backend/app/services/import_executor.py" ]; then
+if [ -f "$BUDGET_DIR/backend/app/services/import_executor.py" ]; then
     echo "✅ import_executor.py exists"
 else
     echo "❌ import_executor.py NOT found!"
 fi
 
-if [ -f "backend/app/models/import_staging.py" ]; then
+if [ -f "$BUDGET_DIR/backend/app/models/import_staging.py" ]; then
     echo "✅ import_staging.py model exists"
 else
     echo "❌ import_staging.py model NOT found!"
@@ -82,8 +86,16 @@ fi
 echo ""
 echo "📋 Summary of checks completed!"
 echo ""
-echo "💡 To see backend logs:"
-echo "   cd /opt/budget && $DOCKER_COMPOSE logs backend --tail=50"
-echo ""
-echo "💡 To see recent errors:"
-echo "   cd /opt/budget && $DOCKER_COMPOSE logs backend --tail=100 | grep -i error"
+if [ -n "$BACKEND_CONTAINER" ]; then
+    echo "💡 To see backend logs:"
+    echo "   docker logs $BACKEND_CONTAINER --tail=50"
+    echo ""
+    echo "💡 To follow live logs:"
+    echo "   docker logs $BACKEND_CONTAINER -f"
+    echo ""
+    echo "💡 To see recent errors:"
+    echo "   docker logs $BACKEND_CONTAINER --tail=200 | grep -i error"
+    echo ""
+    echo "💡 To apply migrations (if needed):"
+    echo "   docker exec -it $BACKEND_CONTAINER alembic upgrade head"
+fi
