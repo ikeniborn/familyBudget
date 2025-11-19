@@ -143,6 +143,7 @@ services:
     volumes:
       - ./backend:/app/backend:ro
       - ./frontend:/app/frontend:ro  # Frontend: web UI, Telegram Web Apps, shared modules
+      - ./scripts:/app/scripts:ro  # Scripts: backup health check, deployment utilities
       - ./logs:/app/logs
       - ./uploads:/app/uploads
     ports:
