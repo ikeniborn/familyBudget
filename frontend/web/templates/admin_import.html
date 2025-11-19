@@ -85,9 +85,20 @@
 
                     <div class="form-control flex-1 min-w-[200px]">
                         <label class="label py-0">
+                            <span class="label-text text-xs">Тип категории</span>
+                        </label>
+                        <select id="bulk-article-type" class="select select-bordered select-sm w-full" onchange="updateBulkCategoryType()">
+                            <option value="">-- Все типы --</option>
+                            <option value="expense">💸 Расходы</option>
+                            <option value="income">💰 Доходы</option>
+                        </select>
+                    </div>
+
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
                             <span class="label-text text-xs">Категория (массово)</span>
                         </label>
-                        <select id="bulk-article" class="select select-bordered select-sm w-full">
+                        <select id="bulk-article" class="select select-bordered w-full">
                             <option value="">-- Выберите категорию --</option>
                         </select>
                     </div>
@@ -113,6 +124,33 @@
                     <button class="btn btn-sm btn-primary" onclick="applyBulkUpdate()">
                         ✅ Применить к выбранным
                     </button>
+                </div>
+            </div>
+
+            <!-- Search Filters -->
+            <div class="bg-base-200 p-4 rounded-lg mb-4" id="search-filters">
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">🔍 Поиск по категории Tinkoff</span>
+                        </label>
+                        <input type="text" id="search-tinkoff-category" placeholder="Фильтр по категории..." class="input input-bordered input-sm w-full" oninput="filterTable()" />
+                    </div>
+
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">🔍 Поиск по описанию</span>
+                        </label>
+                        <input type="text" id="search-description" placeholder="Фильтр по описанию..." class="input input-bordered input-sm w-full" oninput="filterTable()" />
+                    </div>
+
+                    <button class="btn btn-sm btn-ghost" onclick="clearFilters()">
+                        ❌ Очистить фильтры
+                    </button>
+
+                    <div class="text-sm text-base-content/70" id="filter-stats">
+                        Показано: <span id="visible-count">0</span> из <span id="total-count">0</span>
+                    </div>
                 </div>
             </div>
 
@@ -161,10 +199,14 @@ let stagingData = [];
 let articlesData = [];
 let financialCentersData = [];
 let costCentersData = [];
+let bulkCategoryTreeSelect = null;
 
 // Load reference data on page load
 document.addEventListener('DOMContentLoaded', function() {
-    loadReferenceData();
+    loadReferenceData().then(() => {
+        // Инициализировать ChoicesCategoryTree после загрузки данных
+        updateBulkCategoryType();
+    });
 });
 
 // Load articles, FC, CC for dropdowns
@@ -203,17 +245,63 @@ async function loadReferenceData() {
     }
 }
 
-// Populate bulk operation dropdowns
-function populateBulkDropdowns() {
-    // Articles
-    const bulkArticle = document.getElementById('bulk-article');
-    bulkArticle.innerHTML = '<option value="">-- Выберите категорию --</option>';
-    articlesData.forEach(article => {
-        const indent = '  '.repeat(article.depth || 0);
-        const icon = article.type === 'income' ? '💰' : '💸';
-        bulkArticle.innerHTML += `<option value="${article.id}">${indent}${icon} ${article.name}</option>`;
-    });
+// Update bulk category filter by type
+async function updateBulkCategoryType() {
+    const selectedType = document.getElementById('bulk-article-type').value;
+    const selectElement = document.getElementById('bulk-article');
 
+    // Destroy previous instance
+    if (bulkCategoryTreeSelect) {
+        bulkCategoryTreeSelect.destroy();
+        bulkCategoryTreeSelect = null;
+    }
+
+    if (selectedType === '') {
+        // "Все типы" - показать все категории (expense + income)
+        // Используем Choices.js напрямую с объединенными данными
+        selectElement.innerHTML = '<option value="">-- Выберите категорию --</option>';
+
+        // Добавить все категории с иконками типа
+        articlesData
+            .filter(a => a.is_leaf) // Только листовые
+            .sort((a, b) => {
+                // Сортировка: сначала по типу (expense, потом income), потом по name
+                if (a.type !== b.type) return a.type === 'expense' ? -1 : 1;
+                return a.name.localeCompare(b.name, 'ru');
+            })
+            .forEach(article => {
+                const indent = '  '.repeat(article.depth || 0);
+                const icon = article.type === 'income' ? '💰' : '💸';
+                const option = document.createElement('option');
+                option.value = article.id;
+                option.textContent = `${indent}${icon} ${article.name}`;
+                selectElement.appendChild(option);
+            });
+
+        // Инициализировать Choices.js
+        bulkCategoryTreeSelect = new Choices(selectElement, {
+            searchEnabled: true,
+            searchPlaceholderValue: 'Поиск категории...',
+            noResultsText: 'Категории не найдены',
+            itemSelectText: '',
+            shouldSort: false,
+            classNames: {
+                containerOuter: 'choices-tailwind'
+            }
+        });
+    } else {
+        // Конкретный тип (expense или income) - используем ChoicesCategoryTree
+        bulkCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#bulk-article', {
+            type: selectedType,
+            showLeafOnly: true,
+            showInactive: false,
+            showPath: false
+        });
+    }
+}
+
+// Populate bulk operation dropdowns (ЦФО и МВЗ only, категории через ChoicesCategoryTree)
+function populateBulkDropdowns() {
     // Financial Centers
     const bulkFc = document.getElementById('bulk-fc');
     bulkFc.innerHTML = '<option value="">-- Выберите ЦФО --</option>';
@@ -404,19 +492,19 @@ function renderStagingTable() {
                 <td class="max-w-xs truncate" title="${record.tinkoff_description || ''}">${record.tinkoff_description || '-'}</td>
                 <td class="text-xs">${record.tinkoff_category || '-'}</td>
                 <td>
-                    <select class="select select-bordered select-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
+                    <select class="select select-bordered select-sm w-48 max-w-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
                         <option value="">-- Выбрать --</option>
                         ${articlesData.map(a => `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${'  '.repeat(a.depth || 0)}${a.type === 'income' ? '💰' : '💸'} ${a.name}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <select class="select select-bordered select-xs" id="fc-${record.id}" onchange="updateRecord(${record.id}, 'financial_center_id', this.value)">
+                    <select class="select select-bordered select-sm" id="fc-${record.id}" onchange="updateRecord(${record.id}, 'financial_center_id', this.value)">
                         <option value="">-- Выбрать --</option>
                         ${financialCentersData.map(fc => `<option value="${fc.id}" ${fc.id === record.financial_center_id ? 'selected' : ''}>${fc.name}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <select class="select select-bordered select-xs" id="cc-${record.id}" onchange="updateRecord(${record.id}, 'cost_center_id', this.value)">
+                    <select class="select select-bordered select-sm" id="cc-${record.id}" onchange="updateRecord(${record.id}, 'cost_center_id', this.value)">
                         <option value="">-- Нет --</option>
                         ${costCentersData.map(cc => `<option value="${cc.id}" ${cc.id === record.cost_center_id ? 'selected' : ''}>${cc.name}</option>`).join('')}
                     </select>
@@ -431,6 +519,9 @@ function renderStagingTable() {
 
     // Update select-all checkbox
     updateSelectAllCheckbox();
+
+    // Apply current filters
+    filterTable();
 }
 
 // Toggle select all
@@ -697,6 +788,44 @@ async function cleanupStaging(selectedOnly) {
 // Refresh staging
 async function refreshStaging() {
     await loadStagingData();
+}
+
+// Filter table (client-side filtering)
+function filterTable() {
+    const categoryFilter = document.getElementById('search-tinkoff-category')?.value.toLowerCase().trim() || '';
+    const descriptionFilter = document.getElementById('search-description')?.value.toLowerCase().trim() || '';
+
+    let visibleCount = 0;
+    const totalCount = stagingData.length;
+
+    stagingData.forEach(record => {
+        const row = document.getElementById(`row-${record.id}`);
+        if (!row) return;
+
+        const tinkoffCategory = (record.tinkoff_category || '').toLowerCase();
+        const tinkoffDescription = (record.tinkoff_description || '').toLowerCase();
+
+        const categoryMatch = !categoryFilter || tinkoffCategory.includes(categoryFilter);
+        const descriptionMatch = !descriptionFilter || tinkoffDescription.includes(descriptionFilter);
+
+        if (categoryMatch && descriptionMatch) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update filter stats
+    document.getElementById('visible-count').textContent = visibleCount;
+    document.getElementById('total-count').textContent = totalCount;
+}
+
+// Clear filters
+function clearFilters() {
+    document.getElementById('search-tinkoff-category').value = '';
+    document.getElementById('search-description').value = '';
+    filterTable();
 }
 </script>
 {% endblock %}
