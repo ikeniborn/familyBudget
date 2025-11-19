@@ -264,9 +264,12 @@ async function uploadCSV(event) {
             let errorMessage = `HTTP ${response.status}`;
             try {
                 const data = await response.json();
-                errorMessage = data.detail || errorMessage;
+                console.error('Server error response:', data);
+                errorMessage = data.detail || JSON.stringify(data);
             } catch (e) {
-                errorMessage = await response.text() || errorMessage;
+                const text = await response.text();
+                console.error('Server error text:', text);
+                errorMessage = text || errorMessage;
             }
             throw new Error(errorMessage);
         }
