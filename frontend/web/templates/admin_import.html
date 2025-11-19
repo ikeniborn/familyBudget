@@ -259,7 +259,7 @@ async function updateBulkCategoryType() {
             itemSelectText: '',
             shouldSort: false,
             classNames: {
-                containerOuter: 'choices choices-tailwind'
+                containerOuter: 'choices-tailwind'
             }
         });
     } else {
@@ -465,19 +465,19 @@ function renderStagingTable() {
                 <td class="max-w-xs truncate" title="${record.tinkoff_description || ''}">${record.tinkoff_description || '-'}</td>
                 <td class="text-xs">${record.tinkoff_category || '-'}</td>
                 <td>
-                    <select class="select select-bordered select-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
+                    <select class="select select-bordered select-sm" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
                         <option value="">-- Выбрать --</option>
                         ${articlesData.map(a => `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${'  '.repeat(a.depth || 0)}${a.type === 'income' ? '💰' : '💸'} ${a.name}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <select class="select select-bordered select-xs" id="fc-${record.id}" onchange="updateRecord(${record.id}, 'financial_center_id', this.value)">
+                    <select class="select select-bordered select-sm" id="fc-${record.id}" onchange="updateRecord(${record.id}, 'financial_center_id', this.value)">
                         <option value="">-- Выбрать --</option>
                         ${financialCentersData.map(fc => `<option value="${fc.id}" ${fc.id === record.financial_center_id ? 'selected' : ''}>${fc.name}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <select class="select select-bordered select-xs" id="cc-${record.id}" onchange="updateRecord(${record.id}, 'cost_center_id', this.value)">
+                    <select class="select select-bordered select-sm" id="cc-${record.id}" onchange="updateRecord(${record.id}, 'cost_center_id', this.value)">
                         <option value="">-- Нет --</option>
                         ${costCentersData.map(cc => `<option value="${cc.id}" ${cc.id === record.cost_center_id ? 'selected' : ''}>${cc.name}</option>`).join('')}
                     </select>
