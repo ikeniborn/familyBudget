@@ -21,8 +21,8 @@
 #   POSTGRES_PASSWORD     PostgreSQL password (optional, for non-Docker mode)
 #
 # Environment Variables Optional (for S3):
-#   AWS_ACCESS_KEY_ID      Yandex Object Storage access key
-#   AWS_SECRET_ACCESS_KEY  Yandex Object Storage secret key
+#   S3_ACCESS_KEY_ID       S3/Yandex Object Storage access key
+#   S3_SECRET_ACCESS_KEY   S3/Yandex Object Storage secret key
 #   S3_BUCKET_NAME         S3 bucket name
 #   S3_ENDPOINT_URL        S3 endpoint URL (default: https://storage.yandexcloud.net)
 #
@@ -194,18 +194,6 @@ remove_lock() {
     fi
 }
 
-create_directories() {
-    log_info "Creating backup directories..."
-
-    mkdir -p "$BACKUP_DIR"
-    mkdir -p "$LOG_DIR"
-
-    chmod 700 "$BACKUP_DIR"
-    chmod 700 "$LOG_DIR"
-
-    log_success "Directories created: $BACKUP_DIR, $LOG_DIR"
-}
-
 perform_backup() {
     log_info "Starting PostgreSQL backup..."
     log_info "Target: $BACKUP_PATH"
@@ -213,6 +201,10 @@ perform_backup() {
     # Perform pg_dump via Docker
     if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
         pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_PATH"; then
+
+        # Set file permissions: 644 (readable by all, writable by owner)
+        # This allows backend container to read the backup file for health checks
+        chmod 644 "$BACKUP_PATH"
 
         local backup_size=$(du -h "$BACKUP_PATH" | cut -f1)
         log_success "Backup created: $BACKUP_PATH ($backup_size)"
@@ -260,14 +252,20 @@ should_upload_to_s3() {
 }
 
 check_s3_config() {
-    if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$S3_BUCKET_NAME" ]; then
+    # Check S3_* variables from .env (matches docker-compose.yml naming)
+    if [ -z "$S3_ACCESS_KEY_ID" ] || [ -z "$S3_SECRET_ACCESS_KEY" ] || [ -z "$S3_BUCKET_NAME" ]; then
         log_warn "S3 credentials not configured, skipping upload"
-        log_warn "Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET_NAME to enable"
+        log_warn "Set S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET_NAME to enable"
         return 1
     fi
 
+    # Export as AWS_* for aws-cli compatibility
+    export AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY_ID"
+    export AWS_SECRET_ACCESS_KEY="$S3_SECRET_ACCESS_KEY"
+
     debug "S3_BUCKET_NAME: $S3_BUCKET_NAME"
     debug "S3_ENDPOINT_URL: $S3_ENDPOINT_URL"
+    debug "AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:0:10}***"
 
     return 0
 }
@@ -368,6 +366,13 @@ generate_backup_report() {
 # ============================================================================
 
 main() {
+    # Create directories FIRST - before any logging to file
+    # This must happen BEFORE any log/debug/info calls that use tee
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$LOG_DIR"
+    chmod 755 "$BACKUP_DIR"
+    chmod 755 "$LOG_DIR"
+
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -387,9 +392,25 @@ main() {
         esac
     done
 
+    # Load environment variables from .env
+    if [ -f "$PROJECT_ROOT/.env" ]; then
+        debug "Loading environment from: $PROJECT_ROOT/.env"
+        set -a
+        source "$PROJECT_ROOT/.env"
+        set +a
+        debug "Environment loaded successfully"
+    else
+        echo "ERROR: .env file not found at $PROJECT_ROOT/.env"
+        echo "Expected location: $PROJECT_ROOT/.env"
+        echo "Current SCRIPT_DIR: $SCRIPT_DIR"
+        echo "Current PROJECT_ROOT: $PROJECT_ROOT"
+        echo "Please ensure .env file exists in /opt/budget/.env"
+        exit 2
+    fi
+
     # Initialize
-    create_directories
     print_banner
+    log_info "Backup directories ready: $BACKUP_DIR, $LOG_DIR"
 
     # Create lock file
     if ! create_lock; then
