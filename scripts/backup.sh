@@ -199,8 +199,10 @@ create_directories() {
     mkdir -p "$BACKUP_DIR"
     mkdir -p "$LOG_DIR"
 
-    chmod 700 "$BACKUP_DIR"
-    chmod 700 "$LOG_DIR"
+    # Set permissions: 755 for directories (readable by all, writable by owner)
+    # This allows backend container (running as appuser) to read backups for health checks
+    chmod 755 "$BACKUP_DIR"
+    chmod 755 "$LOG_DIR"
 
     # Now we can safely log (LOG_DIR exists)
     log_info "Creating backup directories..."
@@ -214,6 +216,10 @@ perform_backup() {
     # Perform pg_dump via Docker
     if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
         pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_PATH"; then
+
+        # Set file permissions: 644 (readable by all, writable by owner)
+        # This allows backend container to read the backup file for health checks
+        chmod 644 "$BACKUP_PATH"
 
         local backup_size=$(du -h "$BACKUP_PATH" | cut -f1)
         log_success "Backup created: $BACKUP_PATH ($backup_size)"
