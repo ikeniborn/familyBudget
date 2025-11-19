@@ -287,6 +287,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadReferenceData().then(() => {
         // Инициализировать ChoicesCategoryTree после загрузки данных
         updateBulkCategoryType();
+
+        // Проверить есть ли данные в staging и загрузить их
+        checkAndLoadExistingStaging();
     });
 });
 
@@ -386,6 +389,29 @@ async function updateBulkCategoryType() {
     }
 }
 
+// Check and load existing staging data on page load
+async function checkAndLoadExistingStaging() {
+    try {
+        const response = await fetch('/api/v1/import/staging', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            return; // No staging data or error - just continue
+        }
+
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+            console.log('Found existing staging data:', data.length, 'records');
+            // Автоматически загрузить staging данные
+            await loadStagingData();
+        }
+    } catch (error) {
+        console.error('Error checking existing staging:', error);
+    }
+}
+
 // Populate bulk operation dropdowns (ЦФО и МВЗ only, категории через ChoicesCategoryTree)
 function populateBulkDropdowns() {
     // Financial Centers
@@ -417,6 +443,42 @@ async function uploadCSV(event) {
     if (!fileInput.files || fileInput.files.length === 0) {
         resultDiv.innerHTML = '<div class="alert alert-error"><span>❌ Выберите файл</span></div>';
         return;
+    }
+
+    // Проверить есть ли данные в staging
+    if (stagingData.length > 0) {
+        const confirmed = confirm(
+            `⚠️ ВНИМАНИЕ!\n\nВ staging уже есть ${stagingData.length} записей.\n\n` +
+            `Перед загрузкой нового файла необходимо очистить staging.\n\n` +
+            `Очистить staging и загрузить новый файл?`
+        );
+
+        if (!confirmed) {
+            return; // Пользователь отменил загрузку
+        }
+
+        // Очистить staging перед загрузкой нового файла
+        try {
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<span class="loading loading-spinner"></span> Очистка staging...';
+
+            const cleanupResponse = await fetch('/api/v1/import/staging?selected_only=false', {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (!cleanupResponse.ok) {
+                throw new Error('Не удалось очистить staging');
+            }
+
+            console.log('Staging cleared before upload');
+        } catch (error) {
+            console.error('Cleanup error:', error);
+            showNotification(`Ошибка очистки staging: ${error.message}`, 'error');
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg> Загрузить и разобрать CSV';
+            return;
+        }
     }
 
     const formData = new FormData();
