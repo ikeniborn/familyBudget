@@ -1117,6 +1117,12 @@ async function filterTable() {
 
     const hasActiveFilter = categoryFilter || descriptionFilter;
 
+    // If no data in staging, don't activate filter
+    if (hasActiveFilter && stagingTotal === 0) {
+        console.log('No staging data to filter');
+        return;
+    }
+
     // If filter activated for the first time, load ALL data
     if (hasActiveFilter && !isFilterActive) {
         isFilterActive = true;
@@ -1171,7 +1177,19 @@ async function loadAllStagingData() {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Try to get error details
+            let errorDetail = `HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                if (errorData.detail) {
+                    errorDetail = typeof errorData.detail === 'string'
+                        ? errorData.detail
+                        : JSON.stringify(errorData.detail);
+                }
+            } catch (e) {
+                // Failed to parse error response
+            }
+            throw new Error(errorDetail);
         }
 
         const data = await response.json();
@@ -1190,7 +1208,12 @@ async function loadAllStagingData() {
 
     } catch (error) {
         console.error('Error loading all staging:', error);
+
         container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${error.message}</span></div>`;
+        showNotification(`Ошибка фильтрации: ${error.message}`, 'error');
+
+        // Deactivate filter on error
+        isFilterActive = false;
     }
 }
 
