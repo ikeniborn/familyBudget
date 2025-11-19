@@ -368,8 +368,7 @@ async function updateBulkCategoryType() {
 
         // Инициализировать Choices.js с placeholder в конфигурации
         bulkCategoryTreeSelect = new Choices(selectElement, {
-            searchEnabled: true,
-            searchPlaceholderValue: 'Поиск категории...',
+            searchEnabled: false,
             placeholderValue: '-- Выберите категорию --',
             noResultsText: 'Категории не найдены',
             itemSelectText: '',
@@ -392,7 +391,7 @@ async function updateBulkCategoryType() {
 // Check and load existing staging data on page load
 async function checkAndLoadExistingStaging() {
     try {
-        const response = await fetch('/api/v1/import/staging', {
+        const response = await fetch('/api/v1/import/staging?page=1&page_size=1', {
             credentials: 'include'
         });
 
@@ -402,8 +401,10 @@ async function checkAndLoadExistingStaging() {
 
         const data = await response.json();
 
-        if (data && data.length > 0) {
-            console.log('Found existing staging data:', data.length, 'records');
+        if (data && data.items && data.items.length > 0) {
+            console.log('Found existing staging data:', data.total, 'records');
+            // Показать секцию staging
+            document.getElementById('staging-section').style.display = 'block';
             // Автоматически загрузить staging данные
             await loadStagingData();
         }
@@ -472,6 +473,13 @@ async function uploadCSV(event) {
             }
 
             console.log('Staging cleared before upload');
+
+            // Очистить локальные данные
+            stagingData = [];
+            updateStats();
+
+            // Скрыть секцию staging
+            document.getElementById('staging-section').style.display = 'none';
         } catch (error) {
             console.error('Cleanup error:', error);
             showNotification(`Ошибка очистки staging: ${error.message}`, 'error');
