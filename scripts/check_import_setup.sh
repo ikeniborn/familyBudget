@@ -19,7 +19,7 @@ if [ -n "$BACKEND_CONTAINER" ]; then
     echo "✅ Backend container is running: $BACKEND_CONTAINER"
     echo ""
     echo "📊 2. Checking Alembic migration status..."
-    docker exec -i "$BACKEND_CONTAINER" sh -c "cd /app/backend/db/migrations && alembic current" 2>/dev/null || {
+    docker exec -i "$BACKEND_CONTAINER" sh -c "cd /app && alembic -c backend/db/migrations/alembic.ini current" 2>/dev/null || {
         echo "⚠️  Could not check Alembic status"
     }
 else
@@ -35,8 +35,8 @@ echo "📋 3. Checking if t_import_staging table exists..."
 if [ -n "$POSTGRES_CONTAINER" ]; then
     echo "   Using postgres container: $POSTGRES_CONTAINER"
 
-    # Check if table exists
-    TABLE_CHECK=$(docker exec -i "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 't_import_staging');" 2>/dev/null | tr -d '[:space:]')
+    # Check if table exists by trying to query it
+    TABLE_CHECK=$(docker exec -i "$POSTGRES_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 't_import_staging');" 2>/dev/null | tr -d '[:space:]')
 
     if [ "$TABLE_CHECK" = "t" ]; then
         echo "✅ Table t_import_staging exists"
@@ -52,7 +52,7 @@ if [ -n "$POSTGRES_CONTAINER" ]; then
         echo "❌ Table t_import_staging does NOT exist!"
         echo "   Database: $DB_NAME"
         echo "   Need to run migration:"
-        echo "   docker exec -i $BACKEND_CONTAINER sh -c 'cd /app/backend/db/migrations && alembic upgrade head'"
+        echo "   docker exec -i $BACKEND_CONTAINER sh -c 'cd /app && alembic -c backend/db/migrations/alembic.ini upgrade head'"
     fi
 else
     echo "❌ Postgres container is NOT running!"
@@ -112,5 +112,5 @@ if [ -n "$BACKEND_CONTAINER" ]; then
     echo "   docker logs $BACKEND_CONTAINER --tail=200 | grep -i error"
     echo ""
     echo "💡 To apply migrations (if needed):"
-    echo "   docker exec -i $BACKEND_CONTAINER sh -c 'cd /app/backend/db/migrations && alembic upgrade head'"
+    echo "   docker exec -i $BACKEND_CONTAINER sh -c 'cd /app && alembic -c backend/db/migrations/alembic.ini upgrade head'"
 fi
