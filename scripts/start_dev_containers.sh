@@ -60,7 +60,7 @@ if $DOCKER_COMPOSE ps backend | grep -q "Up"; then
 
         echo ""
         echo "📊 Checking t_import_staging table..."
-        if $DOCKER_COMPOSE exec -T postgres psql -U postgres -d familybudget -c "\d t_import_staging" 2>/dev/null | grep -q "Table"; then
+        if $DOCKER_COMPOSE exec -T postgres psql -U familybudget -d familybudget -c "\d t_import_staging" 2>/dev/null | grep -q "Table"; then
             echo "✅ t_import_staging table exists"
         else
             echo "⚠️  t_import_staging table NOT found"

@@ -6,7 +6,7 @@ echo "🔍 Checking Tinkoff Import Infrastructure..."
 echo ""
 
 DB_NAME="${DB_NAME:-familybudget}"
-DB_USER="${DB_USER:-postgres}"
+DB_USER="${DB_USER:-familybudget}"
 BUDGET_DIR="/opt/budget"
 
 # Find backend container name
