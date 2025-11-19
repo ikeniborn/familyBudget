@@ -166,12 +166,23 @@ def check_backup_status() -> ComponentHealth:
         ComponentHealth: Backup status with latest backup info
     """
     try:
-        script_path = Path(__file__).parent.parent.parent.parent / "scripts" / "check_backup_health.sh"
+        possible_paths = [
+            Path(__file__).parent.parent.parent.parent / "scripts" / "check_backup_health.sh",
+            Path("/opt/budget/scripts/check_backup_health.sh"),
+            Path("/opt/familybudget/scripts/check_backup_health.sh"),
+        ]
 
-        if not script_path.exists():
+        script_path = None
+        for path in possible_paths:
+            if path.exists():
+                script_path = path
+                break
+
+        if not script_path:
+            searched_paths = ", ".join(str(p) for p in possible_paths)
             return ComponentHealth(
                 status="down",
-                message="Backup health check script not found"
+                message=f"Backup health check script not found. Searched: {searched_paths}"
             )
 
         result = subprocess.run(
