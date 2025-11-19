@@ -5,6 +5,7 @@ Provides comprehensive health and readiness checks for monitoring systems.
 """
 
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -189,7 +190,12 @@ def check_backup_status() -> ComponentHealth:
             capture_output=True,
             text=True,
             timeout=5,
-            check=False
+            check=False,
+            env={
+                **os.environ.copy(),
+                "BACKUP_DIR": "/app/backups",
+                "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin")
+            }
         )
 
         if result.returncode not in [0, 1, 2]:
@@ -199,9 +205,11 @@ def check_backup_status() -> ComponentHealth:
             )
 
         if not result.stdout or result.stdout.strip() == "":
+            stderr_preview = result.stderr[:500] if result.stderr else "(empty)"
+            stdout_preview = result.stdout[:200] if result.stdout else "(empty)"
             return ComponentHealth(
                 status="down",
-                message=f"Backup health check returned empty output. stderr: {result.stderr[:200]}, returncode: {result.returncode}"
+                message=f"Backup health check returned empty output. returncode: {result.returncode}, stdout: {stdout_preview}, stderr: {stderr_preview}"
             )
 
         backup_data = json.loads(result.stdout)
