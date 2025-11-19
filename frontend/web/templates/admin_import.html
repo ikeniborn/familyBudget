@@ -87,7 +87,7 @@
                         <label class="label py-0">
                             <span class="label-text text-xs">Тип категории</span>
                         </label>
-                        <select id="bulk-article-type" class="select select-bordered select-sm w-full" onchange="updateBulkCategoryType()">
+                        <select id="bulk-article-type" class="select select-bordered w-full" onchange="updateBulkCategoryType()">
                             <option value="">-- Все типы --</option>
                             <option value="expense">💸 Расходы</option>
                             <option value="income">💰 Доходы</option>
@@ -98,7 +98,7 @@
                         <label class="label py-0">
                             <span class="label-text text-xs">Категория (массово)</span>
                         </label>
-                        <select id="bulk-article" class="select select-bordered select-sm w-full">
+                        <select id="bulk-article" class="select select-bordered w-full">
                             <option value="">-- Выберите категорию --</option>
                         </select>
                     </div>
@@ -107,7 +107,7 @@
                         <label class="label py-0">
                             <span class="label-text text-xs">ЦФО (массово)</span>
                         </label>
-                        <select id="bulk-fc" class="select select-bordered select-sm w-full">
+                        <select id="bulk-fc" class="select select-bordered w-full">
                             <option value="">-- Выберите ЦФО --</option>
                         </select>
                     </div>
@@ -116,7 +116,7 @@
                         <label class="label py-0">
                             <span class="label-text text-xs">МВЗ (массово)</span>
                         </label>
-                        <select id="bulk-cc" class="select select-bordered select-sm w-full">
+                        <select id="bulk-cc" class="select select-bordered w-full">
                             <option value="">-- Выберите МВЗ --</option>
                         </select>
                     </div>
@@ -338,31 +338,36 @@ async function updateBulkCategoryType() {
     }
 
     if (selectedType === '') {
-        // "Все типы" - показать все категории (expense + income)
-        // Используем Choices.js напрямую с объединенными данными
-        selectElement.innerHTML = '<option value="">-- Выберите категорию --</option>';
+        // "Все типы" - показать все категории с иерархией
+        selectElement.innerHTML = '';  // Очистить без placeholder
 
-        // Добавить все категории с иконками типа
-        articlesData
-            .filter(a => a.is_leaf) // Только листовые
-            .sort((a, b) => {
-                // Сортировка: сначала по типу (expense, потом income), потом по name
-                if (a.type !== b.type) return a.type === 'expense' ? -1 : 1;
-                return a.name.localeCompare(b.name, 'ru');
-            })
-            .forEach(article => {
-                const indent = '  '.repeat(article.depth || 0);
-                const icon = article.type === 'income' ? '💰' : '💸';
-                const option = document.createElement('option');
-                option.value = article.id;
-                option.textContent = `${indent}${icon} ${article.name}`;
-                selectElement.appendChild(option);
-            });
+        // Сортировать и построить иерархию
+        const sorted = sortArticles(articlesData);
+        const tree = buildArticleTree(sorted);
+        const flatNodes = flattenArticleTree(tree);
 
-        // Инициализировать Choices.js
+        flatNodes.forEach(node => {
+            const option = document.createElement('option');
+            option.value = node.id;
+            const indent = '›  '.repeat(node.level);
+            const icon = node.isLeaf ? '▸' : '📂';
+            option.textContent = `${indent}${icon} ${node.name}`;
+
+            // Disable parent categories
+            if (!node.isLeaf) {
+                option.disabled = true;
+                option.style.fontWeight = 'bold';
+                option.style.opacity = '0.7';
+            }
+
+            selectElement.appendChild(option);
+        });
+
+        // Инициализировать Choices.js с placeholder в конфигурации
         bulkCategoryTreeSelect = new Choices(selectElement, {
             searchEnabled: true,
             searchPlaceholderValue: 'Поиск категории...',
+            placeholderValue: '-- Выберите категорию --',
             noResultsText: 'Категории не найдены',
             itemSelectText: '',
             shouldSort: false,
@@ -520,6 +525,53 @@ async function loadStagingData() {
     }
 }
 
+// Build hierarchical tree from flat article list
+function buildArticleTree(articles) {
+    const roots = articles.filter(a => !a.parent_id);
+
+    function buildNode(article, level = 0) {
+        const children = articles
+            .filter(a => a.parent_id === article.id)
+            .map(child => buildNode(child, level + 1));
+
+        return {
+            ...article,
+            level,
+            children,
+            isLeaf: children.length === 0
+        };
+    }
+
+    return roots.map(root => buildNode(root));
+}
+
+// Flatten tree for rendering
+function flattenArticleTree(nodes) {
+    const result = [];
+
+    function traverse(node) {
+        result.push(node);
+        if (node.children && node.children.length > 0) {
+            node.children.forEach(traverse);
+        }
+    }
+
+    nodes.forEach(traverse);
+    return result;
+}
+
+// Sort articles: first by type (expense/income), then alphabetically
+function sortArticles(articles) {
+    return [...articles].sort((a, b) => {
+        // Sort by type first (expense before income)
+        if (a.type !== b.type) {
+            return a.type === 'expense' ? -1 : 1;
+        }
+        // Then alphabetically by name
+        return a.name.localeCompare(b.name, 'ru');
+    });
+}
+
 // Update statistics
 function updateStats() {
     const total = stagingData.length;
@@ -573,19 +625,30 @@ function renderStagingTable() {
                 <td class="max-w-xs truncate" title="${record.tinkoff_description || ''}">${record.tinkoff_description || '-'}</td>
                 <td class="text-xs">${record.tinkoff_category || '-'}</td>
                 <td>
-                    <select class="select select-bordered select-sm w-48 max-w-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
+                    <select class="select select-bordered w-48 max-w-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
                         <option value="">-- Выбрать --</option>
-                        ${articlesData.map(a => `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${'  '.repeat(a.depth || 0)}${a.type === 'income' ? '💰' : '💸'} ${a.name}</option>`).join('')}
+                        ${(() => {
+                            const sorted = sortArticles(articlesData);
+                            const tree = buildArticleTree(sorted);
+                            const flatNodes = flattenArticleTree(tree);
+                            return flatNodes.map(node => {
+                                const indent = '›  '.repeat(node.level);
+                                const icon = node.isLeaf ? '▸' : '📂';
+                                const disabled = !node.isLeaf ? 'disabled' : '';
+                                const style = !node.isLeaf ? 'font-weight: bold; opacity: 0.7;' : '';
+                                return `<option value="${node.id}" ${node.id === record.article_id ? 'selected' : ''} ${disabled} style="${style}">${indent}${icon} ${node.name}</option>`;
+                            }).join('');
+                        })()}
                     </select>
                 </td>
                 <td>
-                    <select class="select select-bordered select-sm w-40 max-w-xs" id="fc-${record.id}" onchange="updateRecord(${record.id}, 'financial_center_id', this.value)">
+                    <select class="select select-bordered w-40 max-w-xs" id="fc-${record.id}" onchange="updateRecord(${record.id}, 'financial_center_id', this.value)">
                         <option value="">-- Выбрать --</option>
                         ${financialCentersData.map(fc => `<option value="${fc.id}" ${fc.id === record.financial_center_id ? 'selected' : ''}>${fc.name}</option>`).join('')}
                     </select>
                 </td>
                 <td>
-                    <select class="select select-bordered select-sm w-32 max-w-xs" id="cc-${record.id}" onchange="updateRecord(${record.id}, 'cost_center_id', this.value)">
+                    <select class="select select-bordered w-32 max-w-xs" id="cc-${record.id}" onchange="updateRecord(${record.id}, 'cost_center_id', this.value)">
                         <option value="">-- Нет --</option>
                         ${costCentersData.map(cc => `<option value="${cc.id}" ${cc.id === record.cost_center_id ? 'selected' : ''}>${cc.name}</option>`).join('')}
                     </select>
@@ -804,6 +867,22 @@ async function executeImport() {
 
         resultContent.innerHTML = resultHTML;
         resultSection.style.display = 'block';
+
+        // Auto-cleanup successfully imported records
+        if (result.success_count > 0) {
+            try {
+                const cleanupResponse = await fetch('/api/v1/import/staging?selected_only=true', {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (cleanupResponse.ok) {
+                    console.log('Auto-cleanup: successfully imported records removed from staging');
+                }
+            } catch (cleanupError) {
+                console.warn('Auto-cleanup failed:', cleanupError);
+            }
+        }
 
         // Reload staging
         await loadStagingData();
