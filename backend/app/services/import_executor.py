@@ -155,8 +155,9 @@ class ImportExecutor:
                     )
                     continue
 
-                # Parse amount
+                # Parse amount and ensure it's positive
                 amount = ImportExecutor.parse_tinkoff_amount(record.tinkoff_amount)
+                amount = abs(amount)  # Always store as positive
 
                 # Create BudgetFact
                 fact = BudgetFact(

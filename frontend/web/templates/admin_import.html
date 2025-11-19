@@ -201,6 +201,87 @@ let financialCentersData = [];
 let costCentersData = [];
 let bulkCategoryTreeSelect = null;
 
+// Notification function
+function showNotification(message, type) {
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.style.cssText = `
+        background: ${type === 'error' ? '#ef4444' : '#10b981'};
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 300px;
+        max-width: 500px;
+        font-size: 14px;
+        line-height: 1.5;
+        animation: slideIn 0.3s ease-out;
+        cursor: pointer;
+    `;
+    toast.textContent = message;
+
+    if (!document.getElementById('toast-animations')) {
+        const style = document.createElement('style');
+        style.id = 'toast-animations';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    toastContainer.appendChild(toast);
+
+    const dismissTimeout = setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+
+    toast.addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    });
+}
+
 // Load reference data on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadReferenceData().then(() => {
@@ -601,7 +682,7 @@ async function updateRecord(id, field, value) {
 
     } catch (error) {
         console.error('Update error:', error);
-        alert(`Ошибка обновления: ${error.message}`);
+        showNotification(`Ошибка обновления: ${error.message}`, 'error');
         await loadStagingData(); // Reload to reset
     }
 }
@@ -613,14 +694,14 @@ async function applyBulkUpdate() {
     const ccId = document.getElementById('bulk-cc').value;
 
     if (!articleId && !fcId && !ccId) {
-        alert('Выберите хотя бы одно поле для обновления');
+        showNotification('Выберите хотя бы одно поле для обновления', 'error');
         return;
     }
 
     const selectedIds = stagingData.filter(r => r.is_selected).map(r => r.id);
 
     if (selectedIds.length === 0) {
-        alert('Выберите транзакции для обновления');
+        showNotification('Выберите транзакции для обновления', 'error');
         return;
     }
 
@@ -651,14 +732,14 @@ async function applyBulkUpdate() {
         }
 
         const result = await response.json();
-        alert(`✅ Обновлено записей: ${result.updated_count}`);
+        showNotification(`Обновлено записей: ${result.updated_count}`, 'success');
 
         // Reload staging
         await loadStagingData();
 
     } catch (error) {
         console.error('Bulk update error:', error);
-        alert(`Ошибка массового обновления: ${error.message}`);
+        showNotification(`Ошибка массового обновления: ${error.message}`, 'error');
     }
 }
 
@@ -668,7 +749,7 @@ async function executeImport() {
     const selected = stagingData.filter(s => s.is_selected).length;
 
     if (selected === 0) {
-        alert('Выберите транзакции для импорта');
+        showNotification('Выберите транзакции для импорта', 'error');
         return;
     }
 
@@ -727,11 +808,11 @@ async function executeImport() {
         // Reload staging
         await loadStagingData();
 
-        alert(`✅ Импорт завершен!\nУспешно: ${result.success_count}\nПропущено: ${result.skipped_count}`);
+        showNotification(`Импорт завершен! Успешно: ${result.success_count}, Пропущено: ${result.skipped_count}`, 'success');
 
     } catch (error) {
         console.error('Import error:', error);
-        alert(`Ошибка импорта: ${error.message}`);
+        showNotification(`Ошибка импорта: ${error.message}`, 'error');
     } finally {
         executeBtn.disabled = false;
         executeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Импортировать выбранные';
@@ -745,7 +826,7 @@ async function cleanupStaging(selectedOnly) {
         : stagingData.length;
 
     if (count === 0) {
-        alert('Нет записей для удаления');
+        showNotification('Нет записей для удаления', 'error');
         return;
     }
 
@@ -769,7 +850,7 @@ async function cleanupStaging(selectedOnly) {
         }
 
         const result = await response.json();
-        alert(`✅ Удалено записей: ${result.deleted_count}`);
+        showNotification(`Удалено записей: ${result.deleted_count}`, 'success');
 
         // Reload staging
         await loadStagingData();
@@ -781,7 +862,7 @@ async function cleanupStaging(selectedOnly) {
 
     } catch (error) {
         console.error('Cleanup error:', error);
-        alert(`Ошибка удаления: ${error.message}`);
+        showNotification(`Ошибка удаления: ${error.message}`, 'error');
     }
 }
 
