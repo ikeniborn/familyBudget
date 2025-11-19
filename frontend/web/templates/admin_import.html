@@ -130,7 +130,7 @@
             </div>
 
             <!-- Search Filters -->
-            <div class="bg-base-200 p-4 rounded-lg mb-4" id="search-filters">
+            <div class="bg-base-200 p-4 rounded-lg mb-6" id="search-filters">
                 <div class="flex flex-wrap gap-4 items-end">
                     <div class="form-control flex-1 min-w-[200px]">
                         <label class="label py-0">
@@ -210,6 +210,10 @@ let costCentersData = [];
 let currentPage = 1;
 const pageSize = 50;
 let totalPages = 1;
+
+// Filter state
+let isFilterActive = false;
+let allStagingData = []; // All data for filtering
 
 // Custom confirm dialog (русский язык)
 function showConfirmDialog(title, message) {
@@ -784,9 +788,13 @@ function toggleSelectAll() {
     const selectAllChecked = document.getElementById('select-all').checked || document.getElementById('select-all-header').checked;
 
     stagingData.forEach(record => {
-        record.is_selected = selectAllChecked;
-        const checkbox = document.querySelector(`.row-checkbox[data-id="${record.id}"]`);
-        if (checkbox) checkbox.checked = selectAllChecked;
+        // Only select/deselect visible rows (not filtered out)
+        const row = document.getElementById(`row-${record.id}`);
+        if (row && row.style.display !== 'none') {
+            record.is_selected = selectAllChecked;
+            const checkbox = document.querySelector(`.row-checkbox[data-id="${record.id}"]`);
+            if (checkbox) checkbox.checked = selectAllChecked;
+        }
     });
 
     document.getElementById('select-all').checked = selectAllChecked;
@@ -908,8 +916,12 @@ async function applyBulkUpdate() {
         const result = await response.json();
         showNotification(`Обновлено записей: ${result.updated_count}`, 'success');
 
-        // Reload staging
-        await loadStagingData();
+        // Reload staging (preserve filter if active)
+        if (isFilterActive) {
+            await loadAllStagingData();
+        } else {
+            await loadStagingData();
+        }
 
     } catch (error) {
         console.error('Bulk update error:', error);
@@ -999,9 +1011,14 @@ async function executeImport() {
             }
         }
 
-        // Reload staging (reset to page 1)
+        // Reload staging (reset to page 1, preserve filter)
         currentPage = 1;
-        await loadStagingData();
+
+        if (isFilterActive) {
+            await loadAllStagingData();
+        } else {
+            await loadStagingData();
+        }
 
         showNotification(`Импорт завершен! Успешно: ${result.success_count}, Пропущено: ${result.skipped_count}`, 'success');
 
@@ -1049,22 +1066,32 @@ async function cleanupStaging(selectedOnly) {
         const result = await response.json();
         showNotification(`Удалено записей: ${result.deleted_count}`, 'success');
 
-        // Reload staging (reset to page 1 if cleaning all)
+        // Reload staging (reset to page 1 if cleaning all, preserve filter)
         if (!selectedOnly) {
             currentPage = 1;
         }
-        await loadStagingData();
+
+        if (isFilterActive) {
+            await loadAllStagingData();
+        } else {
+            await loadStagingData();
+        }
 
         // Hide staging section if empty
         if (stagingData.length === 0) {
             document.getElementById('staging-section').style.display = 'none';
 
-            // If cleaning all (not selected only), also hide upload result
+            // If cleaning all (not selected only), also hide upload result and reset filter
             if (!selectedOnly) {
                 const uploadResult = document.getElementById('upload-result');
                 if (uploadResult) {
                     uploadResult.innerHTML = '';
                 }
+
+                // Reset filter
+                isFilterActive = false;
+                document.getElementById('search-tinkoff-category').value = '';
+                document.getElementById('search-description').value = '';
             }
         }
 
@@ -1076,14 +1103,36 @@ async function cleanupStaging(selectedOnly) {
 
 // Refresh staging
 async function refreshStaging() {
-    await loadStagingData();
+    if (isFilterActive) {
+        await loadAllStagingData();
+    } else {
+        await loadStagingData();
+    }
 }
 
 // Filter table (client-side filtering)
-function filterTable() {
+async function filterTable() {
     const categoryFilter = document.getElementById('search-tinkoff-category')?.value.toLowerCase().trim() || '';
     const descriptionFilter = document.getElementById('search-description')?.value.toLowerCase().trim() || '';
 
+    const hasActiveFilter = categoryFilter || descriptionFilter;
+
+    // If filter activated for the first time, load ALL data
+    if (hasActiveFilter && !isFilterActive) {
+        isFilterActive = true;
+        await loadAllStagingData();
+        return; // loadAllStagingData will call filterTable again
+    }
+
+    // If filter cleared, return to pagination
+    if (!hasActiveFilter && isFilterActive) {
+        isFilterActive = false;
+        currentPage = 1;
+        await loadStagingData();
+        return;
+    }
+
+    // Apply filter to current data
     let visibleCount = 0;
     const totalCount = stagingData.length;
 
@@ -1107,14 +1156,49 @@ function filterTable() {
 
     // Update filter stats
     document.getElementById('visible-count').textContent = visibleCount;
-    document.getElementById('total-count').textContent = totalCount;
+    document.getElementById('total-count').textContent = isFilterActive ? stagingTotal : totalCount;
+}
+
+// Load all staging data for filtering
+async function loadAllStagingData() {
+    const container = document.getElementById('staging-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        // Load all data without pagination
+        const response = await fetch(`/api/v1/import/staging?page=1&page_size=999999`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        stagingData = data.items;
+        allStagingData = data.items; // Save all data
+        stagingTotal = data.total;
+
+        updateStats();
+        renderStagingTable();
+
+        // Hide pagination when filtering
+        document.getElementById('pagination-container').innerHTML = '';
+
+        // Apply filter
+        await filterTable();
+
+    } catch (error) {
+        console.error('Error loading all staging:', error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки: ${error.message}</span></div>`;
+    }
 }
 
 // Clear filters
-function clearFilters() {
+async function clearFilters() {
     document.getElementById('search-tinkoff-category').value = '';
     document.getElementById('search-description').value = '';
-    filterTable();
+    await filterTable();
 }
 
 // Render pagination controls
