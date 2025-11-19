@@ -85,9 +85,20 @@
 
                     <div class="form-control flex-1 min-w-[200px]">
                         <label class="label py-0">
+                            <span class="label-text text-xs">Тип категории</span>
+                        </label>
+                        <select id="bulk-article-type" class="select select-bordered select-sm w-full" onchange="updateBulkCategoryType()">
+                            <option value="">-- Все типы --</option>
+                            <option value="expense">💸 Расходы</option>
+                            <option value="income">💰 Доходы</option>
+                        </select>
+                    </div>
+
+                    <div class="form-control flex-1 min-w-[200px]">
+                        <label class="label py-0">
                             <span class="label-text text-xs">Категория (массово)</span>
                         </label>
-                        <select id="bulk-article" class="select select-bordered select-sm w-full">
+                        <select id="bulk-article" class="select select-bordered w-full">
                             <option value="">-- Выберите категорию --</option>
                         </select>
                     </div>
@@ -161,10 +172,14 @@ let stagingData = [];
 let articlesData = [];
 let financialCentersData = [];
 let costCentersData = [];
+let bulkCategoryTreeSelect = null;
 
 // Load reference data on page load
 document.addEventListener('DOMContentLoaded', function() {
-    loadReferenceData();
+    loadReferenceData().then(() => {
+        // Инициализировать ChoicesCategoryTree после загрузки данных
+        updateBulkCategoryType();
+    });
 });
 
 // Load articles, FC, CC for dropdowns
@@ -203,17 +218,63 @@ async function loadReferenceData() {
     }
 }
 
-// Populate bulk operation dropdowns
-function populateBulkDropdowns() {
-    // Articles
-    const bulkArticle = document.getElementById('bulk-article');
-    bulkArticle.innerHTML = '<option value="">-- Выберите категорию --</option>';
-    articlesData.forEach(article => {
-        const indent = '  '.repeat(article.depth || 0);
-        const icon = article.type === 'income' ? '💰' : '💸';
-        bulkArticle.innerHTML += `<option value="${article.id}">${indent}${icon} ${article.name}</option>`;
-    });
+// Update bulk category filter by type
+async function updateBulkCategoryType() {
+    const selectedType = document.getElementById('bulk-article-type').value;
+    const selectElement = document.getElementById('bulk-article');
 
+    // Destroy previous instance
+    if (bulkCategoryTreeSelect) {
+        bulkCategoryTreeSelect.destroy();
+        bulkCategoryTreeSelect = null;
+    }
+
+    if (selectedType === '') {
+        // "Все типы" - показать все категории (expense + income)
+        // Используем Choices.js напрямую с объединенными данными
+        selectElement.innerHTML = '<option value="">-- Выберите категорию --</option>';
+
+        // Добавить все категории с иконками типа
+        articlesData
+            .filter(a => a.is_leaf) // Только листовые
+            .sort((a, b) => {
+                // Сортировка: сначала по типу (expense, потом income), потом по name
+                if (a.type !== b.type) return a.type === 'expense' ? -1 : 1;
+                return a.name.localeCompare(b.name, 'ru');
+            })
+            .forEach(article => {
+                const indent = '  '.repeat(article.depth || 0);
+                const icon = article.type === 'income' ? '💰' : '💸';
+                const option = document.createElement('option');
+                option.value = article.id;
+                option.textContent = `${indent}${icon} ${article.name}`;
+                selectElement.appendChild(option);
+            });
+
+        // Инициализировать Choices.js
+        bulkCategoryTreeSelect = new Choices(selectElement, {
+            searchEnabled: true,
+            searchPlaceholderValue: 'Поиск категории...',
+            noResultsText: 'Категории не найдены',
+            itemSelectText: '',
+            shouldSort: false,
+            classNames: {
+                containerOuter: 'choices choices-tailwind'
+            }
+        });
+    } else {
+        // Конкретный тип (expense или income) - используем ChoicesCategoryTree
+        bulkCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#bulk-article', {
+            type: selectedType,
+            showLeafOnly: true,
+            showInactive: false,
+            showPath: false
+        });
+    }
+}
+
+// Populate bulk operation dropdowns (ЦФО и МВЗ only, категории через ChoicesCategoryTree)
+function populateBulkDropdowns() {
     // Financial Centers
     const bulkFc = document.getElementById('bulk-fc');
     bulkFc.innerHTML = '<option value="">-- Выберите ЦФО --</option>';
