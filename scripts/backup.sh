@@ -390,12 +390,17 @@ main() {
 
     # Load environment variables from .env
     if [ -f "$PROJECT_ROOT/.env" ]; then
+        debug "Loading environment from: $PROJECT_ROOT/.env"
         set -a
         source "$PROJECT_ROOT/.env"
         set +a
+        debug "Environment loaded successfully"
     else
         echo "ERROR: .env file not found at $PROJECT_ROOT/.env"
-        echo "Please run this script from the project directory or create .env file"
+        echo "Expected location: $PROJECT_ROOT/.env"
+        echo "Current SCRIPT_DIR: $SCRIPT_DIR"
+        echo "Current PROJECT_ROOT: $PROJECT_ROOT"
+        echo "Please ensure .env file exists in /opt/budget/.env"
         exit 2
     fi
 
