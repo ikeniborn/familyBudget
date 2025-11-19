@@ -915,7 +915,11 @@ async function executeImport() {
 
     if (ready < selected) {
         const notReady = selected - ready;
-        if (!confirm(`${notReady} транзакций не готовы (не назначена категория или ЦФО). Они будут пропущены. Продолжить?`)) {
+        const confirmed = await showConfirmDialog(
+            '⚠️ Предупреждение',
+            `${notReady} транзакций не готовы (не назначена категория или ЦФО).\n\nОни будут пропущены.\n\nПродолжить?`
+        );
+        if (!confirmed) {
             return;
         }
     }
@@ -999,18 +1003,20 @@ async function executeImport() {
 async function cleanupStaging(selectedOnly) {
     const count = selectedOnly
         ? stagingData.filter(s => s.is_selected).length
-        : stagingData.length;
+        : stagingTotal; // Use real total count, not paginated array length
 
     if (count === 0) {
         showNotification('Нет записей для удаления', 'error');
         return;
     }
 
+    const title = selectedOnly ? 'Подтверждение удаления' : '⚠️ ВНИМАНИЕ!';
     const message = selectedOnly
         ? `Удалить ${count} выбранных записей из staging?`
-        : `⚠️ Удалить ВСЕ ${count} записей из staging? Это действие необратимо!`;
+        : `Удалить ВСЕ ${count} записей из staging?\n\nЭто действие необратимо!`;
 
-    if (!confirm(message)) {
+    const confirmed = await showConfirmDialog(title, message);
+    if (!confirmed) {
         return;
     }
 
@@ -1034,6 +1040,14 @@ async function cleanupStaging(selectedOnly) {
         // Hide staging section if empty
         if (stagingData.length === 0) {
             document.getElementById('staging-section').style.display = 'none';
+
+            // If cleaning all (not selected only), also hide upload result
+            if (!selectedOnly) {
+                const uploadResult = document.getElementById('upload-result');
+                if (uploadResult) {
+                    uploadResult.innerHTML = '';
+                }
+            }
         }
 
     } catch (error) {
