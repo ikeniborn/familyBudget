@@ -195,14 +195,15 @@ remove_lock() {
 }
 
 create_directories() {
-    log_info "Creating backup directories..."
-
+    # Create directories FIRST (before any logging to file)
     mkdir -p "$BACKUP_DIR"
     mkdir -p "$LOG_DIR"
 
     chmod 700 "$BACKUP_DIR"
     chmod 700 "$LOG_DIR"
 
+    # Now we can safely log (LOG_DIR exists)
+    log_info "Creating backup directories..."
     log_success "Directories created: $BACKUP_DIR, $LOG_DIR"
 }
 
