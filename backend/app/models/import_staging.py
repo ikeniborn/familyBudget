@@ -11,6 +11,7 @@ Table: t_import_staging
 from datetime import date, datetime
 from typing import Optional
 
+from sqlalchemy import Text
 from sqlmodel import Field, SQLModel
 
 
@@ -90,7 +91,7 @@ class ImportStaging(SQLModel, table=True):
 
     tinkoff_description: Optional[str] = Field(
         default=None,
-        sa_type=None,  # TEXT type
+        sa_type=Text,  # TEXT type
         description="Transaction description from Tinkoff CSV"
     )
 
