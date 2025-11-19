@@ -195,7 +195,13 @@ def check_backup_status() -> ComponentHealth:
         if result.returncode not in [0, 1, 2]:
             return ComponentHealth(
                 status="down",
-                message=f"Backup health check failed with exit code {result.returncode}"
+                message=f"Backup health check failed with exit code {result.returncode}. stderr: {result.stderr[:200]}"
+            )
+
+        if not result.stdout or result.stdout.strip() == "":
+            return ComponentHealth(
+                status="down",
+                message=f"Backup health check returned empty output. stderr: {result.stderr[:200]}, returncode: {result.returncode}"
             )
 
         backup_data = json.loads(result.stdout)
