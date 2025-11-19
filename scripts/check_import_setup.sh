@@ -83,6 +83,12 @@ else
     echo "❌ import_staging.py model NOT found!"
 fi
 
+if [ -f "$BUDGET_DIR/backend/app/api/v1/endpoints/import_tinkoff.py" ]; then
+    echo "✅ import_tinkoff.py endpoints exist"
+else
+    echo "❌ import_tinkoff.py endpoints NOT found!"
+fi
+
 echo ""
 echo "📋 Summary of checks completed!"
 echo ""
