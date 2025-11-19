@@ -162,20 +162,20 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="flex gap-2 mt-4" id="action-buttons">
-                <button class="btn btn-success gap-2" onclick="executeImport()" id="execute-btn">
+            <div class="flex flex-col sm:flex-row gap-2 mt-4" id="action-buttons">
+                <button class="btn btn-success gap-2 w-full sm:w-auto" onclick="executeImport()" id="execute-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     Импортировать выбранные
                 </button>
-                <button class="btn btn-warning gap-2" onclick="cleanupStaging(true)">
+                <button class="btn btn-warning gap-2 w-full sm:w-auto" onclick="cleanupStaging(true)">
                     🗑️ Очистить выбранные
                 </button>
-                <button class="btn btn-error btn-outline gap-2" onclick="cleanupStaging(false)">
+                <button class="btn btn-error btn-outline gap-2 w-full sm:w-auto" onclick="cleanupStaging(false)">
                     ⚠️ Очистить все
                 </button>
-                <button class="btn btn-ghost gap-2" onclick="refreshStaging()">
+                <button class="btn btn-ghost gap-2 w-full sm:w-auto" onclick="refreshStaging()">
                     🔄 Обновить
                 </button>
             </div>
