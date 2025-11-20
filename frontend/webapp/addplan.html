@@ -717,25 +717,30 @@
                     await categoryTreeSelect.updateType(formState.planType);
                 } else {
                     // Create ChoicesCategoryTree instance
-                    categoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#category-select', {
-                        type: formState.planType,
-                        auth: window.auth,  // Pass auth instance for Bearer token
-                        showLeafOnly: true,
-                        onCategoryChange: (category) => {
-                            formState.categoryId = category ? category.id : null;
+                    if (typeof BudgetShared !== 'undefined' && BudgetShared.ChoicesCategoryTree) {
+                        categoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#category-select', {
+                            type: formState.planType,
+                            auth: window.auth,  // Pass auth instance for Bearer token
+                            showLeafOnly: true,
+                            onCategoryChange: (category) => {
+                                formState.categoryId = category ? category.id : null;
 
-                            // Clear error
-                            document.getElementById('category-error').textContent = '';
+                                // Clear error
+                                document.getElementById('category-error').textContent = '';
 
-                            // Update recommended amounts for selected category
-                            loadRecommendedAmounts();
+                                // Update recommended amounts for selected category
+                                loadRecommendedAmounts();
 
-                            // Haptic feedback
-                            app.ui.hapticLight();
+                                // Haptic feedback
+                                app.ui.hapticLight();
 
-                            console.log('Category changed:', category);
-                        }
-                    });
+                                console.log('Category changed:', category);
+                            }
+                        });
+                    } else {
+                        console.warn('BudgetShared.ChoicesCategoryTree not loaded');
+                        throw new Error('ChoicesCategoryTree not available');
+                    }
                 }
 
             } catch (error) {

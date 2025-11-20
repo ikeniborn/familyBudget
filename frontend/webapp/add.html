@@ -526,8 +526,16 @@
             const dateInput = document.getElementById('fact-date');
 
             // Set default to today (native date input accepts YYYY-MM-DD)
-            BudgetShared.DateFormatter.initNativeDateInput(dateInput);
-            formState.factDate = dateInput.value; // Already in YYYY-MM-DD format
+            if (typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
+                BudgetShared.DateFormatter.initNativeDateInput(dateInput);
+                formState.factDate = dateInput.value; // Already in YYYY-MM-DD format
+            } else {
+                console.warn('BudgetShared.DateFormatter not loaded');
+                // Fallback: set today's date manually
+                const today = new Date().toISOString().split('T')[0];
+                dateInput.value = today;
+                formState.factDate = today;
+            }
 
             dateInput.addEventListener('input', () => {
                 // Native date input value is already in YYYY-MM-DD format
@@ -586,25 +594,30 @@
                     await categoryTreeSelect.updateType(formState.factType);
                 } else {
                     // Create ChoicesCategoryTree instance
-                    categoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#category-select', {
-                        type: formState.factType,
-                        auth: window.auth,  // Pass auth instance for Bearer token
-                        showLeafOnly: true,
-                        onCategoryChange: (category) => {
-                            formState.categoryId = category ? category.id : null;
+                    if (typeof BudgetShared !== 'undefined' && BudgetShared.ChoicesCategoryTree) {
+                        categoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#category-select', {
+                            type: formState.factType,
+                            auth: window.auth,  // Pass auth instance for Bearer token
+                            showLeafOnly: true,
+                            onCategoryChange: (category) => {
+                                formState.categoryId = category ? category.id : null;
 
-                            // Clear error
-                            document.getElementById('category-error').textContent = '';
+                                // Clear error
+                                document.getElementById('category-error').textContent = '';
 
-                            // Load recommended amounts for selected category
-                            loadRecommendedAmounts();
+                                // Load recommended amounts for selected category
+                                loadRecommendedAmounts();
 
-                            // Haptic feedback
-                            app.ui.hapticLight();
+                                // Haptic feedback
+                                app.ui.hapticLight();
 
-                            console.log('Category changed:', category);
-                        }
-                    });
+                                console.log('Category changed:', category);
+                            }
+                        });
+                    } else {
+                        console.warn('BudgetShared.ChoicesCategoryTree not loaded');
+                        throw new Error('ChoicesCategoryTree not available');
+                    }
                 }
 
             } catch (error) {
