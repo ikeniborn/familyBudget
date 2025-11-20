@@ -66,6 +66,7 @@ categorize_file_changes() {
     local needs_nginx_restart=false
     local needs_backend_rebuild=false
     local needs_bot_rebuild=false
+    local needs_api_change=false
     local postgres_restart_reason=""
 
     # Category counters for reporting
@@ -118,11 +119,25 @@ categorize_file_changes() {
                 ((count_backend_deps++))
                 ;;
 
-            # Backend code (требуют только перезапуска)
+            # Backend API endpoints (требуют перезапуска backend + могут влиять на bot)
+            backend/app/api/*)
+                needs_backend_restart=true
+                needs_api_change=true
+                ((count_backend_code++))
+                ;;
+
+            # Backend internal code (требуют только перезапуска backend)
+            backend/app/schemas/*|backend/app/models/*|backend/app/services/*|backend/app/middleware/*|backend/app/core/*)
+                needs_backend_restart=true
+                ((count_backend_code++))
+                ;;
+
+            # Backend other code (fallback для backend/app/*)
             backend/app/*|backend/core/*|backend/services/*)
                 needs_backend_restart=true
                 ((count_backend_code++))
                 ;;
+
             frontend/web/templates/*)
                 # HTMX templates - backend serves them
                 needs_backend_restart=true
@@ -178,6 +193,7 @@ categorize_file_changes() {
     echo "needs_nginx_restart=$needs_nginx_restart"
     echo "needs_backend_rebuild=$needs_backend_rebuild"
     echo "needs_bot_rebuild=$needs_bot_rebuild"
+    echo "needs_api_change=$needs_api_change"
     echo "postgres_restart_reason=$postgres_restart_reason"
     echo "count_postgres_critical=$count_postgres_critical"
     echo "count_backend_code=$count_backend_code"
@@ -313,6 +329,7 @@ cleanup_containers_networks_v2() {
     local needs_nginx_restart=false
     local needs_backend_rebuild=false
     local needs_bot_rebuild=false
+    local needs_api_change=false
     local postgres_restart_reason=""
     local count_postgres_critical=0
     local count_backend_code=0
@@ -364,13 +381,28 @@ cleanup_containers_networks_v2() {
         # Determine minimal set of services to restart
         if [[ "$needs_backend_restart" == "true" ]]; then
             services_to_stop+=("familybudget-backend")
-            # Backend changed → automatically restart dependents
-            services_to_stop+=("familybudget-bot" "familybudget-nginx")
-            info "Backend changed → will restart backend + dependents (bot, nginx)"
+            info "Backend code changed → will restart backend"
+
+            # Bot рестартится только при API changes или bot code changes
+            if [[ "$needs_api_change" == "true" ]] || [[ "$needs_bot_restart" == "true" ]]; then
+                services_to_stop+=("familybudget-bot")
+                if [[ "$needs_api_change" == "true" ]]; then
+                    info "API endpoints changed → will restart bot (API contract may have changed)"
+                fi
+                if [[ "$needs_bot_restart" == "true" ]]; then
+                    info "Bot code changed → will restart bot"
+                fi
+            fi
+
+            # Nginx рестартится только при nginx config/static files changes
+            if [[ "$needs_nginx_restart" == "true" ]]; then
+                services_to_stop+=("familybudget-nginx")
+                info "Nginx config/static files changed → will restart nginx"
+            fi
         else
             # Backend NOT changed - selective restarts
-            [[ "$needs_bot_restart" == "true" ]] && services_to_stop+=("familybudget-bot") && info "Bot changed → will restart bot"
-            [[ "$needs_nginx_restart" == "true" ]] && services_to_stop+=("familybudget-nginx") && info "Nginx changed → will restart nginx"
+            [[ "$needs_bot_restart" == "true" ]] && services_to_stop+=("familybudget-bot") && info "Bot code changed → will restart bot"
+            [[ "$needs_nginx_restart" == "true" ]] && services_to_stop+=("familybudget-nginx") && info "Nginx config changed → will restart nginx"
         fi
 
         POSTGRES_WAS_STOPPED=false

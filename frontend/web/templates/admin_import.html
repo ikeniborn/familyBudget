@@ -785,20 +785,27 @@ function renderStagingTable() {
 
 // Toggle select all
 function toggleSelectAll() {
-    const selectAllChecked = document.getElementById('select-all').checked || document.getElementById('select-all-header').checked;
-
-    stagingData.forEach(record => {
-        // Only select/deselect visible rows (not filtered out)
+    // Find all visible rows (not filtered out)
+    const visibleRecords = stagingData.filter(record => {
         const row = document.getElementById(`row-${record.id}`);
-        if (row && row.style.display !== 'none') {
-            record.is_selected = selectAllChecked;
-            const checkbox = document.querySelector(`.row-checkbox[data-id="${record.id}"]`);
-            if (checkbox) checkbox.checked = selectAllChecked;
-        }
+        return row && row.style.display !== 'none';
     });
 
-    document.getElementById('select-all').checked = selectAllChecked;
-    document.getElementById('select-all-header').checked = selectAllChecked;
+    // Check if ALL visible rows are already selected
+    const allSelected = visibleRecords.every(record => record.is_selected);
+
+    // Toggle: if all selected → deselect, otherwise → select all
+    const newState = !allSelected;
+
+    visibleRecords.forEach(record => {
+        record.is_selected = newState;
+        const checkbox = document.querySelector(`.row-checkbox[data-id="${record.id}"]`);
+        if (checkbox) checkbox.checked = newState;
+    });
+
+    // Sync "Select all" checkboxes with new state
+    document.getElementById('select-all').checked = newState;
+    document.getElementById('select-all-header').checked = newState;
 
     updateStats();
 }

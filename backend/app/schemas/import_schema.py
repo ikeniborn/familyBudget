@@ -99,7 +99,7 @@ class ImportStagingListResponse(BaseModel):
     items: List[ImportStagingResponse] = Field(..., description="Staging records")
     total: int = Field(..., ge=0, description="Total number of staging records for this user")
     page: int = Field(..., ge=1, description="Current page number")
-    page_size: int = Field(..., ge=1, le=100, description="Page size")
+    page_size: int = Field(..., ge=1, le=10000, description="Page size (max 10000 for client-side filtering)")
 
 
 # Update schemas
