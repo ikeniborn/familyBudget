@@ -32,6 +32,7 @@
 /* Day buttons - ensure square aspect ratio */
 .calendar-widget [data-date] {
   min-height: 40px;
+  min-width: 40px;  /* v5.1.4: Prevent narrow date buttons */
   font-size: 0.875rem;
   font-weight: 500;
   transition: all 0.15s ease;
@@ -67,6 +68,14 @@
 .calendar-widget select {
   font-size: 0.875rem;
   padding: 0.375rem 2rem 0.375rem 0.75rem;
+}
+
+/* v5.1.4: Prevent header overflow - limit month/year select widths */
+.calendar-widget select[data-action="select-month"],
+.calendar-widget select[data-action="select-year"] {
+  max-width: 110px;
+  min-width: 90px;
+  flex-shrink: 1;
 }
 
 /* Navigation buttons */
@@ -105,6 +114,7 @@
   /* Larger touch targets for mobile */
   .calendar-widget [data-date] {
     min-height: 44px; /* iOS recommended minimum */
+    min-width: 44px;  /* v5.1.4: Ensure square buttons */
     font-size: 1rem;
   }
 
@@ -119,6 +129,18 @@
   .calendar-widget select {
     font-size: 1rem;
     padding: 0.5rem 2rem 0.5rem 1rem;
+  }
+
+  /* v5.1.4: Smaller month/year selects on mobile + reduce gap */
+  .calendar-widget select[data-action="select-month"],
+  .calendar-widget select[data-action="select-year"] {
+    max-width: 100px;
+    min-width: 80px;
+    font-size: 0.8125rem; /* 13px */
+  }
+
+  .calendar-widget .flex.items-center.gap-2 {
+    gap: 0.25rem; /* Reduce from 8px to 4px */
   }
 }
 
