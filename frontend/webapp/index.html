@@ -349,6 +349,9 @@
         window.pageInit = async function(app) {
             console.log('Main menu page init');
 
+            // Hide BackButton on main menu (this is root page)
+            app.tg.BackButton.hide();
+
             // Update user greeting
             const user = app.auth.getUser();
             if (user) {
