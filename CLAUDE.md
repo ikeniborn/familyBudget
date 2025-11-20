@@ -489,6 +489,113 @@ sudo netstat -tulpn | grep LISTEN
 # (должны быть доступны только localhost или защищены UFW)
 ```
 
+### Docker bypassing UFW (CRITICAL SECURITY ISSUE!)
+
+**Проблема:**
+Docker **ОБХОДИТ UFW** добавляя iptables правила в `DOCKER` chain, которые выполняются **ДО** UFW правил.
+
+**Симптомы:**
+```bash
+sudo ss -tulpn | grep -E '5432|8000'
+# Видишь: 0.0.0.0:5432 и 0.0.0.0:8000 (открыто для ВСЕХ!)
+
+sudo ufw status
+# Видишь: НЕТ правил для 5432/8000 (UFW их не контролирует)
+
+sudo iptables -L DOCKER -n -v
+# Видишь: ACCEPT rules для портов (Docker добавил их сам)
+```
+
+**Причина:**
+```yaml
+# docker-compose.yml
+ports:
+  - "5432:5432"   # ❌ Биндится на 0.0.0.0 (все интерфейсы)
+  - "8000:8000"   # ❌ Биндится на 0.0.0.0
+```
+
+Docker создаёт правила: **DOCKER chain → UFW chain**
+Результат: UFW видит только SSH и HTTPS, а Docker открыл PostgreSQL и Backend!
+
+**Решение (v5.1.4):**
+
+Используй `DOCKER-USER` chain - выполняется **ДО** `DOCKER` chain:
+
+```bash
+# 1. Настрой переменные
+nano /opt/budget/.env
+# Добавь:
+POSTGRES_EXTERNAL_ACCESS=false  # ИЛИ true если нужен внешний доступ
+POSTGRES_ALLOWED_IP=203.0.113.45  # Твой внешний IP (если EXTERNAL_ACCESS=true)
+
+# 2. Загрузи модуль firewall
+cd ~/familyBudget
+git pull
+source scripts/lib/config.sh
+source scripts/lib/utils.sh
+source scripts/lib/firewall.sh
+
+# 3. Примени Docker firewall правила
+configure_docker_firewall
+
+# 4. Проверь результат
+sudo iptables -L DOCKER-USER -n -v --line-numbers
+```
+
+**Что делает configure_docker_firewall():**
+1. **Блокирует port 8000** (backend) от внешнего доступа → используй Nginx reverse proxy
+2. **Блокирует port 5432** (PostgreSQL) по умолчанию
+3. **Разрешает PostgreSQL** только с `POSTGRES_ALLOWED_IP` (если `EXTERNAL_ACCESS=true`)
+4. **Разрешает внутренний Docker трафик** (контейнеры могут общаться)
+
+**Проверка блокировки:**
+```bash
+# На production сервере
+sudo iptables -L DOCKER-USER -n -v
+
+# С другого компьютера (должно timeout)
+telnet your_server 5432  # Timeout (PostgreSQL заблокирован)
+telnet your_server 8000  # Timeout (Backend заблокирован)
+curl https://your_server  # OK (Nginx работает через port 443)
+```
+
+**⚠️ ВАЖНО: Правила НЕ persistent!**
+
+После перезапуска Docker (`systemctl restart docker`) правила сбросятся.
+
+**Решение 1 (Временное) - Вручную после перезагрузки:**
+```bash
+source scripts/lib/firewall.sh && configure_docker_firewall
+```
+
+**Решение 2 (Permanent) - Добавить в deploy.sh:**
+```bash
+# deploy.sh автоматически вызовет configure_docker_firewall после docker compose up
+```
+
+**Решение 3 (Systemd service) - Автоматическое восстановление:**
+```bash
+# TODO: Создать systemd service для автоматического применения правил
+# /etc/systemd/system/docker-firewall.service
+# ExecStart=/opt/budget/scripts/lib/firewall.sh configure_docker_firewall
+```
+
+**Безопасные альтернативы (если не нужен внешний доступ):**
+
+**Вариант A:** Bind только на localhost
+```yaml
+# docker-compose.yml
+ports:
+  - "127.0.0.1:5432:5432"  # Только localhost
+  - "127.0.0.1:8000:8000"  # Только localhost
+```
+
+**Вариант B:** Не expose порты вообще
+```yaml
+# Удалить ports: секцию полностью
+# Доступ только внутри Docker network
+```
+
 ---
 
 ## 🗂️ Структура проекта
