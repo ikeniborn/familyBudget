@@ -865,6 +865,19 @@ main() {
         # Add isolated node_modules/.bin to PATH for npx
         export PATH="$node_modules_dir/.bin:$PATH"
 
+        # CRITICAL FIX: Create node_modules symlink for npm/npx to find packages
+        # npm run scripts use 'npx tailwindcss' which looks for node_modules in $PWD first
+        # Without this symlink, npx fails with "could not determine executable to run"
+        print_message info "Setting up node_modules symlink for npm build..."
+        if [[ ! -e "$PWD/node_modules" ]]; then
+            ln -sf .npm-isolated/node_modules "$PWD/node_modules"
+            print_message success "Created symlink: node_modules -> .npm-isolated/node_modules"
+        elif [[ ! -L "$PWD/node_modules" ]]; then
+            print_message warning "node_modules exists but is not a symlink (skipping)"
+        else
+            print_message success "node_modules symlink already exists"
+        fi
+
         echo ""
         if npm run build 2>&1; then
             echo ""

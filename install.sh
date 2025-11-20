@@ -433,17 +433,88 @@ install_nodejs() {
         fi
     fi
 
+    # PRE-INSTALLATION CHECKS
+    info "Running pre-installation checks..."
+
+    # Check 1: Disk space (need at least 500MB free for Node.js + npm packages)
+    local free_space_mb
+    free_space_mb=$(df /var/cache/apt/archives --output=avail | tail -1 | awk '{print int($1/1024)}')
+    info "Available disk space: ${free_space_mb}MB"
+
+    if [[ $free_space_mb -lt 500 ]]; then
+        warning "Low disk space detected (${free_space_mb}MB < 500MB)"
+        warning "Cleaning apt cache to free up space..."
+        apt-get clean >> "$LOG_FILE" 2>&1
+        apt-get autoclean >> "$LOG_FILE" 2>&1
+
+        # Re-check space after cleanup
+        free_space_mb=$(df /var/cache/apt/archives --output=avail | tail -1 | awk '{print int($1/1024)}')
+        if [[ $free_space_mb -lt 500 ]]; then
+            error "Insufficient disk space: ${free_space_mb}MB (need at least 500MB). Please free up disk space."
+        fi
+        info "Disk space after cleanup: ${free_space_mb}MB"
+    fi
+
+    # Check 2: Fix any broken dpkg state (from previous failed installations)
+    info "Checking dpkg state..."
+    if dpkg --audit 2>&1 | grep -q "error\|broken"; then
+        warning "Broken dpkg packages detected - attempting to fix..."
+        dpkg --configure -a >> "$LOG_FILE" 2>&1 || true
+        apt-get install -f -y >> "$LOG_FILE" 2>&1 || true
+    fi
+
+    # Check 3: Clean apt cache (remove corrupted .deb files)
+    info "Cleaning apt cache..."
+    apt-get clean >> "$LOG_FILE" 2>&1
+    rm -rf /var/cache/apt/archives/*.deb 2>/dev/null || true
+
     # Remove old Node.js versions if any
     info "Removing old Node.js versions..."
     apt-get remove -y nodejs npm >> "$LOG_FILE" 2>&1 || true
+    apt-get autoremove -y >> "$LOG_FILE" 2>&1 || true
 
     # Install NodeSource repository (Node.js 20.x LTS)
     info "Adding NodeSource repository for Node.js 20.x LTS..."
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >> "$LOG_FILE" 2>&1
+    if ! curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >> "$LOG_FILE" 2>&1; then
+        error "Failed to add NodeSource repository. Check network connection and $LOG_FILE for details."
+    fi
 
-    # Install Node.js (includes npm)
+    # Update package index
+    info "Updating package index..."
+    apt-get update -y >> "$LOG_FILE" 2>&1
+
+    # Install Node.js (includes npm) with error handling
     info "Installing Node.js and npm..."
-    apt-get install -y nodejs >> "$LOG_FILE" 2>&1
+    local install_attempts=0
+    local max_attempts=3
+
+    while [[ $install_attempts -lt $max_attempts ]]; do
+        ((install_attempts++))
+        info "Installation attempt $install_attempts of $max_attempts..."
+
+        if apt-get install -y nodejs >> "$LOG_FILE" 2>&1; then
+            info "Node.js installation successful"
+            break
+        else
+            warning "Installation attempt $install_attempts failed"
+
+            if [[ $install_attempts -lt $max_attempts ]]; then
+                warning "Cleaning up and retrying..."
+
+                # Fix dpkg errors
+                dpkg --configure -a >> "$LOG_FILE" 2>&1 || true
+                apt-get install -f -y >> "$LOG_FILE" 2>&1 || true
+
+                # Clean cache and retry
+                apt-get clean >> "$LOG_FILE" 2>&1
+                rm -rf /var/cache/apt/archives/nodejs*.deb 2>/dev/null || true
+
+                sleep 2
+            else
+                error "Node.js installation failed after $max_attempts attempts. Check $LOG_FILE for details."
+            fi
+        fi
+    done
 
     # Verify installation
     if command_exists node && command_exists npm; then
@@ -454,7 +525,7 @@ install_nodejs() {
         success "Node.js installed successfully (version: $node_version)"
         success "npm installed successfully (version: $npm_version)"
     else
-        error "Node.js/npm installation failed"
+        error "Node.js/npm installation failed - executables not found in PATH"
     fi
 }
 
