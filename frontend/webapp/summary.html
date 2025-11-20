@@ -34,9 +34,9 @@
         /* Period selector */
         .period-selector {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
             gap: 8px;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             padding: 0 16px;
         }
 
@@ -258,6 +258,48 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
+        /* Custom range container */
+        .custom-range-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 16px;
+            margin-bottom: 24px;
+        }
+
+        .custom-range-container input {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+
+        .custom-range-container button {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-button-color);
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            cursor: pointer;
+        }
+
+        .custom-range-container button.cancel {
+            background-color: transparent;
+            color: var(--tg-theme-button-color);
+        }
+
+        @media (max-width: 640px) {
+            .custom-range-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
     </style>
 </head>
 <body>
@@ -272,6 +314,16 @@
             <button class="period-btn active" data-period="month">Месяц</button>
             <button class="period-btn" data-period="quarter">Квартал</button>
             <button class="period-btn" data-period="year">Год</button>
+            <button class="period-btn" data-period="custom">Произвольный</button>
+        </div>
+
+        <!-- Custom Range Container (hidden by default) -->
+        <div class="custom-range-container" id="custom-range-container" style="display: none;">
+            <input type="text" id="date-from" readonly placeholder="ДД.ММ.ГГГГ">
+            <span>—</span>
+            <input type="text" id="date-to" readonly placeholder="ДД.ММ.ГГГГ">
+            <button onclick="applyCustomRange()">Применить</button>
+            <button class="cancel" onclick="cancelCustomRange()">Отмена</button>
         </div>
 
         <!-- Loading State -->
@@ -337,6 +389,10 @@
     <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
     <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
     <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
+
+    <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
+    <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+
     <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
 
     <script>
@@ -344,6 +400,11 @@
         let facts = [];
         let categories = [];
         let currentPeriod = 'month';
+
+        // Custom date range support
+        let calendarWidget = null;
+        let customDateFrom = null;
+        let customDateTo = null;
 
         // Page-specific initialization
         window.pageInit = async function(budgetApp) {
@@ -372,15 +433,22 @@
 
             buttons.forEach(button => {
                 button.addEventListener('click', async () => {
-                    // Update active state
+                    app.ui.hapticLight();
+                    const period = button.dataset.period;
+
+                    // Handle custom period - show calendar
+                    if (period === 'custom') {
+                        buttons.forEach(b => b.classList.remove('active'));
+                        button.classList.add('active');
+                        toggleCustomRange();
+                        return;
+                    }
+
+                    // Regular period - hide custom range and load summary
+                    document.getElementById('custom-range-container').style.display = 'none';
                     buttons.forEach(b => b.classList.remove('active'));
                     button.classList.add('active');
-
-                    // Update current period
-                    currentPeriod = button.dataset.period;
-
-                    // Reload summary
-                    app.ui.hapticLight();
+                    currentPeriod = period;
                     await loadSummary(currentPeriod);
                 });
             });
@@ -393,6 +461,79 @@
             } catch (error) {
                 console.error('Failed to load categories:', error);
             }
+        }
+
+        function toggleCustomRange() {
+            const container = document.getElementById('custom-range-container');
+            container.style.display = 'flex';
+
+            if (!calendarWidget && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+                try {
+                    const dateFromInput = document.getElementById('date-from');
+                    const dateToInput = document.getElementById('date-to');
+
+                    // Change inputs to native date type for better UX
+                    dateFromInput.type = 'date';
+                    dateToInput.type = 'date';
+
+                    // Set max to today
+                    const today = new Date().toISOString().split('T')[0];
+                    dateFromInput.max = today;
+                    dateToInput.max = today;
+
+                    // Set default values (last 30 days)
+                    const from = new Date();
+                    from.setDate(from.getDate() - 30);
+                    dateFromInput.value = from.toISOString().split('T')[0];
+                    dateToInput.value = today;
+
+                    calendarWidget = true;
+                } catch (error) {
+                    console.error('Failed to initialize calendar:', error);
+                }
+            }
+        }
+
+        function applyCustomRange() {
+            const dateFromInput = document.getElementById('date-from');
+            const dateToInput = document.getElementById('date-to');
+
+            customDateFrom = dateFromInput.value; // YYYY-MM-DD format
+            customDateTo = dateToInput.value;
+
+            if (!customDateFrom || !customDateTo) {
+                app.tg.showAlert('Выберите даты');
+                return;
+            }
+
+            if (customDateFrom > customDateTo) {
+                app.tg.showAlert('Дата "от" должна быть раньше даты "до"');
+                return;
+            }
+
+            document.getElementById('custom-range-container').style.display = 'none';
+            currentPeriod = 'custom';
+            loadSummary(currentPeriod);
+            app.ui.hapticLight();
+        }
+
+        function cancelCustomRange() {
+            document.getElementById('custom-range-container').style.display = 'none';
+
+            if (currentPeriod === 'custom') {
+                currentPeriod = 'month';
+            }
+
+            const buttons = document.querySelectorAll('.period-btn');
+            buttons.forEach(b => {
+                b.classList.remove('active');
+                if (b.dataset.period === currentPeriod) {
+                    b.classList.add('active');
+                }
+            });
+
+            loadSummary(currentPeriod);
+            app.ui.hapticLight();
         }
 
         async function loadSummary(period) {
@@ -440,6 +581,14 @@
             const now = new Date();
             let dateFrom, dateTo;
 
+            // Handle custom period
+            if (period === 'custom' && customDateFrom && customDateTo) {
+                return {
+                    dateFrom: customDateFrom, // Already in YYYY-MM-DD format
+                    dateTo: customDateTo
+                };
+            }
+
             switch (period) {
                 case 'month':
                     // Current month - from 1st to today
@@ -476,13 +625,27 @@
         }
 
         function displaySummary(facts, period) {
-            // Update period title
+            // Update period title with dates
             const periodTitles = {
                 'month': 'За месяц',
                 'quarter': 'За квартал',
-                'year': 'За год'
+                'year': 'За год',
+                'custom': 'Произвольный период'
             };
-            document.getElementById('period-title').textContent = periodTitles[period];
+
+            let title = periodTitles[period] || 'Период';
+
+            // Add dates to title if available
+            if (typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
+                const range = getDateRange(period);
+                if (range && range.dateFrom && range.dateTo) {
+                    const displayFrom = BudgetShared.DateFormatter.formatForDisplay(range.dateFrom);
+                    const displayTo = BudgetShared.DateFormatter.formatForDisplay(range.dateTo);
+                    title += `: ${displayFrom} — ${displayTo}`;
+                }
+            }
+
+            document.getElementById('period-title').textContent = title;
 
             // Group by category and record_type
             const grouped = groupByCategory(facts);

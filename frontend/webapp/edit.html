@@ -212,7 +212,7 @@
 
         <!-- Transaction Type Selector -->
         <div class="form-group">
-            <label class="form-label">Тип операции</label>
+            <label class="form-label">Тип категории</label>
             <div class="segmented-control">
                 <button type="button" class="segmented-control-item" data-type="expense">Расход</button>
                 <button type="button" class="segmented-control-item active" data-type="income">
@@ -690,29 +690,34 @@
                     await categoryTreeSelect.updateType(formState.factType);
                 } else {
                     // Create ChoicesCategoryTree instance
-                    categoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#category-select', {
-                        type: formState.factType,
-                        auth: window.auth,  // Pass auth instance for Bearer token
-                        showLeafOnly: true,
-                        onCategoryChange: (category) => {
-                            formState.categoryId = category ? category.id : null;
+                    if (typeof BudgetShared !== 'undefined' && BudgetShared.ChoicesCategoryTree) {
+                        categoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#category-select', {
+                            type: formState.factType,
+                            auth: window.auth,  // Pass auth instance for Bearer token
+                            showLeafOnly: true,
+                            onCategoryChange: (category) => {
+                                formState.categoryId = category ? category.id : null;
 
-                            // Clear error
-                            document.getElementById('category-error').textContent = '';
+                                // Clear error
+                                document.getElementById('category-error').textContent = '';
 
-                            // Load recommended amounts for selected category
-                            loadRecommendedAmounts();
+                                // Load recommended amounts for selected category
+                                loadRecommendedAmounts();
 
-                            // Haptic feedback
-                            app.ui.hapticLight();
+                                // Haptic feedback
+                                app.ui.hapticLight();
 
-                            console.log('Category changed:', category);
+                                console.log('Category changed:', category);
+                            }
+                        });
+
+                        // Set selected category only after initial creation (not on type change)
+                        if (formState.categoryId) {
+                            await categoryTreeSelect.setSelectedCategory(formState.categoryId);
                         }
-                    });
-
-                    // Set selected category only after initial creation (not on type change)
-                    if (formState.categoryId) {
-                        await categoryTreeSelect.setSelectedCategory(formState.categoryId);
+                    } else {
+                        console.warn('BudgetShared.ChoicesCategoryTree not loaded');
+                        throw new Error('ChoicesCategoryTree not available');
                     }
                 }
 
