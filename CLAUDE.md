@@ -559,23 +559,34 @@ telnet your_server 8000  # Timeout (Backend заблокирован)
 curl https://your_server  # OK (Nginx работает через port 443)
 ```
 
-**⚠️ ВАЖНО: Правила НЕ persistent!**
+**⚠️ ВАЖНО: Правила сбрасываются при перезапуске Docker**
 
-После перезапуска Docker (`systemctl restart docker`) правила сбросятся.
+После перезапуска Docker (`systemctl restart docker`) правила `DOCKER-USER` chain сбрасываются.
 
-**Решение 1 (Временное) - Вручную после перезагрузки:**
+**✅ Решение (РЕАЛИЗОВАНО с v5.1.4):**
+
+`deploy.sh` **автоматически** применяет правила при каждом деплое:
+
 ```bash
+cd ~/familyBudget && ./deploy.sh --profile full
+# configure_docker_firewall() вызывается автоматически после start_services
+```
+
+**Workflow:**
+1. `start_services()` - Docker создаёт свои iptables правила
+2. `wait_for_services()` - Ждём healthy status
+3. **`configure_docker_firewall()`** - Блокируем порты (DOCKER-USER chain) ← **АВТОМАТИЧЕСКИ**
+4. `run_migrations()` - Применяем миграции БД
+
+**Если deploy.sh не используется (ручной запуск Docker):**
+```bash
+# После вручную: docker compose up
 source scripts/lib/firewall.sh && configure_docker_firewall
 ```
 
-**Решение 2 (Permanent) - Добавить в deploy.sh:**
+**Альтернатива (Systemd service) - TODO:**
 ```bash
-# deploy.sh автоматически вызовет configure_docker_firewall после docker compose up
-```
-
-**Решение 3 (Systemd service) - Автоматическое восстановление:**
-```bash
-# TODO: Создать systemd service для автоматического применения правил
+# Создать systemd service для автоматического применения правил при старте Docker
 # /etc/systemd/system/docker-firewall.service
 # ExecStart=/opt/budget/scripts/lib/firewall.sh configure_docker_firewall
 ```

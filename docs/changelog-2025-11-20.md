@@ -158,15 +158,16 @@ sudo iptables -L DOCKER-USER -n -v
 - Версия: v5.1.4
 
 **Важно:**
-- ⚠️ Правила НЕ persistent - сбрасываются при перезапуске Docker
-- Решение: Добавить в deploy.sh или создать systemd service (TODO)
+- ⚠️ Правила сбрасываются при перезапуске Docker (systemctl restart docker)
+- ✅ **РЕШЕНО**: deploy.sh автоматически применяет правила при каждом деплое (v5.1.4)
+- Workflow: start_services → wait_for_services → **configure_docker_firewall** → migrations
 - Альтернатива: Изменить docker-compose.yml port mapping на 127.0.0.1:port
 
 **Переменные окружения:**
 - `POSTGRES_EXTERNAL_ACCESS=true/false` (существующая)
 - `POSTGRES_ALLOWED_IP=<IP>` (НОВАЯ - обязательна если external access enabled)
 
-**Breaking Changes:** Нет (функция вызывается вручную, не автоматически)
+**Breaking Changes:** Нет (применяется автоматически при deploy, но не блокирует deploy при ошибке)
 
 ---
 
@@ -191,22 +192,62 @@ sudo iptables -L DOCKER-USER -n -v
 
 ---
 
+## Infrastructure (дополнение)
+
+### 🔧 Автоматическое применение Docker firewall правил при деплое
+
+**Изменения:**
+- Добавлен вызов `configure_docker_firewall()` в `deploy.sh`
+- Выполняется автоматически после `wait_for_services`, перед миграциями БД
+- Логирует в `$LOG_FILE` для диагностики
+- Non-blocking: предупреждает при ошибке, но не останавливает deploy
+
+**Влияние на пользователей:**
+Теперь правила Docker firewall (блокировка портов 5432 и 8000) **автоматически** применяются при каждом запуске `./deploy.sh`. Не нужно запускать `configure_docker_firewall()` вручную после деплоя или перезагрузки Docker.
+
+**Deployment workflow (v5.1.4):**
+1. `start_services()` - Запуск Docker контейнеров
+2. `wait_for_services()` - Ожидание healthy status
+3. **`configure_docker_firewall()`** ← **НОВОЕ** - Блокировка портов
+4. `run_migrations()` - Миграции БД
+5. `verify_services()` - Проверка сервисов
+
+**Применение:**
+```bash
+cd ~/familyBudget && ./deploy.sh --profile full
+# Firewall правила применяются автоматически!
+```
+
+**Технические детали:**
+- Файлы: `deploy.sh` (lines 930-941)
+- Решает: Persistence проблема SEC-006 (правила теперь восстанавливаются автоматически)
+- Применяется только в detached mode (production, по умолчанию)
+- Foreground mode (debugging) требует ручного запуска firewall
+- Commits: [feat commit feature/calendar-responsive-security-fixes]
+- Версия: v5.1.4
+
+**Breaking Changes:** Нет
+
+---
+
 ## Итого
 
 **Категории:**
 - 🐛 Bug Fixes: 2 (calendar overflow + min-width)
 - 🚨 Security (CRITICAL): 3 (SEC-004, SEC-005, SEC-006)
-- 🔧 Infrastructure: 1 (UFW validation)
+- 🔧 Infrastructure: 2 (UFW validation + deploy.sh integration)
 - 📝 Documentation: 2 (CLAUDE.md troubleshooting + Docker firewall)
 
-**Всего изменений:** 8
+**Всего изменений:** 9
 
 **Файлы изменены:**
 1. frontend/web/static/css/calendar-widget.css
 2. nginx/conf.d/app.conf
 3. docker-compose.yml
 4. scripts/lib/firewall.sh
-5. CLAUDE.md
+5. deploy.sh
+6. CLAUDE.md
+7. docs/changelog-2025-11-20.md
 
 **Branch:** feature/calendar-responsive-security-fixes
 
