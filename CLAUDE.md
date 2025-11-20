@@ -12,6 +12,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Архитектура:** FastAPI (Backend) + Telegram Bot + PostgreSQL + HTMX (Frontend)
 **Язык документации:** Русский (ru)
 
+**Ключевые особенности архитектуры:**
+- **Lifespan Events:** Database init, scheduler startup, bot username auto-fetch (main.py:39-96)
+- **Exception Handlers:** Ordered chain от specific к generic (main.py:222-240)
+- **Background Scheduler:** APScheduler для weekly reports и notifications (запускается при startup)
+- **Single Bridge Network:** 172.28.0.0/16 для всех сервисов (docker-compose.yml)
+
 ---
 
 ## 🎯 Быстрый старт для Claude Code
@@ -88,6 +94,35 @@ ruff check . && black . && mypy .       # Quality
 
 **КРИТИЧНО:** deploy.sh ТОЛЬКО из git repo (`~/familyBudget`), НЕ из `/opt/budget`
 
+**Важные переменные состояния (scripts/lib/config.sh):**
+```bash
+# State tracking для PostgreSQL race conditions
+POSTGRES_WAS_STOPPED=true  # Tracks если PostgreSQL был остановлен при cleanup
+                           # true  = safe для integrity checks
+                           # false = skip checks (selective restart)
+
+# Health check configuration
+MAX_WAIT_TIME=120          # Maximum wait для service healthy (seconds)
+CHECK_INTERVAL=5           # Interval между health checks (seconds)
+
+# Deployment options
+COMPOSE_PROFILE=""         # "" = postgres+backend, "full" = all services
+RUN_MIGRATIONS=true        # Run Alembic migrations после deployment
+CLEAN_DEPLOY=false         # ⚠️ DANGEROUS - removes volumes (DELETES DATA!)
+```
+
+**State Management Functions:**
+```bash
+set_postgres_stopped()    # Mark PostgreSQL как stopped
+set_postgres_running()    # Mark PostgreSQL как running
+is_postgres_was_stopped() # Check если PostgreSQL был stopped
+```
+
+**Почему важно:**
+- Prevents race conditions в selective service restarts
+- Integrity checks запускаются ТОЛЬКО если PostgreSQL was stopped
+- Неправильный state → false positives/negatives в health checks
+
 ---
 
 ## 🏗️ Архитектура Backend (Layered)
@@ -101,6 +136,34 @@ ruff check . && black . && mypy .       # Quality
 - **Service** (`services/*.py`) - Business logic (SCD2, Hierarchy, JWT)
 - **Model** (`models/*.py`) - SQLModel ORM
 - **Schema** (`schemas/*.py`) - Pydantic validation
+
+**Exception Handling Chain (main.py:222-240):**
+⚠️ **ПОРЯДОК КРИТИЧЕН** - от specific к generic:
+1. `RequestValidationError`, `ValidationError` (Pydantic validation)
+2. `APIException` (custom application exceptions)
+3. `HTTPException` (FastAPI HTTP errors)
+4. `SQLAlchemyError` (database errors)
+5. `ValueError` (generic value errors)
+6. `Exception` (catch-all для unhandled exceptions)
+
+**НЕ меняй порядок** - generic handlers перехватят specific exceptions!
+
+**Lifespan Events (main.py:39-96):**
+```python
+# Startup sequence:
+1. init_db()              # Database connection pool
+2. start_scheduler()      # APScheduler for cron jobs (weekly reports, notifications)
+3. get_bot_username()     # Auto-fetch from Telegram API if not configured
+
+# Shutdown sequence:
+1. stop_scheduler()       # Graceful scheduler shutdown
+2. close_db()             # Close database connections
+```
+
+**При debugging startup issues:**
+- Проверь логи на этапе lifespan (init_db, scheduler, bot username)
+- Scheduler failures блокируют startup
+- Database connection errors также блокируют startup
 
 ---
 
@@ -304,6 +367,62 @@ from app.models.article import Article
 
 # ✅ ПРАВИЛЬНО - absolute imports
 from backend.app.models.article import Article
+```
+
+### Application Won't Start (Lifespan Errors)
+
+**Симптомы:**
+- Container crashes immediately after start
+- Logs показывают errors в lifespan context manager
+- Health checks fail
+
+**Причины (backend/app/main.py:39-96):**
+
+1. **Database Connection Failed:**
+   ```bash
+   # Check logs
+   docker compose logs backend | grep "init_db"
+
+   # Verify DATABASE_URL
+   docker compose exec backend env | grep DATABASE_URL
+
+   # Test PostgreSQL
+   docker compose exec postgres pg_isready
+   ```
+
+2. **Scheduler Failed to Start:**
+   ```bash
+   # Check logs
+   docker compose logs backend | grep "scheduler"
+
+   # APScheduler errors - обычно из-за database connection
+   ```
+
+3. **Bot Username Fetch Failed:**
+   ```bash
+   # Check logs
+   docker compose logs backend | grep "bot_username"
+
+   # Verify TELEGRAM_BOT_TOKEN
+   grep TELEGRAM_BOT_TOKEN /opt/budget/.env
+
+   # Test token manually
+   curl https://api.telegram.org/bot<TOKEN>/getMe
+   ```
+
+**Решение:**
+```bash
+# 1. Проверь зависимости
+docker compose ps  # postgres должен быть healthy
+
+# 2. Проверь environment variables
+docker compose config | grep -A 20 "backend:"
+
+# 3. Restart с чистыми логами
+docker compose logs backend --tail=100 --follow
+
+# 4. Если scheduler fails - check database migrations
+cd backend/db/migrations && alembic current
 ```
 
 ### Docker Network Conflicts
@@ -967,4 +1086,4 @@ cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
 
 ---
 
-**Версия:** 5.0 | **Обновлено:** 2025-11-09
+**Версия:** 5.0.0-beta | **Обновлено:** 2025-11-20
