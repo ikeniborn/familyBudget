@@ -1258,6 +1258,9 @@
          * @param {Array} categories - Categories to display
          */
         initChoices(categories) {
+            // Clear existing options (remove placeholder like "Загрузка категорий...")
+            this.element.innerHTML = '';
+
             // Prepare choices data
             const choices = categories.map(cat => ({
                 value: cat.id,
