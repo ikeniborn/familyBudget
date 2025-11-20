@@ -34,9 +34,9 @@
         /* Period selector */
         .period-selector {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
             gap: 8px;
-            margin-bottom: 24px;
+            margin-bottom: 16px;
             padding: 0 16px;
         }
 
@@ -228,6 +228,48 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
+        /* Custom range container */
+        .custom-range-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 16px;
+            margin-bottom: 24px;
+        }
+
+        .custom-range-container input {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+
+        .custom-range-container button {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-button-color);
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            cursor: pointer;
+        }
+
+        .custom-range-container button.cancel {
+            background-color: transparent;
+            color: var(--tg-theme-button-color);
+        }
+
+        @media (max-width: 640px) {
+            .custom-range-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
     </style>
 </head>
 <body>
@@ -243,6 +285,16 @@
             <button class="period-btn" data-period="week">Неделя</button>
             <button class="period-btn" data-period="month">Месяц</button>
             <button class="period-btn" data-period="year">Год</button>
+            <button class="period-btn" data-period="custom">Произвольный</button>
+        </div>
+
+        <!-- Custom Range Container (hidden by default) -->
+        <div class="custom-range-container" id="custom-range-container" style="display: none;">
+            <input type="text" id="date-from" readonly placeholder="ДД.ММ.ГГГГ">
+            <span>—</span>
+            <input type="text" id="date-to" readonly placeholder="ДД.ММ.ГГГГ">
+            <button onclick="applyCustomRange()">Применить</button>
+            <button class="cancel" onclick="cancelCustomRange()">Отмена</button>
         </div>
 
         <!-- Loading State -->
@@ -307,6 +359,10 @@
     <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
     <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
     <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
+
+    <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
+    <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+
     <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
 
     <script>
