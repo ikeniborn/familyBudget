@@ -619,7 +619,8 @@ check_npm_dependencies() {
 
     if [[ $missing_packages -gt 0 ]]; then
         warning "Found $missing_packages missing critical packages"
-        return 1
+        info "Triggering clean reinstall of all npm dependencies..."
+        return 1  # Triggers reinstall in install_npm_dependencies()
     fi
 
     # Check 5: Verify Tailwind CSS version (prevent 4.x mismatch)
@@ -679,7 +680,8 @@ install_npm_dependencies() {
     fi
 
     # Dependencies need to be installed/reinstalled
-    info "Installing/updating npm dependencies in production isolated environment..."
+    info "npm dependencies validation failed - missing or corrupted packages detected"
+    info "Performing clean reinstall of all npm dependencies in production isolated environment..."
 
     # Remove old/corrupted node_modules if exists
     if [[ -d "$node_modules" ]]; then
