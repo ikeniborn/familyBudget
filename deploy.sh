@@ -927,6 +927,19 @@ main() {
         wait_for_services
         echo ""
 
+        # Configure Docker firewall (DOCKER-USER chain)
+        # CRITICAL: Block exposed ports 5432 (PostgreSQL) and 8000 (Backend)
+        # Docker bypasses UFW by adding iptables rules before UFW chain
+        # Solution: Use DOCKER-USER chain to enforce firewall rules
+        info "Configuring Docker firewall..."
+        if configure_docker_firewall >> "$LOG_FILE" 2>&1; then
+            success "Docker firewall configured successfully"
+        else
+            warning "Failed to configure Docker firewall - ports may be exposed!"
+            warning "Run manually: source scripts/lib/firewall.sh && configure_docker_firewall"
+        fi
+        echo ""
+
         # Run Alembic migrations
         # Admin user is created automatically during migration
         if ! run_alembic_migrations; then

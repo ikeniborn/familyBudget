@@ -74,6 +74,8 @@ services:
       - "log_destination=stderr"
       - "-c"
       - "log_min_duration_statement=1000"
+      - "-c"
+      - "wal_level=replica"  # SEC-005 fix: Prevent pg_logical/snapshots error
 
   # Backend Application (FastAPI + HTMX)
   backend:
