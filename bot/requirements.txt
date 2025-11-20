@@ -2,16 +2,16 @@
 # Install with: pip install -r requirements.txt
 
 # Telegram Bot Framework
-python-telegram-bot[ext]==21.0
+python-telegram-bot[ext]==21.10
 
 # HTTP requests to backend API
-httpx>=0.24.0
+httpx==0.28.1
 
 # Environment variables
-python-dotenv>=1.0.0
+python-dotenv==1.0.1
 
 # Logging
-python-json-logger>=2.0.7
+python-json-logger==3.2.1
 
 # Type hints
-typing-extensions>=4.7.0
+typing-extensions==4.12.2

@@ -11,19 +11,27 @@
     <!-- Articles Table -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">📊 Категории</h2>
-                <div class="flex flex-wrap gap-2">
-                    <button class="btn btn-sm btn-primary" id="filter-all" onclick="toggleTypeFilter('all')">📋 Все</button>
-                    <button class="btn btn-sm btn-outline" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
-                    <button class="btn btn-sm btn-outline" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
-                    <button class="btn btn-sm btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
-                    <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Новая категория
-                    </button>
+            <div class="mb-4">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-3">
+                    <h2 class="card-title text-2xl">📊 Категории</h2>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="btn btn-sm btn-primary" id="filter-all" onclick="toggleTypeFilter('all')">📋 Все</button>
+                        <button class="btn btn-sm btn-outline" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
+                        <button class="btn btn-sm btn-outline" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
+                        <button class="btn btn-sm btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
+                        <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Новая категория
+                        </button>
+                    </div>
+                </div>
+                <div class="form-control w-full max-w-xs">
+                    <div class="flex items-center gap-0">
+                        <span class="bg-base-200 px-3 h-10 flex items-center rounded-l-lg border border-r-0 border-base-300">🔍</span>
+                        <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-sm input-bordered w-full rounded-l-none" />
+                    </div>
                 </div>
             </div>
 
@@ -132,11 +140,18 @@
 // Global state
 let currentType = 'all';
 let showArchived = false;
+let currentSearchQuery = '';
 let articlesData = [];
 
 // Load articles on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadArticles();
+
+    // Search input event listener for real-time filtering
+    const searchInput = document.getElementById('search-input');
+    searchInput.addEventListener('input', function(e) {
+        updateSearchFilter(e.target.value);
+    });
 
     // Добавляем обработчик изменения типа в модальном окне создания
     // для динамического обновления списка родительских статей
@@ -160,6 +175,12 @@ function toggleTypeFilter(type) {
 
     // Reload articles
     loadArticles();
+}
+
+// Update search filter
+function updateSearchFilter(query) {
+    currentSearchQuery = query.trim();
+    renderArticlesTable(articlesData);
 }
 
 // Load articles from API
@@ -191,12 +212,21 @@ function renderArticlesTable(articles) {
     const container = document.getElementById('articles-table-container');
 
     // Filter by current type (all/income/expense)
-    const filtered = currentType === 'all'
+    let filtered = currentType === 'all'
         ? articles
         : articles.filter(a => a.type === currentType);
 
+    // Filter by search query
+    if (currentSearchQuery) {
+        const query = currentSearchQuery.toLowerCase();
+        filtered = filtered.filter(a => a.name.toLowerCase().includes(query));
+    }
+
     if (filtered.length === 0) {
-        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.</div>';
+        const message = currentSearchQuery
+            ? `📝 Категории не найдены по запросу "${currentSearchQuery}". Попробуйте изменить поисковый запрос.`
+            : '📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.';
+        container.innerHTML = `<div class="text-center py-8 text-base-content/60">${message}</div>`;
         return;
     }
 
@@ -210,6 +240,7 @@ function renderArticlesTable(articles) {
                     <tr>
                         <th>📝 Название</th>
                         <th>🏷️ Тип</th>
+                        <th>🔢 Код</th>
                         <th>👤 Владелец</th>
                         <th>⚙️ Действия</th>
                     </tr>
@@ -286,6 +317,7 @@ function renderTreeNodes(nodes, level) {
             <tr data-article-id="${node.id}">
                 <td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
                 <td>${typeBadge}</td>
+                <td class="font-mono text-sm">${node.code || '—'}</td>
                 <td>${ownerLabel}</td>
                 <td>
                     <div class="flex gap-1">
@@ -535,7 +567,13 @@ async function updateArticle(event) {
             throw new Error(errorMessage);
         }
 
-        // Success
+        // Success - get new article data from response (SCD2 creates new version with new ID)
+        const updatedArticle = await response.json();
+
+        // CRITICAL: Update modal's hidden ID field with new ID from SCD2 version
+        // Without this, if user clicks "Save" again without closing modal, it will send old ID → 404
+        document.getElementById('edit-id').value = updatedArticle.id;
+
         closeEditModal();
         await loadArticles();
         showNotification('✅ Категория успешно обновлена!', 'success');

@@ -12,6 +12,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Архитектура:** FastAPI (Backend) + Telegram Bot + PostgreSQL + HTMX (Frontend)
 **Язык документации:** Русский (ru)
 
+**Ключевые особенности архитектуры:**
+- **Lifespan Events:** Database init, scheduler startup, bot username auto-fetch (main.py:39-96)
+- **Exception Handlers:** Ordered chain от specific к generic (main.py:222-240)
+- **Background Scheduler:** APScheduler для weekly reports и notifications (запускается при startup)
+- **Single Bridge Network:** 172.28.0.0/16 для всех сервисов (docker-compose.yml)
+
 ---
 
 ## 🎯 Быстрый старт для Claude Code
@@ -88,6 +94,35 @@ ruff check . && black . && mypy .       # Quality
 
 **КРИТИЧНО:** deploy.sh ТОЛЬКО из git repo (`~/familyBudget`), НЕ из `/opt/budget`
 
+**Важные переменные состояния (scripts/lib/config.sh):**
+```bash
+# State tracking для PostgreSQL race conditions
+POSTGRES_WAS_STOPPED=true  # Tracks если PostgreSQL был остановлен при cleanup
+                           # true  = safe для integrity checks
+                           # false = skip checks (selective restart)
+
+# Health check configuration
+MAX_WAIT_TIME=120          # Maximum wait для service healthy (seconds)
+CHECK_INTERVAL=5           # Interval между health checks (seconds)
+
+# Deployment options
+COMPOSE_PROFILE=""         # "" = postgres+backend, "full" = all services
+RUN_MIGRATIONS=true        # Run Alembic migrations после deployment
+CLEAN_DEPLOY=false         # ⚠️ DANGEROUS - removes volumes (DELETES DATA!)
+```
+
+**State Management Functions:**
+```bash
+set_postgres_stopped()    # Mark PostgreSQL как stopped
+set_postgres_running()    # Mark PostgreSQL как running
+is_postgres_was_stopped() # Check если PostgreSQL был stopped
+```
+
+**Почему важно:**
+- Prevents race conditions в selective service restarts
+- Integrity checks запускаются ТОЛЬКО если PostgreSQL was stopped
+- Неправильный state → false positives/negatives в health checks
+
 ---
 
 ## 🏗️ Архитектура Backend (Layered)
@@ -101,6 +136,34 @@ ruff check . && black . && mypy .       # Quality
 - **Service** (`services/*.py`) - Business logic (SCD2, Hierarchy, JWT)
 - **Model** (`models/*.py`) - SQLModel ORM
 - **Schema** (`schemas/*.py`) - Pydantic validation
+
+**Exception Handling Chain (main.py:222-240):**
+⚠️ **ПОРЯДОК КРИТИЧЕН** - от specific к generic:
+1. `RequestValidationError`, `ValidationError` (Pydantic validation)
+2. `APIException` (custom application exceptions)
+3. `HTTPException` (FastAPI HTTP errors)
+4. `SQLAlchemyError` (database errors)
+5. `ValueError` (generic value errors)
+6. `Exception` (catch-all для unhandled exceptions)
+
+**НЕ меняй порядок** - generic handlers перехватят specific exceptions!
+
+**Lifespan Events (main.py:39-96):**
+```python
+# Startup sequence:
+1. init_db()              # Database connection pool
+2. start_scheduler()      # APScheduler for cron jobs (weekly reports, notifications)
+3. get_bot_username()     # Auto-fetch from Telegram API if not configured
+
+# Shutdown sequence:
+1. stop_scheduler()       # Graceful scheduler shutdown
+2. close_db()             # Close database connections
+```
+
+**При debugging startup issues:**
+- Проверь логи на этапе lifespan (init_db, scheduler, bot username)
+- Scheduler failures блокируют startup
+- Database connection errors также блокируют startup
 
 ---
 
@@ -306,6 +369,62 @@ from app.models.article import Article
 from backend.app.models.article import Article
 ```
 
+### Application Won't Start (Lifespan Errors)
+
+**Симптомы:**
+- Container crashes immediately after start
+- Logs показывают errors в lifespan context manager
+- Health checks fail
+
+**Причины (backend/app/main.py:39-96):**
+
+1. **Database Connection Failed:**
+   ```bash
+   # Check logs
+   docker compose logs backend | grep "init_db"
+
+   # Verify DATABASE_URL
+   docker compose exec backend env | grep DATABASE_URL
+
+   # Test PostgreSQL
+   docker compose exec postgres pg_isready
+   ```
+
+2. **Scheduler Failed to Start:**
+   ```bash
+   # Check logs
+   docker compose logs backend | grep "scheduler"
+
+   # APScheduler errors - обычно из-за database connection
+   ```
+
+3. **Bot Username Fetch Failed:**
+   ```bash
+   # Check logs
+   docker compose logs backend | grep "bot_username"
+
+   # Verify TELEGRAM_BOT_TOKEN
+   grep TELEGRAM_BOT_TOKEN /opt/budget/.env
+
+   # Test token manually
+   curl https://api.telegram.org/bot<TOKEN>/getMe
+   ```
+
+**Решение:**
+```bash
+# 1. Проверь зависимости
+docker compose ps  # postgres должен быть healthy
+
+# 2. Проверь environment variables
+docker compose config | grep -A 20 "backend:"
+
+# 3. Restart с чистыми логами
+docker compose logs backend --tail=100 --follow
+
+# 4. Если scheduler fails - check database migrations
+cd backend/db/migrations && alembic current
+```
+
 ### Docker Network Conflicts
 ```bash
 ./deploy.sh  # Выбрать: [2] Smart cleanup
@@ -366,6 +485,245 @@ bash scripts/lib/cache_busting.sh auto  # НЕ ДЕЛАЙ ЭТО!
 ```bash
 # Сброс БД (⚠️ УДАЛИТ ВСЕ ДАННЫЕ!)
 docker compose down -v && docker compose up -d
+```
+
+### CalendarWidget Mobile Display Issues
+
+**Симптомы:**
+- Header (месяц/год селекторы + навигация) выходит за границы календаря
+- Кнопки дат слишком узкие (не квадратные)
+- Навигационные стрелки обрезаны или перекрываются
+
+**Причина:**
+- Отсутствие `max-width` на month/year `<select>` элементах
+- Отсутствие `min-width` на кнопках дат (только `min-height`)
+- Слишком большой `gap` между flex элементами на маленьких экранах
+
+**Решение (v5.1.4):**
+```css
+/* frontend/web/static/css/calendar-widget.css */
+
+/* Prevent header overflow */
+.calendar-widget select[data-action="select-month"],
+.calendar-widget select[data-action="select-year"] {
+  max-width: 110px;
+  min-width: 90px;
+  flex-shrink: 1;
+}
+
+/* Ensure square date buttons */
+.calendar-widget [data-date] {
+  min-height: 40px;
+  min-width: 40px;  /* NEW - prevents narrow buttons */
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .calendar-widget select[data-action="select-month"],
+  .calendar-widget select[data-action="select-year"] {
+    max-width: 100px;
+    min-width: 80px;
+    font-size: 0.8125rem;
+  }
+
+  .calendar-widget .flex.items-center.gap-2 {
+    gap: 0.25rem; /* Reduce from 8px to 4px */
+  }
+}
+```
+
+**Тестирование:**
+1. Открой страницу аналитики
+2. Нажми "Произвольный" период
+3. Проверь на мобильном (< 768px) - header не должен переполняться
+4. Проверь кнопки дат - должны быть квадратными (40x40px, 44x44px на mobile)
+
+### UFW Firewall Validation
+
+**Проблема:**
+UFW правила могут устареть после обновления конфигурации или ручных изменений.
+
+**Решение (v5.1.4):**
+```bash
+# Автоматическая проверка UFW при deploy
+cd ~/familyBudget && ./deploy.sh --profile full
+# deploy.sh автоматически вызывает: validate_ufw_rules()
+
+# Ручная проверка
+sudo ufw status verbose
+sudo ufw status numbered
+```
+
+**Что проверяет validate_ufw_rules():**
+- ✓ UFW активен (`Status: active`)
+- ✓ Default incoming: DENY
+- ✓ Default outgoing: ALLOW
+- ✓ SSH port 22: ALLOWED
+- ✓ HTTPS port 443: ALLOWED
+- ✓ HTTP port 80: опционально (для Let's Encrypt)
+- ✓ PostgreSQL 5432: consistency check (`POSTGRES_EXTERNAL_ACCESS` env vs actual UFW rules)
+- ✓ Backend 8000: защищён UFW (не должен быть ALLOW IN)
+
+**Типичные проблемы:**
+
+1. **UFW не активен:**
+   ```bash
+   sudo ufw enable
+   sudo systemctl enable ufw
+   ```
+
+2. **Порт 80 постоянно открыт:**
+   ```bash
+   # Port 80 должен открываться ТОЛЬКО временно для certbot
+   sudo ufw delete allow 80/tcp
+   # certbot автоматически откроет при renewal
+   ```
+
+3. **PostgreSQL несоответствие:**
+   ```bash
+   # Если POSTGRES_EXTERNAL_ACCESS=true но нет UFW rule:
+   sudo ufw allow from <TRUSTED_IP> to any port 5432
+
+   # Если POSTGRES_EXTERNAL_ACCESS=false но есть UFW rule:
+   sudo ufw status numbered
+   sudo ufw delete <rule_number>
+   ```
+
+4. **Backend port 8000 exposed:**
+   ```bash
+   # Если порт 8000 открыт в UFW (небезопасно):
+   sudo ufw delete allow 8000/tcp
+   # Доступ через Nginx reverse proxy (port 443)
+   ```
+
+**Проверка после изменений:**
+```bash
+# 1. Проверь UFW status
+sudo ufw status verbose
+
+# 2. Проверь открытые порты
+sudo netstat -tulpn | grep LISTEN
+
+# 3. Убедись что порты 8000, 5432 НЕ доступны извне
+# (должны быть доступны только localhost или защищены UFW)
+```
+
+### Docker bypassing UFW (CRITICAL SECURITY ISSUE!)
+
+**Проблема:**
+Docker **ОБХОДИТ UFW** добавляя iptables правила в `DOCKER` chain, которые выполняются **ДО** UFW правил.
+
+**Симптомы:**
+```bash
+sudo ss -tulpn | grep -E '5432|8000'
+# Видишь: 0.0.0.0:5432 и 0.0.0.0:8000 (открыто для ВСЕХ!)
+
+sudo ufw status
+# Видишь: НЕТ правил для 5432/8000 (UFW их не контролирует)
+
+sudo iptables -L DOCKER -n -v
+# Видишь: ACCEPT rules для портов (Docker добавил их сам)
+```
+
+**Причина:**
+```yaml
+# docker-compose.yml
+ports:
+  - "5432:5432"   # ❌ Биндится на 0.0.0.0 (все интерфейсы)
+  - "8000:8000"   # ❌ Биндится на 0.0.0.0
+```
+
+Docker создаёт правила: **DOCKER chain → UFW chain**
+Результат: UFW видит только SSH и HTTPS, а Docker открыл PostgreSQL и Backend!
+
+**Решение (v5.1.4):**
+
+Используй `DOCKER-USER` chain - выполняется **ДО** `DOCKER` chain:
+
+```bash
+# 1. Настрой переменные
+nano /opt/budget/.env
+# Добавь:
+POSTGRES_EXTERNAL_ACCESS=false  # ИЛИ true если нужен внешний доступ
+POSTGRES_ALLOWED_IP=203.0.113.45  # Твой внешний IP (если EXTERNAL_ACCESS=true)
+
+# 2. Загрузи модуль firewall
+cd ~/familyBudget
+git pull
+source scripts/lib/config.sh
+source scripts/lib/utils.sh
+source scripts/lib/firewall.sh
+
+# 3. Примени Docker firewall правила
+configure_docker_firewall
+
+# 4. Проверь результат
+sudo iptables -L DOCKER-USER -n -v --line-numbers
+```
+
+**Что делает configure_docker_firewall():**
+1. **Блокирует port 8000** (backend) от внешнего доступа → используй Nginx reverse proxy
+2. **Блокирует port 5432** (PostgreSQL) по умолчанию
+3. **Разрешает PostgreSQL** только с `POSTGRES_ALLOWED_IP` (если `EXTERNAL_ACCESS=true`)
+4. **Разрешает внутренний Docker трафик** (контейнеры могут общаться)
+
+**Проверка блокировки:**
+```bash
+# На production сервере
+sudo iptables -L DOCKER-USER -n -v
+
+# С другого компьютера (должно timeout)
+telnet your_server 5432  # Timeout (PostgreSQL заблокирован)
+telnet your_server 8000  # Timeout (Backend заблокирован)
+curl https://your_server  # OK (Nginx работает через port 443)
+```
+
+**⚠️ ВАЖНО: Правила сбрасываются при перезапуске Docker**
+
+После перезапуска Docker (`systemctl restart docker`) правила `DOCKER-USER` chain сбрасываются.
+
+**✅ Решение (РЕАЛИЗОВАНО с v5.1.4):**
+
+`deploy.sh` **автоматически** применяет правила при каждом деплое:
+
+```bash
+cd ~/familyBudget && ./deploy.sh --profile full
+# configure_docker_firewall() вызывается автоматически после start_services
+```
+
+**Workflow:**
+1. `start_services()` - Docker создаёт свои iptables правила
+2. `wait_for_services()` - Ждём healthy status
+3. **`configure_docker_firewall()`** - Блокируем порты (DOCKER-USER chain) ← **АВТОМАТИЧЕСКИ**
+4. `run_migrations()` - Применяем миграции БД
+
+**Если deploy.sh не используется (ручной запуск Docker):**
+```bash
+# После вручную: docker compose up
+source scripts/lib/firewall.sh && configure_docker_firewall
+```
+
+**Альтернатива (Systemd service) - TODO:**
+```bash
+# Создать systemd service для автоматического применения правил при старте Docker
+# /etc/systemd/system/docker-firewall.service
+# ExecStart=/opt/budget/scripts/lib/firewall.sh configure_docker_firewall
+```
+
+**Безопасные альтернативы (если не нужен внешний доступ):**
+
+**Вариант A:** Bind только на localhost
+```yaml
+# docker-compose.yml
+ports:
+  - "127.0.0.1:5432:5432"  # Только localhost
+  - "127.0.0.1:8000:8000"  # Только localhost
+```
+
+**Вариант B:** Не expose порты вообще
+```yaml
+# Удалить ports: секцию полностью
+# Доступ только внутри Docker network
 ```
 
 ---
@@ -728,4 +1086,4 @@ cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
 
 ---
 
-**Версия:** 5.0 | **Обновлено:** 2025-11-09
+**Версия:** 5.0.0-beta | **Обновлено:** 2025-11-20

@@ -9,6 +9,7 @@ This package contains all API endpoint routers organized by domain:
 - facts: Budget facts CRUD endpoints (TASK-016)
 - users: User management endpoints (TASK-017)
 - notifications: Notification history endpoints (broadcast support)
+- import_tinkoff: Tinkoff CSV import endpoints (FR-080)
 """
 
 from backend.app.api.v1.endpoints.articles import router as articles_router
@@ -18,6 +19,7 @@ from backend.app.api.v1.endpoints.facts import router as facts_router
 from backend.app.api.v1.endpoints.financial_centers import (
     router as financial_centers_router,
 )
+from backend.app.api.v1.endpoints.import_tinkoff import router as import_router
 from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
@@ -31,4 +33,5 @@ __all__ = [
     "facts_router",
     "users_router",
     "notifications_router",
+    "import_router",
 ]

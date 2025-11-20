@@ -159,12 +159,14 @@ async def update_user_profile(
         username=username,
         first_name=first_name,
         last_name=last_name,
-        photo_url=photo_url,
-        is_admin=existing_user.is_admin,  # Preserve admin status
+        photo_url=photo_url or existing_user.photo_url,
+        is_admin=existing_user.is_admin,
+        is_active=existing_user.is_active,
+        last_login_at=existing_user.last_login_at,
         valid_from=now,
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
         is_current=True,
-        created_at=now,
+        created_at=existing_user.created_at,
         updated_at=now,
     )
     session.add(new_version)

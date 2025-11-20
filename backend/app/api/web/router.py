@@ -289,3 +289,33 @@ async def notifications(
             "page_title": "Уведомления"
         }
     )
+
+
+@web_router.get("/import", response_class=HTMLResponse)
+async def import_page(
+    request: Request,
+    current_user: CurrentUser
+):
+    """
+    Tinkoff CSV import page (all authenticated users).
+
+    Provides interface for importing transactions from Tinkoff bank CSV:
+    - Upload CSV file
+    - Review and enrich transactions in staging table
+    - Assign categories, financial centers, cost centers
+    - Bulk operations for mass assignment
+    - Execute import to BudgetFact
+    - Cleanup staging after import
+
+    Uses REST API endpoints for all operations (FR-080).
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_import.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Импорт Tinkoff"
+        }
+    )

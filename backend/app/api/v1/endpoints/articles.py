@@ -425,6 +425,7 @@ async def update_article(
             old_instance=old_article,
             updates=update_data,
             changed_fields=changed_fields,
+            changed_by_user_id=current_user.id,
         )
         logger.info(f"[ARTICLE UPDATE] Created new version: old_id={article_id}, new_id={new_article.id}")
         return new_article

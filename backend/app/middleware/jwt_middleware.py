@@ -85,19 +85,20 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         token = self._extract_token(request)
 
         if token is not None:
-            # Validate token and extract user_id
-            user_id = decode_access_token(token)
+            # Validate token and extract telegram_id (business key, stable across SCD Type 2)
+            telegram_id = decode_access_token(token)
 
-            if user_id is not None:
-                # Token is valid - inject user_id into request state
+            if telegram_id is not None:
+                # Token is valid - inject telegram_id into request state
                 # This allows CurrentUserOptional to access authenticated user
-                request.state.user_id = user_id
+                # Using telegram_id (business key) instead of user_id (surrogate key) for SCD Type 2 compatibility
+                request.state.telegram_id = telegram_id
 
         # Check if endpoint is public
         is_public = self._is_public_endpoint(request.url.path)
 
         # For protected endpoints, require valid authentication
-        if not is_public and not hasattr(request.state, 'user_id'):
+        if not is_public and not hasattr(request.state, 'telegram_id'):
             # No valid token for protected endpoint
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -107,8 +108,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
             )
 
         # Continue to next middleware/endpoint
-        # For public endpoints: may or may not have user_id set
-        # For protected endpoints: guaranteed to have user_id set
+        # For public endpoints: may or may not have telegram_id set
+        # For protected endpoints: guaranteed to have telegram_id set
         return await call_next(request)
 
     def _is_public_endpoint(self, path: str) -> bool:

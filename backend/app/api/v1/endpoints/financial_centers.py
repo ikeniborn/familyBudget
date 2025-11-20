@@ -29,6 +29,7 @@ from backend.app.schemas.financial_center import (
     FinancialCenterUpdate,
 )
 from backend.app.services import scd2_service
+from backend.app.services.scd2_service import has_changes
 
 router = APIRouter(
     prefix="/financial-centers",
@@ -112,11 +113,16 @@ async def create_financial_center(
             detail="Only administrators can create financial centers"
         )
 
+    # Generate code for financial center
+    from backend.app.utils.code_generator import generate_code
+    generated_code = await generate_code(session, FinancialCenter)
+
     # Create financial center
     financial_center = FinancialCenter(
         user_id=current_user.id,
         name=financial_center_data.name,
         description=financial_center_data.description,
+        code=generated_code,
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -211,12 +217,19 @@ async def update_financial_center(
     # Get update dict
     update_dict = update_data.model_dump(exclude_unset=True)
 
-    # Use SCD2 service for update
+    # Check if anything changed
+    changed, changed_fields = has_changes(old_financial_center, update_dict)
+    if not changed:
+        # No changes, return existing financial center
+        return FinancialCenterResponse.model_validate(old_financial_center)
 
+    # Use SCD2 service for update
     new_financial_center = await scd2_service.create_new_version(
         session=session,
         old_instance=old_financial_center,
         updates=update_dict,
+        changed_fields=changed_fields,
+        changed_by_user_id=current_user.id,
     )
 
     return FinancialCenterResponse.model_validate(new_financial_center)

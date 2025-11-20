@@ -11,6 +11,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy import text, update as sa_update
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -21,6 +22,7 @@ from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
 from backend.app.schemas.admin import SystemStatsResponse
+from backend.app.schemas.article import ArticleUpdate
 from backend.app.schemas.user import (
     UserCreate,
     UserDetailResponse,
@@ -58,10 +60,15 @@ class ArticleResponse(BaseModel):
     parent_id: int | None
     name: str
     type: str
+    code: str | None = None
     is_active: bool
     is_current: bool
     valid_from: str
     valid_to: str | None
+    created_at: str | None = None
+    updated_at: str | None = None
+    usage_count: int | None = None
+    hierarchy: dict | None = None
     user_name: str | None = None
 
     class Config:
@@ -73,6 +80,7 @@ class ArticleCreateRequest(BaseModel):
     parent_id: int | None = None
     name: str
     type: str  # "income" or "expense"
+    is_active: bool = True  # Default to active
 
 
 class ArticleUpdateRequest(BaseModel):
@@ -80,6 +88,7 @@ class ArticleUpdateRequest(BaseModel):
     name: str | None = None
     type: str | None = None  # "income" or "expense"
     parent_id: int | None = None
+    is_active: bool | None = None
 
 
 # ============================================================================
@@ -93,14 +102,14 @@ async def get_all_users(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of users returned"),
     offset: int = Query(0, ge=0, description="Number of users skipped"),
     is_active: bool | None = Query(None, description="Filter by activation status (None=all, True=active, False=inactive)"),
+    is_current: bool = Query(True, description="Filter by current version (True=current, False=historical, default: True)"),
 ) -> UserListResponse:
     """
     Get all users (admin only).
 
     Returns list of all registered users with pagination.
-    Only returns current (active) user versions.
 
-    **NEW:** Supports filtering by is_active status.
+    **NEW:** Supports filtering by is_active and is_current status (for viewing user profile history).
 
     Args:
         current_admin: Current admin user (from dependency)
@@ -108,12 +117,13 @@ async def get_all_users(
         limit: Maximum number of results (1-1000, default: 100)
         offset: Number of results to skip (default: 0)
         is_active: Filter by activation status (None=all, True=active, False=inactive)
+        is_current: Filter by current version (True=current, False=historical, default: True)
 
     Returns:
         UserListResponse: List of users with pagination info
     """
-    # Base query: only current versions
-    statement = select(User).where(User.is_current == True)  # noqa: E712
+    # Base query: filter by is_current
+    statement = select(User).where(User.is_current == is_current)  # noqa: E712
 
     # NEW: Filter by is_active if provided
     if is_active is not None:
@@ -138,42 +148,6 @@ async def get_all_users(
         limit=limit,
         offset=offset,
     )
-
-
-@router.get("/users/{user_id}", response_model=UserDetailResponse)
-async def get_user_by_id(
-    user_id: int,
-    current_admin: CurrentAdmin,
-    session: AsyncSession = Depends(get_session)
-) -> User:
-    """
-    Get specific user by ID (admin only).
-
-    Returns current user version with full SCD Type 2 details.
-
-    Args:
-        user_id: User ID to retrieve
-        current_admin: Current admin user (from dependency)
-        session: Database session
-
-    Returns:
-        UserDetailResponse: User details with SCD Type 2 fields
-
-    Raises:
-        HTTPException: 404 if user not found
-    """
-    # Load user (current version only)
-    statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
-    )
-    result = await session.execute(statement)
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail=f"User with id={user_id} not found")
-
-    return user
 
 
 @router.get("/users/telegram-info/{telegram_id}", response_model=TelegramUserInfo)
@@ -242,6 +216,176 @@ async def get_telegram_user_info(
         first_name=user_info.get("first_name"),
         exists_in_db=(existing_user is not None)
     )
+
+
+
+@router.get("/users/stats/summary", response_model=List[UserStatsResponse])
+async def get_users_stats(
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get statistics for all users (admin only).
+
+    Returns aggregated stats for each user:
+    - Total number of facts
+    - Total number of articles
+    - Last fact date
+
+    Args:
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        List[UserStatsResponse]: List of user statistics
+    """
+    # Get all current users
+    users_query = select(User).where(User.is_current == True)  # noqa: E712
+    users_result = await session.execute(users_query)
+    users = users_result.scalars().all()
+
+    stats = []
+
+    for user in users:
+        # Count facts
+        facts_count_query = select(func.count(Fact.id)).where(Fact.user_id == user.id)
+        facts_count_result = await session.execute(facts_count_query)
+        total_facts = facts_count_result.scalar() or 0
+
+        # Count articles
+        articles_count_query = select(func.count(Article.id)).where(
+            Article.user_id == user.id,
+            Article.is_current == True  # noqa: E712
+        )
+        articles_count_result = await session.execute(articles_count_query)
+        total_articles = articles_count_result.scalar() or 0
+
+        # Get last fact date
+        last_fact_query = select(func.max(Fact.fact_date)).where(Fact.user_id == user.id)
+        last_fact_result = await session.execute(last_fact_query)
+        last_fact_date = last_fact_result.scalar()
+
+        stats.append(UserStatsResponse(
+            user_id=user.id,
+            username=user.username,
+            first_name=user.first_name,
+            total_facts=total_facts,
+            total_articles=total_articles,
+            last_fact_date=last_fact_date.isoformat() if last_fact_date else None
+        ))
+
+    return stats
+
+
+
+@router.get("/users/stats/system", response_model=SystemStatsResponse)
+async def get_system_stats(
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Get system-wide statistics (admin only).
+
+    Follows Shared Family Budget Model principles:
+    - All metrics are GLOBAL (not filtered by user_id)
+    - Reflects the entire family budget system
+    - No per-user isolation for facts and articles
+
+    Returns aggregated stats for the entire system:
+    - Total number of users
+    - Total number of active users (who created at least one transaction)
+    - Total number of facts (Shared Family Budget)
+    - Total number of articles (Shared References)
+    - Last fact date (most recent transaction in the system)
+
+    Args:
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        SystemStatsResponse: System-wide statistics
+
+    See:
+        CLAUDE.md - Shared Family Budget Model documentation
+    """
+    # Total users (current versions only)
+    users_count_query = select(func.count(User.id)).where(User.is_current == True)  # noqa: E712
+    users_count_result = await session.execute(users_count_query)
+    total_users = users_count_result.scalar() or 0
+
+    # Total facts (Shared Family Budget - NO user_id filter!)
+    facts_count_query = select(func.count(Fact.id))
+    facts_count_result = await session.execute(facts_count_query)
+    total_facts = facts_count_result.scalar() or 0
+
+    # Active users (users with is_active=True)
+    active_users_query = select(func.count(User.id)).where(
+        User.is_current == True,  # noqa: E712
+        User.is_active == True    # noqa: E712
+    )
+    active_users_result = await session.execute(active_users_query)
+    total_active_users = active_users_result.scalar() or 0
+
+    # Total articles (Shared References - NO user_id filter!)
+    articles_count_query = select(func.count(Article.id)).where(
+        Article.is_current == True  # noqa: E712
+    )
+    articles_count_result = await session.execute(articles_count_query)
+    total_articles = articles_count_result.scalar() or 0
+
+    # Last fact date (most recent transaction in the system)
+    last_fact_query = select(func.max(Fact.fact_date))
+    last_fact_result = await session.execute(last_fact_query)
+    last_fact_date = last_fact_result.scalar()
+
+    return SystemStatsResponse(
+        total_users=total_users,
+        total_active_users=total_active_users,
+        total_facts=total_facts,
+        total_articles=total_articles,
+        last_fact_date=last_fact_date.isoformat() if last_fact_date else None
+    )
+
+
+# ============================================================================
+# Articles Management Endpoints
+# ============================================================================
+
+
+@router.get("/users/{user_id}", response_model=UserDetailResponse)
+async def get_user_by_id(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Get specific user by ID (admin only).
+
+    Returns current user version with full SCD Type 2 details.
+
+    Args:
+        user_id: User ID to retrieve
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: User details with SCD Type 2 fields
+
+    Raises:
+        HTTPException: 404 if user not found
+    """
+    # Load user (current version only)
+    statement = select(User).where(
+        User.id == user_id,
+        User.is_current == True  # noqa: E712
+    )
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with id={user_id} not found")
+
+    return user
 
 
 @router.post("/users", response_model=UserDetailResponse, status_code=201)
@@ -400,6 +544,7 @@ async def update_user_role(
         old_instance=old_user,
         updates=update_data,
         changed_fields=changed_fields,
+        changed_by_user_id=current_admin.id,
     )
 
     return new_user
@@ -507,6 +652,23 @@ async def deactivate_user(
             status_code=400,
             detail="Cannot deactivate your own account"
         )
+
+    # Prevent deactivating the last active admin
+    if user.is_admin:
+        admin_count_query = select(func.count(User.id)).where(
+            User.is_admin == True,  # noqa: E712
+            User.is_active == True,  # noqa: E712
+            User.is_current == True,  # noqa: E712
+            User.id != user_id
+        )
+        admin_count_result = await session.execute(admin_count_query)
+        remaining_active_admins = admin_count_result.scalar()
+
+        if remaining_active_admins == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot deactivate the last active admin. Activate another admin first."
+            )
 
     # Simple UPDATE (NOT SCD Type 2)
     user.is_active = False
@@ -623,137 +785,6 @@ async def refresh_user_profile_from_telegram(
     return updated_user
 
 
-@router.get("/users/stats/summary", response_model=List[UserStatsResponse])
-async def get_users_stats(
-    current_admin: CurrentAdmin,
-    session: AsyncSession = Depends(get_session)
-):
-    """
-    Get statistics for all users (admin only).
-
-    Returns aggregated stats for each user:
-    - Total number of facts
-    - Total number of articles
-    - Last fact date
-
-    Args:
-        current_admin: Current admin user (from dependency)
-        session: Database session
-
-    Returns:
-        List[UserStatsResponse]: List of user statistics
-    """
-    # Get all current users
-    users_query = select(User).where(User.is_current == True)  # noqa: E712
-    users_result = await session.execute(users_query)
-    users = users_result.scalars().all()
-
-    stats = []
-
-    for user in users:
-        # Count facts
-        facts_count_query = select(func.count(Fact.id)).where(Fact.user_id == user.id)
-        facts_count_result = await session.execute(facts_count_query)
-        total_facts = facts_count_result.scalar() or 0
-
-        # Count articles
-        articles_count_query = select(func.count(Article.id)).where(
-            Article.user_id == user.id,
-            Article.is_current == True  # noqa: E712
-        )
-        articles_count_result = await session.execute(articles_count_query)
-        total_articles = articles_count_result.scalar() or 0
-
-        # Get last fact date
-        last_fact_query = select(func.max(Fact.fact_date)).where(Fact.user_id == user.id)
-        last_fact_result = await session.execute(last_fact_query)
-        last_fact_date = last_fact_result.scalar()
-
-        stats.append(UserStatsResponse(
-            user_id=user.id,
-            username=user.username,
-            first_name=user.first_name,
-            total_facts=total_facts,
-            total_articles=total_articles,
-            last_fact_date=last_fact_date.isoformat() if last_fact_date else None
-        ))
-
-    return stats
-
-
-@router.get("/users/stats/system", response_model=SystemStatsResponse)
-async def get_system_stats(
-    current_admin: CurrentAdmin,
-    session: AsyncSession = Depends(get_session)
-):
-    """
-    Get system-wide statistics (admin only).
-
-    Follows Shared Family Budget Model principles:
-    - All metrics are GLOBAL (not filtered by user_id)
-    - Reflects the entire family budget system
-    - No per-user isolation for facts and articles
-
-    Returns aggregated stats for the entire system:
-    - Total number of users
-    - Total number of active users (who created at least one transaction)
-    - Total number of facts (Shared Family Budget)
-    - Total number of articles (Shared References)
-    - Last fact date (most recent transaction in the system)
-
-    Args:
-        current_admin: Current admin user (from dependency)
-        session: Database session
-
-    Returns:
-        SystemStatsResponse: System-wide statistics
-
-    See:
-        CLAUDE.md - Shared Family Budget Model documentation
-    """
-    # Total users (current versions only)
-    users_count_query = select(func.count(User.id)).where(User.is_current == True)  # noqa: E712
-    users_count_result = await session.execute(users_count_query)
-    total_users = users_count_result.scalar() or 0
-
-    # Total facts (Shared Family Budget - NO user_id filter!)
-    facts_count_query = select(func.count(Fact.id))
-    facts_count_result = await session.execute(facts_count_query)
-    total_facts = facts_count_result.scalar() or 0
-
-    # Active users (users with is_active=True)
-    active_users_query = select(func.count(User.id)).where(
-        User.is_current == True,  # noqa: E712
-        User.is_active == True    # noqa: E712
-    )
-    active_users_result = await session.execute(active_users_query)
-    total_active_users = active_users_result.scalar() or 0
-
-    # Total articles (Shared References - NO user_id filter!)
-    articles_count_query = select(func.count(Article.id)).where(
-        Article.is_current == True  # noqa: E712
-    )
-    articles_count_result = await session.execute(articles_count_query)
-    total_articles = articles_count_result.scalar() or 0
-
-    # Last fact date (most recent transaction in the system)
-    last_fact_query = select(func.max(Fact.fact_date))
-    last_fact_result = await session.execute(last_fact_query)
-    last_fact_date = last_fact_result.scalar()
-
-    return SystemStatsResponse(
-        total_users=total_users,
-        total_active_users=total_active_users,
-        total_facts=total_facts,
-        total_articles=total_articles,
-        last_fact_date=last_fact_date.isoformat() if last_fact_date else None
-    )
-
-
-# ============================================================================
-# Articles Management Endpoints
-# ============================================================================
-
 @router.get("/articles", response_model=List[ArticleResponse])
 async def get_all_articles(
     current_admin: CurrentAdmin,
@@ -802,10 +833,15 @@ async def get_all_articles(
             parent_id=article.parent_id,
             name=article.name,
             type=article.type,
+            code=article.code,
             is_active=article.is_active,
             is_current=article.is_current,
             valid_from=article.valid_from.isoformat(),
             valid_to=article.valid_to.isoformat() if article.valid_to else None,
+            created_at=article.created_at.isoformat() if article.created_at else None,
+            updated_at=article.updated_at.isoformat() if article.updated_at else None,
+            usage_count=None,
+            hierarchy=None,
             user_name=user.username if user else None
         )
         for article, user in rows
@@ -855,37 +891,49 @@ async def create_article(
                 detail=f"Parent type ({parent.type}) must match child type ({create_data.type})"
             )
 
+    # Generate code for article
+    from backend.app.utils.code_generator import generate_code
+    generated_code = await generate_code(session, Article)
+
     # Create new article
     new_article = Article(
         user_id=current_admin.id,
         parent_id=create_data.parent_id,
         name=create_data.name,
         type=create_data.type,
+        code=generated_code,
+        is_active=create_data.is_active,
         valid_from=datetime.utcnow(),
-        valid_to=None,
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
         is_current=True
     )
     session.add(new_article)
     await session.commit()
     await session.refresh(new_article)
 
-    return ArticleResponse(
-        id=new_article.id,
-        user_id=new_article.user_id,
-        parent_id=new_article.parent_id,
-        name=new_article.name,
-        type=new_article.type,
-        is_current=new_article.is_current,
-        valid_from=new_article.valid_from.isoformat(),
-        valid_to=new_article.valid_to.isoformat() if new_article.valid_to else None,
-        user_name=None
-    )
+    # Return dict with datetime converted to ISO strings for JSON serialization
+    return {
+        "id": new_article.id,
+        "user_id": new_article.user_id,
+        "parent_id": new_article.parent_id,
+        "name": new_article.name,
+        "type": new_article.type,
+        "code": new_article.code,
+        "is_active": new_article.is_active,
+        "valid_from": new_article.valid_from.isoformat(),
+        "valid_to": new_article.valid_to.isoformat(),
+        "is_current": new_article.is_current,
+        "created_at": new_article.created_at.isoformat(),
+        "updated_at": new_article.updated_at.isoformat(),
+        "usage_count": 0,  # Default for newly created articles
+        "hierarchy": None
+    }
 
 
 @router.put("/articles/{article_id}", response_model=ArticleResponse)
 async def update_article(
     article_id: int,
-    update_data: ArticleUpdateRequest,
+    update_data: ArticleUpdate,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
 ):
@@ -928,6 +976,8 @@ async def update_article(
         updates["type"] = update_data.type
     if update_data.parent_id is not None:
         updates["parent_id"] = update_data.parent_id
+    if update_data.is_active is not None:
+        updates["is_active"] = update_data.is_active
 
     # Validate parent_id if changing
     if "parent_id" in updates and updates["parent_id"] != article.parent_id:
@@ -1001,37 +1051,46 @@ async def update_article(
     # Check if anything changed
     changed, changed_fields = has_changes(article, updates)
     if not changed:
-        # No changes, return existing article
-        return ArticleResponse(
-            id=article.id,
-            user_id=article.user_id,
-            parent_id=article.parent_id,
-            name=article.name,
-            type=article.type,
-            valid_from=article.valid_from,
-            valid_to=article.valid_to,
-            is_current=article.is_current
-        )
+        # No changes, return existing article as dict with ISO datetime strings
+        return {
+            "id": article.id,
+            "user_id": article.user_id,
+            "parent_id": article.parent_id,
+            "name": article.name,
+            "type": article.type,
+            "code": article.code,
+            "is_active": article.is_active,
+            "valid_from": article.valid_from.isoformat(),
+            "valid_to": article.valid_to.isoformat(),
+            "is_current": article.is_current,
+            "created_at": article.created_at.isoformat(),
+            "updated_at": article.updated_at.isoformat(),
+            "usage_count": 0,  # Default - stats not loaded
+            "hierarchy": None
+        }
 
     # Use SCD2Service to create new version (includes automatic child redirection)
     new_article = await create_new_version(
         session=session,
         old_instance=article,
         updates=updates,
-        changed_fields=changed_fields
+        changed_fields=changed_fields,
+        changed_by_user_id=current_admin.id,
     )
 
     # UPDATE TRANSACTIONS: Repoint all transactions from old article_id to new article_id
     # This ensures historical transactions show under the new category attributes (e.g., new type)
     # Without this, old transactions would be "lost" in analytics filtered by new attributes
-    from sqlalchemy import update as sa_update
-
     update_stmt = (
         sa_update(Fact)
         .where(Fact.article_id == article.id)
         .values(article_id=new_article.id)
     )
     await session.execute(update_stmt)
+    await session.commit()  # Commit transaction updates
+
+    # Refresh article to ensure it's not stale
+    await session.refresh(new_article)
 
     logger.info(
         f"Updated transactions: article_id {article.id} → {new_article.id} "
@@ -1062,7 +1121,8 @@ async def update_article(
                         session=session,
                         old_instance=child,
                         updates=child_updates,
-                        changed_fields=["type"]
+                        changed_fields=["type"],
+                        changed_by_user_id=current_admin.id,
                     )
 
                     # UPDATE TRANSACTIONS: Repoint child's transactions to new version
@@ -1072,6 +1132,7 @@ async def update_article(
                         .values(article_id=new_child.id)
                     )
                     await session.execute(update_child_stmt)
+                    await session.commit()  # Commit cascade transaction updates
 
                     logger.info(
                         f"CASCADE: Updated transactions for child: article_id {old_child_id} → {new_child.id} "
@@ -1084,17 +1145,33 @@ async def update_article(
         # Start cascade from the newly created article
         await cascade_update_type(new_article.id, new_article.type)
 
-    return ArticleResponse(
-        id=new_article.id,
-        user_id=new_article.user_id,
-        parent_id=new_article.parent_id,
-        name=new_article.name,
-        type=new_article.type,
-        is_current=new_article.is_current,
-        valid_from=new_article.valid_from.isoformat(),
-        valid_to=new_article.valid_to.isoformat() if new_article.valid_to else None,
-        user_name=None
-    )
+    # TRIGGER: Recalculate article usage statistics after category update
+    # This ensures usage_count is up-to-date for category selection UI sorting
+    try:
+        logger.info(f"Triggering article usage statistics recalculation after update of article {new_article.id}")
+        await session.execute(text("SELECT recalculate_article_usage_stats()"))
+        logger.info("Article usage statistics recalculated successfully")
+    except Exception as e:
+        logger.error(f"Error recalculating article usage statistics: {e}", exc_info=True)
+
+    # Return dict with datetime converted to ISO strings for JSON serialization
+    # ArticleResponse includes usage_count which is not in Article model (comes from separate stats table)
+    return {
+        "id": new_article.id,
+        "user_id": new_article.user_id,
+        "parent_id": new_article.parent_id,
+        "name": new_article.name,
+        "type": new_article.type,
+        "code": new_article.code,
+        "is_active": new_article.is_active,
+        "valid_from": new_article.valid_from.isoformat(),
+        "valid_to": new_article.valid_to.isoformat(),
+        "is_current": new_article.is_current,
+        "created_at": new_article.created_at.isoformat(),
+        "updated_at": new_article.updated_at.isoformat(),
+        "usage_count": 0,  # Default for updated articles - stats recalculated daily
+        "hierarchy": None
+    }
 
 
 @router.delete("/articles/{article_id}")

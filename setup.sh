@@ -433,6 +433,8 @@ collect_configuration() {
     info "Generating secure secrets..."
     local generated_jwt_secret
     generated_jwt_secret=$(generate_jwt_secret)
+    local generated_api_internal_key
+    generated_api_internal_key=$(generate_jwt_secret)  # Same generation method (hex 32 bytes)
     local generated_postgres_password
     generated_postgres_password=$(generate_password 32)
     success "Secrets generated"
@@ -454,6 +456,8 @@ collect_configuration() {
     print_message "$CYAN" "▶ Security Configuration"
     info "JWT secret will be auto-generated"
     CONFIG["JWT_SECRET"]=$generated_jwt_secret
+    info "Internal API key will be auto-generated"
+    CONFIG["API_INTERNAL_KEY"]=$generated_api_internal_key
     prompt "JWT expiration (days)" "JWT_EXPIRE_DAYS" "7"
 
     echo ""
@@ -967,6 +971,7 @@ create_env_file() {
 
     sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${CONFIG[JWT_SECRET]}/" "$env_file"
     sed -i "s/^JWT_EXPIRE_DAYS=.*/JWT_EXPIRE_DAYS=${CONFIG[JWT_EXPIRE_DAYS]}/" "$env_file"
+    sed -i "s/^API_INTERNAL_KEY=.*/API_INTERNAL_KEY=${CONFIG[API_INTERNAL_KEY]}/" "$env_file"
 
     sed -i "s/^TELEGRAM_BOT_TOKEN=.*/TELEGRAM_BOT_TOKEN=${CONFIG[TELEGRAM_BOT_TOKEN]}/" "$env_file"
     sed -i "s/^TELEGRAM_BOT_USERNAME=.*/TELEGRAM_BOT_USERNAME=${CONFIG[TELEGRAM_BOT_USERNAME]}/" "$env_file"
@@ -1043,6 +1048,7 @@ validate_configuration() {
     local required_vars=(
         "POSTGRES_PASSWORD"
         "JWT_SECRET"
+        "API_INTERNAL_KEY"
         "TELEGRAM_BOT_TOKEN"
         "ADMIN_TELEGRAM_ID"
     )
@@ -1065,6 +1071,10 @@ validate_configuration() {
 
     if [[ "$JWT_SECRET" == "CHANGE_ME_GENERATE_WITH_OPENSSL" ]]; then
         error "JWT_SECRET still has default value"
+    fi
+
+    if [[ "$API_INTERNAL_KEY" == "CHANGE_ME_GENERATE_WITH_OPENSSL" ]]; then
+        error "API_INTERNAL_KEY still has default value"
     fi
 
     success "Configuration validated"

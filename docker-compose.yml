@@ -74,6 +74,8 @@ services:
       - "log_destination=stderr"
       - "-c"
       - "log_min_duration_statement=1000"
+      - "-c"
+      - "wal_level=replica"  # SEC-005 fix: Prevent pg_logical/snapshots error
 
   # Backend Application (FastAPI + HTMX)
   backend:
@@ -107,6 +109,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRE_DAYS: ${JWT_EXPIRE_DAYS:-7}
+      API_INTERNAL_KEY: ${API_INTERNAL_KEY:?API_INTERNAL_KEY is required}
 
       # Telegram
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
@@ -142,6 +145,8 @@ services:
     volumes:
       - ./backend:/app/backend:ro
       - ./frontend:/app/frontend:ro  # Frontend: web UI, Telegram Web Apps, shared modules
+      - ./scripts:/app/scripts:ro  # Scripts: backup health check, deployment utilities
+      - ./backups:/app/backups:ro  # Backups directory (read-only for health checks)
       - ./logs:/app/logs
       - ./uploads:/app/uploads
     ports:
@@ -194,6 +199,7 @@ services:
       # Backend API
       BACKEND_API_URL: http://backend:8000/api/v1
       BACKEND_API_KEY: ${BACKEND_API_KEY:-}
+      API_INTERNAL_KEY: ${API_INTERNAL_KEY:?API_INTERNAL_KEY is required}
 
       # Domain (for WebApp URL generation)
       DOMAIN: ${DOMAIN:-localhost}

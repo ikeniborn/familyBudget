@@ -139,9 +139,9 @@ async def validate_initdata(
             detail="Access denied. User not registered. Contact administrator to create your account.",
         )
 
-    # Step 4: Create JWT access token (7-day expiry)
+    # Step 4: Create JWT access token (7-day expiry, using telegram_id for SCD Type 2 compatibility)
     # Note: No refresh token for Web Apps (Telegram handles re-auth)
-    access_token = create_access_token(user_id=user.id)
+    access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id)
 
     # Step 5: Build response
     web_app_user = WebAppUser(

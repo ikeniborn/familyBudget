@@ -41,6 +41,11 @@ update_cache_versions() {
         "${repo_dir}/frontend/web/templates/index.html"
         "${repo_dir}/frontend/web/templates/analytics.html"
         "${repo_dir}/frontend/web/templates/notifications.html"
+        "${repo_dir}/frontend/web/templates/admin_dashboard.html"
+        "${repo_dir}/frontend/web/templates/admin_articles.html"
+        "${repo_dir}/frontend/web/templates/admin_cost_centers.html"
+        "${repo_dir}/frontend/web/templates/admin_financial_centers.html"
+        "${repo_dir}/frontend/web/templates/admin_users.html"
     )
 
     local updated_count=0
@@ -65,11 +70,10 @@ update_cache_versions() {
         # Поддерживает:
         # - .min.js / .min.css файлы (минифицированные)
         # - /webapp/, /web/, /static/, /shared/ paths
-        # ИСКЛЮЧАЕТ:
-        # - vendor/ subdirectories (третьесторонние библиотеки с собственным версионированием)
+        # - vendor/ subdirectories (включая третьесторонние библиотеки)
         perl -i.bak -pe "
-            s{(\\/webapp\\/static\\/js\\/|\\/web\\/static\\/js\\/|\\/static\\/js\\/|\\/shared\\/static\\/js\\/)(?!vendor\\/)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
-            s{(\\/webapp\\/static\\/css\\/|\\/web\\/static\\/css\\/|\\/static\\/css\\/|\\/shared\\/static\\/css\\/)(?!vendor\\/)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/js\\/(?:vendor\\/)?|\\/web\\/static\\/js\\/(?:vendor\\/)?|\\/static\\/js\\/(?:vendor\\/)?|\\/shared\\/static\\/js\\/)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/(?:vendor\\/)?|\\/web\\/static\\/css\\/(?:vendor\\/)?|\\/static\\/css\\/(?:vendor\\/)?|\\/shared\\/static\\/css\\/)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
         " "$file" 2>&1
 
         local perl_exit=$?
@@ -121,6 +125,11 @@ check_cache_versions() {
         "${repo_dir}/frontend/web/templates/index.html"
         "${repo_dir}/frontend/web/templates/analytics.html"
         "${repo_dir}/frontend/web/templates/notifications.html"
+        "${repo_dir}/frontend/web/templates/admin_dashboard.html"
+        "${repo_dir}/frontend/web/templates/admin_articles.html"
+        "${repo_dir}/frontend/web/templates/admin_cost_centers.html"
+        "${repo_dir}/frontend/web/templates/admin_financial_centers.html"
+        "${repo_dir}/frontend/web/templates/admin_users.html"
     )
 
     for file in "${files[@]}"; do

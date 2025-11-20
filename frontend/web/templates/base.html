@@ -123,6 +123,7 @@
                 <li><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Транзакции</a></li>
                 <li><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">План</a></li>
                 <li><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}" aria-current="{% if '/notifications' in request.url.path %}page{% endif %}">🔔 Уведомления</a></li>
+                <li><a href="/import" class="{% if '/import' in request.url.path %}active{% endif %}" aria-current="{% if '/import' in request.url.path %}page{% endif %}">📥 Импорт</a></li>
                 {% endif %}
 
                 {% if user and user.is_admin %}
@@ -216,7 +217,7 @@
                     </ul>
                 </div>
             {% else %}
-                <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm text-xs sm:text-sm px-3 sm:px-4">Login</a>
+                <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm text-xs sm:text-sm px-3 sm:px-4">Вход</a>
             {% endif %}
 
             <!-- Mobile Menu -->
@@ -270,6 +271,7 @@
                     <li><a href="/facts">Транзакции</a></li>
                     <li><a href="/plan">План</a></li>
                     <li><a href="/notifications">🔔 Уведомления</a></li>
+                    <li><a href="/import">📥 Импорт</a></li>
                     {% endif %}
 
                     {% if user and user.is_admin %}

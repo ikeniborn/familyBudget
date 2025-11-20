@@ -6,7 +6,9 @@ Provides comprehensive health and readiness checks for monitoring systems.
 
 import platform
 import sys
+import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import psutil
@@ -153,6 +155,74 @@ def get_system_info() -> dict[str, Any]:
             "platform": platform.system(),
             "python_version": sys.version.split()[0],
         }
+
+
+def check_backup_status() -> ComponentHealth:
+    """
+    Check backup status by scanning backup directory.
+
+    Pure Python implementation - no bash scripts or Docker CLI needed.
+
+    Returns:
+        ComponentHealth: Backup status with latest backup info
+    """
+    try:
+        backup_dir = Path("/app/backups")
+
+        # Check if backup directory exists
+        if not backup_dir.exists():
+            return ComponentHealth(
+                status="down",
+                message=f"Backup directory not found: {backup_dir}"
+            )
+
+        # Find all backup files (backup_YYYYMMDD_HHMMSS.sql.gz)
+        backup_files = list(backup_dir.glob("backup_*.sql.gz"))
+
+        if not backup_files:
+            return ComponentHealth(
+                status="down",
+                message="No backups found"
+            )
+
+        # Sort by filename (contains timestamp) and get latest
+        backup_files.sort(reverse=True)
+        latest_backup = backup_files[0]
+
+        # Parse filename: backup_YYYYMMDD_HHMMSS.sql.gz
+        filename = latest_backup.name
+        parts = filename.split("_")
+
+        if len(parts) >= 3:
+            date_str = parts[1]  # YYYYMMDD
+            time_str = parts[2].replace(".sql.gz", "")  # HHMMSS
+
+            formatted_date = f"{date_str[:4]}-{date_str[4:6]}-{date_str[6:8]}"
+            formatted_time = f"{time_str[:2]}:{time_str[2:4]}:{time_str[4:6]}"
+            backup_datetime = f"{formatted_date} {formatted_time}"
+        else:
+            backup_datetime = filename
+
+        # Get file size
+        backup_size_mb = latest_backup.stat().st_size / (1024 * 1024)
+
+        # Check if backup is recent (< 26 hours old)
+        backup_age_seconds = time.time() - latest_backup.stat().st_mtime
+        backup_age_hours = backup_age_seconds / 3600
+
+        # Status: up if backup is recent and size > 100KB
+        status = "up" if (backup_age_hours < 26 and backup_size_mb > 0.1) else "down"
+
+        return ComponentHealth(
+            status=status,
+            message=f"Latest: {backup_datetime}, File: {filename}, Size: {backup_size_mb:.2f} MB, Total backups: {len(backup_files)}"
+        )
+
+    except Exception as e:
+        return ComponentHealth(
+            status="down",
+            message=f"Backup check error: {str(e)}"
+        )
 
 
 def calculate_uptime() -> float:
@@ -329,7 +399,12 @@ async def detailed_health_check(
     if db_health.status == "up":
         db_health.message = f"Database operational. Users: {db_stats['total_users']}, Facts: {db_stats['total_facts']}"
 
-    components = {"database": db_health}
+    backup_health = check_backup_status()
+
+    components = {
+        "database": db_health,
+        "backup": backup_health
+    }
 
     # Determine overall status
     overall_status = determine_overall_status(components)
