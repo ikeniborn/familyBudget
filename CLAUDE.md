@@ -368,6 +368,127 @@ bash scripts/lib/cache_busting.sh auto  # НЕ ДЕЛАЙ ЭТО!
 docker compose down -v && docker compose up -d
 ```
 
+### CalendarWidget Mobile Display Issues
+
+**Симптомы:**
+- Header (месяц/год селекторы + навигация) выходит за границы календаря
+- Кнопки дат слишком узкие (не квадратные)
+- Навигационные стрелки обрезаны или перекрываются
+
+**Причина:**
+- Отсутствие `max-width` на month/year `<select>` элементах
+- Отсутствие `min-width` на кнопках дат (только `min-height`)
+- Слишком большой `gap` между flex элементами на маленьких экранах
+
+**Решение (v5.1.4):**
+```css
+/* frontend/web/static/css/calendar-widget.css */
+
+/* Prevent header overflow */
+.calendar-widget select[data-action="select-month"],
+.calendar-widget select[data-action="select-year"] {
+  max-width: 110px;
+  min-width: 90px;
+  flex-shrink: 1;
+}
+
+/* Ensure square date buttons */
+.calendar-widget [data-date] {
+  min-height: 40px;
+  min-width: 40px;  /* NEW - prevents narrow buttons */
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .calendar-widget select[data-action="select-month"],
+  .calendar-widget select[data-action="select-year"] {
+    max-width: 100px;
+    min-width: 80px;
+    font-size: 0.8125rem;
+  }
+
+  .calendar-widget .flex.items-center.gap-2 {
+    gap: 0.25rem; /* Reduce from 8px to 4px */
+  }
+}
+```
+
+**Тестирование:**
+1. Открой страницу аналитики
+2. Нажми "Произвольный" период
+3. Проверь на мобильном (< 768px) - header не должен переполняться
+4. Проверь кнопки дат - должны быть квадратными (40x40px, 44x44px на mobile)
+
+### UFW Firewall Validation
+
+**Проблема:**
+UFW правила могут устареть после обновления конфигурации или ручных изменений.
+
+**Решение (v5.1.4):**
+```bash
+# Автоматическая проверка UFW при deploy
+cd ~/familyBudget && ./deploy.sh --profile full
+# deploy.sh автоматически вызывает: validate_ufw_rules()
+
+# Ручная проверка
+sudo ufw status verbose
+sudo ufw status numbered
+```
+
+**Что проверяет validate_ufw_rules():**
+- ✓ UFW активен (`Status: active`)
+- ✓ Default incoming: DENY
+- ✓ Default outgoing: ALLOW
+- ✓ SSH port 22: ALLOWED
+- ✓ HTTPS port 443: ALLOWED
+- ✓ HTTP port 80: опционально (для Let's Encrypt)
+- ✓ PostgreSQL 5432: consistency check (`POSTGRES_EXTERNAL_ACCESS` env vs actual UFW rules)
+- ✓ Backend 8000: защищён UFW (не должен быть ALLOW IN)
+
+**Типичные проблемы:**
+
+1. **UFW не активен:**
+   ```bash
+   sudo ufw enable
+   sudo systemctl enable ufw
+   ```
+
+2. **Порт 80 постоянно открыт:**
+   ```bash
+   # Port 80 должен открываться ТОЛЬКО временно для certbot
+   sudo ufw delete allow 80/tcp
+   # certbot автоматически откроет при renewal
+   ```
+
+3. **PostgreSQL несоответствие:**
+   ```bash
+   # Если POSTGRES_EXTERNAL_ACCESS=true но нет UFW rule:
+   sudo ufw allow from <TRUSTED_IP> to any port 5432
+
+   # Если POSTGRES_EXTERNAL_ACCESS=false но есть UFW rule:
+   sudo ufw status numbered
+   sudo ufw delete <rule_number>
+   ```
+
+4. **Backend port 8000 exposed:**
+   ```bash
+   # Если порт 8000 открыт в UFW (небезопасно):
+   sudo ufw delete allow 8000/tcp
+   # Доступ через Nginx reverse proxy (port 443)
+   ```
+
+**Проверка после изменений:**
+```bash
+# 1. Проверь UFW status
+sudo ufw status verbose
+
+# 2. Проверь открытые порты
+sudo netstat -tulpn | grep LISTEN
+
+# 3. Убедись что порты 8000, 5432 НЕ доступны извне
+# (должны быть доступны только localhost или защищены UFW)
+```
+
 ---
 
 ## 🗂️ Структура проекта
