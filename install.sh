@@ -608,7 +608,7 @@ check_npm_dependencies() {
 
     # Check 4: Critical packages exist
     local missing_packages=0
-    local critical_packages=("terser" "cssnano-cli" "tailwindcss" "daisyui" "postcss-cli")
+    local critical_packages=("terser" "cssnano" "postcss" "postcss-cli" "tailwindcss" "daisyui")
 
     for pkg in "${critical_packages[@]}"; do
         if [[ ! -d "$node_modules/$pkg" ]]; then
