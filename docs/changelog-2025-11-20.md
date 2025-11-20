@@ -118,15 +118,88 @@
 
 ---
 
+## Security (CRITICAL)
+
+### 🚨 SEC-006: Docker bypassing UFW firewall - порты 5432 и 8000 открыты для всех
+
+**Изменения:**
+- Добавлена функция `configure_docker_firewall()` в scripts/lib/firewall.sh
+- Использует DOCKER-USER iptables chain (выполняется ДО Docker DOCKER chain)
+- Блокирует порт 8000 (backend) от внешнего доступа - только через Nginx
+- Блокирует порт 5432 (PostgreSQL) по умолчанию
+- Разрешает PostgreSQL только с IP указанного в POSTGRES_ALLOWED_IP
+
+**Влияние на пользователей:**
+**КРИТИЧЕСКОЕ ОБНОВЛЕНИЕ БЕЗОПАСНОСТИ!** До применения fix: PostgreSQL и Backend были доступны с любого IP в интернете несмотря на UFW правила. Docker обходит UFW добавляя iptables правила напрямую.
+
+После применения: Порты 5432 и 8000 блокируются на уровне iptables DOCKER-USER chain. Доступ к PostgreSQL только с разрешённого IP (если POSTGRES_EXTERNAL_ACCESS=true).
+
+**Применение на production:**
+```bash
+# 1. Настроить .env
+nano /opt/budget/.env
+# Добавить: POSTGRES_ALLOWED_IP=your_ip (если нужен внешний доступ)
+
+# 2. Применить правила
+cd ~/familyBudget && git pull
+source scripts/lib/firewall.sh
+configure_docker_firewall
+
+# 3. Проверить
+sudo iptables -L DOCKER-USER -n -v
+```
+
+**Технические детали:**
+- Файлы: `scripts/lib/firewall.sh` (lines 155-226)
+- Аудит: SEC-006 (CRITICAL - Docker firewall bypass)
+- CVSS: 9.8 Critical (Network exposure without access control)
+- OWASP: A01:2021 Broken Access Control
+- Commits: [security commit feature/calendar-responsive-security-fixes]
+- Версия: v5.1.4
+
+**Важно:**
+- ⚠️ Правила НЕ persistent - сбрасываются при перезапуске Docker
+- Решение: Добавить в deploy.sh или создать systemd service (TODO)
+- Альтернатива: Изменить docker-compose.yml port mapping на 127.0.0.1:port
+
+**Переменные окружения:**
+- `POSTGRES_EXTERNAL_ACCESS=true/false` (существующая)
+- `POSTGRES_ALLOWED_IP=<IP>` (НОВАЯ - обязательна если external access enabled)
+
+**Breaking Changes:** Нет (функция вызывается вручную, не автоматически)
+
+---
+
+## Bug Fixes (дополнение)
+
+### 🐛 Исправлен min-width календаря (дополнение к основному fix)
+
+**Изменения:**
+- Добавлен `min-width: 320px` к `.calendar-widget` контейнеру
+- Добавлен `min-width: 300px` для mobile (≤480px)
+
+**Влияние на пользователей:**
+Календарь больше не сжимается до 192px ширины (как было на скриншоте). Минимальная ширина 320px (desktop) и 300px (mobile).
+
+**Технические детали:**
+- Файлы: `frontend/web/static/css/calendar-widget.css` (lines 16, 112, 152)
+- Дополнение к основному calendar fix
+- Commits: [fix commit после основного feat commit]
+- Версия: v5.1.4
+
+**Breaking Changes:** Нет
+
+---
+
 ## Итого
 
 **Категории:**
-- 🐛 Bug Fixes: 1
-- 🔒 Security: 2
-- 🔧 Infrastructure: 1
-- 📝 Documentation: 1
+- 🐛 Bug Fixes: 2 (calendar overflow + min-width)
+- 🚨 Security (CRITICAL): 3 (SEC-004, SEC-005, SEC-006)
+- 🔧 Infrastructure: 1 (UFW validation)
+- 📝 Documentation: 2 (CLAUDE.md troubleshooting + Docker firewall)
 
-**Всего изменений:** 5
+**Всего изменений:** 8
 
 **Файлы изменены:**
 1. frontend/web/static/css/calendar-widget.css
