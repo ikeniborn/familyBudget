@@ -100,6 +100,95 @@ error() {
     exit 1
 }
 
+# Detect CPU resources
+detect_cpu_resources() {
+    info "Detecting CPU resources..."
+
+    # Get number of CPUs
+    local cpu_count
+    cpu_count=$(nproc 2>/dev/null || grep -c ^processor /proc/cpuinfo 2>/dev/null || echo "1")
+
+    CONFIG[CPU_COUNT]=$cpu_count
+
+    info "Detected CPUs: $cpu_count"
+
+    # Calculate optimal CPU limits based on available cores
+    calculate_cpu_limits "$cpu_count"
+
+    success "CPU resources detected and limits calculated"
+}
+
+# Calculate CPU limits for Docker containers
+calculate_cpu_limits() {
+    local cpu_count=$1
+
+    info "Calculating optimal CPU limits for $cpu_count CPU(s)..."
+
+    # Strategy:
+    # - Single CPU (1 core): Conservative limits, total ≤ 1.0
+    # - Multi CPU (2+ cores): Higher limits for better performance
+    #
+    # Priority allocation:
+    # - Backend: 80% of resources (main workload)
+    # - Bot: 15% of resources (lightweight)
+    # - Nginx: 5% of resources (proxy only)
+
+    if [[ $cpu_count -eq 1 ]]; then
+        # Single CPU server - conservative limits
+        CONFIG[BACKEND_CPU_LIMIT]="0.8"
+        CONFIG[BACKEND_CPU_RESERVATION]="0.3"
+        CONFIG[BOT_CPU_LIMIT]="0.15"
+        CONFIG[BOT_CPU_RESERVATION]="0.05"
+        CONFIG[NGINX_CPU_LIMIT]="0.05"
+        CONFIG[NGINX_CPU_RESERVATION]="0.01"
+
+        info "Single-CPU configuration:"
+        info "  Backend: 0.8 CPU (80%)"
+        info "  Bot: 0.15 CPU (15%)"
+        info "  Nginx: 0.05 CPU (5%)"
+        info "  Total: 1.0 CPU"
+
+    elif [[ $cpu_count -eq 2 ]]; then
+        # Dual CPU server - balanced limits
+        CONFIG[BACKEND_CPU_LIMIT]="1.5"
+        CONFIG[BACKEND_CPU_RESERVATION]="0.5"
+        CONFIG[BOT_CPU_LIMIT]="0.4"
+        CONFIG[BOT_CPU_RESERVATION]="0.1"
+        CONFIG[NGINX_CPU_LIMIT]="0.1"
+        CONFIG[NGINX_CPU_RESERVATION]="0.02"
+
+        info "Dual-CPU configuration:"
+        info "  Backend: 1.5 CPU (75%)"
+        info "  Bot: 0.4 CPU (20%)"
+        info "  Nginx: 0.1 CPU (5%)"
+        info "  Total: 2.0 CPU"
+
+    else
+        # Multi-CPU server (4+ cores) - high performance limits
+        # Scale with available CPUs
+        local backend_limit=$(echo "$cpu_count * 0.75" | bc)
+        local backend_reserve=$(echo "$cpu_count * 0.25" | bc)
+        local bot_limit=$(echo "$cpu_count * 0.20" | bc)
+        local bot_reserve=$(echo "$cpu_count * 0.05" | bc)
+        local nginx_limit=$(echo "$cpu_count * 0.05" | bc)
+        local nginx_reserve="0.01"
+
+        CONFIG[BACKEND_CPU_LIMIT]="$backend_limit"
+        CONFIG[BACKEND_CPU_RESERVATION]="$backend_reserve"
+        CONFIG[BOT_CPU_LIMIT]="$bot_limit"
+        CONFIG[BOT_CPU_RESERVATION]="$bot_reserve"
+        CONFIG[NGINX_CPU_LIMIT]="$nginx_limit"
+        CONFIG[NGINX_CPU_RESERVATION]="$nginx_reserve"
+
+        info "Multi-CPU configuration ($cpu_count cores):"
+        info "  Backend: $backend_limit CPU (75%)"
+        info "  Bot: $bot_limit CPU (20%)"
+        info "  Nginx: $nginx_limit CPU (5%)"
+    fi
+
+    success "CPU limits calculated based on available resources"
+}
+
 # Print section header
 section() {
     echo ""
@@ -998,6 +1087,15 @@ create_env_file() {
     sed -i "s|^S3_BUCKET_NAME=.*|S3_BUCKET_NAME=${CONFIG[S3_BUCKET_NAME]}|" "$env_file"
     sed -i "s|^S3_REGION=.*|S3_REGION=${CONFIG[S3_REGION]}|" "$env_file"
 
+    # Docker CPU limits (auto-detected based on available CPUs)
+    sed -i "s/^CPU_COUNT=.*/CPU_COUNT=${CONFIG[CPU_COUNT]}/" "$env_file"
+    sed -i "s/^BACKEND_CPU_LIMIT=.*/BACKEND_CPU_LIMIT=${CONFIG[BACKEND_CPU_LIMIT]}/" "$env_file"
+    sed -i "s/^BACKEND_CPU_RESERVATION=.*/BACKEND_CPU_RESERVATION=${CONFIG[BACKEND_CPU_RESERVATION]}/" "$env_file"
+    sed -i "s/^BOT_CPU_LIMIT=.*/BOT_CPU_LIMIT=${CONFIG[BOT_CPU_LIMIT]}/" "$env_file"
+    sed -i "s/^BOT_CPU_RESERVATION=.*/BOT_CPU_RESERVATION=${CONFIG[BOT_CPU_RESERVATION]}/" "$env_file"
+    sed -i "s/^NGINX_CPU_LIMIT=.*/NGINX_CPU_LIMIT=${CONFIG[NGINX_CPU_LIMIT]}/" "$env_file"
+    sed -i "s/^NGINX_CPU_RESERVATION=.*/NGINX_CPU_RESERVATION=${CONFIG[NGINX_CPU_RESERVATION]}/" "$env_file"
+
     # Telegram webhook URL (for full profile)
     if [[ -n "${CONFIG[TELEGRAM_WEBHOOK_URL]:-}" ]]; then
         sed -i "s|^TELEGRAM_WEBHOOK_URL=.*|TELEGRAM_WEBHOOK_URL=${CONFIG[TELEGRAM_WEBHOOK_URL]}|" "$env_file"
@@ -1257,6 +1355,10 @@ main() {
 
     # Check prerequisites
     check_prerequisites
+    echo ""
+
+    # Detect CPU resources and calculate optimal limits
+    detect_cpu_resources
     echo ""
 
     # Collect configuration
