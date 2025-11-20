@@ -1,7 +1,7 @@
 -- ============================================================================
 -- INSERT: t_f_budget_fact
 -- Description: Budget transactions (plan and fact records)
--- Generated: 2025-11-20 15:02:56
+-- Generated: 2025-11-20 22:35:26
 -- ============================================================================
 
 -- IMPORTANT: Run 05_create_partitions_t_f_budget_fact.sql BEFORE this file!

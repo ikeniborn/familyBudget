@@ -171,10 +171,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2.0'
+          cpus: '${BACKEND_CPU_LIMIT:-0.8}'  # Auto-configured by setup.sh
           memory: 2G
         reservations:
-          cpus: '0.5'
+          cpus: '${BACKEND_CPU_RESERVATION:-0.3}'  # Auto-configured by setup.sh
           memory: 512M
 
   # Telegram Bot (Optional - can run in same container as backend)
@@ -216,10 +216,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
+          cpus: '${BOT_CPU_LIMIT:-0.15}'  # Auto-configured by setup.sh
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: '${BOT_CPU_RESERVATION:-0.05}'  # Auto-configured by setup.sh
           memory: 256M
 
   # Nginx Reverse Proxy (Optional)
@@ -253,10 +253,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: '${NGINX_CPU_LIMIT:-0.05}'  # Auto-configured by setup.sh
           memory: 256M
         reservations:
-          cpus: '0.1'
+          cpus: '${NGINX_CPU_RESERVATION:-0.01}'  # Auto-configured by setup.sh
           memory: 64M
 
   # Certbot removed - SSL certificates now managed on host system
