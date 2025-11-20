@@ -371,6 +371,11 @@
         let categories = [];
         let currentPeriod = 'today';
 
+        // Custom date range variables
+        let calendarWidget = null;
+        let customDateFrom = null;
+        let customDateTo = null;
+
         // Page-specific initialization
         window.pageInit = async function(budgetApp) {
             console.log('Stats page init');
@@ -398,18 +403,121 @@
 
             buttons.forEach(button => {
                 button.addEventListener('click', async () => {
+                    app.ui.hapticLight();
+
+                    const period = button.dataset.period;
+
+                    // Handle custom period - show calendar
+                    if (period === 'custom') {
+                        // Update active state
+                        buttons.forEach(b => b.classList.remove('active'));
+                        button.classList.add('active');
+
+                        // Show custom range container
+                        toggleCustomRange();
+                        return;
+                    }
+
+                    // Regular period - hide custom range and load stats
+                    document.getElementById('custom-range-container').style.display = 'none';
+
                     // Update active state
                     buttons.forEach(b => b.classList.remove('active'));
                     button.classList.add('active');
 
                     // Update current period
-                    currentPeriod = button.dataset.period;
+                    currentPeriod = period;
 
                     // Reload stats
-                    app.ui.hapticLight();
                     await loadStats(currentPeriod);
                 });
             });
+        }
+
+        function toggleCustomRange() {
+            const container = document.getElementById('custom-range-container');
+            container.style.display = 'flex';
+
+            // Initialize CalendarWidget if not created yet
+            if (!calendarWidget && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+                try {
+                    // Use native date inputs for simplicity
+                    const dateFromInput = document.getElementById('date-from');
+                    const dateToInput = document.getElementById('date-to');
+
+                    // Change inputs to native date type for better UX
+                    dateFromInput.type = 'date';
+                    dateToInput.type = 'date';
+
+                    // Set max to today
+                    const today = new Date().toISOString().split('T')[0];
+                    dateFromInput.max = today;
+                    dateToInput.max = today;
+
+                    // Set default values (last 30 days)
+                    const from = new Date();
+                    from.setDate(from.getDate() - 30);
+                    dateFromInput.value = from.toISOString().split('T')[0];
+                    dateToInput.value = today;
+
+                    calendarWidget = true; // Mark as initialized
+                } catch (error) {
+                    console.error('Failed to initialize calendar:', error);
+                }
+            }
+        }
+
+        function applyCustomRange() {
+            const dateFromInput = document.getElementById('date-from');
+            const dateToInput = document.getElementById('date-to');
+
+            customDateFrom = dateFromInput.value; // YYYY-MM-DD format
+            customDateTo = dateToInput.value;
+
+            if (!customDateFrom || !customDateTo) {
+                app.tg.showAlert('Выберите даты');
+                return;
+            }
+
+            if (customDateFrom > customDateTo) {
+                app.tg.showAlert('Дата "от" должна быть раньше даты "до"');
+                return;
+            }
+
+            // Hide custom range container
+            document.getElementById('custom-range-container').style.display = 'none';
+
+            // Update current period
+            currentPeriod = 'custom';
+
+            // Load stats with custom dates
+            loadStats(currentPeriod);
+
+            app.ui.hapticLight();
+        }
+
+        function cancelCustomRange() {
+            // Hide custom range container
+            document.getElementById('custom-range-container').style.display = 'none';
+
+            // Reset to previous preset period (or default to today)
+            if (currentPeriod === 'custom') {
+                currentPeriod = 'today';
+            }
+
+            // Update button states
+            const buttons = document.querySelectorAll('.period-btn');
+            buttons.forEach(b => {
+                b.classList.remove('active');
+                if (b.dataset.period === currentPeriod) {
+                    b.classList.add('active');
+                }
+            });
+
+            // Reload stats with preset period
+            loadStats(currentPeriod);
+
+            app.ui.hapticLight();
         }
 
         async function loadCategories() {
@@ -469,6 +577,14 @@
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             let dateFrom, dateTo;
 
+            // Handle custom period
+            if (period === 'custom' && customDateFrom && customDateTo) {
+                return {
+                    dateFrom: customDateFrom, // Already in YYYY-MM-DD format
+                    dateTo: customDateTo
+                };
+            }
+
             switch (period) {
                 case 'today':
                     dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -510,14 +626,28 @@
         }
 
         function displayStats(facts, period) {
-            // Update period title
+            // Update period title with dates
             const periodTitles = {
                 'today': 'За сегодня',
                 'week': 'За неделю',
                 'month': 'За месяц',
-                'year': 'За год'
+                'year': 'За год',
+                'custom': 'Произвольный период'
             };
-            document.getElementById('period-title').textContent = periodTitles[period];
+
+            let title = periodTitles[period] || 'Период';
+
+            // Add dates to title if available
+            if (typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
+                const range = getDateRange(period);
+                if (range && range.dateFrom && range.dateTo) {
+                    const displayFrom = BudgetShared.DateFormatter.formatForDisplay(range.dateFrom);
+                    const displayTo = BudgetShared.DateFormatter.formatForDisplay(range.dateTo);
+                    title += `: ${displayFrom} — ${displayTo}`;
+                }
+            }
+
+            document.getElementById('period-title').textContent = title;
 
             // Calculate summary
             const summary = calculateSummary(facts);
