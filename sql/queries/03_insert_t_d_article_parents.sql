@@ -1,7 +1,7 @@
 -- ============================================================================
 -- INSERT: t_d_article (Parent articles)
 -- Description: Parent category articles from account_name
--- Generated: 2025-11-20 15:02:56
+-- Generated: 2025-11-20 22:35:26
 -- ============================================================================
 
 -- Insert parent articles (root level categories)
