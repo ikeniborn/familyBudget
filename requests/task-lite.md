@@ -25,24 +25,19 @@
 ## Задачи
 
 https://budget-dev.ikeniborn.ru/import
-1. при попытке фильтровать загруженные данные ошибка /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-11-19 22-07-56.png. В консоли следующие ошибка 
-Failed to load resource: the server responded with a status of 422 ()
+1. при попытке фильтровать загруженные данные ОШИБКА
+import:1457 
+ GET https://budget-dev.ikeniborn.ru/api/v1/import/staging?page=1&page_size=10000 422 (Unprocessable Content)
+loadAllStagingData	@	import:1457
+filterTable	@	import:1411
+oninput	@	import:412
 import:1492 Error loading all staging: Error: {"message":"Validation error","errors":[{"field":"page_size","message":"Input should be less than or equal to 100","type":"less_than_equal","location":["page_size"]}]}
     at loadAllStagingData (import:1474:19)
     at async filterTable (import:1411:9)
 loadAllStagingData	@	import:1492
-api/v1/import/stagin…1&page_size=10000:1 
- Failed to load resource: the server responded with a status of 422 ()
-import:1492 Error loading all staging: Error: {"message":"Validation error","errors":[{"field":"page_size","message":"Input should be less than or equal to 100","type":"less_than_equal","location":["page_size"]}]}
-    at loadAllStagingData (import:1474:19)
-    at async filterTable (import:1411:9)
-loadAllStagingData	@	import:1492
-api/v1/import/stagin…1&page_size=10000:1 
- Failed to load resource: the server responded with a status of 422 ()
-import:1492 Error loading all staging: Error: {"message":"Validation error","errors":[{"field":"page_size","message":"Input should be less than or equal to 100","type":"less_than_equal","location":["page_size"]}]}
-    at loadAllStagingData (import:1474:19)
-    at async filterTable (import:1411:9)
-loadAllStagingData	@	import:1492
+await in loadAllStagingData		
+filterTable	@	import:1411
+oninput	@	import:412
 
 ИСпарвь фильтрацию загруденных строк. Не изменяй фукнциональность. Только исправь пробелму
 
