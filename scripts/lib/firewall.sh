@@ -151,3 +151,76 @@ validate_ufw_rules() {
     success "UFW validation completed"
     return 0
 }
+
+# Configure Docker firewall (DOCKER-USER chain)
+# CRITICAL: Docker bypasses UFW by adding iptables rules before UFW chain
+# Solution: Use DOCKER-USER chain to block ports before Docker's DOCKER chain
+configure_docker_firewall() {
+    step "Configuring Docker Firewall (DOCKER-USER chain)"
+
+    # Check if iptables is available
+    if ! command_exists iptables; then
+        warning "iptables is not available, skipping Docker firewall configuration"
+        return 0
+    fi
+
+    # Flush existing DOCKER-USER rules (clean slate)
+    info "Flushing existing DOCKER-USER rules..."
+    sudo iptables -F DOCKER-USER 2>/dev/null || true
+
+    # Rule 1: Allow established connections (required for Docker to work)
+    sudo iptables -I DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+    success "✓ Allowed established connections"
+
+    # Rule 2: Allow internal Docker network traffic
+    sudo iptables -I DOCKER-USER -i br-+ -j ACCEPT
+    sudo iptables -I DOCKER-USER -i docker0 -j ACCEPT
+    success "✓ Allowed internal Docker network traffic"
+
+    # Rule 3: Block backend port 8000 from external access (must use Nginx reverse proxy)
+    sudo iptables -A DOCKER-USER -p tcp --dport 8000 ! -i docker0 ! -i br-+ -j DROP
+    success "✓ Blocked external access to backend port 8000 (use Nginx)"
+
+    # Rule 4: PostgreSQL external access control
+    if [[ "${POSTGRES_EXTERNAL_ACCESS:-false}" == "true" ]]; then
+        if [[ -n "${POSTGRES_ALLOWED_IP:-}" ]]; then
+            # Allow only specific IP
+            sudo iptables -A DOCKER-USER -p tcp --dport 5432 -s "${POSTGRES_ALLOWED_IP}" -j ACCEPT
+            sudo iptables -A DOCKER-USER -p tcp --dport 5432 ! -i docker0 ! -i br-+ -j DROP
+            success "✓ PostgreSQL: allowed from ${POSTGRES_ALLOWED_IP}, blocked from others"
+        else
+            warning "⚠ POSTGRES_EXTERNAL_ACCESS=true but POSTGRES_ALLOWED_IP not set!"
+            warning "  PostgreSQL is OPEN to the internet - set POSTGRES_ALLOWED_IP in .env"
+
+            # For safety, block by default and show warning
+            sudo iptables -A DOCKER-USER -p tcp --dport 5432 ! -i docker0 ! -i br-+ -j DROP
+            warning "  Blocked PostgreSQL external access for security (set POSTGRES_ALLOWED_IP to allow specific IP)"
+        fi
+    else
+        # Block PostgreSQL external access completely
+        sudo iptables -A DOCKER-USER -p tcp --dport 5432 ! -i docker0 ! -i br-+ -j DROP
+        success "✓ Blocked external access to PostgreSQL (internal only)"
+    fi
+
+    # Rule 5: Allow all other traffic (return to DOCKER chain)
+    sudo iptables -A DOCKER-USER -j RETURN
+    success "✓ Return to Docker default rules for other ports"
+
+    echo ""
+    success "Docker firewall configured successfully"
+
+    # Show current DOCKER-USER rules
+    info "Current DOCKER-USER rules:"
+    sudo iptables -L DOCKER-USER -n -v --line-numbers | head -20
+
+    # Make rules persistent (reload on Docker restart)
+    info ""
+    info "To make rules persistent across Docker restarts, add to /etc/docker/daemon.json:"
+    echo '  {
+    "iptables": true,
+    "userland-proxy": false
+  }'
+    warning "⚠ Re-run this function after Docker service restart to restore rules"
+
+    return 0
+}
