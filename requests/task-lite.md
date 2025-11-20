@@ -24,22 +24,14 @@
 
 ## Задачи
 
-https://budget-dev.ikeniborn.ru/import
-1. при попытке фильтровать загруженные данные ОШИБКА
-import:1457 
- GET https://budget-dev.ikeniborn.ru/api/v1/import/staging?page=1&page_size=10000 422 (Unprocessable Content)
-loadAllStagingData	@	import:1457
-filterTable	@	import:1411
-oninput	@	import:412
-import:1492 Error loading all staging: Error: {"message":"Validation error","errors":[{"field":"page_size","message":"Input should be less than or equal to 100","type":"less_than_equal","location":["page_size"]}]}
-    at loadAllStagingData (import:1474:19)
-    at async filterTable (import:1411:9)
-loadAllStagingData	@	import:1492
-await in loadAllStagingData		
-filterTable	@	import:1411
-oninput	@	import:412
+1. https://budget-dev.ikeniborn.ru/analytics
+   1. При узкоом экране не корреткно открывается календарь для выбора даты произвольног опериода. Исправить маштабирование для узких экранов (мобильные). /home/ikeniborn/Pictures/Screenshots/Screenshot from 2025-11-20 14-02-36.png
+2. в рамкахх акудите безопасности выявлены пробелмы /home/ikeniborn/Documents/Project/familyBudget/docs/security-audit-report.md. Все изменения должны быть произведены в каталоге разработке и доставлены на сервер через гит
+   1. Нужжно проверить в скрпит deploy котоырй отвечаетт за настройку и управление ufw. Чтобы были открыты только нужные порты а так же применяласось прпвило дла постгре по айпишинку. Проверялось чтобы все входящие были запрещена по умолчению а исходящие разрешены
+   2. испарвить пробелму SEC-002: Backend API Port 8000 Exposed Directly. Но учесть чтобы это не повиляело на взаимодействие всех сервисов между собой. 
+   3. исправить #### SEC-004: HSTS Header Not Enabled in Production
+   4. испарвить SEC-005: PostgreSQL Logical Replication Error in Logs
 
-ИСпарвь фильтрацию загруденных строк. Не изменяй фукнциональность. Только исправь пробелму
 
 ---
 
