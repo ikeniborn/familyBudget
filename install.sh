@@ -157,6 +157,7 @@ install_utilities() {
         "net-tools"
         "ufw"  # Firewall
         "certbot"  # Let's Encrypt SSL certificates
+        "awscli"  # AWS CLI for S3 backups (Yandex Object Storage compatible)
     )
 
     for package in "${packages[@]}"; do

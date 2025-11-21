@@ -44,7 +44,16 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-BACKUP_DIR="${BACKUP_DIR:-${PROJECT_ROOT}/backups}"
+
+# Ensure BACKUP_DIR is always absolute path
+# If BACKUP_DIR is set but relative, convert to absolute
+if [[ -n "${BACKUP_DIR:-}" ]]; then
+    # Convert relative path to absolute (resolves ./backups to /opt/budget/backups)
+    BACKUP_DIR="$(cd "${PROJECT_ROOT}" && realpath -m "${BACKUP_DIR}")"
+else
+    BACKUP_DIR="${PROJECT_ROOT}/backups"
+fi
+
 LOG_DIR="${LOG_DIR:-${BACKUP_DIR}/logs}"
 LOCK_FILE="/tmp/familybudget_backup.lock"
 
