@@ -50,7 +50,22 @@ echo ""
 
 # Step 1: Update repository
 echo -e "${BLUE}[1/6]${NC} Updating repository..."
-cd ~/familyBudget
+
+# Determine repository directory (works with sudo)
+if [[ -n "$SUDO_USER" ]]; then
+    REPO_DIR="/home/$SUDO_USER/familyBudget"
+else
+    REPO_DIR="$HOME/familyBudget"
+fi
+
+if [[ ! -d "$REPO_DIR/.git" ]]; then
+    echo -e "${RED}ERROR:${NC} Repository not found at $REPO_DIR"
+    echo "Expected location: /home/USERNAME/familyBudget"
+    exit 1
+fi
+
+echo "Repository: $REPO_DIR"
+cd "$REPO_DIR"
 git fetch origin
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
@@ -121,7 +136,7 @@ echo -e "${BLUE}[5/6]${NC} Running full deployment..."
 echo "This may take 2-3 minutes..."
 echo ""
 
-cd ~/familyBudget
+cd "$REPO_DIR"
 ./deploy.sh --profile full
 
 DEPLOY_STATUS=$?

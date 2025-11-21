@@ -24,9 +24,22 @@ echo ""
 # Track issues found
 ISSUES_FOUND=0
 
+# Determine repository directory (works with sudo)
+if [[ -n "$SUDO_USER" ]]; then
+    REPO_DIR="/home/$SUDO_USER/familyBudget"
+else
+    REPO_DIR="$HOME/familyBudget"
+fi
+
+if [[ ! -d "$REPO_DIR/.git" ]]; then
+    echo -e "${RED}ERROR:${NC} Repository not found at $REPO_DIR"
+    echo "Expected location: /home/USERNAME/familyBudget"
+    exit 1
+fi
+
 # Check 1: Verify commit 8aafae99 is applied
 echo -e "${BLUE}[1/7]${NC} Checking if fix commit is applied..."
-cd ~/familyBudget
+cd "$REPO_DIR"
 LATEST_COMMIT=$(git log -1 --oneline deploy.sh | cut -d' ' -f1)
 if [[ "$LATEST_COMMIT" == "8aafae99" ]] || git log --oneline deploy.sh | head -5 | grep -q "8aafae99"; then
     echo -e "${GREEN}✓${NC} Commit 8aafae99 (cp -f fix) is present"
