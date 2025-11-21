@@ -57,6 +57,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/api/v1/auth/",
         "/api/v1/webapp/validate",  # Web Apps initData validation (no token required)
         "/static/",  # Static files (CSS, JS, images)
+        "/shared/",  # Shared static files (JS modules, CSS)
         "/webapp/",  # Web Apps static files (HTML, JS, CSS)
     ]
 
