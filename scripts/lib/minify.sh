@@ -27,7 +27,7 @@
 set -uo pipefail  # Removed -e flag to allow graceful error handling
 
 # Prefer isolated npm environment if exists
-# This ensures npx finds binaries in .npm-isolated/node_modules/.bin
+# This ensures terser/postcss binaries are found in .npm-isolated/node_modules/.bin
 if [[ -d ".npm-isolated/node_modules/.bin" ]]; then
     export PATH="$PWD/.npm-isolated/node_modules/.bin:$PATH"
 fi
@@ -89,12 +89,6 @@ check_prerequisites() {
         return 1
     fi
 
-    # Check if npx is available
-    if ! command -v npx &> /dev/null; then
-        print_message error "npx is not available. Please install npm >= 9.0.0"
-        return 1
-    fi
-
     # Check if terser is available (only for js/all modes)
     if [[ "$mode" == "js" || "$mode" == "all" ]]; then
         if ! command -v terser &> /dev/null; then
@@ -133,7 +127,7 @@ minify_js_file() {
     # - Added timeout to prevent zombie processes from hanging builds
     # - 60 seconds should be sufficient for any JS file in this project
     local terser_output
-    terser_output=$(timeout 60s npx terser "$input_file" \
+    terser_output=$(timeout 60s terser "$input_file" \
         --compress \
         --mangle \
         --output "$output_file" 2>&1)
@@ -245,7 +239,7 @@ minify_css_file() {
     # - Added timeout to prevent zombie processes from hanging builds
     # - 60 seconds should be sufficient for any CSS file in this project
     local postcss_output
-    if postcss_output=$(timeout 60s npx postcss "$input_file" -o "$output_file" --no-map 2>&1); then
+    if postcss_output=$(timeout 60s postcss "$input_file" -o "$output_file" --no-map 2>&1); then
         local original_size=$(stat -c%s "$input_file" 2>/dev/null || stat -f%z "$input_file" 2>/dev/null)
         local minified_size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null)
         local reduction=$((100 - (minified_size * 100 / original_size)))
@@ -332,7 +326,7 @@ validate_minified_files() {
 
     # Validate all .min.js files
     while IFS= read -r -d '' file; do
-        if ! npx terser --parse "$file" &> /dev/null; then
+        if ! terser --parse "$file" &> /dev/null; then
             print_message error "Invalid syntax: $file"
             ((validation_errors++))
         fi
