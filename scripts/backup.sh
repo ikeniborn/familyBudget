@@ -356,14 +356,7 @@ generate_backup_report() {
 # ============================================================================
 
 main() {
-    # Create directories FIRST - before any logging to file
-    # This must happen BEFORE any log/debug/info calls that use tee
-    mkdir -p "$BACKUP_DIR"
-    mkdir -p "$LOG_DIR"
-    chmod 755 "$BACKUP_DIR"
-    chmod 755 "$LOG_DIR"
-
-    # Parse arguments
+    # Parse arguments FIRST (before loading .env)
     while [[ $# -gt 0 ]]; do
         case $1 in
             --force-s3)
@@ -397,6 +390,26 @@ main() {
         echo "Please ensure .env file exists in /opt/budget/.env"
         exit 2
     fi
+
+    # Convert BACKUP_DIR to absolute path (in case .env has relative path)
+    # This ensures ./backups becomes /opt/budget/backups
+    if [[ -n "${BACKUP_DIR:-}" && "${BACKUP_DIR}" != /* ]]; then
+        # Relative path detected, convert to absolute
+        BACKUP_DIR="$(cd "${PROJECT_ROOT}" && realpath -m "${BACKUP_DIR}")"
+        debug "BACKUP_DIR converted to absolute: $BACKUP_DIR"
+    fi
+
+    # Update dependent paths after BACKUP_DIR conversion
+    LOG_DIR="${LOG_DIR:-${BACKUP_DIR}/logs}"
+    BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILENAME}"
+    LOG_FILE="${LOG_DIR}/backup_${DATE_YMD}.log"
+
+    # Create directories NOW (after BACKUP_DIR conversion)
+    # This ensures correct absolute paths are used
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$LOG_DIR"
+    chmod 755 "$BACKUP_DIR"
+    chmod 755 "$LOG_DIR"
 
     # Initialize
     print_banner
