@@ -1304,6 +1304,10 @@ function showNotification(message, type) {
         animation: slideIn 0.3s ease-out;
         cursor: pointer;
         word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        hyphens: auto;
     `;
     toast.textContent = message;
 
