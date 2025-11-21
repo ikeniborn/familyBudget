@@ -1,9 +1,9 @@
 ---
 name: Deployment & DevOps
 description: Управление деплоем и Docker контейнерами
-version: 1.0.0
+version: 2.0.0
 author: Family Budget Team
-tags: [deployment, docker, docker-compose, devops]
+tags: [deployment, docker, docker-compose, devops, nginx, ssl]
 dependencies: [db-management]
 ---
 
@@ -30,12 +30,14 @@ dependencies: [db-management]
 ## Контекст проекта
 
 Проект использует:
-- **Docker** & **Docker Compose** для контейнеризации
-- **3 deployment скрипта**: install.sh, setup.sh, deploy.sh
+- **Docker 24+** & **Docker Compose v2** для контейнеризации
+- **3 deployment скрипта**: install.sh, setup.sh, deploy.sh (ТОЛЬКО из ~/familyBudget)
 - **2 Docker Compose профиля**: default (postgres + backend), full (+ bot + nginx + certbot)
-- **UFW firewall** для безопасности
+- **3 Phases**: Phase 1 (Backend+Web), Phase 2 (Bot+ЦФО/МВЗ), Phase 3 (Telegram Web Apps)
+- **UFW firewall** + **Docker firewall rules** (DOCKER-USER chain)
 - **Health checks** для всех сервисов
 - **Alembic** для миграций БД
+- **Single Bridge Network** (172.28.0.0/16) для всех сервисов
 
 ## Deployment workflow
 

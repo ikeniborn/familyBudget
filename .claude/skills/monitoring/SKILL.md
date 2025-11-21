@@ -1,9 +1,9 @@
 ---
 name: Monitoring & Troubleshooting
 description: Мониторинг и диагностика проблем
-version: 1.0.0
+version: 2.0.0
 author: Family Budget Team
-tags: [monitoring, logs, metrics, troubleshooting, diagnostics]
+tags: [monitoring, logs, metrics, troubleshooting, diagnostics, health-checks]
 dependencies: [deployment]
 ---
 
@@ -30,11 +30,12 @@ dependencies: [deployment]
 ## Контекст проекта
 
 Проект использует:
-- **Docker Compose** для сервисов
+- **Docker Compose** для сервисов (postgres, backend, bot, nginx, certbot)
 - **Structured logging** в JSON формате
-- **Health checks** для всех сервисов
-- **PostgreSQL slow query log**
-- **UFW firewall** для безопасности
+- **Health checks** для всех сервисов (backend /health endpoint)
+- **APScheduler** для background jobs (weekly reports, budget alerts)
+- **PostgreSQL slow query log** и pg_stat_statements
+- **UFW firewall** + **Docker DOCKER-USER chain** для безопасности
 
 ## Проверка статуса сервисов
 

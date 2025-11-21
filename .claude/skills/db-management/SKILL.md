@@ -1,9 +1,9 @@
 ---
 name: Database Management
 description: Управление БД, миграциями, SCD Type 2 и Closure Table
-version: 1.0.0
+version: 2.0.0
 author: Family Budget Team
-tags: [database, postgresql, alembic, migrations, scd-type-2, closure-table]
+tags: [database, postgresql, alembic, migrations, scd-type-2, closure-table, shared-budget]
 dependencies: []
 ---
 
@@ -31,11 +31,12 @@ dependencies: []
 
 Проект использует:
 - **PostgreSQL 16+** как основная СУБД
-- **Alembic** для миграций базы данных
-- **SQLModel** для ORM моделей
+- **Alembic 1.13+** для миграций базы данных
+- **SQLModel 0.0.14** для ORM моделей
 - **Async SQLAlchemy** для асинхронных операций
 - **SCD Type 2** паттерн для dimension таблиц (историческое отслеживание)
 - **Closure Table** паттерн для иерархических структур (категории)
+- **Shared Family Budget** модель - все пользователи видят все записи (2-5 человек)
 
 ## Архитектурные паттерны
 
