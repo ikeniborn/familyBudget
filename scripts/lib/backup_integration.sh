@@ -26,14 +26,15 @@ setup_backup_cron() {
     # Check if S3 backup is configured (optional)
     if [[ -n "${S3_BUCKET_NAME:-}" ]] && [[ -n "${S3_ACCESS_KEY_ID:-}" ]]; then
         info "S3 backup is configured: s3://${S3_BUCKET_NAME}"
-        info "Weekly S3 uploads will occur on Sundays"
+        info "Daily S3 uploads will occur automatically"
     else
         info "S3 backup not configured - only local backups will be created"
         info "To enable S3: configure S3_BUCKET_NAME, S3_ACCESS_KEY_ID in .env"
     fi
 
     # Add cron job for daily backups at 2 AM (works with or without S3)
-    local cron_cmd="0 2 * * * cd $DEPLOY_DIR && bash scripts/backup.sh >> logs/backup.log 2>&1"
+    # IMPORTANT: Uses absolute paths (no sudo needed - cron runs as root)
+    local cron_cmd="0 2 * * * /bin/bash $DEPLOY_DIR/scripts/backup.sh >> $DEPLOY_DIR/logs/backup.log 2>&1"
 
     # Remove any existing backup.sh cron entries (to avoid duplicates on redeploy)
     local existing_cron=$(crontab -l 2>/dev/null || true)
