@@ -257,6 +257,19 @@ document.addEventListener('DOMContentLoaded', function() {
             if (response.ok) {
                 const result = await response.json();
 
+                // Обновить список транзакций и статистику ПЕРЕД закрытием окна
+                const recentTransactionsEl = document.getElementById('recent-transactions');
+                const quickStatsEl = document.getElementById('quick-stats');
+
+                if (recentTransactionsEl) {
+                    htmx.trigger(recentTransactionsEl, 'load');
+                    console.log('[index.html] HTMX trigger sent to recent-transactions');
+                }
+                if (quickStatsEl) {
+                    htmx.trigger(quickStatsEl, 'load');
+                    console.log('[index.html] HTMX trigger sent to quick-stats');
+                }
+
                 // Проверка что транзакция действительно создана (имеет ID)
                 if (result && result.id) {
                     showNotification('✅ Транзакция успешно сохранена в базе данных!', 'success');
@@ -265,19 +278,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Created transaction missing ID:', result);
                 }
 
+                // Закрыть модальное окно и сбросить форму ПОСЛЕ обновления таблицы
                 modal_add_transaction.close();
                 e.target.reset();
-
-                // Обновить список транзакций и статистику (правильный HTMX trigger)
-                const recentTransactionsEl = document.getElementById('recent-transactions');
-                const quickStatsEl = document.getElementById('quick-stats');
-
-                if (recentTransactionsEl) {
-                    htmx.trigger(recentTransactionsEl, 'load');
-                }
-                if (quickStatsEl) {
-                    htmx.trigger(quickStatsEl, 'load');
-                }
 
                 // Установить дату обратно на сегодня
                 const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
@@ -565,6 +568,23 @@ function showNotification(message, type) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
+    // Responsive positioning function (вынесена за пределы if для повторного использования)
+    const updatePosition = (container) => {
+        if (window.innerWidth > 768) {
+            // Desktop: правый верхний угол с отступами (учитываем высоту навбара)
+            container.style.top = '80px';
+            container.style.right = '20px';
+            container.style.left = 'auto';
+            container.style.transform = 'none';
+        } else {
+            // Mobile: центр экрана
+            container.style.top = '50%';
+            container.style.left = '50%';
+            container.style.right = 'auto';
+            container.style.transform = 'translate(-50%, -50%)';
+        }
+    };
+
     let toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
         toastContainer = document.createElement('div');
@@ -577,29 +597,14 @@ function showNotification(message, type) {
             gap: 10px;
         `;
 
-        // Responsive positioning: desktop (top-right) vs mobile (center)
-        const updatePosition = () => {
-            if (window.innerWidth > 768) {
-                // Desktop: правый верхний угол с отступами
-                toastContainer.style.top = '20px';
-                toastContainer.style.right = '20px';
-                toastContainer.style.left = 'auto';
-                toastContainer.style.transform = 'none';
-            } else {
-                // Mobile: центр экрана
-                toastContainer.style.top = '50%';
-                toastContainer.style.left = '50%';
-                toastContainer.style.right = 'auto';
-                toastContainer.style.transform = 'translate(-50%, -50%)';
-            }
-        };
-
-        updatePosition();
         document.body.appendChild(toastContainer);
 
         // Update position on window resize
-        window.addEventListener('resize', updatePosition);
+        window.addEventListener('resize', () => updatePosition(toastContainer));
     }
+
+    // ВАЖНО: обновляем позицию КАЖДЫЙ раз при показе уведомления (не только при создании контейнера)
+    updatePosition(toastContainer);
 
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;

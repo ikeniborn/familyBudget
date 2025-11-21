@@ -1247,6 +1247,23 @@ function showNotification(message, type) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
+    // Responsive positioning function (вынесена за пределы if для повторного использования)
+    const updatePosition = (container) => {
+        if (window.innerWidth > 768) {
+            // Desktop: правый верхний угол с отступами (учитываем высоту навбара)
+            container.style.top = '80px';
+            container.style.right = '20px';
+            container.style.left = 'auto';
+            container.style.transform = 'none';
+        } else {
+            // Mobile: центр экрана
+            container.style.top = '50%';
+            container.style.left = '50%';
+            container.style.right = 'auto';
+            container.style.transform = 'translate(-50%, -50%)';
+        }
+    };
+
     // Create toast container if it doesn't exist
     let toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
@@ -1260,29 +1277,14 @@ function showNotification(message, type) {
             gap: 10px;
         `;
 
-        // Responsive positioning: desktop (top-right) vs mobile (center)
-        const updatePosition = () => {
-            if (window.innerWidth > 768) {
-                // Desktop: правый верхний угол с отступами
-                toastContainer.style.top = '20px';
-                toastContainer.style.right = '20px';
-                toastContainer.style.left = 'auto';
-                toastContainer.style.transform = 'none';
-            } else {
-                // Mobile: центр экрана
-                toastContainer.style.top = '50%';
-                toastContainer.style.left = '50%';
-                toastContainer.style.right = 'auto';
-                toastContainer.style.transform = 'translate(-50%, -50%)';
-            }
-        };
-
-        updatePosition();
         document.body.appendChild(toastContainer);
 
         // Update position on window resize
-        window.addEventListener('resize', updatePosition);
+        window.addEventListener('resize', () => updatePosition(toastContainer));
     }
+
+    // ВАЖНО: обновляем позицию КАЖДЫЙ раз при показе уведомления (не только при создании контейнера)
+    updatePosition(toastContainer);
 
     // Create toast element
     const toast = document.createElement('div');
