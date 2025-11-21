@@ -697,7 +697,7 @@ repair_npm_environment() {
             print_message error "package.json not found in /opt/budget"
             return 1
         }
-        cp /opt/budget/package-lock.json . 2>/dev/null || true
+        cp -f /opt/budget/package-lock.json . 2>/dev/null || true
 
         print_message info "Installing npm packages (this may take 2-3 minutes)..."
         if [[ -f "package-lock.json" ]]; then
@@ -735,7 +735,7 @@ repair_npm_environment() {
         print_message error "package.json not found"
         return 1
     }
-    cp /opt/budget/package-lock.json . 2>/dev/null || true
+    cp -f /opt/budget/package-lock.json . 2>/dev/null || true
 
     # Remove corrupted node_modules
     if [[ -d "node_modules" ]]; then

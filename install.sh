@@ -730,7 +730,7 @@ install_npm_dependencies() {
     # Copy package.json and package-lock.json from repository to isolated directory
     cp "$REPO_DIR/package.json" "$isolated_dir/"
     if [[ -f "$REPO_DIR/package-lock.json" ]]; then
-        cp "$REPO_DIR/package-lock.json" "$isolated_dir/"
+        cp -f "$REPO_DIR/package-lock.json" "$isolated_dir/"
         info "Copied package.json and package-lock.json to $isolated_dir"
     else
         info "Copied package.json to $isolated_dir (no lock file yet)"
