@@ -157,6 +157,7 @@ install_utilities() {
         "net-tools"
         "ufw"  # Firewall
         "certbot"  # Let's Encrypt SSL certificates
+        "python3-pip"  # Python package manager for boto3 (S3 backups)
     )
 
     for package in "${packages[@]}"; do
@@ -169,6 +170,38 @@ install_utilities() {
     done
 
     success "Basic utilities installed"
+}
+
+# Install Python packages for S3 backups
+install_python_packages() {
+    info "Installing Python packages for S3 backups..."
+
+    # Check if pip3 is available
+    if ! command -v pip3 &> /dev/null; then
+        warning "pip3 not found - skipping Python packages installation"
+        warning "Install python3-pip first: apt-get install python3-pip"
+        return 0
+    fi
+
+    # Check if boto3 is already installed
+    if python3 -c "import boto3" 2>/dev/null; then
+        local boto3_version=$(python3 -c "import boto3; print(boto3.__version__)" 2>/dev/null)
+        info "boto3 is already installed (version: $boto3_version)"
+    else
+        info "Installing boto3..."
+        # Install with --break-system-packages for externally-managed environments (Debian 12+)
+        if pip3 install boto3 >> "$LOG_FILE" 2>&1; then
+            success "boto3 installed successfully"
+        elif pip3 install --break-system-packages boto3 >> "$LOG_FILE" 2>&1; then
+            success "boto3 installed successfully (with --break-system-packages)"
+        else
+            warning "Failed to install boto3 - S3 backups may not work"
+            warning "You can install manually with: pip3 install boto3"
+            return 0
+        fi
+    fi
+
+    success "Python packages installed"
 }
 
 # Install Docker
@@ -903,6 +936,9 @@ main() {
     echo ""
 
     install_utilities
+    echo ""
+
+    install_python_packages
     echo ""
 
     install_docker

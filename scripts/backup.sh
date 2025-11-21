@@ -44,7 +44,16 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-BACKUP_DIR="${BACKUP_DIR:-${PROJECT_ROOT}/backups}"
+
+# Ensure BACKUP_DIR is always absolute path
+# If BACKUP_DIR is set but relative, convert to absolute
+if [[ -n "${BACKUP_DIR:-}" ]]; then
+    # Convert relative path to absolute (resolves ./backups to /opt/budget/backups)
+    BACKUP_DIR="$(cd "${PROJECT_ROOT}" && realpath -m "${BACKUP_DIR}")"
+else
+    BACKUP_DIR="${PROJECT_ROOT}/backups"
+fi
+
 LOG_DIR="${LOG_DIR:-${BACKUP_DIR}/logs}"
 LOCK_FILE="/tmp/familybudget_backup.lock"
 
@@ -262,10 +271,16 @@ check_s3_config() {
 upload_to_s3() {
     log_info "Uploading to S3: s3://${S3_BUCKET_NAME}/${S3_PATH}"
 
-    # Check if aws-cli is available
-    if ! command -v aws &> /dev/null; then
-        log_error "aws-cli not found"
-        log_error "Install with: apt-get install awscli"
+    # Check if python3 and boto3 are available
+    if ! command -v python3 &> /dev/null; then
+        log_error "python3 not found"
+        log_error "Install with: apt-get install python3"
+        return 1
+    fi
+
+    if ! python3 -c "import boto3" 2>/dev/null; then
+        log_error "boto3 not found"
+        log_error "Install with: pip3 install boto3"
         return 1
     fi
 
@@ -276,10 +291,12 @@ upload_to_s3() {
     while [ $attempt -le $max_attempts ]; do
         log_info "Upload attempt $attempt/$max_attempts..."
 
-        if aws s3 cp "$BACKUP_PATH" \
-            "s3://${S3_BUCKET_NAME}/${S3_PATH}" \
+        if python3 "$SCRIPT_DIR/s3_backup.py" upload \
+            "$BACKUP_PATH" \
+            "$S3_PATH" \
+            --bucket "$S3_BUCKET_NAME" \
             --endpoint-url "$S3_ENDPOINT_URL" \
-            --no-progress 2>&1 | tee -a "$LOG_FILE"; then
+            --quiet 2>&1 | tee -a "$LOG_FILE"; then
 
             log_success "Uploaded to S3: s3://${S3_BUCKET_NAME}/${S3_PATH}"
             return 0
@@ -304,29 +321,13 @@ upload_to_s3() {
 cleanup_s3_old_backups() {
     log_info "Cleaning up old S3 backups (retention: $S3_RETENTION_DAYS days)..."
 
-    # Calculate cutoff date
-    local cutoff_date=$(date -d "$S3_RETENTION_DAYS days ago" +%Y-%m-%d)
-
-    log_info "Deleting backups older than $cutoff_date"
-
-    # List and delete old backups
-    if aws s3 ls "s3://${S3_BUCKET_NAME}/" \
+    # Call s3_backup.py cleanup command
+    if python3 "$SCRIPT_DIR/s3_backup.py" cleanup \
+        --retention-days "$S3_RETENTION_DAYS" \
+        --bucket "$S3_BUCKET_NAME" \
         --endpoint-url "$S3_ENDPOINT_URL" \
-        --recursive | awk '{print $4}' | while read -r key; do
+        --quiet 2>&1 | tee -a "$LOG_FILE"; then
 
-        # Extract date from filename (backup_YYYYMMDD_HHMMSS.sql.gz)
-        local file_date=$(echo "$key" | grep -oP 'backup_\K\d{8}' || echo "")
-
-        if [ -n "$file_date" ]; then
-            local file_date_formatted=$(date -d "${file_date:0:4}-${file_date:4:2}-${file_date:6:2}" +%Y-%m-%d)
-
-            if [[ "$file_date_formatted" < "$cutoff_date" ]]; then
-                debug "Deleting old S3 backup: $key"
-                aws s3 rm "s3://${S3_BUCKET_NAME}/${key}" \
-                    --endpoint-url "$S3_ENDPOINT_URL" 2>&1 | tee -a "$LOG_FILE"
-            fi
-        fi
-    done; then
         log_success "S3 cleanup completed"
         return 0
     else
@@ -355,14 +356,7 @@ generate_backup_report() {
 # ============================================================================
 
 main() {
-    # Create directories FIRST - before any logging to file
-    # This must happen BEFORE any log/debug/info calls that use tee
-    mkdir -p "$BACKUP_DIR"
-    mkdir -p "$LOG_DIR"
-    chmod 755 "$BACKUP_DIR"
-    chmod 755 "$LOG_DIR"
-
-    # Parse arguments
+    # Parse arguments FIRST (before loading .env)
     while [[ $# -gt 0 ]]; do
         case $1 in
             --force-s3)
@@ -396,6 +390,26 @@ main() {
         echo "Please ensure .env file exists in /opt/budget/.env"
         exit 2
     fi
+
+    # Convert BACKUP_DIR to absolute path (in case .env has relative path)
+    # This ensures ./backups becomes /opt/budget/backups
+    if [[ -n "${BACKUP_DIR:-}" && "${BACKUP_DIR}" != /* ]]; then
+        # Relative path detected, convert to absolute
+        BACKUP_DIR="$(cd "${PROJECT_ROOT}" && realpath -m "${BACKUP_DIR}")"
+        debug "BACKUP_DIR converted to absolute: $BACKUP_DIR"
+    fi
+
+    # Update dependent paths after BACKUP_DIR conversion
+    LOG_DIR="${LOG_DIR:-${BACKUP_DIR}/logs}"
+    BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILENAME}"
+    LOG_FILE="${LOG_DIR}/backup_${DATE_YMD}.log"
+
+    # Create directories NOW (after BACKUP_DIR conversion)
+    # This ensures correct absolute paths are used
+    mkdir -p "$BACKUP_DIR"
+    mkdir -p "$LOG_DIR"
+    chmod 755 "$BACKUP_DIR"
+    chmod 755 "$LOG_DIR"
 
     # Initialize
     print_banner
