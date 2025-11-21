@@ -938,21 +938,25 @@ main() {
             exit 1
         fi
 
-        # Add isolated node_modules/.bin to PATH for npx
+        # ARCHITECTURE FIX (2025-11-21):
+        # - Use NODE_PATH instead of symlinks for module resolution
+        # - Problem: Symlinked node_modules breaks nested require() in bundled modules
+        #   (browserslist → node-releases/data/processed/envs.json fails)
+        # - Solution: Set NODE_PATH to tell Node.js where to find modules directly
+
+        # Cleanup: Remove old symlink if exists (from previous deploys)
+        if [[ -L "$PWD/node_modules" ]]; then
+            rm "$PWD/node_modules"
+            print_message info "Removed old node_modules symlink"
+        fi
+
+        # Add isolated node_modules/.bin to PATH for npx executables
         export PATH="$node_modules_dir/.bin:$PATH"
 
-        # CRITICAL FIX: Create node_modules symlink for npm/npx to find packages
-        # npm run scripts use 'npx tailwindcss' which looks for node_modules in $PWD first
-        # Without this symlink, npx fails with "could not determine executable to run"
-        print_message info "Setting up node_modules symlink for npm build..."
-        if [[ ! -e "$PWD/node_modules" ]]; then
-            ln -sf .npm-isolated/node_modules "$PWD/node_modules"
-            print_message success "Created symlink: node_modules -> .npm-isolated/node_modules"
-        elif [[ ! -L "$PWD/node_modules" ]]; then
-            print_message warning "node_modules exists but is not a symlink (skipping)"
-        else
-            print_message success "node_modules symlink already exists"
-        fi
+        # Set NODE_PATH for correct nested module resolution
+        export NODE_PATH="$node_modules_dir${NODE_PATH:+:$NODE_PATH}"
+
+        print_message info "npm build environment configured (PATH + NODE_PATH)"
 
         echo ""
         if npm run build 2>&1; then
@@ -966,8 +970,10 @@ main() {
             echo ""
         fi
 
-        # Restore PATH (remove isolated bin)
+        # Restore PATH and NODE_PATH (remove isolated paths)
         export PATH="${PATH#$node_modules_dir/.bin:}"
+        export NODE_PATH="${NODE_PATH#$node_modules_dir:}"
+        export NODE_PATH="${NODE_PATH#$node_modules_dir}"
     else
         echo ""
         print_message warning "Minification skipped (build validation failed)"
