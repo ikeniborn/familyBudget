@@ -1254,14 +1254,34 @@ function showNotification(message, type) {
         toastContainer.id = 'toast-container';
         toastContainer.style.cssText = `
             position: fixed;
-            top: 20px;
-            right: 20px;
             z-index: 9999;
             display: flex;
             flex-direction: column;
             gap: 10px;
         `;
+
+        // Responsive positioning: desktop (top-right) vs mobile (center)
+        const updatePosition = () => {
+            if (window.innerWidth > 768) {
+                // Desktop: правый верхний угол с отступами
+                toastContainer.style.top = '20px';
+                toastContainer.style.right = '20px';
+                toastContainer.style.left = 'auto';
+                toastContainer.style.transform = 'none';
+            } else {
+                // Mobile: центр экрана
+                toastContainer.style.top = '50%';
+                toastContainer.style.left = '50%';
+                toastContainer.style.right = 'auto';
+                toastContainer.style.transform = 'translate(-50%, -50%)';
+            }
+        };
+
+        updatePosition();
         document.body.appendChild(toastContainer);
+
+        // Update position on window resize
+        window.addEventListener('resize', updatePosition);
     }
 
     // Create toast element
