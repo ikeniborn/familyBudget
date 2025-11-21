@@ -286,6 +286,17 @@ sync_mirror() {
             success "Post-sync: npm environment preserved successfully"
         fi
 
+        # Ensure required directories exist
+        info "Creating required directories..."
+        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" 2>/dev/null || true
+        chmod 755 "$DEPLOY_DIR/backups" 2>/dev/null || true
+
+        # Set executable permissions for all shell scripts
+        # This ensures backup.sh and other scripts can be executed by cron
+        info "Setting executable permissions for shell scripts..."
+        find "$DEPLOY_DIR/scripts" -type f -name "*.sh" -exec chmod 755 {} \;
+        success "Shell scripts permissions updated"
+
         return 0
     else
         error "Failed to sync code. Check $LOG_FILE for details."
@@ -435,6 +446,17 @@ sync_update() {
     # Remove empty directories
     find "$DEPLOY_DIR" -type d -empty -delete 2>/dev/null || true
 
+    # Ensure required directories exist
+    info "Creating required directories..."
+    mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" 2>/dev/null || true
+    chmod 755 "$DEPLOY_DIR/backups" 2>/dev/null || true
+
+    # Set executable permissions for all shell scripts
+    # This ensures backup.sh and other scripts can be executed by cron
+    info "Setting executable permissions for shell scripts..."
+    find "$DEPLOY_DIR/scripts" -type f -name "*.sh" -exec chmod 755 {} \;
+    success "Shell scripts permissions updated"
+
     success "Code synced: updated/added files, deleted $deleted_count orphaned files"
     return 0
 }
@@ -554,8 +576,12 @@ sync_clean() {
         --exclude='.migration_checksums' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
 
-        # Ensure logs/ and data/ directories exist
-        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" 2>/dev/null || true
+        # Ensure logs/, data/, and backups/ directories exist
+        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" 2>/dev/null || true
+
+        # Set proper permissions for backups directory
+        # 755 allows root to write (backup.sh) and containers to read (health checks)
+        chmod 755 "$DEPLOY_DIR/backups" 2>/dev/null || true
 
         # Mark PostgreSQL as stopped (will be initialized fresh)
         POSTGRES_WAS_STOPPED=true

@@ -6,7 +6,7 @@
 # Description:
 #   Automated PostgreSQL backup with local storage and S3 upload.
 #   - Daily: Local compressed backup with 7-day retention
-#   - Weekly: S3 upload (Sundays) with 28-day retention
+#   - Daily: S3 upload with 28-day retention (if S3 configured)
 #
 # Usage:
 #   ./backup.sh [--force-s3] [--verbose]
@@ -234,21 +234,10 @@ rotate_local_backups() {
 }
 
 should_upload_to_s3() {
-    # Check if forced
-    if [ "$FORCE_S3" = true ]; then
-        log_info "S3 upload forced via --force-s3 flag"
-        return 0
-    fi
-
-    # Check if it's Sunday (day 7 in ISO week)
-    local day_of_week=$(date +%u)
-    if [ "$day_of_week" -eq 7 ]; then
-        log_info "Today is Sunday, S3 upload scheduled"
-        return 0
-    fi
-
-    debug "Not Sunday (day $day_of_week), skipping S3 upload"
-    return 1
+    # S3 upload happens DAILY if S3 is configured
+    # This ensures backups are uploaded every day to S3 for redundancy
+    log_info "S3 upload scheduled (daily)"
+    return 0
 }
 
 check_s3_config() {
