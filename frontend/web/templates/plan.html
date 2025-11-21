@@ -1288,19 +1288,22 @@ function showNotification(message, type) {
 
     // Create toast element
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `notification-item notification-${type}`;
     toast.style.cssText = `
         background: ${type === 'error' ? '#ef4444' : '#10b981'};
         color: white;
         padding: 16px 24px;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        min-width: 300px;
-        max-width: 500px;
+        min-width: 280px;
+        max-width: min(500px, calc(100vw - 40px));
+        width: auto;
+        box-sizing: border-box;
         font-size: 14px;
         line-height: 1.5;
         animation: slideIn 0.3s ease-out;
         cursor: pointer;
+        word-wrap: break-word;
     `;
     toast.textContent = message;
 

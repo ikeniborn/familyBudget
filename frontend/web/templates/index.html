@@ -258,17 +258,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 const result = await response.json();
 
                 // Обновить список транзакций и статистику ПЕРЕД закрытием окна
-                const recentTransactionsEl = document.getElementById('recent-transactions');
-                const quickStatsEl = document.getElementById('quick-stats');
+                // Используем htmx.ajax() напрямую вместо trigger (hx-trigger="load" не работает с manual trigger)
+                htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                    target: '#recent-transactions',
+                    swap: 'innerHTML'
+                });
+                console.log('[index.html] HTMX ajax request sent to /api/v1/facts/recent-html');
 
-                if (recentTransactionsEl) {
-                    htmx.trigger(recentTransactionsEl, 'load');
-                    console.log('[index.html] HTMX trigger sent to recent-transactions');
-                }
-                if (quickStatsEl) {
-                    htmx.trigger(quickStatsEl, 'load');
-                    console.log('[index.html] HTMX trigger sent to quick-stats');
-                }
+                htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                    target: '#quick-stats',
+                    swap: 'innerHTML'
+                });
+                console.log('[index.html] HTMX ajax request sent to /api/v1/analytics/quick-stats-html');
 
                 // Проверка что транзакция действительно создана (имеет ID)
                 if (result && result.id) {
@@ -607,19 +608,22 @@ function showNotification(message, type) {
     updatePosition(toastContainer);
 
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `notification-item notification-${type}`;
     toast.style.cssText = `
         background: ${type === 'error' ? '#ef4444' : '#10b981'};
         color: white;
         padding: 16px 24px;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        min-width: 300px;
-        max-width: 500px;
+        min-width: 280px;
+        max-width: min(500px, calc(100vw - 40px));
+        width: auto;
+        box-sizing: border-box;
         font-size: 14px;
         line-height: 1.5;
         animation: slideIn 0.3s ease-out;
         cursor: pointer;
+        word-wrap: break-word;
     `;
     toast.textContent = message;
 
