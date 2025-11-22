@@ -668,6 +668,119 @@ validate_firewall_rules() {
     return 0
 }
 
+# =============================================================================
+# NPM ENVIRONMENT AUTO-REPAIR FUNCTION
+# =============================================================================
+# Validates npm environment and auto-repairs if issues detected
+# Returns: 0 on success, 1 on failure
+repair_npm_environment() {
+    local npm_isolated_dir="/opt/budget/.npm-isolated"
+    local node_modules_dir="$npm_isolated_dir/node_modules"
+    local package_lock="/opt/budget/package-lock.json"
+
+    step "npm Environment Validation"
+
+    # Check 1: .npm-isolated directory exists
+    if [[ ! -d "$npm_isolated_dir" ]]; then
+        print_message error "npm isolated directory not found: $npm_isolated_dir"
+        print_message error "This indicates install.sh was not run or npm environment was deleted"
+        print_message error ""
+        print_message error "Auto-repair: Creating isolated npm environment..."
+        echo ""
+
+        # Auto-repair: Create directory and install packages
+        mkdir -p "$npm_isolated_dir"
+        cd "$npm_isolated_dir" || return 1
+
+        # Copy package files
+        cp /opt/budget/package.json . 2>/dev/null || {
+            print_message error "package.json not found in /opt/budget"
+            return 1
+        }
+        cp -f /opt/budget/package-lock.json . 2>/dev/null || true
+
+        print_message info "Installing npm packages (this may take 2-3 minutes)..."
+        if [[ -f "package-lock.json" ]]; then
+            npm ci --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+                print_message error "npm ci failed - trying npm install..."
+                npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || return 1
+            }
+        else
+            npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || return 1
+        fi
+
+        cd /opt/budget || return 1
+        print_message success "npm environment created successfully"
+        echo ""
+    fi
+
+    # Check 2: Run comprehensive validation
+    print_message info "Running comprehensive npm environment validation..."
+    if bash scripts/lib/check_npm_env.sh "$PWD"; then
+        print_message success "npm environment validation passed"
+        echo ""
+        return 0
+    fi
+
+    # Validation failed - attempt auto-repair
+    print_message warning "npm environment validation failed - attempting auto-repair..."
+    echo ""
+
+    # Auto-repair: Reinstall packages
+    print_message info "Reinstalling npm packages in $npm_isolated_dir..."
+    cd "$npm_isolated_dir" || return 1
+
+    # Copy latest package files
+    cp /opt/budget/package.json . 2>/dev/null || {
+        print_message error "package.json not found"
+        return 1
+    }
+    cp -f /opt/budget/package-lock.json . 2>/dev/null || true
+
+    # Remove corrupted node_modules
+    if [[ -d "node_modules" ]]; then
+        print_message info "Removing corrupted node_modules..."
+        rm -rf node_modules
+    fi
+
+    # Reinstall
+    print_message info "Installing fresh npm packages (this may take 2-3 minutes)..."
+    if [[ -f "package-lock.json" ]]; then
+        npm ci --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+            print_message error "npm ci failed - trying npm install..."
+            npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+                print_message error "npm install failed - cannot auto-repair"
+                cd /opt/budget || return 1
+                return 1
+            }
+        }
+    else
+        npm install --prefer-offline --no-audit 2>&1 | tee -a "$LOG_FILE" || {
+            print_message error "npm install failed - cannot auto-repair"
+            cd /opt/budget || return 1
+            return 1
+        }
+    fi
+
+    cd /opt/budget || return 1
+
+    # Verify repair
+    print_message info "Verifying npm environment after repair..."
+    if bash scripts/lib/check_npm_env.sh "$PWD"; then
+        print_message success "Auto-repair successful - npm environment validated"
+        echo ""
+        return 0
+    else
+        print_message error "Auto-repair failed - npm environment still invalid"
+        print_message error ""
+        print_message error "Manual intervention required:"
+        print_message error "  1. cd ~/familyBudget && sudo ./install.sh"
+        print_message error "  2. Or manually fix npm packages in $npm_isolated_dir"
+        print_message error ""
+        return 1
+    fi
+}
+
 main() {
     # Parse arguments
     parse_args "$@"
@@ -929,30 +1042,41 @@ main() {
 
     # Run minification (build Tailwind CSS + minify JS/CSS) - use isolated environment
     if [[ "$build_allowed" == true ]]; then
-        # Validate npm environment comprehensively
-        if ! bash scripts/lib/check_npm_env.sh "$PWD"; then
+        # Validate npm environment comprehensively (with auto-repair)
+        if ! repair_npm_environment; then
             echo ""
-            print_message error "npm environment validation failed"
-            print_message error "Cannot proceed with deployment - critical packages missing"
-            print_message error "Fix by running: cd ~/familyBudget && sudo ./install.sh"
+            print_message error "npm environment validation/repair failed"
+            print_message error "Cannot proceed with deployment - critical packages missing or corrupted"
+            print_message error ""
+            print_message error "Manual fix required:"
+            print_message error "  cd ~/familyBudget && sudo ./install.sh"
+            print_message error ""
             exit 1
         fi
 
-        # Add isolated node_modules/.bin to PATH for npx
+        # ARCHITECTURE FIX (2025-11-21):
+        # - Use NODE_PATH instead of symlinks for module resolution
+        # - Problem: Symlinked node_modules breaks nested require() in bundled modules
+        #   (browserslist → node-releases/data/processed/envs.json fails)
+        # - Solution: Set NODE_PATH to tell Node.js where to find modules directly
+
+        # CRITICAL: Remove /opt/budget/node_modules (symlink OR directory)
+        # - Only .npm-isolated/node_modules should exist
+        # - If /opt/budget/node_modules exists, npm will use IT instead of NODE_PATH
+        # - This causes "Cannot find module" errors for incomplete installations
+        if [[ -e "$PWD/node_modules" ]]; then
+            print_message info "Removing $PWD/node_modules (will use .npm-isolated/node_modules)"
+            rm -rf "$PWD/node_modules"
+            print_message success "Removed - using .npm-isolated/node_modules exclusively"
+        fi
+
+        # Add isolated node_modules/.bin to PATH for npx executables
         export PATH="$node_modules_dir/.bin:$PATH"
 
-        # CRITICAL FIX: Create node_modules symlink for npm/npx to find packages
-        # npm run scripts use 'npx tailwindcss' which looks for node_modules in $PWD first
-        # Without this symlink, npx fails with "could not determine executable to run"
-        print_message info "Setting up node_modules symlink for npm build..."
-        if [[ ! -e "$PWD/node_modules" ]]; then
-            ln -sf .npm-isolated/node_modules "$PWD/node_modules"
-            print_message success "Created symlink: node_modules -> .npm-isolated/node_modules"
-        elif [[ ! -L "$PWD/node_modules" ]]; then
-            print_message warning "node_modules exists but is not a symlink (skipping)"
-        else
-            print_message success "node_modules symlink already exists"
-        fi
+        # Set NODE_PATH for correct nested module resolution
+        export NODE_PATH="$node_modules_dir${NODE_PATH:+:$NODE_PATH}"
+
+        print_message info "npm build environment configured (PATH + NODE_PATH)"
 
         echo ""
         if npm run build 2>&1; then
@@ -966,8 +1090,10 @@ main() {
             echo ""
         fi
 
-        # Restore PATH (remove isolated bin)
+        # Restore PATH and NODE_PATH (remove isolated paths)
         export PATH="${PATH#$node_modules_dir/.bin:}"
+        export NODE_PATH="${NODE_PATH#$node_modules_dir:}"
+        export NODE_PATH="${NODE_PATH#$node_modules_dir}"
     else
         echo ""
         print_message warning "Minification skipped (build validation failed)"

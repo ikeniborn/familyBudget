@@ -1,9 +1,9 @@
 ---
 name: Testing & Quality Assurance
 description: Автоматизация тестирования и проверки качества кода
-version: 1.0.0
+version: 2.0.0
 author: Family Budget Team
-tags: [testing, pytest, quality, coverage, linting]
+tags: [testing, pytest, quality, coverage, linting, shared-budget]
 dependencies: [api-development]
 ---
 
@@ -30,13 +30,14 @@ dependencies: [api-development]
 ## Контекст проекта
 
 Проект использует:
-- **pytest** для тестирования
+- **pytest 7.4+** для тестирования
 - **pytest-asyncio** для async тестов
 - **httpx.AsyncClient** для тестирования API
 - **pytest-cov** для coverage отчетов
-- **ruff** для linting
-- **black** для formatting
-- **mypy** для type checking
+- **ruff 0.1+** для linting
+- **black 23.11+** для formatting
+- **mypy 1.7+** для type checking
+- **Shared Family Budget** модель - тесты БЕЗ user_id фильтрации
 
 ## Структура тестов
 
@@ -259,20 +260,23 @@ async def test_list_{model_name}s_pagination(
 
 
 @pytest.mark.asyncio
-async def test_user_isolation_{model_name}(
+async def test_shared_budget_{model_name}(
     client: AsyncClient,
     test_user_token: str,
     other_user_{model_name}: {ModelName},
 ):
-    """Test that users cannot see other users' {model_name}s."""
-    # Try to get another user's {model_name}
+    """Test Shared Family Budget - all users see all records."""
+    # IMPORTANT: Shared Family Budget model - NO user_id filtering!
+    # User can see records created by OTHER users
     response = await client.get(
         f"/api/v1/{model_name}s/{other_user_{model_name}.id}",
         headers={"Authorization": f"Bearer {test_user_token}"},
     )
 
-    # Should return 404 (as if it doesn't exist)
-    assert response.status_code == 404
+    # Should return 200 (Shared Budget - all see all)
+    assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == other_user_{model_name}.id
 ```
 
 ## Шаблон Integration теста

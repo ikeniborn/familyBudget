@@ -255,20 +255,33 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (response.ok) {
-                showToast('Транзакция успешно создана!', 'success');
+                const result = await response.json();
+
+                // Обновить список транзакций и статистику ПЕРЕД закрытием окна
+                // Используем htmx.ajax() напрямую вместо trigger (hx-trigger="load" не работает с manual trigger)
+                htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                    target: '#recent-transactions',
+                    swap: 'innerHTML'
+                });
+                console.log('[index.html] HTMX ajax request sent to /api/v1/facts/recent-html');
+
+                htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                    target: '#quick-stats',
+                    swap: 'innerHTML'
+                });
+                console.log('[index.html] HTMX ajax request sent to /api/v1/analytics/quick-stats-html');
+
+                // Проверка что транзакция действительно создана (имеет ID)
+                if (result && result.id) {
+                    showNotification('✅ Транзакция успешно сохранена в базе данных!', 'success');
+                } else {
+                    showNotification('⚠️ Транзакция создана, но ID не получен. Обновите страницу.', 'error');
+                    console.error('Created transaction missing ID:', result);
+                }
+
+                // Закрыть модальное окно и сбросить форму ПОСЛЕ обновления таблицы
                 modal_add_transaction.close();
                 e.target.reset();
-
-                // Обновить список транзакций и статистику (правильный HTMX trigger)
-                const recentTransactionsEl = document.getElementById('recent-transactions');
-                const quickStatsEl = document.getElementById('quick-stats');
-
-                if (recentTransactionsEl) {
-                    htmx.trigger(recentTransactionsEl, 'load');
-                }
-                if (quickStatsEl) {
-                    htmx.trigger(quickStatsEl, 'load');
-                }
 
                 // Установить дату обратно на сегодня
                 const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
@@ -277,11 +290,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             } else {
                 const error = await response.json();
-                showToast('Ошибка: ' + (error.detail || 'Не удалось создать транзакцию'), 'error');
+                showNotification('❌ Ошибка: ' + (error.detail || 'Не удалось создать транзакцию'), 'error');
             }
         } catch (error) {
             console.error('Error creating transaction:', error);
-            showToast('Ошибка подключения к серверу', 'error');
+            showNotification('❌ Ошибка подключения к серверу', 'error');
         }
     });
 
@@ -317,7 +330,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (response.ok) {
-                showToast('План успешно создан!', 'success');
+                const result = await response.json();
+
+                // Проверка что план действительно создан (имеет ID)
+                if (result && result.id) {
+                    showNotification('✅ План успешно сохранен в базе данных!', 'success');
+                } else {
+                    showNotification('⚠️ План создан, но ID не получен. Обновите страницу.', 'error');
+                    console.error('Created plan missing ID:', result);
+                }
+
                 modal_add_plan.close();
                 e.target.reset();
 
@@ -325,11 +347,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 setupPlanPeriodButtons();
             } else {
                 const error = await response.json();
-                showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+                showNotification('❌ Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
             }
         } catch (error) {
             console.error('Error creating plan:', error);
-            showToast('Ошибка подключения к серверу', 'error');
+            showNotification('❌ Ошибка подключения к серверу', 'error');
         }
     });
 });
@@ -342,7 +364,7 @@ async function loadCategories() {
         debugLog('[index.html] Categories loaded successfully');
     } catch (error) {
         console.error('Failed to load categories:', error);
-        showToast('Ошибка при загрузке категорий', 'error');
+        showNotification('❌ Ошибка при загрузке категорий', 'error');
     }
 }
 
@@ -378,7 +400,7 @@ async function loadTransactionCategories() {
         debugLog('[index.html] Transaction categories loaded');
     } catch (error) {
         console.error('Failed to load transaction categories:', error);
-        showToast('Ошибка при загрузке категорий транзакций', 'error');
+        showNotification('❌ Ошибка при загрузке категорий транзакций', 'error');
     }
 }
 
@@ -414,7 +436,7 @@ async function loadPlanCategories() {
         debugLog('[index.html] Plan categories loaded');
     } catch (error) {
         console.error('Failed to load plan categories:', error);
-        showToast('Ошибка при загрузке категорий планов', 'error');
+        showNotification('❌ Ошибка при загрузке категорий планов', 'error');
     }
 }
 
@@ -431,7 +453,7 @@ async function loadFinancialCenters() {
 
             // For other errors, show error toast
             console.warn('Failed to fetch financial centers: HTTP', response.status);
-            showToast('Не удалось загрузить список ЦФО', 'error');
+            showNotification('❌ Не удалось загрузить список ЦФО', 'error');
             return;
         }
 
@@ -440,7 +462,7 @@ async function loadFinancialCenters() {
 
         if (centers.length === 0) {
             console.warn('No financial centers returned from API');
-            showToast('Список ЦФО пуст. Пожалуйста, создайте ЦФО в справочнике.', 'warning');
+            showNotification('⚠️ Список ЦФО пуст. Пожалуйста, создайте ЦФО в справочнике.', 'error');
             return;
         }
 
@@ -470,7 +492,7 @@ async function loadFinancialCenters() {
         console.log(`Loaded ${centers.length} financial centers`);
     } catch (error) {
         console.error('Failed to load financial centers:', error);
-        showToast('Ошибка при загрузке ЦФО', 'error');
+        showNotification('❌ Ошибка при загрузке ЦФО', 'error');
     }
 }
 
@@ -525,7 +547,7 @@ async function loadCostCenters() {
     }
 }
 
-// Показать уведомление (toast)
+// Показать уведомление (toast) - DEPRECATED, use showNotification instead
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `alert alert-${type} shadow-lg fixed bottom-4 right-4 w-auto max-w-md z-50`;
@@ -539,6 +561,116 @@ function showToast(message, type = 'info') {
     setTimeout(() => {
         toast.remove();
     }, 3000);
+}
+
+// Унифицированная функция showNotification (responsive mobile/desktop)
+function showNotification(message, type) {
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
+    // Responsive positioning function (вынесена за пределы if для повторного использования)
+    const updatePosition = (container) => {
+        if (window.innerWidth > 768) {
+            // Desktop: правый верхний угол с отступами (учитываем высоту навбара)
+            container.style.top = '80px';
+            container.style.right = '20px';
+            container.style.left = 'auto';
+            container.style.transform = 'none';
+        } else {
+            // Mobile: центр экрана
+            container.style.top = '50%';
+            container.style.left = '50%';
+            container.style.right = 'auto';
+            container.style.transform = 'translate(-50%, -50%)';
+        }
+    };
+
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        `;
+
+        document.body.appendChild(toastContainer);
+
+        // Update position on window resize
+        window.addEventListener('resize', () => updatePosition(toastContainer));
+    }
+
+    // ВАЖНО: обновляем позицию КАЖДЫЙ раз при показе уведомления (не только при создании контейнера)
+    updatePosition(toastContainer);
+
+    const toast = document.createElement('div');
+    toast.className = `notification-item notification-${type}`;
+    toast.style.cssText = `
+        background: ${type === 'error' ? '#ef4444' : '#10b981'};
+        color: white;
+        padding: 16px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 280px;
+        max-width: min(500px, calc(100vw - 40px));
+        width: auto;
+        box-sizing: border-box;
+        font-size: 14px;
+        line-height: 1.5;
+        animation: slideIn 0.3s ease-out;
+        cursor: pointer;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        hyphens: auto;
+    `;
+    toast.textContent = message;
+
+    if (!document.getElementById('toast-animations')) {
+        const style = document.createElement('style');
+        style.id = 'toast-animations';
+        style.textContent = `
+            @keyframes slideIn {
+                from {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes slideOut {
+                from {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateX(400px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    toastContainer.appendChild(toast);
+
+    const dismissTimeout = setTimeout(() => {
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+
+    toast.addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        toast.style.animation = 'slideOut 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    });
 }
 
 // Quick Amount для формы транзакции

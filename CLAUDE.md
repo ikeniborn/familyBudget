@@ -123,6 +123,50 @@ is_postgres_was_stopped() # Check если PostgreSQL был stopped
 - Integrity checks запускаются ТОЛЬКО если PostgreSQL was stopped
 - Неправильный state → false positives/negatives в health checks
 
+### npm Build Environment
+
+**КРИТИЧНО:** НЕ используйте симлинки для node_modules при запуске `npm run build`.
+
+**Проблема (до v5.1.4):**
+Симлинк `/opt/budget/node_modules` → `.npm-isolated/node_modules` нарушал резолвинг вложенных `require()` в bundled модулях:
+- Tailwind CSS → browserslist → `node-releases/data/processed/envs.json` (FAIL)
+- Node.js некорректно резолвит относительные пути через симлинки
+- Ошибка: `Error: Cannot find module 'node-releases/data/processed/envs.json'`
+
+**Решение (с v5.1.4+):**
+Используется `NODE_PATH` и `PATH` environment variables вместо симлинка:
+
+```bash
+# deploy.sh автоматически настраивает окружение:
+export PATH="/opt/budget/.npm-isolated/node_modules/.bin:$PATH"
+export NODE_PATH="/opt/budget/.npm-isolated/node_modules:$NODE_PATH"
+
+npm run build  # Корректно резолвит все модули
+
+# После build восстанавливает PATH и NODE_PATH
+```
+
+**Проверка окружения:**
+```bash
+# Автоматически при deploy:
+bash scripts/lib/check_npm_env.sh /opt/budget
+
+# Check 6 проверяет наличие node-releases/data/processed/envs.json
+```
+
+**Если симлинк существует (старые деплои до v5.1.4):**
+```bash
+# deploy.sh автоматически удаляет старый симлинк при следующем деплое
+# Ручное удаление (если требуется):
+sudo rm /opt/budget/node_modules 2>/dev/null || true
+```
+
+**Важно:**
+- ✅ NODE_PATH поддерживается всеми версиями Node.js
+- ✅ Нет проблем с резолвингом вложенных модулей
+- ✅ Работает корректно на чистых системах после install.sh
+- ❌ НЕ создавайте симлинк node_modules вручную
+
 ---
 
 ## 🏗️ Архитектура Backend (Layered)

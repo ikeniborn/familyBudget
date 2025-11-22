@@ -1,23 +1,23 @@
 ---
 name: API Development
 description: Автоматизация создания REST API endpoints для проекта Family Budget
-version: 1.0.0
+version: 2.0.0
 author: Family Budget Team
-tags: [api, fastapi, rest, crud, scd-type-2]
+tags: [api, fastapi, rest, crud, scd-type-2, shared-budget]
 dependencies: [db-management]
 ---
 
 # API Development Skill
 
-Автоматизация создания REST API endpoints для проекта Family Budget с поддержкой SCD Type 2, user isolation и JWT аутентификации.
+Автоматизация создания REST API endpoints для проекта Family Budget с поддержкой SCD Type 2, Shared Family Budget модели и JWT аутентификации.
 
 ## Когда использовать этот скил
 
 Используй этот скил когда нужно:
 - Создать новый REST API endpoint (CRUD)
 - Добавить Pydantic схемы для валидации
-- Создать SQLModel модель с user isolation
-- Интегрировать SCD Type 2 паттерн
+- Создать SQLModel модель с SCD Type 2
+- Интегрировать с Shared Family Budget моделью
 - Генерировать базовые тесты для endpoint
 
 Скил автоматически вызывается при запросах типа:
@@ -28,20 +28,73 @@ dependencies: [db-management]
 ## Контекст проекта
 
 Проект использует:
-- **FastAPI** для REST API
-- **SQLModel** для моделей базы данных
-- **Pydantic** для валидации запросов/ответов
+- **FastAPI 0.115+** для REST API
+- **SQLModel 0.0.14** для моделей базы данных
+- **Pydantic v2** для валидации запросов/ответов
 - **Async SQLAlchemy** для асинхронных операций с БД
 - **SCD Type 2** для dimension таблиц (историческое отслеживание изменений)
-- **User Data Isolation** - каждый пользователь видит только свои данные
+- **Shared Family Budget** модель - ВСЕ пользователи видят ВСЕ транзакции (2-5 человек)
 
 ## Архитектурные требования
 
+### Shared Family Budget Model (КРИТИЧНО!)
+
+**ВАЖНО:** Проект реализует **Shared Family Budget** для 2-5 пользователей семьи.
+
+**Правила для Fact таблиц (t_f_registry):**
+- ❌ **НЕ фильтровать по user_id** - все видят все транзакции
+- ❌ **НЕ проверять ownership** - любой может редактировать/удалять
+- ✅ **user_id только для audit trail** - кто создал/изменил запись
+- ✅ **Полная прозрачность** - все расходы/доходы видны всем
+
+**Правила для Dimension таблиц (справочники):**
+- ✅ **CREATE/UPDATE/DELETE только админы** - централизованное управление
+- ✅ **READ все пользователи** - используют общие справочники
+- ✅ **user_id для audit trail** - кто создал справочник
+- ❌ **НЕ фильтровать по user_id при GET** - все видят все справочники
+
+```python
+# ✅ ПРАВИЛЬНО - Fact таблицы (БЕЗ user_id filter)
+@router.get("/facts")
+async def list_facts(session: AsyncSession):
+    statement = select(BudgetFact)  # NO user_id filter!
+    facts = await session.exec(statement).all()
+    return facts
+
+# ✅ ПРАВИЛЬНО - Dimension таблицы (БЕЗ user_id filter для READ)
+@router.get("/articles")
+async def list_articles(session: AsyncSession):
+    statement = select(Article).where(Article.is_current == True)
+    # NO user_id filter - все видят все статьи
+    articles = await session.exec(statement).all()
+    return articles
+
+# ✅ ПРАВИЛЬНО - Dimension CREATE (только admin)
+@router.post("/articles")
+async def create_article(data: ArticleCreate, current_user: CurrentUser):
+    if not current_user.is_admin:
+        raise HTTPException(403, "Only admins can create articles")
+    article = Article(**data.model_dump(), user_id=current_user.id)
+    # ... create logic
+
+# ❌ НЕПРАВИЛЬНО - НЕ ДЕЛАЙ ТАК!
+@router.get("/facts")
+async def list_facts(current_user: CurrentUser, session: AsyncSession):
+    statement = select(BudgetFact).where(
+        BudgetFact.user_id == current_user.id  # WRONG! Нарушает Shared Budget
+    )
+    return await session.exec(statement).all()
+```
+
 ### Обязательные паттерны:
 
-1. **User Data Isolation** - ВСЕГДА фильтровать по `current_user.id`:
+1. **Shared Family Budget** - НЕ фильтровать fact таблицы по user_id:
    ```python
-   stmt = select(Model).where(Model.user_id == current_user.id)
+   # Fact tables - NO user_id filter
+   stmt = select(BudgetFact)  # All users see all facts
+
+   # Dimension tables - NO user_id filter for READ
+   stmt = select(Article).where(Article.is_current == True)
    ```
 
 2. **SCD Type 2 Updates** - использовать `SCD2Service.create_new_version()`:
@@ -61,20 +114,32 @@ dependencies: [db-management]
 3. **Dependencies** - использовать стандартные зависимости:
    ```python
    from backend.app.core.dependencies import (
-       CurrentUser,
-       get_session,
-       apply_user_filter,
-       ensure_user_owns_resource
+       CurrentUser,  # JWT auth, extracted from cookie/header
+       get_session,  # Async database session
    )
    ```
 
-4. **Exception Handling** - использовать кастомные исключения:
+4. **Exception Handling** - использовать FastAPI HTTPException:
    ```python
-   from backend.app.core.exceptions import (
-       NotFoundException,
-       ForbiddenException,
-       ValidationException
-   )
+   from fastapi import HTTPException, status
+
+   # Not found
+   raise HTTPException(status.HTTP_404_NOT_FOUND, "Resource not found")
+
+   # Forbidden (admin only)
+   raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin access required")
+
+   # Unauthorized
+   raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Authentication required")
+   ```
+
+5. **Admin-only operations** для dimension таблиц:
+   ```python
+   @router.post("/articles")
+   async def create_article(data: ArticleCreate, current_user: CurrentUser):
+       if not current_user.is_admin:
+           raise HTTPException(403, "Only admins can create articles")
+       # ... create logic
    ```
 
 ## Команда: create-endpoint
@@ -86,26 +151,25 @@ dependencies: [db-management]
 Для создания нового endpoint используйте описание:
 ```
 Создай новый REST API endpoint для модели <ModelName> с операциями <operations>.
-Используй SCD Type 2 для обновлений, добавь user isolation и JWT аутентификацию.
+Используй SCD Type 2 для обновлений (если dimension), учти Shared Family Budget модель.
 ```
 
 ### Параметры (указываются в запросе)
 
-- **ModelName**: Название модели (PascalCase, например: Budget, Transaction)
+- **ModelName**: Название модели (PascalCase, например: Article, BudgetFact)
 - **operations**: Список операций (например: create, read, update, delete, list)
-- **auth_type**: Тип аутентификации (required|admin|optional)
-- **isolation**: Тип изоляции данных (user|global|none)
-- **parent_model**: Родительская модель для иерархии (опционально)
+- **table_type**: Тип таблицы (dimension|fact)
+- **admin_only**: Ограничить CREATE/UPDATE/DELETE только для админов (для dimension таблиц)
 
 ### Что делает
 
 1. **Создает endpoint файл** в `backend/app/api/v1/endpoints/{model_name}.py`:
-   - POST endpoint для создания
+   - POST endpoint для создания (admin-only для dimension)
    - GET /{id} endpoint для получения одной записи
-   - GET / endpoint для списка (с пагинацией)
-   - PUT /{id} endpoint для обновления (SCD Type 2)
-   - DELETE /{id} endpoint для мягкого удаления
-   - Все endpoints с user isolation фильтрами
+   - GET / endpoint для списка (с пагинацией, БЕЗ user_id фильтра)
+   - PUT /{id} endpoint для обновления (SCD Type 2 для dimension, admin-only)
+   - DELETE /{id} endpoint для удаления (admin-only для dimension)
+   - **БЕЗ user_id фильтрации** - Shared Family Budget
 
 2. **Создает Pydantic схемы** в `backend/app/schemas/{model_name}.py`:
    - `{Model}Create` - для создания
@@ -124,39 +188,34 @@ dependencies: [db-management]
    )
    ```
 
-4. **Создает базовые unit тесты** в `backend/tests/endpoints/test_{model_name}.py`
+4. **Создает базовые unit тесты** в `tests/endpoints/test_{model_name}.py`
 
-5. **Создает integration тесты** в `backend/tests/integration/test_{model_name}_workflow.py`
+5. **Создает integration тесты** в `tests/integration/test_{model_name}_workflow.py`
 
-### Шаблон CRUD Endpoint
+### Шаблон CRUD Endpoint (Dimension Table)
 
 ```python
 """
-{ModelName} CRUD endpoints.
+{ModelName} CRUD endpoints (Dimension Table with SCD Type 2).
 
 Implements CRUD operations for {model_name} with SCD Type 2 versioning.
 
 Features:
-    - User data isolation
-    - Admin bypass (admins see all records)
-    - SCD Type 2 updates
-    - Soft delete
+    - Shared Family Budget (NO user_id filtering for GET)
+    - Admin-only CREATE/UPDATE/DELETE
+    - SCD Type 2 updates (new version on each change)
+    - user_id for audit trail only
 """
 
 from typing import Annotated
+from datetime import datetime
 
-from fastapi import APIRouter, Depends, Query, status
-from sqlmodel import select
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlmodel import select, func
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import (
-    CurrentUser,
-    get_session,
-    apply_user_filter,
-)
-from backend.app.core.exceptions import NotFoundException
+from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.{model_name} import {ModelName}
-from backend.app.schemas import get_common_responses
 from backend.app.schemas.{model_name} import (
     {ModelName}Create,
     {ModelName}Update,
@@ -165,7 +224,6 @@ from backend.app.schemas.{model_name} import (
 )
 from backend.app.services.scd2_service import (
     create_new_version,
-    get_current_version,
     has_changes,
 )
 
@@ -176,7 +234,6 @@ router = APIRouter(prefix="/{model_name}s", tags=["{ModelName}s"])
     "",
     response_model={ModelName}Response,
     status_code=status.HTTP_201_CREATED,
-    responses=get_common_responses(include_401=True, include_403=True),
 )
 async def create_{model_name}(
     data: {ModelName}Create,
@@ -184,25 +241,29 @@ async def create_{model_name}(
     session: AsyncSession = Depends(get_session),
 ) -> {ModelName}:
     """
-    Create a new {model_name}.
+    Create a new {model_name} (ADMIN ONLY).
 
-    **User Isolation:**
-    - {ModelName} is created with current user as owner
-    - Global {model_name}s (is_global=True) can only be created by admins
+    **Shared Family Budget:**
+    - Only admins can create dimension records
+    - user_id stored for audit trail (who created)
+    - All users can view this record (no isolation)
 
     **Returns:**
     - 201 Created: {ModelName} created successfully
     - 401 Unauthorized: User not authenticated
-    - 403 Forbidden: Non-admin trying to create global {model_name}
+    - 403 Forbidden: Non-admin user
     """
-    # Validate: Only admins can create global items
-    if hasattr(data, 'is_global') and data.is_global and not current_user.is_admin:
-        raise ForbiddenException("Only admins can create global {model_name}s")
+    # Validate: Only admins can create dimensions
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can create {model_name}s"
+        )
 
     # Create new instance
     instance = {ModelName}(
         **data.model_dump(),
-        user_id=current_user.id,
+        user_id=current_user.id,  # Audit trail only
         is_current=True,
         valid_from=datetime.utcnow(),
         valid_to=datetime(9999, 12, 31, 23, 59, 59),
@@ -218,7 +279,6 @@ async def create_{model_name}(
 @router.get(
     "/{{{model_name}_id}}",
     response_model={ModelName}Response,
-    responses=get_common_responses(include_401=True, include_404=True),
 )
 async def get_{model_name}(
     {model_name}_id: int,
@@ -228,29 +288,29 @@ async def get_{model_name}(
     """
     Get a single {model_name} by ID.
 
-    **User Isolation:**
-    - Users can only see their own {model_name}s
-    - Admins can see all {model_name}s
+    **Shared Family Budget:**
+    - NO user_id filtering - all users see all records
+    - Only checks is_current=true (SCD Type 2)
 
     **Returns:**
     - 200 OK: {ModelName} found
     - 401 Unauthorized: User not authenticated
-    - 404 Not Found: {ModelName} not found or access denied
+    - 404 Not Found: {ModelName} not found
     """
-    # Build query with user isolation
+    # NO user_id filter - Shared Family Budget
     stmt = select({ModelName}).where(
         {ModelName}.id == {model_name}_id,
         {ModelName}.is_current == True  # noqa: E712
     )
 
-    # Apply user filter (allows admins to bypass)
-    stmt = apply_user_filter(stmt, {ModelName}, current_user)
-
     result = await session.execute(stmt)
     instance = result.scalar_one_or_none()
 
     if not instance:
-        raise NotFoundException(f"{ModelName} with id={{{model_name}_id}} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{ModelName} with id={{{model_name}_id}} not found"
+        )
 
     return instance
 
@@ -258,28 +318,26 @@ async def get_{model_name}(
 @router.get(
     "",
     response_model={ModelName}ListResponse,
-    responses=get_common_responses(include_401=True),
 )
 async def list_{model_name}s(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum records to return"),
 ) -> {ModelName}ListResponse:
     """
     List {model_name}s with pagination.
 
-    **User Isolation:**
-    - Users see only their own {model_name}s + global {model_name}s
-    - Admins see all {model_name}s
+    **Shared Family Budget:**
+    - NO user_id filtering - all users see all records
+    - Returns all current (is_current=true) records
 
     **Returns:**
     - 200 OK: List of {model_name}s
     - 401 Unauthorized: User not authenticated
     """
-    # Build query with user isolation
+    # NO user_id filter - Shared Family Budget
     stmt = select({ModelName}).where({ModelName}.is_current == True)  # noqa: E712
-    stmt = apply_user_filter(stmt, {ModelName}, current_user)
 
     # Count total
     count_stmt = select(func.count()).select_from(stmt.subquery())
@@ -303,7 +361,6 @@ async def list_{model_name}s(
 @router.put(
     "/{{{model_name}_id}}",
     response_model={ModelName}Response,
-    responses=get_common_responses(include_401=True, include_404=True),
 )
 async def update_{model_name}(
     {model_name}_id: int,
@@ -312,32 +369,43 @@ async def update_{model_name}(
     session: AsyncSession = Depends(get_session),
 ) -> {ModelName}:
     """
-    Update a {model_name} (creates new SCD Type 2 version).
+    Update a {model_name} (creates new SCD Type 2 version, ADMIN ONLY).
 
     **SCD Type 2:**
     - Creates new version with is_current=True
     - Old version: is_current=False, valid_to=now()
     - Preserves complete audit trail
 
-    **User Isolation:**
-    - Users can only update their own {model_name}s
-    - Admins can update all {model_name}s
+    **Shared Family Budget:**
+    - Only admins can update dimensions
+    - NO ownership check - any admin can update any record
 
     **Returns:**
     - 200 OK: {ModelName} updated successfully (new version created)
     - 401 Unauthorized: User not authenticated
-    - 404 Not Found: {ModelName} not found or access denied
+    - 403 Forbidden: Non-admin user
+    - 404 Not Found: {ModelName} not found
     """
-    # Get current version with user isolation
-    instance = await get_current_version(
-        session=session,
-        model_class={ModelName},
-        id={model_name}_id,
-        user_id=None if current_user.is_admin else current_user.id,
+    # Validate: Only admins can update dimensions
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can update {model_name}s"
+        )
+
+    # Get current version (NO user_id filter - Shared Budget)
+    stmt = select({ModelName}).where(
+        {ModelName}.id == {model_name}_id,
+        {ModelName}.is_current == True  # noqa: E712
     )
+    result = await session.execute(stmt)
+    instance = result.scalar_one_or_none()
 
     if not instance:
-        raise NotFoundException(f"{ModelName} with id={{{model_name}_id}} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{ModelName} with id={{{model_name}_id}} not found"
+        )
 
     # Check if anything actually changed
     update_dict = updates.model_dump(exclude_unset=True)
@@ -361,7 +429,6 @@ async def update_{model_name}(
 @router.delete(
     "/{{{model_name}_id}}",
     status_code=status.HTTP_204_NO_CONTENT,
-    responses=get_common_responses(include_401=True, include_404=True),
 )
 async def delete_{model_name}(
     {model_name}_id: int,
@@ -369,27 +436,38 @@ async def delete_{model_name}(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """
-    Delete a {model_name} (soft delete - sets is_current=False).
+    Delete a {model_name} (soft delete - sets is_current=False, ADMIN ONLY).
 
-    **User Isolation:**
-    - Users can only delete their own {model_name}s
-    - Admins can delete all {model_name}s
+    **Shared Family Budget:**
+    - Only admins can delete dimensions
+    - NO ownership check - any admin can delete any record
 
     **Returns:**
     - 204 No Content: {ModelName} deleted successfully
     - 401 Unauthorized: User not authenticated
-    - 404 Not Found: {ModelName} not found or access denied
+    - 403 Forbidden: Non-admin user
+    - 404 Not Found: {ModelName} not found
     """
-    # Get current version with user isolation
-    instance = await get_current_version(
-        session=session,
-        model_class={ModelName},
-        id={model_name}_id,
-        user_id=None if current_user.is_admin else current_user.id,
+    # Validate: Only admins can delete dimensions
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete {model_name}s"
+        )
+
+    # Get current version (NO user_id filter - Shared Budget)
+    stmt = select({ModelName}).where(
+        {ModelName}.id == {model_name}_id,
+        {ModelName}.is_current == True  # noqa: E712
     )
+    result = await session.execute(stmt)
+    instance = result.scalar_one_or_none()
 
     if not instance:
-        raise NotFoundException(f"{ModelName} with id={{{model_name}_id}} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{ModelName} with id={{{model_name}_id}} not found"
+        )
 
     # Soft delete (SCD Type 2: close current version)
     instance.is_current = False
@@ -399,166 +477,147 @@ async def delete_{model_name}(
     await session.commit()
 ```
 
-### Шаблон Pydantic схем
+### Шаблон CRUD Endpoint (Fact Table)
 
 ```python
 """
-{ModelName} Pydantic schemas for request/response validation.
+{ModelName} CRUD endpoints (Fact Table - NO SCD Type 2).
+
+Implements CRUD operations for {model_name} fact records.
+
+Features:
+    - Shared Family Budget (NO user_id filtering)
+    - ANY user can create/update/delete ANY record
+    - user_id for audit trail only
+    - Regular UPDATE (not SCD Type 2)
 """
 
-from datetime import datetime
-from typing import Optional
+@router.post("", response_model={ModelName}Response, status_code=status.HTTP_201_CREATED)
+async def create_{model_name}(
+    data: {ModelName}Create,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> {ModelName}:
+    """
+    Create a new {model_name} fact record.
 
-from pydantic import BaseModel, Field
-
-
-class {ModelName}Base(BaseModel):
-    """Base schema with common fields."""
-
-    name: str = Field(..., min_length=1, max_length=255, description="{ModelName} name")
-    description: Optional[str] = Field(None, max_length=1000, description="Description")
-
-
-class {ModelName}Create({ModelName}Base):
-    """Schema for creating a {model_name}."""
-
-    is_global: bool = Field(False, description="Is this a global {model_name}?")
-
-
-class {ModelName}Update(BaseModel):
-    """Schema for updating a {model_name}."""
-
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
-
-
-class {ModelName}Response({ModelName}Base):
-    """Schema for {model_name} response."""
-
-    id: int
-    user_id: int
-    is_global: bool
-    is_current: bool
-    valid_from: datetime
-    valid_to: datetime
-    created_at: datetime
-    updated_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class {ModelName}ListResponse(BaseModel):
-    """Schema for paginated list response."""
-
-    items: list[{ModelName}Response]
-    total: int
-    skip: int
-    limit: int
-```
-
-### Шаблон Unit тестов
-
-```python
-"""
-Unit tests for {ModelName} endpoints.
-"""
-
-import pytest
-from httpx import AsyncClient
-from sqlmodel.ext.asyncio.session import AsyncSession
-
-from backend.app.models.user import User
-from backend.app.models.{model_name} import {ModelName}
-
-
-@pytest.mark.asyncio
-async def test_create_{model_name}(
-    client: AsyncClient,
-    test_user_token: str,
-    test_user: User,
-):
-    """Test creating a {model_name}."""
-    payload = {
-        "name": "Test {ModelName}",
-        "description": "Test description",
-    }
-
-    response = await client.post(
-        "/api/v1/{model_name}s",
-        json=payload,
-        headers={"Authorization": f"Bearer {test_user_token}"},
+    **Shared Family Budget:**
+    - Any authenticated user can create
+    - user_id stored for audit trail (who created)
+    - Record visible to ALL users
+    """
+    instance = {ModelName}(
+        **data.model_dump(),
+        user_id=current_user.id,  # Audit trail only
     )
 
-    assert response.status_code == 201
-    data = response.json()
-    assert data["name"] == "Test {ModelName}"
-    assert data["user_id"] == test_user.id
-    assert data["is_current"] is True
+    session.add(instance)
+    await session.commit()
+    await session.refresh(instance)
+
+    return instance
 
 
-@pytest.mark.asyncio
-async def test_get_{model_name}(
-    client: AsyncClient,
-    test_user_token: str,
-    test_{model_name}: {ModelName},
-):
-    """Test getting a {model_name} by ID."""
-    response = await client.get(
-        f"/api/v1/{model_name}s/{test_{model_name}.id}",
-        headers={"Authorization": f"Bearer {test_user_token}"},
+@router.get("", response_model={ModelName}ListResponse)
+async def list_{model_name}s(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
+) -> {ModelName}ListResponse:
+    """
+    List all {model_name} fact records with pagination.
+
+    **Shared Family Budget:**
+    - NO user_id filtering - all users see all records
+    """
+    # NO user_id filter - Shared Family Budget
+    stmt = select({ModelName})
+
+    # Count total
+    count_stmt = select(func.count()).select_from(stmt.subquery())
+    count_result = await session.execute(count_stmt)
+    total = count_result.scalar_one()
+
+    # Apply pagination
+    stmt = stmt.offset(skip).limit(limit)
+
+    result = await session.execute(stmt)
+    items = list(result.scalars().all())
+
+    return {ModelName}ListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
-    assert response.status_code == 200
-    data = response.json()
-    assert data["id"] == test_{model_name}.id
-    assert data["name"] == test_{model_name}.name
+
+@router.put("/{{{model_name}_id}}", response_model={ModelName}Response)
+async def update_{model_name}(
+    {model_name}_id: int,
+    updates: {ModelName}Update,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> {ModelName}:
+    """
+    Update a {model_name} fact record (regular UPDATE, not SCD Type 2).
+
+    **Shared Family Budget:**
+    - Any user can update any record
+    - NO ownership check - full transparency
+    """
+    # Get record (NO user_id filter - Shared Budget)
+    stmt = select({ModelName}).where({ModelName}.id == {model_name}_id)
+    result = await session.execute(stmt)
+    instance = result.scalar_one_or_none()
+
+    if not instance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{ModelName} with id={{{model_name}_id}} not found"
+        )
+
+    # Update fields (regular UPDATE, not SCD Type 2)
+    update_dict = updates.model_dump(exclude_unset=True)
+    for key, value in update_dict.items():
+        setattr(instance, key, value)
+
+    instance.updated_at = datetime.utcnow()
+
+    await session.commit()
+    await session.refresh(instance)
+
+    return instance
 
 
-@pytest.mark.asyncio
-async def test_update_{model_name}_creates_new_version(
-    client: AsyncClient,
-    test_user_token: str,
-    test_{model_name}: {ModelName},
-    session: AsyncSession,
-):
-    """Test that update creates new SCD Type 2 version."""
-    old_id = test_{model_name}.id
+@router.delete("/{{{model_name}_id}}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_{model_name}(
+    {model_name}_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> None:
+    """
+    Delete a {model_name} fact record (hard delete).
 
-    # Update
-    payload = {"name": "Updated Name"}
-    response = await client.put(
-        f"/api/v1/{model_name}s/{old_id}",
-        json=payload,
-        headers={"Authorization": f"Bearer {test_user_token}"},
-    )
+    **Shared Family Budget:**
+    - Any user can delete any record
+    - NO ownership check - full transparency
+    """
+    # Get record (NO user_id filter - Shared Budget)
+    stmt = select({ModelName}).where({ModelName}.id == {model_name}_id)
+    result = await session.execute(stmt)
+    instance = result.scalar_one_or_none()
 
-    assert response.status_code == 200
-    data = response.json()
+    if not instance:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{ModelName} with id={{{model_name}_id}} not found"
+        )
 
-    # New version has different ID
-    assert data["id"] != old_id
-    assert data["name"] == "Updated Name"
-    assert data["is_current"] is True
-
-    # Old version still exists but not current
-    await session.refresh(test_{model_name})
-    assert test_{model_name}.is_current is False
-
-
-@pytest.mark.asyncio
-async def test_user_isolation_{model_name}(
-    client: AsyncClient,
-    test_user_token: str,
-    other_user_{model_name}: {ModelName},
-):
-    """Test that users cannot see other users' {model_name}s."""
-    response = await client.get(
-        f"/api/v1/{model_name}s/{other_user_{model_name}.id}",
-        headers={"Authorization": f"Bearer {test_user_token}"},
-    )
-
-    assert response.status_code == 404
+    # Hard delete (fact table)
+    await session.delete(instance)
+    await session.commit()
 ```
 
 ## Проверочный чеклист
@@ -569,55 +628,60 @@ async def test_user_isolation_{model_name}(
 - [ ] Схемы созданы в `backend/app/schemas/{model_name}.py`
 - [ ] Router зарегистрирован в `backend/app/api/v1/router.py`
 - [ ] Добавлены dependencies: `CurrentUser`, `get_session`
-- [ ] Добавлен user isolation: `apply_user_filter()` или `user_id=current_user.id`
-- [ ] UPDATE использует SCD Type 2: `create_new_version()`
-- [ ] DELETE делает soft delete (is_current=False)
+- [ ] **КРИТИЧНО:** БЕЗ user_id фильтрации в GET endpoints (Shared Family Budget)
+- [ ] Dimension tables: admin-only для CREATE/UPDATE/DELETE
+- [ ] Dimension tables: UPDATE использует SCD Type 2 (`create_new_version()`)
+- [ ] Dimension tables: DELETE делает soft delete (is_current=False)
+- [ ] Fact tables: обычный UPDATE (НЕ SCD Type 2)
+- [ ] Fact tables: hard delete (или soft delete с deleted_at)
 - [ ] Созданы базовые unit тесты
 - [ ] OpenAPI документация доступна в `/docs`
 - [ ] Все endpoints возвращают корректные HTTP статусы
-- [ ] Добавлена обработка ошибок (404, 403, 401)
+- [ ] Добавлена обработка ошибок (404, 403, 401, 422)
 
 ## Связанные скилы
 
 - **db-management**: для создания миграций и моделей
 - **testing**: для создания integration и e2e тестов
-- **monitoring**: для добавления логирования и метрик
+- **bot-development**: для интеграции с Telegram Bot
 
 ## Примеры использования
 
-### Пример 1: Создать простой CRUD endpoint
+### Пример 1: Создать CRUD для dimension таблицы
 
 ```
-Создай REST API endpoint для модели "Note" с операциями create, read, update, delete, list.
-Используй JWT аутентификацию, user isolation и SCD Type 2.
-
-Поля модели:
-- title: str (обязательное)
-- content: str (опциональное)
-- is_global: bool (только для админов)
+Создай REST API endpoint для модели "FinancialCenter" (ЦФО) с операциями create, read, update, delete, list.
+Это dimension таблица с SCD Type 2.
+Используй Shared Family Budget модель (без user_id фильтрации для GET).
+CREATE/UPDATE/DELETE только для админов.
 ```
 
-### Пример 2: Создать endpoint с иерархией
+### Пример 2: Создать CRUD для fact таблицы
 
 ```
-Создай REST API endpoint для модели "Category" с поддержкой иерархии (parent_id).
-Операции: create, read, update, delete, list, get_children, get_ancestors.
-Используй HierarchyService для работы с Closure Table.
+Создай REST API endpoint для модели "BudgetFact" (транзакции) с операциями create, read, update, delete, list.
+Это fact таблица БЕЗ SCD Type 2 (regular UPDATE).
+Используй Shared Family Budget модель - любой может создавать/редактировать/удалять записи.
 ```
 
 ### Пример 3: Создать read-only endpoint для аналитики
 
 ```
-Создай GET endpoint для аналитики "/api/v1/analytics/budget-summary".
-Возвращает сводку по бюджету (план vs факт) за указанный период.
-Только аутентифицированные пользователи, с user isolation.
+Создай GET endpoint для аналитики "/api/v1/analytics/plan-vs-fact".
+Возвращает сводку план vs факт за указанный период.
+Параметры: period_id (required), article_id (optional для группировки).
+Только аутентифицированные пользователи, без user_id фильтрации.
 ```
 
 ## Часто задаваемые вопросы
 
 **Q: Когда использовать SCD Type 2, а когда обычный UPDATE?**
 
-A: SCD Type 2 используй для dimension таблиц (User, Article, FinancialCenter, CostCenter), где нужна история изменений. Для fact таблиц (BudgetFact) используй обычный UPDATE.
+A: SCD Type 2 используй для dimension таблиц (Article, FinancialCenter, CostCenter, Period), где нужна история изменений. Для fact таблиц (BudgetFact) используй обычный UPDATE.
+
+**Q: Почему нет user_id фильтрации?**
+
+A: Проект реализует Shared Family Budget для 2-5 пользователей. Полная прозрачность - все видят все транзакции и справочники. user_id используется только для audit trail (кто создал/изменил).
 
 **Q: Как добавить дополнительные фильтры в list endpoint?**
 
@@ -638,10 +702,13 @@ async def list_items(
 A: Создай отдельный endpoint с массивом данных:
 ```python
 @router.post("/bulk", status_code=status.HTTP_201_CREATED)
-async def create_bulk(items: list[{ModelName}Create], ...):
+async def create_bulk(items: list[{ModelName}Create], current_user: CurrentUser):
+    if not current_user.is_admin:  # For dimensions
+        raise HTTPException(403, "Admin only")
+
     created = []
     for item in items:
-        instance = {ModelName}(**item.model_dump(), ...)
+        instance = {ModelName}(**item.model_dump(), user_id=current_user.id)
         session.add(instance)
         created.append(instance)
     await session.commit()

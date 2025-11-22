@@ -121,6 +121,19 @@ check_npm_environment() {
         print_message warning ".npmrc not found in .npm-isolated/"
     fi
 
+    # Check 6: Critical nested dependencies (browserslist → node-releases)
+    # Issue: Symlinked node_modules breaks nested require() paths
+    # This file is loaded by browserslist (used by Tailwind CSS PostCSS pipeline)
+    local node_releases_file="$deployment_dir/.npm-isolated/node_modules/node-releases/data/processed/envs.json"
+    if [[ ! -f "$node_releases_file" ]]; then
+        print_message error "Critical dependency file missing: node-releases/data/processed/envs.json"
+        print_message error "This indicates corrupted npm installation or missing transitive dependency"
+        print_message error "Expected location: $node_releases_file"
+        ((errors++))
+    else
+        print_message success "Critical nested dependencies verified (node-releases)"
+    fi
+
     echo
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 

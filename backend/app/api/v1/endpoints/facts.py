@@ -352,8 +352,9 @@ async def get_recent_facts_html(
         # Shared family budget - NO user isolation filter
         # All authenticated users see all transactions
 
-        # Order by most recent and limit
-        statement = statement.order_by(BudgetFact.fact_date.desc(), BudgetFact.id.desc())
+        # Order by most recent (by creation time in DB, not transaction date)
+        # This shows newest added transactions first, regardless of their fact_date
+        statement = statement.order_by(BudgetFact.created_at.desc())
         statement = statement.limit(limit)
 
         # Execute query

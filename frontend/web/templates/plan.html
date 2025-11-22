@@ -1247,6 +1247,23 @@ function showNotification(message, type) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
+    // Responsive positioning function (вынесена за пределы if для повторного использования)
+    const updatePosition = (container) => {
+        if (window.innerWidth > 768) {
+            // Desktop: правый верхний угол с отступами (учитываем высоту навбара)
+            container.style.top = '80px';
+            container.style.right = '20px';
+            container.style.left = 'auto';
+            container.style.transform = 'none';
+        } else {
+            // Mobile: центр экрана
+            container.style.top = '50%';
+            container.style.left = '50%';
+            container.style.right = 'auto';
+            container.style.transform = 'translate(-50%, -50%)';
+        }
+    };
+
     // Create toast container if it doesn't exist
     let toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
@@ -1254,31 +1271,43 @@ function showNotification(message, type) {
         toastContainer.id = 'toast-container';
         toastContainer.style.cssText = `
             position: fixed;
-            top: 20px;
-            right: 20px;
             z-index: 9999;
             display: flex;
             flex-direction: column;
             gap: 10px;
         `;
+
         document.body.appendChild(toastContainer);
+
+        // Update position on window resize
+        window.addEventListener('resize', () => updatePosition(toastContainer));
     }
+
+    // ВАЖНО: обновляем позицию КАЖДЫЙ раз при показе уведомления (не только при создании контейнера)
+    updatePosition(toastContainer);
 
     // Create toast element
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `notification-item notification-${type}`;
     toast.style.cssText = `
         background: ${type === 'error' ? '#ef4444' : '#10b981'};
         color: white;
         padding: 16px 24px;
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        min-width: 300px;
-        max-width: 500px;
+        min-width: 280px;
+        max-width: min(500px, calc(100vw - 40px));
+        width: auto;
+        box-sizing: border-box;
         font-size: 14px;
         line-height: 1.5;
         animation: slideIn 0.3s ease-out;
         cursor: pointer;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        white-space: normal;
+        hyphens: auto;
     `;
     toast.textContent = message;
 

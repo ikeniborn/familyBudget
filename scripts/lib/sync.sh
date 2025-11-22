@@ -166,8 +166,10 @@ check_code_changes() {
 
     # Use rsync --dry-run to detect changes
     # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (live in /opt/budget only, not copied)
+    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
     local changes=$(rsync -avnc \
         --exclude='.env' \
+        --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
         --exclude='backups/' \
@@ -213,11 +215,13 @@ sync_mirror() {
     # Show preview of changes
     # IMPORTANT: .npm-isolated/ and .migration_checksums PROTECTED from deletion (production-only)
     # Uses --filter='protect' to prevent rsync --delete from removing them
+    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
     info "Preview of changes (first 20 files):"
     rsync -avnc \
         --filter='protect .npm-isolated/' \
         --filter='protect .migration_checksums' \
         --exclude='.env' \
+        --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
         --exclude='backups/' \
@@ -245,6 +249,7 @@ sync_mirror() {
     # Perform sync
     # CRITICAL FIX (2025-11-08): Protect .npm-isolated/ from deletion
     # CRITICAL FIX (2025-11-12): Protect .migration_checksums from deletion
+    # CRITICAL FIX (2025-11-21): Exclude node_modules/ from sync (only .npm-isolated/node_modules exists in production)
     # Problem: rsync --delete removes files from destination not in source
     # Solution: --filter='protect' prevents deletion even with --delete flag
     # Protected files live ONLY in production (/opt/budget), NOT in repository:
@@ -254,6 +259,7 @@ sync_mirror() {
         --filter='protect .npm-isolated/' \
         --filter='protect .migration_checksums' \
         --exclude='.env' \
+        --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
         --exclude='backups/' \
@@ -316,9 +322,11 @@ sync_update() {
 
     # Show preview
     # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (production-only, not synced)
+    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
     info "Preview of changes (first 20 files):"
     rsync -avnc \
         --exclude='.env' \
+        --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
         --exclude='backups/' \
@@ -345,9 +353,11 @@ sync_update() {
 
     # 1. Perform rsync (update/add files)
     # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (production-only directories/files)
+    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
     info "Step 1/2: Syncing new and modified files..."
     if ! rsync -avc \
         --exclude='.env' \
+        --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
         --exclude='backups/' \
@@ -383,6 +393,7 @@ sync_update() {
     (cd "$repo_dir" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
+        ! -path "./node_modules/*" \
         ! -path "./data/*" \
         ! -path "./logs/*" \
         ! -path "./backups/*" \
@@ -405,9 +416,11 @@ sync_update() {
 
     # Generate list of files in deploy directory
     # IMPORTANT: Exclude .npm-isolated/* and .migration_checksums from cleanup (production-only)
+    # CRITICAL: Exclude node_modules/* from cleanup (should not exist, but safeguard)
     (cd "$DEPLOY_DIR" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
+        ! -path "./node_modules/*" \
         ! -path "./data/*" \
         ! -path "./logs/*" \
         ! -path "./backups/*" \
@@ -563,9 +576,11 @@ sync_clean() {
 
     # Step 5: Copy everything from repository (except .env and directories we already handled)
     # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (will be managed separately in production)
+    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
     info "Copying fresh code from $repo_dir to $DEPLOY_DIR"
     if rsync -av \
         --exclude='.env' \
+        --exclude='node_modules/' \
         --exclude='data/' \
         --exclude='logs/' \
         --exclude='.git/' \
