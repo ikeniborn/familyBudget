@@ -16,6 +16,32 @@
 #
 
 # =============================================================================
+# POSTGRESQL UID DETECTION
+# =============================================================================
+
+# Get PostgreSQL UID from Docker image
+get_postgres_uid_from_image() {
+    local image="${1:-postgres:16-alpine}"
+
+    # Try to get UID from running container first (faster)
+    local uid=$(docker run --rm --entrypoint id "$image" -u postgres 2>/dev/null | grep -oP 'uid=\K[0-9]+' || echo "")
+
+    if [[ -n "$uid" ]]; then
+        echo "$uid"
+        return 0
+    fi
+
+    # Fallback: Known defaults
+    # postgres:16-alpine uses UID 70
+    # postgres:16 (Debian) uses UID 999
+    if [[ "$image" == *"alpine"* ]]; then
+        echo "70"
+    else
+        echo "999"
+    fi
+}
+
+# =============================================================================
 # POSTGRESQL DIRECTORY INITIALIZATION
 # =============================================================================
 
@@ -30,19 +56,39 @@ initialize_postgres_directory() {
         return 0
     fi
 
-    # Detect current PostgreSQL UID from existing data (if any)
-    # Default: 999:999 (Alpine Linux PostgreSQL)
-    # Alternative: 70:70 (Debian/Ubuntu PostgreSQL)
-    local target_uid=999
-    local target_gid=999
+    # Detect PostgreSQL UID from existing data OR from Docker image
+    local target_uid
+    local target_gid
 
     if [[ -d "$postgres_data_dir/base" ]]; then
         # Data exists - detect current owner from base/ directory
-        target_uid=$(stat -c '%u' "$postgres_data_dir/base" 2>/dev/null || echo "999")
-        target_gid=$(stat -c '%g' "$postgres_data_dir/base" 2>/dev/null || echo "999")
-        info "Detected existing PostgreSQL UID from data: $target_uid:$target_gid"
+        target_uid=$(stat -c '%u' "$postgres_data_dir/base" 2>/dev/null)
+        target_gid=$(stat -c '%g' "$postgres_data_dir/base" 2>/dev/null)
+
+        if [[ -z "$target_uid" ]] || [[ -z "$target_gid" ]]; then
+            # stat failed - get from image
+            target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
+            target_gid="$target_uid"
+            info "Failed to detect UID from data, using image default: $target_uid:$target_gid"
+        else
+            info "Detected existing PostgreSQL UID from data: $target_uid:$target_gid"
+        fi
     else
-        info "No existing data - will use default UID: $target_uid:$target_gid (Alpine Linux)"
+        # No data - get UID from Docker image dynamically
+        target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
+        target_gid="$target_uid"
+        info "No existing data - using PostgreSQL UID from image: $target_uid:$target_gid (postgres:16-alpine)"
+    fi
+
+    # Remove stale postmaster.pid lock file (from failed startup attempts)
+    if [[ -f "$postgres_data_dir/postmaster.pid" ]]; then
+        warning "Found stale PostgreSQL lock file (postmaster.pid)"
+        info "Removing lock file from previous failed startup..."
+        if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
+            success "Lock file removed"
+        else
+            warning "Failed to remove lock file (continuing anyway)"
+        fi
     fi
 
     # Create directory if doesn't exist
