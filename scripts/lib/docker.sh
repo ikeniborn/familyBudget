@@ -602,29 +602,36 @@ cleanup_containers_networks_legacy() {
 # =============================================================================
 # Functions: initialize_postgres_directory, check_and_repair_postgres_data
 
-# Full cleanup - containers + networks + volumes (DELETES DATA!)
+# Full cleanup - stop all services + optional data deletion
 cleanup_full() {
-    warning "Full cleanup will DELETE ALL DATA including database!"
+    warning "⚠️  FULL CLEANUP MODE"
+    echo ""
+    echo "This will:"
+    echo "  1. Stop all containers (PostgreSQL, backend, bot, nginx)"
+    echo "  2. Remove Docker networks"
+    echo "  3. Run PostgreSQL data repair (if corrupted)"
+    echo ""
+    warning "⚠️  DATA DELETION (OPTIONAL):"
+    echo "  - If you type 'DELETE': ALL DATA INCLUDING DATABASE WILL BE DELETED!"
+    echo "  - If you press Enter or type anything else: DATA IS PRESERVED (containers stopped only)"
     echo ""
 
     # Check for root privileges (required for PostgreSQL data deletion)
     if ! check_root_privileges; then
-        error "Full cleanup requires root privileges to delete PostgreSQL data!"
+        error "Full cleanup requires root privileges!"
         echo ""
         echo "Please run deploy.sh with sudo:"
         echo "  sudo $SCRIPT_DIR/deploy.sh [OPTIONS]"
         echo ""
-        echo "Or manually delete PostgreSQL data after deployment:"
-        echo "  sudo rm -rf $DEPLOY_DIR/data/postgres/*"
-        echo ""
         exit 1
     fi
 
-    read -p "Type 'DELETE' to confirm full cleanup: " confirm
+    read -p "Type 'DELETE' to delete all data, or press Enter to preserve data: " confirm
     echo ""
 
     if [[ "$confirm" != "DELETE" ]]; then
-        info "Full cleanup cancelled"
+        info "Full cleanup cancelled - data preserved"
+        info "Containers stopped, PostgreSQL repair will run automatically"
         return 0
     fi
 

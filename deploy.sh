@@ -502,7 +502,10 @@ collect_deployment_parameters() {
             echo "      ✓ Analyzes git diff to determine if PostgreSQL needs restart"
             echo "      ✓ Keeps PostgreSQL running for frontend/backend changes only"
             echo "      ✓ Full restart for DB migrations or config changes"
-            echo "  [3] Full cleanup - containers + networks + volumes (DELETES ALL DATA!)"
+            echo "  [3] Full cleanup - stop all services + repair corrupted data"
+            echo "      ✓ Stops all containers, removes networks"
+            echo "      ✓ Repairs PostgreSQL data directory if corrupted"
+            echo "      ✓ DATA IS PRESERVED (volumes NOT deleted unless you confirm 'DELETE')"
             echo "      ⚠️  Requires sudo/root privileges"
             echo ""
 
