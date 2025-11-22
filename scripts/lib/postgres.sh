@@ -132,6 +132,98 @@ initialize_postgres_directory() {
 }
 
 # =============================================================================
+# POSTGRESQL PERMISSIONS VALIDATION (ALWAYS RUNS)
+# =============================================================================
+
+# Validate and fix PostgreSQL permissions UNCONDITIONALLY
+# This function runs ALWAYS before service start, regardless of POSTGRES_WAS_STOPPED
+# Use case: Smart cleanup may skip PostgreSQL restart, but permissions still need validation
+validate_postgres_permissions_always() {
+    local postgres_data_dir="$DEPLOY_DIR/data/postgres"
+
+    step "Validating PostgreSQL Permissions (Pre-Service Check)"
+
+    # Skip if data directory doesn't exist or is empty
+    if [[ ! -d "$postgres_data_dir" ]] || [[ -z "$(ls -A "$postgres_data_dir" 2>/dev/null)" ]]; then
+        info "PostgreSQL data directory empty or doesn't exist - will be initialized by container"
+        return 0
+    fi
+
+    # Skip if this is NOT a PostgreSQL data directory
+    if [[ ! -f "$postgres_data_dir/PG_VERSION" ]]; then
+        info "No PG_VERSION found - not a PostgreSQL data directory"
+        return 0
+    fi
+
+    # Detect PostgreSQL UID from existing data OR from Docker image
+    local target_uid
+    local target_gid
+
+    if [[ -d "$postgres_data_dir/base" ]]; then
+        # Data exists - detect current owner from base/ directory
+        target_uid=$(stat -c '%u' "$postgres_data_dir/base" 2>/dev/null)
+        target_gid=$(stat -c '%g' "$postgres_data_dir/base" 2>/dev/null)
+
+        if [[ -z "$target_uid" ]] || [[ -z "$target_gid" ]]; then
+            # stat failed - get from image
+            target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
+            target_gid="$target_uid"
+            info "Failed to detect UID from data, using image default: $target_uid:$target_gid"
+        else
+            info "Detected existing PostgreSQL UID from data: $target_uid:$target_gid"
+        fi
+    else
+        # No base directory - get UID from Docker image
+        target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
+        target_gid="$target_uid"
+        info "No base/ directory - using PostgreSQL UID from image: $target_uid:$target_gid"
+    fi
+
+    # Remove stale postmaster.pid lock file (from failed startup attempts)
+    if [[ -f "$postgres_data_dir/postmaster.pid" ]]; then
+        warning "Found stale PostgreSQL lock file (postmaster.pid)"
+        info "Removing lock file from previous failed startup..."
+        if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
+            success "Lock file removed"
+        else
+            warning "Failed to remove lock file (continuing anyway)"
+        fi
+    fi
+
+    # Check and fix ownership UNCONDITIONALLY (even if PostgreSQL is running)
+    local current_owner=$(stat -c '%u:%g' "$postgres_data_dir" 2>/dev/null || echo "unknown")
+
+    if [[ "$current_owner" != "$target_uid:$target_gid" ]]; then
+        warning "Incorrect ownership detected: $current_owner (expected $target_uid:$target_gid)"
+        info "Fixing ownership recursively (CRITICAL for PostgreSQL startup)..."
+
+        # Stop PostgreSQL if running (permissions must be fixed before start)
+        if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+            warning "PostgreSQL is running - stopping temporarily to fix permissions..."
+            docker compose -f "$DEPLOY_DIR/docker-compose.yml" stop postgres --timeout 30 >> "$LOG_FILE" 2>&1 || true
+            sleep 2
+        fi
+
+        if sudo chown -R $target_uid:$target_gid "$postgres_data_dir"; then
+            success "Ownership corrected to $target_uid:$target_gid (recursive)"
+        else
+            error "Failed to fix ownership - PostgreSQL may fail to start!"
+            return 1
+        fi
+    else
+        # Ownership looks correct on parent - verify recursively
+        info "Verifying ownership consistency (parent: $current_owner)..."
+        if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
+            success "PostgreSQL permissions validated: $target_uid:$target_gid (recursive)"
+        else
+            warning "Failed to recursively verify ownership (continuing anyway)"
+        fi
+    fi
+
+    return 0
+}
+
+# =============================================================================
 # POSTGRESQL DATA INTEGRITY CHECK AND REPAIR
 # =============================================================================
 

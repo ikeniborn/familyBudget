@@ -171,7 +171,8 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # =============================================================================
 # POSTGRES FUNCTIONS (Loaded from scripts/lib/postgres.sh)
 # =============================================================================
-# Functions: initialize_postgres_directory, check_and_repair_postgres_data
+# Functions: get_postgres_uid_from_image, initialize_postgres_directory,
+#            validate_postgres_permissions_always, check_and_repair_postgres_data
 
 # =============================================================================
 # NETWORK FUNCTIONS (Loaded from scripts/lib/network.sh)
@@ -1138,6 +1139,12 @@ main() {
 
     # Clean up old nginx markers from previous deployments
     cleanup_nginx_markers
+    echo ""
+
+    # CRITICAL: Validate PostgreSQL permissions BEFORE starting services
+    # This runs ALWAYS, even when smart cleanup skips PostgreSQL restart
+    # Fixes ownership issues (e.g., wrong UID after sync from different environment)
+    validate_postgres_permissions_always
     echo ""
 
     start_services
