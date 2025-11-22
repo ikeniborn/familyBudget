@@ -155,29 +155,12 @@ validate_postgres_permissions_always() {
         return 0
     fi
 
-    # Detect PostgreSQL UID from existing data OR from Docker image
-    local target_uid
-    local target_gid
+    # ALWAYS use UID from Docker image (correct source of truth)
+    # Do NOT use UID from existing data - it may be wrong after rsync from dev
+    local target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
+    local target_gid="$target_uid"
 
-    if [[ -d "$postgres_data_dir/base" ]]; then
-        # Data exists - detect current owner from base/ directory
-        target_uid=$(stat -c '%u' "$postgres_data_dir/base" 2>/dev/null)
-        target_gid=$(stat -c '%g' "$postgres_data_dir/base" 2>/dev/null)
-
-        if [[ -z "$target_uid" ]] || [[ -z "$target_gid" ]]; then
-            # stat failed - get from image
-            target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
-            target_gid="$target_uid"
-            info "Failed to detect UID from data, using image default: $target_uid:$target_gid"
-        else
-            info "Detected existing PostgreSQL UID from data: $target_uid:$target_gid"
-        fi
-    else
-        # No base directory - get UID from Docker image
-        target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
-        target_gid="$target_uid"
-        info "No base/ directory - using PostgreSQL UID from image: $target_uid:$target_gid"
-    fi
+    info "Target PostgreSQL UID from Docker image: $target_uid:$target_gid (postgres:16-alpine)"
 
     # Remove stale postmaster.pid lock file (from failed startup attempts)
     if [[ -f "$postgres_data_dir/postmaster.pid" ]]; then
