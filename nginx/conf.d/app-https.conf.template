@@ -1,6 +1,7 @@
-# Family Budget - Application Nginx Configuration Template
-# This file is a template that will be processed by setup.sh
-# Variables: budget-dev.ikeniborn.ru
+# Family Budget - HTTPS Nginx Configuration (Production)
+# This configuration is used AFTER SSL certificate is obtained.
+# Includes: HTTPS server, HTTP→HTTPS redirect, all application routes
+# Variable: {{DOMAIN}}
 
 # Upstream backend
 upstream backend {
@@ -8,71 +9,39 @@ upstream backend {
     keepalive 32;
 }
 
-# HTTP Server - Port 80
-# Initially serves content and ACME challenges
-# After SSL setup, redirects to HTTPS
-# DISABLED - using redirect block below
-# server {
-#     listen 80;
-#     listen [::]:80;
-#     server_name budget-dev.ikeniborn.ru;
-#
-#     # Logging
-#     access_log /var/log/nginx/budget-dev.ikeniborn.ru_access.log;
-#     error_log /var/log/nginx/budget-dev.ikeniborn.ru_error.log;
-#
-#     # Let's Encrypt ACME challenge
-#     location /.well-known/acme-challenge/ {
-#         root /var/www/certbot;
-#     }
-#
-#     # Initial configuration - proxy to backend
-#     # This will be replaced with redirect after SSL setup
-#     location / {
-#         proxy_pass http://backend;
-#         proxy_set_header Host $host;
-#         proxy_set_header X-Real-IP $remote_addr;
-#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-#         proxy_set_header X-Forwarded-Proto $scheme;
-#         proxy_read_timeout 300s;
-#         proxy_connect_timeout 75s;
-#     }
-# }
-
 # HTTPS Server - Port 443
-# SSL already configured - see below
 server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name budget-dev.ikeniborn.ru;
-#
+    server_name {{DOMAIN}};
+
     # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/budget-dev.ikeniborn.ru/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/budget-dev.ikeniborn.ru/privkey.pem;
-#
+    ssl_certificate /etc/letsencrypt/live/{{DOMAIN}}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{DOMAIN}}/privkey.pem;
+
     # SSL Security Settings
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_ciphers HIGH:!aNULL:!MD5;
     ssl_prefer_server_ciphers on;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 10m;
-#
-    # HSTS Header (enabled for production - SEC-004 fix)
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-#
+
+    # HSTS (optional - uncomment for production)
+    # add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
     # Security Headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
-#
+
     # Logging
-    access_log /var/log/nginx/budget-dev.ikeniborn.ru_ssl_access.log;
-    error_log /var/log/nginx/budget-dev.ikeniborn.ru_ssl_error.log;
-#
+    access_log /var/log/nginx/{{DOMAIN}}_ssl_access.log;
+    error_log /var/log/nginx/{{DOMAIN}}_ssl_error.log;
+
     # Client upload size
     client_max_body_size 20M;
-#
+
     # Backend API endpoints
     location /api/ {
         proxy_pass http://backend;
@@ -82,20 +51,20 @@ server {
         proxy_set_header X-Forwarded-Proto https;
         proxy_read_timeout 300s;
         proxy_connect_timeout 75s;
-#
+
         # WebSocket support (for future use)
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
     }
-#
+
     # Health check endpoint
     location /health {
         proxy_pass http://backend;
         proxy_set_header Host $host;
         access_log off;
     }
-#
+
     # Swagger/OpenAPI docs
     location /docs {
         proxy_pass http://backend;
@@ -104,55 +73,63 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
     }
-#
+
     location /openapi.json {
         proxy_pass http://backend;
         proxy_set_header Host $host;
     }
-#
-    # Static files (web UI)
+
+    # Static files
     location /static/ {
         alias /usr/share/nginx/html/static/;
         expires 30d;
         add_header Cache-Control "public, immutable";
         access_log off;
     }
-#
-    # Telegram WebApp files - smart caching with ETag for optimal performance
+
+    # Telegram Web Apps - served by backend StaticFiles mount
     location /webapp/ {
         proxy_pass http://backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-#
-        # Always validate freshness, but use ETag to save bandwidth
-        # Browser checks with server on each request
-        # Server returns 304 Not Modified if file unchanged (saves 95%+ traffic)
-        add_header Cache-Control "no-cache, must-revalidate" always;
-#
-        # Enable ETag for conditional requests
-        etag on;
-#
-        # Use If-Modified-Since header for additional optimization
-        if_modified_since before;
+
+        # Allow Telegram to embed WebApp in iframe
+        # Remove X-Frame-Options to allow Telegram domains
+        add_header X-Frame-Options "" always;
+
+        # CSP: Allow Telegram domains to embed and access resources
+        add_header Content-Security-Policy "frame-ancestors https://web.telegram.org https://*.telegram.org" always;
+
+        # CORS headers for Telegram Web Apps
+        add_header Access-Control-Allow-Origin "https://web.telegram.org" always;
+        add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Content-Type, X-Requested-With" always;
+        add_header Access-Control-Allow-Credentials "true" always;
+
+        # Security headers (keep these)
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+
+        # Cache WebApp static files
+        expires 1h;
+        add_header Cache-Control "public, must-revalidate";
     }
-#
-    # Shared static files (common JS/CSS modules for web and webapp)
+
+    # Shared static files - long-term caching
     location /shared/ {
         proxy_pass http://backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto https;
-#
-        # Cache for 30 days with versioning (files have ?v=YYYYMMDD_HHMM)
-        add_header Cache-Control "public, max-age=2592000, immutable" always;
-#
-        # Enable ETag
-        etag on;
+
+        # Long-term caching for shared resources
+        expires 7d;
+        add_header Cache-Control "public, must-revalidate";
     }
-#
+
     # Root - web interface
     location / {
         proxy_pass http://backend;
@@ -169,13 +146,13 @@ server {
 server {
     listen 80;
     listen [::]:80;
-    server_name budget-dev.ikeniborn.ru;
-#
-    # Let's Encrypt ACME challenge
+    server_name {{DOMAIN}};
+
+    # Let's Encrypt ACME challenge (allow HTTP for renewals)
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
     }
-#
+
     # Redirect all other traffic to HTTPS
     location / {
         return 301 https://$server_name$request_uri;
