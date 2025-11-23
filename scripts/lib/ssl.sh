@@ -86,6 +86,32 @@ setup_ssl_certificates() {
                 warning "You may need to run manually: sudo scripts/ssl_certificate_manager.sh setup-cron"
             fi
 
+            # Check if HTTPS configuration already active (avoid unnecessary regeneration)
+            local nginx_conf="$DEPLOY_DIR/nginx/conf.d/app.conf"
+            if [[ -f "$nginx_conf" ]] && \
+               grep -q "listen 443 ssl" "$nginx_conf" && \
+               ! grep -q "^#.*listen 443 ssl" "$nginx_conf"; then
+
+                # Verify domain matches
+                local current_domain
+                current_domain=$(grep "server_name" "$nginx_conf" | grep -v "^#" | head -1 | awk '{print $2}' | tr -d ';')
+
+                if [[ "$current_domain" == "$domain" ]]; then
+                    success "HTTPS configuration already active for $domain - no changes needed"
+                    info "Configuration file: $nginx_conf"
+
+                    # Still reload nginx to ensure certificates are picked up (in case of renewal)
+                    if compose_cmd ps -q nginx >/dev/null 2>&1; then
+                        info "Reloading nginx to pick up any certificate updates..."
+                        reload_nginx
+                    fi
+
+                    return 0
+                else
+                    info "Domain changed ($current_domain → $domain), regenerating configuration"
+                fi
+            fi
+
             # Generate HTTPS nginx configuration (using nginx.sh module)
             if generate_nginx_https_config "$domain"; then
                 success "Nginx HTTPS configuration generated"
