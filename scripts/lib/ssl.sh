@@ -3,12 +3,10 @@
 # scripts/lib/ssl.sh - SSL certificate management functions
 #
 # This module handles SSL-related operations:
-# - SSL marker cleanup in nginx configuration
 # - Let's Encrypt certificate setup (via host certbot)
-# - Nginx HTTPS configuration updates
 # - SSL certificate verification
 #
-# Dependencies: config.sh, utils.sh
+# Dependencies: config.sh, utils.sh, nginx.sh
 #
 # Usage:
 #   source scripts/lib/ssl.sh
@@ -16,35 +14,8 @@
 #   verify_ssl
 #
 # Part of Phase 3 refactoring (SSL functions extracted from deploy.sh)
+# Nginx configuration is now managed by nginx.sh module
 #
-
-# =============================================================================
-# SSL MARKER CLEANUP
-# =============================================================================
-
-cleanup_nginx_markers() {
-    local nginx_conf="$DEPLOY_DIR/nginx/conf.d/app.conf"
-
-    # Check if nginx config exists
-    if [[ ! -f "$nginx_conf" ]]; then
-        # No config yet, nothing to clean
-        return 0
-    fi
-
-    # Check if file contains old markers (from previous deployments)
-    if grep -q "^SSL_HTTPS_START$\|^SSL_HTTPS_END$\|^SSL_REDIRECT_START$\|^SSL_REDIRECT_END$" "$nginx_conf"; then
-        info "Detected old SSL markers in nginx config, cleaning up..."
-
-        # Remove marker lines (they should have been removed by update_nginx_for_https)
-        sed -i '/^SSL_HTTPS_START$/d' "$nginx_conf"
-        sed -i '/^SSL_HTTPS_END$/d' "$nginx_conf"
-        sed -i '/^SSL_REDIRECT_START$/d' "$nginx_conf"
-        sed -i '/^SSL_REDIRECT_END$/d' "$nginx_conf"
-
-        success "Old SSL markers removed from nginx config"
-        info "Configuration file: $nginx_conf"
-    fi
-}
 
 # =============================================================================
 # SSL CERTIFICATE FUNCTIONS
@@ -115,17 +86,40 @@ setup_ssl_certificates() {
                 warning "You may need to run manually: sudo scripts/ssl_certificate_manager.sh setup-cron"
             fi
 
-            # Update nginx configuration to enable HTTPS if not already done
-            update_nginx_for_https "$domain"
+            # Check if HTTPS configuration already active (avoid unnecessary regeneration)
+            local nginx_conf="$DEPLOY_DIR/nginx/conf.d/app.conf"
+            if [[ -f "$nginx_conf" ]] && \
+               grep -q "listen 443 ssl" "$nginx_conf" && \
+               ! grep -q "^#.*listen 443 ssl" "$nginx_conf"; then
 
-            # Reload nginx to pick up certificates
-            if compose_cmd ps -q nginx >/dev/null 2>&1; then
-                info "Reloading nginx with certificates..."
-                if compose_cmd exec nginx nginx -s reload >> "$LOG_FILE" 2>&1; then
-                    success "Nginx reloaded successfully"
+                # Verify domain matches
+                local current_domain
+                current_domain=$(grep "server_name" "$nginx_conf" | grep -v "^#" | head -1 | awk '{print $2}' | tr -d ';')
+
+                if [[ "$current_domain" == "$domain" ]]; then
+                    success "HTTPS configuration already active for $domain - no changes needed"
+                    info "Configuration file: $nginx_conf"
+
+                    # Still reload nginx to ensure certificates are picked up (in case of renewal)
+                    if compose_cmd ps -q nginx >/dev/null 2>&1; then
+                        info "Reloading nginx to pick up any certificate updates..."
+                        reload_nginx
+                    fi
+
+                    return 0
                 else
-                    warning "Failed to reload nginx"
+                    info "Domain changed ($current_domain → $domain), regenerating configuration"
                 fi
+            fi
+
+            # Generate HTTPS nginx configuration (using nginx.sh module)
+            if generate_nginx_https_config "$domain"; then
+                success "Nginx HTTPS configuration generated"
+
+                # Reload nginx to pick up configuration and certificates
+                reload_nginx
+            else
+                warning "Failed to generate HTTPS configuration"
             fi
 
             return 0
@@ -144,8 +138,13 @@ setup_ssl_certificates() {
     if sudo "$ssl_manager" obtain "$domain" "$email" "$server_ip" >> "$LOG_FILE" 2>&1; then
         success "SSL certificate obtained successfully!"
 
-        # Update nginx configuration to enable HTTPS
-        update_nginx_for_https "$domain"
+        # Generate HTTPS nginx configuration (using nginx.sh module)
+        if ! generate_nginx_https_config "$domain"; then
+            warning "Failed to generate HTTPS configuration"
+            warning "Nginx will continue with current configuration"
+        else
+            success "Nginx HTTPS configuration generated"
+        fi
 
         # Start nginx if not running (may have been stopped by ssl_certificate_manager)
         if ! compose_cmd ps -q nginx >/dev/null 2>&1; then
@@ -154,14 +153,8 @@ setup_ssl_certificates() {
             sleep 3
         fi
 
-        # Reload nginx with new configuration
-        info "Reloading nginx with new configuration..."
-        if compose_cmd exec nginx nginx -s reload >> "$LOG_FILE" 2>&1; then
-            success "Nginx reloaded successfully"
-        else
-            warning "Failed to reload nginx. Restarting..."
-            compose_cmd restart nginx >> "$LOG_FILE" 2>&1 || true
-        fi
+        # Reload nginx with new configuration and certificates
+        reload_nginx
 
         success "SSL certificate setup completed!"
     else
@@ -169,81 +162,9 @@ setup_ssl_certificates() {
     fi
 }
 
-# Update nginx configuration to enable HTTPS
-update_nginx_for_https() {
-    local domain=$1
-    local nginx_conf="$DEPLOY_DIR/nginx/conf.d/app.conf"
-
-    if [[ ! -f "$nginx_conf" ]]; then
-        error "Nginx configuration not found: $nginx_conf"
-    fi
-
-    info "Updating nginx configuration to enable HTTPS..."
-
-    # Create backup before modification
-    cp "$nginx_conf" "$nginx_conf.backup" || true
-
-    # Check if markers exist
-    if ! grep -q "SSL_HTTPS_START" "$nginx_conf"; then
-        info "SSL markers not found - SSL configuration already applied (skipping)"
-        success "Nginx SSL configuration is up to date"
-        return 0
-    fi
-
-    info "Processing nginx configuration using SSL markers..."
-
-    # Uncomment HTTPS block (between SSL_HTTPS_START and SSL_HTTPS_END)
-    # This removes "# " from the beginning of lines, but preserves "# #" comments
-    sed -i '/^# SSL_HTTPS_START$/,/^# SSL_HTTPS_END$/{
-        /^# SSL_HTTPS_START$/d
-        /^# SSL_HTTPS_END$/d
-        s/^# \(.*\)/\1/
-    }' "$nginx_conf"
-
-    # Uncomment HTTP redirect block (between SSL_REDIRECT_START and SSL_REDIRECT_END)
-    sed -i '/^# SSL_REDIRECT_START$/,/^# SSL_REDIRECT_END$/{
-        /^# SSL_REDIRECT_START$/d
-        /^# SSL_REDIRECT_END$/d
-        s/^# \(.*\)/\1/
-    }' "$nginx_conf"
-
-    # Comment out initial HTTP block (between SSL_HTTP_INITIAL_START and SSL_HTTP_INITIAL_END)
-    # to prevent conflicting server names after enabling SSL redirect
-    sed -i '/^# SSL_HTTP_INITIAL_START$/,/^# SSL_HTTP_INITIAL_END$/{
-        /^# SSL_HTTP_INITIAL_START$/d
-        /^# SSL_HTTP_INITIAL_END$/d
-        s/^\([^#]\)/# \1/
-    }' "$nginx_conf"
-
-    # Verify the result is not empty
-    if [[ ! -s "$nginx_conf" ]]; then
-        error "Nginx configuration became empty after processing"
-        mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
-        return 1
-    fi
-
-    # Validate nginx configuration (if container is running)
-    if compose_cmd ps -q nginx >/dev/null 2>&1 && compose_cmd ps nginx | grep -q "Up"; then
-        info "Validating nginx configuration..."
-        if compose_cmd exec nginx nginx -t >> "$LOG_FILE" 2>&1; then
-            success "Nginx configuration is valid"
-            # Remove backup on success
-            rm -f "$nginx_conf.backup"
-        else
-            error "Nginx configuration is invalid after update"
-            warning "Restoring previous configuration..."
-            mv "$nginx_conf.backup" "$nginx_conf" 2>/dev/null || true
-            error "Configuration validation failed. Check $LOG_FILE for details."
-        fi
-    else
-        info "Nginx container not running, skipping validation (will be validated on start)"
-        # Still remove backup
-        rm -f "$nginx_conf.backup"
-    fi
-
-    success "Nginx configuration updated for HTTPS"
-    info "Configuration file: $nginx_conf"
-}
+# =============================================================================
+# SSL CERTIFICATE VERIFICATION
+# =============================================================================
 
 # Verify SSL certificate
 verify_ssl() {

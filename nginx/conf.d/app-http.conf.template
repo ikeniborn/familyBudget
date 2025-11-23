@@ -1,0 +1,38 @@
+# Family Budget - HTTP-Only Nginx Configuration (Initial Setup)
+# This configuration is used BEFORE SSL certificate is obtained.
+# Purpose: Serve HTTP traffic and ACME challenges for Let's Encrypt
+# Variable: {{DOMAIN}}
+
+# Upstream backend
+upstream backend {
+    server backend:8000;
+    keepalive 32;
+}
+
+# HTTP Server - Port 80
+# Serves initial content and ACME challenges for SSL certificate acquisition
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{DOMAIN}};
+
+    # Logging
+    access_log /var/log/nginx/{{DOMAIN}}_access.log;
+    error_log /var/log/nginx/{{DOMAIN}}_error.log;
+
+    # Let's Encrypt ACME challenge
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Proxy all other requests to backend
+    location / {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}

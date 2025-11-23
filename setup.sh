@@ -799,6 +799,7 @@ configure_domain_ssl() {
 }
 
 # Generate nginx configuration from template
+# Uses HTTP-only template for initial setup (SSL not yet configured)
 generate_nginx_config() {
     # Skip if basic profile
     if [[ "${CONFIG[DEPLOYMENT_PROFILE]}" != "full" ]]; then
@@ -807,20 +808,23 @@ generate_nginx_config() {
 
     section "Generating Nginx Configuration"
 
-    info "Creating nginx configuration for ${CONFIG[DOMAIN]}..."
+    info "Creating HTTP-only nginx configuration for ${CONFIG[DOMAIN]}..."
+
+    # Use HTTP-only template for initial setup (SSL will be configured later)
+    local http_template="$DEPLOY_DIR/nginx/conf.d/app-http.conf.template"
 
     # Check if template exists in deployment directory
-    if [[ ! -f "$DEPLOY_DIR/nginx/conf.d/app.conf.template" ]]; then
-        error "Nginx template not found: $DEPLOY_DIR/nginx/conf.d/app.conf.template"
+    if [[ ! -f "$http_template" ]]; then
+        error "Nginx HTTP template not found: $http_template"
     fi
 
-    # Copy template and replace domain
-    cp "$DEPLOY_DIR/nginx/conf.d/app.conf.template" "$DEPLOY_DIR/nginx/conf.d/app.conf"
+    # Copy HTTP template and replace domain
+    cp "$http_template" "$DEPLOY_DIR/nginx/conf.d/app.conf"
 
     # Replace {{DOMAIN}} with actual domain
     sed -i "s/{{DOMAIN}}/${CONFIG[DOMAIN]}/g" "$DEPLOY_DIR/nginx/conf.d/app.conf"
 
-    success "Nginx configuration generated"
+    success "Nginx HTTP configuration generated (SSL will be configured after certificate is obtained)"
     info "Configuration file: $DEPLOY_DIR/nginx/conf.d/app.conf"
 }
 
