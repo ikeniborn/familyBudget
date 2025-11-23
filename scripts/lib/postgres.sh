@@ -173,18 +173,25 @@ validate_postgres_permissions_always() {
         fi
     fi
 
-    # Check and fix ownership UNCONDITIONALLY (even if PostgreSQL is running)
+    # Check PostgreSQL running status FIRST (critical for safe permission handling)
+    local postgres_is_running=false
+    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        postgres_is_running=true
+    fi
+
+    # Check ownership
     local current_owner=$(stat -c '%u:%g' "$postgres_data_dir" 2>/dev/null || echo "unknown")
 
     if [[ "$current_owner" != "$target_uid:$target_gid" ]]; then
         warning "Incorrect ownership detected: $current_owner (expected $target_uid:$target_gid)"
         info "Fixing ownership recursively (CRITICAL for PostgreSQL startup)..."
 
-        # Stop PostgreSQL if running (permissions must be fixed before start)
-        if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        # CRITICAL: Stop PostgreSQL if running (permissions cannot be changed while DB is active)
+        if [[ "$postgres_is_running" == "true" ]]; then
             warning "PostgreSQL is running - stopping temporarily to fix permissions..."
             docker compose -f "$DEPLOY_DIR/docker-compose.yml" stop postgres --timeout 30 >> "$LOG_FILE" 2>&1 || true
             sleep 2
+            info "PostgreSQL stopped - safe to fix permissions"
         fi
 
         if sudo chown -R $target_uid:$target_gid "$postgres_data_dir"; then
@@ -194,12 +201,22 @@ validate_postgres_permissions_always() {
             return 1
         fi
     else
-        # Ownership looks correct on parent - verify recursively
-        info "Verifying ownership consistency (parent: $current_owner)..."
-        if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
-            success "PostgreSQL permissions validated: $target_uid:$target_gid (recursive)"
+        # Ownership correct on parent directory
+        info "Parent directory ownership correct: $current_owner"
+
+        # CRITICAL SAFEGUARD: DO NOT run chown -R if PostgreSQL is running!
+        # Running chown on active database files causes corruption
+        if [[ "$postgres_is_running" == "true" ]]; then
+            success "PostgreSQL is running - skipping recursive permission check (ownership already correct)"
+            info "Recursive verification will run on next deployment when PostgreSQL stops"
         else
-            warning "Failed to recursively verify ownership (continuing anyway)"
+            # PostgreSQL is stopped - safe to verify recursively
+            info "PostgreSQL is stopped - verifying ownership consistency recursively..."
+            if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
+                success "PostgreSQL permissions validated: $target_uid:$target_gid (recursive)"
+            else
+                warning "Failed to recursively verify ownership (continuing anyway)"
+            fi
         fi
     fi
 
