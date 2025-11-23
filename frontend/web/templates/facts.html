@@ -75,7 +75,7 @@
                         <label class="label">
                             <span class="label-text font-medium">📁 Категория</span>
                         </label>
-                        <select id="filter-article" class="select select-bordered w-full" title="Фильтровать транзакции по категории">
+                        <select id="filter-article" class="select select-bordered category-filter w-full" title="Фильтровать транзакции по категории">
                             <option value="">Все категории</option>
                             <!-- Populated dynamically -->
                         </select>
@@ -543,6 +543,11 @@ async function loadArticles() {
             const icon = node.isLeaf ? '▸' : '📂';
             option.textContent = `${indent}${icon} ${node.name}`;
 
+            // Add data-type attribute for category filter colors
+            if (node.type) {
+                option.dataset.type = node.type; // 'expense' or 'income'
+            }
+
             // Disable parent categories with visual styling
             if (!node.isLeaf) {
                 option.disabled = true;
@@ -633,6 +638,11 @@ async function reloadArticleFilter(type) {
             const indent = '›  '.repeat(node.level);
             const icon = node.isLeaf ? '▸' : '📂';
             option.textContent = `${indent}${icon} ${node.name}`;
+
+            // Add data-type attribute for category filter colors
+            if (node.type) {
+                option.dataset.type = node.type; // 'expense' or 'income'
+            }
 
             // Disable parent categories with visual styling
             if (!node.isLeaf) {

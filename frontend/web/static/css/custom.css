@@ -147,3 +147,26 @@ select option.category-leaf {
     color: inherit;
     padding-left: 0.5rem;
 }
+
+/* ==================================
+   Category Filter Colors (Phase 1: UI/UX Improvements)
+   ================================== */
+
+/* Expense categories - red */
+select.category-filter option[data-type="expense"] {
+    color: #ef4444; /* Tailwind red-500 */
+}
+
+/* Income categories - green */
+select.category-filter option[data-type="income"] {
+    color: #10b981; /* Tailwind green-500 */
+}
+
+/* For Choices.js dropdown items */
+.choices__list--dropdown .choices__item--choice[data-type="expense"] {
+    color: #ef4444;
+}
+
+.choices__list--dropdown .choices__item--choice[data-type="income"] {
+    color: #10b981;
+}

@@ -28,19 +28,6 @@
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 class="text-3xl font-bold">📊 Панель аналитики</h1>
-        {% if user %}
-        <div class="flex flex-wrap gap-2">
-            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('csv')" title="Экспорт всех транзакций в CSV">
-                📄 Экспорт CSV
-            </button>
-            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('excel')" title="Экспорт всех транзакций в Excel">
-                📊 Экспорт Excel
-            </button>
-            <button class="btn btn-secondary btn-sm gap-1" onclick="exportAllTransactions('pdf')" title="Экспорт всех транзакций в PDF">
-                📑 Экспорт PDF
-            </button>
-        </div>
-        {% endif %}
     </div>
 
     {% if not user %}
@@ -67,9 +54,9 @@
 
                     <!-- Custom Range Picker (hidden by default) -->
                     <div id="custom-range-container" class="flex flex-wrap items-center gap-2" style="display: none;">
-                        <input type="text" id="date-from" class="input input-sm input-bordered w-48" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <input type="text" id="date-from" class="input input-sm input-bordered w-48" placeholder="От..." readonly>
                         <span class="text-sm">—</span>
-                        <input type="text" id="date-to" class="input input-sm input-bordered w-48" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <input type="text" id="date-to" class="input input-sm input-bordered w-48" placeholder="До..." readonly>
                         <button class="btn btn-sm btn-primary" onclick="applyCustomRange()">Применить</button>
                         <button class="btn btn-sm btn-ghost" onclick="cancelCustomRange()">Отмена</button>
                     </div>
