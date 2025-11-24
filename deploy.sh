@@ -1083,7 +1083,13 @@ main() {
     # CRITICAL SAFEGUARD: Check PostgreSQL health BEFORE deployment
     # This prevents proceeding if PostgreSQL is already corrupted
     # If corrupted → auto-switch to Full cleanup mode for automatic repair
-    if ! check_postgres_health_pre_deploy; then
+    # NOTE: Temporarily disable 'set -e' because we need to handle non-zero return
+    set +e
+    check_postgres_health_pre_deploy
+    health_check_result=$?
+    set -e
+
+    if [[ $health_check_result -ne 0 ]]; then
         warning "PostgreSQL corruption detected - AUTOMATIC RECOVERY MODE"
         warning "Switching to Full cleanup mode to repair data directory"
         echo ""
