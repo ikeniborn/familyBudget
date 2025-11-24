@@ -56,7 +56,7 @@ def upgrade() -> None:
     # 4. Add explanatory comment
     op.execute("""
         COMMENT ON CONSTRAINT t_d_article_type_check ON t_d_article IS
-        'Article types: income (доход), expense (расход), debit (списание для переводов), credit (пополнение для переводов)';
+        'Article types: income (доход), expense (расход), debit (списание), credit (пополнение)';
     """)
 
 

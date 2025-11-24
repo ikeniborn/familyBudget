@@ -36,7 +36,7 @@ class ArticleCreate(BaseModel):
 
     type: Literal["income", "expense", "debit", "credit"] = Field(
         ...,
-        description="Article type: income, expense, debit (списание для переводов), credit (пополнение для переводов)",
+        description="Article type: income, expense, debit (списание), credit (пополнение)",
         examples=["expense", "debit"]
     )
 
@@ -112,7 +112,7 @@ class ArticleUpdate(BaseModel):
 
     type: Optional[Literal["income", "expense", "debit", "credit"]] = Field(
         default=None,
-        description="Article type: income, expense, debit (списание для переводов), credit (пополнение для переводов)",
+        description="Article type: income, expense, debit (списание), credit (пополнение)",
         examples=["expense", "credit"]
     )
 

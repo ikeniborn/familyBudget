@@ -57,11 +57,11 @@
                             Добавить план
                         </button>
 
-                        <button onclick="modal_transfer.showModal()" class="btn btn-outline btn-warning justify-start gap-3">
+                        <button onclick="transfer_modal.showModal()" class="btn btn-outline btn-warning justify-start gap-3">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
-                            💸 Перевод между счетами
+                            💸 Перевод
                         </button>
 
                         <div class="divider my-2 w-full">Telegram Bot</div>
@@ -169,6 +169,9 @@
 <script src="/static/js/vendor/choices.min.js"></script>
 
 <!-- BudgetShared bundle (includes ChoicesCategoryTree) already included in base.html -->
+
+<!-- Transfer Modal JS -->
+<script src="/static/js/transfer.js?v=PLACEHOLDER"></script>
 
 <script>
 // Глобальные переменные для CategoryTreeSelect компонентов
@@ -975,6 +978,9 @@ function setupPlanTypeButtons() {
     });
 }
 </script>
+
+<!-- Include Transfer Modal -->
+{% include "components/modal_transfer.html" %}
 
 {% endif %}
 {% endblock %}
