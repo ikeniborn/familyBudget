@@ -41,18 +41,19 @@ router = APIRouter(prefix="/users", tags=["Users"])
 @router.get(
     "",
     response_model=UserListResponse,
-    responses=get_common_responses(include_403=True),
+    responses=get_common_responses(),
 )
 async def list_users(
-    admin: CurrentAdmin,
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> UserListResponse:
     """
-    List all users (admin only).
+    List all users (Shared Family Budget).
 
-    **Admin Only:** This endpoint is only accessible to admin users.
+    **Shared Family Budget:** All authenticated users can view all family members.
+    This is necessary for audit trail (viewing who created each transaction).
 
     **Pagination:**
     - limit: Maximum number of results (1-1000, default: 100)
@@ -60,7 +61,6 @@ async def list_users(
 
     **Returns:**
     - 200 OK: List of users with pagination info
-    - 403 Forbidden: User is not admin
     """
     # Base query: only current versions
     statement = select(User).where(User.is_current == True)  # noqa: E712

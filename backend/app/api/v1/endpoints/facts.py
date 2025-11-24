@@ -91,13 +91,8 @@ async def create_fact(
             detail=f"Article with id={fact_data.article_id} not found"
         )
 
-    # Article must belong to current user (for audit trail check)
-    if not current_user.is_admin:
-        if article.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Article not accessible"
-            )
+    # Shared Family Budget: All users can use all articles (no ownership check)
+    # Articles are shared references accessible to all authenticated users
 
     # Create new fact
     fact = BudgetFact(
@@ -656,13 +651,8 @@ async def update_fact(
                 detail=f"Article with id={update_data['article_id']} not found"
             )
 
-        # Article must be accessible
-        if not current_user.is_admin:
-            if article.user_id != current_user.id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Article not accessible"
-                )
+        # Shared Family Budget: All users can use all articles (no ownership check)
+        # Articles are shared references accessible to all authenticated users
 
     # Update fact (simple UPDATE, not SCD Type 2)
     for key, value in update_data.items():
@@ -720,3 +710,131 @@ async def delete_fact(
     await session.commit()
 
     return None
+
+
+@router.get(
+    "/count",
+    responses=get_common_responses(),
+)
+async def get_facts_count(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    date_from: Annotated[Optional[date], Query()] = None,
+    date_to: Annotated[Optional[date], Query()] = None,
+    article_id: Annotated[Optional[int], Query()] = None,
+    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense)$")] = None,
+    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+) -> dict:
+    """
+    Get total facts count with filters (Shared Family Budget).
+
+    **Shared Family Budget:**
+    - All authenticated users can count all transactions
+    - No user isolation
+
+    **Filters:**
+    - Same filters as list_facts endpoint
+    - date_from: Start date (inclusive)
+    - date_to: End date (inclusive)
+    - article_id: Filter by specific article
+    - record_type: Filter by 'fact' (actual) or 'plan' (budget)
+    - article_type: Filter by 'income' or 'expense'
+    - financial_center_id: Filter by financial center
+    - cost_center_id: Filter by cost center
+
+    **Returns:**
+    - 200 OK: Total count matching the filters
+    """
+    # Base query for counting
+    statement = select(func.count(BudgetFact.id)).join(
+        Article,
+        (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
+    )
+
+    # Shared family budget - NO user isolation filter
+    # All authenticated users see all transactions
+
+    # Apply same filters as list_facts
+    if date_from:
+        statement = statement.where(BudgetFact.fact_date >= date_from)
+
+    if date_to:
+        statement = statement.where(BudgetFact.fact_date <= date_to)
+
+    if article_id:
+        statement = statement.where(BudgetFact.article_id == article_id)
+
+    if record_type:
+        statement = statement.where(BudgetFact.record_type == record_type)
+
+    if article_type:
+        statement = statement.where(Article.type == article_type)
+
+    if financial_center_id:
+        statement = statement.where(BudgetFact.financial_center_id == financial_center_id)
+
+    if cost_center_id:
+        statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
+
+    # Execute count query
+    result = await session.execute(statement)
+    total = result.scalar_one()
+
+    return {"total": total}
+
+
+@router.post(
+    "/batch-delete",
+    status_code=status.HTTP_200_OK,
+    responses=get_common_responses(include_400=True),
+)
+async def batch_delete_facts(
+    fact_ids: list[int],
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Batch delete facts (Shared Family Budget).
+
+    **Shared Family Budget:**
+    - All authenticated users can delete any transactions
+    - No ownership check
+
+    **Validation:**
+    - fact_ids list cannot be empty
+    - Cannot delete more than 500 facts at once
+
+    **Args:**
+    - fact_ids: List of fact IDs to delete
+
+    **Returns:**
+    - 200 OK: Number of deleted facts
+    - 400 Bad Request: Empty list or too many facts
+    """
+    if not fact_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="fact_ids list cannot be empty"
+        )
+
+    if len(fact_ids) > 500:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete more than 500 facts at once"
+        )
+
+    # Delete facts (bulk delete)
+    from sqlmodel import delete
+
+    stmt = delete(BudgetFact).where(BudgetFact.id.in_(fact_ids))
+    result = await session.execute(stmt)
+    await session.commit()
+
+    logger.info(f"Batch deleted {result.rowcount} facts by user {current_user.id}")
+
+    return {
+        "message": f"Deleted {result.rowcount} facts",
+        "deleted_count": result.rowcount
+    }

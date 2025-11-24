@@ -84,6 +84,17 @@ async def get_current_user(
             detail="User not found - Account may have been deleted"
         )
 
+    # Check if user is active (PRD FR-030 compliance)
+    # Deactivated users should not be able to access protected endpoints
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Your account has been deactivated. "
+                "Please contact admin to regain access."
+            ),
+        )
+
     return user
 
 
