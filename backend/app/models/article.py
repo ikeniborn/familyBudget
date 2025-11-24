@@ -52,6 +52,7 @@ class Article(SQLModel, table=True):
         user_id: Owner user ID (required - tracks creator for audit)
         parent_id: Parent article ID for hierarchy (NULL for root articles)
         name: Article display name (required, max 255 chars)
+        description: Optional description or notes about the article/category (text field)
         type: Article type - 'income' or 'expense' (required, max 20 chars)
         code: Business code for external integrations (optional, auto-generated as ART-1, ART-2, ...)
         is_active: Active flag (True = visible in UI, False = archived)
@@ -121,6 +122,10 @@ class Article(SQLModel, table=True):
         nullable=False,
         max_length=255,
         description="Article display name"
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Optional description or notes about the article/category"
     )
     type: str = Field(
         nullable=False,

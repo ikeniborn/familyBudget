@@ -42,7 +42,13 @@ def upgrade() -> None:
         NULL for regular transactions, same value for paired transfer transactions.'
     """)
 
-    # 4. Create special categories for transfers
+    # 4. Add description column to t_d_article (for consistency with other dimension tables)
+    op.add_column(
+        't_d_article',
+        sa.Column('description', sa.Text(), nullable=True)
+    )
+
+    # 5. Create special categories for transfers
     # Using raw SQL for SCD Type 2 compliance
     op.execute("""
         -- Категория для списания (расход)
@@ -100,7 +106,7 @@ def upgrade() -> None:
         );
     """)
 
-    # 5. Add descriptions to transfer categories
+    # 6. Add descriptions to transfer categories
     op.execute("""
         UPDATE t_d_article
         SET description = 'Используется для внутренних переводов между ЦФО (списание с источника)'
@@ -115,13 +121,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove transfer_id column and archive special transfer categories."""
 
-    # 1. Drop index first (required before dropping column)
-    op.drop_index('ix_budget_fact_transfer_id', table_name='t_f_budget_fact')
-
-    # 2. Drop transfer_id column
-    op.drop_column('t_f_budget_fact', 'transfer_id')
-
-    # 3. Archive special transfer categories (soft delete via SCD Type 2)
+    # 1. Archive special transfer categories (soft delete via SCD Type 2)
     # NOTE: Using soft delete to preserve history, not hard DELETE
     op.execute("""
         UPDATE t_d_article
@@ -130,3 +130,12 @@ def downgrade() -> None:
         WHERE name IN ('Перевод-списание', 'Перевод-пополнение')
         AND is_current = true;
     """)
+
+    # 2. Drop description column from t_d_article
+    op.drop_column('t_d_article', 'description')
+
+    # 3. Drop index first (required before dropping column)
+    op.drop_index('ix_budget_fact_transfer_id', table_name='t_f_budget_fact')
+
+    # 4. Drop transfer_id column
+    op.drop_column('t_f_budget_fact', 'transfer_id')
