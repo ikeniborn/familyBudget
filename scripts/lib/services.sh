@@ -63,12 +63,35 @@ start_services() {
         info "Starting services in detached mode (background)..."
         local start_result=0
 
-        if [[ -n "$COMPOSE_PROFILE" ]]; then
-            compose_cmd --profile "$COMPOSE_PROFILE" up --build -d >> "$LOG_FILE" 2>&1
-            start_result=$?
+        # Check if PostgreSQL should be kept running (selective restart)
+        if [[ "${POSTGRES_WAS_STOPPED:-true}" == "false" ]]; then
+            info "Selective restart detected - PostgreSQL will keep running"
+            info "Using --no-recreate for postgres to avoid container recreation"
+
+            # Strategy: Start all services but prevent postgres from being recreated
+            if [[ -n "$COMPOSE_PROFILE" ]]; then
+                compose_cmd --profile "$COMPOSE_PROFILE" up --build -d --no-recreate postgres >> "$LOG_FILE" 2>&1
+                start_result=$?
+                # Start other services normally (they will be recreated if needed)
+                compose_cmd --profile "$COMPOSE_PROFILE" up --build -d nginx backend bot >> "$LOG_FILE" 2>&1
+                start_result=$((start_result + $?))
+            else
+                compose_cmd up --build -d --no-recreate postgres >> "$LOG_FILE" 2>&1
+                start_result=$?
+                compose_cmd up --build -d nginx backend >> "$LOG_FILE" 2>&1
+                start_result=$((start_result + $?))
+            fi
         else
-            compose_cmd up --build -d >> "$LOG_FILE" 2>&1
-            start_result=$?
+            # Full restart - recreate all containers
+            info "Full restart - all containers will be recreated"
+
+            if [[ -n "$COMPOSE_PROFILE" ]]; then
+                compose_cmd --profile "$COMPOSE_PROFILE" up --build -d >> "$LOG_FILE" 2>&1
+                start_result=$?
+            else
+                compose_cmd up --build -d >> "$LOG_FILE" 2>&1
+                start_result=$?
+            fi
         fi
 
         # Show detailed container status
