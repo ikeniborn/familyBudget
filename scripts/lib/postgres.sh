@@ -80,14 +80,19 @@ initialize_postgres_directory() {
         info "No existing data - using PostgreSQL UID from image: $target_uid:$target_gid (postgres:16-alpine)"
     fi
 
-    # Remove stale postmaster.pid lock file (from failed startup attempts)
+    # Remove stale postmaster.pid lock file (ONLY if PostgreSQL is NOT running!)
     if [[ -f "$postgres_data_dir/postmaster.pid" ]]; then
-        warning "Found stale PostgreSQL lock file (postmaster.pid)"
-        info "Removing lock file from previous failed startup..."
-        if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
-            success "Lock file removed"
+        # Check if PostgreSQL is actually running
+        if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+            info "PostgreSQL is running - lock file is valid (NOT stale)"
         else
-            warning "Failed to remove lock file (continuing anyway)"
+            warning "Found stale PostgreSQL lock file (postmaster.pid)"
+            info "PostgreSQL is stopped - safe to remove lock file..."
+            if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
+                success "Lock file removed"
+            else
+                warning "Failed to remove lock file (continuing anyway)"
+            fi
         fi
     fi
 
@@ -162,21 +167,25 @@ validate_postgres_permissions_always() {
 
     info "Target PostgreSQL UID from Docker image: $target_uid:$target_gid (postgres:16-alpine)"
 
-    # Remove stale postmaster.pid lock file (from failed startup attempts)
-    if [[ -f "$postgres_data_dir/postmaster.pid" ]]; then
-        warning "Found stale PostgreSQL lock file (postmaster.pid)"
-        info "Removing lock file from previous failed startup..."
-        if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
-            success "Lock file removed"
-        else
-            warning "Failed to remove lock file (continuing anyway)"
-        fi
-    fi
-
     # Check PostgreSQL running status FIRST (critical for safe permission handling)
     local postgres_is_running=false
     if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
         postgres_is_running=true
+    fi
+
+    # Remove stale postmaster.pid lock file (ONLY if PostgreSQL is NOT running!)
+    if [[ -f "$postgres_data_dir/postmaster.pid" ]]; then
+        if [[ "$postgres_is_running" == "true" ]]; then
+            info "PostgreSQL is running - lock file is valid (NOT stale)"
+        else
+            warning "Found stale PostgreSQL lock file (postmaster.pid)"
+            info "PostgreSQL is stopped - safe to remove lock file..."
+            if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
+                success "Lock file removed"
+            else
+                warning "Failed to remove lock file (continuing anyway)"
+            fi
+        fi
     fi
 
     # Check ownership
@@ -580,9 +589,12 @@ create_deployment_safety_backup() {
     info "Creating safety backup: $(basename "$backup_file")"
     info "This provides rollback capability if deployment fails"
 
-    # Execute pg_dump
+    # Execute pg_dump (use familybudget user from .env)
+    local pg_user="${POSTGRES_USER:-familybudget}"
+    local pg_db="${POSTGRES_DB:-familybudget}"
+
     if docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T postgres \
-        pg_dump -U postgres familybudget 2>/dev/null | gzip > "$backup_file" 2>/dev/null; then
+        pg_dump -U "$pg_user" "$pg_db" 2>/dev/null | gzip > "$backup_file" 2>/dev/null; then
 
         # Verify backup file size (should be > 0 bytes)
         local backup_size=$(stat -c%s "$backup_file" 2>/dev/null || echo "0")
