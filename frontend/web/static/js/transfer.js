@@ -25,10 +25,10 @@ function initTransferModal() {
         });
     }
 
-    // 2. Initialize ChoicesCategoryTree for FROM (expense)
+    // 2. Initialize ChoicesCategoryTree for FROM (debit)
     if (typeof BudgetShared !== 'undefined' && BudgetShared.ChoicesCategoryTree) {
         fromCategoryTree = new BudgetShared.ChoicesCategoryTree('#from_article', {
-            type: 'expense',
+            type: 'debit',
             showLeafOnly: true,
             searchEnabled: true,
             onSelect: (article) => {
@@ -37,10 +37,10 @@ function initTransferModal() {
         });
     }
 
-    // 3. Initialize ChoicesCategoryTree for TO (income)
+    // 3. Initialize ChoicesCategoryTree for TO (credit)
     if (typeof BudgetShared !== 'undefined' && BudgetShared.ChoicesCategoryTree) {
         toCategoryTree = new BudgetShared.ChoicesCategoryTree('#to_article', {
-            type: 'income',
+            type: 'credit',
             showLeafOnly: true,
             searchEnabled: true,
             onSelect: (article) => {
@@ -49,11 +49,61 @@ function initTransferModal() {
         });
     }
 
-    // 4. Attach form submit handler
+    // 4. Setup quick date buttons
+    setupQuickDateButtons();
+
+    // 5. Attach form submit handler
     const form = document.querySelector('#form_transfer');
     if (form) {
         form.addEventListener('submit', handleTransferSubmit);
     }
+}
+
+/**
+ * Setup Quick Date Selection Buttons
+ * Handles "Today", "Yesterday", "Day Before Yesterday" buttons
+ */
+function setupQuickDateButtons() {
+    const quickDateButtons = document.querySelectorAll('[data-quick-date]');
+    const dateInput = document.querySelector('#transfer_date');
+
+    if (quickDateButtons.length === 0 || !dateInput) return;
+
+    quickDateButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const quickDate = this.dataset.quickDate;
+            const today = new Date();
+            let targetDate = new Date(today);
+
+            switch (quickDate) {
+                case 'today':
+                    // targetDate already set to today
+                    break;
+                case 'yesterday':
+                    targetDate.setDate(today.getDate() - 1);
+                    break;
+                case 'day-before':
+                    targetDate.setDate(today.getDate() - 2);
+                    break;
+                default:
+                    console.warn('Unknown quick date:', quickDate);
+                    return;
+            }
+
+            // Format and set date value
+            const formattedDate = BudgetShared.DateFormatter.formatForDisplay(
+                BudgetShared.DateFormatter.formatForAPI(targetDate)
+            );
+            dateInput.value = formattedDate;
+
+            // Trigger CalendarWidget to update if it exists
+            if (transferDateWidget) {
+                transferDateWidget.selectDate(
+                    BudgetShared.DateFormatter.formatForAPI(targetDate)
+                );
+            }
+        });
+    });
 }
 
 /**

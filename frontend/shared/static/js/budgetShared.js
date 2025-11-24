@@ -1074,7 +1074,7 @@
          *
          * @param {string} selector - CSS selector for select element
          * @param {Object} options - Configuration options
-         * @param {string} options.type - Category type ('income' or 'expense')
+         * @param {string} options.type - Category type ('income', 'expense', 'debit', 'credit')
          * @param {Object} [options.auth] - OPTIONAL: Auth instance with getToken() method (for WebApp Bearer token)
          * @param {Function} options.onChange - Callback when category changes (receives category object or array for multiple)
          * @param {Function} [options.onCategoryChange] - DEPRECATED: Use onChange instead

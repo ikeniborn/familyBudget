@@ -140,7 +140,7 @@ async def list_articles(
     - No user isolation filtering
 
     **Filters:**
-    - type: Filter by article type ('income' or 'expense')
+    - type: Filter by article type ('income', 'expense', 'debit', 'credit')
     - parent_id: Filter by parent article (NULL for root articles)
     - include_inactive: Include archived categories (default: False)
         - False: Only active categories (visible in dropdowns)
@@ -170,10 +170,10 @@ async def list_articles(
 
     # Apply filters
     if type_filter:
-        if type_filter not in ["income", "expense"]:
+        if type_filter not in ["income", "expense", "debit", "credit"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="type must be 'income' or 'expense'"
+                detail="type must be 'income', 'expense', 'debit', or 'credit'"
             )
         statement = statement.where(Article.type == type_filter)
 

@@ -43,7 +43,7 @@ async def validate_article_type(
 
     Args:
         article_id: Article ID to validate
-        expected_type: Expected type ('expense' or 'income')
+        expected_type: Expected type ('income', 'expense', 'debit', 'credit')
 
     Returns:
         Article instance if valid
@@ -143,12 +143,12 @@ async def create_transfer(
     from_article = await validate_article_type(
         session,
         transfer.from_article_id,
-        expected_type="expense"
+        expected_type="debit"
     )
     to_article = await validate_article_type(
         session,
         transfer.to_article_id,
-        expected_type="income"
+        expected_type="credit"
     )
 
     # 2. Validate financial centers

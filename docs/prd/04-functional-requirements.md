@@ -1731,6 +1731,146 @@ const subtitleText = (data.start_date && data.end_date)
 
 ---
 
+### FR-080: Переводы между финансовыми центрами (ЦФО)
+
+**Phase:** 4 (COMPLETED ✅)
+**Приоритет:** High
+**Категория:** transfers
+**Implementation Status:** ✅ FULLY IMPLEMENTED (v5.1.4+)
+**Branch:** `feature/ui-improvements-and-transfers`
+
+**Описание:**
+Пользователи могут выполнять переводы средств между разными финансовыми центрами (ЦФО), например "Из кошелька в банк" или "Из сбережений на повседневные расходы". Каждый перевод создает 2 связанные транзакции (списание с источника + пополнение получателя), объединенные через `transfer_id`.
+
+**User Story:**
+Как пользователь семейного бюджета, я хочу переводить деньги между своими счетами (кошелек, банк, сбережения), чтобы отслеживать движение средств и видеть реальный баланс каждого счета.
+
+**Acceptance Criteria:**
+
+1. **Модальное окно переводов:**
+   - Открывается через кнопку "💸 Перевод между счетами" в Quick Actions на dashboard
+   - Также доступно на страницах Facts и Plan
+   - Содержит поля: дата, сумма, FROM (ЦФО + категория), TO (ЦФО + категория), описание (опционально)
+
+2. **Валидация:**
+   - FROM ЦФО != TO ЦФО (нельзя перевести самому себе)
+   - Amount > 0 (положительная сумма)
+   - FROM category имеет тип `debit` (списание)
+   - TO category имеет тип `credit` (пополнение)
+   - Дата перевода <= сегодня (нельзя создавать будущие переводы)
+
+3. **Atomic создание 2 транзакций:**
+   - **FROM fact:** `record_type=fact`, `article_id` (type=debit), `amount` (отрицательное), `financial_center_id` (источник), `transfer_id` (уникальный ID)
+   - **TO fact:** `record_type=fact`, `article_id` (type=credit), `amount` (положительное), `financial_center_id` (получатель), `transfer_id` (тот же ID)
+   - Обе транзакции создаются в одной транзакции БД (atomic)
+
+4. **Категории переводов:**
+   - Пользователи создают собственные категории с типами `debit` и `credit`
+   - Иерархическая структура поддерживается (подкатегории)
+   - Коды генерируются автоматически: ART-{seq} (через `generate_code()`)
+   - Выбор только листовых категорий (через подстрочный поиск)
+
+5. **Visual feedback:**
+   - Badge "🔁 Перевод" отображается рядом с транзакциями, имеющими `transfer_id != NULL`
+   - Клик по badge показывает связанную транзакцию
+   - В списке транзакций (Facts/Plan pages) переводы визуально выделены
+
+6. **Quick Actions button:**
+   - Кнопка "💸 Перевод между счетами" добавлена в Quick Actions на dashboard
+   - Стиль: `btn btn-outline btn-secondary`
+   - Расположена после кнопки "Добавить план"
+
+7. **Date preselection:**
+   - Кнопки быстрого выбора даты: "Сегодня", "Вчера", "Позавчера"
+   - При клике дата автоматически заполняется
+   - Calendar widget синхронизируется с выбранной датой
+
+**Dependencies:**
+- Backend: POST `/api/v1/transfers` endpoint (backend/app/api/v1/endpoints/transfers.py)
+- Database: `transfer_id` field в `t_f_budget_fact` (nullable INTEGER)
+- Database: CHECK constraint обновлен для поддержки типов `debit` и `credit`
+- Frontend: Transfer modal (frontend/web/templates/components/modal_transfer.html)
+- Frontend: Transfer JS logic (frontend/web/static/js/transfer.js)
+- Shared: ChoicesCategoryTree component для выбора категорий
+
+**Implementation Details:**
+
+**Backend (backend/app/api/v1/endpoints/transfers.py):**
+```python
+@router.post("/", response_model=TransferResponse)
+async def create_transfer(
+    data: TransferCreate,
+    session: AsyncSession,
+    current_user: CurrentUser
+):
+    # 1. Validate from_cfo != to_cfo
+    # 2. Validate from_article.type == 'debit'
+    # 3. Validate to_article.type == 'credit'
+    # 4. Generate unique transfer_id (max + 1)
+    # 5. Create 2 BudgetFact records atomically
+    # 6. Return TransferResponse with both facts
+```
+
+**Database (Alembic migration):**
+```sql
+-- Add transfer_id field
+ALTER TABLE t_f_budget_fact ADD COLUMN transfer_id INTEGER NULL;
+CREATE INDEX ix_budget_fact_transfer_id ON t_f_budget_fact(transfer_id);
+
+-- Update CHECK constraint for article types
+ALTER TABLE t_d_article DROP CONSTRAINT t_d_article_type_check;
+ALTER TABLE t_d_article ADD CONSTRAINT t_d_article_type_check
+    CHECK (type IN ('income', 'expense', 'debit', 'credit'));
+```
+
+**Frontend (modal_transfer.html):**
+- CalendarWidget для выбора даты (range picker mode)
+- ChoicesCategoryTree для FROM article (type='debit')
+- ChoicesCategoryTree для TO article (type='credit')
+- Dropdowns для FROM/TO financial centers
+- Quick date buttons: сегодня, вчера, позавчера
+- MainButton "Создать перевод" → POST `/api/v1/transfers`
+
+**Обоснование архитектурных решений:**
+
+1. **Почему debit/credit вместо income/expense?**
+   - Семантическая ясность: "debit" явно означает списание, "credit" - пополнение
+   - Разделение переводов и обычных транзакций в аналитике
+   - Пользователи создают специализированные категории для переводов
+
+2. **Почему 2 отдельные транзакции вместо одной?**
+   - Симметрия: каждая транзакция имеет свой ЦФО, МВЗ, категорию
+   - Простота аналитики: переводы суммируются как обычные транзакции
+   - SCD Type 2 compatibility: можно изменять категории независимо
+
+3. **Почему transfer_id nullable?**
+   - Обратная совместимость: существующие транзакции остаются валидными
+   - Опциональность: не все транзакции являются переводами
+
+4. **Почему пользователи создают категории сами?**
+   - Гибкость: каждая семья использует свои названия ("Из кошелька", "С карты")
+   - Иерархия: можно группировать переводы (например "Переводы → Сбережения")
+   - Кодировка ART-{seq}: переиспользование существующей логики генерации кодов
+
+**Testing Notes:**
+- Unit tests: `tests/unit/backend/api/test_transfers.py`
+- Integration tests: `tests/integration/test_transfer_flow.py`
+- E2E tests: `tests/e2e/test_transfer_modal.py`
+- Manual testing checklist:
+  - ✅ Создать перевод через modal
+  - ✅ Проверить 2 транзакции созданы с одинаковым transfer_id
+  - ✅ Проверить badge "🔁 Перевод" отображается
+  - ✅ Проверить аналитика включает обе транзакции
+  - ✅ Проверить валидация (same CFO, negative amount, wrong types)
+
+**Related Documents:**
+- docs/prd/06-database-design.md - секция 6.3.1 Transfer Support Fields
+- docs/prd/07-api-specification.md - POST /api/v1/transfers endpoint
+- docs/prd/08-ui-design.md - Transfer modal UI specification
+- CLAUDE.md - Shared Family Budget Model, SCD Type 2 pattern
+
+---
+
 ### 4.13 Analytics Calendar-Based Periods (v5.1.4 - COMPLETED)
 
 **Версия:** v5.1.4

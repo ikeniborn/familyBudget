@@ -171,12 +171,12 @@ CREATE TABLE t_f_registry (
     financial_center_id INTEGER NOT NULL REFERENCES t_d_financial_center(id),
     cost_center_id INTEGER NOT NULL REFERENCES t_d_cost_center(id),
     period_id INTEGER NOT NULL REFERENCES t_d_period(id),
-    
+
     record_type VARCHAR(10) NOT NULL CHECK (record_type IN ('plan', 'fact')),
     amount DECIMAL(15, 2) NOT NULL CHECK (amount >= 0),
     transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
     comment TEXT,
-    
+
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -188,6 +188,220 @@ CREATE INDEX idx_registry_type ON t_f_registry(record_type);
 CREATE INDEX idx_registry_date ON t_f_registry(transaction_date);
 CREATE INDEX idx_registry_analytics ON t_f_registry(user_id, period_id, article_id);
 ```
+
+---
+
+### 6.3.1 Transfer Support Fields
+
+**Добавлено в версии:** v5.1.4+
+**Branch:** `feature/ui-improvements-and-transfers`
+**Статус:** ✅ IMPLEMENTED
+
+**Описание:**
+Поддержка переводов между финансовыми центрами (ЦФО) реализована через дополнительное поле `transfer_id` в таблице фактов и расширение типов статей.
+
+#### transfer_id (t_f_budget_fact)
+
+**Назначение:** Связывает 2 транзакции, созданные одним переводом.
+
+**Характеристики:**
+- **Type:** `INTEGER NULL`
+- **Index:** `ix_budget_fact_transfer_id` (B-tree)
+- **Nullable:** `true` (обратная совместимость с existing facts)
+- **Foreign Key:** Нет (логическая связь через одинаковое значение)
+
+**Логика использования:**
+- `transfer_id = NULL` → обычная транзакция (income/expense)
+- `transfer_id != NULL` → транзакция является частью перевода
+
+**Пример:**
+```sql
+-- Перевод 1000 руб из "Кошелек" в "Банк"
+-- Создаются 2 связанные транзакции:
+
+-- Транзакция 1: Списание с кошелька
+INSERT INTO t_f_budget_fact (
+    user_id, article_id, financial_center_id, amount,
+    record_type, fact_date, transfer_id, description
+) VALUES (
+    1, 42, 1, 1000.00,  -- article_id=42 имеет type='debit'
+    'fact', '2025-11-24', 100, 'Перевод в банк'
+);
+
+-- Транзакция 2: Пополнение банка
+INSERT INTO t_f_budget_fact (
+    user_id, article_id, financial_center_id, amount,
+    record_type, fact_date, transfer_id, description
+) VALUES (
+    1, 43, 2, 1000.00,  -- article_id=43 имеет type='credit'
+    'fact', '2025-11-24', 100, 'Перевод из кошелька'
+);
+
+-- Обе транзакции имеют transfer_id=100 → они связаны
+```
+
+**Генерация transfer_id:**
+- Используется pattern: `MAX(transfer_id) + 1`
+- Реализовано в: `backend/app/api/v1/endpoints/transfers.py::generate_transfer_id()`
+- Thread-safe в PostgreSQL через SERIALIZABLE isolation level
+
+**Индекс:**
+```sql
+CREATE INDEX ix_budget_fact_transfer_id
+    ON t_f_budget_fact(transfer_id)
+    WHERE transfer_id IS NOT NULL;
+```
+
+**Преимущества partial index:**
+- Меньший размер индекса (индексируются только transfer facts)
+- Быстрее queries для поиска связанных транзакций
+- Не затрагивает обычные транзакции (transfer_id = NULL)
+
+---
+
+#### Article Types Extension
+
+**Добавлено в версии:** v5.1.4+
+**Alembic migration:** `20251124_add_debit_credit_types.py`
+
+**Изменения в CHECK constraint:**
+
+**Старый constraint (до v5.1.4):**
+```sql
+ALTER TABLE t_d_article ADD CONSTRAINT t_d_article_type_check
+    CHECK (type IN ('income', 'expense'));
+```
+
+**Новый constraint (с v5.1.4):**
+```sql
+ALTER TABLE t_d_article ADD CONSTRAINT t_d_article_type_check
+    CHECK (type IN ('income', 'expense', 'debit', 'credit'));
+```
+
+**Типы статей:**
+
+| Type | Русский | Назначение | Использование |
+|------|---------|------------|---------------|
+| `income` | Доход | Обычные доходы | Зарплата, подработки, проценты |
+| `expense` | Расход | Обычные расходы | Продукты, транспорт, развлечения |
+| `debit` | Списание | Списание при переводе | "Из кошелька", "Со сбережений" |
+| `credit` | Пополнение | Пополнение при переводе | "В банк", "На сбережения" |
+
+**Особенности типов `debit` и `credit`:**
+
+1. **User-defined categories:**
+   - Пользователи создают собственные категории с типами `debit`/`credit`
+   - Иерархическая структура поддерживается (подкатегории)
+   - Коды генерируются автоматически: ART-{seq}
+
+2. **Transfer validation:**
+   - FROM article MUST have `type='debit'`
+   - TO article MUST have `type='credit'`
+   - Валидация на уровне backend API
+
+3. **Analytics:**
+   - `debit` транзакции суммируются с `expense` (списания)
+   - `credit` транзакции суммируются с `income` (поступления)
+   - Фильтры в аналитике: "Расходы" включает expense + debit
+
+4. **Code generation:**
+   - Переиспользуется существующая логика `generate_code()`
+   - Нет отдельной последовательности TRF-{seq}
+   - Все типы статей используют единую нумерацию ART-{seq}
+
+**Пример категорий переводов:**
+
+```sql
+-- Пользователь создает категории для переводов
+-- Категория списания
+INSERT INTO t_d_article (name, type, code, description, user_id)
+VALUES (
+    'Списание с кошелька',
+    'debit',
+    'ART-150',  -- Автоматически сгенерирован
+    'Перевод средств из кошелька',
+    1
+);
+
+-- Категория пополнения
+INSERT INTO t_d_article (name, type, code, description, user_id)
+VALUES (
+    'Пополнение банка',
+    'credit',
+    'ART-151',  -- Следующий код
+    'Перевод средств в банк',
+    1
+);
+
+-- Иерархическая структура (подкатегории)
+-- Родительская категория
+INSERT INTO t_d_article (name, type, code, description, user_id)
+VALUES ('Переводы', 'debit', 'ART-152', 'Все переводы', 1);
+
+-- Дочерняя категория
+INSERT INTO t_d_article (name, type, code, description, parent_id, user_id)
+VALUES (
+    'На сбережения',
+    'debit',
+    'ART-153',
+    'Перевод на накопления',
+    (SELECT id FROM t_d_article WHERE code='ART-152'),
+    1
+);
+```
+
+---
+
+#### Migration Strategy
+
+**Alembic migration:**
+```python
+"""add debit/credit types for transfer categories
+
+Revision ID: add_debit_credit_types
+Revises: previous_revision
+Create Date: 2025-11-24
+
+"""
+
+def upgrade() -> None:
+    # 1. Drop old CHECK constraint
+    op.drop_constraint('t_d_article_type_check', 't_d_article', type_='check')
+
+    # 2. Create new CHECK constraint with debit/credit
+    op.create_check_constraint(
+        't_d_article_type_check',
+        't_d_article',
+        "type IN ('income', 'expense', 'debit', 'credit')"
+    )
+
+    # 3. Delete old static categories (if they exist)
+    # TRF-OUT and TRF-IN from Phase 2 implementation
+    op.execute("""
+        DELETE FROM t_d_article
+        WHERE code IN ('TRF-OUT', 'TRF-IN')
+          AND is_current = true
+    """)
+
+def downgrade() -> None:
+    # 1. Restore old CHECK constraint
+    op.drop_constraint('t_d_article_type_check', 't_d_article', type_='check')
+    op.create_check_constraint(
+        't_d_article_type_check',
+        't_d_article',
+        "type IN ('income', 'expense')"
+    )
+
+    # 2. Recreate static categories TRF-OUT, TRF-IN
+    # (Only if no user-created debit/credit categories exist)
+```
+
+**Data Migration:**
+- ✅ Не требуется для existing facts (transfer_id = NULL)
+- ✅ Старые категории TRF-OUT, TRF-IN удаляются (функционал в тестировании)
+- ✅ Пользователи создают новые категории с типами debit/credit
+
+---
 
 ### 6.4 Hierarchical Structure (Closure Table)
 
