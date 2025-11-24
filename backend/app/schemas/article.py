@@ -34,10 +34,10 @@ class ArticleCreate(BaseModel):
         examples=["Food", "Groceries", "Salary"]
     )
 
-    type: Literal["income", "expense"] = Field(
+    type: Literal["income", "expense", "debit", "credit"] = Field(
         ...,
-        description="Article type: income or expense",
-        examples=["expense"]
+        description="Article type: income, expense, debit (списание), credit (пополнение)",
+        examples=["expense", "debit"]
     )
 
     parent_id: Optional[int] = Field(
@@ -110,10 +110,10 @@ class ArticleUpdate(BaseModel):
         examples=["Updated Food Name"]
     )
 
-    type: Optional[Literal["income", "expense"]] = Field(
+    type: Optional[Literal["income", "expense", "debit", "credit"]] = Field(
         default=None,
-        description="Article type: income or expense",
-        examples=["expense"]
+        description="Article type: income, expense, debit (списание), credit (пополнение)",
+        examples=["expense", "credit"]
     )
 
     parent_id: Optional[int] = Field(

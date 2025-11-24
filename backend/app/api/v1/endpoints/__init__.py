@@ -10,6 +10,7 @@ This package contains all API endpoint routers organized by domain:
 - users: User management endpoints (TASK-017)
 - notifications: Notification history endpoints (broadcast support)
 - import_tinkoff: Tinkoff CSV import endpoints (FR-080)
+- transfers: Transfer between financial centers endpoints
 """
 
 from backend.app.api.v1.endpoints.articles import router as articles_router
@@ -23,6 +24,7 @@ from backend.app.api.v1.endpoints.import_tinkoff import router as import_router
 from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
+from backend.app.api.v1.endpoints.transfers import router as transfers_router
 from backend.app.api.v1.endpoints.users import router as users_router
 
 __all__ = [
@@ -34,4 +36,5 @@ __all__ = [
     "users_router",
     "notifications_router",
     "import_router",
+    "transfers_router",
 ]

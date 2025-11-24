@@ -115,6 +115,13 @@ class BudgetFact(SQLModel, table=True):
         description="Record type: 'fact' for actual transactions, 'plan' for budget plans"
     )
 
+    # Transfer support
+    transfer_id: Optional[int] = Field(
+        default=None,
+        nullable=True,
+        description="Links paired expense/income transactions for transfers between financial centers"
+    )
+
     # Audit fields
     created_at: datetime = Field(
         default_factory=datetime.utcnow,

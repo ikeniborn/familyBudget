@@ -123,6 +123,97 @@ is_postgres_was_stopped() # Check если PostgreSQL был stopped
 - Integrity checks запускаются ТОЛЬКО если PostgreSQL was stopped
 - Неправильный state → false positives/negatives в health checks
 
+### PostgreSQL Corruption Prevention (Production Safeguards) ✅
+
+**Проблема (до v5.1.4):**
+Smart cleanup корректно решал "PostgreSQL will keep running", но `start_services()` игнорировал это решение и вызывал `docker compose up -d` БЕЗ флага `--no-recreate`. Docker Compose ВСЕГДА пересоздаёт контейнеры при наличии изменений, что приводило к corruption data directory (например, отсутствие `pg_notify`).
+
+**Решение (v5.1.4+) - Трёхуровневая защита:**
+
+**1. Container Recreation Prevention (scripts/lib/services.sh:58-95)**
+```bash
+# Conditional logic на основе POSTGRES_WAS_STOPPED
+if [[ "${POSTGRES_WAS_STOPPED:-true}" == "false" ]]; then
+    # Selective restart - используем --no-recreate для postgres
+    compose_cmd up --build -d --no-recreate postgres
+    compose_cmd up --build -d nginx backend bot  # Пересоздаём другие сервисы
+else
+    # Full restart - пересоздаём все контейнеры
+    compose_cmd up --build -d
+fi
+```
+
+**2. Safety Backup Before Deployment (scripts/lib/postgres.sh:553-619)**
+```bash
+# Автоматически создаёт backup перед запуском сервисов
+create_deployment_safety_backup "pre_start"
+
+# Что делает:
+# - Проверяет что PostgreSQL запущен
+# - Создаёт pg_dump → gzip (сжатый SQL backup)
+# - Сохраняет в /opt/budget/backups/safety_backup_pre_start_<timestamp>.sql.gz
+# - Проверяет размер файла (должен быть > 100 bytes)
+# - Хранит последние 5 safety backups (автоматически удаляет старые)
+# - БЛОКИРУЕТ deployment если backup failed (critical safety failure)
+```
+
+**3. Post-Start Integrity Verification (scripts/lib/postgres.sh:412-542)**
+```bash
+# Выполняется ВСЕГДА после start_services (независимо от POSTGRES_WAS_STOPPED)
+verify_postgres_health_post_start
+
+# Что проверяет:
+# 1. PostgreSQL container is running (timeout 30s)
+# 2. PostgreSQL accepts connections via pg_isready (timeout 60s)
+# 3. Corruption indicators в логах (grep "could not open directory|no such file")
+# 4. Critical directories exist (pg_notify, pg_dynshmem, pg_stat)
+
+# Если corruption detected:
+# - Показывает последние 50 строк логов PostgreSQL
+# - Выводит список missing directories
+# - Предлагает 3 recovery options:
+#   Option 1: Automatic repair (deploy.sh → Full cleanup)
+#   Option 2: Restore from backup (restore.sh)
+#   Option 3: Manual repair (DANGEROUS)
+# - БЛОКИРУЕТ deployment (exit 1) чтобы предотвратить cascade failures
+```
+
+**Deployment Flow с Safeguards (deploy.sh:1108-1136):**
+```
+1. validate_postgres_permissions_always  # ALWAYS runs (fix ownership)
+2. create_deployment_safety_backup       # NEW - rollback capability
+3. start_services                         # With --no-recreate if selective restart
+4. wait_for_services                      # Standard health checks
+5. verify_postgres_health_post_start     # NEW - corruption detection
+6. configure_docker_firewall              # Security
+7. run_alembic_migrations                 # Database schema updates
+8. verify_database_schema                 # Post-migration validation
+```
+
+**Гарантии Production Safety:**
+- ✅ Container recreation ПРЕДОТВРАЩЁН при selective restarts (`--no-recreate`)
+- ✅ Safety backup создаётся ПЕРЕД каждым deployment (rollback capability)
+- ✅ Corruption detection ПОСЛЕ start (catches edge cases)
+- ✅ Deployment БЛОКИРУЕТСЯ при detection corruption (prevents cascade failures)
+- ✅ Clear recovery instructions (3 опции для восстановления)
+
+**Тестирование:**
+```bash
+# Simulate selective restart (код changes, БД не изменена)
+cd ~/familyBudget
+git pull
+sudo bash deploy.sh --profile full
+
+# Что должно произойти:
+# 1. Smart cleanup: "PostgreSQL will keep running ✓"
+# 2. Safety backup: "Safety backup created: safety_backup_pre_start_<timestamp>.sql.gz"
+# 3. Start services: "Using --no-recreate for postgres"
+# 4. Health check: "PostgreSQL container is running"
+# 5. Health check: "PostgreSQL is accepting connections"
+# 6. Integrity: "Data directory structure is valid"
+# 7. Success: Deployment продолжается без corruption
+```
+
 ### npm Build Environment
 
 **КРИТИЧНО:** НЕ используйте симлинки для node_modules при запуске `npm run build`.

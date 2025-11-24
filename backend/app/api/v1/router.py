@@ -18,6 +18,7 @@ from backend.app.api.v1.endpoints import (
     financial_centers_router,
     import_router,
     notifications_router,
+    transfers_router,
     users_router,
 )
 from backend.app.api.v1.export import router as export_router
@@ -66,3 +67,6 @@ api_router.include_router(admin_export_router)
 
 # Import endpoints (FR-080 - Tinkoff CSV Import) ✅
 api_router.include_router(import_router)
+
+# Transfers endpoints (Transfer Feature) ✅
+api_router.include_router(transfers_router)

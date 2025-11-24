@@ -14,6 +14,9 @@
                 <button class="btn btn-sm btn-success gap-1" onclick="openCreateModal()" title="Добавить новую транзакцию">
                     ➕ Добавить транзакцию
                 </button>
+                <button class="btn btn-sm btn-secondary gap-1" onclick="openTransferModal()" title="Перевод между финансовыми центрами">
+                    💸 Перевод между счетами
+                </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
                 </button>
@@ -75,7 +78,7 @@
                         <label class="label">
                             <span class="label-text font-medium">📁 Категория</span>
                         </label>
-                        <select id="filter-article" class="select select-bordered w-full" title="Фильтровать транзакции по категории">
+                        <select id="filter-article" class="select select-bordered category-filter w-full" title="Фильтровать транзакции по категории">
                             <option value="">Все категории</option>
                             <!-- Populated dynamically -->
                         </select>
@@ -262,6 +265,9 @@
         <button>close</button>
     </form>
 </dialog>
+
+<!-- Transfer Modal -->
+{% include "components/modal_transfer.html" %}
 {% endblock %}
 
 {% block extra_styles %}
@@ -320,6 +326,7 @@
 
 {% block extra_scripts %}
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/transfer.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
 
 <script>
@@ -543,6 +550,11 @@ async function loadArticles() {
             const icon = node.isLeaf ? '▸' : '📂';
             option.textContent = `${indent}${icon} ${node.name}`;
 
+            // Add data-type attribute for category filter colors
+            if (node.type) {
+                option.dataset.type = node.type; // 'expense' or 'income'
+            }
+
             // Disable parent categories with visual styling
             if (!node.isLeaf) {
                 option.disabled = true;
@@ -633,6 +645,11 @@ async function reloadArticleFilter(type) {
             const indent = '›  '.repeat(node.level);
             const icon = node.isLeaf ? '▸' : '📂';
             option.textContent = `${indent}${icon} ${node.name}`;
+
+            // Add data-type attribute for category filter colors
+            if (node.type) {
+                option.dataset.type = node.type; // 'expense' or 'income'
+            }
 
             // Disable parent categories with visual styling
             if (!node.isLeaf) {
@@ -959,7 +976,10 @@ function renderFactsTable(facts) {
                 <td>${formattedDate}</td>
                 <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
-                <td>${fact.article_name || '—'}</td>
+                <td>
+                    ${fact.article_name || '—'}
+                    ${fact.transfer_id ? `<span class="badge badge-info badge-sm ml-2" title="Перевод ID: ${fact.transfer_id}">🔁 Перевод</span>` : ''}
+                </td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td>${fact.user_name || '—'}</td>
