@@ -658,7 +658,6 @@ check_postgres_health_pre_deploy() {
 
         # If container is in restart loop - likely corrupted
         if echo "$container_status" | grep -qi "restarting"; then
-            error "PostgreSQL is in restart loop - likely DATA CORRUPTION!"
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "🚨 CRITICAL: PostgreSQL Data Corruption Detected (Pre-Deploy)"
@@ -716,7 +715,6 @@ check_postgres_health_pre_deploy() {
         local logs=$(docker compose -f "$DEPLOY_DIR/docker-compose.yml" logs --tail=30 postgres 2>/dev/null || echo "")
 
         if echo "$logs" | grep -qi "could not open directory\|no such file or directory\|data directory.*corrupt"; then
-            error "PostgreSQL corruption detected in logs!"
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "🚨 CRITICAL: PostgreSQL Data Corruption Detected (Pre-Deploy)"
