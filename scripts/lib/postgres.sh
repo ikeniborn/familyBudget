@@ -617,3 +617,129 @@ create_deployment_safety_backup() {
         return 1
     fi
 }
+
+# =============================================================================
+# PRE-DEPLOYMENT HEALTH CHECK (CRITICAL SAFEGUARD)
+# =============================================================================
+
+# Check PostgreSQL health BEFORE deployment starts
+# This prevents deployment from proceeding if PostgreSQL is already corrupted
+# Returns:
+#   0 - PostgreSQL healthy or not running (safe to proceed)
+#   1 - PostgreSQL corrupted or unhealthy (requires Full cleanup)
+check_postgres_health_pre_deploy() {
+    local postgres_data_dir="$DEPLOY_DIR/data/postgres"
+
+    step "Pre-Deployment PostgreSQL Health Check"
+
+    # Check if PostgreSQL container exists
+    local postgres_exists=false
+    if docker ps -a --filter "name=familybudget-postgres" -q 2>/dev/null | grep -q .; then
+        postgres_exists=true
+    fi
+
+    if [[ "$postgres_exists" == "false" ]]; then
+        info "PostgreSQL container does not exist - fresh deployment"
+        return 0
+    fi
+
+    # Check if PostgreSQL is running
+    local postgres_running=false
+    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        postgres_running=true
+    fi
+
+    if [[ "$postgres_running" == "false" ]]; then
+        warning "PostgreSQL container exists but is NOT running"
+
+        # Check container status
+        local container_status=$(docker ps -a --filter "name=familybudget-postgres" --format "{{.Status}}" 2>/dev/null || echo "unknown")
+        warning "Container status: $container_status"
+
+        # If container is in restart loop - likely corrupted
+        if echo "$container_status" | grep -qi "restarting"; then
+            error "PostgreSQL is in restart loop - likely DATA CORRUPTION!"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🚨 CRITICAL: PostgreSQL Data Corruption Detected (Pre-Deploy)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "PostgreSQL container is restarting continuously."
+            echo "This indicates corrupted data directory."
+            echo ""
+            echo "Last 30 lines of PostgreSQL logs:"
+            echo "──────────────────────────────────────────────────────────────"
+            docker logs familybudget-postgres --tail=30 2>&1 || echo "Failed to get logs"
+            echo "──────────────────────────────────────────────────────────────"
+            echo ""
+            echo "💡 AUTOMATIC RECOVERY:"
+            echo ""
+            echo "Deployment will AUTOMATICALLY switch to Full Cleanup mode"
+            echo "to repair corrupted PostgreSQL data directory."
+            echo ""
+            echo "This will:"
+            echo "  1. Stop all containers"
+            echo "  2. Repair PostgreSQL data directory (pg_notify, etc.)"
+            echo "  3. Restart PostgreSQL"
+            echo "  4. Continue deployment normally"
+            echo ""
+            echo "DATA IS PRESERVED (volumes NOT deleted)."
+            echo ""
+            return 1
+        fi
+
+        # Container stopped but not restarting - safe to proceed
+        info "PostgreSQL stopped cleanly - safe to proceed with deployment"
+        return 0
+    fi
+
+    # PostgreSQL is running - check if it's accepting connections
+    info "PostgreSQL is running - checking connection health..."
+
+    local health_check_passed=false
+    local max_attempts=3
+    local attempt=0
+
+    while [[ $attempt -lt $max_attempts ]]; do
+        if docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+            health_check_passed=true
+            break
+        fi
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+
+    if [[ "$health_check_passed" == "false" ]]; then
+        warning "PostgreSQL is running but NOT accepting connections"
+
+        # Check logs for corruption indicators
+        local logs=$(docker compose -f "$DEPLOY_DIR/docker-compose.yml" logs --tail=30 postgres 2>/dev/null || echo "")
+
+        if echo "$logs" | grep -qi "could not open directory\|no such file or directory\|data directory.*corrupt"; then
+            error "PostgreSQL corruption detected in logs!"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🚨 CRITICAL: PostgreSQL Data Corruption Detected (Pre-Deploy)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "Last 30 lines of PostgreSQL logs:"
+            echo "──────────────────────────────────────────────────────────────"
+            echo "$logs"
+            echo "──────────────────────────────────────────────────────────────"
+            echo ""
+            echo "💡 AUTOMATIC RECOVERY:"
+            echo ""
+            echo "Deployment will AUTOMATICALLY switch to Full Cleanup mode"
+            echo "to repair corrupted PostgreSQL data directory."
+            echo ""
+            return 1
+        fi
+
+        warning "PostgreSQL slow but no corruption indicators found"
+        info "Proceeding with deployment - post-start checks will catch issues"
+    else
+        success "PostgreSQL is healthy and accepting connections"
+    fi
+
+    return 0
+}

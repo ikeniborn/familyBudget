@@ -1080,6 +1080,47 @@ main() {
     check_prerequisites_late
     echo ""
 
+    # CRITICAL SAFEGUARD: Check PostgreSQL health BEFORE deployment
+    # This prevents proceeding if PostgreSQL is already corrupted
+    # If corrupted → auto-switch to Full cleanup mode for automatic repair
+    if ! check_postgres_health_pre_deploy; then
+        warning "PostgreSQL corruption detected - AUTOMATIC RECOVERY MODE"
+        warning "Switching to Full cleanup mode to repair data directory"
+        echo ""
+
+        # Override cleanup mode to full (automatic recovery)
+        CLEANUP_MODE="full"
+        info "Cleanup mode overridden: smart → full (automatic)"
+
+        # Ask user confirmation for automatic repair
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "⚠️  AUTOMATIC RECOVERY CONFIRMATION"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "Deployment will perform Full cleanup to repair PostgreSQL:"
+        echo "  1. Stop all containers"
+        echo "  2. Remove networks"
+        echo "  3. Repair PostgreSQL data directory (pg_notify, etc.)"
+        echo "  4. Restart services"
+        echo ""
+        echo "DATA IS PRESERVED (volumes NOT deleted unless you type 'DELETE')."
+        echo ""
+        read -p "Continue with automatic repair? [Y/n]: " -r
+        echo ""
+
+        if [[ ! $REPLY =~ ^[Yy]?$ ]]; then
+            error "Automatic recovery cancelled by user"
+            error "PostgreSQL is corrupted and cannot be repaired automatically"
+            error "Manual recovery required - see options above"
+            exit 1
+        fi
+
+        success "Automatic recovery confirmed - proceeding with Full cleanup"
+        echo ""
+    fi
+    echo ""
+
     # Check for old deployments and cleanup if needed (sets POSTGRES_WAS_STOPPED flag)
     cleanup_old_deployment
     echo ""
