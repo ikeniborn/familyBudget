@@ -12,7 +12,7 @@ from backend.app.models.article import Article
 from backend.app.models.financial_center import FinancialCenter
 
 
-router = APIRouter()
+router = APIRouter(prefix="/transfers", tags=["Transfers"])
 
 
 async def generate_transfer_id(session: AsyncSession) -> int:
