@@ -44,6 +44,7 @@ class CostCenter(SQLModel, table=True):
         name: Cost center display name (required, max 255 chars)
         description: Optional description or notes (text field)
         code: Business code for external integrations (optional, auto-generated as MVZ-1, MVZ-2, ...)
+        is_active: Active flag (True = visible in UI, False = archived)
         valid_from: Start of validity period for this record
         valid_to: End of validity period (9999-12-31 for current records)
         is_current: Flag indicating if this is the current version
@@ -104,6 +105,14 @@ class CostCenter(SQLModel, table=True):
         nullable=True,
         index=True,
         description="Business code for external integrations (e.g., MVZ-1, MVZ-2). Auto-generated if not provided."
+    )
+
+    # Active status flag (archived cost centers functionality)
+    is_active: bool = Field(
+        default=True,
+        nullable=False,
+        index=True,
+        description="Active status flag (True = visible in UI dropdowns, False = archived)"
     )
 
     # SCD Type 2 fields

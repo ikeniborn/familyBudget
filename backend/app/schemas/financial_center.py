@@ -38,6 +38,12 @@ class FinancialCenterCreate(BaseModel):
         examples=["Main checking account", None]
     )
 
+    is_active: bool = Field(
+        default=True,
+        description="Active status (True = visible in UI, False = archived)",
+        examples=[True]
+    )
+
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str) -> str:
@@ -92,6 +98,12 @@ class FinancialCenterUpdate(BaseModel):
         default=None,
         description="Optional description or notes",
         examples=["Updated description"]
+    )
+
+    is_active: Optional[bool] = Field(
+        default=None,
+        description="Active status (True = visible in UI, False = archived)",
+        examples=[True, False]
     )
 
     @field_validator("name")
@@ -152,6 +164,11 @@ class FinancialCenterResponse(BaseModel):
         examples=["Main checking account", None]
     )
 
+    is_active: bool = Field(
+        description="Active status (True = visible in UI, False = archived)",
+        examples=[True]
+    )
+
     # SCD Type 2 fields
     valid_from: datetime = Field(
         description="Start of validity period",
@@ -188,6 +205,7 @@ class FinancialCenterResponse(BaseModel):
                 "code": "BANK_SBER",
                 "name": "Sberbank Account",
                 "description": "Main checking account",
+                "is_active": True,
                 "valid_from": "2025-10-14T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
                 "is_current": True,
