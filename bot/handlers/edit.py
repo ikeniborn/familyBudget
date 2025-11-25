@@ -537,21 +537,9 @@ async def value_entered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     try:
         # Validate and convert value
         if field == "amount":
-            # Validate amount
+            # Validate amount (always use positive value)
             validated_amount = validate_amount(user_input)
-
-            # Need to apply sign based on article type
-            fact = context.user_data.get(KEY_FACT_DATA, {})
-            article = context.user_data.get(KEY_ARTICLE_DATA, {})
-            article_type = article.get("type", "unknown")
-
-            # Apply sign convention
-            if article_type == "expense":
-                validated_amount = -abs(validated_amount)
-            elif article_type == "income":
-                validated_amount = abs(validated_amount)
-
-            new_value = str(validated_amount)
+            new_value = str(abs(validated_amount))
 
         elif field == "date":
             new_value = validate_date(user_input).isoformat()

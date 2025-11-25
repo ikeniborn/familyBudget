@@ -176,7 +176,7 @@ async def create_transfer(
         financial_center_id=transfer.from_financial_center_id,
         cost_center_id=transfer.from_cost_center_id,
         fact_date=transfer.transfer_date,
-        amount=-abs(transfer.amount),  # Negative for expense
+        amount=abs(transfer.amount),  # Always positive (sign determined by article_type)
         description=expense_description,
         transfer_id=transfer_id,
         record_type="fact",
