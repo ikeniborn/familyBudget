@@ -95,8 +95,12 @@ async def create_fact(
     # Articles are shared references accessible to all authenticated users
 
     # Create new fact
+    # Convert amount to absolute value (always store positive)
+    fact_dict = fact_data.model_dump()
+    fact_dict['amount'] = abs(fact_dict['amount'])
+
     fact = BudgetFact(
-        **fact_data.model_dump(),
+        **fact_dict,
         user_id=get_user_id_for_create(current_user),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
@@ -728,6 +732,10 @@ async def update_fact(
         # Articles are shared references accessible to all authenticated users
 
     # Update fact (simple UPDATE, not SCD Type 2)
+    # Convert amount to absolute value if amount is being updated
+    if "amount" in update_data:
+        update_data["amount"] = abs(update_data["amount"])
+
     for key, value in update_data.items():
         setattr(fact, key, value)
 
