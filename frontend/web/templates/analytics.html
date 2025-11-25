@@ -1181,11 +1181,9 @@ function updateOperationType(type) {
     // Update active button and ARIA states
     const expenseBtn = document.getElementById('operation-type-expense');
     const incomeBtn = document.getElementById('operation-type-income');
-    const debitBtn = document.getElementById('operation-type-debit');
-    const creditBtn = document.getElementById('operation-type-credit');
 
     // Reset all buttons to outline
-    [expenseBtn, incomeBtn, debitBtn, creditBtn].forEach(btn => {
+    [expenseBtn, incomeBtn].forEach(btn => {
         btn.classList.remove('btn-error', 'btn-success');
         btn.classList.add('btn-outline');
         btn.setAttribute('aria-pressed', 'false');
@@ -1199,14 +1197,12 @@ function updateOperationType(type) {
     } else if (type === 'income') {
         activeBtn = incomeBtn;
         activeBtn.classList.add('btn-success');
-    } else if (type === 'debit') {
-        activeBtn = debitBtn;
-    } else {
-        activeBtn = creditBtn;
     }
 
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.setAttribute('aria-pressed', 'true');
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline');
+        activeBtn.setAttribute('aria-pressed', 'true');
+    }
 
     // Reload charts that depend on operation type filter
     if (customRangeActive) {

@@ -1289,9 +1289,9 @@
                     keys: ['label'],       // Search in label field
                 },
 
-                // Styling
+                // Styling (conditional: Telegram WebApp vs Web UI)
                 classNames: {
-                    containerOuter: ['choices', 'choices-telegram'],
+                    containerOuter: ['choices', window.Telegram && window.Telegram.WebApp ? 'choices-telegram' : 'choices-tailwind'],
                     containerInner: ['choices__inner'],
                     input: ['choices__input'],
                     inputCloned: ['choices__input--cloned'],
