@@ -750,12 +750,17 @@ async def get_trends_data(
         result = await session.execute(query)
         rows = result.all()
 
-        # Build data structure by date
+        # Build data structure by date (map credit→income, debit→expense)
         data_by_date = {}
         for row in rows:
             if row.fact_date not in data_by_date:
                 data_by_date[row.fact_date] = {"income": 0.0, "expense": 0.0}
-            data_by_date[row.fact_date][row.type] = float(row.total)
+
+            # Map article types to income/expense categories
+            if row.type in ["income", "credit"]:
+                data_by_date[row.fact_date]["income"] += float(row.total)
+            elif row.type in ["expense", "debit"]:
+                data_by_date[row.fact_date]["expense"] += float(row.total)
 
         # Aggregate data by period and generate labels
         labels = []
