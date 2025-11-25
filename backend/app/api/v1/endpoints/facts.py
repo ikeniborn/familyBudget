@@ -544,6 +544,79 @@ async def get_facts_summary(
 
 
 @router.get(
+    "/count",
+    responses=get_common_responses(),
+)
+async def get_facts_count(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    date_from: Annotated[Optional[date], Query()] = None,
+    date_to: Annotated[Optional[date], Query()] = None,
+    article_id: Annotated[Optional[int], Query()] = None,
+    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense)$")] = None,
+    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+) -> dict:
+    """
+    Get total facts count with filters (Shared Family Budget).
+
+    **Shared Family Budget:**
+    - All authenticated users can count all transactions
+    - No user isolation
+
+    **Filters:**
+    - Same filters as list_facts endpoint
+    - date_from: Start date (inclusive)
+    - date_to: End date (inclusive)
+    - article_id: Filter by specific article
+    - record_type: Filter by 'fact' (actual) or 'plan' (budget)
+    - article_type: Filter by 'income' or 'expense'
+    - financial_center_id: Filter by financial center
+    - cost_center_id: Filter by cost center
+
+    **Returns:**
+    - 200 OK: Total count matching the filters
+    """
+    # Base query for counting
+    statement = select(func.count(BudgetFact.id)).join(
+        Article,
+        (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
+    )
+
+    # Shared family budget - NO user isolation filter
+    # All authenticated users see all transactions
+
+    # Apply same filters as list_facts
+    if date_from:
+        statement = statement.where(BudgetFact.fact_date >= date_from)
+
+    if date_to:
+        statement = statement.where(BudgetFact.fact_date <= date_to)
+
+    if article_id:
+        statement = statement.where(BudgetFact.article_id == article_id)
+
+    if record_type:
+        statement = statement.where(BudgetFact.record_type == record_type)
+
+    if article_type:
+        statement = statement.where(Article.type == article_type)
+
+    if financial_center_id:
+        statement = statement.where(BudgetFact.financial_center_id == financial_center_id)
+
+    if cost_center_id:
+        statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
+
+    # Execute count query
+    result = await session.execute(statement)
+    total = result.scalar_one()
+
+    return {"total": total}
+
+
+@router.get(
     "/{fact_id}",
     response_model=FactResponse,
     responses=get_common_responses(include_403=True, include_404=True),
@@ -710,79 +783,6 @@ async def delete_fact(
     await session.commit()
 
     return None
-
-
-@router.get(
-    "/count",
-    responses=get_common_responses(),
-)
-async def get_facts_count(
-    current_user: CurrentUser,
-    session: AsyncSession = Depends(get_session),
-    date_from: Annotated[Optional[date], Query()] = None,
-    date_to: Annotated[Optional[date], Query()] = None,
-    article_id: Annotated[Optional[int], Query()] = None,
-    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[Optional[str], Query(pattern="^(income|expense)$")] = None,
-    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
-) -> dict:
-    """
-    Get total facts count with filters (Shared Family Budget).
-
-    **Shared Family Budget:**
-    - All authenticated users can count all transactions
-    - No user isolation
-
-    **Filters:**
-    - Same filters as list_facts endpoint
-    - date_from: Start date (inclusive)
-    - date_to: End date (inclusive)
-    - article_id: Filter by specific article
-    - record_type: Filter by 'fact' (actual) or 'plan' (budget)
-    - article_type: Filter by 'income' or 'expense'
-    - financial_center_id: Filter by financial center
-    - cost_center_id: Filter by cost center
-
-    **Returns:**
-    - 200 OK: Total count matching the filters
-    """
-    # Base query for counting
-    statement = select(func.count(BudgetFact.id)).join(
-        Article,
-        (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
-    )
-
-    # Shared family budget - NO user isolation filter
-    # All authenticated users see all transactions
-
-    # Apply same filters as list_facts
-    if date_from:
-        statement = statement.where(BudgetFact.fact_date >= date_from)
-
-    if date_to:
-        statement = statement.where(BudgetFact.fact_date <= date_to)
-
-    if article_id:
-        statement = statement.where(BudgetFact.article_id == article_id)
-
-    if record_type:
-        statement = statement.where(BudgetFact.record_type == record_type)
-
-    if article_type:
-        statement = statement.where(Article.type == article_type)
-
-    if financial_center_id:
-        statement = statement.where(BudgetFact.financial_center_id == financial_center_id)
-
-    if cost_center_id:
-        statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
-
-    # Execute count query
-    result = await session.execute(statement)
-    total = result.scalar_one()
-
-    return {"total": total}
 
 
 @router.post(

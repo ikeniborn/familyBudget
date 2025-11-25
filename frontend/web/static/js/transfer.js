@@ -185,17 +185,19 @@ function setupQuickDateButtons() {
                     return;
             }
 
-            // Format and set date value
-            const formattedDate = BudgetShared.DateFormatter.formatForDisplay(
-                BudgetShared.DateFormatter.formatForAPI(targetDate)
-            );
+            // Convert Date to ISO format (YYYY-MM-DD)
+            const year = targetDate.getFullYear();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const day = String(targetDate.getDate()).padStart(2, '0');
+            const isoDate = `${year}-${month}-${day}`;
+
+            // Format for display (DD.MM.YYYY)
+            const formattedDate = BudgetShared.DateFormatter.formatForDisplay(isoDate);
             dateInput.value = formattedDate;
 
             // Trigger CalendarWidget to update if it exists
             if (transferDateWidget) {
-                transferDateWidget.selectDate(
-                    BudgetShared.DateFormatter.formatForAPI(targetDate)
-                );
+                transferDateWidget.selectDate(isoDate);
             }
         });
     });
