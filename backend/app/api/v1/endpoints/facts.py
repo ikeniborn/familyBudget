@@ -218,7 +218,7 @@ async def list_facts(
         )
         .outerjoin(
             User,
-            (BudgetFact.user_id == User.id) & (User.is_current == True)  # noqa: E712
+            BudgetFact.user_id == User.id  # Fact Table snapshot pattern: NO is_current filter
         )
     )
 
