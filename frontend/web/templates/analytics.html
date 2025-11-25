@@ -132,6 +132,16 @@
                             </div>
                         </div>
 
+                        <!-- Transaction Type Filter (debit/credit) -->
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label id="transaction-type-label" class="font-semibold text-sm">Тип транзакции:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm" id="transaction-type-all" onclick="updateTransactionType('all')" aria-pressed="true">Все</button>
+                                <button class="btn btn-sm btn-outline" id="transaction-type-debit" onclick="updateTransactionType('debit')" aria-pressed="false">📤 Списание</button>
+                                <button class="btn btn-sm btn-outline" id="transaction-type-credit" onclick="updateTransactionType('credit')" aria-pressed="false">📥 Пополнение</button>
+                            </div>
+                        </div>
+
                         <!-- Category Filter (multiple selection) -->
                         <div class="flex flex-col gap-2">
                             <label for="categories-filter" class="font-semibold text-sm">Фильтр по категориям:</label>
@@ -196,6 +206,9 @@ let waterfallCategoriesData = [];
 
 // Global type filter (applies to Plan-Fact, Pie, Heatmap)
 let currentGlobalType = 'expense';
+
+// Transaction type filter (all/debit/credit for filtering article types)
+let currentTransactionType = 'all';
 
 // Chart mode filter (for Plan-Fact chart: normal vs cumulative)
 // Load from localStorage or default to 'cumulative'
@@ -1199,6 +1212,48 @@ function updateGlobalType(type) {
     } else if (typeof initCategoryFilter === 'function') {
         // Create new instance if doesn't exist yet
         initCategoryFilter();
+    }
+}
+
+// Update transaction type filter (debit/credit)
+function updateTransactionType(type) {
+    currentTransactionType = type;
+
+    // Update active button and ARIA states
+    const allBtn = document.getElementById('transaction-type-all');
+    const debitBtn = document.getElementById('transaction-type-debit');
+    const creditBtn = document.getElementById('transaction-type-credit');
+
+    // Reset all buttons to outline
+    [allBtn, debitBtn, creditBtn].forEach(btn => {
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    // Set active button
+    let activeBtn;
+    if (type === 'all') {
+        activeBtn = allBtn;
+    } else if (type === 'debit') {
+        activeBtn = debitBtn;
+    } else {
+        activeBtn = creditBtn;
+    }
+
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Reload charts with new filter
+    if (customRangeActive) {
+        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
+        loadPlanFactDataCustom(isoFrom, isoTo);
+        loadPieDataCustom(currentGlobalType, isoFrom, isoTo);
+        loadHeatmapDataCustom(isoFrom, isoTo);
+    } else {
+        loadPlanFactData(currentPeriod);
+        loadPieData(currentGlobalType, currentPeriod);
+        loadHeatmapData(currentPeriod);
     }
 }
 

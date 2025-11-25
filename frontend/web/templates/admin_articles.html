@@ -290,24 +290,24 @@ function renderTreeNodes(nodes, level) {
         const prefix = level > 0 ? '↳ ' : '';
         const ownerLabel = node.user_name || '—';
 
-        // Full type mapping for all 4 types
+        // Full type mapping for all 4 types (with lighter badges)
         let typeLabel, typeBadge;
         switch (node.type) {
             case 'income':
                 typeLabel = '💰 Доход';
-                typeBadge = '<span class="badge badge-success gap-1">' + typeLabel + '</span>';
+                typeBadge = '<span class="badge badge-light type-income gap-1">' + typeLabel + '</span>';
                 break;
             case 'expense':
                 typeLabel = '💸 Расход';
-                typeBadge = '<span class="badge badge-error gap-1">' + typeLabel + '</span>';
+                typeBadge = '<span class="badge badge-light type-expense gap-1">' + typeLabel + '</span>';
                 break;
             case 'debit':
                 typeLabel = '📤 Списание';
-                typeBadge = '<span class="badge badge-warning gap-1">' + typeLabel + '</span>';
+                typeBadge = '<span class="badge badge-light type-debit gap-1">' + typeLabel + '</span>';
                 break;
             case 'credit':
                 typeLabel = '📥 Пополнение';
-                typeBadge = '<span class="badge badge-info gap-1">' + typeLabel + '</span>';
+                typeBadge = '<span class="badge badge-light type-credit gap-1">' + typeLabel + '</span>';
                 break;
             default:
                 typeLabel = '❓ Неизвестно';
@@ -319,17 +319,17 @@ function renderTreeNodes(nodes, level) {
             ? '<span class="badge badge-warning ml-2">📦 Архивная</span>'
             : '';
 
-        // Action buttons - show Archive or Restore depending on is_active status
+        // Action buttons (icon-only) - show Archive or Restore depending on is_active status
         const actionButtons = node.is_active
             ? `
-                <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
-                <button class="btn btn-sm btn-warning gap-1" onclick="archiveArticle(${node.id})">📦 Архивировать</button>
-                <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
+                <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveArticle(${node.id})" title="Архивировать">📦</button>
+                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
               `
             : `
-                <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
-                <button class="btn btn-sm btn-success gap-1" onclick="restoreArticle(${node.id})">♻️ Восстановить</button>
-                <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
+                <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreArticle(${node.id})" title="Восстановить">♻️</button>
+                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
               `;
 
         html += `

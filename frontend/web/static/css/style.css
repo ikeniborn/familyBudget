@@ -978,3 +978,77 @@ button:focus:not(:focus-visible) {
         margin: 5% auto;
     }
 }
+
+/* ============================================
+   UX IMPROVEMENTS (v5.1.4+)
+   ============================================ */
+
+/* Lighter badges for article types (reduced brightness ~50%) */
+.badge-light {
+    background-color: rgba(76, 175, 80, 0.15);
+    color: #388E3C;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.badge-light.type-income {
+    background-color: rgba(76, 175, 80, 0.15);
+    color: #388E3C;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.badge-light.type-expense {
+    background-color: rgba(244, 67, 54, 0.15);
+    color: #C62828;
+    border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.badge-light.type-debit {
+    background-color: rgba(255, 152, 0, 0.15);
+    color: #E65100;
+    border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+.badge-light.type-credit {
+    background-color: rgba(33, 150, 243, 0.15);
+    color: #1565C0;
+    border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+/* Opaque background for Choices.js dropdown (Analytics filters) */
+.choices__list--dropdown {
+    background-color: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Dark mode support for Choices.js dropdown */
+@media (prefers-color-scheme: dark) {
+    .choices__list--dropdown {
+        background-color: rgba(30, 30, 30, 0.98) !important;
+        border-color: #444 !important;
+    }
+}
+
+/* Icon-only action buttons (no text, only icons) */
+.btn-icon-only {
+    padding: 0.4rem 0.6rem;
+    min-width: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-icon-only .btn-text {
+    display: none;
+}
+
+/* Touch-friendly icon buttons on mobile */
+@media (hover: none) and (pointer: coarse) {
+    .btn-icon-only {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.75rem;
+    }
+}
