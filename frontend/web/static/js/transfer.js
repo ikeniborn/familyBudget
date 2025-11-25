@@ -57,6 +57,103 @@ function initTransferModal() {
     if (form) {
         form.addEventListener('submit', handleTransferSubmit);
     }
+
+    // 6. Load Financial Centers and Cost Centers dynamically
+    loadTransferData();
+}
+
+/**
+ * Load Financial Centers and Cost Centers for Transfer Modal
+ * Populates dropdowns with data from API
+ */
+async function loadTransferData() {
+    try {
+        // Load Financial Centers
+        const fcResponse = await fetch('/api/v1/financial-centers?limit=1000&include_global=true&is_current=true', {
+            credentials: 'include'
+        });
+        if (fcResponse.ok) {
+            const fcData = await fcResponse.json();
+            const financialCenters = fcData.financial_centers || [];
+
+            // Populate FROM dropdown
+            const fromFCSelect = document.querySelector('#from_financial_center');
+            if (fromFCSelect) {
+                // Clear existing options (keep placeholder)
+                while (fromFCSelect.options.length > 1) {
+                    fromFCSelect.remove(1);
+                }
+                financialCenters.forEach(fc => {
+                    const option = document.createElement('option');
+                    option.value = fc.id;
+                    option.textContent = fc.name;
+                    fromFCSelect.appendChild(option);
+                });
+            }
+
+            // Populate TO dropdown
+            const toFCSelect = document.querySelector('#to_financial_center');
+            if (toFCSelect) {
+                // Clear existing options (keep placeholder)
+                while (toFCSelect.options.length > 1) {
+                    toFCSelect.remove(1);
+                }
+                financialCenters.forEach(fc => {
+                    const option = document.createElement('option');
+                    option.value = fc.id;
+                    option.textContent = fc.name;
+                    toFCSelect.appendChild(option);
+                });
+            }
+        } else {
+            console.error('[Transfer Modal] Failed to load financial centers:', fcResponse.status);
+        }
+
+        // Load Cost Centers
+        const ccResponse = await fetch('/api/v1/cost-centers?limit=1000&include_global=true&is_current=true', {
+            credentials: 'include'
+        });
+        if (ccResponse.ok) {
+            const ccData = await ccResponse.json();
+            const costCenters = ccData.cost_centers || [];
+
+            // Populate FROM dropdown
+            const fromCCSelect = document.querySelector('#from_cost_center');
+            if (fromCCSelect) {
+                // Clear existing options (keep placeholder)
+                while (fromCCSelect.options.length > 1) {
+                    fromCCSelect.remove(1);
+                }
+                costCenters.forEach(cc => {
+                    const option = document.createElement('option');
+                    option.value = cc.id;
+                    option.textContent = cc.name;
+                    fromCCSelect.appendChild(option);
+                });
+            }
+
+            // Populate TO dropdown
+            const toCCSelect = document.querySelector('#to_cost_center');
+            if (toCCSelect) {
+                // Clear existing options (keep placeholder)
+                while (toCCSelect.options.length > 1) {
+                    toCCSelect.remove(1);
+                }
+                costCenters.forEach(cc => {
+                    const option = document.createElement('option');
+                    option.value = cc.id;
+                    option.textContent = cc.name;
+                    toCCSelect.appendChild(option);
+                });
+            }
+        } else {
+            console.error('[Transfer Modal] Failed to load cost centers:', ccResponse.status);
+        }
+
+        console.log('[Transfer Modal] Data loaded successfully');
+    } catch (error) {
+        console.error('[Transfer Modal] Failed to load data:', error);
+    }
 }
 
 /**

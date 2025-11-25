@@ -65,9 +65,7 @@
                         required
                     >
                         <option value="">Выберите ЦФО...</option>
-                        {% for cfo in financial_centers %}
-                        <option value="{{ cfo.id }}">{{ cfo.name }}</option>
-                        {% endfor %}
+                        <!-- Populated dynamically by loadTransferData() -->
                     </select>
                 </div>
 
@@ -98,9 +96,7 @@
                         class="select select-bordered"
                     >
                         <option value="">Не указано</option>
-                        {% for cc in cost_centers %}
-                        <option value="{{ cc.id }}">{{ cc.name }}</option>
-                        {% endfor %}
+                        <!-- Populated dynamically by loadTransferData() -->
                     </select>
                 </div>
             </div>
@@ -121,9 +117,7 @@
                         required
                     >
                         <option value="">Выберите ЦФО...</option>
-                        {% for cfo in financial_centers %}
-                        <option value="{{ cfo.id }}">{{ cfo.name }}</option>
-                        {% endfor %}
+                        <!-- Populated dynamically by loadTransferData() -->
                     </select>
                 </div>
 
@@ -154,9 +148,7 @@
                         class="select select-bordered"
                     >
                         <option value="">Не указано</option>
-                        {% for cc in cost_centers %}
-                        <option value="{{ cc.id }}">{{ cc.name }}</option>
-                        {% endfor %}
+                        <!-- Populated dynamically by loadTransferData() -->
                     </select>
                 </div>
             </div>

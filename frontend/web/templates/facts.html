@@ -14,8 +14,11 @@
                 <button class="btn btn-sm btn-success gap-1" onclick="openCreateModal()" title="Добавить новую транзакцию">
                     ➕ Добавить транзакцию
                 </button>
-                <button class="btn btn-sm btn-secondary gap-1" onclick="openTransferModal()" title="Перевод между финансовыми центрами">
-                    💸 Перевод между счетами
+                <button class="btn btn-sm btn-warning gap-1" onclick="openTransferModal()" title="Перевод между финансовыми центрами">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                    💸 Перевод
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
@@ -899,12 +902,17 @@ async function loadFacts() {
         if (filters.cost_center_id) params.append('cost_center_id', filters.cost_center_id);
         if (filters.search) params.append('search', filters.search);
 
+        // Create separate params for count endpoint (without limit/offset)
+        let countParams = new URLSearchParams(params);
+        countParams.delete('limit');
+        countParams.delete('offset');
+
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([
             fetch(`/api/v1/facts?${params}`, {
                 credentials: 'include',
             }),
-            fetch(`/api/v1/facts/count?${params}`, {
+            fetch(`/api/v1/facts/count?${countParams}`, {
                 credentials: 'include',
             })
         ]);

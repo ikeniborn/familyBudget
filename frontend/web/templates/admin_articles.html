@@ -15,9 +15,13 @@
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-3">
                     <h2 class="card-title text-2xl">📊 Категории</h2>
                     <div class="flex flex-wrap gap-2">
-                        <button class="btn btn-sm btn-primary" id="filter-all" onclick="toggleTypeFilter('all')">📋 Все</button>
-                        <button class="btn btn-sm btn-outline" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
-                        <button class="btn btn-sm btn-outline" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
+                        <select id="filter-type" class="select select-sm select-bordered" onchange="toggleTypeFilter(this.value)">
+                            <option value="all">📋 Все</option>
+                            <option value="income">💰 Доход</option>
+                            <option value="expense">💸 Расход</option>
+                            <option value="debit">📤 Списание</option>
+                            <option value="credit">📥 Пополнение</option>
+                        </select>
                         <button class="btn btn-sm btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
                         <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -164,20 +168,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Toggle type filter (all/income/expense)
+// Toggle type filter (all/income/expense/debit/credit)
 function toggleTypeFilter(type) {
     currentType = type;
-
-    // Update active button (DaisyUI)
-    document.querySelectorAll('#filter-all, #filter-income, #filter-expense').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-    });
-    const activeBtn = document.getElementById(`filter-${type}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-
-    // Reload articles
     loadArticles();
 }
 
@@ -294,10 +287,30 @@ function renderTreeNodes(nodes, level) {
         const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
         const prefix = level > 0 ? '↳ ' : '';
         const ownerLabel = node.user_name || '—';
-        const typeLabel = node.type === 'income' ? '💰 Доход' : '💸 Расход';
-        const typeBadge = node.type === 'income'
-            ? '<span class="badge badge-success gap-1">' + typeLabel + '</span>'
-            : '<span class="badge badge-ghost gap-1">' + typeLabel + '</span>';
+
+        // Full type mapping for all 4 types
+        let typeLabel, typeBadge;
+        switch (node.type) {
+            case 'income':
+                typeLabel = '💰 Доход';
+                typeBadge = '<span class="badge badge-success gap-1">' + typeLabel + '</span>';
+                break;
+            case 'expense':
+                typeLabel = '💸 Расход';
+                typeBadge = '<span class="badge badge-ghost gap-1">' + typeLabel + '</span>';
+                break;
+            case 'debit':
+                typeLabel = '📤 Списание';
+                typeBadge = '<span class="badge badge-warning gap-1">' + typeLabel + '</span>';
+                break;
+            case 'credit':
+                typeLabel = '📥 Пополнение';
+                typeBadge = '<span class="badge badge-info gap-1">' + typeLabel + '</span>';
+                break;
+            default:
+                typeLabel = '❓ Неизвестно';
+                typeBadge = '<span class="badge badge-error gap-1">' + typeLabel + '</span>';
+        }
 
         // Archived badge
         const archivedBadge = !node.is_active
