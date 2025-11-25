@@ -119,7 +119,11 @@ async function loadCenters() {
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
+        // Include inactive centers if viewing "all" or "archived" filter
         let url = '/api/v1/financial-centers?limit=1000';
+        if (currentStatusFilter === 'all' || currentStatusFilter === 'archived') {
+            url += '&include_inactive=true';
+        }
 
         const response = await fetch(url, {
             credentials: 'include',
