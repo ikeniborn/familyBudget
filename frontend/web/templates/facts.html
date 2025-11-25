@@ -551,6 +551,16 @@ async function loadArticles() {
         const tree = buildArticleTree(articles);
         const flatNodes = flattenArticleTree(tree);
 
+        // Sort by type: expense → income → debit → credit (preserving hierarchy within each type)
+        const typeOrder = { 'expense': 1, 'income': 2, 'debit': 3, 'credit': 4 };
+        flatNodes.sort((a, b) => {
+            const typeA = typeOrder[a.type] || 999;
+            const typeB = typeOrder[b.type] || 999;
+            if (typeA !== typeB) return typeA - typeB;
+            // Preserve original order within same type (hierarchy already correct)
+            return 0;
+        });
+
         // Populate filter dropdown with tree (simplified hierarchy)
         const filterSelect = document.getElementById('filter-article');
         flatNodes.forEach(node => {
@@ -639,6 +649,16 @@ async function reloadArticleFilter(type) {
         // Build tree and flatten
         const tree = buildArticleTree(articles);
         const flatNodes = flattenArticleTree(tree);
+
+        // Sort by type: expense → income → debit → credit (preserving hierarchy within each type)
+        const typeOrder = { 'expense': 1, 'income': 2, 'debit': 3, 'credit': 4 };
+        flatNodes.sort((a, b) => {
+            const typeA = typeOrder[a.type] || 999;
+            const typeB = typeOrder[b.type] || 999;
+            if (typeA !== typeB) return typeA - typeB;
+            // Preserve original order within same type (hierarchy already correct)
+            return 0;
+        });
 
         // Repopulate filter dropdown
         const filterSelect = document.getElementById('filter-article');
