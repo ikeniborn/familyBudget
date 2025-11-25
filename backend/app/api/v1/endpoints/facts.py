@@ -415,12 +415,12 @@ async def get_recent_facts_html(
             # Format date
             fact_date_str = fact.fact_date.strftime("%d.%m.%Y")
 
-            # Determine color based on article type
-            amount_class = "text-success font-bold" if article.type == "income" else "text-error font-bold"
-            amount_prefix = "+" if article.type == "income" else "-"
+            # Determine color based on article type (income/credit = positive, expense/debit = negative)
+            amount_class = "text-success font-bold" if article.type in ["income", "credit"] else "text-error font-bold"
+            amount_prefix = "+" if article.type in ["income", "credit"] else "-"
 
             # Article icon based on type
-            article_icon = "💰" if article.type == "income" else "💸"
+            article_icon = "💰" if article.type in ["income", "credit"] else "💸"
 
             # Financial center name
             financial_center = financial_centers.get(fact.financial_center_id)

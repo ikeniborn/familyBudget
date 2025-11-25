@@ -1136,7 +1136,16 @@ async def get_waterfall_data(
                 period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
 
             amount = float(row.total)
-            period_data[period_key][row.type] += amount
+
+            # Map transfer types to income/expense for aggregation
+            type_mapping = {
+                'income': 'income',
+                'expense': 'expense',
+                'credit': 'income',   # Пополнение = доход
+                'debit': 'expense'    # Списание = расход
+            }
+            mapped_type = type_mapping.get(row.type, 'expense')
+            period_data[period_key][mapped_type] += amount
 
             # Store article info for potential drill-down
             if not article_id:  # Only track articles when not in drill-down mode
@@ -1154,13 +1163,13 @@ async def get_waterfall_data(
         initial_balance_query = select(
             func.sum(
                 case(
-                    (Article.type == "income", Fact.amount),
+                    (Article.type.in_(["income", "credit"]), Fact.amount),
                     else_=0
                 )
             ) -
             func.sum(
                 case(
-                    (Article.type == "expense", Fact.amount),
+                    (Article.type.in_(["expense", "debit"]), Fact.amount),
                     else_=0
                 )
             )

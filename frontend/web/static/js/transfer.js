@@ -194,11 +194,6 @@ function setupQuickDateButtons() {
             // Format for display (DD.MM.YYYY)
             const formattedDate = BudgetShared.DateFormatter.formatForDisplay(isoDate);
             dateInput.value = formattedDate;
-
-            // Trigger CalendarWidget to update if it exists
-            if (transferDateWidget) {
-                transferDateWidget.selectDate(isoDate);
-            }
         });
     });
 }
