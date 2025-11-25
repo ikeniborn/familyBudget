@@ -193,44 +193,52 @@ select.category-filter option[data-type="credit"] {
    Type Badge Colors (Admin Panel)
    ================================== */
 
-/* Expense badge - light red */
+/* Expense badge - light red with pill shape */
 .badge-type-expense {
+    display: inline-block;
     background-color: #fee2e2; /* Tailwind red-100 */
     color: #991b1b; /* Tailwind red-800 */
-    padding: 0.25rem 0.75rem;
-    border-radius: 0.375rem;
+    padding: 0.375rem 1rem;
+    border-radius: 9999px; /* Full pill/oval shape */
     font-size: 0.875rem;
     font-weight: 500;
+    white-space: nowrap;
 }
 
-/* Income badge - light green */
+/* Income badge - light green with pill shape */
 .badge-type-income {
+    display: inline-block;
     background-color: #d1fae5; /* Tailwind green-100 */
     color: #065f46; /* Tailwind green-800 */
-    padding: 0.25rem 0.75rem;
-    border-radius: 0.375rem;
+    padding: 0.375rem 1rem;
+    border-radius: 9999px; /* Full pill/oval shape */
     font-size: 0.875rem;
     font-weight: 500;
+    white-space: nowrap;
 }
 
-/* Debit badge (списание) - light blue */
+/* Debit badge (списание) - light blue with pill shape */
 .badge-type-debit {
+    display: inline-block;
     background-color: #dbeafe; /* Tailwind blue-100 */
     color: #1e40af; /* Tailwind blue-800 */
-    padding: 0.25rem 0.75rem;
-    border-radius: 0.375rem;
+    padding: 0.375rem 1rem;
+    border-radius: 9999px; /* Full pill/oval shape */
     font-size: 0.875rem;
     font-weight: 500;
+    white-space: nowrap;
 }
 
-/* Credit badge (пополнение) - light orange */
+/* Credit badge (пополнение) - light orange with pill shape */
 .badge-type-credit {
+    display: inline-block;
     background-color: #fed7aa; /* Tailwind orange-200 */
     color: #9a3412; /* Tailwind orange-800 */
-    padding: 0.25rem 0.75rem;
-    border-radius: 0.375rem;
+    padding: 0.375rem 1rem;
+    border-radius: 9999px; /* Full pill/oval shape */
     font-size: 0.875rem;
     font-weight: 500;
+    white-space: nowrap;
 }
 
 /* ==================================
