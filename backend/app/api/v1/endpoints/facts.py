@@ -421,10 +421,18 @@ async def get_recent_facts_html(
 
             # Determine color based on article type (income/credit = positive, expense/debit = negative)
             amount_class = "text-success font-bold" if article.type in ["income", "credit"] else "text-error font-bold"
-            amount_prefix = "+" if article.type in ["income", "credit"] else "-"
 
-            # Article icon based on type
-            article_icon = "💰" if article.type in ["income", "credit"] else "💸"
+            # Article icon based on type (income=💰, credit=📥, expense=💸, debit=📤)
+            if article.type == "income":
+                article_icon = "💰"
+            elif article.type == "credit":
+                article_icon = "📥"
+            elif article.type == "expense":
+                article_icon = "💸"
+            elif article.type == "debit":
+                article_icon = "📤"
+            else:
+                article_icon = "❓"
 
             # Financial center name
             financial_center = financial_centers.get(fact.financial_center_id)
@@ -441,7 +449,7 @@ async def get_recent_facts_html(
                         <td class="whitespace-nowrap">{fact_date_str}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
                         <td>{article_icon} {article.name}</td>
-                        <td class="{amount_class} whitespace-nowrap">{amount_prefix}{format_money(fact.amount)} ₽</td>
+                        <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount)} ₽</td>
                         <td class="max-w-xs truncate" title="{description_full}">{description}</td>
                     </tr>
             """
