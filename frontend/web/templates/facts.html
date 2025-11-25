@@ -73,6 +73,8 @@
                             <option value="">Все типы категорий</option>
                             <option value="expense">Расходы</option>
                             <option value="income">Доходы</option>
+                            <option value="debit">Списание</option>
+                            <option value="credit">Пополнение</option>
                         </select>
                     </div>
 
@@ -984,7 +986,10 @@ function renderFactsTable(facts) {
     `;
 
     facts.forEach(fact => {
-        const amountClass = fact.article_type === 'income' ? 'text-success font-bold' : 'text-error font-bold';
+        // income + credit (пополнение) = зеленый, expense + debit (списание) = красный
+        const amountClass = (fact.article_type === 'income' || fact.article_type === 'credit')
+            ? 'text-success font-bold'
+            : 'text-error font-bold';
         const description = fact.description || '—';
         const descriptionTruncated = truncateText(description, 30);
         const financialCenter = fact.financial_center_name || '—';

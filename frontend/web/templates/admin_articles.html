@@ -304,24 +304,24 @@ function renderTreeNodes(nodes, level) {
         const prefix = level > 0 ? '↳ ' : '';
         const ownerLabel = node.user_name || '—';
 
-        // Full type mapping for all 4 types (with lighter badges)
+        // Full type mapping for all 4 types (with colored badges)
         let typeLabel, typeBadge;
         switch (node.type) {
             case 'income':
                 typeLabel = '💰 Доход';
-                typeBadge = '<span class="badge badge-light type-income gap-1">' + typeLabel + '</span>';
+                typeBadge = '<span class="badge-type-income gap-1">' + typeLabel + '</span>';
                 break;
             case 'expense':
                 typeLabel = '💸 Расход';
-                typeBadge = '<span class="badge badge-light type-expense gap-1">' + typeLabel + '</span>';
+                typeBadge = '<span class="badge-type-expense gap-1">' + typeLabel + '</span>';
                 break;
             case 'debit':
                 typeLabel = '📤 Списание';
-                typeBadge = '<span class="badge badge-light type-debit gap-1">' + typeLabel + '</span>';
+                typeBadge = '<span class="badge-type-debit gap-1">' + typeLabel + '</span>';
                 break;
             case 'credit':
                 typeLabel = '📥 Пополнение';
-                typeBadge = '<span class="badge badge-light type-credit gap-1">' + typeLabel + '</span>';
+                typeBadge = '<span class="badge-type-credit gap-1">' + typeLabel + '</span>';
                 break;
             default:
                 typeLabel = '❓ Неизвестно';

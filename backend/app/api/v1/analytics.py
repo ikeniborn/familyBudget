@@ -246,16 +246,23 @@ async def get_quick_stats(
     month_result = await session.execute(month_query)
     month_data = {row.type: float(row.total) for row in month_result.all()}
 
+    # Include credit (пополнение) as income, debit (списание) as expense
+    today_income = today_data.get("income", 0.0) + today_data.get("credit", 0.0)
+    today_expense = today_data.get("expense", 0.0) + today_data.get("debit", 0.0)
+
+    month_income = month_data.get("income", 0.0) + month_data.get("credit", 0.0)
+    month_expense = month_data.get("expense", 0.0) + month_data.get("debit", 0.0)
+
     return {
         "today": {
-            "income": today_data.get("income", 0.0),
-            "expense": today_data.get("expense", 0.0),
-            "balance": today_data.get("income", 0.0) - today_data.get("expense", 0.0)
+            "income": today_income,
+            "expense": today_expense,
+            "balance": today_income - today_expense
         },
         "month": {
-            "income": month_data.get("income", 0.0),
-            "expense": month_data.get("expense", 0.0),
-            "balance": month_data.get("income", 0.0) - month_data.get("expense", 0.0)
+            "income": month_income,
+            "expense": month_expense,
+            "balance": month_income - month_expense
         }
     }
 
@@ -301,13 +308,13 @@ async def get_quick_stats_html(
     month_result = await session.execute(month_query)
     month_data = {row.type: float(row.total) for row in month_result.all()}
 
-    # Calculate stats
-    today_income = today_data.get("income", 0.0)
-    today_expense = today_data.get("expense", 0.0)
+    # Calculate stats (include credit as income, debit as expense)
+    today_income = today_data.get("income", 0.0) + today_data.get("credit", 0.0)
+    today_expense = today_data.get("expense", 0.0) + today_data.get("debit", 0.0)
     today_balance = today_income - today_expense
 
-    month_income = month_data.get("income", 0.0)
-    month_expense = month_data.get("expense", 0.0)
+    month_income = month_data.get("income", 0.0) + month_data.get("credit", 0.0)
+    month_expense = month_data.get("expense", 0.0) + month_data.get("debit", 0.0)
     month_balance = month_income - month_expense
 
     # Format numbers with thousands separator

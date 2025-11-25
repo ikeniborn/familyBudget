@@ -162,6 +162,16 @@ select.category-filter option[data-type="income"] {
     color: #10b981; /* Tailwind green-500 */
 }
 
+/* Debit categories (списание) - blue in dropdowns */
+select.category-filter option[data-type="debit"] {
+    color: #3b82f6; /* Tailwind blue-500 */
+}
+
+/* Credit categories (пополнение) - orange in dropdowns */
+select.category-filter option[data-type="credit"] {
+    color: #f97316; /* Tailwind orange-500 */
+}
+
 /* For Choices.js dropdown items */
 .choices__list--dropdown .choices__item--choice[data-type="expense"] {
     color: #ef4444;
@@ -169,4 +179,56 @@ select.category-filter option[data-type="income"] {
 
 .choices__list--dropdown .choices__item--choice[data-type="income"] {
     color: #10b981;
+}
+
+.choices__list--dropdown .choices__item--choice[data-type="debit"] {
+    color: #3b82f6;
+}
+
+.choices__list--dropdown .choices__item--choice[data-type="credit"] {
+    color: #f97316;
+}
+
+/* ==================================
+   Type Badge Colors (Admin Panel)
+   ================================== */
+
+/* Expense badge - light red */
+.badge-type-expense {
+    background-color: #fee2e2; /* Tailwind red-100 */
+    color: #991b1b; /* Tailwind red-800 */
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Income badge - light green */
+.badge-type-income {
+    background-color: #d1fae5; /* Tailwind green-100 */
+    color: #065f46; /* Tailwind green-800 */
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Debit badge (списание) - light blue */
+.badge-type-debit {
+    background-color: #dbeafe; /* Tailwind blue-100 */
+    color: #1e40af; /* Tailwind blue-800 */
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Credit badge (пополнение) - light orange */
+.badge-type-credit {
+    background-color: #fed7aa; /* Tailwind orange-200 */
+    color: #9a3412; /* Tailwind orange-800 */
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
 }
