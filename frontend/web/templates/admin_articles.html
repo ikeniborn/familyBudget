@@ -337,12 +337,12 @@ function renderTreeNodes(nodes, level) {
         const actionButtons = node.is_active
             ? `
                 <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
-                <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveArticle(${node.id})" title="Архивировать">📦</button>
+                <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
                 <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
               `
             : `
                 <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
-                <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreArticle(${node.id})" title="Восстановить">♻️</button>
+                <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
                 <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
               `;
 
@@ -709,9 +709,17 @@ function formatErrorDetail(detail) {
 }
 
 // Archive article and all descendants
-async function archiveArticle(articleId) {
+async function archiveArticle(articleId, event) {
     if (!confirm('📦 Архивировать эту категорию?\n\nВсе подкатегории будут также архивированы рекурсивно.\nИсторические данные сохранятся.')) {
         return;
+    }
+
+    // Show loading indicator and disable button
+    const button = event?.target?.closest('button');
+    const originalContent = button?.innerHTML;
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Архивация...';
     }
 
     try {
@@ -733,13 +741,27 @@ async function archiveArticle(articleId) {
     } catch (error) {
         console.error('Error archiving article:', error);
         showNotification(`❌ Ошибка архивирования: ${error.message}`, 'error');
+    } finally {
+        // Restore button state (if button still exists)
+        if (button && originalContent) {
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
     }
 }
 
 // Restore article and all descendants
-async function restoreArticle(articleId) {
+async function restoreArticle(articleId, event) {
     if (!confirm('♻️ Восстановить эту категорию?\n\nВсе подкатегории будут также восстановлены рекурсивно.')) {
         return;
+    }
+
+    // Show loading indicator and disable button
+    const button = event?.target?.closest('button');
+    const originalContent = button?.innerHTML;
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Восстановление...';
     }
 
     try {
@@ -761,6 +783,12 @@ async function restoreArticle(articleId) {
     } catch (error) {
         console.error('Error restoring article:', error);
         showNotification(`❌ Ошибка восстановления: ${error.message}`, 'error');
+    } finally {
+        // Restore button state (if button still exists)
+        if (button && originalContent) {
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
     }
 }
 

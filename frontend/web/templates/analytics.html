@@ -127,26 +127,18 @@
                 </div>
             </div>
 
-            <!-- Global Type Filter (applies to Plan-Fact, Pie Chart, Heatmap) -->
-            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="global-type-label">
+            <!-- Operation Type Filter (applies to Plan-Fact, Pie Chart, Heatmap) -->
+            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="operation-type-label">
                 <div class="card-body p-3">
                     <div class="flex flex-col gap-3">
-                        <!-- Type Filter -->
+                        <!-- Unified Operation Type Filter -->
                         <div class="flex flex-wrap items-center gap-3">
-                            <label id="global-type-label" class="font-semibold text-sm">Тип категорий:</label>
+                            <label id="operation-type-label" class="font-semibold text-sm">Тип операции:</label>
                             <div class="btn-group">
-                                <button class="btn btn-sm btn-error" id="global-type-expense" onclick="updateGlobalType('expense')" aria-pressed="true">Расходы</button>
-                                <button class="btn btn-sm btn-outline" id="global-type-income" onclick="updateGlobalType('income')" aria-pressed="false">Доходы</button>
-                            </div>
-                        </div>
-
-                        <!-- Transaction Type Filter (debit/credit) -->
-                        <div class="flex flex-wrap items-center gap-3">
-                            <label id="transaction-type-label" class="font-semibold text-sm">Тип транзакции:</label>
-                            <div class="btn-group">
-                                <button class="btn btn-sm" id="transaction-type-all" onclick="updateTransactionType('all')" aria-pressed="true">Все</button>
-                                <button class="btn btn-sm btn-outline" id="transaction-type-debit" onclick="updateTransactionType('debit')" aria-pressed="false">📤 Списание</button>
-                                <button class="btn btn-sm btn-outline" id="transaction-type-credit" onclick="updateTransactionType('credit')" aria-pressed="false">📥 Пополнение</button>
+                                <button class="btn btn-sm btn-error" id="operation-type-expense" onclick="updateOperationType('expense')" aria-pressed="true">Расходы</button>
+                                <button class="btn btn-sm btn-outline" id="operation-type-income" onclick="updateOperationType('income')" aria-pressed="false">Доходы</button>
+                                <button class="btn btn-sm btn-outline" id="operation-type-debit" onclick="updateOperationType('debit')" aria-pressed="false">📤 Списания</button>
+                                <button class="btn btn-sm btn-outline" id="operation-type-credit" onclick="updateOperationType('credit')" aria-pressed="false">📥 Пополнения</button>
                             </div>
                         </div>
 
@@ -1160,88 +1152,55 @@ function updatePieChart(data) {
     pieChart.setOption(option, true);  // notMerge: true - clear old data (v5.1.3 bugfix)
 }
 
-// Update global type filter (applies to Plan-Fact, Pie, Heatmap)
-function updateGlobalType(type) {
-    currentGlobalType = type;
-    currentPieType = type;  // Keep for Pie chart compatibility
-
-    // Clear category filter BEFORE reloading charts (v5.1.3 bugfix)
-    currentCategoryIds = [];
-
-    // Update active button and ARIA states (v5.1.3: expense=red, income=green)
-    const expenseBtn = document.getElementById('global-type-expense');
-    const incomeBtn = document.getElementById('global-type-income');
+// Update operation type filter (unified: expense/income/debit/credit)
+function updateOperationType(type) {
+    // Map operation type to category type and transaction type
+    let categoryType, transactionType;
 
     if (type === 'expense') {
-        // Expense active (red)
-        expenseBtn.classList.remove('btn-outline');
-        expenseBtn.classList.add('btn-error');
-        expenseBtn.setAttribute('aria-pressed', 'true');
-        // Income inactive (outline)
-        incomeBtn.classList.remove('btn-success');
-        incomeBtn.classList.add('btn-outline');
-        incomeBtn.setAttribute('aria-pressed', 'false');
-    } else {
-        // Income active (green)
-        incomeBtn.classList.remove('btn-outline');
-        incomeBtn.classList.add('btn-success');
-        incomeBtn.setAttribute('aria-pressed', 'true');
-        // Expense inactive (outline)
-        expenseBtn.classList.remove('btn-error');
-        expenseBtn.classList.add('btn-outline');
-        expenseBtn.setAttribute('aria-pressed', 'false');
+        categoryType = 'expense';
+        transactionType = 'all';
+    } else if (type === 'income') {
+        categoryType = 'income';
+        transactionType = 'all';
+    } else if (type === 'debit') {
+        // Debit = списание = expense categories with debit transactions only
+        categoryType = 'expense';
+        transactionType = 'debit';
+    } else if (type === 'credit') {
+        // Credit = пополнение = income categories with credit transactions only
+        categoryType = 'income';
+        transactionType = 'credit';
     }
 
-    // Reload charts that depend on global type filter (AFTER clearing category filter)
-    if (customRangeActive) {
-        // Custom range mode (convert DD.MM.YYYY to YYYY-MM-DD)
-        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
-        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
-        loadPlanFactDataCustom(isoFrom, isoTo);
-        loadPieDataCustom(type, isoFrom, isoTo);
-        loadHeatmapDataCustom(isoFrom, isoTo);
-    } else {
-        // Period mode
-        loadPlanFactData(currentPeriod);
-        loadPieData(type, currentPeriod);
-        loadHeatmapData(currentPeriod);
-    }
+    currentGlobalType = categoryType;
+    currentPieType = categoryType;
+    currentTransactionType = transactionType;
 
-    // Update category filter with new type (v5.1.3)
-    // Use updateType() for efficiency instead of destroy + recreate
-    if (categoryChoices && typeof categoryChoices.updateType === 'function') {
-        categoryChoices.updateType(type).catch(error => {
-            console.error('Failed to update category filter type:', error);
-            // Fallback to full reinitialization if updateType fails
-            if (typeof initCategoryFilter === 'function') {
-                initCategoryFilter();
-            }
-        });
-    } else if (typeof initCategoryFilter === 'function') {
-        // Create new instance if doesn't exist yet
-        initCategoryFilter();
-    }
-}
-
-// Update transaction type filter (debit/credit)
-function updateTransactionType(type) {
-    currentTransactionType = type;
+    // Clear category filter BEFORE reloading charts
+    currentCategoryIds = [];
 
     // Update active button and ARIA states
-    const allBtn = document.getElementById('transaction-type-all');
-    const debitBtn = document.getElementById('transaction-type-debit');
-    const creditBtn = document.getElementById('transaction-type-credit');
+    const expenseBtn = document.getElementById('operation-type-expense');
+    const incomeBtn = document.getElementById('operation-type-income');
+    const debitBtn = document.getElementById('operation-type-debit');
+    const creditBtn = document.getElementById('operation-type-credit');
 
     // Reset all buttons to outline
-    [allBtn, debitBtn, creditBtn].forEach(btn => {
+    [expenseBtn, incomeBtn, debitBtn, creditBtn].forEach(btn => {
+        btn.classList.remove('btn-error', 'btn-success');
         btn.classList.add('btn-outline');
         btn.setAttribute('aria-pressed', 'false');
     });
 
-    // Set active button
+    // Set active button with color
     let activeBtn;
-    if (type === 'all') {
-        activeBtn = allBtn;
+    if (type === 'expense') {
+        activeBtn = expenseBtn;
+        activeBtn.classList.add('btn-error');
+    } else if (type === 'income') {
+        activeBtn = incomeBtn;
+        activeBtn.classList.add('btn-success');
     } else if (type === 'debit') {
         activeBtn = debitBtn;
     } else {
@@ -1251,17 +1210,29 @@ function updateTransactionType(type) {
     activeBtn.classList.remove('btn-outline');
     activeBtn.setAttribute('aria-pressed', 'true');
 
-    // Reload charts with new filter
+    // Reload charts that depend on operation type filter
     if (customRangeActive) {
         const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
         const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
         loadPlanFactDataCustom(isoFrom, isoTo);
-        loadPieDataCustom(currentGlobalType, isoFrom, isoTo);
+        loadPieDataCustom(categoryType, isoFrom, isoTo);
         loadHeatmapDataCustom(isoFrom, isoTo);
     } else {
         loadPlanFactData(currentPeriod);
-        loadPieData(currentGlobalType, currentPeriod);
+        loadPieData(categoryType, currentPeriod);
         loadHeatmapData(currentPeriod);
+    }
+
+    // Update category filter with new type
+    if (categoryChoices && typeof categoryChoices.updateType === 'function') {
+        categoryChoices.updateType(categoryType).catch(error => {
+            console.error('Failed to update category filter type:', error);
+            if (typeof initCategoryFilter === 'function') {
+                initCategoryFilter();
+            }
+        });
+    } else if (typeof initCategoryFilter === 'function') {
+        initCategoryFilter();
     }
 }
 
