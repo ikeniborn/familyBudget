@@ -232,3 +232,23 @@ select.category-filter option[data-type="credit"] {
     font-size: 0.875rem;
     font-weight: 500;
 }
+
+/* ==================================
+   Choices.js Dropdown Background (Analytics)
+   ================================== */
+
+/* Fix transparent background issue - make dropdown opaque */
+.choices__list--dropdown {
+    background-color: #ffffff !important; /* White background */
+    border: 1px solid #d1d5db; /* Gray border */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Shadow for depth */
+    z-index: 100; /* Ensure it's above charts */
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .choices__list--dropdown {
+        background-color: #1f2937 !important; /* Dark gray background */
+        border-color: #374151; /* Darker border */
+    }
+}
