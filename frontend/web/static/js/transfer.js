@@ -149,8 +149,6 @@ async function loadTransferData() {
         } else {
             console.error('[Transfer Modal] Failed to load cost centers:', ccResponse.status);
         }
-
-        console.log('[Transfer Modal] Data loaded successfully');
     } catch (error) {
         console.error('[Transfer Modal] Failed to load data:', error);
     }

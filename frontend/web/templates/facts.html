@@ -18,7 +18,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                     </svg>
-                    💸 Перевод
+                    💸 Добавить перевод
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
@@ -536,7 +536,14 @@ async function loadArticles() {
         const response = await fetch('/api/v1/articles?is_current=true', {
             credentials: 'include',
         });
-        const articles = await response.json();
+        const data = await response.json();
+
+        // Validate response format
+        const articles = Array.isArray(data) ? data : (data.articles || []);
+        if (!Array.isArray(articles)) {
+            console.error('Invalid API response format:', data);
+            throw new Error('Expected array of articles');
+        }
 
         // Build tree and flatten
         const tree = buildArticleTree(articles);
@@ -917,8 +924,14 @@ async function loadFacts() {
             })
         ]);
 
-        if (!factsResponse.ok || !countResponse.ok) {
-            throw new Error('Failed to load facts');
+        if (!factsResponse.ok) {
+            const errorText = await factsResponse.text();
+            throw new Error(`Failed to load facts: HTTP ${factsResponse.status} - ${errorText}`);
+        }
+
+        if (!countResponse.ok) {
+            const errorText = await countResponse.text();
+            throw new Error(`Failed to load facts count: HTTP ${countResponse.status} - ${errorText}`);
         }
 
         factsData = await factsResponse.json();

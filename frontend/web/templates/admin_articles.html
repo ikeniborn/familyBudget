@@ -12,17 +12,9 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="mb-4">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-3">
-                    <h2 class="card-title text-2xl">📊 Категории</h2>
-                    <div class="flex flex-wrap gap-2">
-                        <select id="filter-type" class="select select-sm select-bordered" onchange="toggleTypeFilter(this.value)">
-                            <option value="all">📋 Все</option>
-                            <option value="income">💰 Доход</option>
-                            <option value="expense">💸 Расход</option>
-                            <option value="debit">📤 Списание</option>
-                            <option value="credit">📥 Пополнение</option>
-                        </select>
-                        <button class="btn btn-sm btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
+                <div class="flex flex-col gap-3 mb-3">
+                    <div class="flex justify-between items-center">
+                        <h2 class="card-title text-2xl">📊 Категории</h2>
                         <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -30,11 +22,21 @@
                             Новая категория
                         </button>
                     </div>
-                </div>
-                <div class="form-control w-full max-w-xs">
-                    <div class="flex items-center gap-0">
-                        <span class="bg-base-200 px-3 h-10 flex items-center rounded-l-lg border border-r-0 border-base-300">🔍</span>
-                        <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-sm input-bordered w-full rounded-l-none" />
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <select id="filter-type" class="select select-bordered" onchange="toggleTypeFilter(this.value)">
+                            <option value="all">📋 Все</option>
+                            <option value="income">💰 Доход</option>
+                            <option value="expense">💸 Расход</option>
+                            <option value="debit">📤 Списание</option>
+                            <option value="credit">📥 Пополнение</option>
+                        </select>
+                        <div class="form-control flex-1 min-w-[200px] max-w-xs">
+                            <div class="flex items-center gap-0">
+                                <span class="bg-base-200 px-3 h-12 flex items-center rounded-l-lg border border-r-0 border-base-300">🔍</span>
+                                <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-bordered w-full rounded-l-none" />
+                            </div>
+                        </div>
+                        <button class="btn btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
                     </div>
                 </div>
             </div>
