@@ -235,6 +235,101 @@ async def update_cost_center(
     return CostCenterResponse.model_validate(new_cost_center)
 
 
+@router.put(
+    "/{cost_center_id}/archive",
+    response_model=CostCenterResponse,
+    summary="Archive cost center",
+    description="Archive cost center (simple UPDATE is_active=False, not SCD Type 2)",
+)
+async def archive_cost_center(
+    cost_center_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> CostCenterResponse:
+    """
+    Archive cost center by setting is_active=False.
+
+    Simple UPDATE operation (NOT SCD Type 2).
+    Archived cost centers are hidden from UI dropdowns but remain in analytics.
+    Only administrators can archive cost centers.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can archive cost centers",
+        )
+
+    query = select(CostCenter).where(
+        CostCenter.id == cost_center_id,
+        CostCenter.is_current == True,
+    )
+    result = await session.execute(query)
+    cost_center = result.scalar_one_or_none()
+
+    if not cost_center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Cost center {cost_center_id} not found",
+        )
+
+    # Simple UPDATE: is_active=False (NOT SCD Type 2)
+    cost_center.is_active = False
+    cost_center.updated_at = datetime.utcnow()
+
+    session.add(cost_center)
+    await session.commit()
+    await session.refresh(cost_center)
+
+    return cost_center
+
+
+@router.put(
+    "/{cost_center_id}/restore",
+    response_model=CostCenterResponse,
+    summary="Restore archived cost center",
+    description="Restore cost center (simple UPDATE is_active=True, not SCD Type 2)",
+)
+async def restore_cost_center(
+    cost_center_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> CostCenterResponse:
+    """
+    Restore archived cost center by setting is_active=True.
+
+    Simple UPDATE operation (NOT SCD Type 2).
+    Only administrators can restore cost centers.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can restore cost centers",
+        )
+
+    query = select(CostCenter).where(
+        CostCenter.id == cost_center_id,
+        CostCenter.is_current == True,
+    )
+    result = await session.execute(query)
+    cost_center = result.scalar_one_or_none()
+
+    if not cost_center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Cost center {cost_center_id} not found",
+        )
+
+    # Simple UPDATE: is_active=True (NOT SCD Type 2)
+    cost_center.is_active = True
+    cost_center.updated_at = datetime.utcnow()
+
+    session.add(cost_center)
+    await session.commit()
+    await session.refresh(cost_center)
+
+    return cost_center
+
+
 @router.delete(
     "/{cost_center_id}",
     status_code=status.HTTP_204_NO_CONTENT,

@@ -235,6 +235,101 @@ async def update_financial_center(
     return FinancialCenterResponse.model_validate(new_financial_center)
 
 
+@router.put(
+    "/{financial_center_id}/archive",
+    response_model=FinancialCenterResponse,
+    summary="Archive financial center",
+    description="Archive financial center (simple UPDATE is_active=False, not SCD Type 2)",
+)
+async def archive_financial_center(
+    financial_center_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> FinancialCenterResponse:
+    """
+    Archive financial center by setting is_active=False.
+
+    Simple UPDATE operation (NOT SCD Type 2).
+    Archived financial centers are hidden from UI dropdowns but remain in analytics.
+    Only administrators can archive financial centers.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can archive financial centers",
+        )
+
+    query = select(FinancialCenter).where(
+        FinancialCenter.id == financial_center_id,
+        FinancialCenter.is_current == True,
+    )
+    result = await session.execute(query)
+    financial_center = result.scalar_one_or_none()
+
+    if not financial_center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Financial center {financial_center_id} not found",
+        )
+
+    # Simple UPDATE: is_active=False (NOT SCD Type 2)
+    financial_center.is_active = False
+    financial_center.updated_at = datetime.utcnow()
+
+    session.add(financial_center)
+    await session.commit()
+    await session.refresh(financial_center)
+
+    return financial_center
+
+
+@router.put(
+    "/{financial_center_id}/restore",
+    response_model=FinancialCenterResponse,
+    summary="Restore archived financial center",
+    description="Restore financial center (simple UPDATE is_active=True, not SCD Type 2)",
+)
+async def restore_financial_center(
+    financial_center_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> FinancialCenterResponse:
+    """
+    Restore archived financial center by setting is_active=True.
+
+    Simple UPDATE operation (NOT SCD Type 2).
+    Only administrators can restore financial centers.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can restore financial centers",
+        )
+
+    query = select(FinancialCenter).where(
+        FinancialCenter.id == financial_center_id,
+        FinancialCenter.is_current == True,
+    )
+    result = await session.execute(query)
+    financial_center = result.scalar_one_or_none()
+
+    if not financial_center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Financial center {financial_center_id} not found",
+        )
+
+    # Simple UPDATE: is_active=True (NOT SCD Type 2)
+    financial_center.is_active = True
+    financial_center.updated_at = datetime.utcnow()
+
+    session.add(financial_center)
+    await session.commit()
+    await session.refresh(financial_center)
+
+    return financial_center
+
+
 @router.delete(
     "/{financial_center_id}",
     status_code=status.HTTP_204_NO_CONTENT,

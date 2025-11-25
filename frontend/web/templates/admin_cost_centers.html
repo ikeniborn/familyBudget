@@ -21,6 +21,16 @@
                 </button>
             </div>
 
+            <!-- Status Filter -->
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+                <label class="font-semibold text-sm">Статус:</label>
+                <div class="btn-group">
+                    <button class="btn btn-sm" id="status-all" onclick="updateStatusFilter('all')" aria-pressed="true">Все</button>
+                    <button class="btn btn-sm btn-outline" id="status-active" onclick="updateStatusFilter('active')" aria-pressed="false">✓ Активные</button>
+                    <button class="btn btn-sm btn-outline" id="status-archived" onclick="updateStatusFilter('archived')" aria-pressed="false">📦 Архивные</button>
+                </div>
+            </div>
+
             <div id="centers-table-container" class="min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
@@ -96,6 +106,7 @@
 <script>
 // Global state
 let centersData = [];
+let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 
 // Load centers on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -132,7 +143,15 @@ async function loadCenters() {
 function renderCentersTable(centers) {
     const container = document.getElementById('centers-table-container');
 
-    if (centers.length === 0) {
+    // Filter by status
+    let filteredCenters = centers;
+    if (currentStatusFilter === 'active') {
+        filteredCenters = centers.filter(c => c.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filteredCenters = centers.filter(c => c.is_active === false);
+    }
+
+    if (filteredCenters.length === 0) {
         container.innerHTML = '<div class="text-center py-8 text-base-content/60">📊 МВЗ не найдены. Нажмите "➕ Новый МВЗ" для создания.</div>';
         return;
     }
@@ -152,20 +171,34 @@ function renderCentersTable(centers) {
                 <tbody>
     `;
 
-    centers.forEach(center => {
+    filteredCenters.forEach(center => {
         const description = center.description || '—';
         const validFrom = new Date(center.valid_from).toLocaleDateString('ru-RU');
+        const isArchived = center.is_active === false;
+        const archivedBadge = isArchived ? ' <span class="badge badge-sm badge-ghost">📦 архив</span>' : '';
+
+        // Action buttons: icon-only with tooltips
+        const actionButtons = isArchived
+            ? `
+                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${center.id})" title="Изменить">✏️</button>
+                <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreCenter(${center.id})" title="Восстановить">♻️</button>
+                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
+              `
+            : `
+                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${center.id})" title="Изменить">✏️</button>
+                <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveCenter(${center.id})" title="Архивировать">📦</button>
+                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
+              `;
 
         html += `
             <tr data-center-id="${center.id}">
-                <td class="font-medium">${center.name}</td>
+                <td class="font-medium">${center.name}${archivedBadge}</td>
                 <td class="font-mono text-sm">${center.code || '—'}</td>
                 <td>${description}</td>
                 <td>${validFrom}</td>
                 <td>
                     <div class="flex gap-1">
-                        <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${center.id})">✏️ Изменить</button>
-                        <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deleteCenter(${center.id})">🗑️</button>
+                        ${actionButtons}
                     </div>
                 </td>
             </tr>
@@ -305,6 +338,88 @@ async function deleteCenter(centerId) {
         showNotification('✅ МВЗ успешно удален!', 'success');
     } catch (error) {
         console.error('Error deleting cost center:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Update status filter
+function updateStatusFilter(status) {
+    currentStatusFilter = status;
+
+    // Update active button and ARIA states
+    const allBtn = document.getElementById('status-all');
+    const activeBtn = document.getElementById('status-active');
+    const archivedBtn = document.getElementById('status-archived');
+
+    // Reset all buttons to outline
+    [allBtn, activeBtn, archivedBtn].forEach(btn => {
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    // Set active button
+    let selectedBtn;
+    if (status === 'all') {
+        selectedBtn = allBtn;
+    } else if (status === 'active') {
+        selectedBtn = activeBtn;
+    } else {
+        selectedBtn = archivedBtn;
+    }
+
+    selectedBtn.classList.remove('btn-outline');
+    selectedBtn.setAttribute('aria-pressed', 'true');
+
+    // Re-render table with new filter
+    renderCentersTable(centersData);
+}
+
+// Archive cost center
+async function archiveCenter(centerId) {
+    if (!confirm('📦 Вы уверены, что хотите архивировать этот МВЗ? Запись будет скрыта из выпадающих списков.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/cost-centers/${centerId}/archive`, {
+            method: 'PUT',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        await loadCenters();
+        showNotification('✅ МВЗ успешно архивирован!', 'success');
+    } catch (error) {
+        console.error('Error archiving cost center:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Restore cost center
+async function restoreCenter(centerId) {
+    try {
+        const response = await fetch(`/api/v1/cost-centers/${centerId}/restore`, {
+            method: 'PUT',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        await loadCenters();
+        showNotification('✅ МВЗ успешно восстановлен!', 'success');
+    } catch (error) {
+        console.error('Error restoring cost center:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
