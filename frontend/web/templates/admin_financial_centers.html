@@ -425,18 +425,47 @@ async function restoreCenter(centerId) {
     }
 }
 
-// Utility: Show notification
+// Utility: Show notification (DaisyUI toast)
 function showNotification(message, type) {
     // Handle error objects properly
     if (typeof message === 'object' && message !== null) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
-    if (type === 'error') {
-        alert('❌ ' + message);
-    } else {
-        alert(message);
+    // Get or create toast container
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'toast toast-top toast-end z-50';
+        document.body.appendChild(toastContainer);
     }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    const alertClass = type === 'error' ? 'alert-error' : 'alert-success';
+    toast.className = `alert ${alertClass} shadow-lg max-w-sm`;
+    toast.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span>${message}</span>
+        </div>
+    `;
+
+    // Add to container
+    toastContainer.appendChild(toast);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+            toastContainer.removeChild(toast);
+            // Remove container if empty
+            if (toastContainer.children.length === 0) {
+                document.body.removeChild(toastContainer);
+            }
+        }, 300);
+    }, 3000);
 }
 </script>
 {% endblock %}

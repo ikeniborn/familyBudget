@@ -36,7 +36,11 @@
                                 <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-bordered w-full rounded-l-none" />
                             </div>
                         </div>
-                        <button class="btn btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
+                        <div class="btn-group">
+                            <button class="btn btn-sm" id="status-all" onclick="updateStatusFilter('all')" aria-pressed="true">Все</button>
+                            <button class="btn btn-sm btn-outline" id="status-active" onclick="updateStatusFilter('active')" aria-pressed="false">✓ Активные</button>
+                            <button class="btn btn-sm btn-outline" id="status-archived" onclick="updateStatusFilter('archived')" aria-pressed="false">📦 Архивные</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -149,7 +153,7 @@
 <script>
 // Global state
 let currentType = 'all';
-let showArchived = false;
+let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 let currentSearchQuery = '';
 let articlesData = [];
 
@@ -188,7 +192,9 @@ async function loadArticles() {
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
-        let url = `/api/v1/admin/articles?is_current=true&include_inactive=${showArchived}`;
+        // Determine include_inactive based on status filter
+        const includeInactive = currentStatusFilter !== 'active'; // 'all' and 'archived' need inactive articles
+        let url = `/api/v1/admin/articles?is_current=true&include_inactive=${includeInactive}`;
 
         const response = await fetch(url, {
             credentials: 'include',
@@ -214,6 +220,14 @@ function renderArticlesTable(articles) {
     let filtered = currentType === 'all'
         ? articles
         : articles.filter(a => a.type === currentType);
+
+    // Filter by status (all/active/archived)
+    if (currentStatusFilter === 'active') {
+        filtered = filtered.filter(a => a.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filtered = filtered.filter(a => a.is_active === false);
+    }
+    // 'all' - no filtering by is_active
 
     // Filter by search query
     if (currentSearchQuery) {
@@ -647,20 +661,27 @@ async function deactivateArticle(articleId) {
     }
 }
 
-// Toggle archived filter
-function toggleArchivedFilter() {
-    showArchived = !showArchived;
+// Update status filter (all/active/archived)
+function updateStatusFilter(status) {
+    currentStatusFilter = status;
 
-    const btn = document.getElementById('filter-archived');
-    if (showArchived) {
-        btn.classList.remove('btn-outline');
-        btn.classList.add('btn-primary');
-        btn.textContent = '📦 Скрыть архивные';
-    } else {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.textContent = '📦 Архивные';
-    }
+    // Update button states
+    const buttons = {
+        'all': document.getElementById('status-all'),
+        'active': document.getElementById('status-active'),
+        'archived': document.getElementById('status-archived')
+    };
+
+    // Reset all buttons
+    Object.entries(buttons).forEach(([key, btn]) => {
+        if (key === status) {
+            btn.classList.remove('btn-outline');
+            btn.setAttribute('aria-pressed', 'true');
+        } else {
+            btn.classList.add('btn-outline');
+            btn.setAttribute('aria-pressed', 'false');
+        }
+    });
 
     loadArticles();
 }

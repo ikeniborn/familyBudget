@@ -49,17 +49,23 @@ async def list_cost_centers(
     current_user: User = Depends(get_current_user),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
+    include_inactive: bool = Query(False, description="Include archived cost centers"),
 ) -> CostCenterListResponse:
     """
     List cost centers for current user.
 
     Shared references architecture: All users see all cost centers.
     Only current versions (is_current=True) are returned.
+    By default, only active cost centers (is_active=True) are returned.
     """
     # Build query - all cost centers (shared references)
     conditions = [
         CostCenter.is_current == True,
     ]
+
+    # Filter archived if not explicitly requested
+    if not include_inactive:
+        conditions.append(CostCenter.is_active == True)
 
     # Count total
     count_query = select(CostCenter).where(*conditions)

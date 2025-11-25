@@ -49,17 +49,23 @@ async def list_financial_centers(
     current_user: User = Depends(get_current_user),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
+    include_inactive: bool = Query(False, description="Include archived financial centers"),
 ) -> FinancialCenterListResponse:
     """
     List financial centers for current user.
 
     Shared references architecture: All users see all financial centers.
     Only current versions (is_current=True) are returned.
+    By default, only active financial centers (is_active=True) are returned.
     """
     # Build query - all financial centers (shared references)
     conditions = [
         FinancialCenter.is_current == True,
     ]
+
+    # Filter archived if not explicitly requested
+    if not include_inactive:
+        conditions.append(FinancialCenter.is_active == True)
 
     # Count total
     count_query = select(FinancialCenter).where(*conditions)
