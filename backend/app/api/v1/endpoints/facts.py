@@ -34,6 +34,7 @@ from backend.app.models.article import Article
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
+from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.fact import (
     FactCreate,
@@ -200,7 +201,7 @@ async def list_facts(
     """
     # Base query with JOINs for enriched response
     statement = (
-        select(BudgetFact, Article, FinancialCenter, CostCenter)
+        select(BudgetFact, Article, FinancialCenter, CostCenter, User)
         .join(
             Article,
             (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
@@ -214,6 +215,10 @@ async def list_facts(
             CostCenter,
             (BudgetFact.cost_center_id == CostCenter.id)
             & (CostCenter.is_current == True)  # noqa: E712
+        )
+        .outerjoin(
+            User,
+            (BudgetFact.user_id == User.id) & (User.is_current == True)  # noqa: E712
         )
     )
 
@@ -269,10 +274,16 @@ async def list_facts(
 
     # Enrich facts with article and center data
     enriched_facts = []
-    for fact, article, financial_center, cost_center in rows:
+    for fact, article, financial_center, cost_center, user in rows:
+        # Get user name (prefer first_name, fallback to username)
+        user_name = None
+        if user:
+            user_name = user.first_name or user.username or f"User {user.telegram_id}"
+
         fact_dict = {
             "id": fact.id,
             "user_id": fact.user_id,
+            "user_name": user_name,
             "article_id": fact.article_id,
             "article_type": article.type,
             "article_name": article.name,
