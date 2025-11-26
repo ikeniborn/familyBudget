@@ -255,7 +255,6 @@ async def get_users_stats(
         # Count articles
         articles_count_query = select(func.count(Article.id)).where(
             Article.user_id == user.id,
-            Article.is_current == True  # noqa: E712
         )
         articles_count_result = await session.execute(articles_count_query)
         total_articles = articles_count_result.scalar() or 0
@@ -327,7 +326,6 @@ async def get_system_stats(
 
     # Total articles (Shared References - NO user_id filter!)
     articles_count_query = select(func.count(Article.id)).where(
-        Article.is_current == True  # noqa: E712
     )
     articles_count_result = await session.execute(articles_count_query)
     total_articles = articles_count_result.scalar() or 0
@@ -882,7 +880,6 @@ async def get_all_articles(
     query = select(Article, User).outerjoin(User, Article.user_id == User.id)
 
     if is_current:
-        query = query.where(Article.is_current == True)  # noqa: E712
 
     # Filter archived categories unless explicitly included
     if not include_inactive:
@@ -946,7 +943,6 @@ async def create_article(
     if create_data.parent_id is not None:
         parent_query = select(Article).where(
             Article.id == create_data.parent_id,
-            Article.is_current == True  # noqa: E712
         )
         parent_result = await session.execute(parent_query)
         parent = parent_result.scalar_one_or_none()
@@ -1030,7 +1026,6 @@ async def update_article(
     # Get current article version
     query = select(Article).where(
         Article.id == article_id,
-        Article.is_current == True  # noqa: E712
     )
     result = await session.execute(query)
     article = result.scalar_one_or_none()
@@ -1054,7 +1049,6 @@ async def update_article(
         # Check parent exists
         parent_query = select(Article).where(
             Article.id == updates["parent_id"],
-            Article.is_current == True  # noqa: E712
         )
         parent_result = await session.execute(parent_query)
         parent = parent_result.scalar_one_or_none()
@@ -1075,7 +1069,6 @@ async def update_article(
             Article.user_id == article.user_id,
             Article.name == effective_name,
             Article.type == updates["type"],
-            Article.is_current == True,  # noqa: E712
             Article.id != article_id
         )
         duplicate_result = await session.execute(duplicate_query)
@@ -1094,7 +1087,6 @@ async def update_article(
         if effective_parent_id is not None:
             parent_query = select(Article).where(
                 Article.id == effective_parent_id,
-                Article.is_current == True  # noqa: E712
             )
             parent_result = await session.execute(parent_query)
             parent_article = parent_result.scalar_one_or_none()
@@ -1109,7 +1101,6 @@ async def update_article(
         # This query gets all immediate children (depth=1 from current article)
         children_query = select(Article).where(
             Article.parent_id == article_id,
-            Article.is_current == True  # noqa: E712
         )
         children_result = await session.execute(children_query)
         children = children_result.scalars().all()
@@ -1175,7 +1166,6 @@ async def update_article(
             # Get all immediate children
             children_query = select(Article).where(
                 Article.parent_id == parent_article_id,
-                Article.is_current == True  # noqa: E712
             )
             children_result = await session.execute(children_query)
             children_list = children_result.scalars().all()
@@ -1273,7 +1263,6 @@ async def deactivate_article(
     # Get current article version
     query = select(Article).where(
         Article.id == article_id,
-        Article.is_current == True  # noqa: E712
     )
     result = await session.execute(query)
     article = result.scalar_one_or_none()
@@ -1284,7 +1273,6 @@ async def deactivate_article(
     # Check for active children
     children_query = select(func.count(Article.id)).where(
         Article.parent_id == article_id,
-        Article.is_current == True  # noqa: E712
     )
     children_result = await session.execute(children_query)
     children_count = children_result.scalar()
@@ -1557,7 +1545,6 @@ async def update_fact(
     if update_data.article_id is not None and update_data.article_id != fact.article_id:
         article_query = select(Article).where(
             Article.id == update_data.article_id,
-            Article.is_current == True  # noqa: E712
         )
         article_result = await session.execute(article_query)
         article = article_result.scalar_one_or_none()

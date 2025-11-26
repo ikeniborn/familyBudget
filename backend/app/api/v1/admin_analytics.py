@@ -57,21 +57,18 @@ async def get_system_overview(
 
     # Total articles
     articles_stmt = select(func.count(Article.id)).where(
-        Article.is_current == True  # noqa: E712
     )
     articles_result = await session.execute(articles_stmt)
     total_articles = articles_result.scalar_one()
 
     # Total ЦФО
     fc_stmt = select(func.count(FinancialCenter.id)).where(
-        FinancialCenter.is_current == True  # noqa: E712
     )
     fc_result = await session.execute(fc_stmt)
     total_fcs = fc_result.scalar_one()
 
     # Total МВЗ
     cc_stmt = select(func.count(CostCenter.id)).where(
-        CostCenter.is_current == True  # noqa: E712
     )
     cc_result = await session.execute(cc_stmt)
     total_ccs = cc_result.scalar_one()
@@ -97,7 +94,6 @@ async def get_system_overview(
         Article.type,
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Article.is_current == True  # noqa: E712
     ).group_by(Article.type)
 
     income_expense_result = await session.execute(income_expense_stmt)
@@ -200,7 +196,6 @@ async def get_transactions_trends(
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= start_date,
         Fact.fact_date <= end_date,
-        Article.is_current == True  # noqa: E712
     ).group_by(
         Fact.fact_date,
         Article.type
@@ -324,7 +319,6 @@ async def get_categories_breakdown(
         func.sum(Fact.amount).label("total_amount")
     ).select_from(Article).join(Fact, Article.id == Fact.article_id).where(
         Article.type == type,
-        Article.is_current == True  # noqa: E712
     ).group_by(
         Article.id,
         Article.name,
@@ -381,7 +375,6 @@ async def get_centers_usage(
         Fact,
         FinancialCenter.id == Fact.financial_center_id
     ).where(
-        FinancialCenter.is_current == True  # noqa: E712
     ).group_by(
         FinancialCenter.id,
         FinancialCenter.code,
@@ -414,7 +407,6 @@ async def get_centers_usage(
         Fact,
         CostCenter.id == Fact.cost_center_id
     ).where(
-        CostCenter.is_current == True  # noqa: E712
     ).group_by(
         CostCenter.id,
         CostCenter.code,
