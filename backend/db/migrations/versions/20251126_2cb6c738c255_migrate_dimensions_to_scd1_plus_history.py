@@ -504,7 +504,7 @@ def upgrade() -> None:
             changed_by_user_id INT,
             created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
-    """))
+    """)
 
     # Create indexes
     op.execute("""
