@@ -20,9 +20,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## 🌍 Окружения разработки
+
+**Архитектура разработки:**
+- **Локальная разработка** (dev machine) - редактирование кода, unit тесты, dev server
+- **Тестовый сервер** (205.172.58.179) - integration/e2e тесты, staging deployment
+
+**Workflow:**
+1. 💻 **Разработка локально** → редактирование кода, запуск dev server
+2. 🧪 **Тестирование на test server** → деплой, integration тесты, проверка в production-like окружении
+3. 🚀 **Production** → финальный деплой после прохождения всех тестов
+
+**SSH доступ к тестовому серверу:**
+```bash
+# Инициализация (один раз за сессию)
+budget-ssh
+
+# Подключение
+ssh budget-test    # Полный алиас
+ssh test          # Короткий алиас
+```
+
+📚 **Подробности:** См. секцию [Deployment → Тестовый сервер](#тестовый-сервер)
+
+---
+
 ## 🎯 Быстрый старт для Claude Code
 
-### Команды для разработки
+### Локальная разработка (Dev Machine)
 
 ```bash
 # Backend dev server (из корня проекта!)
@@ -31,21 +56,41 @@ uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
 # Telegram Bot (требует backend)
 cd bot && python main.py
 
-# Docker (production) - ТОЛЬКО из git repository!
-cd ~/familyBudget && ./deploy.sh --profile full
-
-# Alembic миграции
+# Alembic миграции (локальная БД)
 cd backend/db/migrations
 alembic upgrade head    # Применить
 alembic current         # Текущая ревизия
 
-# Полный сброс БД (⚠️ УДАЛИТ ВСЕ ДАННЫЕ!)
+# Полный сброс локальной БД (⚠️ УДАЛИТ ВСЕ ДАННЫЕ!)
 docker compose down -v && docker compose up -d
 
-# Тестирование
-pytest -m unit                    # Быстрые тесты
-pytest -m integration             # С БД
+# Unit тесты (быстрые, без внешних зависимостей)
+pytest -m unit
 pytest --cov=backend --cov-report=html  # Coverage
+```
+
+### Тестовый сервер (205.172.58.179)
+
+```bash
+# Подключение к тестовому серверу
+budget-ssh              # Инициализация ssh-agent (один раз)
+ssh budget-test         # Подключение
+
+# На тестовом сервере: Deployment
+cd ~/familyBudget
+git pull origin main
+sudo ./deploy.sh --profile full
+
+# Integration/e2e тесты на test server
+ssh budget-test 'cd ~/familyBudget && pytest -m integration'
+ssh budget-test 'cd ~/familyBudget && pytest -m e2e'
+
+# Проверка логов
+ssh budget-test 'docker compose logs backend -f'
+ssh budget-test 'docker compose logs bot --tail=50'
+
+# Миграции БД на test server
+ssh budget-test 'cd ~/familyBudget && sudo ./deploy.sh --migrations-only'
 ```
 
 ---
@@ -64,21 +109,85 @@ sudo ./install.sh  # Установка (233 пакета)
 
 ## 🧪 Тестирование
 
+### Локальные тесты (Dev Machine)
+
+**Unit тесты (быстрые, с моками):**
 ```bash
-pytest -m unit          # Быстрые (моки)
-pytest -m integration   # С БД
-pytest -m e2e           # Full stack
-pytest --cov=backend --cov-report=html  # Coverage
-ruff check . && black . && mypy .       # Quality
+pytest -m unit                           # Быстрые unit тесты
+pytest -m unit --cov=backend             # С coverage
+pytest --cov=backend --cov-report=html   # HTML coverage report
 ```
 
-**Markers:** `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.slow`
+**Code Quality:**
+```bash
+ruff check .                             # Linting
+black .                                  # Форматирование
+mypy .                                   # Type checking
+ruff check . && black . && mypy .        # Все проверки
+```
 
-**Ключевые файлы:**
+### Тесты на тестовом сервере (205.172.58.179)
+
+**Integration тесты (с реальной БД):**
+```bash
+# Запуск удалённо
+ssh budget-test 'cd ~/familyBudget && pytest -m integration'
+ssh budget-test 'cd ~/familyBudget && pytest -m integration -v'
+
+# ИЛИ на сервере
+ssh budget-test
+cd ~/familyBudget
+pytest -m integration
+```
+
+**E2E тесты (full stack):**
+```bash
+# Запуск удалённо
+ssh budget-test 'cd ~/familyBudget && pytest -m e2e'
+
+# С детальным выводом
+ssh budget-test 'cd ~/familyBudget && pytest -m e2e -v --tb=short'
+```
+
+**Coverage на test server:**
+```bash
+ssh budget-test 'cd ~/familyBudget && pytest --cov=backend --cov-report=html'
+# HTML отчёт: /home/ikeniborn/familyBudget/htmlcov/index.html
+
+# Скачать coverage report локально
+scp -r budget-test:~/familyBudget/htmlcov ./coverage-report/
+```
+
+### Pytest Markers
+
+**Markers:** `@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.e2e`, `@pytest.mark.slow`
+
+**Использование:**
+```python
+@pytest.mark.unit
+def test_validation():
+    """Быстрый тест без внешних зависимостей"""
+    pass
+
+@pytest.mark.integration
+async def test_database_query(async_session):
+    """Тест с реальной БД (запускается на test server)"""
+    pass
+
+@pytest.mark.e2e
+@pytest.mark.slow
+async def test_full_workflow(async_client):
+    """Full stack тест (запускается на test server)"""
+    pass
+```
+
+### Ключевые файлы для тестирования
+
 - `backend/app/main.py:39-96` - Lifespan + scheduler
 - `backend/app/services/scd2_service.py` - SCD Type 2
 - `backend/app/services/hierarchy_service.py` - Closure Table
 - `bot/handlers/add.py` - ConversationHandler
+- `tests/conftest.py` - Fixtures и test configuration
 
 ---
 
@@ -1113,7 +1222,139 @@ alembic downgrade -2  # 2 миграции
 
 ## 🚀 Deployment
 
-### Первоначальная установка
+### Окружения
+
+**Два независимых окружения:**
+
+| Окружение | Назначение | Расположение |
+|-----------|-----------|--------------|
+| **Локальная разработка** | Редактирование кода, unit тесты, dev server | Dev machine |
+| **Тестовый сервер** | Integration/e2e тесты, staging deployment | 205.172.58.179 |
+
+---
+
+### Тестовый сервер
+
+**Сервер:** 205.172.58.179
+**Пользователь:** ikeniborn
+**Назначение:** Integration/e2e тестирование, staging deployment
+
+#### SSH доступ
+
+**Первоначальная настройка (выполнено):**
+- ✅ SSH config (`~/.ssh/config`) с алиасами `budget-test` и `test`
+- ✅ Приватный ключ: `/home/ikeniborn/Documents/Hostkey/ikeniborn-dev` (права 600)
+- ✅ Bash алиас `budget-ssh` для инициализации
+- ✅ Автоматический ssh-agent management
+
+**Подключение к тестовому серверу:**
+
+```bash
+# Инициализация (один раз за сессию)
+budget-ssh
+# - Запускает ssh-agent
+# - Добавляет SSH ключ (может запросить passphrase)
+# - Проверяет подключение
+
+# Подключение
+ssh budget-test    # Полный алиас
+ssh test          # Короткий алиас
+
+# Выполнить команду на сервере
+ssh budget-test 'docker ps'
+ssh budget-test 'cd ~/familyBudget && git status'
+
+# Копирование файлов
+scp local-file.txt budget-test:/tmp/
+scp budget-test:/opt/budget/.env ./env.backup
+```
+
+**Troubleshooting SSH:**
+
+```bash
+# Проверить что ключ добавлен в ssh-agent
+ssh-add -l
+
+# Проверить доступность сервера
+ping 205.172.58.179
+nc -zv 205.172.58.179 22
+
+# Verbose SSH для debug
+ssh -v budget-test
+
+# Переинициализация ssh-agent
+budget-ssh
+```
+
+#### Deployment на тестовый сервер
+
+**Workflow:**
+
+```bash
+# 1. Подключиться к тестовому серверу
+ssh budget-test
+
+# 2. Перейти в git repo
+cd ~/familyBudget
+
+# 3. Обновить код
+git pull origin main
+
+# 4. Деплой
+sudo ./deploy.sh --profile full
+
+# 5. Проверить статус сервисов
+docker compose ps
+docker compose logs backend --tail=50
+```
+
+**Типичные команды на test server:**
+
+```bash
+# Проверка статуса
+docker compose ps
+docker compose logs backend -f
+
+# Миграции БД
+cd ~/familyBudget
+sudo ./deploy.sh --migrations-only
+
+# Полный перезапуск
+cd ~/familyBudget
+sudo ./deploy.sh --profile full
+
+# Проверка логов
+docker compose logs backend --tail=100
+docker compose logs postgres --tail=50
+docker compose logs bot -f
+
+# Тестирование
+ssh budget-test 'cd ~/familyBudget && pytest -m integration'
+```
+
+---
+
+### Локальная разработка
+
+**Для локального dev server:**
+
+```bash
+# Backend dev server (из корня проекта!)
+uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Telegram Bot (требует backend)
+cd bot && python main.py
+
+# Unit тесты
+pytest -m unit
+pytest --cov=backend --cov-report=html
+```
+
+---
+
+### Production Deployment (будущее)
+
+**Первоначальная установка:**
 ```bash
 cd ~/familyBudget
 sudo ./install.sh    # Docker, UFW
@@ -1121,19 +1362,21 @@ sudo ./install.sh    # Docker, UFW
 ./deploy.sh --profile full
 ```
 
-### Обновление
+**Обновление:**
 ```bash
 cd ~/familyBudget && git pull
 ./deploy.sh --profile full  # Полный деплой (~3 мин)
 ```
 
-### Варианты деплоя
+**Варианты деплоя:**
 
 | Сценарий | Команда | Время |
 |----------|---------|-------|
 | **Новая миграция БД** | `--migrations-only` | ~10 сек |
 | **Обновление кода** | `--no-migrate` | ~2 мин |
 | **Полное обновление** | `--profile full` | ~3 мин |
+
+---
 
 ### ⚠️ КРИТИЧНО
 
@@ -1148,6 +1391,17 @@ cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
 ```
 
 **Почему:** scripts/lib/ модули только в repository
+
+**✓ SSH алиасы для тестового сервера:**
+```bash
+ssh budget-test    # Правильно
+ssh test          # Правильно
+```
+
+**✗ НЕ используй прямой IP:**
+```bash
+ssh ikeniborn@205.172.58.179  # Неудобно, требует указания ключа
+```
 
 ---
 
@@ -1192,6 +1446,37 @@ cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
 
 ## ⚡ Важные напоминания
 
+### Development Workflow
+
+**Правильный workflow разработки:**
+
+1. 💻 **Локальная разработка:**
+   - Редактирование кода в git repo
+   - Unit тесты (`pytest -m unit`)
+   - Dev server для быстрой проверки
+   - Git commit
+
+2. 🧪 **Тестирование на test server:**
+   ```bash
+   # Подключиться к test server
+   budget-ssh && ssh budget-test
+
+   # Обновить код и задеплоить
+   cd ~/familyBudget && git pull origin main
+   sudo ./deploy.sh --profile full
+
+   # Запустить integration/e2e тесты
+   pytest -m integration
+   pytest -m e2e
+   ```
+
+3. 🚀 **Production (после успешных тестов):**
+   - Только после прохождения всех тестов на test server
+   - Merge в main branch
+   - Deploy на production
+
+### Coding Standards
+
 **ВСЕГДА:**
 1. ✅ Absolute imports (`from backend.app.*`)
 2. ✅ `CurrentUser` dependency для auth
@@ -1199,9 +1484,41 @@ cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
 4. ✅ `HierarchyService` для категорий
 5. ✅ БЕЗ `user_id` фильтрации (Shared Family Budget)
 6. ✅ Admin checks для dimension CREATE/UPDATE/DELETE
-7. ✅ Тесты с pytest markers
+7. ✅ Тесты с pytest markers (`@pytest.mark.unit`, `@pytest.mark.integration`, `@pytest.mark.e2e`)
 8. ✅ Alembic для изменений БД
 9. ✅ Используй `?v=PLACEHOLDER` для всех статических файлов в HTML
+10. ✅ Unit тесты локально, integration/e2e на test server
+
+### SSH и Servers
+
+**✅ ПРАВИЛЬНО - SSH алиасы:**
+```bash
+budget-ssh              # Инициализация ssh-agent
+ssh budget-test         # Подключение к test server
+ssh test               # Короткий алиас
+```
+
+**❌ НЕПРАВИЛЬНО - Прямой IP:**
+```bash
+ssh ikeniborn@205.172.58.179  # НЕ используй
+```
+
+### Deployment
+
+**✅ ПРАВИЛЬНО - Deploy из git repo:**
+```bash
+# На test server
+ssh budget-test
+cd ~/familyBudget && git pull
+sudo ./deploy.sh --profile full
+```
+
+**❌ НЕПРАВИЛЬНО:**
+```bash
+cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
+```
+
+### Static Files и Cache
 
 **НИКОГДА НЕ делай:**
 - ❌ НЕ запускай `scripts/lib/cache_busting.sh` локально (только на сервере при deploy!)
@@ -1209,16 +1526,24 @@ cd /opt/budget && ./deploy.sh  # ❌ Модули не найдены!
 - ❌ НЕ редактируй `?v=` версии вручную
 - ❌ НЕ редактируй `frontend/**/static/**/*.min.js` - minified files (auto)
 - ❌ НЕ используй `backend/db/deprecated/schema/*.sql` - archived DDL (use Alembic!)
-- ❌ НЕ редактируй `/opt/budget/**/*` напрямую (sync from ~/familyBudget)
+- ❌ НЕ редактируй `/opt/budget/**/*` напрямую (sync from git repo)
 
-**Workflow изменений:**
+### Quick Reference
+
+**Локальная разработка:**
 ```bash
-# 1. Редактируй в ~/familyBudget (git repo)
-# 2. git add . && git commit -m "feat: ..."
-# 3. cd ~/familyBudget && ./deploy.sh --profile full
-# НЕ редактируй /opt/budget напрямую!
+uvicorn backend.app.main:app --reload    # Dev server
+pytest -m unit                            # Unit тесты
+git add . && git commit -m "feat: ..."   # Commit
+```
+
+**Тестовый сервер:**
+```bash
+budget-ssh && ssh budget-test                     # Подключение
+cd ~/familyBudget && git pull && sudo ./deploy.sh # Deploy
+pytest -m integration && pytest -m e2e            # Тесты
 ```
 
 ---
 
-**Версия:** 5.0.0-beta | **Обновлено:** 2025-11-20
+**Версия:** 5.0.0-beta | **Обновлено:** 2025-11-26
