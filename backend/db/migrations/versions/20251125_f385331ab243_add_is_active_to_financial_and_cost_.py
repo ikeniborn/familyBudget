@@ -1,7 +1,7 @@
 """add_is_active_to_financial_and_cost_centers
 
 Revision ID: f385331ab243
-Revises: add_debit_credit
+Revises: 24d9cbd6ea0c
 Create Date: 2025-11-25 14:12:28.489411
 
 Add is_active field to FinancialCenter and CostCenter tables for archiving functionality.
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'f385331ab243'
-down_revision: Union[str, None] = 'add_debit_credit'
+down_revision: Union[str, None] = '24d9cbd6ea0c'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

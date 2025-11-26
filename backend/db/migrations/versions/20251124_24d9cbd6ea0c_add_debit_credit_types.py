@@ -1,6 +1,6 @@
 """add_debit_credit_types
 
-Revision ID: add_debit_credit
+Revision ID: 24d9cbd6ea0c
 Revises: 00455b460cc8
 Create Date: 2025-11-24 12:00:00.000000
 
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'add_debit_credit'
+revision: str = '24d9cbd6ea0c'
 down_revision: Union[str, None] = '00455b460cc8'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
