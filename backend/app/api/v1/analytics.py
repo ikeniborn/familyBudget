@@ -225,8 +225,7 @@ async def get_quick_stats(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.fact_date == today,
-        Article.is_current == True  # noqa: E712
+        Fact.fact_date == today
     ).group_by(Article.type)
 
     today_result = await session.execute(today_query)
@@ -239,8 +238,7 @@ async def get_quick_stats(
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= month_start,
-        Fact.fact_date <= today,
-        Article.is_current == True  # noqa: E712
+        Fact.fact_date <= today
     ).group_by(Article.type)
 
     month_result = await session.execute(month_query)
@@ -287,8 +285,7 @@ async def get_quick_stats_html(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.fact_date == today,
-        Article.is_current == True  # noqa: E712
+        Fact.fact_date == today
     ).group_by(Article.type)
 
     today_result = await session.execute(today_query)
@@ -301,8 +298,7 @@ async def get_quick_stats_html(
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= month_start,
-        Fact.fact_date <= today,
-        Article.is_current == True  # noqa: E712
+        Fact.fact_date <= today
     ).group_by(Article.type)
 
     month_result = await session.execute(month_query)
@@ -456,8 +452,7 @@ async def get_plan_fact_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == "fact",
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == "fact"
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
@@ -485,8 +480,7 @@ async def get_plan_fact_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == "plan",
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == "plan"
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
@@ -743,8 +737,7 @@ async def get_trends_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == record_type,
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == record_type
         )
 
         # Apply CFO filter if specified (v5.1.3)
@@ -978,8 +971,7 @@ async def get_category_breakdown(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.record_type == record_type,
             Fact.fact_date >= start_date,
-            Fact.fact_date <= end_date,
-            Article.is_current == True  # noqa: E712
+            Fact.fact_date <= end_date
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
@@ -1118,8 +1110,7 @@ async def get_waterfall_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == "fact",  # Only actual transactions, not plans
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == "fact"  # Only actual transactions, not plans
         )
 
         # Add article filter if specified (for drill-down)
@@ -1197,8 +1188,7 @@ async def get_waterfall_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= prev_start,
             Fact.fact_date <= prev_end,
-            Fact.record_type == "fact",  # Only actual transactions, not plans
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == "fact"  # Only actual transactions, not plans
         )
 
         # Add article filter if specified (for drill-down)
@@ -1447,8 +1437,7 @@ async def get_heatmap_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.record_type == record_type,
             Fact.fact_date >= start_date,
-            Fact.fact_date <= end_date,
-            Article.is_current == True  # noqa: E712
+            Fact.fact_date <= end_date
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
@@ -1746,7 +1735,7 @@ async def get_recommended_amounts(
         article_name = None
         if article_id:
             article_result = await session.execute(
-                select(Article.name).where(Article.id == article_id, Article.is_current == True)
+                select(Article.name).where(Article.id == article_id)
             )
             article_row = article_result.first()
             if article_row:
@@ -1777,7 +1766,7 @@ async def get_recommended_amounts(
     article_name = None
     if article_id:
         article_result = await session.execute(
-            select(Article.name).where(Article.id == article_id, Article.is_current == True)
+            select(Article.name).where(Article.id == article_id)
         )
         article_row = article_result.first()
         if article_row:
