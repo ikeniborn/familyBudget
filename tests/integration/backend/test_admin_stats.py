@@ -29,9 +29,9 @@ class TestAdminSystemStats:
             first_name="Test",
             last_name="Admin",
             is_admin=True,
-            is_current=True,
-            valid_from=datetime.now(),
-            valid_to=datetime(9999, 12, 31)
+            is_active=True,  # NEW: SCD Type 1 field
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
         db_session.add(admin)
         await db_session.commit()
@@ -47,9 +47,9 @@ class TestAdminSystemStats:
             first_name="Test",
             last_name="User",
             is_admin=False,
-            is_current=True,
-            valid_from=datetime.now(),
-            valid_to=datetime(9999, 12, 31)
+            is_active=True,  # NEW: SCD Type 1 field
+            created_at=datetime.now(),
+            updated_at=datetime.now()
         )
         db_session.add(user)
         await db_session.commit()
