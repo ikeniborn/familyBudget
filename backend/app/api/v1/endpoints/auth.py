@@ -210,15 +210,15 @@ async def telegram_callback(
         is_admin_user = (telegram_id == settings.ADMIN_TELEGRAM_ID)
 
         # Create new user
-        # Admin is auto-activated (is_admin=True, is_active=True)
-        # Regular users are inactive by default (admin must activate)
+        # All users are auto-activated for family budget (2-5 person use case)
+        # Admin can deactivate manually via /admin/users if needed
         user = User(
             telegram_id=telegram_id,
             username=query_params.get("username"),
             first_name=query_params["first_name"],
             last_name=query_params.get("last_name"),
             is_admin=is_admin_user,
-            is_active=is_admin_user,  # Admin auto-activated, others inactive
+            is_active=True,  # Auto-activate all users for family budget
             valid_from=datetime.utcnow(),
             valid_to=datetime(9999, 12, 31, 23, 59, 59),
             is_current=True,
@@ -227,13 +227,13 @@ async def telegram_callback(
         await session.commit()
         await session.refresh(user)
 
-    # Step 3.2: Check if user is active (admin auto-activated, others require activation)
+    # Step 3.2: Check if user is active (can be manually deactivated by admin)
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "Your account is pending activation. "
-                "Please contact admin or start the bot @ikenibornbudgetbot to request access."
+                "Your account has been deactivated by admin. "
+                "Please contact admin to regain access."
             ),
         )
 
