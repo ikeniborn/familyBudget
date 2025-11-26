@@ -177,7 +177,6 @@ function renderCentersTable(centers) {
 
     filteredCenters.forEach(center => {
         const description = center.description || '—';
-        const validFrom = new Date(center.valid_from).toLocaleDateString('ru-RU');
         const isArchived = center.is_active === false;
         const archivedBadge = isArchived ? ' <span class="badge badge-sm badge-ghost">📦 архив</span>' : '';
 
@@ -199,7 +198,7 @@ function renderCentersTable(centers) {
                 <td class="font-medium">${center.name}${archivedBadge}</td>
                 <td class="font-mono text-sm">${center.code || '—'}</td>
                 <td>${description}</td>
-                <td>${validFrom}</td>
+                <td>—</td>
                 <td>
                     <div class="flex gap-1">
                         ${actionButtons}
@@ -322,7 +321,7 @@ async function updateCenter(event) {
 
 // Delete cost center
 async function deleteCenter(centerId) {
-    if (!confirm('🗑️ Вы уверены, что хотите удалить этот МВЗ? Запись будет закрыта с valid_to=NOW() (SCD Type 2).')) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить этот МВЗ? Это действие необратимо.')) {
         return;
     }
 

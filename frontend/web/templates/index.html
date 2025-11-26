@@ -453,7 +453,7 @@ async function loadPlanCategories() {
 // Загрузить список ЦФО (Центров финансовой ответственности)
 async function loadFinancialCenters() {
     try {
-        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true&is_current=true');
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
         if (!response.ok) {
             // Graceful degradation for 401 Unauthorized (user not authenticated)
             if (response.status === 401) {
@@ -507,7 +507,7 @@ async function loadFinancialCenters() {
 // Загрузить список МВЗ (Мест возникновения затрат)
 async function loadCostCenters() {
     try {
-        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true&is_current=true');
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true');
         if (!response.ok) {
             console.warn('Failed to fetch cost centers: HTTP', response.status);
             // МВЗ опциональное поле, не показываем error toast

@@ -508,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load users for filter dropdown
 async function loadUsers() {
     try {
-        const response = await fetch('/api/v1/users?is_current=true', {
+        const response = await fetch('/api/v1/users', {
             credentials: 'include',
         });
 
@@ -535,7 +535,7 @@ async function loadUsers() {
 // Load articles for filter and edit dropdowns with tree structure
 async function loadArticles() {
     try {
-        const response = await fetch('/api/v1/articles?is_current=true', {
+        const response = await fetch('/api/v1/articles', {
             credentials: 'include',
         });
         const data = await response.json();
@@ -636,7 +636,7 @@ async function loadArticles() {
 async function reloadArticleFilter(type) {
     try {
         // Fetch articles filtered by type
-        let url = '/api/v1/articles?is_current=true&limit=1000&sort_by=usage_count';
+        let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
         if (type) {
             url += `&type=${type}`;
         }

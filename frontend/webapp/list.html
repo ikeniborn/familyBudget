@@ -494,7 +494,7 @@
 
         async function loadCategories() {
             try {
-                const result = await app.api.listArticles({ is_current: true, limit: 1000 });
+                const result = await app.api.listArticles({ limit: 1000 });
                 categories = result.articles || [];
 
                 // Build a Set of parent category IDs (categories that have children)

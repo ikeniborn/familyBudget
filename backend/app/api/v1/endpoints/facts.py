@@ -80,8 +80,7 @@ async def create_fact(
     """
     # Validate: Article must exist and be accessible
     article_stmt = select(Article).where(
-        Article.id == fact_data.article_id,
-        Article.is_current == True  # noqa: E712
+        Article.id == fact_data.article_id
     )
     article_result = await session.execute(article_stmt)
     article = article_result.scalar_one_or_none()
@@ -115,8 +114,7 @@ async def create_fact(
     financial_center_name = None
     if fact.financial_center_id:
         fc_stmt = select(FinancialCenter).where(
-            FinancialCenter.id == fact.financial_center_id,
-            FinancialCenter.is_current == True  # noqa: E712
+            FinancialCenter.id == fact.financial_center_id
         )
         fc_result = await session.execute(fc_stmt)
         fc = fc_result.scalar_one_or_none()
@@ -125,8 +123,7 @@ async def create_fact(
     cost_center_name = None
     if fact.cost_center_id:
         cc_stmt = select(CostCenter).where(
-            CostCenter.id == fact.cost_center_id,
-            CostCenter.is_current == True  # noqa: E712
+            CostCenter.id == fact.cost_center_id
         )
         cc_result = await session.execute(cc_stmt)
         cc = cc_result.scalar_one_or_none()
@@ -204,21 +201,19 @@ async def list_facts(
         select(BudgetFact, Article, FinancialCenter, CostCenter, User)
         .join(
             Article,
-            (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
+            BudgetFact.article_id == Article.id
         )
         .outerjoin(
             FinancialCenter,
-            (BudgetFact.financial_center_id == FinancialCenter.id)
-            & (FinancialCenter.is_current == True)  # noqa: E712
+            BudgetFact.financial_center_id == FinancialCenter.id
         )
         .outerjoin(
             CostCenter,
-            (BudgetFact.cost_center_id == CostCenter.id)
-            & (CostCenter.is_current == True)  # noqa: E712
+            BudgetFact.cost_center_id == CostCenter.id
         )
         .outerjoin(
             User,
-            BudgetFact.user_id == User.id  # Fact Table snapshot pattern: NO is_current filter
+            BudgetFact.user_id == User.id  # Fact Table snapshot pattern
         )
     )
 
@@ -398,8 +393,7 @@ async def get_recent_facts_html(
         # Load articles for fact details
         article_ids = {fact.article_id for fact in facts}
         articles_stmt = select(Article).where(
-            Article.id.in_(article_ids),
-            Article.is_current == True  # noqa: E712
+            Article.id.in_(article_ids)
         )
         articles_result = await session.execute(articles_stmt)
         articles = {a.id: a for a in articles_result.scalars().all()}
@@ -409,8 +403,7 @@ async def get_recent_facts_html(
         financial_center_ids = {fact.financial_center_id for fact in facts if fact.financial_center_id}
         if financial_center_ids:
             fcs_stmt = select(FinancialCenter).where(
-                FinancialCenter.id.in_(financial_center_ids),
-                FinancialCenter.is_current == True  # noqa: E712
+                FinancialCenter.id.in_(financial_center_ids)
             )
             fcs_result = await session.execute(fcs_stmt)
             financial_centers = {fc.id: fc for fc in fcs_result.scalars().all()}
@@ -551,8 +544,7 @@ async def get_facts_summary(
     if facts:
         article_ids = {fact.article_id for fact in facts}
         articles_stmt = select(Article).where(
-            Article.id.in_(article_ids),
-            Article.is_current == True  # noqa: E712
+            Article.id.in_(article_ids)
         )
         articles_result = await session.execute(articles_stmt)
         articles = {a.id: a for a in articles_result.scalars().all()}
@@ -619,7 +611,7 @@ async def get_facts_count(
     # Base query for counting
     statement = select(func.count(BudgetFact.id)).join(
         Article,
-        (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
+        BudgetFact.article_id == Article.id
     )
 
     # Shared family budget - NO user isolation filter
@@ -750,8 +742,7 @@ async def update_fact(
     # Validate article_id if changed
     if "article_id" in update_data:
         article_stmt = select(Article).where(
-            Article.id == update_data["article_id"],
-            Article.is_current == True  # noqa: E712
+            Article.id == update_data["article_id"]
         )
         article_result = await session.execute(article_stmt)
         article = article_result.scalar_one_or_none()

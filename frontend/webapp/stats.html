@@ -522,7 +522,7 @@
 
         async function loadCategories() {
             try {
-                const result = await app.api.listArticles({ is_current: true });
+                const result = await app.api.listArticles({});
                 categories = result.articles || [];
             } catch (error) {
                 console.error('Failed to load categories:', error);

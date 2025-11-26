@@ -158,7 +158,6 @@ class APIClient {
    *
    * @param {Object} params - Query parameters
    * @param {string} params.type - Category type (expense/income)
-   * @param {boolean} params.is_current - Only current versions (default true)
    * @returns {Promise<{articles: Array}>}
    */
   async listArticles(params = {}) {

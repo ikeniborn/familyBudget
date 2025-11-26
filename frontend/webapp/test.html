@@ -116,7 +116,7 @@
 
                 try {
                     // Test articles endpoint
-                    const result = await app.api.listArticles({ type: 'expense', is_current: true });
+                    const result = await app.api.listArticles({ type: 'expense' });
                     app.ui.hideLoading('Test API');
                     app.ui.showSuccess(`API works! Found ${result.articles?.length || 0} articles.`);
                 } catch (error) {

@@ -69,7 +69,7 @@ function initTransferModal() {
 async function loadTransferData() {
     try {
         // Load Financial Centers
-        const fcResponse = await fetch('/api/v1/financial-centers?limit=1000&include_global=true&is_current=true', {
+        const fcResponse = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', {
             credentials: 'include'
         });
         if (fcResponse.ok) {
@@ -110,7 +110,7 @@ async function loadTransferData() {
         }
 
         // Load Cost Centers
-        const ccResponse = await fetch('/api/v1/cost-centers?limit=1000&include_global=true&is_current=true', {
+        const ccResponse = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', {
             credentials: 'include'
         });
         if (ccResponse.ok) {

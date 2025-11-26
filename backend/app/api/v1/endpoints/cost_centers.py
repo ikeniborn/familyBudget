@@ -28,8 +28,11 @@ from backend.app.schemas.cost_center import (
     CostCenterUpdate,
 )
 from backend.app.schemas.errors import get_common_responses
-from backend.app.services import scd2_service
 from backend.app.services.scd2_service import has_changes
+from backend.app.services.cost_center_service import (
+    create_initial_history,
+    update_cost_center_profile,
+)
 
 router = APIRouter(
     prefix="/cost-centers",
@@ -55,13 +58,10 @@ async def list_cost_centers(
     List cost centers for current user.
 
     Shared references architecture: All users see all cost centers.
-    Only current versions (is_current=True) are returned.
     By default, only active cost centers (is_active=True) are returned.
     """
     # Build query - all cost centers (shared references)
-    conditions = [
-        CostCenter.is_current == True,
-    ]
+    conditions = []
 
     # Filter archived if not explicitly requested
     if not include_inactive:
@@ -123,20 +123,20 @@ async def create_cost_center(
     from backend.app.utils.code_generator import generate_code
     generated_code = await generate_code(session, CostCenter)
 
-    # Create cost center
+    # Create cost center (SCD Type 1 - no versioning fields)
     cost_center = CostCenter(
         user_id=current_user.id,
         name=cost_center_data.name,
         description=cost_center_data.description,
         code=generated_code,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
 
     session.add(cost_center)
     await session.commit()
     await session.refresh(cost_center)
+
+    # Create initial history record (SCD Type 2 for history)
+    await create_initial_history(session=session, cost_center=cost_center, change_type="CREATE")
 
     return CostCenterResponse.model_validate(cost_center)
 
@@ -155,12 +155,10 @@ async def get_cost_center(
     """
     Get cost center by ID.
 
-    Returns current version (is_current=True) only.
     Shared references architecture: All users can access all cost centers.
     """
     query = select(CostCenter).where(
-        CostCenter.id == cost_center_id,
-        CostCenter.is_current == True,
+        CostCenter.id == cost_center_id
     )
 
     result = await session.execute(query)
@@ -192,9 +190,10 @@ async def update_cost_center(
     """
     Update cost center.
 
-    Creates new SCD Type 2 version:
-    - Old version: is_current=False, valid_to=now()
-    - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
+    SCD Type 1 + History:
+    - Updates cost center IN-PLACE (id remains stable)
+    - Creates CostCenterHistory snapshot (SCD Type 2 for audit)
+    - FK in fact tables remain unchanged
 
     Shared references architecture: Only admins can update cost centers.
     """
@@ -205,16 +204,15 @@ async def update_cost_center(
             detail="Only administrators can update cost centers",
         )
 
-    # Fetch current version
+    # Fetch cost center
     query = select(CostCenter).where(
-        CostCenter.id == cost_center_id,
-        CostCenter.is_current == True,
+        CostCenter.id == cost_center_id
     )
 
     result = await session.execute(query)
-    old_cost_center = result.scalar_one_or_none()
+    cost_center = result.scalar_one_or_none()
 
-    if not old_cost_center:
+    if not cost_center:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Cost center {cost_center_id} not found",
@@ -224,21 +222,21 @@ async def update_cost_center(
     update_dict = update_data.model_dump(exclude_unset=True)
 
     # Check if anything changed
-    changed, changed_fields = has_changes(old_cost_center, update_dict)
+    changed, changed_fields = has_changes(cost_center, update_dict)
     if not changed:
         # No changes, return existing cost center
-        return CostCenterResponse.model_validate(old_cost_center)
+        return CostCenterResponse.model_validate(cost_center)
 
-    # Use SCD2 service for update
-    new_cost_center = await scd2_service.create_new_version(
+    # Use SCD1+History service for update
+    updated_cost_center = await update_cost_center_profile(
         session=session,
-        old_instance=old_cost_center,
+        cost_center=cost_center,
         updates=update_dict,
-        changed_fields=changed_fields,
         changed_by_user_id=current_user.id,
+        change_type="UPDATE",
     )
 
-    return CostCenterResponse.model_validate(new_cost_center)
+    return CostCenterResponse.model_validate(updated_cost_center)
 
 
 @router.put(
@@ -266,8 +264,7 @@ async def archive_cost_center(
         )
 
     query = select(CostCenter).where(
-        CostCenter.id == cost_center_id,
-        CostCenter.is_current == True,
+        CostCenter.id == cost_center_id
     )
     result = await session.execute(query)
     cost_center = result.scalar_one_or_none()
@@ -313,8 +310,7 @@ async def restore_cost_center(
         )
 
     query = select(CostCenter).where(
-        CostCenter.id == cost_center_id,
-        CostCenter.is_current == True,
+        CostCenter.id == cost_center_id
     )
     result = await session.execute(query)
     cost_center = result.scalar_one_or_none()
@@ -350,8 +346,8 @@ async def delete_cost_center(
     """
     Soft delete cost center.
 
-    Sets is_current=False and valid_to=now() for current version.
-    Historical versions are preserved.
+    Sets is_active=False (archived).
+    Historical versions are preserved in CostCenterHistory.
     Shared references architecture: Only admins can delete cost centers.
     """
     # Check: Only admins can delete cost centers
@@ -361,10 +357,9 @@ async def delete_cost_center(
             detail="Only administrators can delete cost centers",
         )
 
-    # Fetch current version
+    # Fetch cost center
     query = select(CostCenter).where(
-        CostCenter.id == cost_center_id,
-        CostCenter.is_current == True,
+        CostCenter.id == cost_center_id
     )
 
     result = await session.execute(query)
@@ -376,9 +371,8 @@ async def delete_cost_center(
             detail=f"Cost center {cost_center_id} not found",
         )
 
-    # Soft delete: set is_current=False and valid_to=now()
-    cost_center.is_current = False
-    cost_center.valid_to = datetime.utcnow()
+    # Soft delete: set is_active=False
+    cost_center.is_active = False
     cost_center.updated_at = datetime.utcnow()
 
     session.add(cost_center)

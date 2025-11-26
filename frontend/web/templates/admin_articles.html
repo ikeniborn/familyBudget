@@ -194,7 +194,7 @@ async function loadArticles() {
     try {
         // Determine include_inactive based on status filter
         const includeInactive = currentStatusFilter !== 'active'; // 'all' and 'archived' need inactive articles
-        let url = `/api/v1/admin/articles?is_current=true&include_inactive=${includeInactive}`;
+        let url = `/api/v1/admin/articles?include_inactive=${includeInactive}`;
 
         const response = await fetch(url, {
             credentials: 'include',
@@ -619,7 +619,7 @@ async function updateArticle(event) {
 
 // Deactivate article
 async function deactivateArticle(articleId) {
-    if (!confirm('🗑️ Вы уверены, что хотите удалить эту категорию? Она будет закрыта с valid_to=NOW() (SCD Type 2).')) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить эту категорию? Это действие необратимо.')) {
         return;
     }
 

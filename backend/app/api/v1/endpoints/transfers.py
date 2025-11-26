@@ -56,7 +56,6 @@ async def validate_article_type(
     result = await session.exec(
         select(Article)
         .where(Article.id == article_id)
-        .where(Article.is_current == True)
     )
     article = result.one_or_none()
 
@@ -95,7 +94,6 @@ async def validate_financial_center(
     result = await session.exec(
         select(FinancialCenter)
         .where(FinancialCenter.id == cfo_id)
-        .where(FinancialCenter.is_current == True)
     )
     cfo = result.one_or_none()
 

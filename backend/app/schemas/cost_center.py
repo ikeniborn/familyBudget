@@ -74,15 +74,15 @@ class CostCenterUpdate(BaseModel):
     Schema for updating an existing cost center.
 
     All fields are optional (partial update).
-    When updated, creates new SCD Type 2 version with is_current=True.
+    Updates cost center IN-PLACE (SCD Type 1) and creates history snapshot (SCD Type 2).
 
     Validation Rules:
         - At least one field should be provided
         - Same validation as CostCenterCreate for provided fields
 
     Notes:
-        - Update creates NEW version with is_current=True
-        - Old version gets is_current=False, valid_to=now()
+        - Update modifies cost center IN-PLACE (id remains stable)
+        - Creates CostCenterHistory snapshot for audit trail
         - Cannot change user_id (cost centers belong to creator)
     """
 
@@ -134,8 +134,8 @@ class CostCenterResponse(BaseModel):
     Includes all cost center fields from the database.
 
     Notes:
-        - Only current versions (is_current=True) are returned by default
-        - Historical versions can be queried via /cost-centers/{id}/history endpoint
+        - SCD Type 1: Returns current data (no versioning)
+        - Historical versions are stored in CostCenterHistory table
     """
 
     id: int = Field(
@@ -169,22 +169,6 @@ class CostCenterResponse(BaseModel):
         examples=[True]
     )
 
-    # SCD Type 2 fields
-    valid_from: datetime = Field(
-        description="Start of validity period",
-        examples=["2025-10-14T12:00:00Z"]
-    )
-
-    valid_to: datetime = Field(
-        description="End of validity period (9999-12-31 for current)",
-        examples=["9999-12-31T23:59:59Z"]
-    )
-
-    is_current: bool = Field(
-        description="True if this is the current version",
-        examples=[True]
-    )
-
     # Audit fields
     created_at: datetime = Field(
         description="Record creation timestamp",
@@ -206,9 +190,6 @@ class CostCenterResponse(BaseModel):
                 "name": "Home Renovation",
                 "description": "Kitchen and bathroom renovation",
                 "is_active": True,
-                "valid_from": "2025-10-14T12:00:00Z",
-                "valid_to": "9999-12-31T23:59:59Z",
-                "is_current": True,
                 "created_at": "2025-10-14T12:00:00Z",
                 "updated_at": "2025-10-14T12:00:00Z"
             }
