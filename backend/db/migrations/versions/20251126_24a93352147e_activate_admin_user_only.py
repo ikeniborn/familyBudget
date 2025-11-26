@@ -31,13 +31,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # Activate ONLY admin user (is_admin=True) if exists and is inactive
+    # Activate ALL admin users (is_admin=True) unconditionally
     # Regular users (is_admin=False) remain inactive until manually activated
+    # This ensures admins can always login, even if accidentally deactivated
     op.execute("""
         UPDATE public.t_d_user
         SET is_active = true
         WHERE is_admin = true
-          AND is_active = false
     """)
 
 
