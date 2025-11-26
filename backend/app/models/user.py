@@ -91,9 +91,6 @@ class User(SQLModel, table=True):
 
     # Business key (unique identifier from Telegram)
     telegram_id: int = Field(
-        nullable=False,
-        index=True,
-        unique=True,  # Enforces uniqueness - one Telegram user = one record
         sa_column=Column(BigInteger, nullable=False, index=True, unique=True),
         description="Telegram user ID (business key, unique across all users, BIGINT for large IDs)"
     )

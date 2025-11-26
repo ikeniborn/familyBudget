@@ -137,8 +137,6 @@ class UserHistory(SQLModel, table=True):
 
     # Business key (copied from User for denormalization)
     telegram_id: int = Field(
-        nullable=False,
-        index=True,
         sa_column=Column(BigInteger, nullable=False, index=True),
         description="Telegram user ID (business key, denormalized for fast search, BIGINT for large IDs)"
     )
