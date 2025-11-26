@@ -245,20 +245,34 @@ async def telegram_callback(
             user_id=user.id
         )
 
-    # Step 3.2: Update user profile if data changed (SCD Type 2)
-    user = await update_user_profile(
-        session=session,
-        telegram_id=int(query_params["id"]),
-        first_name=query_params["first_name"],
-        last_name=query_params.get("last_name"),
-        username=query_params.get("username"),
-        photo_url=local_photo_path,
-    )
+    # Step 3.2: Update user profile if data changed (Hybrid SCD1 + History SCD2)
+    # Check if profile data changed (username, first_name, last_name, photo_url)
+    profile_updates = {}
+    if query_params.get("first_name") and query_params.get("first_name") != user.first_name:
+        profile_updates["first_name"] = query_params["first_name"]
+    if query_params.get("last_name") and query_params.get("last_name") != user.last_name:
+        profile_updates["last_name"] = query_params.get("last_name")
+    if query_params.get("username") and query_params.get("username") != user.username:
+        profile_updates["username"] = query_params.get("username")
+    if local_photo_path and local_photo_path != user.photo_url:
+        profile_updates["photo_url"] = local_photo_path
 
-    # Step 3.3: Update last_login_at (NEW: Track user activity)
-    # Do this AFTER update_user_profile to avoid losing changes in SCD Type 2
+    # Only create history record if profile actually changed
+    if profile_updates:
+        from backend.app.services.user_service import update_user_profile as update_profile_scd1
+        user = await update_profile_scd1(
+            session=session,
+            user=user,
+            updates=profile_updates,
+            changed_by_user_id=None,  # Automatic update (from Telegram OAuth)
+            change_type="LOGIN",  # Profile refresh during login
+        )
+
+    # Step 3.3: Update last_login_at (Simple UPDATE - NO history record)
+    # This is audit trail, not business data - no need to track in history
     from datetime import datetime
     user.last_login_at = datetime.utcnow()
+    user.updated_at = datetime.utcnow()
     session.add(user)
     await session.commit()
     await session.refresh(user)
@@ -448,15 +462,37 @@ async def telegram_login(
             user_id=user.id
         )
 
-    # Step 3.2: Update user profile if data changed (SCD Type 2)
-    user = await update_user_profile(
-        session=session,
-        telegram_id=auth_data.id,
-        first_name=auth_data.first_name,
-        last_name=auth_data.last_name,
-        username=auth_data.username,
-        photo_url=local_photo_path,
-    )
+    # Step 3.2: Update user profile if data changed (Hybrid SCD1 + History SCD2)
+    # Check if profile data changed (username, first_name, last_name, photo_url)
+    profile_updates = {}
+    if auth_data.first_name and auth_data.first_name != user.first_name:
+        profile_updates["first_name"] = auth_data.first_name
+    if auth_data.last_name and auth_data.last_name != user.last_name:
+        profile_updates["last_name"] = auth_data.last_name
+    if auth_data.username and auth_data.username != user.username:
+        profile_updates["username"] = auth_data.username
+    if local_photo_path and local_photo_path != user.photo_url:
+        profile_updates["photo_url"] = local_photo_path
+
+    # Only create history record if profile actually changed
+    if profile_updates:
+        from backend.app.services.user_service import update_user_profile as update_profile_scd1
+        user = await update_profile_scd1(
+            session=session,
+            user=user,
+            updates=profile_updates,
+            changed_by_user_id=None,  # Automatic update (from Telegram OAuth)
+            change_type="LOGIN",  # Profile refresh during login
+        )
+
+    # Step 3.3: Update last_login_at (Simple UPDATE - NO history record)
+    # This is audit trail, not business data - no need to track in history
+    from datetime import datetime
+    user.last_login_at = datetime.utcnow()
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
 
     # Step 4: Generate JWT access token (using telegram_id for SCD Type 2 compatibility)
     access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id)

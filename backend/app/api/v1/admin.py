@@ -29,10 +29,15 @@ from backend.app.schemas.user import (
     UserListResponse,
     UserUpdate,
     TelegramUserInfo,
+    UserHistoryListResponse,
 )
 from backend.app.services.telegram_auth import (
     validate_telegram_user,
     fetch_telegram_user_info
+)
+from backend.app.services.user_service import (
+    update_user_profile,
+    create_initial_history
 )
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -102,14 +107,13 @@ async def get_all_users(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of users returned"),
     offset: int = Query(0, ge=0, description="Number of users skipped"),
     is_active: bool | None = Query(None, description="Filter by activation status (None=all, True=active, False=inactive)"),
-    is_current: bool = Query(True, description="Filter by current version (True=current, False=historical, default: True)"),
 ) -> UserListResponse:
     """
     Get all users (admin only).
 
     Returns list of all registered users with pagination.
 
-    **NEW:** Supports filtering by is_active and is_current status (for viewing user profile history).
+    **Supports filtering by is_active status.**
 
     Args:
         current_admin: Current admin user (from dependency)
@@ -117,15 +121,14 @@ async def get_all_users(
         limit: Maximum number of results (1-1000, default: 100)
         offset: Number of results to skip (default: 0)
         is_active: Filter by activation status (None=all, True=active, False=inactive)
-        is_current: Filter by current version (True=current, False=historical, default: True)
 
     Returns:
         UserListResponse: List of users with pagination info
     """
-    # Base query: filter by is_current
-    statement = select(User).where(User.is_current == is_current)  # noqa: E712
+    # Base query: select all users (User table = SCD Type 1, no is_current filter needed)
+    statement = select(User)
 
-    # NEW: Filter by is_active if provided
+    # Filter by is_active if provided
     if is_active is not None:
         statement = statement.where(User.is_active == is_active)
 
@@ -202,10 +205,7 @@ async def get_telegram_user_info(
         )
 
     # Check if user exists in our database
-    query = select(User).where(
-        User.telegram_id == telegram_id,
-        User.is_current == True  # noqa: E712
-    )
+    query = select(User).where(User.telegram_id == telegram_id)
     result = await session.execute(query)
     existing_user = result.scalar_one_or_none()
 
@@ -239,8 +239,8 @@ async def get_users_stats(
     Returns:
         List[UserStatsResponse]: List of user statistics
     """
-    # Get all current users
-    users_query = select(User).where(User.is_current == True)  # noqa: E712
+    # Get all users (User table = SCD Type 1, no versioning)
+    users_query = select(User)
     users_result = await session.execute(users_query)
     users = users_result.scalars().all()
 
@@ -308,8 +308,8 @@ async def get_system_stats(
     See:
         CLAUDE.md - Shared Family Budget Model documentation
     """
-    # Total users (current versions only)
-    users_count_query = select(func.count(User.id)).where(User.is_current == True)  # noqa: E712
+    # Total users (User table = SCD Type 1, no versioning)
+    users_count_query = select(func.count(User.id))
     users_count_result = await session.execute(users_count_query)
     total_users = users_count_result.scalar() or 0
 
@@ -320,8 +320,7 @@ async def get_system_stats(
 
     # Active users (users with is_active=True)
     active_users_query = select(func.count(User.id)).where(
-        User.is_current == True,  # noqa: E712
-        User.is_active == True    # noqa: E712
+        User.is_active == True  # noqa: E712
     )
     active_users_result = await session.execute(active_users_query)
     total_active_users = active_users_result.scalar() or 0
@@ -361,7 +360,7 @@ async def get_user_by_id(
     """
     Get specific user by ID (admin only).
 
-    Returns current user version with full SCD Type 2 details.
+    Returns user details (User table = SCD Type 1, current data only).
 
     Args:
         user_id: User ID to retrieve
@@ -369,16 +368,13 @@ async def get_user_by_id(
         session: Database session
 
     Returns:
-        UserDetailResponse: User details with SCD Type 2 fields
+        UserDetailResponse: User details
 
     Raises:
         HTTPException: 404 if user not found
     """
-    # Load user (current version only)
-    statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
-    )
+    # Load user (User table = SCD Type 1, no versioning)
+    statement = select(User).where(User.id == user_id)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
 
@@ -386,6 +382,88 @@ async def get_user_by_id(
         raise HTTPException(status_code=404, detail=f"User with id={user_id} not found")
 
     return user
+
+
+@router.get("/users/{user_id}/history", response_model=UserHistoryListResponse)
+async def get_user_history(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> UserHistoryListResponse:
+    """
+    Get user change history (admin only).
+
+    Returns full change history for a user from t_d_user_history table.
+    All versions are returned ordered by valid_from DESC (newest first).
+
+    Each history record contains:
+    - Full snapshot of user data at that time
+    - Change metadata (change_type, changed_fields, changed_by_user_id)
+    - Temporal validity (valid_from, valid_to, is_current)
+
+    Args:
+        user_id: User ID to get history for
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserHistoryListResponse: List of historical versions
+
+    Raises:
+        HTTPException: 404 if user not found
+
+    Example:
+        GET /api/v1/admin/users/1/history
+
+        Response:
+        {
+          "history": [
+            {
+              "history_id": 3,
+              "user_id": 1,
+              "username": "john_updated",
+              "is_admin": true,
+              "is_current": true,
+              "change_type": "ROLE_CHANGE",
+              "changed_fields": ["is_admin"],
+              "changed_by_user_id": 2,
+              "valid_from": "2025-11-26T12:00:00Z",
+              "valid_to": "9999-12-31T23:59:59Z"
+            },
+            {
+              "history_id": 2,
+              "user_id": 1,
+              "username": "johndoe",
+              "is_admin": false,
+              "is_current": false,
+              "change_type": "CREATE",
+              "changed_fields": null,
+              "valid_from": "2025-11-26T10:00:00Z",
+              "valid_to": "2025-11-26T12:00:00Z"
+            }
+          ],
+          "total": 2
+        }
+    """
+    # Verify user exists
+    user_query = select(User).where(User.id == user_id)
+    user_result = await session.execute(user_query)
+    user = user_result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Get user history from UserHistory table
+    from backend.app.services.user_service import get_user_history as get_history
+    history = await get_history(session=session, user_id=user_id)
+
+    return UserHistoryListResponse(
+        history=history,
+        total=len(history)
+    )
 
 
 @router.post("/users", response_model=UserDetailResponse, status_code=201)
@@ -425,10 +503,7 @@ async def create_user(
         }
     """
     # Check if user with this telegram_id already exists
-    statement = select(User).where(
-        User.telegram_id == user_data.telegram_id,
-        User.is_current == True  # noqa: E712
-    )
+    statement = select(User).where(User.telegram_id == user_data.telegram_id)
     result = await session.execute(statement)
     existing_user = result.scalar_one_or_none()
 
@@ -441,16 +516,14 @@ async def create_user(
             )
         )
 
-    # Create new user (initial SCD Type 2 version)
+    # Create new user (SCD Type 1 - main table only)
     now = datetime.utcnow()
     new_user = User(
         telegram_id=user_data.telegram_id,
         username=user_data.username,
         first_name=user_data.first_name,
         is_admin=user_data.is_admin,
-        valid_from=now,
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-        is_current=True,
+        is_active=False,  # NEW: Requires admin activation
         created_at=now,
         updated_at=now,
     )
@@ -458,6 +531,9 @@ async def create_user(
     session.add(new_user)
     await session.commit()
     await session.refresh(new_user)
+
+    # Create initial UserHistory record (SCD Type 2 - history table)
+    await create_initial_history(session=session, user=new_user, change_type="CREATE")
 
     return new_user
 
@@ -470,14 +546,14 @@ async def update_user_role(
     session: AsyncSession = Depends(get_session)
 ) -> User:
     """
-    Update user role (admin only, SCD Type 2).
+    Update user role (admin only, Hybrid SCD1 + History SCD2).
 
     **Admin Only:** Only admin users can update user roles.
 
-    **SCD Type 2 Behavior:**
-    - Creates NEW version with is_current=True
-    - Old version: is_current=False, valid_to=now()
-    - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
+    **Hybrid Behavior (NEW):**
+    - User table (t_d_user): In-place UPDATE (SCD Type 1 - stable id)
+    - UserHistory table: Creates new version (SCD Type 2 - full audit trail)
+    - User.id NEVER changes (stable FK for fact tables)
 
     **Use Cases:**
     - Promote user to admin: is_admin=True
@@ -490,43 +566,35 @@ async def update_user_role(
         session: Database session
 
     Returns:
-        UserDetailResponse: Updated user (new version created)
+        UserDetailResponse: Updated user (same id, in-place update)
 
     Raises:
         HTTPException: 404 if user not found
         HTTPException: 400 if trying to demote last admin
     """
-    # Load current version
-    statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
-    )
+    # Load user
+    statement = select(User).where(User.id == user_id)
     result = await session.execute(statement)
-    old_user = result.scalar_one_or_none()
+    user = result.scalar_one_or_none()
 
-    if not old_user:
+    if not user:
         raise HTTPException(
             status_code=404,
             detail=f"User with id={user_id} not found"
         )
 
     # Prepare update data
-    update_data = user_data.model_dump()
+    updates = user_data.model_dump(exclude_unset=True)
 
-    # Check if is_admin actually changed
-    from backend.app.services import has_changes, create_new_version
-
-    changed, changed_fields = has_changes(old_user, update_data)
-    if not changed:
-        # No change, return existing user
-        return old_user
+    # If no updates provided, return existing user
+    if not updates:
+        return user
 
     # Prevent demoting the last admin
-    if update_data.get("is_admin") is False and old_user.is_admin:
+    if updates.get("is_admin") is False and user.is_admin:
         # Check if this is the last admin
         admin_count_query = select(func.count(User.id)).where(
             User.is_admin == True,  # noqa: E712
-            User.is_current == True,  # noqa: E712
             User.id != user_id
         )
         admin_count_result = await session.execute(admin_count_query)
@@ -538,16 +606,16 @@ async def update_user_role(
                 detail="Cannot demote the last admin. Promote another user to admin first."
             )
 
-    # Create new version using SCD2 service
-    new_user = await create_new_version(
+    # Update user using User Service (SCD1 + UserHistory SCD2)
+    updated_user = await update_user_profile(
         session=session,
-        old_instance=old_user,
-        updates=update_data,
-        changed_fields=changed_fields,
+        user=user,
+        updates=updates,
         changed_by_user_id=current_admin.id,
+        change_type="ROLE_CHANGE",
     )
 
-    return new_user
+    return updated_user
 
 
 @router.put("/users/{user_id}/activate", response_model=UserDetailResponse)
@@ -575,11 +643,8 @@ async def activate_user(
     Raises:
         HTTPException: 404 if user not found
     """
-    # Load current version
-    statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
-    )
+    # Load user
+    statement = select(User).where(User.id == user_id)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
 
@@ -632,11 +697,8 @@ async def deactivate_user(
         HTTPException: 404 if user not found
         HTTPException: 400 if trying to deactivate self
     """
-    # Load current version
-    statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
-    )
+    # Load user
+    statement = select(User).where(User.id == user_id)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
 
@@ -658,7 +720,6 @@ async def deactivate_user(
         admin_count_query = select(func.count(User.id)).where(
             User.is_admin == True,  # noqa: E712
             User.is_active == True,  # noqa: E712
-            User.is_current == True,  # noqa: E712
             User.id != user_id
         )
         admin_count_result = await session.execute(admin_count_query)
@@ -717,11 +778,8 @@ async def refresh_user_profile_from_telegram(
         HTTPException: 404 if user not found or not in Telegram bot
         HTTPException: 500 if Telegram API error
     """
-    # Load current version
-    statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
-    )
+    # Load user
+    statement = select(User).where(User.id == user_id)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
 
@@ -767,16 +825,28 @@ async def refresh_user_profile_from_telegram(
             logger.warning(f"Failed to download avatar for user {user_id}: {e}")
             # Continue without avatar update
 
-    # Update profile using SCD Type 2
-    from backend.app.services.auth_service import update_user_profile
-    updated_user = await update_user_profile(
-        session=session,
-        telegram_id=user.telegram_id,
-        first_name=telegram_info.get("first_name"),
-        last_name=telegram_info.get("last_name"),
-        username=telegram_info.get("username"),
-        photo_url=local_photo_path,
-    )
+    # Update profile using User Service (Hybrid SCD1 + History SCD2)
+    updates = {}
+    if telegram_info.get("first_name") is not None:
+        updates["first_name"] = telegram_info.get("first_name")
+    if telegram_info.get("last_name") is not None:
+        updates["last_name"] = telegram_info.get("last_name")
+    if telegram_info.get("username") is not None:
+        updates["username"] = telegram_info.get("username")
+    if local_photo_path is not None:
+        updates["photo_url"] = local_photo_path
+
+    # Only update if there are changes
+    if updates:
+        updated_user = await update_user_profile(
+            session=session,
+            user=user,
+            updates=updates,
+            changed_by_user_id=current_admin.id,
+            change_type="UPDATE",
+        )
+    else:
+        updated_user = user
 
     logger.info(
         f"User {user_id} profile refreshed from Telegram by admin {current_admin.id}"
