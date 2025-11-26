@@ -857,7 +857,6 @@ async def refresh_user_profile_from_telegram(
 async def get_all_articles(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    is_current: bool = Query(True, description="Filter by current articles only"),
     include_inactive: bool = Query(True, description="Include archived categories (is_active=false)"),
     type: str | None = Query(None, description="Filter by article type (income or expense)")
 ):
@@ -865,12 +864,11 @@ async def get_all_articles(
     Get all articles (admin only).
 
     Returns list of all articles.
-    Can filter by is_current flag, is_active flag, and article type.
+    Can filter by is_active flag and article type.
 
     Args:
         current_admin: Current admin user (from dependency)
         session: Database session
-        is_current: Whether to show only current (active) articles
         include_inactive: Whether to include archived categories (default: True for admin)
         type: Optional filter by article type (income or expense)
 
@@ -878,8 +876,6 @@ async def get_all_articles(
         List[ArticleResponse]: List of articles
     """
     query = select(Article, User).outerjoin(User, Article.user_id == User.id)
-
-    if is_current:
 
     # Filter archived categories unless explicitly included
     if not include_inactive:
@@ -902,14 +898,10 @@ async def get_all_articles(
             type=article.type,
             code=article.code,
             is_active=article.is_active,
-            is_current=article.is_current,
-            valid_from=article.valid_from.isoformat(),
-            valid_to=article.valid_to.isoformat() if article.valid_to else None,
-            created_at=article.created_at.isoformat() if article.created_at else None,
-            updated_at=article.updated_at.isoformat() if article.updated_at else None,
-            usage_count=None,
-            hierarchy=None,
-            user_name=user.username if user else None
+            created_at=article.created_at,
+            updated_at=article.updated_at,
+            usage_count=0,
+            hierarchy=None
         )
         for article, user in rows
     ]
