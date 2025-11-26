@@ -275,10 +275,25 @@ async def list_facts(
     # Enrich facts with article and center data
     enriched_facts = []
     for fact, article, financial_center, cost_center, user in rows:
-        # Get user name (prefer first_name, fallback to username)
+        # Get user name with improved fallback chain
         user_name = None
         if user:
-            user_name = user.first_name or user.username or f"User {user.telegram_id}"
+            user_name = (
+                user.first_name or
+                user.username or
+                user.last_name or
+                (f"User {user.telegram_id}" if user.telegram_id else None) or
+                f"Пользователь #{user.id}"
+            )
+
+            # Debug logging if user fields are mostly NULL
+            if not user.first_name and not user.username and not user.last_name:
+                logger.warning(
+                    f"User {user.id} (telegram_id={user.telegram_id}) has no name fields. "
+                    f"Using fallback: '{user_name}'"
+                )
+        else:
+            logger.error(f"Fact {fact.id} has no associated user (user_id={fact.user_id})")
 
         fact_dict = {
             "id": fact.id,

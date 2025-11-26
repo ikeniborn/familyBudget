@@ -363,7 +363,7 @@ async def get_plan_fact_data(
     period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_type: str = Query("expense", regex="^(income|expense)$"),
+    article_type: str = Query("expense", regex="^(income|expense|all)$"),
     chart_mode: str = Query("cumulative", regex="^(normal|cumulative)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
@@ -457,9 +457,12 @@ async def get_plan_fact_data(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
             Fact.record_type == "fact",
-            Article.type == article_type,
             Article.is_current == True  # noqa: E712
         )
+
+        # Apply article type filter if not 'all' (v5.1.4)
+        if article_type != 'all':
+            fact_query = fact_query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
         if cfo_id is not None:
@@ -483,9 +486,12 @@ async def get_plan_fact_data(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
             Fact.record_type == "plan",
-            Article.type == article_type,
             Article.is_current == True  # noqa: E712
         )
+
+        # Apply article type filter if not 'all' (v5.1.4)
+        if article_type != 'all':
+            plan_query = plan_query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
         if cfo_id is not None:
@@ -913,7 +919,7 @@ async def get_trends_data(
 @router.get("/category-breakdown")
 async def get_category_breakdown(
     current_user: CurrentUser,
-    type: str = Query("expense", regex="^(income|expense)$"),
+    type: str = Query("expense", regex="^(income|expense|all)$"),
     period: Optional[str] = Query(None, regex="^(month|quarter|year|all)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
@@ -970,12 +976,15 @@ async def get_category_breakdown(
             Article.name,
             func.sum(Fact.amount).label("total")
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-            Article.type == type,
             Fact.record_type == record_type,
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
             Article.is_current == True  # noqa: E712
         )
+
+        # Apply article type filter if not 'all' (v5.1.4)
+        if type != 'all':
+            query = query.where(Article.type == type)
 
         # Apply CFO filter if specified (v5.1.3)
         if cfo_id is not None:
@@ -1368,7 +1377,7 @@ async def get_heatmap_data(
     period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_type: str = Query("expense", regex="^(income|expense)$"),
+    article_type: str = Query("expense", regex="^(income|expense|all)$"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
@@ -1434,12 +1443,15 @@ async def get_heatmap_data(
             Fact.fact_date,
             func.sum(Fact.amount).label("total")
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-            Article.type == article_type,
             Fact.record_type == record_type,
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
             Article.is_current == True  # noqa: E712
         )
+
+        # Apply article type filter if not 'all' (v5.1.4)
+        if article_type != 'all':
+            query = query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
         if cfo_id is not None:

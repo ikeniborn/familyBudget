@@ -20,19 +20,6 @@
         position: relative;
         z-index: 1;
     }
-
-    /* Opaque background for category dropdown (Choices.js) */
-    .choices__list--dropdown {
-        background-color: hsl(var(--b1)) !important;
-        opacity: 1 !important;
-        z-index: 25 !important;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    }
-
-    /* FIX: Readable text color for dropdown items */
-    .choices__list--dropdown .choices__item {
-        color: hsl(var(--bc)) !important;  /* DaisyUI base content color */
-    }
 </style>
 {% endblock %}
 
@@ -140,6 +127,7 @@
                         <div class="flex flex-wrap items-center gap-3">
                             <label id="operation-type-label" class="font-semibold text-sm">Тип операции:</label>
                             <div class="btn-group">
+                                <button class="btn btn-sm btn-outline" id="operation-type-all" onclick="updateOperationType('all')" aria-pressed="false">Все</button>
                                 <button class="btn btn-sm btn-error" id="operation-type-expense" onclick="updateOperationType('expense')" aria-pressed="true">Расходы</button>
                                 <button class="btn btn-sm btn-outline" id="operation-type-income" onclick="updateOperationType('income')" aria-pressed="false">Доходы</button>
                             </div>
@@ -1155,12 +1143,15 @@ function updatePieChart(data) {
     pieChart.setOption(option, true);  // notMerge: true - clear old data (v5.1.3 bugfix)
 }
 
-// Update operation type filter (unified: expense/income/debit/credit)
+// Update operation type filter (unified: expense/income/debit/credit/all)
 function updateOperationType(type) {
     // Map operation type to category type and transaction type
     let categoryType, transactionType;
 
-    if (type === 'expense') {
+    if (type === 'all') {
+        categoryType = 'all';  // Special value: show both expense and income
+        transactionType = 'all';
+    } else if (type === 'expense') {
         categoryType = 'expense';
         transactionType = 'all';
     } else if (type === 'income') {
@@ -1184,19 +1175,23 @@ function updateOperationType(type) {
     currentCategoryIds = [];
 
     // Update active button and ARIA states
+    const allBtn = document.getElementById('operation-type-all');
     const expenseBtn = document.getElementById('operation-type-expense');
     const incomeBtn = document.getElementById('operation-type-income');
 
     // Reset all buttons to outline
-    [expenseBtn, incomeBtn].forEach(btn => {
-        btn.classList.remove('btn-error', 'btn-success');
+    [allBtn, expenseBtn, incomeBtn].forEach(btn => {
+        btn.classList.remove('btn-error', 'btn-success', 'btn-primary');
         btn.classList.add('btn-outline');
         btn.setAttribute('aria-pressed', 'false');
     });
 
     // Set active button with color
     let activeBtn;
-    if (type === 'expense') {
+    if (type === 'all') {
+        activeBtn = allBtn;
+        activeBtn.classList.add('btn-primary');
+    } else if (type === 'expense') {
         activeBtn = expenseBtn;
         activeBtn.classList.add('btn-error');
     } else if (type === 'income') {
@@ -1223,8 +1218,12 @@ function updateOperationType(type) {
     }
 
     // Update category filter with new type
+    // Note: For type='all', use 'expense' as fallback for category filter
+    // (categories are typed, but backend will include both expense & income transactions)
+    const categoryFilterType = (categoryType === 'all') ? 'expense' : categoryType;
+
     if (categoryChoices && typeof categoryChoices.updateType === 'function') {
-        categoryChoices.updateType(categoryType).catch(error => {
+        categoryChoices.updateType(categoryFilterType).catch(error => {
             console.error('Failed to update category filter type:', error);
             if (typeof initCategoryFilter === 'function') {
                 initCategoryFilter();
