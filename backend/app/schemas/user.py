@@ -1,12 +1,17 @@
 """
 Pydantic schemas for User management endpoints.
 
-This module defines schemas for user CRUD operations.
-UserResponse from auth.py is reused for basic user data.
+This module defines schemas for user CRUD operations after migration
+from SCD Type 2 to SCD Type 1 + History architecture.
+
+BREAKING CHANGES:
+- UserResponse: SCD2 fields removed (valid_from, valid_to, is_current)
+- UserDetailResponse: SCD2 fields removed (matches main User table)
+- UserHistoryResponse: NEW schema for history endpoint (has SCD2 fields)
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -20,12 +25,12 @@ class UserCreate(BaseModel):
 
     Validation Rules:
         - telegram_id: Required, positive integer
-        - username, first_name: Optional strings
-        - is_admin: Optional, defaults to False
+        - username, first_name, last_name: Optional strings
+        - is_admin, is_active: Optional booleans
 
     Notes:
-        - Creates initial SCD Type 2 version
-        - valid_from=now(), valid_to=9999-12-31, is_current=True
+        - Creates user in main t_d_user table (SCD1)
+        - Also creates initial history record in t_d_user_history
     """
 
     telegram_id: int = Field(
@@ -71,44 +76,76 @@ class UserCreate(BaseModel):
 
 class UserUpdate(BaseModel):
     """
-    Schema for updating user data (admin only).
+    Schema for updating user data.
 
-    Only admin users can update other users.
-    Regular users cannot update their own data (comes from Telegram).
+    Used for updating profile fields that can be modified in-place (SCD1).
 
     Validation Rules:
-        - is_admin and is_active fields can be updated
-        - Used for promoting/demoting admins and activating/deactivating users
+        - All fields are optional (partial update)
+        - username, first_name, last_name, photo_url: Profile data
+        - is_admin, is_active: Status flags
 
     Notes:
-        - User data (name, username) comes from Telegram OAuth
-        - Cannot be manually updated
-        - is_active changes: Simple UPDATE (NOT SCD Type 2)
-        - is_admin changes: SCD Type 2 update creates new version
+        - Updates User table in-place (SCD1)
+        - Also creates history record in UserHistory table
+        - All changes are logged with metadata (change_type, changed_fields)
     """
 
-    is_admin: bool = Field(
-        ...,
+    username: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="Telegram username",
+        examples=["johndoe_updated"]
+    )
+
+    first_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User's first name",
+        examples=["John"]
+    )
+
+    last_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User's last name",
+        examples=["Doe"]
+    )
+
+    photo_url: Optional[str] = Field(
+        default=None,
+        max_length=512,
+        description="Local path to cached profile photo",
+        examples=["/static/avatars/123.jpg"]
+    )
+
+    is_admin: Optional[bool] = Field(
+        default=None,
         description="Admin status flag",
         examples=[True, False]
     )
-    is_active: bool = Field(
-        default=True,
-        description="User activation status (controlled by admin)",
+
+    is_active: Optional[bool] = Field(
+        default=None,
+        description="User activation status",
         examples=[True, False]
     )
 
 
-class UserDetailResponse(BaseModel):
+class UserResponse(BaseModel):
     """
-    Detailed user information including SCD Type 2 fields.
+    User response schema (SCD1 - no SCD2 fields).
 
-    Extended version of UserResponse with audit and versioning fields.
-    Used for admin endpoints.
+    Basic user information without temporal validity or versioning fields.
+    Used for most API endpoints.
+
+    BREAKING CHANGE from previous version:
+        - SCD2 fields REMOVED: valid_from, valid_to, is_current
+        - Full history available via GET /users/{id}/history endpoint
     """
 
     id: int = Field(
-        description="User's database ID (surrogate key)",
+        description="User's database ID (stable - never changes)",
         examples=[1]
     )
 
@@ -157,23 +194,6 @@ class UserDetailResponse(BaseModel):
         examples=["2025-11-14T10:30:00Z", None]
     )
 
-    # SCD Type 2 fields
-    valid_from: datetime = Field(
-        description="Start of validity period",
-        examples=["2025-10-13T12:00:00Z"]
-    )
-
-    valid_to: datetime = Field(
-        description="End of validity period (9999-12-31 for current)",
-        examples=["9999-12-31T23:59:59Z"]
-    )
-
-    is_current: bool = Field(
-        description="True if this is the current version",
-        examples=[True]
-    )
-
-    # Audit fields
     created_at: datetime = Field(
         description="Record creation timestamp",
         examples=["2025-10-13T12:00:00Z"]
@@ -183,6 +203,11 @@ class UserDetailResponse(BaseModel):
         description="Record last update timestamp",
         examples=["2025-10-13T12:00:00Z"]
     )
+
+    # NOTE: SCD2 fields REMOVED (breaking change)
+    # - valid_from: Moved to UserHistoryResponse
+    # - valid_to: Moved to UserHistoryResponse
+    # - is_current: Moved to UserHistoryResponse
 
     model_config = {
         "from_attributes": True,
@@ -197,9 +222,6 @@ class UserDetailResponse(BaseModel):
                 "is_admin": False,
                 "is_active": True,
                 "last_login_at": "2025-11-14T10:30:00Z",
-                "valid_from": "2025-10-13T12:00:00Z",
-                "valid_to": "9999-12-31T23:59:59Z",
-                "is_current": True,
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z"
             }
@@ -207,12 +229,160 @@ class UserDetailResponse(BaseModel):
     }
 
 
+class UserHistoryResponse(BaseModel):
+    """
+    User history response schema (SCD2 - with temporal validity).
+
+    Full historical snapshot with SCD Type 2 fields.
+    Used for GET /users/{id}/history endpoint.
+
+    Attributes:
+        history_id: Surrogate key for history record
+        user_id: FK to t_d_user.id (stable)
+        telegram_id: Business key
+        username, first_name, last_name, photo_url: Profile snapshot
+        is_admin, is_active: Status snapshot
+        last_login_at: Audit snapshot
+        valid_from: Start of validity period
+        valid_to: End of validity period (9999-12-31 for current)
+        is_current: True for current version
+        change_type: Type of change (CREATE/UPDATE/ROLE_CHANGE/LOGIN)
+        changed_fields: Array of changed field names
+        changed_by_user_id: Who made the change (NULL for auto)
+        created_at: When history record was created
+    """
+
+    history_id: int = Field(
+        description="History record ID (surrogate key)",
+        examples=[1]
+    )
+
+    user_id: int = Field(
+        description="User's database ID (FK to t_d_user.id, stable)",
+        examples=[1]
+    )
+
+    telegram_id: int = Field(
+        description="Telegram user ID (business key)",
+        examples=[123456789]
+    )
+
+    username: Optional[str] = Field(
+        default=None,
+        description="Username at time of change (snapshot)",
+        examples=["johndoe"]
+    )
+
+    first_name: Optional[str] = Field(
+        default=None,
+        description="First name at time of change (snapshot)",
+        examples=["John"]
+    )
+
+    last_name: Optional[str] = Field(
+        default=None,
+        description="Last name at time of change (snapshot)",
+        examples=["Doe"]
+    )
+
+    photo_url: Optional[str] = Field(
+        default=None,
+        description="Photo URL at time of change (snapshot)",
+        examples=["/static/avatars/1.jpg"]
+    )
+
+    is_admin: bool = Field(
+        description="Admin flag at time of change (snapshot)",
+        examples=[False]
+    )
+
+    is_active: bool = Field(
+        description="Active status at time of change (snapshot)",
+        examples=[True]
+    )
+
+    last_login_at: Optional[datetime] = Field(
+        default=None,
+        description="Last login at time of change (snapshot)",
+        examples=["2025-11-14T10:30:00Z"]
+    )
+
+    # SCD Type 2 fields (temporal validity)
+    valid_from: datetime = Field(
+        description="Start of validity period (when change occurred)",
+        examples=["2025-10-13T12:00:00Z"]
+    )
+
+    valid_to: datetime = Field(
+        description="End of validity period (9999-12-31 23:59:59 for current)",
+        examples=["9999-12-31T23:59:59Z"]
+    )
+
+    is_current: bool = Field(
+        description="True for current version (matches User table)",
+        examples=[True]
+    )
+
+    # Audit metadata
+    change_type: Optional[str] = Field(
+        default=None,
+        description="Type of change: CREATE/UPDATE/ROLE_CHANGE/LOGIN",
+        examples=["CREATE", "UPDATE", "ROLE_CHANGE"]
+    )
+
+    changed_fields: Optional[List[str]] = Field(
+        default=None,
+        description="Array of changed field names (e.g., ['username', 'photo_url'])",
+        examples=[["username"], ["is_admin", "is_active"], None]
+    )
+
+    changed_by_user_id: Optional[int] = Field(
+        default=None,
+        description="User ID who made the change (NULL for automatic changes)",
+        examples=[2, None]
+    )
+
+    created_at: datetime = Field(
+        description="Timestamp when history record was created",
+        examples=["2025-10-13T12:00:00Z"]
+    )
+
+    model_config = {
+        "from_attributes": True,
+        "json_schema_extra": {
+            "example": {
+                "history_id": 1,
+                "user_id": 1,
+                "telegram_id": 123456789,
+                "username": "johndoe",
+                "first_name": "John",
+                "last_name": "Doe",
+                "photo_url": "/static/avatars/1.jpg",
+                "is_admin": False,
+                "is_active": True,
+                "last_login_at": "2025-11-14T10:30:00Z",
+                "valid_from": "2025-10-13T12:00:00Z",
+                "valid_to": "9999-12-31T23:59:59Z",
+                "is_current": True,
+                "change_type": "CREATE",
+                "changed_fields": None,
+                "changed_by_user_id": None,
+                "created_at": "2025-10-13T12:00:00Z"
+            }
+        }
+    }
+
+
+# Alias for backward compatibility
+UserDetailResponse = UserResponse  # Same as UserResponse after SCD2 → SCD1 migration
+
+
 class UserListResponse(BaseModel):
     """
     Schema for paginated user list responses (admin only).
     """
 
-    users: list[UserDetailResponse] = Field(
+    users: list[UserResponse] = Field(
         description="List of users",
         examples=[[]]
     )
@@ -230,6 +400,24 @@ class UserListResponse(BaseModel):
     offset: int = Field(
         description="Number of users skipped",
         examples=[0]
+    )
+
+
+class UserHistoryListResponse(BaseModel):
+    """
+    Schema for user history list responses.
+
+    Used by GET /users/{id}/history endpoint.
+    """
+
+    history: list[UserHistoryResponse] = Field(
+        description="List of historical versions",
+        examples=[[]]
+    )
+
+    total: int = Field(
+        description="Total number of history records",
+        examples=[5]
     )
 
 

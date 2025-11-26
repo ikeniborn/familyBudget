@@ -63,7 +63,7 @@ async def list_users(
     - 200 OK: List of users with pagination info
     """
     # Base query: only current versions
-    statement = select(User).where(User.is_current == True)  # noqa: E712
+    statement = select(User).where()  # noqa: E712
 
     # Count total (before pagination)
     count_stmt = select(func.count()).select_from(statement.subquery())
@@ -131,8 +131,7 @@ async def get_user(
     """
     # Load user (current version only)
     statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
+        User.id == user_id
     )
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
@@ -185,8 +184,7 @@ async def create_user(
     """
     # Check if user with this telegram_id already exists
     statement = select(User).where(
-        User.telegram_id == user_data.telegram_id,
-        User.is_current == True  # noqa: E712
+        User.telegram_id == user_data.telegram_id
     )
     result = await session.execute(statement)
     existing_user = result.scalar_one_or_none()
@@ -254,8 +252,7 @@ async def update_user_role(
     """
     # Load current version
     statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
+        User.id == user_id
     )
     result = await session.execute(statement)
     old_user = result.scalar_one_or_none()
@@ -319,7 +316,7 @@ async def get_all_telegram_ids(
     ```
     """
     # Query only current user versions
-    statement = select(User.telegram_id).where(User.is_current == True)  # noqa: E712
+    statement = select(User.telegram_id).where()  # noqa: E712
     result = await session.execute(statement)
     telegram_ids = result.scalars().all()
 

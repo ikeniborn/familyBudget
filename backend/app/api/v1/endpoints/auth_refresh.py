@@ -42,9 +42,7 @@ async def refresh_access_token(
 
     # Load user to get telegram_id (business key for SCD Type 2)
     user_query = select(User).where(
-        User.id == user_id,
-        User.is_current == True
-    )
+        User.id == user_id)
     user_result = await session.execute(user_query)
     user = user_result.scalar_one_or_none()
 

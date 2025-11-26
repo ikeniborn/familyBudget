@@ -112,7 +112,7 @@ async def check_database_stats(session: AsyncSession) -> dict[str, int]:
     try:
         # Count users
         users_result = await session.execute(
-            select(func.count(User.id)).where(User.is_current == True)  # noqa: E712
+            select(func.count(User.id)).where()  # noqa: E712
         )
         total_users = users_result.scalar() or 0
 

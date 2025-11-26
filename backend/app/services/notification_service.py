@@ -154,7 +154,6 @@ class NotificationService:
         """
         statement = select(User).where(
             User.is_active == True,
-            User.is_current == True,
         )
         result = await session.execute(statement)
         return list(result.scalars().all())
