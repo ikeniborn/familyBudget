@@ -12,6 +12,7 @@ Migration required to convert existing data.
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import BigInteger, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -93,7 +94,8 @@ class User(SQLModel, table=True):
         nullable=False,
         index=True,
         unique=True,  # Enforces uniqueness - one Telegram user = one record
-        description="Telegram user ID (business key, unique across all users)"
+        sa_column=Column(BigInteger, nullable=False, index=True, unique=True),
+        description="Telegram user ID (business key, unique across all users, BIGINT for large IDs)"
     )
 
     # Profile data (SCD Type 1 - in-place updates)

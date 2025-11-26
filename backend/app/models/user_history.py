@@ -11,8 +11,8 @@ when, and who made the change.
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import ARRAY, String
-from sqlmodel import Column, Field, SQLModel
+from sqlalchemy import ARRAY, BigInteger, Column, String
+from sqlmodel import Field, SQLModel
 
 
 class UserHistory(SQLModel, table=True):
@@ -139,7 +139,8 @@ class UserHistory(SQLModel, table=True):
     telegram_id: int = Field(
         nullable=False,
         index=True,
-        description="Telegram user ID (business key, denormalized for fast search)"
+        sa_column=Column(BigInteger, nullable=False, index=True),
+        description="Telegram user ID (business key, denormalized for fast search, BIGINT for large IDs)"
     )
 
     # Profile data snapshot (at the time of change)
