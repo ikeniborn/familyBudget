@@ -66,20 +66,20 @@ start_services() {
         # Check if PostgreSQL should be kept running (selective restart)
         if [[ "${POSTGRES_WAS_STOPPED:-true}" == "false" ]]; then
             info "Selective restart detected - PostgreSQL will keep running"
-            info "Using --no-recreate for postgres to avoid container recreation"
+            info "Using --no-recreate to prevent container recreation"
 
-            # Strategy: Start all services but prevent postgres from being recreated
+            # Strategy: Use --no-recreate for ALL services (including postgres)
+            # Docker Compose will decide which containers to recreate based on:
+            # - Image changes (new build)
+            # - Configuration changes (docker-compose.yml)
+            # - Volume/network changes
+            # --no-recreate prevents recreation even if image changed
             if [[ -n "$COMPOSE_PROFILE" ]]; then
-                compose_cmd --profile "$COMPOSE_PROFILE" up --build -d --no-recreate postgres >> "$LOG_FILE" 2>&1
+                compose_cmd --profile "$COMPOSE_PROFILE" up --build -d --no-recreate >> "$LOG_FILE" 2>&1
                 start_result=$?
-                # Start other services normally (they will be recreated if needed)
-                compose_cmd --profile "$COMPOSE_PROFILE" up --build -d nginx backend bot >> "$LOG_FILE" 2>&1
-                start_result=$((start_result + $?))
             else
-                compose_cmd up --build -d --no-recreate postgres >> "$LOG_FILE" 2>&1
+                compose_cmd up --build -d --no-recreate >> "$LOG_FILE" 2>&1
                 start_result=$?
-                compose_cmd up --build -d nginx backend >> "$LOG_FILE" 2>&1
-                start_result=$((start_result + $?))
             fi
         else
             # Full restart - recreate all containers
