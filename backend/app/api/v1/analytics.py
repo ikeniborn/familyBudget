@@ -1368,7 +1368,7 @@ async def get_heatmap_data(
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", regex="^(income|expense|all)$"),
-    transaction_filter: Optional[str] = Query(None, regex="^(debit|credit)$", description="Filter by transaction type: debit (expense) or credit (income)"),
+    transaction_filter: Optional[str] = Query(None, regex="^(debit|credit|all)$", description="Filter by transaction type: debit (expense), credit (income), or all"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
@@ -1442,7 +1442,7 @@ async def get_heatmap_data(
 
         # Apply article type filter if not 'all' (v5.1.4)
         # transaction_filter takes priority over article_type (v5.2.0)
-        if transaction_filter:
+        if transaction_filter and transaction_filter != 'all':
             # transaction_filter: debit → expense, credit → income
             filter_type = 'expense' if transaction_filter == 'debit' else 'income'
             query = query.where(Article.type == filter_type)

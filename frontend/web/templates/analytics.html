@@ -129,8 +129,8 @@
                             <div class="btn-group">
                                 <button class="btn btn-sm btn-error" id="operation-type-expense" onclick="updateOperationType('expense')" aria-pressed="true">Расходы</button>
                                 <button class="btn btn-sm btn-outline" id="operation-type-income" onclick="updateOperationType('income')" aria-pressed="false">Доходы</button>
-                                <button class="btn btn-sm btn-info" id="operation-type-debit" onclick="updateOperationType('debit')" aria-pressed="false">Списание</button>
-                                <button class="btn btn-sm btn-warning" id="operation-type-credit" onclick="updateOperationType('credit')" aria-pressed="false">Пополнение</button>
+                                <button class="btn btn-sm btn-outline" id="operation-type-debit" onclick="updateOperationType('debit')" aria-pressed="false">Списание</button>
+                                <button class="btn btn-sm btn-outline" id="operation-type-credit" onclick="updateOperationType('credit')" aria-pressed="false">Пополнение</button>
                             </div>
                         </div>
 
@@ -199,8 +199,8 @@ let waterfallCategoriesData = [];
 // Global type filter (applies to Plan-Fact, Pie, Heatmap)
 let currentGlobalType = 'expense';
 
-// Transaction type filter (all/debit/credit for filtering article types)
-let currentTransactionType = 'all';
+// Transaction type filter (null/debit/credit for filtering article types)
+let currentTransactionType = null;
 
 // Chart mode filter (for Plan-Fact chart: normal vs cumulative)
 // Load from localStorage or default to 'cumulative'

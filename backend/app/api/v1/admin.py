@@ -67,9 +67,6 @@ class ArticleResponse(BaseModel):
     type: str
     code: str | None = None
     is_active: bool
-    is_current: bool
-    valid_from: str
-    valid_to: str | None
     created_at: str | None = None
     updated_at: str | None = None
     usage_count: int | None = None
@@ -898,10 +895,11 @@ async def get_all_articles(
             type=article.type,
             code=article.code,
             is_active=article.is_active,
-            created_at=article.created_at,
-            updated_at=article.updated_at,
+            created_at=article.created_at.isoformat() if article.created_at else None,
+            updated_at=article.updated_at.isoformat() if article.updated_at else None,
             usage_count=0,
-            hierarchy=None
+            hierarchy=None,
+            user_name=user.full_name if user else None
         )
         for article, user in rows
     ]
@@ -978,13 +976,11 @@ async def create_article(
         "type": new_article.type,
         "code": new_article.code,
         "is_active": new_article.is_active,
-        "valid_from": new_article.valid_from.isoformat(),
-        "valid_to": new_article.valid_to.isoformat(),
-        "is_current": new_article.is_current,
         "created_at": new_article.created_at.isoformat(),
         "updated_at": new_article.updated_at.isoformat(),
         "usage_count": 0,  # Default for newly created articles
-        "hierarchy": None
+        "hierarchy": None,
+        "user_name": None  # No user name for new articles (system created)
     }
 
 
@@ -1113,13 +1109,11 @@ async def update_article(
             "type": article.type,
             "code": article.code,
             "is_active": article.is_active,
-            "valid_from": article.valid_from.isoformat(),
-            "valid_to": article.valid_to.isoformat(),
-            "is_current": article.is_current,
             "created_at": article.created_at.isoformat(),
             "updated_at": article.updated_at.isoformat(),
             "usage_count": 0,  # Default - stats not loaded
-            "hierarchy": None
+            "hierarchy": None,
+            "user_name": None  # No user name in simple return
         }
 
     # Use SCD2Service to create new version (includes automatic child redirection)
@@ -1216,13 +1210,11 @@ async def update_article(
         "type": new_article.type,
         "code": new_article.code,
         "is_active": new_article.is_active,
-        "valid_from": new_article.valid_from.isoformat(),
-        "valid_to": new_article.valid_to.isoformat(),
-        "is_current": new_article.is_current,
         "created_at": new_article.created_at.isoformat(),
         "updated_at": new_article.updated_at.isoformat(),
         "usage_count": 0,  # Default for updated articles - stats recalculated daily
-        "hierarchy": None
+        "hierarchy": None,
+        "user_name": None  # No user name after update
     }
 
 
