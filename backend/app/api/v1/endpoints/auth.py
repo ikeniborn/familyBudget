@@ -669,8 +669,7 @@ async def refresh_access_token(
 
     # Step 5: Load user from database (for response)
     user_statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
+        User.id == user_id
     )
     user_result = await session.execute(user_statement)
     user = user_result.scalar_one_or_none()

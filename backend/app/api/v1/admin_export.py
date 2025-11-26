@@ -61,7 +61,7 @@ async def export_all_facts_csv(
         .join(User, Fact.user_id == User.id)
         .join(Article, Fact.article_id == Article.id)
         .where(
-            User.is_current == True,  # noqa: E712
+            # noqa: E712
             Article.is_current == True  # noqa: E712
         )
         .order_by(Fact.fact_date.desc(), Fact.id.desc())
@@ -138,7 +138,7 @@ async def export_all_facts_excel(
         .join(User, Fact.user_id == User.id)
         .join(Article, Fact.article_id == Article.id)
         .where(
-            User.is_current == True,  # noqa: E712
+            # noqa: E712
             Article.is_current == True  # noqa: E712
         )
         .order_by(Fact.fact_date.desc(), Fact.id.desc())
@@ -224,7 +224,7 @@ async def export_all_facts_pdf(
         .join(User, Fact.user_id == User.id)
         .join(Article, Fact.article_id == Article.id)
         .where(
-            User.is_current == True,  # noqa: E712
+            # noqa: E712
             Article.is_current == True  # noqa: E712
         )
         .order_by(Fact.fact_date.desc())

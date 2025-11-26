@@ -46,9 +46,7 @@ async def get_system_overview(
         - Recent activity summary
     """
     # Total users
-    users_stmt = select(func.count(func.distinct(User.telegram_id))).where(
-        User.is_current == True  # noqa: E712
-    )
+    users_stmt = select(func.count(func.distinct(User.telegram_id))).where()
     users_result = await session.execute(users_stmt)
     total_users = users_result.scalar_one()
 
@@ -88,7 +86,7 @@ async def get_system_overview(
 
     # Recent users (last 30 days)
     recent_users_stmt = select(func.count(func.distinct(User.telegram_id))).where(
-        User.is_current == True,  # noqa: E712
+        # noqa: E712
         User.created_at >= datetime.utcnow() - timedelta(days=30)
     )
     recent_users_result = await session.execute(recent_users_stmt)
@@ -276,9 +274,7 @@ async def get_top_users(
         User.last_name,
         func.count(Fact.id).label("transaction_count"),
         func.sum(Fact.amount).label("total_amount")
-    ).select_from(User).join(Fact, User.id == Fact.user_id).where(
-        User.is_current == True  # noqa: E712
-    ).group_by(
+    ).select_from(User).join(Fact, User.id == Fact.user_id).where().group_by(
         User.id,
         User.username,
         User.first_name,
