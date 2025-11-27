@@ -577,7 +577,18 @@ async function loadArticles() {
 
             // Add data-type attribute for category filter colors
             if (node.type) {
-                option.dataset.type = node.type; // 'expense' or 'income'
+                option.dataset.type = node.type; // 'expense', 'income', 'debit', 'credit'
+            }
+
+            // Apply color coding by article type
+            if (node.type === 'expense') {
+                option.style.color = 'rgb(239, 68, 68)'; // Красный
+            } else if (node.type === 'income') {
+                option.style.color = 'rgb(34, 197, 94)'; // Зелёный
+            } else if (node.type === 'debit') {
+                option.style.color = 'rgb(59, 130, 246)'; // Синий
+            } else if (node.type === 'credit') {
+                option.style.color = 'rgb(251, 146, 60)'; // Оранжевый
             }
 
             // Disable parent categories with visual styling
@@ -690,7 +701,18 @@ async function reloadArticleFilter(type) {
 
             // Add data-type attribute for category filter colors
             if (node.type) {
-                option.dataset.type = node.type; // 'expense' or 'income'
+                option.dataset.type = node.type; // 'expense', 'income', 'debit', 'credit'
+            }
+
+            // Apply color coding by article type
+            if (node.type === 'expense') {
+                option.style.color = 'rgb(239, 68, 68)'; // Красный
+            } else if (node.type === 'income') {
+                option.style.color = 'rgb(34, 197, 94)'; // Зелёный
+            } else if (node.type === 'debit') {
+                option.style.color = 'rgb(59, 130, 246)'; // Синий
+            } else if (node.type === 'credit') {
+                option.style.color = 'rgb(251, 146, 60)'; // Оранжевый
             }
 
             // Disable parent categories with visual styling
