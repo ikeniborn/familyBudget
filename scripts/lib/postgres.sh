@@ -42,6 +42,106 @@ get_postgres_uid_from_image() {
 }
 
 # =============================================================================
+# POSTGRESQL CRITICAL DIRECTORIES VERIFICATION (PRE-START CHECK)
+# =============================================================================
+
+# Verify and create critical PostgreSQL directories BEFORE starting services
+# This lightweight check ensures essential directories exist, preventing FATAL errors
+# at startup. Runs ALWAYS, even during selective restarts (no backup, no heavy checks).
+#
+# Background:
+#   PostgreSQL initdb may not create all required system directories, or they may be
+#   missing after incomplete migrations, corrupted backups, or bind mount issues.
+#   Missing directories (pg_notify, pg_dynshmem, etc.) cause FATAL startup errors.
+#
+# When it runs:
+#   - Called BEFORE start_services() in deploy.sh
+#   - Runs even if POSTGRES_WAS_STOPPED=false (selective restart)
+#   - Only creates directories; check_and_repair_postgres_data() handles full integrity
+#
+# Safety:
+#   - Only touches stopped PostgreSQL containers (checks container status first)
+#   - Creates only missing directories (no destructive operations)
+#   - Sets correct ownership (70:70 for Alpine) and permissions (0700)
+#
+verify_postgres_critical_directories() {
+    local postgres_data_dir="$DEPLOY_DIR/data/postgres"
+
+    # Skip if data directory doesn't exist or is empty (fresh installation)
+    if [[ ! -d "$postgres_data_dir" ]] || [[ -z "$(ls -A "$postgres_data_dir" 2>/dev/null)" ]]; then
+        return 0
+    fi
+
+    # Skip if not a PostgreSQL data directory
+    if [[ ! -f "$postgres_data_dir/PG_VERSION" ]]; then
+        return 0
+    fi
+
+    # CRITICAL: Only run when PostgreSQL is NOT running
+    # Running this check on active database could cause corruption
+    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        info "PostgreSQL is running - skipping directory check (will verify after next stop)"
+        return 0
+    fi
+
+    # List of critical directories that MUST exist for PostgreSQL to start
+    local critical_dirs=(
+        "pg_notify"           # LISTEN/NOTIFY subsystem (FATAL if missing!)
+        "pg_dynshmem"         # Dynamic shared memory
+        "pg_stat"             # Statistics collector
+        "pg_snapshots"        # Transaction snapshots
+        "pg_commit_ts"        # Commit timestamps
+        "pg_serial"           # Serializable transaction tracking
+        "pg_replslot"         # Replication slots
+        "pg_twophase"         # Two-phase commit
+        "pg_tblspc"           # Tablespaces
+        "pg_logical/snapshots"  # Logical replication snapshots
+        "pg_logical/mappings"   # Logical replication type mappings
+    )
+
+    local missing_dirs=()
+
+    # Check each critical directory
+    for dir in "${critical_dirs[@]}"; do
+        if [[ ! -d "$postgres_data_dir/$dir" ]]; then
+            missing_dirs+=("$dir")
+        fi
+    done
+
+    # If all directories present, no action needed
+    if [[ ${#missing_dirs[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    # Report missing directories (non-fatal, will auto-create)
+    info "Detected ${#missing_dirs[@]} missing critical PostgreSQL directories"
+
+    # Get target UID for correct ownership (Alpine uses 70:70)
+    local target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
+    local target_gid="$target_uid"
+
+    # Create missing directories with correct ownership and permissions
+    local created=0
+    for dir in "${missing_dirs[@]}"; do
+        local dir_path="$postgres_data_dir/$dir"
+
+        if sudo mkdir -p "$dir_path" 2>/dev/null; then
+            sudo chown $target_uid:$target_gid "$dir_path" 2>/dev/null
+            sudo chmod 0700 "$dir_path" 2>/dev/null
+            created=$((created + 1))
+        else
+            warning "Failed to create directory: $dir (PostgreSQL may fail to start)"
+        fi
+    done
+
+    if [[ $created -gt 0 ]]; then
+        success "Created $created missing PostgreSQL directories (ownership: $target_uid:$target_gid, permissions: 0700)"
+    fi
+
+    return 0
+}
+
+# =============================================================================
 # POSTGRESQL DIRECTORY INITIALIZATION
 # =============================================================================
 

@@ -1164,6 +1164,13 @@ main() {
     create_deployment_safety_backup "pre_start"
     echo ""
 
+    # PRE-START CHECK: Verify critical PostgreSQL directories exist
+    # This lightweight check ensures essential directories (pg_notify, pg_dynshmem, etc.)
+    # are present BEFORE starting PostgreSQL, preventing FATAL startup errors.
+    # Runs even during selective restarts (when POSTGRES_WAS_STOPPED=false).
+    verify_postgres_critical_directories
+    echo ""
+
     start_services
     echo ""
 
