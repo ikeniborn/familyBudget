@@ -624,18 +624,29 @@
          */
         _createCalendarElement() {
             this.calendarElement = document.createElement('div');
-            this.calendarElement.className = 'calendar-widget absolute z-50 mt-2 shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
+            this.calendarElement.className = 'calendar-widget fixed z-50 shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
             this.calendarElement.style.width = '320px';
 
-            // Position below input
+            // Append to body for proper positioning
+            document.body.appendChild(this.calendarElement);
+
+            this._render();
+        }
+
+        /**
+         * Position calendar below target input
+         * @private
+         */
+        _positionCalendar() {
             const targetInput = this.mode === 'single'
                 ? this.inputElement
                 : this.startInputElement;
 
-            targetInput.parentElement.style.position = 'relative';
-            targetInput.parentElement.appendChild(this.calendarElement);
+            const rect = targetInput.getBoundingClientRect();
 
-            this._render();
+            // Position below input, aligned to left
+            this.calendarElement.style.top = `${rect.bottom + window.scrollY + 4}px`;
+            this.calendarElement.style.left = `${rect.left + window.scrollX}px`;
         }
 
         /**
@@ -957,9 +968,9 @@
             }
 
             if (this.mode === 'range') {
-                // v5.1.3 bugfix: Preserve existing dates when changing one of them
+                // v5.1.4 fix: Improved range selection logic
                 if (this.selectingEnd) {
-                    // Selecting END date - preserve START date
+                    // Selecting END date
                     this.endDate = date;
 
                     // Swap if end < start
@@ -977,43 +988,32 @@
                     const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
                     this.endInputElement.value = endDisplay;
 
-                    // Both dates selected - just re-render to show selection (don't close yet)
+                    // Both dates selected - call callback and close calendar (v5.1.4 fix)
                     if (this.startDate && this.endDate) {
-                        this.selectingEnd = false;
-                        this._render();
+                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                        this.onSelect(startDisplay, endDisplay);
+                        this.close();
                     } else {
-                        // Only end date selected, keep calendar open to select start
+                        // Only end date selected, switch to selecting start
                         this.selectingEnd = false;
                         this._render();
                     }
                 } else {
-                    // Selecting START date - preserve END date
+                    // Selecting START date
                     this.startDate = date;
 
-                    // Swap if end < start
-                    if (this.endDate && this.endDate < date) {
-                        const temp = this.endDate;
-                        this.endDate = date;
-                        this.startDate = temp;
-                    }
+                    // Clear end date when selecting new start
+                    this.endDate = null;
+                    this.endInputElement.value = '';
 
-                    // Update inputs
+                    // Update start input
                     const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
                     this.startInputElement.value = startDisplay;
-                    if (this.endDate) {
-                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                        this.endInputElement.value = endDisplay;
-                    }
 
-                    // If both dates selected, just switch to selecting end and re-render
-                    if (this.startDate && this.endDate) {
-                        this.selectingEnd = false;
-                        this._render();
-                    } else {
-                        // Only start date selected, switch to selecting end
-                        this.selectingEnd = true;
-                        this._render();
-                    }
+                    // Switch to selecting end date
+                    this.selectingEnd = true;
+                    this._render();
                 }
             }
         }
@@ -1073,6 +1073,10 @@
          */
         open(forceSelectingEnd = false) {
             this.isOpen = true;
+
+            // Position calendar below input (v5.1.4 fix)
+            this._positionCalendar();
+
             this.calendarElement.classList.remove('hidden');
 
             // Set selection mode for range mode
@@ -1086,8 +1090,8 @@
                         // Start date selected, continue selecting end
                         this.selectingEnd = true;
                     } else if (this.startDate && this.endDate) {
-                        // Both dates selected, allow changing end date
-                        this.selectingEnd = true;
+                        // Both dates selected, start fresh from beginning
+                        this.selectingEnd = false;
                     } else {
                         // No dates selected, start from beginning
                         this.selectingEnd = false;
