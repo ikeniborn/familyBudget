@@ -612,7 +612,14 @@ async function reloadArticleFilter(type) {
         }
 
         const response = await fetch(url);
-        const articles = await response.json();
+        const data = await response.json();
+
+        // Validate response format
+        const articles = Array.isArray(data) ? data : (data.articles || []);
+        if (!Array.isArray(articles)) {
+            console.error('Invalid API response format:', data);
+            throw new Error('Expected array of articles');
+        }
 
         // Build tree and flatten
         const tree = buildArticleTree(articles);

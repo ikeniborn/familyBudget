@@ -474,13 +474,23 @@ document.addEventListener('DOMContentLoaded', function() {
         await createFact(e);
     });
 
-    // Initialize CalendarWidget for filter date range
+    // Initialize separate CalendarWidgets for filter date inputs (isolated instances)
+    // Calendar for "Дата с" (date from)
     new BudgetShared.CalendarWidget({
-        mode: 'range',
-        startInputElement: document.getElementById('filter-date-from'),
-        endInputElement: document.getElementById('filter-date-to'),
-        onSelect: (startDate, endDate) => {
-            debugLog('Выбран диапазон дат:', startDate, endDate);
+        mode: 'single',
+        inputElement: document.getElementById('filter-date-from'),
+        onSelect: (date) => {
+            debugLog('Выбрана дата с:', date);
+            applyFilters(); // Auto-apply on selection
+        }
+    });
+
+    // Calendar for "Дата по" (date to)
+    new BudgetShared.CalendarWidget({
+        mode: 'single',
+        inputElement: document.getElementById('filter-date-to'),
+        onSelect: (date) => {
+            debugLog('Выбрана дата по:', date);
             applyFilters(); // Auto-apply on selection
         }
     });
@@ -644,7 +654,14 @@ async function reloadArticleFilter(type) {
         const response = await fetch(url, {
             credentials: 'include',
         });
-        const articles = await response.json();
+        const data = await response.json();
+
+        // Validate response format
+        const articles = Array.isArray(data) ? data : (data.articles || []);
+        if (!Array.isArray(articles)) {
+            console.error('Invalid API response format:', data);
+            throw new Error('Expected array of articles');
+        }
 
         // Build tree and flatten
         const tree = buildArticleTree(articles);
@@ -974,6 +991,17 @@ async function loadFacts() {
     }
 }
 
+// Get color class for article type (category type)
+function getArticleTypeColor(type) {
+    const colorMap = {
+        'expense': 'text-error',      // Расходы - красный
+        'income': 'text-success',     // Доходы - зелёный
+        'debit': 'text-info',         // Списание - синий
+        'credit': 'text-warning'      // Пополнение - оранжевый
+    };
+    return colorMap[type] || '';
+}
+
 // Render facts table
 function renderFactsTable(facts) {
     const container = document.getElementById('facts-table-container');
@@ -1024,7 +1052,7 @@ function renderFactsTable(facts) {
                 <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
                 <td>
-                    ${fact.article_name || '—'}
+                    <span class="${getArticleTypeColor(fact.article_type)}">${fact.article_name || '—'}</span>
                     ${fact.transfer_id ? `<span class="badge badge-info badge-sm ml-2" title="Перевод ID: ${fact.transfer_id}">🔁 Перевод</span>` : ''}
                 </td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
