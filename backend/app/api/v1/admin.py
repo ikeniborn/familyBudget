@@ -947,7 +947,7 @@ async def create_article(
     await create_article_initial_history(
         session=session,
         article=new_article,
-        created_by_user_id=current_admin.id,
+        change_type="CREATE",
     )
 
     # Return dict with datetime converted to ISO strings for JSON serialization
