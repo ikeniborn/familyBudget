@@ -770,7 +770,15 @@
 
                 let btnClass = 'btn btn-sm btn-ghost w-full aspect-square p-0';
                 if (isToday) btnClass += ' border border-primary';
-                if (isSelected) btnClass += ' btn-primary';
+                if (isSelected) {
+                    if (this.mode === 'range') {
+                        // Range mode: light red background + red border (v5.1.7)
+                        btnClass += ' border-2 border-error bg-error/10 font-semibold';
+                    } else {
+                        // Single mode: standard primary button
+                        btnClass += ' btn-primary';
+                    }
+                }
                 if (isInRange && !isSelected) btnClass += ' bg-primary/20';
                 if (isDisabled) btnClass += ' btn-disabled opacity-30';
 
