@@ -442,6 +442,7 @@
             this.onSelect = options.onSelect || (() => {});
             this.minDate = options.minDate || null;
             this.maxDate = options.maxDate || null;
+            this.triggerContainer = options.triggerContainer || null; // Optional container for trigger button
 
             // Single date picker
             if (this.mode === 'single') {
@@ -516,9 +517,14 @@
                 // Single mode: create one button for inputElement
                 this._createSingleButton(this.inputElement);
             } else {
-                // Range mode: create buttons for BOTH startInputElement and endInputElement
-                this._createSingleButton(this.startInputElement, false);  // isEndInput = false
-                this._createSingleButton(this.endInputElement, true);     // isEndInput = true (v5.1.3 bugfix)
+                // Range mode: create ONE button in triggerContainer (if provided) or next to endInputElement
+                if (this.triggerContainer) {
+                    this._createRangeTriggerButton();
+                } else {
+                    // Fallback: create buttons for BOTH inputs (old behavior)
+                    this._createSingleButton(this.startInputElement, false);
+                    this._createSingleButton(this.endInputElement, true);
+                }
             }
         }
 
@@ -568,6 +574,47 @@
                 } else {
                     this.open();
                 }
+            });
+        }
+
+        /**
+         * Create a single calendar button for range mode in custom container
+         * @private
+         */
+        _createRangeTriggerButton() {
+            // Get container (string selector or HTMLElement)
+            const container = typeof this.triggerContainer === 'string'
+                ? document.querySelector(this.triggerContainer)
+                : this.triggerContainer;
+
+            if (!container) {
+                console.error('CalendarWidget: triggerContainer not found');
+                return;
+            }
+
+            // Create button
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-primary btn-md';
+            button.innerHTML = `
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            `;
+            button.setAttribute('aria-label', 'Открыть календарь');
+
+            // Store reference
+            this.triggerButton = button;
+
+            // Append to container
+            container.appendChild(button);
+
+            // Add click event to open calendar
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.open();
             });
         }
 
@@ -639,17 +686,21 @@
 
                 <!-- Footer: Quick actions -->
                 <div class="flex gap-2 mt-4 pt-4 border-t border-base-300">
-                  <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="today">
-                    Сегодня
-                  </button>
                   ${this.mode === 'range' ? `
                     <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="clear-range">
                       Очистить
                     </button>
-                  ` : ''}
-                  <button type="button" class="btn btn-sm btn-primary flex-1" data-action="close">
-                    Закрыть
-                  </button>
+                    <button type="button" class="btn btn-sm btn-primary flex-1" data-action="apply-range">
+                      Применить
+                    </button>
+                  ` : `
+                    <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="today">
+                      Сегодня
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary flex-1" data-action="close">
+                      Закрыть
+                    </button>
+                  `}
                 </div>
               </div>
             `;
@@ -802,6 +853,15 @@
                     case 'clear-range':
                         this.clearRange();
                         break;
+                    case 'apply-range':
+                        // Apply selected range and close
+                        if (this.startDate && this.endDate) {
+                            const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                            const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                            this.onSelect(startDisplay, endDisplay);
+                            this.close();
+                        }
+                        break;
                     case 'close':
                         this.close();
                         break;
@@ -917,12 +977,10 @@
                     const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
                     this.endInputElement.value = endDisplay;
 
-                    // If both dates selected, trigger callback and close
+                    // Both dates selected - just re-render to show selection (don't close yet)
                     if (this.startDate && this.endDate) {
-                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
-                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                        this.onSelect(startDisplay, endDisplay);
-                        this.close();
+                        this.selectingEnd = false;
+                        this._render();
                     } else {
                         // Only end date selected, keep calendar open to select start
                         this.selectingEnd = false;
@@ -947,12 +1005,10 @@
                         this.endInputElement.value = endDisplay;
                     }
 
-                    // If both dates selected, trigger callback and close
+                    // If both dates selected, just switch to selecting end and re-render
                     if (this.startDate && this.endDate) {
-                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
-                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                        this.onSelect(startDisplay, endDisplay);
-                        this.close();
+                        this.selectingEnd = false;
+                        this._render();
                     } else {
                         // Only start date selected, switch to selecting end
                         this.selectingEnd = true;

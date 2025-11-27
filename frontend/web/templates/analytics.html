@@ -57,7 +57,8 @@
                         <input type="text" id="date-from" class="input input-sm input-bordered w-48" placeholder="От..." readonly>
                         <span class="text-sm">—</span>
                         <input type="text" id="date-to" class="input input-sm input-bordered w-48" placeholder="До..." readonly>
-                        <button class="btn btn-sm btn-primary" onclick="applyCustomRange()">Применить</button>
+                        <!-- Calendar trigger button (range mode) -->
+                        <div id="analytics-date-range-trigger"></div>
                         <button class="btn btn-sm btn-ghost" onclick="cancelCustomRange()">Отмена</button>
                     </div>
 
@@ -223,14 +224,16 @@ let categoryChoices = null;  // Choices.js instance
 
 // Initialize charts on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize CalendarWidget for custom date range
+    // Initialize CalendarWidget for custom date range (with custom trigger)
     new BudgetShared.CalendarWidget({
         mode: 'range',
         startInputElement: document.getElementById('date-from'),
         endInputElement: document.getElementById('date-to'),
+        triggerContainer: '#analytics-date-range-trigger',
         onSelect: (startDate, endDate) => {
             customDateFrom = startDate;  // DD.MM.YYYY format
             customDateTo = endDate;
+            applyCustomRange(); // Auto-apply when dates are selected
         }
     });
 

@@ -44,19 +44,21 @@
             <!-- Уровень 1: Фильтры по дате -->
             <div class="filter-section">
                 <div class="filter-section-title">📅 Период</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="form-control">
+                <div class="flex gap-2 items-end">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text font-medium">Дата с</span>
                         </label>
                         <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
-                    <div class="form-control">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text font-medium">Дата по</span>
                         </label>
                         <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
+                    <!-- Calendar trigger button (range mode) -->
+                    <div id="date-range-calendar-trigger"></div>
                 </div>
             </div>
 
@@ -474,23 +476,14 @@ document.addEventListener('DOMContentLoaded', function() {
         await createFact(e);
     });
 
-    // Initialize separate CalendarWidgets for filter date inputs (isolated instances)
-    // Calendar for "Дата с" (date from)
+    // Initialize CalendarWidget for date range filter (range mode with custom trigger)
     new BudgetShared.CalendarWidget({
-        mode: 'single',
-        inputElement: document.getElementById('filter-date-from'),
-        onSelect: (date) => {
-            debugLog('Выбрана дата с:', date);
-            applyFilters(); // Auto-apply on selection
-        }
-    });
-
-    // Calendar for "Дата по" (date to)
-    new BudgetShared.CalendarWidget({
-        mode: 'single',
-        inputElement: document.getElementById('filter-date-to'),
-        onSelect: (date) => {
-            debugLog('Выбрана дата по:', date);
+        mode: 'range',
+        startInputElement: document.getElementById('filter-date-from'),
+        endInputElement: document.getElementById('filter-date-to'),
+        triggerContainer: '#date-range-calendar-trigger',
+        onSelect: (dateFrom, dateTo) => {
+            debugLog('Выбран период:', dateFrom, '-', dateTo);
             applyFilters(); // Auto-apply on selection
         }
     });
