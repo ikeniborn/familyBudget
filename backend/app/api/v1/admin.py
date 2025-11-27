@@ -44,7 +44,8 @@ from backend.app.services.user_service import (
     create_initial_history
 )
 from backend.app.services.article_service import (
-    update_article_profile as update_article_scd1
+    update_article_profile as update_article_scd1,
+    create_initial_history as create_article_initial_history
 )
 from backend.app.services import (
     archive_recursive,
@@ -907,8 +908,6 @@ async def create_article(
     Raises:
         HTTPException: 400 if parent_id invalid or type mismatch
     """
-    from datetime import datetime
-
     # Validate parent_id if provided
     if create_data.parent_id is not None:
         parent_query = select(Article).where(
@@ -931,7 +930,7 @@ async def create_article(
     from backend.app.utils.code_generator import generate_code
     generated_code = await generate_code(session, Article)
 
-    # Create new article
+    # Create new article (SCD Type 1 - no versioning fields)
     new_article = Article(
         user_id=current_admin.id,
         parent_id=create_data.parent_id,
@@ -939,13 +938,17 @@ async def create_article(
         type=create_data.type,
         code=generated_code,
         is_active=create_data.is_active,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-        is_current=True
     )
     session.add(new_article)
     await session.commit()
     await session.refresh(new_article)
+
+    # Create initial history record (SCD Type 1 pattern)
+    await create_article_initial_history(
+        session=session,
+        article=new_article,
+        created_by_user_id=current_admin.id,
+    )
 
     # Return dict with datetime converted to ISO strings for JSON serialization
     return {
