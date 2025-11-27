@@ -210,8 +210,8 @@ def check_backup_status() -> ComponentHealth:
         backup_age_seconds = time.time() - latest_backup.stat().st_mtime
         backup_age_hours = backup_age_seconds / 3600
 
-        # Status: up if backup is recent and size > 100KB
-        status = "up" if (backup_age_hours < 26 and backup_size_mb > 0.1) else "down"
+        # Status: up if backup is recent and size > 10KB (gzip compressed)
+        status = "up" if (backup_age_hours < 26 and backup_size_mb > 0.01) else "down"
 
         return ComponentHealth(
             status=status,
