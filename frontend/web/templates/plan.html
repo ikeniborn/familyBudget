@@ -11,7 +11,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-info gap-1" onclick="create_modal.showModal()" title="Добавить новый план">
+                <button class="btn btn-sm btn-info gap-1" onclick="modal_add_plan.showModal()" title="Добавить новый план">
                     ➕ Добавить план
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
@@ -186,7 +186,7 @@
 </div>
 
 <!-- Create Plan Modal -->
-{{ plan_modal('create_modal') }}
+{{ plan_modal('modal_add_plan') }}
 
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">

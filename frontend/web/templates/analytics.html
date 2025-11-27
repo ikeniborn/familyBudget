@@ -1219,8 +1219,13 @@ function updateOperationType(type) {
         loadHeatmapData(currentPeriod);
     }
 
-    // Update category filter with new type (expense/income)
-    const categoryFilterType = categoryType;
+    // Update category filter with new type (expense/income/debit/credit)
+    // FIXED: Use 'type' instead of 'categoryType' to filter categories by exact type
+    // - expense: show only expense categories (exclude debit)
+    // - income: show only income categories (exclude credit)
+    // - debit: show only debit categories
+    // - credit: show only credit categories
+    const categoryFilterType = type;
 
     if (categoryChoices && typeof categoryChoices.updateType === 'function') {
         categoryChoices.updateType(categoryFilterType).catch(error => {

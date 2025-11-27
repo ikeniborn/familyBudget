@@ -191,7 +191,7 @@
 </div>
 
 <!-- Create Fact Modal -->
-{{ transaction_modal('create_modal') }}
+{{ transaction_modal('modal_add_transaction') }}
 
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">
@@ -366,7 +366,7 @@ let recommendedAmountsController = null;
 /**
  * Load recommended amounts from API and update quick amount buttons.
  *
- * @param {string} formId - ID модальной формы ('form_create_modal')
+ * @param {string} formId - ID модальной формы ('form_modal_add_transaction')
  * @param {string} recordType - Тип записи ('fact')
  * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
  */
@@ -457,11 +457,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadCostCenters();
     loadFacts();
 
-    // Инициализация кнопок типа транзакции для create_modal
+    // Инициализация кнопок типа транзакции для modal_add_transaction
     setupCreateTransactionTypeButtons();
 
-    // Установить текущую дату для create_modal (DD.MM.YYYY формат для CalendarWidget)
-    const createFactDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+    // Установить текущую дату для modal_add_transaction (DD.MM.YYYY формат для CalendarWidget)
+    const createFactDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (createFactDateInput) {
         createFactDateInput.value = BudgetShared.DateFormatter.formatForDisplay(
             BudgetShared.DateFormatter.today()
@@ -469,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Обработчик отправки формы создания транзакции
-    document.getElementById('form_create_modal').addEventListener('submit', async function(e) {
+    document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
         e.preventDefault();
         await createFact(e);
     });
@@ -595,22 +595,22 @@ async function loadArticles() {
 
         // Инициализировать CategoryTreeSelect для create modal
         allCategories = articles;
-        const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
+        const createSelect = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
         if (createSelect) {
-            const createType = document.querySelector('#form_create_modal input[name="record_type"]:checked')?.value || 'expense';
-            createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
+            const createType = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked')?.value || 'expense';
+            createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_transaction select[name="article_id"]', {
                 type: createType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     debugLog('Category changed in create modal:', category);
                     // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_create_modal', 'fact', category);
+                    loadRecommendedAmounts('form_modal_add_transaction', 'fact', category);
                 }
             });
         }
 
         // Инициализация CalendarWidget для create modal (после загрузки категорий)
-        const createDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+        const createDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
         if (createDateInput) {
             new BudgetShared.CalendarWidget({
                 mode: 'single',
@@ -759,7 +759,7 @@ async function loadFinancialCenters() {
         const centers = data.financial_centers || [];
 
         // Populate create modal dropdown
-        const createSelect = document.querySelector('#form_create_modal select[name="financial_center_id"]');
+        const createSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
         if (createSelect) {
             // Clear existing options except first (placeholder)
             while (createSelect.options.length > 1) {
@@ -814,7 +814,7 @@ async function loadCostCenters() {
         const centers = data.cost_centers || [];
 
         // Populate create modal dropdown
-        const createSelect = document.querySelector('#form_create_modal select[name="cost_center_id"]');
+        const createSelect = document.querySelector('#form_modal_add_transaction select[name="cost_center_id"]');
         if (createSelect) {
             // Clear existing options except first (placeholder)
             while (createSelect.options.length > 1) {
@@ -1556,7 +1556,7 @@ function setupCreateTransactionTypeButtons() {
             }
 
             // Обновить рекомендуемые суммы для нового типа транзакции
-            loadRecommendedAmounts('form_modal_add_transaction', 'fact');
+            loadRecommendedAmounts('form_modal_add_transaction', 'fact');  // FIXED: form_modal_add_transaction
         });
     });
 }
@@ -1620,12 +1620,12 @@ async function createFact(event) {
 
         if (response.ok) {
             showToast('Транзакция успешно создана!', 'success');
-            create_modal.close();
+            modal_add_transaction.close();
             event.target.reset();
             await loadFacts(); // Перезагрузить список транзакций
 
             // Установить дату обратно на сегодня
-            const createFactDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+            const createFactDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
             if (createFactDateInput) {
                 createFactDateInput.value = BudgetShared.DateFormatter.today();
             }
@@ -1641,7 +1641,7 @@ async function createFact(event) {
 
 // Установить сумму транзакции из quick amount buttons
 function setTransactionAmount(amount) {
-    const amountInput = document.querySelector('#form_create_modal input[name="amount"]');
+    const amountInput = document.querySelector('#form_modal_add_transaction input[name="amount"]');
     if (amountInput) {
         amountInput.value = amount;
     }
@@ -1649,7 +1649,7 @@ function setTransactionAmount(amount) {
 
 // Установить дату транзакции (offset в днях: 0 = сегодня, -1 = вчера)
 function setTransactionDate(offsetDays) {
-    const dateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+    const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (dateInput) {
         const date = new Date();
         date.setDate(date.getDate() + offsetDays);
@@ -1678,11 +1678,11 @@ function showToast(message, type = 'info') {
 
 // Функция открытия модального окна создания транзакции с проверкой даты
 function openCreateModal() {
-    create_modal.showModal();
+    modal_add_transaction.showModal();
 
     // Проверить и установить дату, если поле пустое (после сброса формы)
     setTimeout(() => {
-        const factDateInput = document.querySelector('#form_create_modal input[name="fact_date"]');
+        const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
         if (factDateInput && !factDateInput.value) {
             factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(
                 BudgetShared.DateFormatter.today()
