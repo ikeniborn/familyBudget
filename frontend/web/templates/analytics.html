@@ -1151,10 +1151,10 @@ function updateOperationType(type) {
 
     if (type === 'expense') {
         categoryType = 'expense';
-        transactionType = null;  // No transaction_filter, show all expense transactions
+        transactionType = null;  // Show all expense transactions
     } else if (type === 'income') {
         categoryType = 'income';
-        transactionType = null;  // No transaction_filter, show all income transactions
+        transactionType = null;  // Show all income transactions
     } else if (type === 'debit') {
         // Debit = списание = expense categories with debit transactions only
         categoryType = 'expense';
@@ -1665,13 +1665,8 @@ function initHeatmapChart() {
 // Load Heatmap data from API
 async function loadHeatmapData(period = 'quarter') {
     try {
-        // Build query string with filters (v5.2.0: transaction_filter support)
+        // Build query string with filters (v5.1.3)
         let url = `/api/v1/analytics/heatmap?period=${period}&article_type=${currentGlobalType}&record_type=fact`;
-
-        // Add transaction_filter if specified (debit/credit) - takes priority over article_type
-        if (currentTransactionType !== null && currentTransactionType !== undefined) {
-            url += `&transaction_filter=${currentTransactionType}`;
-        }
 
         // Add CFO filter if specified
         if (currentCFOId !== null) {
@@ -2077,13 +2072,8 @@ async function loadWaterfallDataCustom(dateFrom, dateTo, articleId = null) {
 
 async function loadHeatmapDataCustom(dateFrom, dateTo) {
     try {
-        // Build query string with filters (v5.2.0: transaction_filter support)
+        // Build query string with filters (v5.1.3)
         let url = `/api/v1/analytics/heatmap?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&record_type=fact`;
-
-        // Add transaction_filter if specified (debit/credit) - takes priority over article_type
-        if (currentTransactionType !== null && currentTransactionType !== undefined) {
-            url += `&transaction_filter=${currentTransactionType}`;
-        }
 
         // Add CFO filter if specified
         if (currentCFOId !== null) {

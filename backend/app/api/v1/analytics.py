@@ -1367,8 +1367,7 @@ async def get_heatmap_data(
     period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_type: str = Query("expense", regex="^(income|expense|all)$"),
-    transaction_filter: Optional[str] = Query(None, regex="^(debit|credit|all)$", description="Filter by transaction type: debit (expense), credit (income), or all"),
+    article_type: str = Query("expense", regex="^(income|expense|debit|credit|all)$"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
@@ -1384,8 +1383,7 @@ async def get_heatmap_data(
             - year: last 365 days from today → aggregate by months
         date_from: Optional start date for custom range (overrides period)
         date_to: Optional end date for custom range (overrides period)
-        article_type: Type of category (income or expense) - legacy parameter
-        transaction_filter: Filter by transaction type (debit=expense, credit=income) - takes priority over article_type
+        article_type: Type of category (income, expense, debit, credit or all)
         record_type: Type of records (fact or plan)
 
     Returns:
@@ -1441,12 +1439,7 @@ async def get_heatmap_data(
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
-        # transaction_filter takes priority over article_type (v5.2.0)
-        if transaction_filter and transaction_filter != 'all':
-            # transaction_filter: debit → expense, credit → income
-            filter_type = 'expense' if transaction_filter == 'debit' else 'income'
-            query = query.where(Article.type == filter_type)
-        elif article_type != 'all':
+        if article_type != 'all':
             query = query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
