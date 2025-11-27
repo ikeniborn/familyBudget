@@ -648,18 +648,55 @@ check_database_details() {
     echo
     print_subheader "Slow Queries (Last 24h)"
 
-    # Check for slow queries in logs (duration > 1000ms)
-    local slow_queries=$(docker logs --since 24h "$postgres_container" 2>&1 | grep "duration:" | grep -oP 'duration: \K[\d.]+' | awk '{if ($1 > 1000) print $1}' | wc -l)
+    # Check if pg_stat_statements extension is available
+    local has_pg_stat_statements=$(docker exec "$postgres_container" psql -U familybudget -d familybudget -t \
+        -c "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'pg_stat_statements')::int;" 2>/dev/null | xargs || echo "0")
 
-    if [ "$slow_queries" -eq 0 ]; then
-        print_status "  Slow Queries (>1s):" "✓ None found" "$GREEN"
+    if [ "$has_pg_stat_statements" = "1" ]; then
+        # Use pg_stat_statements for accurate slow query detection
+        local slow_queries=$(docker exec "$postgres_container" psql -U familybudget -d familybudget -t \
+            -c "SELECT COUNT(*) FROM pg_stat_statements WHERE mean_exec_time > 1000;" 2>/dev/null | xargs || echo "0")
+
+        if [ "$slow_queries" -eq 0 ]; then
+            print_status "  Slow Queries (>1s):" "✓ None found" "$GREEN"
+        else
+            print_status "  Slow Queries (>1s):" "⚠ ${slow_queries} queries" "$YELLOW"
+
+            # Show top 3 slowest queries with statistics
+            echo
+            print_color "$WHITE" "  Top 3 Slowest Queries:"
+            echo
+            docker exec "$postgres_container" psql -U familybudget -d familybudget -t \
+                -c "SELECT
+                        '    ' ||
+                        ROUND(mean_exec_time::numeric, 2) || 'ms (avg), ' ||
+                        ROUND(max_exec_time::numeric, 2) || 'ms (max), ' ||
+                        calls || ' calls' || E'\n' ||
+                        '    ' || LEFT(query, 80) || '...'
+                    FROM pg_stat_statements
+                    WHERE mean_exec_time > 1000
+                    ORDER BY mean_exec_time DESC
+                    LIMIT 3;" 2>/dev/null
+        fi
     else
-        print_status "  Slow Queries (>1s):" "⚠ ${slow_queries} queries" "$YELLOW"
+        # Fallback: Check for slow queries in logs (old method)
+        local slow_queries=$(docker logs --since 24h "$postgres_container" 2>&1 | grep "duration:" | grep -oP 'duration: \K[\d.]+' | awk '{if ($1 > 1000) print $1}' | wc -l)
 
-        # Show top 3 slowest
+        if [ "$slow_queries" -eq 0 ]; then
+            print_status "  Slow Queries (>1s):" "✓ None found" "$GREEN"
+        else
+            print_status "  Slow Queries (>1s):" "⚠ ${slow_queries} queries" "$YELLOW"
+
+            # Show top 3 slowest
+            echo
+            print_color "$WHITE" "  Top 3 Slowest Queries (from logs):"
+            docker logs --since 24h "$postgres_container" 2>&1 | grep "duration:" | grep -oP 'duration: [\d.]+.*statement:.*' | sort -rn -k2 | head -3 | sed 's/^/    /' | head -c 500
+        fi
+
+        # Suggest installing pg_stat_statements
         echo
-        print_color "$WHITE" "  Top 3 Slowest Queries:"
-        docker logs --since 24h "$postgres_container" 2>&1 | grep "duration:" | grep -oP 'duration: [\d.]+.*statement:.*' | sort -rn -k2 | head -3 | sed 's/^/    /' | head -c 500
+        print_color "$YELLOW" "  💡 Tip: Install pg_stat_statements extension for better query monitoring"
+        print_color "$YELLOW" "      Run: cd ~/familyBudget && sudo ./deploy.sh --profile full"
     fi
 
     echo
