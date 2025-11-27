@@ -92,6 +92,8 @@
                                 <option value="">-- Все типы --</option>
                                 <option value="expense">💸 Расходы</option>
                                 <option value="income">💰 Доходы</option>
+                                <option value="debit">🔵 Списание</option>
+                                <option value="credit">🟠 Пополнение</option>
                             </select>
                         </div>
 
@@ -407,11 +409,15 @@ async function updateBulkCategoryType() {
             option.style.opacity = '0.7';
         }
 
-        // Цветовая индикация: расходы - красный, доходы - зеленый
+        // Цветовая индикация по типу категории
         if (node.type === 'expense') {
-            option.style.color = '#ef4444'; // red-500
+            option.style.color = 'rgb(239, 68, 68)'; // Красный (расходы)
         } else if (node.type === 'income') {
-            option.style.color = '#10b981'; // green-500
+            option.style.color = 'rgb(34, 197, 94)'; // Зелёный (доходы)
+        } else if (node.type === 'debit') {
+            option.style.color = 'rgb(59, 130, 246)'; // Синий (списание)
+        } else if (node.type === 'credit') {
+            option.style.color = 'rgb(251, 146, 60)'; // Оранжевый (пополнение)
         }
 
         selectElement.appendChild(option);
@@ -744,11 +750,15 @@ function renderStagingTable() {
                                 const disabled = !node.isLeaf ? 'disabled' : '';
                                 let style = !node.isLeaf ? 'font-weight: bold; opacity: 0.7;' : '';
 
-                                // Цветовая индикация: расходы - красный, доходы - зеленый
+                                // Цветовая индикация по типу категории
                                 if (node.type === 'expense') {
-                                    style += ' color: #ef4444;'; // red-500
+                                    style += ' color: rgb(239, 68, 68);'; // Красный (расходы)
                                 } else if (node.type === 'income') {
-                                    style += ' color: #10b981;'; // green-500
+                                    style += ' color: rgb(34, 197, 94);'; // Зелёный (доходы)
+                                } else if (node.type === 'debit') {
+                                    style += ' color: rgb(59, 130, 246);'; // Синий (списание)
+                                } else if (node.type === 'credit') {
+                                    style += ' color: rgb(251, 146, 60);'; // Оранжевый (пополнение)
                                 }
 
                                 return `<option value="${node.id}" ${node.id === record.article_id ? 'selected' : ''} ${disabled} style="${style}">${indent}${icon} ${node.name}</option>`;
