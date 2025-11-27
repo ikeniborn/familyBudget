@@ -23,32 +23,35 @@ def upgrade() -> None:
     """Create t_f_budget_fact_history table for tracking all budget fact changes."""
 
     # Create t_f_budget_fact_history table
+    # Note: No foreign key constraint on fact_id because:
+    # 1. t_f_budget_fact is partitioned with composite PK (id, fact_date)
+    # 2. History should persist even after fact deletion (audit trail)
+    # 3. Referential integrity is enforced at application level
     op.create_table(
         't_f_budget_fact_history',
         sa.Column('history_id', sa.Integer(), nullable=False, primary_key=True, autoincrement=True),
-        sa.Column('fact_id', sa.Integer(), nullable=False, index=True),
-        sa.Column('user_id', sa.Integer(), nullable=False, index=True),
-        sa.Column('article_id', sa.Integer(), nullable=False, index=True),
+        sa.Column('fact_id', sa.Integer(), nullable=False),
+        sa.Column('user_id', sa.Integer(), nullable=False),
+        sa.Column('article_id', sa.Integer(), nullable=False),
         sa.Column('financial_center_id', sa.Integer(), nullable=True),
         sa.Column('cost_center_id', sa.Integer(), nullable=True),
-        sa.Column('fact_date', sa.Date(), nullable=False, index=True),
+        sa.Column('fact_date', sa.Date(), nullable=False),
         sa.Column('amount', sa.Numeric(precision=15, scale=2), nullable=False),
         sa.Column('description', sa.Text(), nullable=True),
         sa.Column('record_type', sa.String(length=10), nullable=False),
         sa.Column('transfer_id', sa.Integer(), nullable=True),
-        sa.Column('valid_from', sa.DateTime(), nullable=False, index=True),
+        sa.Column('valid_from', sa.DateTime(), nullable=False),
         sa.Column('valid_to', sa.DateTime(), nullable=False, server_default=sa.text("'9999-12-31'::timestamp")),
-        sa.Column('is_current', sa.Boolean(), nullable=False, server_default=sa.text('true'), index=True),
+        sa.Column('is_current', sa.Boolean(), nullable=False, server_default=sa.text('true')),
         sa.Column('change_type', sa.String(length=20), nullable=False),
         sa.Column('changed_fields', postgresql.ARRAY(sa.String()), nullable=True),
         sa.Column('changed_by_user_id', sa.Integer(), nullable=True),
         sa.Column('cascade_delete_source', sa.String(length=100), nullable=True),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
-        sa.ForeignKeyConstraint(['fact_id'], ['t_f_budget_fact.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('history_id')
     )
 
-    # Create indexes for efficient queries
+    # Create indexes for efficient queries (explicitly named for consistency)
     op.create_index('ix_t_f_budget_fact_history_fact_id', 't_f_budget_fact_history', ['fact_id'])
     op.create_index('ix_t_f_budget_fact_history_user_id', 't_f_budget_fact_history', ['user_id'])
     op.create_index('ix_t_f_budget_fact_history_article_id', 't_f_budget_fact_history', ['article_id'])

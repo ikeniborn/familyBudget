@@ -24,14 +24,16 @@ class BudgetFactHistory(SQLModel, table=True):
     Stores all changes to BudgetFact table with temporal validity (valid_from, valid_to).
     Each change creates a new version with is_current=True, previous version is closed.
 
-    FK to t_f_budget_fact.id (stable) ensures history is linked to correct fact.
+    Note: No foreign key constraint on fact_id because t_f_budget_fact is partitioned
+    with composite PK (id, fact_date), and history must persist after fact deletion.
+    Referential integrity is enforced at application level.
 
     Table: t_f_budget_fact_history
     Pattern: SCD Type 2 (Slowly Changing Dimension Type 2)
 
     Architecture Notes:
         - Stores FULL history of all BudgetFact table changes
-        - FK fact_id points to stable t_f_budget_fact.id (NOT versioned)
+        - fact_id references t_f_budget_fact.id (stable, NOT versioned) without FK constraint
         - Each change: close old version (is_current=False, set valid_to) + create new version
         - Used ONLY for audit and GET /facts/{id}/history endpoint
         - NOT used in regular queries (no JOINs in analytics queries)
@@ -61,7 +63,7 @@ class BudgetFactHistory(SQLModel, table=True):
 
     Attributes:
         history_id: Surrogate primary key for history records
-        fact_id: Foreign key to t_f_budget_fact.id (stable PK)
+        fact_id: Reference to t_f_budget_fact.id (stable PK, no FK constraint)
         user_id: User snapshot at time of change
         article_id: Article snapshot at time of change
         financial_center_id: Financial center snapshot (optional)
@@ -150,12 +152,15 @@ class BudgetFactHistory(SQLModel, table=True):
         description="Surrogate primary key for history records"
     )
 
-    # Foreign key to fact table (stable ID)
+    # Reference to fact table (stable ID)
+    # Note: No foreign key constraint because:
+    # 1. t_f_budget_fact is partitioned with composite PK (id, fact_date)
+    # 2. History should persist even after fact deletion (audit trail)
+    # 3. Referential integrity is enforced at application level
     fact_id: int = Field(
-        foreign_key="t_f_budget_fact.id",
         index=True,
         nullable=False,
-        description="Foreign key to t_f_budget_fact.id (stable PK)"
+        description="Reference to t_f_budget_fact.id (stable PK)"
     )
 
     # Snapshot of fact attributes at time of change
