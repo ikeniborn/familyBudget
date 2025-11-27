@@ -510,10 +510,10 @@ async def test_historical_query_article_at_point_in_time(
     article_id = create_response.json()["id"]
 
     # Capture timestamp after creation
-    stmt = select(Article).where(Article.id == article_id, Article.is_current == True)
+    stmt = select(Article).where(Article.id == article_id, Article.is_active == True)
     result = await session.execute(stmt)
     v1_article = result.scalar_one()
-    t1 = v1_article.valid_from
+    t1 = v1_article.created_at
 
     # Update to V2
     await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
@@ -556,7 +556,7 @@ async def test_current_query_always_returns_latest_version(
     await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V4"})
 
     # Query current version
-    stmt = select(Article).where(Article.id == article_id, Article.is_current == True)
+    stmt = select(Article).where(Article.id == article_id, Article.is_active == True)
     result = await session.execute(stmt)
     current_article = result.scalar_one()
 

@@ -233,7 +233,7 @@ class ArticleUsageStats(SQLModel, table=True):
         >>> stmt = (
         ...     select(Article, ArticleUsageStats.usage_count)
         ...     .outerjoin(ArticleUsageStats, Article.id == ArticleUsageStats.article_id)
-        ...     .where(Article.is_current == True)
+        ...     .where(Article.is_active == True)
         ...     .order_by(desc(func.coalesce(ArticleUsageStats.usage_count, 0)))
         ...     .limit(10)
         ... )

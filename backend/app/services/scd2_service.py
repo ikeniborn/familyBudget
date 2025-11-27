@@ -188,7 +188,7 @@ async def create_new_version(
             update(Article)
             .where(
                 Article.parent_id == old_instance_id,  # Use saved ID
-                Article.is_current == True  # noqa: E712
+                Article.is_active == True  # noqa: E712
             )
             .values(
                 parent_id=new_instance.id,
