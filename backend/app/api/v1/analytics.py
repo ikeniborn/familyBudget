@@ -356,11 +356,11 @@ async def get_quick_stats_html(
 @router.get("/plan-fact")
 async def get_plan_fact_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_type: str = Query("expense", regex="^(income|expense|debit|credit|all)$"),
-    chart_mode: str = Query("cumulative", regex="^(normal|cumulative)$"),
+    article_type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
+    chart_mode: str = Query("cumulative", pattern="^(normal|cumulative)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -669,12 +669,12 @@ async def get_plan_fact_data(
 @router.get("/trends")
 async def get_trends_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    record_type: str = Query("fact", regex="^(fact|plan)$"),
+    record_type: str = Query("fact", pattern="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
-    chart_mode: str = Query("normal", regex="^(normal|cumulative)$"),
+    chart_mode: str = Query("normal", pattern="^(normal|cumulative)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -912,11 +912,11 @@ async def get_trends_data(
 @router.get("/category-breakdown")
 async def get_category_breakdown(
     current_user: CurrentUser,
-    type: str = Query("expense", regex="^(income|expense|debit|credit|all)$"),
-    period: Optional[str] = Query(None, regex="^(month|quarter|year|all)$"),
+    type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year|all)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    record_type: str = Query("fact", regex="^(fact|plan)$"),
+    record_type: str = Query("fact", pattern="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -1031,7 +1031,7 @@ async def get_category_breakdown(
 @router.get("/waterfall")
 async def get_waterfall_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_id: int | None = Query(None, description="Filter by specific article (for drill-down)"),
@@ -1364,11 +1364,11 @@ async def get_waterfall_data(
 @router.get("/heatmap")
 async def get_heatmap_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_type: str = Query("expense", regex="^(income|expense|debit|credit|all)$"),
-    record_type: str = Query("fact", regex="^(fact|plan)$"),
+    article_type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
+    record_type: str = Query("fact", pattern="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -1650,17 +1650,17 @@ async def get_recommended_amounts(
     ),
     article_type: Optional[str] = Query(
         None,
-        regex="^(income|expense)$",
+        pattern="^(income|expense)$",
         description="Optional transaction type filter: 'income' or 'expense' (omit for all types)"
     ),
     record_type: str = Query(
         "fact",
-        regex="^(fact|plan)$",
+        pattern="^(fact|plan)$",
         description="Record type: 'fact' (actual transactions) or 'plan' (planned transactions)"
     ),
     period: str = Query(
         "quarter",
-        regex="^(month|quarter|year)$",
+        pattern="^(month|quarter|year)$",
         description="Analysis period: 'month' (30d), 'quarter' (90d), 'year' (365d)"
     ),
 ):

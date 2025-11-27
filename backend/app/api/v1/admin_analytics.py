@@ -247,7 +247,7 @@ async def get_top_users(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
     limit: int = Query(10, ge=5, le=50, description="Number of top users to return"),
-    metric: str = Query("transactions", regex="^(transactions|amount)$", description="Sort by transactions count or total amount")
+    metric: str = Query("transactions", pattern="^(transactions|amount)$", description="Sort by transactions count or total amount")
 ):
     """
     Get top users by activity.
@@ -303,7 +303,7 @@ async def get_top_users(
 async def get_categories_breakdown(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    type: str = Query("expense", regex="^(income|expense)$", description="Article type"),
+    type: str = Query("expense", pattern="^(income|expense)$", description="Article type"),
     limit: int = Query(15, ge=5, le=50, description="Number of categories to return")
 ):
     """
