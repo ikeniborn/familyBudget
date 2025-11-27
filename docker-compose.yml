@@ -108,6 +108,7 @@ services:
       APP_ENV: ${APP_ENV:-production}
       DEBUG: ${DEBUG:-false}
       VERSION: ${VERSION:-4.0.0}
+      PYTHONDONTWRITEBYTECODE: 1  # Prevent .pyc cache files (force fresh code on restart)
 
       # Security
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
@@ -207,6 +208,9 @@ services:
 
       # Domain (for WebApp URL generation)
       DOMAIN: ${DOMAIN:-localhost}
+
+      # Application
+      PYTHONDONTWRITEBYTECODE: 1  # Prevent .pyc cache files (force fresh code on restart)
 
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}

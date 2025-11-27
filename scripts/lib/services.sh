@@ -47,20 +47,23 @@ start_services() {
     # Check if PostgreSQL should be kept running (selective restart)
     if [[ "${POSTGRES_WAS_STOPPED:-true}" == "false" ]]; then
         info "Selective restart detected - PostgreSQL will keep running"
-        info "Using --no-recreate to prevent container recreation"
+        info "Strategy: --no-recreate for postgres only, recreate backend/bot to clear Python cache"
 
-        # Strategy: Use --no-recreate for ALL services (including postgres)
-        # Docker Compose will decide which containers to recreate based on:
-        # - Image changes (new build)
-        # - Configuration changes (docker-compose.yml)
-        # - Volume/network changes
-        # --no-recreate prevents recreation even if image changed
-        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            compose_cmd --profile full up --build -d --no-recreate >> "$LOG_FILE" 2>&1
-            start_result=$?
-        else
-            compose_cmd up --build -d --no-recreate >> "$LOG_FILE" 2>&1
-            start_result=$?
+        # Step 1: Keep PostgreSQL running with --no-recreate
+        info "Starting postgres with --no-recreate..."
+        compose_cmd up --build -d --no-recreate postgres >> "$LOG_FILE" 2>&1
+        start_result=$?
+
+        if [[ $start_result -eq 0 ]]; then
+            # Step 2: Recreate backend/bot/nginx (clears Python .pyc cache)
+            info "Recreating backend/bot/nginx (fresh containers for cache invalidation)..."
+            if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+                compose_cmd --profile full up --build -d backend bot nginx certbot >> "$LOG_FILE" 2>&1
+                start_result=$?
+            else
+                compose_cmd up --build -d backend >> "$LOG_FILE" 2>&1
+                start_result=$?
+            fi
         fi
     else
         # Full restart - recreate all containers
