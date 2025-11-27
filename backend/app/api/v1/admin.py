@@ -43,6 +43,14 @@ from backend.app.services.user_service import (
     update_user_profile,
     create_initial_history
 )
+from backend.app.services.article_service import (
+    update_article_profile as update_article_scd1
+)
+from backend.app.services import (
+    archive_recursive,
+    restore_recursive,
+    has_changes
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
@@ -981,9 +989,7 @@ async def update_article(
         HTTPException: 404 if article not found
         HTTPException: 400 if parent_id invalid or creates circular reference
     """
-    from backend.app.services.scd2_service import create_new_version, has_changes
-
-    # Get current article version
+    # Get current article
     query = select(Article).where(
         Article.id == article_id,
     )
@@ -1069,10 +1075,32 @@ async def update_article(
         # Note: We'll need to recursively update children after main article update
         # The SCD2 service will handle parent_id redirection automatically
 
-    # Check if anything changed
+    # Handle is_active changes separately (archiving/restoring)
+    is_active_change = None
+    if "is_active" in updates and updates.get("is_active") != article.is_active:
+        is_active_change = updates["is_active"]
+        # Remove from updates - will be handled separately
+        del updates["is_active"]
+
+    # Check if anything changed (after removing is_active)
     changed, changed_fields = has_changes(article, updates)
+
+    # Process is_active change (recursive archive/restore)
+    if is_active_change is not None:
+        if is_active_change is False:
+            # Archive article and all descendants
+            archived_count = await archive_recursive(session, article_id)
+            logger.info(f"Archived {archived_count} articles")
+        else:
+            # Restore article and all descendants
+            restored_count = await restore_recursive(session, article_id)
+            logger.info(f"Restored {restored_count} articles")
+
+        # Refresh article to get updated is_active status
+        await session.refresh(article)
+
+    # If no other changes, return current article
     if not changed:
-        # No changes, return existing article as dict with ISO datetime strings
         return {
             "id": article.id,
             "user_id": article.user_id,
@@ -1083,42 +1111,23 @@ async def update_article(
             "is_active": article.is_active,
             "created_at": article.created_at.isoformat(),
             "updated_at": article.updated_at.isoformat(),
-            "usage_count": 0,  # Default - stats not loaded
+            "usage_count": 0,
             "hierarchy": None,
-            "user_name": None  # No user name in simple return
+            "user_name": None
         }
 
-    # Use SCD2Service to create new version (includes automatic child redirection)
-    new_article = await create_new_version(
+    # Use SCD Type 1 + History (in-place update with history tracking)
+    updated_article = await update_article_scd1(
         session=session,
-        old_instance=article,
+        article=article,
         updates=updates,
-        changed_fields=changed_fields,
         changed_by_user_id=current_admin.id,
-    )
-
-    # UPDATE TRANSACTIONS: Repoint all transactions from old article_id to new article_id
-    # This ensures historical transactions show under the new category attributes (e.g., new type)
-    # Without this, old transactions would be "lost" in analytics filtered by new attributes
-    update_stmt = (
-        sa_update(Fact)
-        .where(Fact.article_id == article.id)
-        .values(article_id=new_article.id)
-    )
-    await session.execute(update_stmt)
-    await session.commit()  # Commit transaction updates
-
-    # Refresh article to ensure it's not stale
-    await session.refresh(new_article)
-
-    logger.info(
-        f"Updated transactions: article_id {article.id} → {new_article.id} "
-        f"(old: {article.name}/{article.type}, new: {new_article.name}/{new_article.type})"
+        change_type="UPDATE",
     )
 
     # CASCADE: If type was changed, recursively update all children
     if "type" in updates and updates["type"] != article.type:
-        # Recursively update all descendants
+        # Get all descendants
         async def cascade_update_type(parent_article_id: int, new_type: str):
             """Recursively update type for all children of given article."""
             # Get all immediate children
@@ -1129,44 +1138,32 @@ async def update_article(
             children_list = children_result.scalars().all()
 
             for child in children_list:
-                # Only update if child has different type (should always be true if validations passed)
+                # Only update if child has different type
                 if child.type != new_type:
-                    old_child_id = child.id
-
-                    # Create new version with updated type
+                    # Update child type using SCD Type 1
                     child_updates = {"type": new_type}
-                    new_child = await create_new_version(
+                    await update_article_scd1(
                         session=session,
-                        old_instance=child,
+                        article=child,
                         updates=child_updates,
-                        changed_fields=["type"],
                         changed_by_user_id=current_admin.id,
+                        change_type="CASCADE_TYPE_UPDATE",
                     )
-
-                    # UPDATE TRANSACTIONS: Repoint child's transactions to new version
-                    update_child_stmt = (
-                        sa_update(Fact)
-                        .where(Fact.article_id == old_child_id)
-                        .values(article_id=new_child.id)
-                    )
-                    await session.execute(update_child_stmt)
-                    await session.commit()  # Commit cascade transaction updates
 
                     logger.info(
-                        f"CASCADE: Updated transactions for child: article_id {old_child_id} → {new_child.id} "
-                        f"({child.name}: {child.type} → {new_type})"
+                        f"CASCADE: Updated child type: {child.name} ({child.type} → {new_type})"
                     )
 
                     # Recursively update this child's children
-                    await cascade_update_type(new_child.id, new_type)
+                    await cascade_update_type(child.id, new_type)
 
-        # Start cascade from the newly created article
-        await cascade_update_type(new_article.id, new_article.type)
+        # Start cascade from the updated article
+        await cascade_update_type(updated_article.id, updated_article.type)
 
     # TRIGGER: Recalculate article usage statistics after category update
     # This ensures usage_count is up-to-date for category selection UI sorting
     try:
-        logger.info(f"Triggering article usage statistics recalculation after update of article {new_article.id}")
+        logger.info(f"Triggering article usage statistics recalculation after update of article {updated_article.id}")
         await session.execute(text("SELECT recalculate_article_usage_stats()"))
         logger.info("Article usage statistics recalculated successfully")
     except Exception as e:
@@ -1175,15 +1172,15 @@ async def update_article(
     # Return dict with datetime converted to ISO strings for JSON serialization
     # ArticleResponse includes usage_count which is not in Article model (comes from separate stats table)
     return {
-        "id": new_article.id,
-        "user_id": new_article.user_id,
-        "parent_id": new_article.parent_id,
-        "name": new_article.name,
-        "type": new_article.type,
-        "code": new_article.code,
-        "is_active": new_article.is_active,
-        "created_at": new_article.created_at.isoformat(),
-        "updated_at": new_article.updated_at.isoformat(),
+        "id": updated_article.id,
+        "user_id": updated_article.user_id,
+        "parent_id": updated_article.parent_id,
+        "name": updated_article.name,
+        "type": updated_article.type,
+        "code": updated_article.code,
+        "is_active": updated_article.is_active,
+        "created_at": updated_article.created_at.isoformat(),
+        "updated_at": updated_article.updated_at.isoformat(),
         "usage_count": 0,  # Default for updated articles - stats recalculated daily
         "hierarchy": None,
         "user_name": None  # No user name after update
