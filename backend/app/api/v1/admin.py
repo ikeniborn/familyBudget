@@ -1252,7 +1252,27 @@ async def delete_article(
             detail=f"Cannot delete article used in {usage_count} transactions. Archive instead of deleting."
         )
 
-    # Delete from ArticleHierarchy (closure table)
+    # 1. Create DELETE history record (for audit trail)
+    now = datetime.utcnow()
+    delete_history = ArticleHistory(
+        article_id=article.id,
+        user_id=article.user_id,
+        parent_id=article.parent_id,
+        name=article.name,
+        description=article.description,
+        type=article.type,
+        code=article.code,
+        is_active=article.is_active,
+        valid_from=now,
+        valid_to=datetime(9999, 12, 31),
+        is_current=False,  # Deleted records are never current
+        change_type="DELETE",
+        changed_fields=None,  # Full deletion
+        changed_by_user_id=current_admin.id,
+    )
+    session.add(delete_history)
+
+    # 2. Delete from ArticleHierarchy (closure table)
     hierarchy_delete = select(ArticleHierarchy).where(
         (ArticleHierarchy.ancestor_id == article_id) |
         (ArticleHierarchy.descendant_id == article_id)
@@ -1262,16 +1282,10 @@ async def delete_article(
     for record in hierarchy_records:
         await session.delete(record)
 
-    # Delete from ArticleHistory
-    history_delete = select(ArticleHistory).where(
-        ArticleHistory.article_id == article_id
-    )
-    history_result = await session.execute(history_delete)
-    history_records = history_result.scalars().all()
-    for record in history_records:
-        await session.delete(record)
+    # 3. History records are PRESERVED for audit (NOT deleted)
+    # ArticleHistory keeps full change history including DELETE record above
 
-    # Delete from ArticleUsageStats if exists
+    # 4. Delete from ArticleUsageStats if exists
     usage_stats_delete = select(ArticleUsageStats).where(
         ArticleUsageStats.article_id == article_id
     )
@@ -1280,7 +1294,7 @@ async def delete_article(
     if usage_stats_record:
         await session.delete(usage_stats_record)
 
-    # Delete article
+    # 5. Delete article
     await session.delete(article)
     await session.commit()
 

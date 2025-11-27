@@ -334,22 +334,33 @@ async def restore_financial_center(
 
 @router.delete(
     "/{financial_center_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
+    status_code=status.HTTP_200_OK,
     summary="Delete financial center",
-    description="Soft delete financial center (sets is_current=False)",
+    description="Physically delete financial center with cascade (deletes related facts)",
 )
 async def delete_financial_center(
     financial_center_id: int,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> None:
+) -> dict:
     """
-    Soft delete financial center.
+    Physically delete financial center with cascade deletion.
 
-    Sets is_active=False (archived).
-    Historical versions are preserved in FinancialCenterHistory.
-    Shared references architecture: Only admins can delete financial centers.
+    Cascade deletion order:
+    1. Create DELETE history record (for audit trail)
+    2. Delete all BudgetFact records referencing this financial center
+    3. Delete the FinancialCenter record
+    4. History records are PRESERVED for audit
+
+    Returns detailed message with count of cascade-deleted records.
+
+    Raises:
+        HTTPException: 403 if not admin
+        HTTPException: 404 if financial center not found
     """
+    from backend.app.models.fact import BudgetFact
+    from backend.app.models.financial_center_history import FinancialCenterHistory
+
     # Check: Only admins can delete financial centers
     if not current_user.is_admin:
         raise HTTPException(
@@ -371,9 +382,55 @@ async def delete_financial_center(
             detail=f"Financial center {financial_center_id} not found",
         )
 
-    # Soft delete: set is_active=False
-    financial_center.is_active = False
-    financial_center.updated_at = datetime.utcnow()
+    # 1. Create DELETE history record (for audit trail)
+    now = datetime.utcnow()
+    delete_history = FinancialCenterHistory(
+        financial_center_id=financial_center.id,
+        user_id=financial_center.user_id,
+        name=financial_center.name,
+        description=financial_center.description,
+        code=financial_center.code,
+        is_active=financial_center.is_active,
+        valid_from=now,
+        valid_to=datetime(9999, 12, 31),
+        is_current=False,  # Deleted records are never current
+        change_type="DELETE",
+        changed_fields=None,  # Full deletion
+        changed_by_user_id=current_user.id,
+    )
+    session.add(delete_history)
 
-    session.add(financial_center)
+    # 2. Count and delete related BudgetFact records (cascade)
+    facts_query = select(func.count(BudgetFact.id)).where(
+        BudgetFact.financial_center_id == financial_center_id
+    )
+    facts_result = await session.execute(facts_query)
+    facts_count = facts_result.scalar()
+
+    # Delete facts
+    if facts_count > 0:
+        delete_facts_query = select(BudgetFact).where(
+            BudgetFact.financial_center_id == financial_center_id
+        )
+        delete_facts_result = await session.execute(delete_facts_query)
+        facts_to_delete = delete_facts_result.scalars().all()
+        for fact in facts_to_delete:
+            await session.delete(fact)
+
+    # 3. Delete financial center
+    await session.delete(financial_center)
     await session.commit()
+
+    logger.info(
+        f"Physically deleted financial center {financial_center_id} "
+        f"({financial_center.name}) with {facts_count} related facts "
+        f"by admin {current_user.id}"
+    )
+
+    return {
+        "message": "Financial center deleted successfully",
+        "financial_center_id": financial_center_id,
+        "cascade_deleted": {
+            "facts": facts_count
+        }
+    }

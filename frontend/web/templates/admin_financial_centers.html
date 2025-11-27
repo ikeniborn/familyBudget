@@ -320,7 +320,32 @@ async function updateCenter(event) {
 
 // Delete financial center
 async function deleteCenter(centerId) {
-    if (!confirm('🗑️ Вы уверены, что хотите удалить этот ЦФО? Это действие необратимо.')) {
+    // First confirmation - warning about cascade deletion
+    const firstConfirm = confirm(
+        '⚠️ ВНИМАНИЕ: Удаление ЦФО приведёт к каскадному удалению!\n\n' +
+        '❌ Будут ФИЗИЧЕСКИ УДАЛЕНЫ:\n' +
+        '  • Сам ЦФО\n' +
+        '  • ВСЕ бюджетные записи (факты), связанные с этим ЦФО\n\n' +
+        '✅ Будет СОХРАНЕНО для аудита:\n' +
+        '  • История изменений (с меткой DELETE)\n\n' +
+        'Это действие НЕОБРАТИМО!\n\n' +
+        'Продолжить удаление?'
+    );
+
+    if (!firstConfirm) {
+        return;
+    }
+
+    // Second confirmation - final check
+    const secondConfirm = confirm(
+        '🔴 ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ!\n\n' +
+        'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ этот ЦФО\n' +
+        'и ВСЕ связанные с ним записи?\n\n' +
+        'Это действие НЕВОЗМОЖНО отменить!\n\n' +
+        'Нажмите OK для окончательного подтверждения.'
+    );
+
+    if (!secondConfirm) {
         return;
     }
 
@@ -335,9 +360,19 @@ async function deleteCenter(centerId) {
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
 
-        // Success
+        // Parse response to get cascade deletion info
+        const result = await response.json();
+        const cascadeInfo = result.cascade_deleted || {};
+        const factsDeleted = cascadeInfo.facts || 0;
+
+        // Success with detailed message
         await loadCenters();
-        showNotification('✅ ЦФО успешно удален!', 'success');
+
+        const successMessage = factsDeleted > 0
+            ? `✅ ЦФО успешно удален!\n🗑️ Каскадно удалено записей: ${factsDeleted}`
+            : '✅ ЦФО успешно удален!';
+
+        showNotification(successMessage, 'success');
     } catch (error) {
         console.error('Error deleting financial center:', error);
         const errorMessage = error?.message || String(error);
