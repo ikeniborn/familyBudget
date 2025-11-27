@@ -1196,7 +1196,7 @@ async def deactivate_article(
     """
     Deactivate article (admin only).
 
-    Soft delete: sets valid_to=NOW() and is_current=False (SCD Type 2).
+    Archives the article and all its descendants recursively by setting is_active=False.
     Does not physically delete the record.
 
     Args:
@@ -1205,44 +1205,35 @@ async def deactivate_article(
         session: Database session
 
     Returns:
-        dict: Success message
+        dict: Success message with archived count
 
     Raises:
         HTTPException: 404 if article not found
-        HTTPException: 400 if article has active children
     """
-    from datetime import datetime
-
-    # Get current article version
+    # Get article
     query = select(Article).where(
         Article.id == article_id,
+        Article.is_active == True  # noqa: E712
     )
     result = await session.execute(query)
     article = result.scalar_one_or_none()
 
     if not article:
-        raise HTTPException(status_code=404, detail="Article not found")
+        raise HTTPException(status_code=404, detail="Article not found or already archived")
 
-    # Check for active children
-    children_query = select(func.count(Article.id)).where(
-        Article.parent_id == article_id,
+    # Archive article and all descendants recursively
+    archived_count = await archive_recursive(session, article_id)
+
+    logger.info(
+        f"Archived article {article_id} and {archived_count - 1} descendants "
+        f"by admin {current_admin.id}"
     )
-    children_result = await session.execute(children_query)
-    children_count = children_result.scalar()
 
-    if children_count > 0:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot deactivate article with {children_count} active children. Deactivate children first."
-        )
-
-    # Deactivate article
-    article.valid_to = datetime.utcnow()
-    article.is_current = False
-    session.add(article)
-    await session.commit()
-
-    return {"message": "Article deactivated successfully", "article_id": article_id}
+    return {
+        "message": f"Article and {archived_count - 1} descendants archived successfully",
+        "article_id": article_id,
+        "archived_count": archived_count
+    }
 
 
 # ============================================================================
