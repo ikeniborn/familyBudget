@@ -635,19 +635,23 @@
 
         /**
          * Position calendar below target input (desktop) or centered (mobile)
-         * v5.1.8: Modal positioning for mobile devices
+         * v5.1.9: Fixed CSS class approach for mobile modal mode
          * @private
          */
         _positionCalendar() {
             const isMobile = window.innerWidth <= 768;
 
             if (isMobile) {
-                // Mobile: Modal positioning (CSS handles centering via media query)
-                // No need to set position styles - CSS fixed positioning takes over
+                // Mobile: Add CSS class for modal positioning (centered)
+                this.calendarElement.classList.add('calendar-modal-mobile');
+                // Clear inline styles to let CSS class take over
                 this.calendarElement.style.top = '';
                 this.calendarElement.style.left = '';
+                this.calendarElement.style.transform = '';
             } else {
-                // Desktop: Position below target input
+                // Desktop: Remove mobile class and position below target input
+                this.calendarElement.classList.remove('calendar-modal-mobile');
+
                 const targetInput = this.mode === 'single'
                     ? this.inputElement
                     : this.startInputElement;
@@ -657,6 +661,7 @@
                 // Position below input, aligned to left
                 this.calendarElement.style.top = `${rect.bottom + window.scrollY + 4}px`;
                 this.calendarElement.style.left = `${rect.left + window.scrollX}px`;
+                this.calendarElement.style.transform = '';
             }
         }
 
@@ -1136,11 +1141,14 @@
 
         /**
          * Close calendar
-         * v5.1.8: Added backdrop cleanup for mobile modal mode
+         * v5.1.9: Added mobile CSS class cleanup
          */
         close() {
             this.isOpen = false;
             this.calendarElement.classList.add('hidden');
+
+            // v5.1.9: Remove mobile modal class
+            this.calendarElement.classList.remove('calendar-modal-mobile');
 
             // v5.1.8: Remove backdrop if exists
             if (this.backdropElement) {
