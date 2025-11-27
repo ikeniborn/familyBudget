@@ -1191,51 +1191,107 @@ async def update_article(
 
 
 @router.delete("/articles/{article_id}")
-async def deactivate_article(
+async def delete_article(
     article_id: int,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Deactivate article (admin only).
+    Delete article physically (admin only).
 
-    Archives the article and all its descendants recursively by setting is_active=False.
-    Does not physically delete the record.
+    Permanently deletes the article from database after validation.
 
     Args:
-        article_id: Article ID to deactivate
+        article_id: Article ID to delete
         current_admin: Current admin user (from dependency)
         session: Database session
 
     Returns:
-        dict: Success message with archived count
+        dict: Success message
 
     Raises:
         HTTPException: 404 if article not found
+        HTTPException: 400 if article has children or is used in transactions
     """
+    from backend.app.models.hierarchy import ArticleHierarchy
+    from backend.app.models.article_history import ArticleHistory
+    from backend.app.models.article import ArticleUsageStats
+
     # Get article
-    query = select(Article).where(
-        Article.id == article_id,
-        Article.is_active == True  # noqa: E712
-    )
+    query = select(Article).where(Article.id == article_id)
     result = await session.execute(query)
     article = result.scalar_one_or_none()
 
     if not article:
-        raise HTTPException(status_code=404, detail="Article not found or already archived")
+        raise HTTPException(status_code=404, detail="Article not found")
 
-    # Archive article and all descendants recursively
-    archived_count = await archive_recursive(session, article_id)
+    # Check if article has children
+    children_query = select(func.count(Article.id)).where(
+        Article.parent_id == article_id
+    )
+    children_result = await session.execute(children_query)
+    children_count = children_result.scalar()
+
+    if children_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete article with {children_count} child categories. Delete children first."
+        )
+
+    # Check if article is used in BudgetFact transactions
+    from backend.app.models.fact import BudgetFact
+    usage_query = select(func.count(BudgetFact.id)).where(
+        BudgetFact.article_id == article_id
+    )
+    usage_result = await session.execute(usage_query)
+    usage_count = usage_result.scalar()
+
+    if usage_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete article used in {usage_count} transactions. Archive instead of deleting."
+        )
+
+    # Delete from ArticleHierarchy (closure table)
+    hierarchy_delete = select(ArticleHierarchy).where(
+        (ArticleHierarchy.ancestor_id == article_id) |
+        (ArticleHierarchy.descendant_id == article_id)
+    )
+    hierarchy_result = await session.execute(hierarchy_delete)
+    hierarchy_records = hierarchy_result.scalars().all()
+    for record in hierarchy_records:
+        await session.delete(record)
+
+    # Delete from ArticleHistory
+    history_delete = select(ArticleHistory).where(
+        ArticleHistory.article_id == article_id
+    )
+    history_result = await session.execute(history_delete)
+    history_records = history_result.scalars().all()
+    for record in history_records:
+        await session.delete(record)
+
+    # Delete from ArticleUsageStats if exists
+    usage_stats_delete = select(ArticleUsageStats).where(
+        ArticleUsageStats.article_id == article_id
+    )
+    usage_stats_result = await session.execute(usage_stats_delete)
+    usage_stats_record = usage_stats_result.scalar_one_or_none()
+    if usage_stats_record:
+        await session.delete(usage_stats_record)
+
+    # Delete article
+    await session.delete(article)
+    await session.commit()
 
     logger.info(
-        f"Archived article {article_id} and {archived_count - 1} descendants "
+        f"Physically deleted article {article_id} ({article.name}) "
         f"by admin {current_admin.id}"
     )
 
     return {
-        "message": f"Article and {archived_count - 1} descendants archived successfully",
-        "article_id": article_id,
-        "archived_count": archived_count
+        "message": "Article deleted successfully",
+        "article_id": article_id
     }
 
 
