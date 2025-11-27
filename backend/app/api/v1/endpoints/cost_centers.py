@@ -407,14 +407,40 @@ async def delete_cost_center(
     facts_result = await session.execute(facts_query)
     facts_count = facts_result.scalar()
 
-    # Delete facts
+    # Delete facts with history tracking
     if facts_count > 0:
+        from backend.app.models.budget_fact_history import BudgetFactHistory
+
         delete_facts_query = select(BudgetFact).where(
             BudgetFact.cost_center_id == cost_center_id
         )
         delete_facts_result = await session.execute(delete_facts_query)
         facts_to_delete = delete_facts_result.scalars().all()
+
+        # Create DELETE history record for each fact (audit trail)
         for fact in facts_to_delete:
+            delete_fact_history = BudgetFactHistory(
+                fact_id=fact.id,
+                user_id=fact.user_id,
+                article_id=fact.article_id,
+                financial_center_id=fact.financial_center_id,
+                cost_center_id=fact.cost_center_id,
+                fact_date=fact.fact_date,
+                amount=fact.amount,
+                description=fact.description,
+                record_type=fact.record_type,
+                transfer_id=fact.transfer_id,
+                valid_from=now,
+                valid_to=datetime(9999, 12, 31),
+                is_current=False,  # Deleted records are never current
+                change_type="DELETE",
+                changed_fields=None,  # Full deletion
+                changed_by_user_id=current_user.id,
+                cascade_delete_source=f"cost_center_id:{cost_center_id}"
+            )
+            session.add(delete_fact_history)
+
+            # Delete fact
             await session.delete(fact)
 
     # 3. Delete cost center

@@ -620,7 +620,34 @@ async function updateArticle(event) {
 
 // Deactivate article
 async function deactivateArticle(articleId) {
-    if (!confirm('🗑️ Вы уверены, что хотите удалить эту категорию? Это действие необратимо.')) {
+    // First confirmation - warning about physical deletion
+    const firstConfirm = confirm(
+        '⚠️ ВНИМАНИЕ: Физическое удаление категории!\n\n' +
+        '❌ Будет ФИЗИЧЕСКИ УДАЛЕНА:\n' +
+        '  • Сама категория\n' +
+        '  • Связанные записи в иерархии\n\n' +
+        '✅ Будет СОХРАНЕНО для аудита:\n' +
+        '  • История изменений (с меткой DELETE)\n\n' +
+        '⚠️ БЛОКИРОВКА удаления если:\n' +
+        '  • Есть дочерние категории\n' +
+        '  • Категория используется в транзакциях\n\n' +
+        'Это действие НЕОБРАТИМО!\n\n' +
+        'Продолжить удаление?'
+    );
+
+    if (!firstConfirm) {
+        return;
+    }
+
+    // Second confirmation - final check
+    const secondConfirm = confirm(
+        '🔴 ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ!\n\n' +
+        'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ эту категорию?\n\n' +
+        'Это действие НЕВОЗМОЖНО отменить!\n\n' +
+        'Нажмите OK для окончательного подтверждения.'
+    );
+
+    if (!secondConfirm) {
         return;
     }
 
