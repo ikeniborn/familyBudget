@@ -361,6 +361,7 @@ async def get_plan_fact_data(
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_type: str = Query("expense", regex="^(income|expense|all)$"),
     chart_mode: str = Query("cumulative", regex="^(normal|cumulative)$"),
+    transaction_filter: Optional[str] = Query(None, regex="^(debit|credit)$", description="Filter by transaction type: debit (списание) or credit (пополнение)"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -456,7 +457,12 @@ async def get_plan_fact_data(
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
-        if article_type != 'all':
+        # transaction_filter takes priority over article_type (debit→expense categories, credit→income categories)
+        if transaction_filter:
+            # transaction_filter: debit → expense categories, credit → income categories
+            filter_type = 'expense' if transaction_filter == 'debit' else 'income'
+            fact_query = fact_query.where(Article.type == filter_type)
+        elif article_type != 'all':
             fact_query = fact_query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
@@ -484,7 +490,12 @@ async def get_plan_fact_data(
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
-        if article_type != 'all':
+        # transaction_filter takes priority over article_type (debit→expense categories, credit→income categories)
+        if transaction_filter:
+            # transaction_filter: debit → expense categories, credit → income categories
+            filter_type = 'expense' if transaction_filter == 'debit' else 'income'
+            plan_query = plan_query.where(Article.type == filter_type)
+        elif article_type != 'all':
             plan_query = plan_query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
@@ -917,6 +928,7 @@ async def get_category_breakdown(
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
+    transaction_filter: Optional[str] = Query(None, regex="^(debit|credit)$", description="Filter by transaction type: debit (списание) or credit (пополнение)"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -975,7 +987,12 @@ async def get_category_breakdown(
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
-        if type != 'all':
+        # transaction_filter takes priority over type (debit→expense categories, credit→income categories)
+        if transaction_filter:
+            # transaction_filter: debit → expense categories, credit → income categories
+            filter_type = 'expense' if transaction_filter == 'debit' else 'income'
+            query = query.where(Article.type == filter_type)
+        elif type != 'all':
             query = query.where(Article.type == type)
 
         # Apply CFO filter if specified (v5.1.3)

@@ -542,16 +542,16 @@ async function loadArticles() {
 
         // Инициализировать CategoryTreeSelect для create modal
         allCategories = articles;
-        const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
+        const createSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
         if (createSelect) {
-            const createType = document.querySelector('#form_create_modal input[name="plan_type"]:checked')?.value || 'expense';
-            createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
+            const createType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
+            createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
                 type: createType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     debugLog('Category changed in create modal:', category);
                     // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_create_modal', 'plan', category);
+                    loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
                 }
             });
         }
@@ -673,7 +673,7 @@ async function loadFinancialCenters() {
         const centers = data.financial_centers || [];
 
         // Populate create modal dropdown
-        const createSelect = document.querySelector('#form_create_modal select[name="financial_center_id"]');
+        const createSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
         if (createSelect) {
             // Clear existing options except first (placeholder)
             while (createSelect.options.length > 1) {
@@ -726,7 +726,7 @@ async function loadCostCenters() {
         const centers = data.cost_centers || [];
 
         // Populate create modal dropdown
-        const createSelect = document.querySelector('#form_create_modal select[name="cost_center_id"]');
+        const createSelect = document.querySelector('#form_modal_add_plan select[name="cost_center_id"]');
         if (createSelect) {
             // Clear existing options except first (placeholder)
             while (createSelect.options.length > 1) {
@@ -1423,6 +1423,19 @@ function setupCreatePlanTypeButtons() {
                 // Use updateType() method instead of destroy + recreate
                 // This prevents Choices.js "multiple instances" error
                 createCategoryTreeSelect.updateType(createType);
+            } else if (allCategories.length > 0) {
+                // Initialize if not yet initialized (edge case: type changed before categories loaded)
+                const createSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
+                if (createSelect) {
+                    createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
+                        type: createType,
+                        showLeafOnly: true,
+                        onCategoryChange: (category) => {
+                            debugLog('Category changed in create modal:', category);
+                            loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+                        }
+                    });
+                }
             }
 
             // Обновить рекомендуемые суммы для нового типа плана
@@ -1434,7 +1447,7 @@ function setupCreatePlanTypeButtons() {
 // Установить обработчики для кнопок периода планирования
 function setupCreatePlanPeriodButtons() {
     const periodButtons = document.querySelectorAll('.period-btn');
-    const hiddenInput = document.querySelector('#form_create_modal input[name="plan_month"]');
+    const hiddenInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
 
     if (!periodButtons.length || !hiddenInput) return;
 
@@ -1517,7 +1530,7 @@ async function createPlan(event) {
 
 // Установить сумму плана из quick amount buttons
 function setPlanAmount(amount) {
-    const amountInput = document.querySelector('#form_create_modal input[name="amount"]');
+    const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
     if (amountInput) {
         amountInput.value = amount;
     }

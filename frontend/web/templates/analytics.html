@@ -318,6 +318,11 @@ async function loadPlanFactData(period) {
         // Build query string with filters (v5.1.3)
         let url = `/api/v1/analytics/plan-fact?period=${period}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`;
 
+        // Add transaction_filter if specified (debit/credit) - takes priority over article_type
+        if (currentTransactionType !== null && currentTransactionType !== undefined) {
+            url += `&transaction_filter=${currentTransactionType}`;
+        }
+
         // Add CFO filter if specified
         if (currentCFOId !== null) {
             url += `&cfo_id=${currentCFOId}`;
@@ -865,6 +870,11 @@ async function loadPieData(type, period) {
     try {
         // Build query string with filters (v5.1.3)
         let url = `/api/v1/analytics/category-breakdown?type=${type}&period=${period}&record_type=fact`;
+
+        // Add transaction_filter if specified (debit/credit) - takes priority over type
+        if (currentTransactionType !== null && currentTransactionType !== undefined) {
+            url += `&transaction_filter=${currentTransactionType}`;
+        }
 
         // Add CFO filter if specified
         if (currentCFOId !== null) {
@@ -1986,6 +1996,11 @@ async function loadPlanFactDataCustom(dateFrom, dateTo) {
         // Build query string with filters (v5.1.3)
         let url = `/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`;
 
+        // Add transaction_filter if specified (debit/credit) - takes priority over article_type
+        if (currentTransactionType !== null && currentTransactionType !== undefined) {
+            url += `&transaction_filter=${currentTransactionType}`;
+        }
+
         // Add CFO filter if specified
         if (currentCFOId !== null) {
             url += `&cfo_id=${currentCFOId}`;
@@ -2032,6 +2047,11 @@ async function loadPieDataCustom(type, dateFrom, dateTo) {
     try {
         // Build query string with filters (v5.1.3)
         let url = `/api/v1/analytics/category-breakdown?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&record_type=fact`;
+
+        // Add transaction_filter if specified (debit/credit) - takes priority over type
+        if (currentTransactionType !== null && currentTransactionType !== undefined) {
+            url += `&transaction_filter=${currentTransactionType}`;
+        }
 
         // Add CFO filter if specified
         if (currentCFOId !== null) {
