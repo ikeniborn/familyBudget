@@ -12,10 +12,14 @@ Endpoints:
     DELETE /api/v1/cost-centers/{id} - Soft delete cost center
 """
 
+import logging
 from datetime import datetime
 from typing import Optional
 
+logger = logging.getLogger(__name__)
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import or_, select
 
@@ -441,10 +445,10 @@ async def delete_cost_center(
             session.add(delete_fact_history)
 
             # Delete fact
-            await session.delete(fact)
+            session.delete(fact)
 
     # 3. Delete cost center
-    await session.delete(cost_center)
+    session.delete(cost_center)
     await session.commit()
 
     logger.info(
