@@ -36,6 +36,7 @@ Options:
   --migrations-only               Run ONLY migrations (skip build/restart containers)
   --clean                         Clean deployment (remove volumes) - WARNING: DELETES DATA!
   --sync-mode MODE                Code sync mode: mirror|update|clean|skip (default: interactive)
+  --cleanup-mode MODE             Cleanup mode: skip|smart|full (default: interactive)
   --repo-dir PATH                 Repository directory path (default: auto-detect)
   --reapply-migration REVISION    Force reapply specific migration (downgrade then upgrade)
                                   Example: --reapply-migration b2232d851007
@@ -48,10 +49,24 @@ Sync Modes:
   clean    - Full cleanup + copy (DELETES everything except .env and backups/)
   skip     - No code synchronization (use current code in /opt/budget)
 
+Cleanup Modes:
+  skip     - Skip cleanup (deploy alongside old deployment, may cause conflicts)
+  smart    - Auto-detect changes & restart strategy (RECOMMENDED)
+             • Analyzes git diff to determine if PostgreSQL needs restart
+             • Keeps PostgreSQL running for frontend/backend changes only
+             • Full restart for DB migrations or config changes
+  full     - Full cleanup (stop all services, repair PostgreSQL if corrupted)
+             • Stops containers, removes networks
+             • Repairs PostgreSQL data directory if needed
+             • Data is preserved (volumes NOT deleted)
+
 Examples:
-  ./deploy.sh                                # Interactive sync mode + deploy
-  ./deploy.sh --sync-mode mirror             # Mirror sync + deploy
-  ./deploy.sh --sync-mode skip               # Deploy without code sync
+  ./deploy.sh                                # Interactive sync + cleanup mode
+  ./deploy.sh --sync-mode mirror             # Mirror sync + interactive cleanup
+  ./deploy.sh --cleanup-mode smart           # Interactive sync + smart cleanup
+  ./deploy.sh --sync-mode mirror --cleanup-mode smart  # Mirror sync + smart cleanup (fully automated)
+  ./deploy.sh --sync-mode skip --cleanup-mode skip     # Deploy without sync or cleanup
+  ./deploy.sh --cleanup-mode full            # Interactive sync + full cleanup
   ./deploy.sh --repo-dir ~/familyBudget      # Specify repository path
   ./deploy.sh --reapply-migration b2232d851007  # Manually reapply specific migration (downgrade/upgrade)
   AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh   # Enable auto-detection of changed migrations (dev/staging only)

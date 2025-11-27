@@ -305,6 +305,14 @@ parse_args() {
                 fi
                 shift 2
                 ;;
+            --cleanup-mode)
+                CLEANUP_MODE="$2"
+                # Validate cleanup mode
+                if [[ ! "$CLEANUP_MODE" =~ ^(skip|smart|full)$ ]]; then
+                    error "Invalid cleanup mode: $CLEANUP_MODE. Must be: skip, smart, or full"
+                fi
+                shift 2
+                ;;
             --repo-dir)
                 REPO_DIR_OVERRIDE="$2"
                 shift 2
