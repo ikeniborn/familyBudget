@@ -400,6 +400,26 @@ async function loadRecommendedAmounts(formId, recordType = 'plan', category = nu
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+
+                // Graceful fallback for 422 (validation error or no data)
+                if (response.status === 422) {
+                    console.warn(`[loadRecommendedAmounts] API validation error (using fallback):`, errorData);
+
+                    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
+                    const fallbackDefaults = {
+                        'plan-expense': [5000, 10000, 20000, 50000],
+                        'plan-income': [20000, 50000, 100000, 200000],
+                        'fact-expense': [100, 500, 1000, 5000],
+                        'fact-income': [10000, 20000, 50000, 100000],
+                    };
+
+                    const fallbackKey = `${recordType}-${type || 'expense'}`;
+                    const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
+
+                    updateQuickAmountButtons(formId, fallbackAmounts);
+                    return;
+                }
+
                 console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
                 return;
             }
