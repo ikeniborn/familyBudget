@@ -1146,28 +1146,14 @@ function updatePieChart(data) {
 
 // Update operation type filter (unified: expense/income/debit/credit)
 function updateOperationType(type) {
-    // Map operation type to category type and transaction type
-    let categoryType, transactionType;
+    // Use type directly (no mapping needed - backend supports all 4 types)
+    // - expense: расход (все траты)
+    // - income: доход (все поступления)
+    // - debit: списание (только списания)
+    // - credit: пополнение (только пополнения)
 
-    if (type === 'expense') {
-        categoryType = 'expense';
-        transactionType = null;  // Show all expense transactions
-    } else if (type === 'income') {
-        categoryType = 'income';
-        transactionType = null;  // Show all income transactions
-    } else if (type === 'debit') {
-        // Debit = списание = expense categories with debit transactions only
-        categoryType = 'expense';
-        transactionType = 'debit';
-    } else if (type === 'credit') {
-        // Credit = пополнение = income categories with credit transactions only
-        categoryType = 'income';
-        transactionType = 'credit';
-    }
-
-    currentGlobalType = categoryType;
-    currentPieType = categoryType;
-    currentTransactionType = transactionType;
+    currentGlobalType = type;
+    currentPieType = type;
 
     // Clear category filter BEFORE reloading charts
     currentCategoryIds = [];
@@ -1211,24 +1197,19 @@ function updateOperationType(type) {
         const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
         const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
         loadPlanFactDataCustom(isoFrom, isoTo);
-        loadPieDataCustom(categoryType, isoFrom, isoTo);
+        loadPieDataCustom(type, isoFrom, isoTo);  // Use type directly
         loadHeatmapDataCustom(isoFrom, isoTo);
     } else {
         loadPlanFactData(currentPeriod);
-        loadPieData(categoryType, currentPeriod);
+        loadPieData(type, currentPeriod);  // Use type directly
         loadHeatmapData(currentPeriod);
     }
 
-    // Update category filter with new type (expense/income/debit/credit)
-    // FIXED: Use 'type' instead of 'categoryType' to filter categories by exact type
-    // - expense: show only expense categories (exclude debit)
-    // - income: show only income categories (exclude credit)
-    // - debit: show only debit categories
-    // - credit: show only credit categories
-    const categoryFilterType = type;
+    // Update category filter with exact type (expense/income/debit/credit)
+    // This ensures dropdown shows only categories matching the selected operation type
 
     if (categoryChoices && typeof categoryChoices.updateType === 'function') {
-        categoryChoices.updateType(categoryFilterType).catch(error => {
+        categoryChoices.updateType(type).catch(error => {
             console.error('Failed to update category filter type:', error);
             if (typeof initCategoryFilter === 'function') {
                 initCategoryFilter();

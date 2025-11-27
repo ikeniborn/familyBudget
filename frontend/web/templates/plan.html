@@ -471,6 +471,19 @@ document.addEventListener('DOMContentLoaded', function() {
         reloadArticleFilter(selectedType);
         debugLog('Article type filter changed to:', selectedType || 'all');
     });
+
+    // Retry initialization when opening create modal (if not initialized in loadArticles)
+    const createModalButton = document.querySelector('button[onclick="modal_add_plan.showModal()"]');
+    if (createModalButton) {
+        createModalButton.addEventListener('click', function() {
+            console.log('[Plan Modal] Create modal button clicked');
+            // Retry initialization if categories failed to load initially
+            if (!createCategoryTreeSelect) {
+                console.log('[Plan Modal] Retrying category initialization...');
+                initializeCreateModalCategories();
+            }
+        });
+    }
 });
 
 // Load users for filter dropdown
@@ -542,21 +555,50 @@ async function loadArticles() {
 
         // Инициализировать CategoryTreeSelect для create modal
         allCategories = articles;
-        const createSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
-        if (createSelect) {
-            const createType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
-            createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
-                type: createType,
-                showLeafOnly: true,
-                onCategoryChange: (category) => {
-                    debugLog('Category changed in create modal:', category);
-                    // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
-                }
-            });
-        }
+        initializeCreateModalCategories();
     } catch (error) {
         console.error('Error loading articles:', error);
+    }
+}
+
+// Initialize categories for create modal (with retry capability)
+function initializeCreateModalCategories() {
+    const createSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
+
+    if (!createSelect) {
+        console.warn('[Plan Modal] Create modal select not found in DOM yet. Will retry on modal open.');
+        return false;
+    }
+
+    if (!allCategories || allCategories.length === 0) {
+        console.warn('[Plan Modal] Categories not loaded yet. Will retry on modal open.');
+        return false;
+    }
+
+    if (createCategoryTreeSelect) {
+        console.log('[Plan Modal] Categories already initialized. Skipping.');
+        return true;
+    }
+
+    try {
+        const createType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
+        console.log(`[Plan Modal] Initializing ChoicesCategoryTree with type: ${createType}, categories: ${allCategories.length}`);
+
+        createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
+            type: createType,
+            showLeafOnly: true,
+            onCategoryChange: (category) => {
+                debugLog('Category changed in create modal:', category);
+                // Update recommended amounts based on selected category
+                loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+            }
+        });
+
+        console.log('[Plan Modal] ChoicesCategoryTree initialized successfully');
+        return true;
+    } catch (error) {
+        console.error('[Plan Modal] Failed to initialize ChoicesCategoryTree:', error);
+        return false;
     }
 }
 
