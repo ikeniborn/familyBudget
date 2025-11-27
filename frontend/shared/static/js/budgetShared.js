@@ -701,7 +701,7 @@
                     <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="clear-range">
                       Очистить
                     </button>
-                    <button type="button" class="btn btn-sm btn-primary flex-1" data-action="apply-range">
+                    <button type="button" class="btn btn-sm btn-primary flex-1" data-action="apply-range" ${!this.startDate || !this.endDate ? 'disabled' : ''}>
                       Применить
                     </button>
                   ` : `
@@ -988,12 +988,11 @@
                     const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
                     this.endInputElement.value = endDisplay;
 
-                    // Both dates selected - call callback and close calendar (v5.1.4 fix)
+                    // Both dates selected - DO NOT close calendar automatically (v5.1.5 fix)
+                    // User must click "Применить" to confirm selection
                     if (this.startDate && this.endDate) {
-                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
-                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                        this.onSelect(startDisplay, endDisplay);
-                        this.close();
+                        // Both dates selected - just re-render to enable "Применить" button
+                        this._render();
                     } else {
                         // Only end date selected, switch to selecting start
                         this.selectingEnd = false;
