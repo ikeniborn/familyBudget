@@ -524,9 +524,31 @@ async function loadArticles() {
         const tree = buildArticleTree(articles);
         const flatNodes = flattenArticleTree(tree);
 
+        // Group by type while preserving hierarchical order within each type
+        const groupedByType = {
+            'expense': [],
+            'income': [],
+            'debit': [],
+            'credit': []
+        };
+
+        flatNodes.forEach(node => {
+            if (groupedByType[node.type]) {
+                groupedByType[node.type].push(node);
+            }
+        });
+
+        // Flatten back in type order: expense → income → debit → credit
+        const sortedNodes = [
+            ...groupedByType['expense'],
+            ...groupedByType['income'],
+            ...groupedByType['debit'],
+            ...groupedByType['credit']
+        ];
+
         // Populate filter dropdown with tree (simplified hierarchy)
         const filterSelect = document.getElementById('filter-article');
-        flatNodes.forEach(node => {
+        sortedNodes.forEach(node => {
             const option = document.createElement('option');
             option.value = node.id;
 
@@ -639,6 +661,28 @@ async function reloadArticleFilter(type) {
         const tree = buildArticleTree(articles);
         const flatNodes = flattenArticleTree(tree);
 
+        // Group by type while preserving hierarchical order within each type
+        const groupedByType = {
+            'expense': [],
+            'income': [],
+            'debit': [],
+            'credit': []
+        };
+
+        flatNodes.forEach(node => {
+            if (groupedByType[node.type]) {
+                groupedByType[node.type].push(node);
+            }
+        });
+
+        // Flatten back in type order: expense → income → debit → credit
+        const sortedNodes = [
+            ...groupedByType['expense'],
+            ...groupedByType['income'],
+            ...groupedByType['debit'],
+            ...groupedByType['credit']
+        ];
+
         // Repopulate filter dropdown
         const filterSelect = document.getElementById('filter-article');
 
@@ -648,7 +692,7 @@ async function reloadArticleFilter(type) {
         // Clear and repopulate
         filterSelect.innerHTML = '<option value="">Все категории</option>';
 
-        flatNodes.forEach(node => {
+        sortedNodes.forEach(node => {
             const option = document.createElement('option');
             option.value = node.id;
 
@@ -702,10 +746,12 @@ async function reloadArticleFilter(type) {
 
 // Build hierarchical tree from flat article list
 function buildArticleTree(articles) {
-    const roots = articles.filter(a => !a.parent_id);
+    // Sort all articles alphabetically for proper hierarchy sorting
+    const sortedArticles = [...articles].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const roots = sortedArticles.filter(a => !a.parent_id);
 
     function buildNode(article, level = 0) {
-        const children = articles
+        const children = sortedArticles
             .filter(a => a.parent_id === article.id)
             .map(child => buildNode(child, level + 1));
 

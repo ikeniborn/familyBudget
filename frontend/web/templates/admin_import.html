@@ -390,12 +390,33 @@ async function updateBulkCategoryType() {
         filteredArticles = articlesData.filter(a => a.type === selectedType);
     }
 
-    // Сортировать и построить иерархию
-    const sorted = sortArticles(filteredArticles);
-    const tree = buildArticleTree(sorted);
+    // Построить иерархию с алфавитной сортировкой
+    const tree = buildArticleTree(filteredArticles);
     const flatNodes = flattenArticleTree(tree);
 
+    // Группировка по типу с сохранением иерархического порядка
+    const groupedByType = {
+        'expense': [],
+        'income': [],
+        'debit': [],
+        'credit': []
+    };
+
     flatNodes.forEach(node => {
+        if (groupedByType[node.type]) {
+            groupedByType[node.type].push(node);
+        }
+    });
+
+    // Объединить в порядке типов: расход → доход → списание → пополнение
+    const sortedNodes = [
+        ...groupedByType['expense'],
+        ...groupedByType['income'],
+        ...groupedByType['debit'],
+        ...groupedByType['credit']
+    ];
+
+    sortedNodes.forEach(node => {
         const option = document.createElement('option');
         option.value = node.id;
         const indent = '›  '.repeat(node.level);
@@ -640,10 +661,12 @@ async function loadStagingData(page = currentPage) {
 
 // Build hierarchical tree from flat article list
 function buildArticleTree(articles) {
-    const roots = articles.filter(a => !a.parent_id);
+    // Sort all articles alphabetically for proper hierarchy sorting
+    const sortedArticles = [...articles].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const roots = sortedArticles.filter(a => !a.parent_id);
 
     function buildNode(article, level = 0) {
-        const children = articles
+        const children = sortedArticles
             .filter(a => a.parent_id === article.id)
             .map(child => buildNode(child, level + 1));
 
@@ -741,10 +764,32 @@ function renderStagingTable() {
                     <select class="select select-bordered w-48 max-w-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
                         <option value="">-- Выбрать --</option>
                         ${(() => {
-                            const sorted = sortArticles(articlesData);
-                            const tree = buildArticleTree(sorted);
+                            const tree = buildArticleTree(articlesData);
                             const flatNodes = flattenArticleTree(tree);
-                            return flatNodes.map(node => {
+
+                            // Группировка по типу с сохранением иерархического порядка
+                            const groupedByType = {
+                                'expense': [],
+                                'income': [],
+                                'debit': [],
+                                'credit': []
+                            };
+
+                            flatNodes.forEach(node => {
+                                if (groupedByType[node.type]) {
+                                    groupedByType[node.type].push(node);
+                                }
+                            });
+
+                            // Объединить в порядке типов: расход → доход → списание → пополнение
+                            const sortedNodes = [
+                                ...groupedByType['expense'],
+                                ...groupedByType['income'],
+                                ...groupedByType['debit'],
+                                ...groupedByType['credit']
+                            ];
+
+                            return sortedNodes.map(node => {
                                 const indent = '›  '.repeat(node.level);
                                 const icon = node.isLeaf ? '▸' : '📂';
                                 const disabled = !node.isLeaf ? 'disabled' : '';
