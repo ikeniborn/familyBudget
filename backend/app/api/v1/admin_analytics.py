@@ -46,9 +46,7 @@ async def get_system_overview(
         - Recent activity summary
     """
     # Total users
-    users_stmt = select(func.count(func.distinct(User.telegram_id))).where(
-        User.is_current == True  # noqa: E712
-    )
+    users_stmt = select(func.count(func.distinct(User.telegram_id))).where()
     users_result = await session.execute(users_stmt)
     total_users = users_result.scalar_one()
 
@@ -59,21 +57,18 @@ async def get_system_overview(
 
     # Total articles
     articles_stmt = select(func.count(Article.id)).where(
-        Article.is_current == True  # noqa: E712
     )
     articles_result = await session.execute(articles_stmt)
     total_articles = articles_result.scalar_one()
 
     # Total ЦФО
     fc_stmt = select(func.count(FinancialCenter.id)).where(
-        FinancialCenter.is_current == True  # noqa: E712
     )
     fc_result = await session.execute(fc_stmt)
     total_fcs = fc_result.scalar_one()
 
     # Total МВЗ
     cc_stmt = select(func.count(CostCenter.id)).where(
-        CostCenter.is_current == True  # noqa: E712
     )
     cc_result = await session.execute(cc_stmt)
     total_ccs = cc_result.scalar_one()
@@ -88,7 +83,7 @@ async def get_system_overview(
 
     # Recent users (last 30 days)
     recent_users_stmt = select(func.count(func.distinct(User.telegram_id))).where(
-        User.is_current == True,  # noqa: E712
+        # noqa: E712
         User.created_at >= datetime.utcnow() - timedelta(days=30)
     )
     recent_users_result = await session.execute(recent_users_stmt)
@@ -99,7 +94,6 @@ async def get_system_overview(
         Article.type,
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Article.is_current == True  # noqa: E712
     ).group_by(Article.type)
 
     income_expense_result = await session.execute(income_expense_stmt)
@@ -202,7 +196,6 @@ async def get_transactions_trends(
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= start_date,
         Fact.fact_date <= end_date,
-        Article.is_current == True  # noqa: E712
     ).group_by(
         Fact.fact_date,
         Article.type
@@ -254,7 +247,7 @@ async def get_top_users(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
     limit: int = Query(10, ge=5, le=50, description="Number of top users to return"),
-    metric: str = Query("transactions", regex="^(transactions|amount)$", description="Sort by transactions count or total amount")
+    metric: str = Query("transactions", pattern="^(transactions|amount)$", description="Sort by transactions count or total amount")
 ):
     """
     Get top users by activity.
@@ -276,9 +269,7 @@ async def get_top_users(
         User.last_name,
         func.count(Fact.id).label("transaction_count"),
         func.sum(Fact.amount).label("total_amount")
-    ).select_from(User).join(Fact, User.id == Fact.user_id).where(
-        User.is_current == True  # noqa: E712
-    ).group_by(
+    ).select_from(User).join(Fact, User.id == Fact.user_id).where().group_by(
         User.id,
         User.username,
         User.first_name,
@@ -312,7 +303,7 @@ async def get_top_users(
 async def get_categories_breakdown(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    type: str = Query("expense", regex="^(income|expense)$", description="Article type"),
+    type: str = Query("expense", pattern="^(income|expense)$", description="Article type"),
     limit: int = Query(15, ge=5, le=50, description="Number of categories to return")
 ):
     """
@@ -328,7 +319,6 @@ async def get_categories_breakdown(
         func.sum(Fact.amount).label("total_amount")
     ).select_from(Article).join(Fact, Article.id == Fact.article_id).where(
         Article.type == type,
-        Article.is_current == True  # noqa: E712
     ).group_by(
         Article.id,
         Article.name,
@@ -385,7 +375,6 @@ async def get_centers_usage(
         Fact,
         FinancialCenter.id == Fact.financial_center_id
     ).where(
-        FinancialCenter.is_current == True  # noqa: E712
     ).group_by(
         FinancialCenter.id,
         FinancialCenter.code,
@@ -418,7 +407,6 @@ async def get_centers_usage(
         Fact,
         CostCenter.id == Fact.cost_center_id
     ).where(
-        CostCenter.is_current == True  # noqa: E712
     ).group_by(
         CostCenter.id,
         CostCenter.code,

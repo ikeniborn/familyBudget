@@ -11,7 +11,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-info gap-1" onclick="create_modal.showModal()" title="Добавить новый план">
+                <button class="btn btn-sm btn-info gap-1" onclick="modal_add_plan.showModal()" title="Добавить новый план">
                     ➕ Добавить план
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
@@ -38,19 +38,21 @@
             <!-- Уровень 1: Фильтры по дате -->
             <div class="filter-section">
                 <div class="filter-section-title">📅 Период</div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div class="form-control">
+                <div class="flex gap-2 items-end">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text font-medium">Дата с</span>
                         </label>
                         <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
-                    <div class="form-control">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text font-medium">Дата по</span>
                         </label>
                         <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
+                    <!-- Calendar trigger button (range mode) -->
+                    <div id="date-range-calendar-trigger"></div>
                 </div>
             </div>
 
@@ -67,6 +69,8 @@
                             <option value="">Все типы категорий</option>
                             <option value="expense">Расходы</option>
                             <option value="income">Доходы</option>
+                            <option value="debit">Списание</option>
+                            <option value="credit">Пополнение</option>
                         </select>
                     </div>
 
@@ -75,7 +79,7 @@
                         <label class="label">
                             <span class="label-text font-medium">📁 Категория</span>
                         </label>
-                        <select id="filter-article" class="select select-bordered w-full" title="Фильтровать плановые записи по категории">
+                        <select id="filter-article" class="select select-bordered category-filter w-full" title="Фильтровать плановые записи по категории">
                             <option value="">Все категории</option>
                             <!-- Populated dynamically -->
                         </select>
@@ -184,7 +188,7 @@
 </div>
 
 <!-- Create Plan Modal -->
-{{ plan_modal('create_modal') }}
+{{ plan_modal('modal_add_plan') }}
 
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">
@@ -247,6 +251,7 @@
         <button>close</button>
     </form>
 </dialog>
+
 {% endblock %}
 
 {% block extra_styles %}
@@ -394,7 +399,28 @@ async function loadRecommendedAmounts(formId, recordType = 'plan', category = nu
             });
 
             if (!response.ok) {
-                console.error(`[loadRecommendedAmounts] API error: ${response.status}`);
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+
+                // Graceful fallback for 422 (validation error or no data)
+                if (response.status === 422) {
+                    console.warn(`[loadRecommendedAmounts] API validation error (using fallback):`, errorData);
+
+                    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
+                    const fallbackDefaults = {
+                        'plan-expense': [5000, 10000, 20000, 50000],
+                        'plan-income': [20000, 50000, 100000, 200000],
+                        'fact-expense': [100, 500, 1000, 5000],
+                        'fact-income': [10000, 20000, 50000, 100000],
+                    };
+
+                    const fallbackKey = `${recordType}-${type || 'expense'}`;
+                    const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
+
+                    updateQuickAmountButtons(formId, fallbackAmounts);
+                    return;
+                }
+
+                console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
                 return;
             }
 
@@ -402,8 +428,6 @@ async function loadRecommendedAmounts(formId, recordType = 'plan', category = nu
 
             // Update button labels with new amounts
             updateQuickAmountButtons(formId, data.amounts);
-
-            console.log(`[loadRecommendedAmounts] Updated amounts for ${formId}:`, data.amounts, data.metadata);
 
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -437,16 +461,17 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCreatePlanPeriodButtons();
 
     // Обработчик отправки формы создания плана
-    document.getElementById('form_create_modal').addEventListener('submit', async function(e) {
+    document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
         await createPlan(e);
     });
 
-    // Initialize CalendarWidget for filter date range
+    // Initialize CalendarWidget for filter date range (with custom trigger)
     new BudgetShared.CalendarWidget({
         mode: 'range',
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
+        triggerContainer: '#date-range-calendar-trigger',
         onSelect: (startDate, endDate) => {
             debugLog('Выбран диапазон дат для плана:', startDate, endDate);
             applyFilters(); // Auto-apply on selection
@@ -468,12 +493,23 @@ document.addEventListener('DOMContentLoaded', function() {
         reloadArticleFilter(selectedType);
         debugLog('Article type filter changed to:', selectedType || 'all');
     });
+
+    // Retry initialization when opening create modal (if not initialized in loadArticles)
+    const createModalButton = document.querySelector('button[onclick="modal_add_plan.showModal()"]');
+    if (createModalButton) {
+        createModalButton.addEventListener('click', function() {
+            // Retry initialization if categories failed to load initially
+            if (!createCategoryTreeSelect) {
+                initializeCreateModalCategories();
+            }
+        });
+    }
 });
 
 // Load users for filter dropdown
 async function loadUsers() {
     try {
-        const response = await fetch('/api/v1/admin/users?is_current=true');
+        const response = await fetch('/api/v1/admin/users');
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -498,16 +534,38 @@ async function loadUsers() {
 // Load articles for filter and edit dropdowns with tree structure
 async function loadArticles() {
     try {
-        const response = await fetch('/api/v1/admin/articles?is_current=true');
+        const response = await fetch('/api/v1/admin/articles');
         const articles = await response.json();
 
         // Build tree and flatten
         const tree = buildArticleTree(articles);
         const flatNodes = flattenArticleTree(tree);
 
+        // Group by type while preserving hierarchical order within each type
+        const groupedByType = {
+            'expense': [],
+            'income': [],
+            'debit': [],
+            'credit': []
+        };
+
+        flatNodes.forEach(node => {
+            if (groupedByType[node.type]) {
+                groupedByType[node.type].push(node);
+            }
+        });
+
+        // Flatten back in type order: expense → income → debit → credit
+        const sortedNodes = [
+            ...groupedByType['expense'],
+            ...groupedByType['income'],
+            ...groupedByType['debit'],
+            ...groupedByType['credit']
+        ];
+
         // Populate filter dropdown with tree (simplified hierarchy)
         const filterSelect = document.getElementById('filter-article');
-        flatNodes.forEach(node => {
+        sortedNodes.forEach(node => {
             const option = document.createElement('option');
             option.value = node.id;
 
@@ -515,6 +573,22 @@ async function loadArticles() {
             const indent = '›  '.repeat(node.level);
             const icon = node.isLeaf ? '▸' : '📂';
             option.textContent = `${indent}${icon} ${node.name}`;
+
+            // Add data-type attribute for category filter colors
+            if (node.type) {
+                option.dataset.type = node.type; // 'expense', 'income', 'debit', 'credit'
+            }
+
+            // Color coding by article type
+            if (node.type === 'expense') {
+                option.style.color = 'rgb(239, 68, 68)'; // Красный (DaisyUI error)
+            } else if (node.type === 'income') {
+                option.style.color = 'rgb(34, 197, 94)'; // Зелёный (DaisyUI success)
+            } else if (node.type === 'debit') {
+                option.style.color = 'rgb(59, 130, 246)'; // Синий (DaisyUI info)
+            } else if (node.type === 'credit') {
+                option.style.color = 'rgb(251, 146, 60)'; // Оранжевый (DaisyUI warning)
+            }
 
             // Disable parent categories with visual styling
             if (!node.isLeaf) {
@@ -534,21 +608,47 @@ async function loadArticles() {
 
         // Инициализировать CategoryTreeSelect для create modal
         allCategories = articles;
-        const createSelect = document.querySelector('#form_create_modal select[name="article_id"]');
-        if (createSelect) {
-            const createType = document.querySelector('#form_create_modal input[name="plan_type"]:checked')?.value || 'expense';
-            createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_create_modal select[name="article_id"]', {
-                type: createType,
-                showLeafOnly: true,
-                onCategoryChange: (category) => {
-                    debugLog('Category changed in create modal:', category);
-                    // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_create_modal', 'plan', category);
-                }
-            });
-        }
+        initializeCreateModalCategories();
     } catch (error) {
         console.error('Error loading articles:', error);
+    }
+}
+
+// Initialize categories for create modal (with retry capability)
+function initializeCreateModalCategories() {
+    const createSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
+
+    if (!createSelect) {
+        console.warn('[Plan Modal] Create modal select not found in DOM yet. Will retry on modal open.');
+        return false;
+    }
+
+    if (!allCategories || allCategories.length === 0) {
+        console.warn('[Plan Modal] Categories not loaded yet. Will retry on modal open.');
+        return false;
+    }
+
+    if (createCategoryTreeSelect) {
+        return true;
+    }
+
+    try {
+        const createType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
+
+        createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
+            type: createType,
+            showLeafOnly: true,
+            onCategoryChange: (category) => {
+                debugLog('Category changed in create modal:', category);
+                // Update recommended amounts based on selected category
+                loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+            }
+        });
+
+        return true;
+    } catch (error) {
+        console.error('[Plan Modal] Failed to initialize ChoicesCategoryTree:', error);
+        return false;
     }
 }
 
@@ -556,17 +656,46 @@ async function loadArticles() {
 async function reloadArticleFilter(type) {
     try {
         // Fetch articles filtered by type
-        let url = '/api/v1/admin/articles?is_current=true&limit=1000&sort_by=usage_count';
+        let url = '/api/v1/admin/articles?limit=1000&sort_by=usage_count';
         if (type) {
             url += `&type=${type}`;
         }
 
         const response = await fetch(url);
-        const articles = await response.json();
+        const data = await response.json();
+
+        // Validate response format
+        const articles = Array.isArray(data) ? data : (data.articles || []);
+        if (!Array.isArray(articles)) {
+            console.error('Invalid API response format:', data);
+            throw new Error('Expected array of articles');
+        }
 
         // Build tree and flatten
         const tree = buildArticleTree(articles);
         const flatNodes = flattenArticleTree(tree);
+
+        // Group by type while preserving hierarchical order within each type
+        const groupedByType = {
+            'expense': [],
+            'income': [],
+            'debit': [],
+            'credit': []
+        };
+
+        flatNodes.forEach(node => {
+            if (groupedByType[node.type]) {
+                groupedByType[node.type].push(node);
+            }
+        });
+
+        // Flatten back in type order: expense → income → debit → credit
+        const sortedNodes = [
+            ...groupedByType['expense'],
+            ...groupedByType['income'],
+            ...groupedByType['debit'],
+            ...groupedByType['credit']
+        ];
 
         // Repopulate filter dropdown
         const filterSelect = document.getElementById('filter-article');
@@ -577,7 +706,7 @@ async function reloadArticleFilter(type) {
         // Clear and repopulate
         filterSelect.innerHTML = '<option value="">Все категории</option>';
 
-        flatNodes.forEach(node => {
+        sortedNodes.forEach(node => {
             const option = document.createElement('option');
             option.value = node.id;
 
@@ -585,6 +714,22 @@ async function reloadArticleFilter(type) {
             const indent = '›  '.repeat(node.level);
             const icon = node.isLeaf ? '▸' : '📂';
             option.textContent = `${indent}${icon} ${node.name}`;
+
+            // Add data-type attribute for category filter colors
+            if (node.type) {
+                option.dataset.type = node.type; // 'expense', 'income', 'debit', 'credit'
+            }
+
+            // Color coding by article type
+            if (node.type === 'expense') {
+                option.style.color = 'rgb(239, 68, 68)'; // Красный (DaisyUI error)
+            } else if (node.type === 'income') {
+                option.style.color = 'rgb(34, 197, 94)'; // Зелёный (DaisyUI success)
+            } else if (node.type === 'debit') {
+                option.style.color = 'rgb(59, 130, 246)'; // Синий (DaisyUI info)
+            } else if (node.type === 'credit') {
+                option.style.color = 'rgb(251, 146, 60)'; // Оранжевый (DaisyUI warning)
+            }
 
             // Disable parent categories with visual styling
             if (!node.isLeaf) {
@@ -615,10 +760,12 @@ async function reloadArticleFilter(type) {
 
 // Build hierarchical tree from flat article list
 function buildArticleTree(articles) {
-    const roots = articles.filter(a => !a.parent_id);
+    // Sort all articles alphabetically for proper hierarchy sorting
+    const sortedArticles = [...articles].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const roots = sortedArticles.filter(a => !a.parent_id);
 
     function buildNode(article, level = 0) {
-        const children = articles
+        const children = sortedArticles
             .filter(a => a.parent_id === article.id)
             .map(child => buildNode(child, level + 1));
 
@@ -660,7 +807,7 @@ async function loadFinancialCenters() {
         const centers = data.financial_centers || [];
 
         // Populate create modal dropdown
-        const createSelect = document.querySelector('#form_create_modal select[name="financial_center_id"]');
+        const createSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
         if (createSelect) {
             // Clear existing options except first (placeholder)
             while (createSelect.options.length > 1) {
@@ -713,7 +860,7 @@ async function loadCostCenters() {
         const centers = data.cost_centers || [];
 
         // Populate create modal dropdown
-        const createSelect = document.querySelector('#form_create_modal select[name="cost_center_id"]');
+        const createSelect = document.querySelector('#form_modal_add_plan select[name="cost_center_id"]');
         if (createSelect) {
             // Clear existing options except first (placeholder)
             while (createSelect.options.length > 1) {
@@ -890,11 +1037,25 @@ function renderFactsTable(facts) {
 
     facts.forEach(fact => {
         const amountClass = fact.article_type === 'income' ? 'text-success font-bold' : 'text-error font-bold';
+
+        // Get color class for article type
+        let articleColorClass = '';
+        if (fact.article_type === 'expense') {
+            articleColorClass = 'text-error';
+        } else if (fact.article_type === 'income') {
+            articleColorClass = 'text-success';
+        } else if (fact.article_type === 'debit') {
+            articleColorClass = 'text-info';
+        } else if (fact.article_type === 'credit') {
+            articleColorClass = 'text-warning';
+        }
+
         const description = fact.description || '—';
         const descriptionTruncated = truncateText(description, 30);
         const financialCenter = fact.financial_center_name || '—';
         const costCenter = fact.cost_center_name || '—';
         const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
+        const articleName = fact.article_name || '—';
 
         html += `
             <tr>
@@ -903,7 +1064,7 @@ function renderFactsTable(facts) {
                 <td>${formattedDate}</td>
                 <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
-                <td>${fact.article_name || '—'}</td>
+                <td><span class="${articleColorClass}">${articleName}</span></td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td>${fact.user_name || '—'}</td>
@@ -1410,6 +1571,19 @@ function setupCreatePlanTypeButtons() {
                 // Use updateType() method instead of destroy + recreate
                 // This prevents Choices.js "multiple instances" error
                 createCategoryTreeSelect.updateType(createType);
+            } else if (allCategories.length > 0) {
+                // Initialize if not yet initialized (edge case: type changed before categories loaded)
+                const createSelect = document.querySelector('#form_modal_add_plan select[name="article_id"]');
+                if (createSelect) {
+                    createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
+                        type: createType,
+                        showLeafOnly: true,
+                        onCategoryChange: (category) => {
+                            debugLog('Category changed in create modal:', category);
+                            loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+                        }
+                    });
+                }
             }
 
             // Обновить рекомендуемые суммы для нового типа плана
@@ -1421,7 +1595,7 @@ function setupCreatePlanTypeButtons() {
 // Установить обработчики для кнопок периода планирования
 function setupCreatePlanPeriodButtons() {
     const periodButtons = document.querySelectorAll('.period-btn');
-    const hiddenInput = document.querySelector('#form_create_modal input[name="plan_month"]');
+    const hiddenInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
 
     if (!periodButtons.length || !hiddenInput) return;
 
@@ -1504,7 +1678,7 @@ async function createPlan(event) {
 
 // Установить сумму плана из quick amount buttons
 function setPlanAmount(amount) {
-    const amountInput = document.querySelector('#form_create_modal input[name="amount"]');
+    const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
     if (amountInput) {
         amountInput.value = amount;
     }

@@ -37,13 +37,16 @@ from backend.app.schemas.article import (
 )
 from backend.app.services import (
     archive_recursive,
-    create_new_version,
     get_ancestors,
     get_depth,
     get_direct_children,
     get_subtree,
     has_changes,
     restore_recursive,
+)
+from backend.app.services.article_service import (
+    create_initial_history,
+    update_article_profile,
 )
 
 router = APIRouter(prefix="/articles", tags=["Articles"])
@@ -89,8 +92,7 @@ async def create_article(
     # Validate: Parent article must exist and be accessible
     if article_data.parent_id:
         parent_stmt = select(Article).where(
-            Article.id == article_data.parent_id,
-            Article.is_current == True  # noqa: E712
+            Article.id == article_data.parent_id
         )
         parent_result = await session.execute(parent_stmt)
         parent = parent_result.scalar_one_or_none()
@@ -101,18 +103,18 @@ async def create_article(
                 detail=f"Parent article with id={article_data.parent_id} not found"
             )
 
-    # Create new article
+    # Create new article (SCD Type 1 - no versioning fields)
     article = Article(
         **article_data.model_dump(),
         user_id=get_user_id_for_create(current_user),
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
 
     session.add(article)
     await session.commit()
     await session.refresh(article)
+
+    # Create initial history record (SCD Type 2 for history)
+    await create_initial_history(session=session, article=article, change_type="CREATE")
 
     return article
 
@@ -140,7 +142,7 @@ async def list_articles(
     - No user isolation filtering
 
     **Filters:**
-    - type: Filter by article type ('income' or 'expense')
+    - type: Filter by article type ('income', 'expense', 'debit', 'credit')
     - parent_id: Filter by parent article (NULL for root articles)
     - include_inactive: Include archived categories (default: False)
         - False: Only active categories (visible in dropdowns)
@@ -166,14 +168,14 @@ async def list_articles(
     ).outerjoin(
         ArticleUsageStats,
         Article.id == ArticleUsageStats.article_id
-    ).where(Article.is_current == True)  # noqa: E712
+    )
 
     # Apply filters
     if type_filter:
-        if type_filter not in ["income", "expense"]:
+        if type_filter not in ["income", "expense", "debit", "credit"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="type must be 'income' or 'expense'"
+                detail="type must be 'income', 'expense', 'debit', or 'credit'"
             )
         statement = statement.where(Article.type == type_filter)
 
@@ -254,12 +256,11 @@ async def get_article(
 
     **Returns:**
     - 200 OK: Article found
-    - 404 Not Found: Article not found or not current
+    - 404 Not Found: Article not found
     """
-    # Load article (current version only)
+    # Load article
     statement = select(Article).where(
-        Article.id == article_id,
-        Article.is_current == True  # noqa: E712
+        Article.id == article_id
     )
     result = await session.execute(statement)
     article = result.scalar_one_or_none()
@@ -287,19 +288,19 @@ async def update_article(
     session: AsyncSession = Depends(get_session),
 ) -> Article:
     """
-    Update an article (creates new SCD Type 2 version).
+    Update an article (in-place update with history tracking).
 
-    **SCD Type 2 Behavior:**
-    - Creates NEW version with is_current=True
-    - Old version: is_current=False, valid_to=now()
-    - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
+    **SCD Type 1 + History Behavior:**
+    - Updates article IN-PLACE (id remains stable)
+    - Creates ArticleHistory snapshot (SCD Type 2 for audit)
+    - FK in fact tables remain unchanged
 
     **Archived Categories (is_active field):**
-    - is_active changes are processed SEPARATELY from SCD Type 2
+    - is_active changes are processed SEPARATELY from regular updates
     - Changing is_active triggers RECURSIVE archive/restore:
         - is_active=False: Archives article and ALL descendants
         - is_active=True: Restores article and ALL descendants
-    - Does NOT create new version if ONLY is_active changes
+    - Does NOT create history record if ONLY is_active changes
     - If is_active + other fields change: both operations execute
 
     **Shared References Architecture:**
@@ -312,7 +313,7 @@ async def update_article(
     - Cannot create cycles in hierarchy
 
     **Returns:**
-    - 200 OK: Article updated (new version created or is_active changed)
+    - 200 OK: Article updated (in-place update with history)
     - 403 Forbidden: Non-admin trying to update
     - 404 Not Found: Article not found
     - 400 Bad Request: No fields provided for update
@@ -336,10 +337,9 @@ async def update_article(
             detail="At least one field must be provided for update"
         )
 
-    # Load current version
+    # Load article
     statement = select(Article).where(
-        Article.id == article_id,
-        Article.is_current == True  # noqa: E712
+        Article.id == article_id
     )
     result = await session.execute(statement)
     old_article = result.scalar_one_or_none()
@@ -353,8 +353,7 @@ async def update_article(
     # Validate parent_id if changed
     if "parent_id" in update_data and update_data["parent_id"]:
         parent_stmt = select(Article).where(
-            Article.id == update_data["parent_id"],
-            Article.is_current == True  # noqa: E712
+            Article.id == update_data["parent_id"]
         )
         parent_result = await session.execute(parent_stmt)
         parent = parent_result.scalar_one_or_none()
@@ -417,20 +416,20 @@ async def update_article(
         # Refresh old_article to get updated is_active status
         await session.refresh(old_article)
 
-    # If there are other fields to update, create new SCD Type 2 version
+    # If there are other fields to update, use SCD Type 1 + create history
     if has_other_changes:
-        logger.info(f"[ARTICLE UPDATE] Calling create_new_version for article_id={article_id}")
-        new_article = await create_new_version(
+        logger.info(f"[ARTICLE UPDATE] Calling update_article_profile for article_id={article_id}")
+        updated_article = await update_article_profile(
             session=session,
-            old_instance=old_article,
+            article=old_article,
             updates=update_data,
-            changed_fields=changed_fields,
             changed_by_user_id=current_user.id,
+            change_type="UPDATE",
         )
-        logger.info(f"[ARTICLE UPDATE] Created new version: old_id={article_id}, new_id={new_article.id}")
-        return new_article
+        logger.info(f"[ARTICLE UPDATE] Updated article (SCD1+History): id={article_id}")
+        return updated_article
     else:
-        # Only is_active was changed, return updated article (no new version)
+        # Only is_active was changed, return updated article (no history record needed - already done by archive/restore)
         logger.info(f"[ARTICLE UPDATE] Only is_active changed, returning updated article")
         return old_article
 
@@ -446,27 +445,25 @@ async def delete_article(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """
-    Soft delete an article (sets is_current=False).
+    Soft delete an article (sets is_active=False).
 
-    **SCD Type 2 Behavior:**
-    - Sets is_current=False
-    - Sets valid_to=now()
+    **SCD Type 1 Behavior:**
+    - Sets is_active=False (archived)
     - Article still exists in database (soft delete)
-    - Historical queries can still access it
+    - Historical queries can still access it via ArticleHistory
 
     **Shared References Architecture:**
     - Only administrators can delete articles
     - All articles are shared across all users
 
     **Cascade Behavior:**
-    - Does NOT cascade to child articles
-    - Child articles remain (orphaned)
-    - Consider manual cascade if needed
+    - Uses archive_recursive() to archive child articles too
+    - All descendants are archived (is_active=False)
 
     **Returns:**
     - 204 No Content: Article deleted successfully
     - 403 Forbidden: Non-admin trying to delete
-    - 404 Not Found: Article not found or already deleted
+    - 404 Not Found: Article not found
     """
     # Check: Only admins can delete articles
     if not current_user.is_admin:
@@ -475,10 +472,9 @@ async def delete_article(
             detail="Only administrators can delete articles"
         )
 
-    # Load current version
+    # Load article
     statement = select(Article).where(
-        Article.id == article_id,
-        Article.is_current == True  # noqa: E712
+        Article.id == article_id
     )
     result = await session.execute(statement)
     article = result.scalar_one_or_none()
@@ -486,16 +482,11 @@ async def delete_article(
     if not article:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Article with id={article_id} not found or already deleted"
+            detail=f"Article with id={article_id} not found"
         )
 
-    # Soft delete
-    now = datetime.utcnow()
-    article.is_current = False
-    article.valid_to = now
-    article.updated_at = now
-
-    await session.commit()
+    # Soft delete: archive article and all descendants
+    await archive_recursive(session, article_id)
 
     return None
 

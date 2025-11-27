@@ -173,8 +173,7 @@ async def list_staging(
         article = None
         if record.article_id:
             article_stmt = select(Article).where(
-                Article.id == record.article_id,
-                Article.is_current == True  # noqa: E712
+                Article.id == record.article_id
             )
             article_result = await session.execute(article_stmt)
             article = article_result.scalar_one_or_none()
@@ -183,8 +182,7 @@ async def list_staging(
         fc = None
         if record.financial_center_id:
             fc_stmt = select(FinancialCenter).where(
-                FinancialCenter.id == record.financial_center_id,
-                FinancialCenter.is_current == True  # noqa: E712
+                FinancialCenter.id == record.financial_center_id
             )
             fc_result = await session.execute(fc_stmt)
             fc = fc_result.scalar_one_or_none()
@@ -193,8 +191,7 @@ async def list_staging(
         cc = None
         if record.cost_center_id:
             cc_stmt = select(CostCenter).where(
-                CostCenter.id == record.cost_center_id,
-                CostCenter.is_current == True  # noqa: E712
+                CostCenter.id == record.cost_center_id
             )
             cc_result = await session.execute(cc_stmt)
             cc = cc_result.scalar_one_or_none()
@@ -253,9 +250,9 @@ async def update_staging_record(
     - Users can only update their own staging records
 
     **Validation:**
-    - article_id must exist (is_current=True)
-    - financial_center_id must exist (is_current=True)
-    - cost_center_id must exist (is_current=True) if provided
+    - article_id must exist
+    - financial_center_id must exist
+    - cost_center_id must exist if provided
 
     **Returns:**
     - 200 OK: Staging record updated successfully
@@ -283,8 +280,7 @@ async def update_staging_record(
     # Validate article_id if provided
     if update_data.article_id is not None:
         article_stmt = select(Article).where(
-            Article.id == update_data.article_id,
-            Article.is_current == True  # noqa: E712
+            Article.id == update_data.article_id
         )
         article_result = await session.execute(article_stmt)
         article = article_result.scalar_one_or_none()
@@ -298,8 +294,7 @@ async def update_staging_record(
     # Validate financial_center_id if provided
     if update_data.financial_center_id is not None:
         fc_stmt = select(FinancialCenter).where(
-            FinancialCenter.id == update_data.financial_center_id,
-            FinancialCenter.is_current == True  # noqa: E712
+            FinancialCenter.id == update_data.financial_center_id
         )
         fc_result = await session.execute(fc_stmt)
         fc = fc_result.scalar_one_or_none()
@@ -313,8 +308,7 @@ async def update_staging_record(
     # Validate cost_center_id if provided
     if update_data.cost_center_id is not None:
         cc_stmt = select(CostCenter).where(
-            CostCenter.id == update_data.cost_center_id,
-            CostCenter.is_current == True  # noqa: E712
+            CostCenter.id == update_data.cost_center_id
         )
         cc_result = await session.execute(cc_stmt)
         cc = cc_result.scalar_one_or_none()
@@ -342,8 +336,7 @@ async def update_staging_record(
     article = None
     if staging.article_id:
         article_stmt = select(Article).where(
-            Article.id == staging.article_id,
-            Article.is_current == True  # noqa: E712
+            Article.id == staging.article_id
         )
         article_result = await session.execute(article_stmt)
         article = article_result.scalar_one_or_none()
@@ -351,8 +344,7 @@ async def update_staging_record(
     fc = None
     if staging.financial_center_id:
         fc_stmt = select(FinancialCenter).where(
-            FinancialCenter.id == staging.financial_center_id,
-            FinancialCenter.is_current == True  # noqa: E712
+            FinancialCenter.id == staging.financial_center_id
         )
         fc_result = await session.execute(fc_stmt)
         fc = fc_result.scalar_one_or_none()
@@ -360,8 +352,7 @@ async def update_staging_record(
     cc = None
     if staging.cost_center_id:
         cc_stmt = select(CostCenter).where(
-            CostCenter.id == staging.cost_center_id,
-            CostCenter.is_current == True  # noqa: E712
+            CostCenter.id == staging.cost_center_id
         )
         cc_result = await session.execute(cc_stmt)
         cc = cc_result.scalar_one_or_none()
@@ -407,9 +398,9 @@ async def bulk_update_staging(
 
     **Validation:**
     - All IDs must belong to current user
-    - article_id must exist (is_current=True) if provided
-    - financial_center_id must exist (is_current=True) if provided
-    - cost_center_id must exist (is_current=True) if provided
+    - article_id must exist if provided
+    - financial_center_id must exist if provided
+    - cost_center_id must exist if provided
 
     **Transaction:**
     - All or nothing - if any validation fails, no records are updated
@@ -450,8 +441,7 @@ async def bulk_update_staging(
     # Validate article_id if provided (once for all)
     if bulk_data.updates.article_id is not None:
         article_stmt = select(Article).where(
-            Article.id == bulk_data.updates.article_id,
-            Article.is_current == True  # noqa: E712
+            Article.id == bulk_data.updates.article_id
         )
         article_result = await session.execute(article_stmt)
         article = article_result.scalar_one_or_none()
@@ -465,8 +455,7 @@ async def bulk_update_staging(
     # Validate financial_center_id if provided (once for all)
     if bulk_data.updates.financial_center_id is not None:
         fc_stmt = select(FinancialCenter).where(
-            FinancialCenter.id == bulk_data.updates.financial_center_id,
-            FinancialCenter.is_current == True  # noqa: E712
+            FinancialCenter.id == bulk_data.updates.financial_center_id
         )
         fc_result = await session.execute(fc_stmt)
         fc = fc_result.scalar_one_or_none()
@@ -480,8 +469,7 @@ async def bulk_update_staging(
     # Validate cost_center_id if provided (once for all)
     if bulk_data.updates.cost_center_id is not None:
         cc_stmt = select(CostCenter).where(
-            CostCenter.id == bulk_data.updates.cost_center_id,
-            CostCenter.is_current == True  # noqa: E712
+            CostCenter.id == bulk_data.updates.cost_center_id
         )
         cc_result = await session.execute(cc_stmt)
         cc = cc_result.scalar_one_or_none()

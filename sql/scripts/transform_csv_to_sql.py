@@ -7,7 +7,7 @@ Input: t_f_registry_t_d_financial_center_t_d_cost_center_t_d_nomenclatu_*.csv
 Output: Multiple SQL files with INSERT statements for dimension and fact tables
 
 Author: Claude Code
-Date: 2025-11-02
+Date: 2025-11-26
 """
 
 import csv
@@ -183,7 +183,7 @@ def generate_financial_center_sql(financial_centers: Set[str], output_path: Path
 
     for idx, name in enumerate(sorted(financial_centers), start=1):
         code = f"CFO-{idx}"  # New pattern: CFO-1, CFO-2, ...
-        sql = f"INSERT INTO t_d_financial_center (user_id, code, name, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', true);"
+        sql = f"INSERT INTO t_d_financial_center (user_id, code, name) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}');"
         sql_lines.append(sql)
 
     sql_lines.append(f"\n-- Total: {len(financial_centers)} financial centers")
@@ -207,7 +207,7 @@ def generate_cost_center_sql(cost_centers: Set[str], output_path: Path):
 
     for idx, name in enumerate(sorted(cost_centers), start=1):
         code = f"MVZ-{idx}"  # New pattern: MVZ-1, MVZ-2, ...
-        sql = f"INSERT INTO t_d_cost_center (user_id, code, name, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', true);"
+        sql = f"INSERT INTO t_d_cost_center (user_id, code, name) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}');"
         sql_lines.append(sql)
 
     sql_lines.append(f"\n-- Total: {len(cost_centers)} cost centers")
@@ -231,7 +231,7 @@ def generate_article_parents_sql(parent_articles: Dict[str, str], output_path: P
 
     for idx, (name, article_type) in enumerate(sorted(parent_articles.items()), start=1):
         code = f"ART-{idx}"  # New pattern: ART-1, ART-2, ...
-        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_active, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', '{article_type}', NULL, true, true);"
+        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_active) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(name)}', '{article_type}', NULL, true);"
         sql_lines.append(sql)
 
     sql_lines.append(f"\n-- Total: {len(parent_articles)} parent articles")
@@ -267,11 +267,11 @@ def generate_article_children_sql(child_articles: Dict[Tuple[str, str], str], pa
 
         if parent_code != 'NULL':
             # Use subquery to get parent_id by code
-            parent_ref = f"(SELECT id FROM t_d_article WHERE code = '{parent_code}' AND is_current = true LIMIT 1)"
+            parent_ref = f"(SELECT id FROM t_d_article WHERE code = '{parent_code}' LIMIT 1)"
         else:
             parent_ref = 'NULL'
 
-        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_active, is_current) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(child_name)}', '{article_type}', {parent_ref}, true, true);"
+        sql = f"INSERT INTO t_d_article (user_id, code, name, type, parent_id, is_active) VALUES ({USER_ID}, '{escape_sql(code)}', '{escape_sql(child_name)}', '{article_type}', {parent_ref}, true);"
         sql_lines.append(sql)
 
     sql_lines.append(f"\n-- Total: {len(child_articles)} child articles")
@@ -402,9 +402,9 @@ def generate_budget_fact_sql(records: List[Dict], output_path: Path):
             "(user_id, article_id, financial_center_id, cost_center_id, fact_date, amount, record_type, description) "
             "VALUES ("
             f"{USER_ID}, "
-            f"(SELECT id FROM t_d_article WHERE name = '{escape_sql(record['nomenclature'])}' AND is_current = true LIMIT 1), "
-            f"(SELECT id FROM t_d_financial_center WHERE name = '{escape_sql(record['financial_center'])}' AND is_current = true LIMIT 1), "
-            f"(SELECT id FROM t_d_cost_center WHERE name = '{escape_sql(record['cost_center'])}' AND is_current = true LIMIT 1), "
+            f"(SELECT id FROM t_d_article WHERE name = '{escape_sql(record['nomenclature'])}' LIMIT 1), "
+            f"(SELECT id FROM t_d_financial_center WHERE name = '{escape_sql(record['financial_center'])}' LIMIT 1), "
+            f"(SELECT id FROM t_d_cost_center WHERE name = '{escape_sql(record['cost_center'])}' LIMIT 1), "
             f"'{record['operation_date']}', "
             f"{record['amount']:.2f}, "
             f"'{record_type}', "

@@ -230,6 +230,9 @@ certbot/
 # Project-specific (Family Budget)
 # =============================================================================
 
+# Nginx generated configs (auto-generated from templates)
+nginx/conf.d/app.conf
+
 # Deployment script backups from refactoring phases
 *.phase*-backup
 

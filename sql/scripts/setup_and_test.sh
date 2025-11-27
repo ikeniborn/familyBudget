@@ -2,7 +2,7 @@
 # Comprehensive setup and test script for execute_sql_parallel.py
 # Tests: Connection, DDL, Indexes, CRUD operations, Parallel execution, Cleanup
 # Author: Claude Code
-# Date: 2025-11-02
+# Date: 2025-11-26
 
 set -e  # Exit on error
 
@@ -127,7 +127,7 @@ TEST_DESCRIPTIONS=(
     "Table Creation (DDL)"
     "Index Creation & Optimization"
     "Batch Insert (Parallel Execution)"
-    "Update Records (SCD Type 2)"
+    "Update Records"
     "Delete Records (Hard & Soft)"
     "Cleanup Test Artifacts"
 )

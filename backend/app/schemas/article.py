@@ -34,10 +34,10 @@ class ArticleCreate(BaseModel):
         examples=["Food", "Groceries", "Salary"]
     )
 
-    type: Literal["income", "expense"] = Field(
+    type: Literal["income", "expense", "debit", "credit"] = Field(
         ...,
-        description="Article type: income or expense",
-        examples=["expense"]
+        description="Article type: income, expense, debit (списание), credit (пополнение)",
+        examples=["expense", "debit"]
     )
 
     parent_id: Optional[int] = Field(
@@ -90,15 +90,15 @@ class ArticleUpdate(BaseModel):
     Schema for updating an existing article.
 
     All fields are optional (partial update).
-    When updated, creates new SCD Type 2 version with is_current=True.
+    Updates article IN-PLACE (SCD Type 1) and creates history snapshot (SCD Type 2).
 
     Validation Rules:
         - At least one field must be provided
         - Same validation as ArticleCreate for provided fields
 
     Notes:
-        - Update creates NEW version with is_current=True
-        - Old version gets is_current=False, valid_to=now()
+        - Update modifies article IN-PLACE (id remains stable)
+        - Creates ArticleHistory snapshot for audit trail
         - Cannot change user_id (articles belong to creator)
     """
 
@@ -110,10 +110,10 @@ class ArticleUpdate(BaseModel):
         examples=["Updated Food Name"]
     )
 
-    type: Optional[Literal["income", "expense"]] = Field(
+    type: Optional[Literal["income", "expense", "debit", "credit"]] = Field(
         default=None,
-        description="Article type: income or expense",
-        examples=["expense"]
+        description="Article type: income, expense, debit (списание), credit (пополнение)",
+        examples=["expense", "credit"]
     )
 
     parent_id: Optional[int] = Field(
@@ -188,8 +188,8 @@ class ArticleResponse(BaseModel):
     Includes all article fields plus optional hierarchy information.
 
     Notes:
-        - Only current versions (is_current=True) are returned by default
-        - Historical versions can be queried via /articles/{id}/history endpoint
+        - SCD Type 1: Returns current data (no versioning)
+        - Historical versions are stored in ArticleHistory table
         - Hierarchy info is optional (can be omitted for performance)
     """
 
@@ -201,6 +201,12 @@ class ArticleResponse(BaseModel):
     user_id: int = Field(
         description="Owner user ID",
         examples=[123]
+    )
+
+    user_name: Optional[str] = Field(
+        default=None,
+        description="Owner user name (first_name from User model, populated in admin endpoints)",
+        examples=["Илья", "Радомир", None]
     )
 
     parent_id: Optional[int] = Field(
@@ -227,22 +233,6 @@ class ArticleResponse(BaseModel):
     is_active: bool = Field(
         description="Active status flag (True = visible in UI, False = archived)",
         examples=[True, False]
-    )
-
-    # SCD Type 2 fields
-    valid_from: datetime = Field(
-        description="Start of validity period",
-        examples=["2025-10-13T12:00:00Z"]
-    )
-
-    valid_to: datetime = Field(
-        description="End of validity period (9999-12-31 for current)",
-        examples=["9999-12-31T23:59:59Z"]
-    )
-
-    is_current: bool = Field(
-        description="True if this is the current version",
-        examples=[True]
     )
 
     # Audit fields
@@ -279,9 +269,6 @@ class ArticleResponse(BaseModel):
                 "name": "Food",
                 "type": "expense",
                 "is_active": True,
-                "valid_from": "2025-10-13T12:00:00Z",
-                "valid_to": "9999-12-31T23:59:59Z",
-                "is_current": True,
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z",
                 "hierarchy": {

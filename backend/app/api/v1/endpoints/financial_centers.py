@@ -28,8 +28,11 @@ from backend.app.schemas.financial_center import (
     FinancialCenterResponse,
     FinancialCenterUpdate,
 )
-from backend.app.services import scd2_service
 from backend.app.services.scd2_service import has_changes
+from backend.app.services.financial_center_service import (
+    create_initial_history,
+    update_financial_center_profile,
+)
 
 router = APIRouter(
     prefix="/financial-centers",
@@ -49,17 +52,20 @@ async def list_financial_centers(
     current_user: User = Depends(get_current_user),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
+    include_inactive: bool = Query(False, description="Include archived financial centers"),
 ) -> FinancialCenterListResponse:
     """
     List financial centers for current user.
 
     Shared references architecture: All users see all financial centers.
-    Only current versions (is_current=True) are returned.
+    By default, only active financial centers (is_active=True) are returned.
     """
     # Build query - all financial centers (shared references)
-    conditions = [
-        FinancialCenter.is_current == True,
-    ]
+    conditions = []
+
+    # Filter archived if not explicitly requested
+    if not include_inactive:
+        conditions.append(FinancialCenter.is_active == True)
 
     # Count total
     count_query = select(FinancialCenter).where(*conditions)
@@ -117,20 +123,20 @@ async def create_financial_center(
     from backend.app.utils.code_generator import generate_code
     generated_code = await generate_code(session, FinancialCenter)
 
-    # Create financial center
+    # Create financial center (SCD Type 1 - no versioning fields)
     financial_center = FinancialCenter(
         user_id=current_user.id,
         name=financial_center_data.name,
         description=financial_center_data.description,
         code=generated_code,
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
 
     session.add(financial_center)
     await session.commit()
     await session.refresh(financial_center)
+
+    # Create initial history record (SCD Type 2 for history)
+    await create_initial_history(session=session, financial_center=financial_center, change_type="CREATE")
 
     return FinancialCenterResponse.model_validate(financial_center)
 
@@ -149,12 +155,10 @@ async def get_financial_center(
     """
     Get financial center by ID.
 
-    Returns current version (is_current=True) only.
     Shared references architecture: All users can access all financial centers.
     """
     query = select(FinancialCenter).where(
-        FinancialCenter.id == financial_center_id,
-        FinancialCenter.is_current == True,
+        FinancialCenter.id == financial_center_id
     )
 
     result = await session.execute(query)
@@ -186,9 +190,10 @@ async def update_financial_center(
     """
     Update financial center.
 
-    Creates new SCD Type 2 version:
-    - Old version: is_current=False, valid_to=now()
-    - New version: is_current=True, valid_from=now(), valid_to=9999-12-31
+    SCD Type 1 + History:
+    - Updates financial center IN-PLACE (id remains stable)
+    - Creates FinancialCenterHistory snapshot (SCD Type 2 for audit)
+    - FK in fact tables remain unchanged
 
     Shared references architecture: Only admins can update financial centers.
     """
@@ -199,16 +204,15 @@ async def update_financial_center(
             detail="Only administrators can update financial centers",
         )
 
-    # Fetch current version
+    # Fetch financial center
     query = select(FinancialCenter).where(
-        FinancialCenter.id == financial_center_id,
-        FinancialCenter.is_current == True,
+        FinancialCenter.id == financial_center_id
     )
 
     result = await session.execute(query)
-    old_financial_center = result.scalar_one_or_none()
+    financial_center = result.scalar_one_or_none()
 
-    if not old_financial_center:
+    if not financial_center:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Financial center {financial_center_id} not found",
@@ -218,21 +222,114 @@ async def update_financial_center(
     update_dict = update_data.model_dump(exclude_unset=True)
 
     # Check if anything changed
-    changed, changed_fields = has_changes(old_financial_center, update_dict)
+    changed, changed_fields = has_changes(financial_center, update_dict)
     if not changed:
         # No changes, return existing financial center
-        return FinancialCenterResponse.model_validate(old_financial_center)
+        return FinancialCenterResponse.model_validate(financial_center)
 
-    # Use SCD2 service for update
-    new_financial_center = await scd2_service.create_new_version(
+    # Use SCD1+History service for update
+    updated_financial_center = await update_financial_center_profile(
         session=session,
-        old_instance=old_financial_center,
+        financial_center=financial_center,
         updates=update_dict,
-        changed_fields=changed_fields,
         changed_by_user_id=current_user.id,
+        change_type="UPDATE",
     )
 
-    return FinancialCenterResponse.model_validate(new_financial_center)
+    return FinancialCenterResponse.model_validate(updated_financial_center)
+
+
+@router.put(
+    "/{financial_center_id}/archive",
+    response_model=FinancialCenterResponse,
+    summary="Archive financial center",
+    description="Archive financial center (simple UPDATE is_active=False, not SCD Type 2)",
+)
+async def archive_financial_center(
+    financial_center_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> FinancialCenterResponse:
+    """
+    Archive financial center by setting is_active=False.
+
+    Simple UPDATE operation (NOT SCD Type 2).
+    Archived financial centers are hidden from UI dropdowns but remain in analytics.
+    Only administrators can archive financial centers.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can archive financial centers",
+        )
+
+    query = select(FinancialCenter).where(
+        FinancialCenter.id == financial_center_id
+    )
+    result = await session.execute(query)
+    financial_center = result.scalar_one_or_none()
+
+    if not financial_center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Financial center {financial_center_id} not found",
+        )
+
+    # Simple UPDATE: is_active=False (NOT SCD Type 2)
+    financial_center.is_active = False
+    financial_center.updated_at = datetime.utcnow()
+
+    session.add(financial_center)
+    await session.commit()
+    await session.refresh(financial_center)
+
+    return financial_center
+
+
+@router.put(
+    "/{financial_center_id}/restore",
+    response_model=FinancialCenterResponse,
+    summary="Restore archived financial center",
+    description="Restore financial center (simple UPDATE is_active=True, not SCD Type 2)",
+)
+async def restore_financial_center(
+    financial_center_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> FinancialCenterResponse:
+    """
+    Restore archived financial center by setting is_active=True.
+
+    Simple UPDATE operation (NOT SCD Type 2).
+    Only administrators can restore financial centers.
+    """
+    if not current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can restore financial centers",
+        )
+
+    query = select(FinancialCenter).where(
+        FinancialCenter.id == financial_center_id
+    )
+    result = await session.execute(query)
+    financial_center = result.scalar_one_or_none()
+
+    if not financial_center:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Financial center {financial_center_id} not found",
+        )
+
+    # Simple UPDATE: is_active=True (NOT SCD Type 2)
+    financial_center.is_active = True
+    financial_center.updated_at = datetime.utcnow()
+
+    session.add(financial_center)
+    await session.commit()
+    await session.refresh(financial_center)
+
+    return financial_center
 
 
 @router.delete(
@@ -249,8 +346,8 @@ async def delete_financial_center(
     """
     Soft delete financial center.
 
-    Sets is_current=False and valid_to=now() for current version.
-    Historical versions are preserved.
+    Sets is_active=False (archived).
+    Historical versions are preserved in FinancialCenterHistory.
     Shared references architecture: Only admins can delete financial centers.
     """
     # Check: Only admins can delete financial centers
@@ -260,10 +357,9 @@ async def delete_financial_center(
             detail="Only administrators can delete financial centers",
         )
 
-    # Fetch current version
+    # Fetch financial center
     query = select(FinancialCenter).where(
-        FinancialCenter.id == financial_center_id,
-        FinancialCenter.is_current == True,
+        FinancialCenter.id == financial_center_id
     )
 
     result = await session.execute(query)
@@ -275,9 +371,8 @@ async def delete_financial_center(
             detail=f"Financial center {financial_center_id} not found",
         )
 
-    # Soft delete: set is_current=False and valid_to=now()
-    financial_center.is_current = False
-    financial_center.valid_to = datetime.utcnow()
+    # Soft delete: set is_active=False
+    financial_center.is_active = False
     financial_center.updated_at = datetime.utcnow()
 
     session.add(financial_center)

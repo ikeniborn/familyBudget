@@ -279,7 +279,7 @@ class APIClient:
             token: JWT access token
             article_id: Article ID
             fact_date: Fact date (ISO format: YYYY-MM-DD)
-            amount: Amount (decimal string, with sign: + for income, - for expense)
+            amount: Amount (decimal string, ALWAYS POSITIVE, sign determined by article_type)
             description: Optional description
             record_type: 'fact' for actual transactions, 'plan' for budget plans (default: 'fact')
             financial_center_id: Optional financial center ID (ЦФО)

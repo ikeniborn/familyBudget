@@ -61,8 +61,7 @@ async def get_user_by_telegram_id(
     """
     # Find current user version (only registered users)
     statement = select(User).where(
-        User.telegram_id == telegram_id,
-        User.is_current == True  # noqa: E712
+        User.telegram_id == telegram_id
     )
     result = await session.execute(statement)
     existing_user = result.scalar_one_or_none()

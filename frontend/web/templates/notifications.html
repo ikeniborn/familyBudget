@@ -41,7 +41,10 @@
                     <label class="label">
                         <span class="label-text font-medium">📅 Дата по</span>
                     </label>
-                    <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ">
+                    <div class="flex gap-2 items-center">
+                        <input type="text" id="filter-date-to" class="input input-bordered flex-1" placeholder="ДД.ММ.ГГГГ">
+                        <div id="date-range-calendar-trigger"></div>
+                    </div>
                 </div>
             </div>
             <div class="flex justify-end">
@@ -152,11 +155,12 @@ let currentNotifications = [];
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
-    // Инициализация CalendarWidget для фильтров дат (Range Picker)
+    // Инициализация CalendarWidget для фильтров дат (Range Picker) с кнопкой
     new BudgetShared.CalendarWidget({
         mode: 'range',
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
+        triggerContainer: '#date-range-calendar-trigger',
         onSelect: (startDate, endDate) => {
             console.log('Выбран диапазон дат для фильтров notifications:', startDate, endDate);
         }

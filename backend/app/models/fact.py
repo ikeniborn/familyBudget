@@ -99,7 +99,7 @@ class BudgetFact(SQLModel, table=True):
         nullable=False,
         max_digits=15,
         decimal_places=2,
-        description="Transaction amount with sign: positive for income, negative for expense"
+        description="Transaction amount (always stored as positive value, sign determined by article_type)"
     )
 
     description: Optional[str] = Field(
@@ -113,6 +113,13 @@ class BudgetFact(SQLModel, table=True):
         max_length=10,
         nullable=False,
         description="Record type: 'fact' for actual transactions, 'plan' for budget plans"
+    )
+
+    # Transfer support
+    transfer_id: Optional[int] = Field(
+        default=None,
+        nullable=True,
+        description="Links paired expense/income transactions for transfers between financial centers"
     )
 
     # Audit fields

@@ -34,6 +34,7 @@ from backend.app.models.article import Article
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
+from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.fact import (
     FactCreate,
@@ -79,8 +80,7 @@ async def create_fact(
     """
     # Validate: Article must exist and be accessible
     article_stmt = select(Article).where(
-        Article.id == fact_data.article_id,
-        Article.is_current == True  # noqa: E712
+        Article.id == fact_data.article_id
     )
     article_result = await session.execute(article_stmt)
     article = article_result.scalar_one_or_none()
@@ -91,17 +91,16 @@ async def create_fact(
             detail=f"Article with id={fact_data.article_id} not found"
         )
 
-    # Article must belong to current user (for audit trail check)
-    if not current_user.is_admin:
-        if article.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Article not accessible"
-            )
+    # Shared Family Budget: All users can use all articles (no ownership check)
+    # Articles are shared references accessible to all authenticated users
 
     # Create new fact
+    # Convert amount to absolute value (always store positive)
+    fact_dict = fact_data.model_dump()
+    fact_dict['amount'] = abs(fact_dict['amount'])
+
     fact = BudgetFact(
-        **fact_data.model_dump(),
+        **fact_dict,
         user_id=get_user_id_for_create(current_user),
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
@@ -115,8 +114,7 @@ async def create_fact(
     financial_center_name = None
     if fact.financial_center_id:
         fc_stmt = select(FinancialCenter).where(
-            FinancialCenter.id == fact.financial_center_id,
-            FinancialCenter.is_current == True  # noqa: E712
+            FinancialCenter.id == fact.financial_center_id
         )
         fc_result = await session.execute(fc_stmt)
         fc = fc_result.scalar_one_or_none()
@@ -125,8 +123,7 @@ async def create_fact(
     cost_center_name = None
     if fact.cost_center_id:
         cc_stmt = select(CostCenter).where(
-            CostCenter.id == fact.cost_center_id,
-            CostCenter.is_current == True  # noqa: E712
+            CostCenter.id == fact.cost_center_id
         )
         cc_result = await session.execute(cc_stmt)
         cc = cc_result.scalar_one_or_none()
@@ -201,20 +198,22 @@ async def list_facts(
     """
     # Base query with JOINs for enriched response
     statement = (
-        select(BudgetFact, Article, FinancialCenter, CostCenter)
+        select(BudgetFact, Article, FinancialCenter, CostCenter, User)
         .join(
             Article,
-            (BudgetFact.article_id == Article.id) & (Article.is_current == True)  # noqa: E712
+            BudgetFact.article_id == Article.id
         )
         .outerjoin(
             FinancialCenter,
-            (BudgetFact.financial_center_id == FinancialCenter.id)
-            & (FinancialCenter.is_current == True)  # noqa: E712
+            BudgetFact.financial_center_id == FinancialCenter.id
         )
         .outerjoin(
             CostCenter,
-            (BudgetFact.cost_center_id == CostCenter.id)
-            & (CostCenter.is_current == True)  # noqa: E712
+            BudgetFact.cost_center_id == CostCenter.id
+        )
+        .outerjoin(
+            User,
+            BudgetFact.user_id == User.id  # Fact Table snapshot pattern
         )
     )
 
@@ -270,10 +269,31 @@ async def list_facts(
 
     # Enrich facts with article and center data
     enriched_facts = []
-    for fact, article, financial_center, cost_center in rows:
+    for fact, article, financial_center, cost_center, user in rows:
+        # Get user name with improved fallback chain
+        user_name = None
+        if user:
+            user_name = (
+                user.first_name or
+                user.username or
+                user.last_name or
+                (f"User {user.telegram_id}" if user.telegram_id else None) or
+                f"Пользователь #{user.id}"
+            )
+
+            # Debug logging if user fields are mostly NULL
+            if not user.first_name and not user.username and not user.last_name:
+                logger.warning(
+                    f"User {user.id} (telegram_id={user.telegram_id}) has no name fields. "
+                    f"Using fallback: '{user_name}'"
+                )
+        else:
+            logger.error(f"Fact {fact.id} has no associated user (user_id={fact.user_id})")
+
         fact_dict = {
             "id": fact.id,
             "user_id": fact.user_id,
+            "user_name": user_name,
             "article_id": fact.article_id,
             "article_type": article.type,
             "article_name": article.name,
@@ -373,8 +393,7 @@ async def get_recent_facts_html(
         # Load articles for fact details
         article_ids = {fact.article_id for fact in facts}
         articles_stmt = select(Article).where(
-            Article.id.in_(article_ids),
-            Article.is_current == True  # noqa: E712
+            Article.id.in_(article_ids)
         )
         articles_result = await session.execute(articles_stmt)
         articles = {a.id: a for a in articles_result.scalars().all()}
@@ -384,8 +403,7 @@ async def get_recent_facts_html(
         financial_center_ids = {fact.financial_center_id for fact in facts if fact.financial_center_id}
         if financial_center_ids:
             fcs_stmt = select(FinancialCenter).where(
-                FinancialCenter.id.in_(financial_center_ids),
-                FinancialCenter.is_current == True  # noqa: E712
+                FinancialCenter.id.in_(financial_center_ids)
             )
             fcs_result = await session.execute(fcs_stmt)
             financial_centers = {fc.id: fc for fc in fcs_result.scalars().all()}
@@ -420,12 +438,20 @@ async def get_recent_facts_html(
             # Format date
             fact_date_str = fact.fact_date.strftime("%d.%m.%Y")
 
-            # Determine color based on article type
-            amount_class = "text-success font-bold" if article.type == "income" else "text-error font-bold"
-            amount_prefix = "+" if article.type == "income" else "-"
+            # Determine color based on article type (income/credit = positive, expense/debit = negative)
+            amount_class = "text-success font-bold" if article.type in ["income", "credit"] else "text-error font-bold"
 
-            # Article icon based on type
-            article_icon = "💰" if article.type == "income" else "💸"
+            # Article icon based on type (income=💰, credit=📥, expense=💸, debit=📤)
+            if article.type == "income":
+                article_icon = "💰"
+            elif article.type == "credit":
+                article_icon = "📥"
+            elif article.type == "expense":
+                article_icon = "💸"
+            elif article.type == "debit":
+                article_icon = "📤"
+            else:
+                article_icon = "❓"
 
             # Financial center name
             financial_center = financial_centers.get(fact.financial_center_id)
@@ -442,7 +468,7 @@ async def get_recent_facts_html(
                         <td class="whitespace-nowrap">{fact_date_str}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
                         <td>{article_icon} {article.name}</td>
-                        <td class="{amount_class} whitespace-nowrap">{amount_prefix}{format_money(fact.amount)} ₽</td>
+                        <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount)} ₽</td>
                         <td class="max-w-xs truncate" title="{description_full}">{description}</td>
                     </tr>
             """
@@ -518,8 +544,7 @@ async def get_facts_summary(
     if facts:
         article_ids = {fact.article_id for fact in facts}
         articles_stmt = select(Article).where(
-            Article.id.in_(article_ids),
-            Article.is_current == True  # noqa: E712
+            Article.id.in_(article_ids)
         )
         articles_result = await session.execute(articles_stmt)
         articles = {a.id: a for a in articles_result.scalars().all()}
@@ -546,6 +571,79 @@ async def get_facts_summary(
         date_from=date_from,
         date_to=date_to,
     )
+
+
+@router.get(
+    "/count",
+    responses=get_common_responses(),
+)
+async def get_facts_count(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    date_from: Annotated[Optional[date], Query()] = None,
+    date_to: Annotated[Optional[date], Query()] = None,
+    article_id: Annotated[Optional[int], Query()] = None,
+    record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense)$")] = None,
+    financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+) -> dict:
+    """
+    Get total facts count with filters (Shared Family Budget).
+
+    **Shared Family Budget:**
+    - All authenticated users can count all transactions
+    - No user isolation
+
+    **Filters:**
+    - Same filters as list_facts endpoint
+    - date_from: Start date (inclusive)
+    - date_to: End date (inclusive)
+    - article_id: Filter by specific article
+    - record_type: Filter by 'fact' (actual) or 'plan' (budget)
+    - article_type: Filter by 'income' or 'expense'
+    - financial_center_id: Filter by financial center
+    - cost_center_id: Filter by cost center
+
+    **Returns:**
+    - 200 OK: Total count matching the filters
+    """
+    # Base query for counting
+    statement = select(func.count(BudgetFact.id)).join(
+        Article,
+        BudgetFact.article_id == Article.id
+    )
+
+    # Shared family budget - NO user isolation filter
+    # All authenticated users see all transactions
+
+    # Apply same filters as list_facts
+    if date_from:
+        statement = statement.where(BudgetFact.fact_date >= date_from)
+
+    if date_to:
+        statement = statement.where(BudgetFact.fact_date <= date_to)
+
+    if article_id:
+        statement = statement.where(BudgetFact.article_id == article_id)
+
+    if record_type:
+        statement = statement.where(BudgetFact.record_type == record_type)
+
+    if article_type:
+        statement = statement.where(Article.type == article_type)
+
+    if financial_center_id:
+        statement = statement.where(BudgetFact.financial_center_id == financial_center_id)
+
+    if cost_center_id:
+        statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
+
+    # Execute count query
+    result = await session.execute(statement)
+    total = result.scalar_one()
+
+    return {"total": total}
 
 
 @router.get(
@@ -644,8 +742,7 @@ async def update_fact(
     # Validate article_id if changed
     if "article_id" in update_data:
         article_stmt = select(Article).where(
-            Article.id == update_data["article_id"],
-            Article.is_current == True  # noqa: E712
+            Article.id == update_data["article_id"]
         )
         article_result = await session.execute(article_stmt)
         article = article_result.scalar_one_or_none()
@@ -656,15 +753,14 @@ async def update_fact(
                 detail=f"Article with id={update_data['article_id']} not found"
             )
 
-        # Article must be accessible
-        if not current_user.is_admin:
-            if article.user_id != current_user.id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Article not accessible"
-                )
+        # Shared Family Budget: All users can use all articles (no ownership check)
+        # Articles are shared references accessible to all authenticated users
 
     # Update fact (simple UPDATE, not SCD Type 2)
+    # Convert amount to absolute value if amount is being updated
+    if "amount" in update_data:
+        update_data["amount"] = abs(update_data["amount"])
+
     for key, value in update_data.items():
         setattr(fact, key, value)
 
@@ -720,3 +816,58 @@ async def delete_fact(
     await session.commit()
 
     return None
+
+
+@router.post(
+    "/batch-delete",
+    status_code=status.HTTP_200_OK,
+    responses=get_common_responses(include_400=True),
+)
+async def batch_delete_facts(
+    fact_ids: list[int],
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> dict:
+    """
+    Batch delete facts (Shared Family Budget).
+
+    **Shared Family Budget:**
+    - All authenticated users can delete any transactions
+    - No ownership check
+
+    **Validation:**
+    - fact_ids list cannot be empty
+    - Cannot delete more than 500 facts at once
+
+    **Args:**
+    - fact_ids: List of fact IDs to delete
+
+    **Returns:**
+    - 200 OK: Number of deleted facts
+    - 400 Bad Request: Empty list or too many facts
+    """
+    if not fact_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="fact_ids list cannot be empty"
+        )
+
+    if len(fact_ids) > 500:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete more than 500 facts at once"
+        )
+
+    # Delete facts (bulk delete)
+    from sqlmodel import delete
+
+    stmt = delete(BudgetFact).where(BudgetFact.id.in_(fact_ids))
+    result = await session.execute(stmt)
+    await session.commit()
+
+    logger.info(f"Batch deleted {result.rowcount} facts by user {current_user.id}")
+
+    return {
+        "message": f"Deleted {result.rowcount} facts",
+        "deleted_count": result.rowcount
+    }

@@ -54,7 +54,6 @@ async def export_facts_csv(
         .join(Article, Fact.article_id == Article.id)
         .where(
             Fact.user_id == current_user.id,
-            Article.is_current == True  # noqa: E712
         )
         .order_by(Fact.fact_date.desc(), Fact.id.desc())
     )
@@ -117,7 +116,6 @@ async def export_facts_excel(
         .join(Article, Fact.article_id == Article.id)
         .where(
             Fact.user_id == current_user.id,
-            Article.is_current == True  # noqa: E712
         )
         .order_by(Fact.fact_date.desc(), Fact.id.desc())
     )
@@ -188,7 +186,6 @@ async def export_facts_pdf(
         .join(Article, Fact.article_id == Article.id)
         .where(
             Fact.user_id == current_user.id,
-            Article.is_current == True  # noqa: E712
         )
         .order_by(Fact.fact_date.desc())
     )
@@ -276,7 +273,6 @@ async def export_trends_csv(
             Fact.user_id == current_user.id,
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Article.is_current == True  # noqa: E712
         )
         .group_by(Fact.fact_date, Article.type)
         .order_by(Fact.fact_date)
@@ -345,7 +341,6 @@ async def export_trends_excel(
             Fact.user_id == current_user.id,
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Article.is_current == True  # noqa: E712
         )
         .group_by(Fact.fact_date, Article.type)
         .order_by(Fact.fact_date)

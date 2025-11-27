@@ -1198,6 +1198,363 @@ window.addEventListener('orientationchange', () => {
 
 ---
 
+#### 8.8.10 Transfer Modal (Added 2025-11-24)
+
+**Назначение:** Модальное окно для создания переводов между финансовыми центрами (ЦФО).
+
+**Статус реализации:** ✅ FULLY IMPLEMENTED (v5.1.4+)
+
+**Компонент:** `frontend/web/templates/components/modal_transfer.html`
+
+**Интеграция:**
+- Dashboard (`index.html`) - Quick Actions кнопка "💸 Перевод между счетами"
+- Facts page (`facts.html`) - Кнопка "Добавить перевод" в заголовке
+- Plan page (`plan.html`) - Кнопка "Добавить перевод" в заголовке
+
+---
+
+**Структура модального окна:**
+
+```html
+<dialog id="modal_transfer" class="modal">
+  <div class="modal-box">
+    <h3 class="font-bold text-lg">💸 Перевод между счетами</h3>
+
+    <form id="form_modal_transfer">
+      <!-- Дата перевода -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Дата перевода</span>
+        </label>
+        <input type="date" name="fact_date" class="input input-bordered" required />
+
+        <!-- Кнопки быстрого выбора даты -->
+        <div class="flex gap-2 mt-2">
+          <button type="button" class="btn btn-xs btn-outline" data-quick-date="today">
+            Сегодня
+          </button>
+          <button type="button" class="btn btn-xs btn-outline" data-quick-date="yesterday">
+            Вчера
+          </button>
+          <button type="button" class="btn btn-xs btn-outline" data-quick-date="day-before">
+            Позавчера
+          </button>
+        </div>
+      </div>
+
+      <!-- Сумма -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Сумма перевода</span>
+        </label>
+        <input type="number" name="amount" class="input input-bordered"
+               step="0.01" min="0.01" required />
+      </div>
+
+      <!-- ОТКУДА (FROM) -->
+      <div class="divider">Откуда</div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">ЦФО списания</span>
+        </label>
+        <select name="from_cfo_id" class="select select-bordered" required>
+          <option value="">Выберите ЦФО...</option>
+        </select>
+      </div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Категория списания (debit)</span>
+        </label>
+        <select name="from_article_id" class="select select-bordered" required>
+          <option value="">Выберите категорию...</option>
+        </select>
+      </div>
+
+      <!-- КУДА (TO) -->
+      <div class="divider">Куда</div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">ЦФО пополнения</span>
+        </label>
+        <select name="to_cfo_id" class="select select-bordered" required>
+          <option value="">Выберите ЦФО...</option>
+        </select>
+      </div>
+
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Категория пополнения (credit)</span>
+        </label>
+        <select name="to_article_id" class="select select-bordered" required>
+          <option value="">Выберите категорию...</option>
+        </select>
+      </div>
+
+      <!-- Описание -->
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Описание (опционально)</span>
+        </label>
+        <textarea name="description" class="textarea textarea-bordered"
+                  rows="2" placeholder="Комментарий к переводу..."></textarea>
+      </div>
+
+      <!-- Кнопки управления -->
+      <div class="modal-action">
+        <button type="button" class="btn" onclick="modal_transfer.close()">
+          Отмена
+        </button>
+        <button type="submit" class="btn btn-primary">
+          💸 Создать перевод
+        </button>
+      </div>
+    </form>
+  </div>
+</dialog>
+```
+
+---
+
+**JavaScript Integration:**
+
+**1. ChoicesCategoryTree для категорий переводов:**
+
+```javascript
+// Инициализация для категорий списания (debit)
+const fromCategoryTree = new BudgetShared.ChoicesCategoryTree('#from_article_id', {
+    type: 'debit',  // Фильтрация по типу 'debit'
+    onSelect: (article) => {
+        console.log('Selected FROM category:', article);
+    }
+});
+
+// Инициализация для категорий пополнения (credit)
+const toCategoryTree = new BudgetShared.ChoicesCategoryTree('#to_article_id', {
+    type: 'credit',  // Фильтрация по типу 'credit'
+    onSelect: (article) => {
+        console.log('Selected TO category:', article);
+    }
+});
+```
+
+**2. Быстрый выбор даты:**
+
+```javascript
+function setupQuickDateButtons() {
+    const quickDateButtons = document.querySelectorAll('[data-quick-date]');
+    const dateInput = document.querySelector('#form_modal_transfer input[name="fact_date"]');
+
+    if (quickDateButtons.length === 0 || !dateInput) return;
+
+    quickDateButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const quickDate = this.dataset.quickDate;
+            const today = new Date();
+            let targetDate;
+
+            switch (quickDate) {
+                case 'today':
+                    targetDate = today;
+                    break;
+                case 'yesterday':
+                    targetDate = new Date(today.setDate(today.getDate() - 1));
+                    break;
+                case 'day-before':
+                    targetDate = new Date(today.setDate(today.getDate() - 2));
+                    break;
+            }
+
+            // Установить дату в формате YYYY-MM-DD
+            dateInput.value = BudgetShared.DateFormatter.formatForAPI(targetDate);
+        });
+    });
+}
+```
+
+**3. Валидация и отправка формы:**
+
+```javascript
+function setupTransferForm() {
+    const form = document.getElementById('form_modal_transfer');
+    if (!form) return;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+        const data = {
+            fact_date: formData.get('fact_date'),
+            amount: parseFloat(formData.get('amount')),
+            from_cfo_id: parseInt(formData.get('from_cfo_id')),
+            from_article_id: parseInt(formData.get('from_article_id')),
+            to_cfo_id: parseInt(formData.get('to_cfo_id')),
+            to_article_id: parseInt(formData.get('to_article_id')),
+            description: formData.get('description') || null
+        };
+
+        // Client-side validation
+        if (data.from_cfo_id === data.to_cfo_id) {
+            showToast('ЦФО "Откуда" и "Куда" должны быть разными', 'error');
+            return;
+        }
+
+        if (data.amount <= 0) {
+            showToast('Сумма должна быть больше 0', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/v1/transfers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                showToast('Перевод успешно создан', 'success');
+                document.getElementById('modal_transfer').close();
+                location.reload();  // Обновить страницу для отображения новых транзакций
+            } else {
+                const error = await response.json();
+                showToast(error.detail || 'Ошибка создания перевода', 'error');
+            }
+        } catch (error) {
+            console.error('Transfer creation error:', error);
+            showToast('Ошибка соединения с сервером', 'error');
+        }
+    });
+}
+```
+
+---
+
+**Visual Feedback - Badge "🔁 Перевод":**
+
+**Facts Page (`facts.html`):**
+
+Транзакции, которые являются частью перевода (имеют `transfer_id`), отображаются с визуальным индикатором:
+
+```html
+<!-- В таблице транзакций -->
+<tr>
+  <td>
+    {% if fact.transfer_id %}
+      <span class="badge badge-info badge-sm">🔁 Перевод</span>
+    {% endif %}
+    {{ fact.description }}
+  </td>
+  <!-- Другие колонки -->
+</tr>
+```
+
+**Dashboard (`index.html`):**
+
+В блоке "Последние транзакции" аналогично отображается badge для переводов.
+
+---
+
+**Validation Rules:**
+
+**Client-side (JavaScript):**
+1. `from_cfo_id != to_cfo_id` - ЦФО должны быть разными
+2. `amount > 0` - Сумма больше нуля
+3. `fact_date <= today()` - Дата не в будущем (handled by `<input type="date" max="...">`)
+
+**Server-side (Backend API):**
+1. `from_article.type == 'debit'` - Категория списания имеет тип 'debit'
+2. `to_article.type == 'credit'` - Категория пополнения имеет тип 'credit'
+3. Все правила из client-side validation
+4. Atomic transaction - обе транзакции создаются вместе или обе откатываются
+
+---
+
+**API Endpoint:**
+
+**POST /api/v1/transfers**
+
+См. документацию в `07-api-specification.md`, раздел 7.10.
+
+---
+
+**Dependencies:**
+
+**JavaScript Modules:**
+- `BudgetShared.DateFormatter` - форматирование дат (API ↔ UI)
+- `BudgetShared.ChoicesCategoryTree` - иерархический выбор категорий с фильтрацией по типу
+
+**CSS:**
+- DaisyUI modal, form-control, divider, badge components
+- Mobile optimization (наследуется от section 8.8.9)
+
+**Backend:**
+- POST /api/v1/transfers endpoint
+- GET /api/v1/articles?type=debit/credit для загрузки категорий
+- GET /api/v1/financial-centers для загрузки ЦФО
+
+---
+
+**User Flow:**
+
+1. **Открытие модального окна:**
+   - Нажатие на кнопку "💸 Перевод между счетами" (Dashboard Quick Actions)
+   - ИЛИ кнопка "Добавить перевод" на страницах Facts/Plan
+
+2. **Заполнение формы:**
+   - Выбор даты (вручную или через quick buttons)
+   - Ввод суммы
+   - Выбор ЦФО "Откуда" и категории списания (type='debit')
+   - Выбор ЦФО "Куда" и категории пополнения (type='credit')
+   - Опционально: комментарий
+
+3. **Валидация:**
+   - Client-side: ЦФО разные, сумма > 0
+   - Server-side: типы категорий корректны (debit/credit)
+
+4. **Создание перевода:**
+   - Отправка POST /api/v1/transfers
+   - Atomic создание 2 транзакций с одинаковым transfer_id
+   - Toast notification об успехе/ошибке
+   - Reload страницы для отображения новых данных
+
+5. **Отображение результата:**
+   - Обе транзакции видны в таблице Facts
+   - Badge "🔁 Перевод" для визуальной индикации
+   - Связь через transfer_id (для future features: переход к связанной транзакции)
+
+---
+
+**Файлы:**
+- `frontend/web/templates/components/modal_transfer.html` - Компонент модального окна
+- `frontend/web/static/js/transfer.js` - JavaScript логика (если отдельный файл)
+- `frontend/shared/static/js/budgetShared.js` - Общие модули (DateFormatter, ChoicesCategoryTree)
+- `backend/app/api/v1/endpoints/transfers.py` - Backend API endpoint
+
+---
+
+**Changelog:**
+
+**2025-11-24 (v5.1.4+):**
+- ✅ Реализовано модальное окно переводов
+- ✅ Интеграция ChoicesCategoryTree для debit/credit категорий
+- ✅ Добавлены quick date buttons (Сегодня/Вчера/Позавчера)
+- ✅ Visual feedback badge "🔁 Перевод" для транзакций
+- ✅ Client-side и server-side validation
+- ✅ Atomic транзакции с общим transfer_id
+
+**Технический долг:**
+- [ ] Добавить кнопку "Посмотреть связанную транзакцию" в Facts table (переход к парной транзакции по transfer_id)
+- [ ] Рассмотреть возможность bulk transfer (массовый перевод по списку)
+- [ ] Добавить фильтр "Только переводы" на странице Facts
+- [ ] Реализовать отмену перевода (удаление обеих связанных транзакций)
+
+---
+
 ### 8.9 JavaScript Best Practices (Added 2025-11-01)
 
 #### 8.9.1 Defensive Programming for DOM Queries

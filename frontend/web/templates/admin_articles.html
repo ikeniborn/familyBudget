@@ -12,13 +12,9 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="mb-4">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-3">
-                    <h2 class="card-title text-2xl">📊 Категории</h2>
-                    <div class="flex flex-wrap gap-2">
-                        <button class="btn btn-sm btn-primary" id="filter-all" onclick="toggleTypeFilter('all')">📋 Все</button>
-                        <button class="btn btn-sm btn-outline" id="filter-income" onclick="toggleTypeFilter('income')">💰 Доходы</button>
-                        <button class="btn btn-sm btn-outline" id="filter-expense" onclick="toggleTypeFilter('expense')">💸 Расходы</button>
-                        <button class="btn btn-sm btn-outline" id="filter-archived" onclick="toggleArchivedFilter()">📦 Архивные</button>
+                <div class="flex flex-col gap-3 mb-3">
+                    <div class="flex justify-between items-center">
+                        <h2 class="card-title text-2xl">📊 Категории</h2>
                         <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -26,11 +22,25 @@
                             Новая категория
                         </button>
                     </div>
-                </div>
-                <div class="form-control w-full max-w-xs">
-                    <div class="flex items-center gap-0">
-                        <span class="bg-base-200 px-3 h-10 flex items-center rounded-l-lg border border-r-0 border-base-300">🔍</span>
-                        <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-sm input-bordered w-full rounded-l-none" />
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <select id="filter-type" class="select select-bordered" onchange="toggleTypeFilter(this.value)">
+                            <option value="all">📋 Все</option>
+                            <option value="income">💰 Доход</option>
+                            <option value="expense">💸 Расход</option>
+                            <option value="debit">📤 Списание</option>
+                            <option value="credit">📥 Пополнение</option>
+                        </select>
+                        <div class="form-control flex-1 min-w-[200px] max-w-xs">
+                            <div class="flex items-center gap-0">
+                                <span class="bg-base-200 px-3 h-12 flex items-center rounded-l-lg border border-r-0 border-base-300">🔍</span>
+                                <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-bordered w-full rounded-l-none" />
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm" id="status-all" onclick="updateStatusFilter('all')" aria-pressed="true">Все</button>
+                            <button class="btn btn-sm btn-outline" id="status-active" onclick="updateStatusFilter('active')" aria-pressed="false">✓ Активные</button>
+                            <button class="btn btn-sm btn-outline" id="status-archived" onclick="updateStatusFilter('archived')" aria-pressed="false">📦 Архивные</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -62,6 +72,8 @@
                 <select id="create-type" name="type" required class="select select-bordered">
                     <option value="income">💰 Доход</option>
                     <option value="expense">💸 Расход</option>
+                    <option value="debit">📤 Списание</option>
+                    <option value="credit">📥 Пополнение</option>
                 </select>
             </div>
             <div class="form-control">
@@ -103,6 +115,8 @@
                 <select id="edit-type" name="type" required class="select select-bordered">
                     <option value="expense">💸 Расход</option>
                     <option value="income">💵 Доход</option>
+                    <option value="debit">📤 Списание</option>
+                    <option value="credit">📥 Пополнение</option>
                 </select>
             </div>
             <div class="form-control">
@@ -139,7 +153,7 @@
 <script>
 // Global state
 let currentType = 'all';
-let showArchived = false;
+let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 let currentSearchQuery = '';
 let articlesData = [];
 
@@ -160,20 +174,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Toggle type filter (all/income/expense)
+// Toggle type filter (all/income/expense/debit/credit)
 function toggleTypeFilter(type) {
     currentType = type;
-
-    // Update active button (DaisyUI)
-    document.querySelectorAll('#filter-all, #filter-income, #filter-expense').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-    });
-    const activeBtn = document.getElementById(`filter-${type}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-
-    // Reload articles
     loadArticles();
 }
 
@@ -189,7 +192,9 @@ async function loadArticles() {
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
-        let url = `/api/v1/admin/articles?is_current=true&include_inactive=${showArchived}`;
+        // Determine include_inactive based on status filter
+        const includeInactive = currentStatusFilter !== 'active'; // 'all' and 'archived' need inactive articles
+        let url = `/api/v1/admin/articles?include_inactive=${includeInactive}`;
 
         const response = await fetch(url, {
             credentials: 'include',
@@ -215,6 +220,14 @@ function renderArticlesTable(articles) {
     let filtered = currentType === 'all'
         ? articles
         : articles.filter(a => a.type === currentType);
+
+    // Filter by status (all/active/archived)
+    if (currentStatusFilter === 'active') {
+        filtered = filtered.filter(a => a.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filtered = filtered.filter(a => a.is_active === false);
+    }
+    // 'all' - no filtering by is_active
 
     // Filter by search query
     if (currentSearchQuery) {
@@ -289,28 +302,49 @@ function renderTreeNodes(nodes, level) {
     nodes.forEach(node => {
         const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
         const prefix = level > 0 ? '↳ ' : '';
+        // Show user_name (first_name) from backend
         const ownerLabel = node.user_name || '—';
-        const typeLabel = node.type === 'income' ? '💰 Доход' : '💸 Расход';
-        const typeBadge = node.type === 'income'
-            ? '<span class="badge badge-success gap-1">' + typeLabel + '</span>'
-            : '<span class="badge badge-ghost gap-1">' + typeLabel + '</span>';
+
+        // Full type mapping for all 4 types (with colored badges)
+        let typeLabel, typeBadge;
+        switch (node.type) {
+            case 'income':
+                typeLabel = '💰 Доход';
+                typeBadge = '<span class="badge-type-income gap-1">' + typeLabel + '</span>';
+                break;
+            case 'expense':
+                typeLabel = '💸 Расход';
+                typeBadge = '<span class="badge-type-expense gap-1">' + typeLabel + '</span>';
+                break;
+            case 'debit':
+                typeLabel = '📤 Списание';
+                typeBadge = '<span class="badge-type-debit gap-1">' + typeLabel + '</span>';
+                break;
+            case 'credit':
+                typeLabel = '📥 Пополнение';
+                typeBadge = '<span class="badge-type-credit gap-1">' + typeLabel + '</span>';
+                break;
+            default:
+                typeLabel = '❓ Неизвестно';
+                typeBadge = '<span class="badge badge-error gap-1">' + typeLabel + '</span>';
+        }
 
         // Archived badge
         const archivedBadge = !node.is_active
             ? '<span class="badge badge-warning ml-2">📦 Архивная</span>'
             : '';
 
-        // Action buttons - show Archive or Restore depending on is_active status
+        // Action buttons (icon-only) - show Archive or Restore depending on is_active status
         const actionButtons = node.is_active
             ? `
-                <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
-                <button class="btn btn-sm btn-warning gap-1" onclick="archiveArticle(${node.id})">📦 Архивировать</button>
-                <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
+                <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
+                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
               `
             : `
-                <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${node.id})">✏️ Изменить</button>
-                <button class="btn btn-sm btn-success gap-1" onclick="restoreArticle(${node.id})">♻️ Восстановить</button>
-                <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deactivateArticle(${node.id})">🗑️</button>
+                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
+                <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
+                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
               `;
 
         html += `
@@ -586,7 +620,7 @@ async function updateArticle(event) {
 
 // Deactivate article
 async function deactivateArticle(articleId) {
-    if (!confirm('🗑️ Вы уверены, что хотите удалить эту категорию? Она будет закрыта с valid_to=NOW() (SCD Type 2).')) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить эту категорию? Это действие необратимо.')) {
         return;
     }
 
@@ -628,20 +662,27 @@ async function deactivateArticle(articleId) {
     }
 }
 
-// Toggle archived filter
-function toggleArchivedFilter() {
-    showArchived = !showArchived;
+// Update status filter (all/active/archived)
+function updateStatusFilter(status) {
+    currentStatusFilter = status;
 
-    const btn = document.getElementById('filter-archived');
-    if (showArchived) {
-        btn.classList.remove('btn-outline');
-        btn.classList.add('btn-primary');
-        btn.textContent = '📦 Скрыть архивные';
-    } else {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.textContent = '📦 Архивные';
-    }
+    // Update button states
+    const buttons = {
+        'all': document.getElementById('status-all'),
+        'active': document.getElementById('status-active'),
+        'archived': document.getElementById('status-archived')
+    };
+
+    // Reset all buttons
+    Object.entries(buttons).forEach(([key, btn]) => {
+        if (key === status) {
+            btn.classList.remove('btn-outline');
+            btn.setAttribute('aria-pressed', 'true');
+        } else {
+            btn.classList.add('btn-outline');
+            btn.setAttribute('aria-pressed', 'false');
+        }
+    });
 
     loadArticles();
 }
@@ -669,9 +710,17 @@ function formatErrorDetail(detail) {
 }
 
 // Archive article and all descendants
-async function archiveArticle(articleId) {
+async function archiveArticle(articleId, event) {
     if (!confirm('📦 Архивировать эту категорию?\n\nВсе подкатегории будут также архивированы рекурсивно.\nИсторические данные сохранятся.')) {
         return;
+    }
+
+    // Show loading indicator and disable button
+    const button = event?.target?.closest('button');
+    const originalContent = button?.innerHTML;
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Архивация...';
     }
 
     try {
@@ -693,13 +742,27 @@ async function archiveArticle(articleId) {
     } catch (error) {
         console.error('Error archiving article:', error);
         showNotification(`❌ Ошибка архивирования: ${error.message}`, 'error');
+    } finally {
+        // Restore button state (if button still exists)
+        if (button && originalContent) {
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
     }
 }
 
 // Restore article and all descendants
-async function restoreArticle(articleId) {
+async function restoreArticle(articleId, event) {
     if (!confirm('♻️ Восстановить эту категорию?\n\nВсе подкатегории будут также восстановлены рекурсивно.')) {
         return;
+    }
+
+    // Show loading indicator and disable button
+    const button = event?.target?.closest('button');
+    const originalContent = button?.innerHTML;
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Восстановление...';
     }
 
     try {
@@ -721,6 +784,12 @@ async function restoreArticle(articleId) {
     } catch (error) {
         console.error('Error restoring article:', error);
         showNotification(`❌ Ошибка восстановления: ${error.message}`, 'error');
+    } finally {
+        // Restore button state (if button still exists)
+        if (button && originalContent) {
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
     }
 }
 

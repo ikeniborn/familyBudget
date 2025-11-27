@@ -178,7 +178,8 @@ configure_docker_firewall() {
     success "✓ Allowed internal Docker network traffic"
 
     # Rule 3: Block backend port 8000 from external access (must use Nginx reverse proxy)
-    sudo iptables -A DOCKER-USER -p tcp --dport 8000 ! -i docker0 ! -i br-+ -j DROP
+    # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
+    sudo iptables -A DOCKER-USER -p tcp --dport 8000 -j DROP
     success "✓ Blocked external access to backend port 8000 (use Nginx)"
 
     # Rule 4: PostgreSQL external access control
@@ -186,19 +187,22 @@ configure_docker_firewall() {
         if [[ -n "${POSTGRES_ALLOWED_IP:-}" ]]; then
             # Allow only specific IP
             sudo iptables -A DOCKER-USER -p tcp --dport 5432 -s "${POSTGRES_ALLOWED_IP}" -j ACCEPT
-            sudo iptables -A DOCKER-USER -p tcp --dport 5432 ! -i docker0 ! -i br-+ -j DROP
+            # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
+            sudo iptables -A DOCKER-USER -p tcp --dport 5432 -j DROP
             success "✓ PostgreSQL: allowed from ${POSTGRES_ALLOWED_IP}, blocked from others"
         else
             warning "⚠ POSTGRES_EXTERNAL_ACCESS=true but POSTGRES_ALLOWED_IP not set!"
             warning "  PostgreSQL is OPEN to the internet - set POSTGRES_ALLOWED_IP in .env"
 
             # For safety, block by default and show warning
-            sudo iptables -A DOCKER-USER -p tcp --dport 5432 ! -i docker0 ! -i br-+ -j DROP
+            # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
+            sudo iptables -A DOCKER-USER -p tcp --dport 5432 -j DROP
             warning "  Blocked PostgreSQL external access for security (set POSTGRES_ALLOWED_IP to allow specific IP)"
         fi
     else
         # Block PostgreSQL external access completely
-        sudo iptables -A DOCKER-USER -p tcp --dport 5432 ! -i docker0 ! -i br-+ -j DROP
+        # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
+        sudo iptables -A DOCKER-USER -p tcp --dport 5432 -j DROP
         success "✓ Blocked external access to PostgreSQL (internal only)"
     fi
 

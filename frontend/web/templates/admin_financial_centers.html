@@ -21,6 +21,16 @@
                 </button>
             </div>
 
+            <!-- Status Filter -->
+            <div class="flex flex-wrap items-center gap-3 mb-4">
+                <label class="font-semibold text-sm">Статус:</label>
+                <div class="btn-group">
+                    <button class="btn btn-sm" id="status-all" onclick="updateStatusFilter('all')" aria-pressed="true">Все</button>
+                    <button class="btn btn-sm btn-outline" id="status-active" onclick="updateStatusFilter('active')" aria-pressed="false">✓ Активные</button>
+                    <button class="btn btn-sm btn-outline" id="status-archived" onclick="updateStatusFilter('archived')" aria-pressed="false">📦 Архивные</button>
+                </div>
+            </div>
+
             <div id="centers-table-container" class="min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
@@ -96,6 +106,7 @@
 <script>
 // Global state
 let centersData = [];
+let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 
 // Load centers on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -108,7 +119,11 @@ async function loadCenters() {
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
+        // Include inactive centers if viewing "all" or "archived" filter
         let url = '/api/v1/financial-centers?limit=1000';
+        if (currentStatusFilter === 'all' || currentStatusFilter === 'archived') {
+            url += '&include_inactive=true';
+        }
 
         const response = await fetch(url, {
             credentials: 'include',
@@ -132,7 +147,15 @@ async function loadCenters() {
 function renderCentersTable(centers) {
     const container = document.getElementById('centers-table-container');
 
-    if (centers.length === 0) {
+    // Filter by status
+    let filteredCenters = centers;
+    if (currentStatusFilter === 'active') {
+        filteredCenters = centers.filter(c => c.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filteredCenters = centers.filter(c => c.is_active === false);
+    }
+
+    if (filteredCenters.length === 0) {
         container.innerHTML = '<div class="text-center py-8 text-base-content/60">🏦 ЦФО не найдены. Нажмите "➕ Новый ЦФО" для создания.</div>';
         return;
     }
@@ -152,20 +175,36 @@ function renderCentersTable(centers) {
                 <tbody>
     `;
 
-    centers.forEach(center => {
+    filteredCenters.forEach(center => {
         const description = center.description || '—';
-        const validFrom = new Date(center.valid_from).toLocaleDateString('ru-RU');
+        const isArchived = center.is_active === false;
+        const archivedBadge = isArchived ? ' <span class="badge badge-sm badge-ghost">📦 архив</span>' : '';
+
+        // Action buttons: icon-only with tooltips
+        const actionButtons = isArchived
+            ? `
+                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${center.id})" title="Изменить">✏️</button>
+                <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreCenter(${center.id})" title="Восстановить">♻️</button>
+                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
+              `
+            : `
+                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${center.id})" title="Изменить">✏️</button>
+                <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveCenter(${center.id})" title="Архивировать">📦</button>
+                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
+              `;
+
+        // Format created_at date (YYYY-MM-DD HH:MM:SS → DD.MM.YYYY)
+        const createdDate = center.created_at ? new Date(center.created_at).toLocaleDateString('ru-RU') : '—';
 
         html += `
             <tr data-center-id="${center.id}">
-                <td class="font-medium">${center.name}</td>
+                <td class="font-medium">${center.name}${archivedBadge}</td>
                 <td class="font-mono text-sm">${center.code || '—'}</td>
                 <td>${description}</td>
-                <td>${validFrom}</td>
+                <td>${createdDate}</td>
                 <td>
                     <div class="flex gap-1">
-                        <button class="btn btn-sm btn-primary gap-1" onclick="showEditModal(${center.id})">✏️ Изменить</button>
-                        <button class="btn btn-sm btn-outline btn-error gap-1" onclick="deleteCenter(${center.id})">🗑️</button>
+                        ${actionButtons}
                     </div>
                 </td>
             </tr>
@@ -285,7 +324,7 @@ async function updateCenter(event) {
 
 // Delete financial center
 async function deleteCenter(centerId) {
-    if (!confirm('🗑️ Вы уверены, что хотите удалить этот ЦФО? Запись будет закрыта с valid_to=NOW() (SCD Type 2).')) {
+    if (!confirm('🗑️ Вы уверены, что хотите удалить этот ЦФО? Это действие необратимо.')) {
         return;
     }
 
@@ -310,18 +349,129 @@ async function deleteCenter(centerId) {
     }
 }
 
-// Utility: Show notification
+// Update status filter
+function updateStatusFilter(status) {
+    currentStatusFilter = status;
+
+    // Update active button and ARIA states
+    const allBtn = document.getElementById('status-all');
+    const activeBtn = document.getElementById('status-active');
+    const archivedBtn = document.getElementById('status-archived');
+
+    // Reset all buttons to outline
+    [allBtn, activeBtn, archivedBtn].forEach(btn => {
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    // Set active button
+    let selectedBtn;
+    if (status === 'all') {
+        selectedBtn = allBtn;
+    } else if (status === 'active') {
+        selectedBtn = activeBtn;
+    } else {
+        selectedBtn = archivedBtn;
+    }
+
+    selectedBtn.classList.remove('btn-outline');
+    selectedBtn.setAttribute('aria-pressed', 'true');
+
+    // Re-render table with new filter
+    renderCentersTable(centersData);
+}
+
+// Archive financial center
+async function archiveCenter(centerId) {
+    if (!confirm('📦 Вы уверены, что хотите архивировать этот ЦФО? Запись будет скрыта из выпадающих списков.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/financial-centers/${centerId}/archive`, {
+            method: 'PUT',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        await loadCenters();
+        showNotification('✅ ЦФО успешно архивирован!', 'success');
+    } catch (error) {
+        console.error('Error archiving financial center:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Restore financial center
+async function restoreCenter(centerId) {
+    try {
+        const response = await fetch(`/api/v1/financial-centers/${centerId}/restore`, {
+            method: 'PUT',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success
+        await loadCenters();
+        showNotification('✅ ЦФО успешно восстановлен!', 'success');
+    } catch (error) {
+        console.error('Error restoring financial center:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Utility: Show notification (DaisyUI toast)
 function showNotification(message, type) {
     // Handle error objects properly
     if (typeof message === 'object' && message !== null) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
-    if (type === 'error') {
-        alert('❌ ' + message);
-    } else {
-        alert(message);
+    // Get or create toast container
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.className = 'toast toast-top toast-end z-50';
+        document.body.appendChild(toastContainer);
     }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    const alertClass = type === 'error' ? 'alert-error' : 'alert-success';
+    toast.className = `alert ${alertClass} shadow-lg max-w-sm`;
+    toast.innerHTML = `
+        <div class="flex items-center gap-2">
+            <span>${message}</span>
+        </div>
+    `;
+
+    // Add to container
+    toastContainer.appendChild(toast);
+
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+            toastContainer.removeChild(toast);
+            // Remove container if empty
+            if (toastContainer.children.length === 0) {
+                document.body.removeChild(toastContainer);
+            }
+        }, 300);
+    }, 3000);
 }
 </script>
 {% endblock %}

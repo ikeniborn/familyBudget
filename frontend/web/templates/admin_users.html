@@ -21,10 +21,7 @@
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="card-title text-2xl">👤 Зарегистрированные пользователи</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button class="btn btn-sm btn-primary" id="filter-current" onclick="toggleUserFilter('current')">✅ Текущие</button>
-                    <button class="btn btn-sm btn-outline" id="filter-all" onclick="toggleUserFilter('all')">📜 Вся история</button>
-                    <div class="divider divider-horizontal"></div>
-                    <button class="btn btn-sm btn-outline" id="filter-active" onclick="toggleActiveFilter(true)">✅ Активные</button>
+                    <button class="btn btn-sm btn-primary" id="filter-active" onclick="toggleActiveFilter(true)">✅ Активные</button>
                     <button class="btn btn-sm btn-outline" id="filter-inactive" onclick="toggleActiveFilter(false)">⏳ Неактивные</button>
                     <button class="btn btn-sm btn-outline" id="filter-all-active" onclick="toggleActiveFilter(null)">Все</button>
                     <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
@@ -131,8 +128,7 @@
 {% block extra_scripts %}
 <script>
 // Global state
-let currentFilter = 'current';
-let currentActiveFilter = null;  // NEW: null=all, true=active, false=inactive
+let currentActiveFilter = null;  // null=all, true=active, false=inactive
 let usersData = [];
 
 // Load users on page load
@@ -141,24 +137,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadStats();
 });
 
-// Toggle user filter (current vs all history)
-function toggleUserFilter(filter) {
-    currentFilter = filter;
-
-    // Update active button (DaisyUI)
-    document.querySelectorAll('#filter-current, #filter-all').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-    });
-    const activeBtn = document.getElementById(`filter-${filter}`);
-    activeBtn.classList.remove('btn-outline');
-    activeBtn.classList.add('btn-primary');
-
-    // Reload users
-    loadUsers();
-}
-
-// NEW: Toggle active filter (active vs inactive vs all)
+// Toggle active filter (active vs inactive vs all)
 function toggleActiveFilter(isActive) {
     currentActiveFilter = isActive;
 
@@ -192,12 +171,12 @@ async function loadUsers() {
     container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
 
     try {
-        const isCurrent = currentFilter === 'current';
-        let url = `/api/v1/admin/users?is_current=${isCurrent}`;
+        // User is SCD Type 1 - no versioning, always current
+        let url = `/api/v1/admin/users`;
 
-        // NEW: Add is_active filter if set
+        // Add is_active filter if set
         if (currentActiveFilter !== null) {
-            url += `&is_active=${currentActiveFilter}`;
+            url += `?is_active=${currentActiveFilter}`;
         }
 
         const response = await fetch(url, {
@@ -242,7 +221,6 @@ function renderUsersTable(users) {
                         <th>✅ Статус</th>
                         <th>📅 Последний вход</th>
                         <th>📅 Создан</th>
-                        <th>📅 Закрыт</th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -255,18 +233,13 @@ function renderUsersTable(users) {
             ? '<span class="badge badge-warning gap-1">🔑 Админ</span>'
             : '<span class="badge badge-info gap-1">👤 Пользователь</span>';
 
-        // NEW: Combined status badge (is_active + is_current)
+        // User activation status badge
         const statusLabel = user.is_active
             ? '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Активен</span>'
             : '<span class="badge badge-warning gap-1 whitespace-nowrap">⏳ Ожидает</span>';
-        const historyBadge = !user.is_current
-            ? '<span class="badge badge-ghost gap-1 ml-1 whitespace-nowrap">📜 История</span>'
-            : '';
 
-        const validFrom = formatDate(user.valid_from);
-        const validTo = user.valid_to ? formatDate(user.valid_to) : '—';
-
-        // NEW: Format last_login_at
+        // Format dates (User is SCD Type 1 - created_at only, no versioning)
+        const createdAt = user.created_at ? formatDate(user.created_at) : '—';
         const lastLogin = user.last_login_at ? formatDate(user.last_login_at) : 'Никогда';
 
         // Avatar HTML
@@ -290,12 +263,11 @@ function renderUsersTable(users) {
                 <td>${user.username || '—'}</td>
                 <td class="font-medium">${displayName}</td>
                 <td><div class="flex flex-wrap gap-1">${roleLabel}</div></td>
-                <td><div class="flex flex-wrap gap-1">${statusLabel}${historyBadge}</div></td>
+                <td><div class="flex flex-wrap gap-1">${statusLabel}</div></td>
                 <td>${lastLogin}</td>
-                <td>${validFrom}</td>
-                <td>${validTo}</td>
+                <td>${createdAt}</td>
                 <td>
-                    ${user.is_current ? renderActions(user) : '—'}
+                    ${renderActions(user)}
                 </td>
             </tr>
         `;
@@ -644,7 +616,13 @@ function renderStats(stats) {
 
 // Utility: Format date
 function formatDate(isoString) {
+    if (!isoString) return '—';
+
     const date = new Date(isoString);
+
+    // Check for Invalid Date
+    if (isNaN(date.getTime())) return '—';
+
     return date.toLocaleDateString('ru-RU', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 

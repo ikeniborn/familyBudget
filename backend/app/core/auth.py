@@ -69,10 +69,10 @@ async def get_current_user(
             detail="Authentication required - Telegram ID not found in request state"
         )
 
-    # Load user from database using telegram_id (business key, stable across SCD Type 2 versions)
+    # Load user from database using telegram_id (business key, unique - SCD Type 1)
+    # NOTE: User is SCD Type 1 (no versioning), telegram_id is unique
     statement = select(User).where(
-        User.telegram_id == telegram_id,  # Use business key instead of surrogate key
-        User.is_current == True  # noqa: E712 (SQLModel requires == True, not 'is True')
+        User.telegram_id == telegram_id  # Use business key (unique identifier)
     )
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
@@ -82,6 +82,17 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found - Account may have been deleted"
+        )
+
+    # Check if user is active (PRD FR-030 compliance)
+    # Deactivated users should not be able to access protected endpoints
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                "Your account has been deactivated. "
+                "Please contact admin to regain access."
+            ),
         )
 
     return user
@@ -161,10 +172,10 @@ async def get_current_user_optional(
         # No authentication - return None for public access
         return None
 
-    # Load user from database using telegram_id (business key, stable across SCD Type 2 versions)
+    # Load user from database using telegram_id (business key, unique - SCD Type 1)
+    # NOTE: User is SCD Type 1 (no versioning), telegram_id is unique
     statement = select(User).where(
-        User.telegram_id == telegram_id,  # Use business key instead of surrogate key
-        User.is_current == True  # noqa: E712
+        User.telegram_id == telegram_id  # Use business key (unique identifier)
     )
     result = await session.execute(statement)
     user = result.scalar_one_or_none()

@@ -81,6 +81,7 @@ fi
 # Phase 1 modules
 source "$SCRIPT_DIR/scripts/lib/config.sh"      # Must be first (no dependencies)
 source "$SCRIPT_DIR/scripts/lib/utils.sh"       # Depends on config.sh
+source "$SCRIPT_DIR/scripts/lib/nginx.sh"       # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/validation.sh"  # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/status.sh"      # Depends on config.sh, utils.sh
 
@@ -224,14 +225,15 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # =============================================================================
 
 # Regenerate nginx configuration from template with current DOMAIN
-# This ensures nginx config uses latest DOMAIN from .env after code sync
+# Select and generate appropriate nginx configuration based on SSL state
+# Uses new modular approach (nginx.sh) instead of sed-based marker manipulation
 regenerate_nginx_config() {
-    step "Regenerating Nginx Configuration"
+    step "Configuring Nginx"
 
     # Load .env to get current DOMAIN and DEPLOYMENT_PROFILE
     set -a
     source "$DEPLOY_DIR/.env" 2>/dev/null || {
-        warning "Failed to load .env file, skipping nginx config regeneration"
+        warning "Failed to load .env file, skipping nginx configuration"
         return 0
     }
     set +a
@@ -245,53 +247,16 @@ regenerate_nginx_config() {
         return 0
     fi
 
-    info "Regenerating nginx configuration for domain: $domain"
+    info "Configuring nginx for domain: $domain"
 
-    local template_file="$DEPLOY_DIR/nginx/conf.d/app.conf.template"
-    local config_file="$DEPLOY_DIR/nginx/conf.d/app.conf"
-
-    # Check if template exists
-    if [[ ! -f "$template_file" ]]; then
-        error "Nginx template not found: $template_file"
-        error "This file should have been copied during code synchronization"
+    # Use new modular approach from nginx.sh
+    # This function intelligently selects HTTP or HTTPS config based on SSL state
+    if ! select_nginx_config "$domain"; then
+        error "Failed to configure nginx"
         return 1
     fi
 
-    # Backup existing config if it exists (for troubleshooting)
-    if [[ -f "$config_file" ]]; then
-        local backup_file="$config_file.backup.$(date +%Y%m%d_%H%M%S)"
-        cp "$config_file" "$backup_file" 2>/dev/null || true
-        info "Backed up existing config to: $backup_file"
-    fi
-
-    # Copy template and replace domain placeholder
-    if ! cp "$template_file" "$config_file"; then
-        error "Failed to copy template to config file"
-        return 1
-    fi
-
-    # Replace {{DOMAIN}} with actual domain from .env
-    if ! sed -i "s/{{DOMAIN}}/$domain/g" "$config_file"; then
-        error "Failed to replace domain placeholder in config"
-        return 1
-    fi
-
-    success "Nginx configuration regenerated successfully"
-    info "Configuration file: $config_file"
-    info "Domain: $domain"
-
-    # Verify replacement was successful
-    if grep -q "{{DOMAIN}}" "$config_file"; then
-        warning "Domain placeholder still present in config - sed replacement may have failed"
-        return 1
-    fi
-
-    # Verify domain is in config
-    if ! grep -q "$domain" "$config_file"; then
-        warning "Domain '$domain' not found in config after regeneration"
-        return 1
-    fi
-
+    success "Nginx configured successfully"
     return 0
 }
 
@@ -1115,6 +1080,53 @@ main() {
     check_prerequisites_late
     echo ""
 
+    # CRITICAL SAFEGUARD: Check PostgreSQL health BEFORE deployment
+    # This prevents proceeding if PostgreSQL is already corrupted
+    # If corrupted → auto-switch to Full cleanup mode for automatic repair
+    # NOTE: Temporarily disable 'set -e' because we need to handle non-zero return
+    set +e
+    check_postgres_health_pre_deploy
+    health_check_result=$?
+    set -e
+
+    if [[ $health_check_result -ne 0 ]]; then
+        warning "PostgreSQL corruption detected - AUTOMATIC RECOVERY MODE"
+        warning "Switching to Full cleanup mode to repair data directory"
+        echo ""
+
+        # Override cleanup mode to full (automatic recovery)
+        CLEANUP_MODE="full"
+        info "Cleanup mode overridden: smart → full (automatic)"
+
+        # Ask user confirmation for automatic repair
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "⚠️  AUTOMATIC RECOVERY CONFIRMATION"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo ""
+        echo "Deployment will perform Full cleanup to repair PostgreSQL:"
+        echo "  1. Stop all containers"
+        echo "  2. Remove networks"
+        echo "  3. Repair PostgreSQL data directory (pg_notify, etc.)"
+        echo "  4. Restart services"
+        echo ""
+        echo "DATA IS PRESERVED (volumes NOT deleted unless you type 'DELETE')."
+        echo ""
+        read -p "Continue with automatic repair? [Y/n]: " -r
+        echo ""
+
+        if [[ ! $REPLY =~ ^[Yy]?$ ]]; then
+            error "Automatic recovery cancelled by user"
+            error "PostgreSQL is corrupted and cannot be repaired automatically"
+            error "Manual recovery required - see options above"
+            exit 1
+        fi
+
+        success "Automatic recovery confirmed - proceeding with Full cleanup"
+        echo ""
+    fi
+    echo ""
+
     # Check for old deployments and cleanup if needed (sets POSTGRES_WAS_STOPPED flag)
     cleanup_old_deployment
     echo ""
@@ -1135,13 +1147,9 @@ main() {
 
     # stop_services removed - redundant after cleanup_old_deployment
 
-    # Regenerate nginx config from template with current DOMAIN (after code sync)
-    # This ensures nginx uses the latest domain from .env, fixing old domain persistence
+    # Configure nginx with appropriate template (HTTP or HTTPS) based on SSL state
+    # Uses smart selection from nginx.sh module (no sed marker manipulation)
     regenerate_nginx_config
-    echo ""
-
-    # Clean up old nginx markers from previous deployments
-    cleanup_nginx_markers
     echo ""
 
     # CRITICAL: Validate PostgreSQL permissions BEFORE starting services
@@ -1150,11 +1158,28 @@ main() {
     validate_postgres_permissions_always
     echo ""
 
+    # PRODUCTION SAFEGUARD: Create safety backup before starting services
+    # This provides rollback capability if corruption occurs during deployment
+    # Only runs if PostgreSQL is currently running (skipped if full cleanup)
+    create_deployment_safety_backup "pre_start"
+    echo ""
+
     start_services
     echo ""
 
     if [[ "$DETACH_MODE" == "true" ]]; then
         wait_for_services
+        echo ""
+
+        # CRITICAL SAFEGUARD: Verify PostgreSQL health after service start
+        # This catches corruption early, even during selective restarts
+        # Runs ALWAYS regardless of POSTGRES_WAS_STOPPED to ensure data integrity
+        if ! verify_postgres_health_post_start; then
+            error "Deployment failed: PostgreSQL health verification failed"
+            error "Database may be corrupted - see recovery options above"
+            error "Log file: $LOG_FILE"
+            exit 1
+        fi
         echo ""
 
         # Configure Docker firewall (DOCKER-USER chain)

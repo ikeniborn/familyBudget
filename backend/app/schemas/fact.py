@@ -317,6 +317,12 @@ class FactResponse(BaseModel):
         examples=[123]
     )
 
+    user_name: Optional[str] = Field(
+        default=None,
+        description="User display name (fallback chain: first_name → username → last_name → telegram_id → id)",
+        examples=["Иван", "User 740775802", "Пользователь #1", None]
+    )
+
     article_id: int = Field(
         description="Budget category/article ID",
         examples=[1]
@@ -393,12 +399,17 @@ class FactResponse(BaseModel):
             "example": {
                 "id": 1,
                 "user_id": 123,
+                "user_name": "Иван",
                 "article_id": 5,
+                "article_type": "expense",
+                "article_name": "Продукты",
                 "fact_date": "2025-10-13",
                 "amount": "50.75",
                 "description": "Weekly groceries at supermarket",
-                "financial_center_id": None,
+                "financial_center_id": 1,
+                "financial_center_name": "Личные средства",
                 "cost_center_id": None,
+                "cost_center_name": None,
                 "record_type": "fact",
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z"

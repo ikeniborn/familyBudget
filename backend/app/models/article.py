@@ -1,10 +1,17 @@
 """
-Article dimension table model with SCD Type 2 and hierarchical structure.
+Article dimension table model with SCD Type 1 and hierarchical structure.
 
-This module defines the Article model for budget categories with support for:
-- Slowly Changing Dimension Type 2 pattern for historical tracking
+This module defines the Article model for budget categories with in-place updates
+(NO versioning). Full change history is stored in separate ArticleHistory table (SCD Type 2).
+
+IMPORTANT: This is a breaking change from previous SCD Type 2 implementation.
+Migration required to convert existing data.
+
+Key features:
+- SCD Type 1 (current data only, in-place updates)
 - Hierarchical organization using adjacency list (parent_id)
 - Global articles shared across users and user-specific articles
+- Full change history in ArticleHistory table
 """
 
 from datetime import datetime
@@ -15,14 +22,21 @@ from sqlmodel import Field, SQLModel
 
 class Article(SQLModel, table=True):
     """
-    Article (category) dimension table with SCD Type 2 and hierarchy support.
+    Article (category) dimension table with SCD Type 1 and hierarchy support.
+
+    Changes to this table are in-place updates (no versioning).
+    Full change history is stored in ArticleHistory table (SCD Type 2).
+
+    Stable PK (id) ensures FK integrity in fact tables (t_f_budget_fact, etc).
+    Unlike previous SCD Type 2 implementation, the id field NEVER changes when
+    article is updated.
 
     Articles represent budget categories (e.g., "Food", "Transport", "Salary").
     Supports hierarchical organization via parent_id (adjacency list pattern).
     Can be user-specific or global (shared across all users).
 
     Table: t_d_article
-    Pattern: SCD Type 2 + Adjacency List (parent_id for hierarchy)
+    Pattern: SCD Type 1 + Adjacency List (parent_id for hierarchy)
 
     Business Key: user_id + name + type (for uniqueness)
 
@@ -41,25 +55,35 @@ class Article(SQLModel, table=True):
         - All users can READ all articles
         - user_id tracks the creator for audit trail purposes
 
-    SCD Type 2 Pattern:
-        Each article can have multiple versions over time:
-        - Only one version has is_current=True
-        - valid_from/valid_to define the validity period
-        - Historical versions preserved for audit
+    SCD Type 1 Pattern:
+        - Main table contains ONLY current article data (no historical versions)
+        - History is stored in separate t_d_article_history table (SCD Type 2)
+        - FK in fact tables (t_f_budget_fact.article_id) remain stable (NO updates needed)
+        - Article updates (name, parent_id, etc.) are in-place (UPDATE, not INSERT)
+
+    Migration from SCD Type 2:
+        Old SCD2 fields REMOVED:
+        - valid_from: Replaced by ArticleHistory.valid_from
+        - valid_to: Replaced by ArticleHistory.valid_to
+        - is_current: Replaced by ArticleHistory.is_current
+
+        Migration Strategy (Phase 2):
+        1. Keep only is_current=True version in main table
+        2. Move ALL versions to ArticleHistory table
+        3. Remap FK in fact tables (old versioned id → new stable id)
+        4. Rebuild closure table (t_d_article_hierarchy)
 
     Attributes:
-        id: Surrogate primary key (auto-generated)
-        user_id: Owner user ID (required - tracks creator for audit)
-        parent_id: Parent article ID for hierarchy (NULL for root articles)
-        name: Article display name (required, max 255 chars)
-        type: Article type - 'income' or 'expense' (required, max 20 chars)
-        code: Business code for external integrations (optional, auto-generated as ART-1, ART-2, ...)
-        is_active: Active flag (True = visible in UI, False = archived)
-        valid_from: Start of validity period for this record
-        valid_to: End of validity period (9999-12-31 for current records)
-        is_current: Flag indicating if this is the current version
-        created_at: Timestamp when record was created
-        updated_at: Timestamp when record was last updated
+        id: Surrogate primary key (stable - NEVER changes on updates)
+        user_id: Owner user ID (required - tracks creator for audit, SCD1 - in-place update)
+        parent_id: Parent article ID for hierarchy (NULL for root articles, SCD1 - in-place update)
+        name: Article display name (required, max 255 chars, SCD1 - in-place update)
+        description: Optional description or notes (SCD1 - in-place update)
+        type: Article type - 'income' or 'expense' (required, SCD1 - in-place update)
+        code: Business code for external integrations (optional, SCD1 - in-place update)
+        is_active: Active flag (True = visible in UI, False = archived, SCD1 - in-place update)
+        created_at: Timestamp when record was created (immutable)
+        updated_at: Timestamp when record was last updated (auto-updated on changes)
 
     Examples:
         # Root article (top-level category)
@@ -87,10 +111,11 @@ class Article(SQLModel, table=True):
     Notes:
         - The type field must be validated at application level to be 'income' or 'expense'
         - Use CHECK constraint in database: CHECK (type IN ('income', 'expense'))
-        - When updating an article, create new version and set old version's is_current=False
+        - When updating an article, use in-place UPDATE (ArticleService will create history record)
         - All articles must have user_id (required field)
         - Parent article must exist before creating child article
-        - Unique constraint: (name, type, is_current) for current records
+        - Unique constraint: (name, type) for active records
+        - Full change history is stored in ArticleHistory table (SCD Type 2)
     """
 
     __tablename__ = "t_d_article"
@@ -122,6 +147,10 @@ class Article(SQLModel, table=True):
         max_length=255,
         description="Article display name"
     )
+    description: Optional[str] = Field(
+        default=None,
+        description="Optional description or notes about the article/category"
+    )
     type: str = Field(
         nullable=False,
         max_length=20,
@@ -141,45 +170,34 @@ class Article(SQLModel, table=True):
         default=True,
         nullable=False,
         index=True,
-        description="Active status flag (True = visible in UI dropdowns, False = archived)"
-    )
-
-    # SCD Type 2 fields
-    valid_from: datetime = Field(
-        default_factory=datetime.utcnow,
-        nullable=False,
-        description="Start of validity period"
-    )
-    valid_to: Optional[datetime] = Field(
-        default=datetime(9999, 12, 31, 23, 59, 59),
-        nullable=True,
-        description="End of validity period (9999-12-31 for current)"
-    )
-    is_current: bool = Field(
-        default=True,
-        nullable=False,
-        index=True,
-        description="Current version flag"
+        description="Active status flag (True = visible in UI dropdowns, False = archived, SCD1 - in-place update)"
     )
 
     # Audit fields
     created_at: datetime = Field(
         default_factory=datetime.utcnow,
         nullable=False,
-        description="Record creation timestamp"
+        description="Record creation timestamp (immutable)"
     )
     updated_at: datetime = Field(
         default_factory=datetime.utcnow,
         nullable=False,
-        description="Record last update timestamp"
+        description="Record last update timestamp (auto-updated on changes)"
     )
+
+    # NOTE: SCD Type 2 fields REMOVED (breaking change from previous version)
+    # - valid_from: Moved to ArticleHistory table
+    # - valid_to: Moved to ArticleHistory table
+    # - is_current: Moved to ArticleHistory table
+    #
+    # Full change history is now stored in separate ArticleHistory table (SCD Type 2)
 
     def __repr__(self) -> str:
         """String representation of Article model."""
         return (
             f"Article(id={self.id}, name='{self.name}', type='{self.type}', "
             f"user_id={self.user_id}, parent_id={self.parent_id}, "
-            f"is_current={self.is_current})"
+            f"is_active={self.is_active})"
         )
 
 

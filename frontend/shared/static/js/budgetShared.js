@@ -442,6 +442,7 @@
             this.onSelect = options.onSelect || (() => {});
             this.minDate = options.minDate || null;
             this.maxDate = options.maxDate || null;
+            this.triggerContainer = options.triggerContainer || null; // Optional container for trigger button
 
             // Single date picker
             if (this.mode === 'single') {
@@ -516,9 +517,14 @@
                 // Single mode: create one button for inputElement
                 this._createSingleButton(this.inputElement);
             } else {
-                // Range mode: create buttons for BOTH startInputElement and endInputElement
-                this._createSingleButton(this.startInputElement, false);  // isEndInput = false
-                this._createSingleButton(this.endInputElement, true);     // isEndInput = true (v5.1.3 bugfix)
+                // Range mode: create ONE button in triggerContainer (if provided) or next to endInputElement
+                if (this.triggerContainer) {
+                    this._createRangeTriggerButton();
+                } else {
+                    // Fallback: create buttons for BOTH inputs (old behavior)
+                    this._createSingleButton(this.startInputElement, false);
+                    this._createSingleButton(this.endInputElement, true);
+                }
             }
         }
 
@@ -572,23 +578,75 @@
         }
 
         /**
+         * Create a single calendar button for range mode in custom container
+         * @private
+         */
+        _createRangeTriggerButton() {
+            // Get container (string selector or HTMLElement)
+            const container = typeof this.triggerContainer === 'string'
+                ? document.querySelector(this.triggerContainer)
+                : this.triggerContainer;
+
+            if (!container) {
+                console.error('CalendarWidget: triggerContainer not found');
+                return;
+            }
+
+            // Create button
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-ghost btn-md';
+            button.innerHTML = `
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            `;
+            button.setAttribute('aria-label', 'Открыть календарь');
+
+            // Store reference
+            this.triggerButton = button;
+
+            // Append to container
+            container.appendChild(button);
+
+            // Add click event to open calendar
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.open();
+            });
+        }
+
+        /**
          * Create calendar dropdown element
          * @private
          */
         _createCalendarElement() {
             this.calendarElement = document.createElement('div');
-            this.calendarElement.className = 'calendar-widget absolute z-50 mt-2 shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
+            this.calendarElement.className = 'calendar-widget fixed z-50 shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
             this.calendarElement.style.width = '320px';
 
-            // Position below input
+            // Append to body for proper positioning
+            document.body.appendChild(this.calendarElement);
+
+            this._render();
+        }
+
+        /**
+         * Position calendar below target input
+         * @private
+         */
+        _positionCalendar() {
             const targetInput = this.mode === 'single'
                 ? this.inputElement
                 : this.startInputElement;
 
-            targetInput.parentElement.style.position = 'relative';
-            targetInput.parentElement.appendChild(this.calendarElement);
+            const rect = targetInput.getBoundingClientRect();
 
-            this._render();
+            // Position below input, aligned to left
+            this.calendarElement.style.top = `${rect.bottom + window.scrollY + 4}px`;
+            this.calendarElement.style.left = `${rect.left + window.scrollX}px`;
         }
 
         /**
@@ -639,17 +697,21 @@
 
                 <!-- Footer: Quick actions -->
                 <div class="flex gap-2 mt-4 pt-4 border-t border-base-300">
-                  <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="today">
-                    Сегодня
-                  </button>
                   ${this.mode === 'range' ? `
                     <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="clear-range">
                       Очистить
                     </button>
-                  ` : ''}
-                  <button type="button" class="btn btn-sm btn-primary flex-1" data-action="close">
-                    Закрыть
-                  </button>
+                    <button type="button" class="btn btn-sm btn-primary flex-1" data-action="apply-range" ${!this.startDate || !this.endDate ? 'disabled' : ''}>
+                      Применить
+                    </button>
+                  ` : `
+                    <button type="button" class="btn btn-sm btn-ghost flex-1" data-action="today">
+                      Сегодня
+                    </button>
+                    <button type="button" class="btn btn-sm btn-primary flex-1" data-action="close">
+                      Закрыть
+                    </button>
+                  `}
                 </div>
               </div>
             `;
@@ -708,7 +770,15 @@
 
                 let btnClass = 'btn btn-sm btn-ghost w-full aspect-square p-0';
                 if (isToday) btnClass += ' border border-primary';
-                if (isSelected) btnClass += ' btn-primary';
+                if (isSelected) {
+                    if (this.mode === 'range') {
+                        // Range mode: light red background + red border (v5.1.7)
+                        btnClass += ' border-2 border-error bg-error/10 font-semibold';
+                    } else {
+                        // Single mode: standard primary button
+                        btnClass += ' btn-primary';
+                    }
+                }
                 if (isInRange && !isSelected) btnClass += ' bg-primary/20';
                 if (isDisabled) btnClass += ' btn-disabled opacity-30';
 
@@ -802,6 +872,15 @@
                     case 'clear-range':
                         this.clearRange();
                         break;
+                    case 'apply-range':
+                        // Apply selected range and close
+                        if (this.startDate && this.endDate) {
+                            const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+                            const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+                            this.onSelect(startDisplay, endDisplay);
+                            this.close();
+                        }
+                        break;
                     case 'close':
                         this.close();
                         break;
@@ -830,6 +909,10 @@
             this.calendarElement.addEventListener('click', (e) => {
                 const dateButton = e.target.closest('[data-date]');
                 if (!dateButton || dateButton.disabled) return;
+
+                // CRITICAL: Stop propagation to prevent "click outside" handler from firing
+                // after _render() removes the clicked element from DOM
+                e.stopPropagation();
 
                 const dateStr = dateButton.dataset.date;
                 const date = new Date(dateStr + 'T00:00:00'); // Parse as local time
@@ -897,9 +980,9 @@
             }
 
             if (this.mode === 'range') {
-                // v5.1.3 bugfix: Preserve existing dates when changing one of them
+                // v5.1.4 fix: Improved range selection logic
                 if (this.selectingEnd) {
-                    // Selecting END date - preserve START date
+                    // Selecting END date
                     this.endDate = date;
 
                     // Swap if end < start
@@ -917,47 +1000,31 @@
                     const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
                     this.endInputElement.value = endDisplay;
 
-                    // If both dates selected, trigger callback and close
+                    // Both dates selected - DO NOT close calendar automatically (v5.1.5 fix)
+                    // User must click "Применить" to confirm selection
                     if (this.startDate && this.endDate) {
-                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
-                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                        this.onSelect(startDisplay, endDisplay);
-                        this.close();
+                        // Both dates selected - just re-render to enable "Применить" button
+                        this._render();
                     } else {
-                        // Only end date selected, keep calendar open to select start
+                        // Only end date selected, switch to selecting start
                         this.selectingEnd = false;
                         this._render();
                     }
                 } else {
-                    // Selecting START date - preserve END date
+                    // Selecting START date
                     this.startDate = date;
 
-                    // Swap if end < start
-                    if (this.endDate && this.endDate < date) {
-                        const temp = this.endDate;
-                        this.endDate = date;
-                        this.startDate = temp;
-                    }
+                    // Clear end date when selecting new start
+                    this.endDate = null;
+                    this.endInputElement.value = '';
 
-                    // Update inputs
+                    // Update start input
                     const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
                     this.startInputElement.value = startDisplay;
-                    if (this.endDate) {
-                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                        this.endInputElement.value = endDisplay;
-                    }
 
-                    // If both dates selected, trigger callback and close
-                    if (this.startDate && this.endDate) {
-                        const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
-                        const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
-                        this.onSelect(startDisplay, endDisplay);
-                        this.close();
-                    } else {
-                        // Only start date selected, switch to selecting end
-                        this.selectingEnd = true;
-                        this._render();
-                    }
+                    // Switch to selecting end date
+                    this.selectingEnd = true;
+                    this._render();
                 }
             }
         }
@@ -1017,11 +1084,30 @@
          */
         open(forceSelectingEnd = false) {
             this.isOpen = true;
+
+            // Position calendar below input (v5.1.4 fix)
+            this._positionCalendar();
+
             this.calendarElement.classList.remove('hidden');
 
-            // v5.1.3 bugfix: Set selection mode based on which input was clicked
+            // Set selection mode for range mode
             if (this.mode === 'range') {
-                this.selectingEnd = forceSelectingEnd;
+                if (forceSelectingEnd) {
+                    // Explicit override (when clicking on end input button)
+                    this.selectingEnd = true;
+                } else {
+                    // Smart selection mode based on current state
+                    if (this.startDate && !this.endDate) {
+                        // Start date selected, continue selecting end
+                        this.selectingEnd = true;
+                    } else if (this.startDate && this.endDate) {
+                        // Both dates selected, start fresh from beginning
+                        this.selectingEnd = false;
+                    } else {
+                        // No dates selected, start from beginning
+                        this.selectingEnd = false;
+                    }
+                }
             }
 
             this._render(); // Re-render to show current selection
@@ -1074,7 +1160,7 @@
          *
          * @param {string} selector - CSS selector for select element
          * @param {Object} options - Configuration options
-         * @param {string} options.type - Category type ('income' or 'expense')
+         * @param {string} options.type - Category type ('income', 'expense', 'debit', 'credit')
          * @param {Object} [options.auth] - OPTIONAL: Auth instance with getToken() method (for WebApp Bearer token)
          * @param {Function} options.onChange - Callback when category changes (receives category object or array for multiple)
          * @param {Function} [options.onCategoryChange] - DEPRECATED: Use onChange instead
@@ -1289,9 +1375,9 @@
                     keys: ['label'],       // Search in label field
                 },
 
-                // Styling
+                // Styling (conditional: Telegram WebApp vs Web UI)
                 classNames: {
-                    containerOuter: ['choices', 'choices-telegram'],
+                    containerOuter: ['choices', window.Telegram && window.Telegram.WebApp ? 'choices-telegram' : 'choices-tailwind'],
                     containerInner: ['choices__inner'],
                     input: ['choices__input'],
                     inputCloned: ['choices__input--cloned'],

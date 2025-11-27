@@ -75,7 +75,11 @@ services:
       - "-c"
       - "log_min_duration_statement=1000"
       - "-c"
-      - "wal_level=replica"  # SEC-005 fix: Prevent pg_logical/snapshots error
+      - "shared_preload_libraries=pg_stat_statements"  # Query performance monitoring
+      - "-c"
+      - "pg_stat_statements.track=all"  # Track all queries (including nested)
+      - "-c"
+      - "pg_stat_statements.max=10000"  # Store up to 10k distinct queries
 
   # Backend Application (FastAPI + HTMX)
   backend:
@@ -269,14 +273,14 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${DATA_DIR:-./data}/postgres
+      device: ${DATA_DIR:-/opt/budget/data}/postgres  # Absolute path to prevent volume recreation
 
   postgres_backups:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${BACKUP_DIR:-./backups}
+      device: ${BACKUP_DIR:-/opt/budget/backups}  # Absolute path to prevent volume recreation
 
   nginx_cache:
     driver: local

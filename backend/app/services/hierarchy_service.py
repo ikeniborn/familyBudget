@@ -63,7 +63,6 @@ async def get_subtree(
 
     Notes:
         - Results are ordered by depth (shallowest first)
-        - Only returns current versions (is_current=True)
         - Returns empty list if article not found or no descendants
         - Respects user isolation (caller must check access rights)
     """
@@ -92,10 +91,9 @@ async def get_subtree(
     # Extract IDs
     descendant_ids = [d.descendant_id for d in descendants]
 
-    # Load Article instances (only current versions)
+    # Load Article instances
     articles_stmt = select(Article).where(
-        Article.id.in_(descendant_ids),
-        Article.is_current == True  # noqa: E712
+        Article.id.in_(descendant_ids)
     )
     articles_result = await session.execute(articles_stmt)
     articles = list(articles_result.scalars().all())
@@ -137,7 +135,6 @@ async def get_ancestors(
 
     Notes:
         - Results ordered root-first (depth DESC)
-        - Only returns current versions (is_current=True)
         - Returns empty list if article is root or not found
         - Useful for breadcrumb navigation
     """
@@ -163,10 +160,9 @@ async def get_ancestors(
     # Extract IDs
     ancestor_ids = [a.ancestor_id for a in ancestors]
 
-    # Load Article instances (only current versions)
+    # Load Article instances
     articles_stmt = select(Article).where(
-        Article.id.in_(ancestor_ids),
-        Article.is_current == True  # noqa: E712
+        Article.id.in_(ancestor_ids)
     )
     articles_result = await session.execute(articles_stmt)
     articles = list(articles_result.scalars().all())
@@ -272,7 +268,6 @@ async def get_direct_children(
 
     Notes:
         - Only returns direct children (depth=1)
-        - Only returns current versions (is_current=True)
         - Returns empty list if no children
         - Excludes transitive descendants (grandchildren, etc.)
     """
@@ -328,8 +323,7 @@ async def get_root(
 
     # Load root Article instance
     article_stmt = select(Article).where(
-        Article.id == root_id,
-        Article.is_current == True  # noqa: E712
+        Article.id == root_id
     )
     article_result = await session.execute(article_stmt)
     return article_result.scalar_one_or_none()
@@ -436,7 +430,6 @@ async def archive_recursive(
         >>> # All subcategories are now archived
 
     Notes:
-        - Affects CURRENT versions only (is_current=True)
         - Uses closure table to find all descendants efficiently
         - Returns 0 if article not found
         - Commits changes to database (caller must handle transaction)
@@ -495,7 +488,6 @@ async def restore_recursive(
         >>> # All subcategories are now active again
 
     Notes:
-        - Affects CURRENT versions only (is_current=True)
         - Uses closure table to find all descendants efficiently
         - Returns 0 if article not found
         - Commits changes to database (caller must handle transaction)

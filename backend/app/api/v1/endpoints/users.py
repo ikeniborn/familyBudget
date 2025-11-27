@@ -41,18 +41,19 @@ router = APIRouter(prefix="/users", tags=["Users"])
 @router.get(
     "",
     response_model=UserListResponse,
-    responses=get_common_responses(include_403=True),
+    responses=get_common_responses(),
 )
 async def list_users(
-    admin: CurrentAdmin,
+    current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
     limit: Annotated[int, Query(ge=1, le=1000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> UserListResponse:
     """
-    List all users (admin only).
+    List all users (Shared Family Budget).
 
-    **Admin Only:** This endpoint is only accessible to admin users.
+    **Shared Family Budget:** All authenticated users can view all family members.
+    This is necessary for audit trail (viewing who created each transaction).
 
     **Pagination:**
     - limit: Maximum number of results (1-1000, default: 100)
@@ -60,10 +61,9 @@ async def list_users(
 
     **Returns:**
     - 200 OK: List of users with pagination info
-    - 403 Forbidden: User is not admin
     """
     # Base query: only current versions
-    statement = select(User).where(User.is_current == True)  # noqa: E712
+    statement = select(User).where()  # noqa: E712
 
     # Count total (before pagination)
     count_stmt = select(func.count()).select_from(statement.subquery())
@@ -131,8 +131,7 @@ async def get_user(
     """
     # Load user (current version only)
     statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
+        User.id == user_id
     )
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
@@ -185,8 +184,7 @@ async def create_user(
     """
     # Check if user with this telegram_id already exists
     statement = select(User).where(
-        User.telegram_id == user_data.telegram_id,
-        User.is_current == True  # noqa: E712
+        User.telegram_id == user_data.telegram_id
     )
     result = await session.execute(statement)
     existing_user = result.scalar_one_or_none()
@@ -254,8 +252,7 @@ async def update_user_role(
     """
     # Load current version
     statement = select(User).where(
-        User.id == user_id,
-        User.is_current == True  # noqa: E712
+        User.id == user_id
     )
     result = await session.execute(statement)
     old_user = result.scalar_one_or_none()
@@ -319,7 +316,7 @@ async def get_all_telegram_ids(
     ```
     """
     # Query only current user versions
-    statement = select(User.telegram_id).where(User.is_current == True)  # noqa: E712
+    statement = select(User.telegram_id).where()  # noqa: E712
     result = await session.execute(statement)
     telegram_ids = result.scalars().all()
 

@@ -686,3 +686,275 @@ curl -X GET "http://localhost:8000/api/v1/notifications?notification_type=budget
 
 ---
 
+
+### 7.10 Transfer Endpoints
+
+**Добавлено в версии:** v5.1.4+
+**Branch:** `feature/ui-improvements-and-transfers`
+**Статус:** ✅ IMPLEMENTED
+
+#### POST /api/v1/transfers
+
+**Описание:** Создание перевода между финансовыми центрами (ЦФО)
+
+**Назначение:**
+Создает 2 связанные транзакции (списание с источника + пополнение получателя) для отражения движения средств между счетами. Обе транзакции объединены через `transfer_id` и создаются атомарно.
+
+**Authentication:** Требуется JWT токен (Authorization header или Cookie)
+
+**Request Body:**
+
+```json
+{
+  "fact_date": "2025-11-24",
+  "amount": 1000.00,
+  "from_cfo_id": 1,
+  "from_article_id": 42,
+  "from_cost_center_id": null,
+  "to_cfo_id": 2,
+  "to_article_id": 43,
+  "to_cost_center_id": null,
+  "description": "Перевод из кошелька в банк"
+}
+```
+
+**Request Schema:**
+
+| Поле | Тип | Обязательное | Описание |
+|------|-----|--------------|----------|
+| `fact_date` | string (date) | Да | Дата перевода (YYYY-MM-DD, не может быть в будущем) |
+| `amount` | number (decimal) | Да | Сумма перевода (> 0, до 2 знаков после запятой) |
+| `from_cfo_id` | integer | Да | ID финансового центра-источника (откуда) |
+| `from_article_id` | integer | Да | ID категории списания (type='debit') |
+| `from_cost_center_id` | integer \| null | Нет | ID центра затрат для списания (опционально) |
+| `to_cfo_id` | integer | Да | ID финансового центра-получателя (куда) |
+| `to_article_id` | integer | Да | ID категории пополнения (type='credit') |
+| `to_cost_center_id` | integer \| null | Нет | ID центра затрат для пополнения (опционально) |
+| `description` | string | Нет | Описание перевода (max 500 символов) |
+
+**Validation Rules:**
+
+1. **Different CFOs:**
+   - `from_cfo_id != to_cfo_id`
+   - Нельзя переводить в тот же самый ЦФО
+   - Error: HTTP 400 "Cannot transfer to the same financial center"
+
+2. **Positive Amount:**
+   - `amount > 0`
+   - Error: HTTP 400 "Amount must be positive"
+
+3. **Article Types:**
+   - `from_article` MUST have `type='debit'` (списание)
+   - `to_article` MUST have `type='credit'` (пополнение)
+   - Error: HTTP 400 "FROM article must be type 'debit'" или "TO article must be type 'credit'"
+
+4. **Date Validation:**
+   - `fact_date <= today()`
+   - Нельзя создавать переводы в будущем
+   - Error: HTTP 400 "Transfer date cannot be in the future"
+
+5. **Entity Existence:**
+   - Все ID (cfo, article, cost_center) должны существовать и быть актуальными (`is_current=true`)
+   - Error: HTTP 404 "Financial center not found" или "Article not found"
+
+**Response (201 Created):**
+
+```json
+{
+  "transfer_id": 100,
+  "from_fact": {
+    "id": 500,
+    "user_id": 1,
+    "article_id": 42,
+    "financial_center_id": 1,
+    "cost_center_id": null,
+    "amount": 1000.00,
+    "record_type": "fact",
+    "fact_date": "2025-11-24",
+    "description": "Перевод из кошелька в банк",
+    "transfer_id": 100,
+    "created_at": "2025-11-24T10:30:00Z"
+  },
+  "to_fact": {
+    "id": 501,
+    "user_id": 1,
+    "article_id": 43,
+    "financial_center_id": 2,
+    "cost_center_id": null,
+    "amount": 1000.00,
+    "record_type": "fact",
+    "fact_date": "2025-11-24",
+    "description": "Перевод из кошелька в банк",
+    "transfer_id": 100,
+    "created_at": "2025-11-24T10:30:00Z"
+  }
+}
+```
+
+**Response Schema:**
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `transfer_id` | integer | Уникальный ID перевода (связывает 2 транзакции) |
+| `from_fact` | BudgetFact | Транзакция списания с источника |
+| `to_fact` | BudgetFact | Транзакция пополнения получателя |
+
+**Atomic Transaction Behavior:**
+- Обе транзакции создаются в одной database transaction
+- Если создание любой из транзакций fails → rollback обеих
+- Гарантируется консистентность данных (нет "половинных" переводов)
+
+**transfer_id Generation:**
+- Используется pattern: `MAX(transfer_id) + 1`
+- Thread-safe в PostgreSQL (SERIALIZABLE isolation level)
+- Начинается с 1 если это первый перевод
+
+**Error Responses:**
+
+**400 Bad Request (same CFO):**
+```json
+{
+  "detail": "Cannot transfer to the same financial center. FROM and TO must be different."
+}
+```
+
+**400 Bad Request (invalid article type):**
+```json
+{
+  "detail": "FROM article must be type 'debit' (got 'expense')"
+}
+```
+
+**400 Bad Request (negative amount):**
+```json
+{
+  "detail": "Amount must be greater than 0"
+}
+```
+
+**400 Bad Request (future date):**
+```json
+{
+  "detail": "Transfer date cannot be in the future"
+}
+```
+
+**404 Not Found:**
+```json
+{
+  "detail": "Financial center with id 999 not found"
+}
+```
+
+**401 Unauthorized:**
+```json
+{
+  "detail": "Not authenticated"
+}
+```
+
+**500 Internal Server Error:**
+```json
+{
+  "detail": "Failed to create transfer: {error_message}"
+}
+```
+
+**cURL Example:**
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/transfers" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <jwt_token>" \
+  -d '{
+    "fact_date": "2025-11-24",
+    "amount": 1000.00,
+    "from_cfo_id": 1,
+    "from_article_id": 42,
+    "from_cost_center_id": null,
+    "to_cfo_id": 2,
+    "to_article_id": 43,
+    "to_cost_center_id": null,
+    "description": "Перевод из кошелька в банк"
+  }'
+```
+
+**Implementation Notes:**
+
+**Backend (backend/app/api/v1/endpoints/transfers.py):**
+```python
+@router.post("/", response_model=TransferResponse)
+async def create_transfer(
+    data: TransferCreate,
+    session: AsyncSession,
+    current_user: CurrentUser
+):
+    # 1. Validate from_cfo != to_cfo
+    if data.from_cfo_id == data.to_cfo_id:
+        raise HTTPException(400, "Cannot transfer to the same CFO")
+
+    # 2. Validate article types
+    from_article = await validate_article_type(session, data.from_article_id, 'debit')
+    to_article = await validate_article_type(session, data.to_article_id, 'credit')
+
+    # 3. Generate unique transfer_id
+    transfer_id = await generate_transfer_id(session)
+
+    # 4. Create FROM fact (списание)
+    from_fact = BudgetFact(
+        user_id=current_user.id,
+        article_id=data.from_article_id,
+        financial_center_id=data.from_cfo_id,
+        cost_center_id=data.from_cost_center_id,
+        amount=data.amount,
+        record_type="fact",
+        fact_date=data.fact_date,
+        description=data.description,
+        transfer_id=transfer_id
+    )
+    session.add(from_fact)
+
+    # 5. Create TO fact (пополнение)
+    to_fact = BudgetFact(
+        user_id=current_user.id,
+        article_id=data.to_article_id,
+        financial_center_id=data.to_cfo_id,
+        cost_center_id=data.to_cost_center_id,
+        amount=data.amount,
+        record_type="fact",
+        fact_date=data.fact_date,
+        description=data.description,
+        transfer_id=transfer_id
+    )
+    session.add(to_fact)
+
+    # 6. Commit atomically
+    await session.commit()
+    await session.refresh(from_fact)
+    await session.refresh(to_fact)
+
+    return TransferResponse(
+        transfer_id=transfer_id,
+        from_fact=from_fact,
+        to_fact=to_fact
+    )
+```
+
+**Frontend Integration:**
+- Modal: `frontend/web/templates/components/modal_transfer.html`
+- JavaScript: `frontend/web/static/js/transfer.js`
+- Открывается через: `openTransferModal()` function
+- ChoicesCategoryTree фильтрует категории по типу (debit/credit)
+
+**Related Documents:**
+- docs/prd/04-functional-requirements.md - FR-080: Переводы между ЦФО
+- docs/prd/06-database-design.md - секция 6.3.1 Transfer Support Fields
+- docs/prd/08-ui-design.md - Transfer modal UI specification
+- CLAUDE.md - Shared Family Budget Model
+
+**См. также:**
+- GET `/api/v1/facts` - для получения списка транзакций (включая transfers)
+- GET `/api/v1/articles` - для получения списка категорий (включая debit/credit)
+- GET `/api/v1/financial_centers` - для получения списка ЦФО
+
+---

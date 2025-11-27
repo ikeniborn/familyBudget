@@ -225,8 +225,7 @@ async def get_quick_stats(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.fact_date == today,
-        Article.is_current == True  # noqa: E712
+        Fact.fact_date == today
     ).group_by(Article.type)
 
     today_result = await session.execute(today_query)
@@ -239,23 +238,29 @@ async def get_quick_stats(
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= month_start,
-        Fact.fact_date <= today,
-        Article.is_current == True  # noqa: E712
+        Fact.fact_date <= today
     ).group_by(Article.type)
 
     month_result = await session.execute(month_query)
     month_data = {row.type: float(row.total) for row in month_result.all()}
 
+    # Include credit (пополнение) as income, debit (списание) as expense
+    today_income = today_data.get("income", 0.0) + today_data.get("credit", 0.0)
+    today_expense = today_data.get("expense", 0.0) + today_data.get("debit", 0.0)
+
+    month_income = month_data.get("income", 0.0) + month_data.get("credit", 0.0)
+    month_expense = month_data.get("expense", 0.0) + month_data.get("debit", 0.0)
+
     return {
         "today": {
-            "income": today_data.get("income", 0.0),
-            "expense": today_data.get("expense", 0.0),
-            "balance": today_data.get("income", 0.0) - today_data.get("expense", 0.0)
+            "income": today_income,
+            "expense": today_expense,
+            "balance": today_income - today_expense
         },
         "month": {
-            "income": month_data.get("income", 0.0),
-            "expense": month_data.get("expense", 0.0),
-            "balance": month_data.get("income", 0.0) - month_data.get("expense", 0.0)
+            "income": month_income,
+            "expense": month_expense,
+            "balance": month_income - month_expense
         }
     }
 
@@ -280,8 +285,7 @@ async def get_quick_stats_html(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.fact_date == today,
-        Article.is_current == True  # noqa: E712
+        Fact.fact_date == today
     ).group_by(Article.type)
 
     today_result = await session.execute(today_query)
@@ -294,20 +298,19 @@ async def get_quick_stats_html(
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= month_start,
-        Fact.fact_date <= today,
-        Article.is_current == True  # noqa: E712
+        Fact.fact_date <= today
     ).group_by(Article.type)
 
     month_result = await session.execute(month_query)
     month_data = {row.type: float(row.total) for row in month_result.all()}
 
-    # Calculate stats
-    today_income = today_data.get("income", 0.0)
-    today_expense = today_data.get("expense", 0.0)
+    # Calculate stats (include credit as income, debit as expense)
+    today_income = today_data.get("income", 0.0) + today_data.get("credit", 0.0)
+    today_expense = today_data.get("expense", 0.0) + today_data.get("debit", 0.0)
     today_balance = today_income - today_expense
 
-    month_income = month_data.get("income", 0.0)
-    month_expense = month_data.get("expense", 0.0)
+    month_income = month_data.get("income", 0.0) + month_data.get("credit", 0.0)
+    month_expense = month_data.get("expense", 0.0) + month_data.get("debit", 0.0)
     month_balance = month_income - month_expense
 
     # Format numbers with thousands separator
@@ -353,11 +356,11 @@ async def get_quick_stats_html(
 @router.get("/plan-fact")
 async def get_plan_fact_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_type: str = Query("expense", regex="^(income|expense)$"),
-    chart_mode: str = Query("cumulative", regex="^(normal|cumulative)$"),
+    article_type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
+    chart_mode: str = Query("cumulative", pattern="^(normal|cumulative)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -449,10 +452,12 @@ async def get_plan_fact_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == "fact",
-            Article.type == article_type,
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == "fact"
         )
+
+        # Apply article type filter if not 'all' (v5.1.4)
+        if article_type != 'all':
+            fact_query = fact_query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
         if cfo_id is not None:
@@ -475,10 +480,12 @@ async def get_plan_fact_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == "plan",
-            Article.type == article_type,
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == "plan"
         )
+
+        # Apply article type filter if not 'all' (v5.1.4)
+        if article_type != 'all':
+            plan_query = plan_query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
         if cfo_id is not None:
@@ -662,12 +669,12 @@ async def get_plan_fact_data(
 @router.get("/trends")
 async def get_trends_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    record_type: str = Query("fact", regex="^(fact|plan)$"),
+    record_type: str = Query("fact", pattern="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
-    chart_mode: str = Query("normal", regex="^(normal|cumulative)$"),
+    chart_mode: str = Query("normal", pattern="^(normal|cumulative)$"),
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -730,8 +737,7 @@ async def get_trends_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == record_type,
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == record_type
         )
 
         # Apply CFO filter if specified (v5.1.3)
@@ -743,12 +749,17 @@ async def get_trends_data(
         result = await session.execute(query)
         rows = result.all()
 
-        # Build data structure by date
+        # Build data structure by date (map credit→income, debit→expense)
         data_by_date = {}
         for row in rows:
             if row.fact_date not in data_by_date:
                 data_by_date[row.fact_date] = {"income": 0.0, "expense": 0.0}
-            data_by_date[row.fact_date][row.type] = float(row.total)
+
+            # Map article types to income/expense categories
+            if row.type in ["income", "credit"]:
+                data_by_date[row.fact_date]["income"] += float(row.total)
+            elif row.type in ["expense", "debit"]:
+                data_by_date[row.fact_date]["expense"] += float(row.total)
 
         # Aggregate data by period and generate labels
         labels = []
@@ -901,11 +912,11 @@ async def get_trends_data(
 @router.get("/category-breakdown")
 async def get_category_breakdown(
     current_user: CurrentUser,
-    type: str = Query("expense", regex="^(income|expense)$"),
-    period: Optional[str] = Query(None, regex="^(month|quarter|year|all)$"),
+    type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year|all)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    record_type: str = Query("fact", regex="^(fact|plan)$"),
+    record_type: str = Query("fact", pattern="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -958,12 +969,14 @@ async def get_category_breakdown(
             Article.name,
             func.sum(Fact.amount).label("total")
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-            Article.type == type,
             Fact.record_type == record_type,
             Fact.fact_date >= start_date,
-            Fact.fact_date <= end_date,
-            Article.is_current == True  # noqa: E712
+            Fact.fact_date <= end_date
         )
+
+        # Apply article type filter if not 'all' (v5.1.4)
+        if type != 'all':
+            query = query.where(Article.type == type)
 
         # Apply CFO filter if specified (v5.1.3)
         if cfo_id is not None:
@@ -1018,7 +1031,7 @@ async def get_category_breakdown(
 @router.get("/waterfall")
 async def get_waterfall_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     article_id: int | None = Query(None, description="Filter by specific article (for drill-down)"),
@@ -1097,8 +1110,7 @@ async def get_waterfall_data(
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == "fact",  # Only actual transactions, not plans
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == "fact"  # Only actual transactions, not plans
         )
 
         # Add article filter if specified (for drill-down)
@@ -1136,7 +1148,16 @@ async def get_waterfall_data(
                 period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
 
             amount = float(row.total)
-            period_data[period_key][row.type] += amount
+
+            # Map transfer types to income/expense for aggregation
+            type_mapping = {
+                'income': 'income',
+                'expense': 'expense',
+                'credit': 'income',   # Пополнение = доход
+                'debit': 'expense'    # Списание = расход
+            }
+            mapped_type = type_mapping.get(row.type, 'expense')
+            period_data[period_key][mapped_type] += amount
 
             # Store article info for potential drill-down
             if not article_id:  # Only track articles when not in drill-down mode
@@ -1154,21 +1175,20 @@ async def get_waterfall_data(
         initial_balance_query = select(
             func.sum(
                 case(
-                    (Article.type == "income", Fact.amount),
+                    (Article.type.in_(["income", "credit"]), Fact.amount),
                     else_=0
                 )
             ) -
             func.sum(
                 case(
-                    (Article.type == "expense", Fact.amount),
+                    (Article.type.in_(["expense", "debit"]), Fact.amount),
                     else_=0
                 )
             )
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= prev_start,
             Fact.fact_date <= prev_end,
-            Fact.record_type == "fact",  # Only actual transactions, not plans
-            Article.is_current == True  # noqa: E712
+            Fact.record_type == "fact"  # Only actual transactions, not plans
         )
 
         # Add article filter if specified (for drill-down)
@@ -1344,11 +1364,11 @@ async def get_waterfall_data(
 @router.get("/heatmap")
 async def get_heatmap_data(
     current_user: CurrentUser,
-    period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
+    period: Optional[str] = Query(None, pattern="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_type: str = Query("expense", regex="^(income|expense)$"),
-    record_type: str = Query("fact", regex="^(fact|plan)$"),
+    article_type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
+    record_type: str = Query("fact", pattern="^(fact|plan)$"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -1363,7 +1383,7 @@ async def get_heatmap_data(
             - year: last 365 days from today → aggregate by months
         date_from: Optional start date for custom range (overrides period)
         date_to: Optional end date for custom range (overrides period)
-        article_type: Type of category (income or expense)
+        article_type: Type of category (income, expense, debit, credit or all)
         record_type: Type of records (fact or plan)
 
     Returns:
@@ -1413,12 +1433,14 @@ async def get_heatmap_data(
             Fact.fact_date,
             func.sum(Fact.amount).label("total")
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-            Article.type == article_type,
             Fact.record_type == record_type,
             Fact.fact_date >= start_date,
-            Fact.fact_date <= end_date,
-            Article.is_current == True  # noqa: E712
+            Fact.fact_date <= end_date
         )
+
+        # Apply article type filter if not 'all' (v5.1.4)
+        if article_type != 'all':
+            query = query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
         if cfo_id is not None:
@@ -1628,17 +1650,17 @@ async def get_recommended_amounts(
     ),
     article_type: Optional[str] = Query(
         None,
-        regex="^(income|expense)$",
+        pattern="^(income|expense)$",
         description="Optional transaction type filter: 'income' or 'expense' (omit for all types)"
     ),
     record_type: str = Query(
         "fact",
-        regex="^(fact|plan)$",
+        pattern="^(fact|plan)$",
         description="Record type: 'fact' (actual transactions) or 'plan' (planned transactions)"
     ),
     period: str = Query(
         "quarter",
-        regex="^(month|quarter|year)$",
+        pattern="^(month|quarter|year)$",
         description="Analysis period: 'month' (30d), 'quarter' (90d), 'year' (365d)"
     ),
 ):
@@ -1706,7 +1728,7 @@ async def get_recommended_amounts(
         article_name = None
         if article_id:
             article_result = await session.execute(
-                select(Article.name).where(Article.id == article_id, Article.is_current == True)
+                select(Article.name).where(Article.id == article_id)
             )
             article_row = article_result.first()
             if article_row:
@@ -1737,7 +1759,7 @@ async def get_recommended_amounts(
     article_name = None
     if article_id:
         article_result = await session.execute(
-            select(Article.name).where(Article.id == article_id, Article.is_current == True)
+            select(Article.name).where(Article.id == article_id)
         )
         article_row = article_result.first()
         if article_row:

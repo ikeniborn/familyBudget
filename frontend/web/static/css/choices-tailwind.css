@@ -77,11 +77,17 @@
 
 /* Dropdown */
 .choices-tailwind .choices__list--dropdown {
-    @apply bg-white border border-gray-300 rounded-lg mt-1 shadow-lg max-h-[280px] overflow-y-auto z-50;
+    @apply bg-white border border-gray-300 rounded-lg mt-1 shadow-lg max-h-[280px] overflow-y-auto;
+    /* Force solid background and readable z-index (below header z-40, above charts z-1) */
+    background-color: white !important;
+    opacity: 1 !important;
+    z-index: 30 !important;
 }
 
 .dark .choices-tailwind .choices__list--dropdown {
     @apply bg-gray-800 border-gray-600 shadow-2xl;
+    /* Force solid background in dark mode */
+    background-color: rgb(31 41 55) !important; /* gray-800 */
 }
 
 .choices-tailwind .choices__list--dropdown .choices__list {
@@ -90,11 +96,14 @@
 
 /* Dropdown items */
 .choices-tailwind .choices__list--dropdown .choices__item {
-    @apply px-4 py-3 text-base text-gray-900 transition-colors duration-150;
+    @apply px-4 py-3 text-base transition-colors duration-150;
+    /* Force readable text color */
+    color: rgb(17 24 39) !important; /* gray-900 */
 }
 
 .dark .choices-tailwind .choices__list--dropdown .choices__item {
-    @apply text-white;
+    /* Force readable text color in dark mode */
+    color: rgb(255 255 255) !important; /* white */
 }
 
 .choices-tailwind .choices__list--dropdown .choices__item--selectable {

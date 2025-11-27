@@ -617,13 +617,8 @@ async def confirmation_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             if not all([article_id, article_type, amount_str, date_str]):
                 raise ValueError("Missing required data")
 
-            # Apply sign to amount based on article type
-            # Convention: income = positive (+), expense = negative (-)
-            amount_value = Decimal(amount_str)
-            if article_type == "expense":
-                amount_value = -abs(amount_value)  # Make negative for expenses
-            elif article_type == "income":
-                amount_value = abs(amount_value)   # Keep positive for income
+            # Always use positive amount (sign determined by article_type in backend)
+            amount_value = abs(Decimal(amount_str))
 
             # Create plan via API
             token = SessionManager.get_access_token(context)

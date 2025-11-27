@@ -92,6 +92,8 @@
                                 <option value="">-- Все типы --</option>
                                 <option value="expense">💸 Расходы</option>
                                 <option value="income">💰 Доходы</option>
+                                <option value="debit">🔵 Списание</option>
+                                <option value="credit">🟠 Пополнение</option>
                             </select>
                         </div>
 
@@ -388,12 +390,33 @@ async function updateBulkCategoryType() {
         filteredArticles = articlesData.filter(a => a.type === selectedType);
     }
 
-    // Сортировать и построить иерархию
-    const sorted = sortArticles(filteredArticles);
-    const tree = buildArticleTree(sorted);
+    // Построить иерархию с алфавитной сортировкой
+    const tree = buildArticleTree(filteredArticles);
     const flatNodes = flattenArticleTree(tree);
 
+    // Группировка по типу с сохранением иерархического порядка
+    const groupedByType = {
+        'expense': [],
+        'income': [],
+        'debit': [],
+        'credit': []
+    };
+
     flatNodes.forEach(node => {
+        if (groupedByType[node.type]) {
+            groupedByType[node.type].push(node);
+        }
+    });
+
+    // Объединить в порядке типов: расход → доход → списание → пополнение
+    const sortedNodes = [
+        ...groupedByType['expense'],
+        ...groupedByType['income'],
+        ...groupedByType['debit'],
+        ...groupedByType['credit']
+    ];
+
+    sortedNodes.forEach(node => {
         const option = document.createElement('option');
         option.value = node.id;
         const indent = '›  '.repeat(node.level);
@@ -407,11 +430,15 @@ async function updateBulkCategoryType() {
             option.style.opacity = '0.7';
         }
 
-        // Цветовая индикация: расходы - красный, доходы - зеленый
+        // Цветовая индикация по типу категории
         if (node.type === 'expense') {
-            option.style.color = '#ef4444'; // red-500
+            option.style.color = 'rgb(239, 68, 68)'; // Красный (расходы)
         } else if (node.type === 'income') {
-            option.style.color = '#10b981'; // green-500
+            option.style.color = 'rgb(34, 197, 94)'; // Зелёный (доходы)
+        } else if (node.type === 'debit') {
+            option.style.color = 'rgb(59, 130, 246)'; // Синий (списание)
+        } else if (node.type === 'credit') {
+            option.style.color = 'rgb(251, 146, 60)'; // Оранжевый (пополнение)
         }
 
         selectElement.appendChild(option);
@@ -634,10 +661,12 @@ async function loadStagingData(page = currentPage) {
 
 // Build hierarchical tree from flat article list
 function buildArticleTree(articles) {
-    const roots = articles.filter(a => !a.parent_id);
+    // Sort all articles alphabetically for proper hierarchy sorting
+    const sortedArticles = [...articles].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const roots = sortedArticles.filter(a => !a.parent_id);
 
     function buildNode(article, level = 0) {
-        const children = articles
+        const children = sortedArticles
             .filter(a => a.parent_id === article.id)
             .map(child => buildNode(child, level + 1));
 
@@ -735,20 +764,46 @@ function renderStagingTable() {
                     <select class="select select-bordered w-48 max-w-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
                         <option value="">-- Выбрать --</option>
                         ${(() => {
-                            const sorted = sortArticles(articlesData);
-                            const tree = buildArticleTree(sorted);
+                            const tree = buildArticleTree(articlesData);
                             const flatNodes = flattenArticleTree(tree);
-                            return flatNodes.map(node => {
+
+                            // Группировка по типу с сохранением иерархического порядка
+                            const groupedByType = {
+                                'expense': [],
+                                'income': [],
+                                'debit': [],
+                                'credit': []
+                            };
+
+                            flatNodes.forEach(node => {
+                                if (groupedByType[node.type]) {
+                                    groupedByType[node.type].push(node);
+                                }
+                            });
+
+                            // Объединить в порядке типов: расход → доход → списание → пополнение
+                            const sortedNodes = [
+                                ...groupedByType['expense'],
+                                ...groupedByType['income'],
+                                ...groupedByType['debit'],
+                                ...groupedByType['credit']
+                            ];
+
+                            return sortedNodes.map(node => {
                                 const indent = '›  '.repeat(node.level);
                                 const icon = node.isLeaf ? '▸' : '📂';
                                 const disabled = !node.isLeaf ? 'disabled' : '';
                                 let style = !node.isLeaf ? 'font-weight: bold; opacity: 0.7;' : '';
 
-                                // Цветовая индикация: расходы - красный, доходы - зеленый
+                                // Цветовая индикация по типу категории
                                 if (node.type === 'expense') {
-                                    style += ' color: #ef4444;'; // red-500
+                                    style += ' color: rgb(239, 68, 68);'; // Красный (расходы)
                                 } else if (node.type === 'income') {
-                                    style += ' color: #10b981;'; // green-500
+                                    style += ' color: rgb(34, 197, 94);'; // Зелёный (доходы)
+                                } else if (node.type === 'debit') {
+                                    style += ' color: rgb(59, 130, 246);'; // Синий (списание)
+                                } else if (node.type === 'credit') {
+                                    style += ' color: rgb(251, 146, 60);'; // Оранжевый (пополнение)
                                 }
 
                                 return `<option value="${node.id}" ${node.id === record.article_id ? 'selected' : ''} ${disabled} style="${style}">${indent}${icon} ${node.name}</option>`;
