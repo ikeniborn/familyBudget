@@ -1242,7 +1242,8 @@ check_recent_errors() {
         local correlation_ids=$(echo "$backend_logs" | grep -oP '"correlation_id":\s*"\K[^"]+' | sort | uniq -c | sort -rn | head -5)
 
         if [ -n "$correlation_ids" ]; then
-            echo "$correlation_ids" | while IFS= read -r count corr_id; do
+            echo "$correlation_ids" | while read count corr_id; do
+                # read without -r and IFS= automatically trims leading/trailing spaces
                 if [ "$count" -gt 3 ]; then
                     print_status "    $corr_id:" "$count related log entries" "$YELLOW"
                 fi
