@@ -106,21 +106,26 @@
   outline-offset: 2px;
 }
 
-/* Mobile touch improvements + modal positioning */
+/* v5.1.8: Mobile modal mode - applied via JS class */
+.calendar-widget.calendar-modal-mobile {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  right: auto;
+  bottom: auto;
+  min-width: 320px;
+  max-width: calc(100% - 6%); /* 3% margin on each side */
+  max-height: 85vh; /* Prevent excessive vertical stretch */
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+/* Mobile touch improvements */
 @media (max-width: 768px) {
-  /* v5.1.8: Modal positioning for mobile - centered with backdrop */
   .calendar-widget {
-    position: fixed !important;
-    top: 10% !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-    bottom: 10%;
-    right: auto !important;
     min-width: 320px;
-    max-width: calc(100% - 6%); /* 3% margin on each side */
-    max-height: 80vh; /* 10% top + 10% bottom */
-    overflow-y: auto;
-    z-index: 1000;
+    max-width: 90vw;
   }
 
   /* Larger touch targets for mobile */
