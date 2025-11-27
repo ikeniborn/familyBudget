@@ -147,6 +147,21 @@
         <button>close</button>
     </form>
 </dialog>
+
+<!-- Custom Confirmation Dialog -->
+<dialog id="confirm-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
+        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
+            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="confirmModalResolve(false)">close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -156,6 +171,33 @@ let currentType = 'all';
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 let currentSearchQuery = '';
 let articlesData = [];
+
+// Custom confirmation dialog
+let confirmModalResolveCallback = null;
+
+function showConfirmDialog(message, title = 'Подтверждение') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const titleEl = document.getElementById('confirm-title');
+        const messageEl = document.getElementById('confirm-message');
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        confirmModalResolveCallback = resolve;
+
+        modal.showModal();
+    });
+}
+
+function confirmModalResolve(result) {
+    const modal = document.getElementById('confirm-modal');
+    modal.close();
+
+    if (confirmModalResolveCallback) {
+        confirmModalResolveCallback(result);
+        confirmModalResolveCallback = null;
+    }
+}
 
 // Load articles on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -621,7 +663,7 @@ async function updateArticle(event) {
 // Deactivate article
 async function deactivateArticle(articleId) {
     // First confirmation - warning about physical deletion
-    const firstConfirm = confirm(
+    const firstConfirm = await showConfirmDialog(
         '⚠️ ВНИМАНИЕ: Физическое удаление категории!\n\n' +
         '❌ Будет ФИЗИЧЕСКИ УДАЛЕНА:\n' +
         '  • Сама категория\n' +
@@ -632,7 +674,8 @@ async function deactivateArticle(articleId) {
         '  • Есть дочерние категории\n' +
         '  • Категория используется в транзакциях\n\n' +
         'Это действие НЕОБРАТИМО!\n\n' +
-        'Продолжить удаление?'
+        'Продолжить удаление?',
+        '⚠️ ФИЗИЧЕСКОЕ УДАЛЕНИЕ'
     );
 
     if (!firstConfirm) {
@@ -640,11 +683,12 @@ async function deactivateArticle(articleId) {
     }
 
     // Second confirmation - final check
-    const secondConfirm = confirm(
+    const secondConfirm = await showConfirmDialog(
         '🔴 ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ!\n\n' +
         'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ эту категорию?\n\n' +
         'Это действие НЕВОЗМОЖНО отменить!\n\n' +
-        'Нажмите OK для окончательного подтверждения.'
+        'Нажмите OK для окончательного подтверждения.',
+        '🔴 ФИНАЛЬНОЕ ПОДТВЕРЖДЕНИЕ'
     );
 
     if (!secondConfirm) {
@@ -738,7 +782,12 @@ function formatErrorDetail(detail) {
 
 // Archive article and all descendants
 async function archiveArticle(articleId, event) {
-    if (!confirm('📦 Архивировать эту категорию?\n\nВсе подкатегории будут также архивированы рекурсивно.\nИсторические данные сохранятся.')) {
+    const confirmed = await showConfirmDialog(
+        '📦 Архивировать эту категорию?\n\nВсе подкатегории будут также архивированы рекурсивно.\nИсторические данные сохранятся.',
+        '📦 Архивирование категории'
+    );
+
+    if (!confirmed) {
         return;
     }
 
@@ -780,7 +829,12 @@ async function archiveArticle(articleId, event) {
 
 // Restore article and all descendants
 async function restoreArticle(articleId, event) {
-    if (!confirm('♻️ Восстановить эту категорию?\n\nВсе подкатегории будут также восстановлены рекурсивно.')) {
+    const confirmed = await showConfirmDialog(
+        '♻️ Восстановить эту категорию?\n\nВсе подкатегории будут также восстановлены рекурсивно.',
+        '♻️ Восстановление категории'
+    );
+
+    if (!confirmed) {
         return;
     }
 

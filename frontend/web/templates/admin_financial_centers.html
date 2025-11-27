@@ -96,9 +96,25 @@
         <button>close</button>
     </form>
 </dialog>
+
+<!-- Custom Confirmation Dialog -->
+<dialog id="confirm-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
+        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
+            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="confirmModalResolve(false)">close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
 <script>
 // Global state
 let centersData = [];
@@ -321,7 +337,7 @@ async function updateCenter(event) {
 // Delete financial center
 async function deleteCenter(centerId) {
     // First confirmation - warning about cascade deletion
-    const firstConfirm = confirm(
+    const firstConfirm = await showConfirmDialog(
         '⚠️ ВНИМАНИЕ: Удаление ЦФО приведёт к каскадному удалению!\n\n' +
         '❌ Будут ФИЗИЧЕСКИ УДАЛЕНЫ:\n' +
         '  • Сам ЦФО\n' +
@@ -329,7 +345,8 @@ async function deleteCenter(centerId) {
         '✅ Будет СОХРАНЕНО для аудита:\n' +
         '  • История изменений (с меткой DELETE)\n\n' +
         'Это действие НЕОБРАТИМО!\n\n' +
-        'Продолжить удаление?'
+        'Продолжить удаление?',
+        '⚠️ КАСКАДНОЕ УДАЛЕНИЕ'
     );
 
     if (!firstConfirm) {
@@ -337,12 +354,13 @@ async function deleteCenter(centerId) {
     }
 
     // Second confirmation - final check
-    const secondConfirm = confirm(
+    const secondConfirm = await showConfirmDialog(
         '🔴 ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ!\n\n' +
         'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ этот ЦФО\n' +
         'и ВСЕ связанные с ним записи?\n\n' +
         'Это действие НЕВОЗМОЖНО отменить!\n\n' +
-        'Нажмите OK для окончательного подтверждения.'
+        'Нажмите OK для окончательного подтверждения.',
+        '🔴 ОКОНЧАТЕЛЬНОЕ ПОДТВЕРЖДЕНИЕ'
     );
 
     if (!secondConfirm) {
@@ -414,7 +432,12 @@ function updateStatusFilter(status) {
 
 // Archive financial center
 async function archiveCenter(centerId) {
-    if (!confirm('📦 Вы уверены, что хотите архивировать этот ЦФО? Запись будет скрыта из выпадающих списков.')) {
+    const confirmed = await showConfirmDialog(
+        '📦 Вы уверены, что хотите архивировать этот ЦФО? Запись будет скрыта из выпадающих списков.',
+        '📦 Архивация ЦФО'
+    );
+
+    if (!confirmed) {
         return;
     }
 

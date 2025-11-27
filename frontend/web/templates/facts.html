@@ -332,7 +332,25 @@
 </style>
 {% endblock %}
 
+{% block extra_modals %}
+<!-- Custom Confirmation Dialog -->
+<dialog id="confirm-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
+        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
+            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="confirmModalResolve(false)">close</button>
+    </form>
+</dialog>
+{% endblock %}
+
 {% block extra_scripts %}
+<script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
 <script src="/static/js/transfer.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
@@ -1393,7 +1411,12 @@ async function deleteFact(factId) {
         return;
     }
 
-    if (!confirm('🗑️ Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.')) {
+    const confirmed = await showConfirmDialog(
+        'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
+        '🗑️ Удаление транзакции'
+    );
+
+    if (!confirmed) {
         return;
     }
 
@@ -1443,7 +1466,12 @@ async function deleteFact(factId) {
 async function batchDelete() {
     if (selectedFactIds.size === 0) return;
 
-    if (!confirm(`🗑️ Вы уверены, что хотите удалить ${selectedFactIds.size} транзакций? Это действие необратимо.`)) {
+    const confirmed = await showConfirmDialog(
+        `Вы уверены, что хотите удалить ${selectedFactIds.size} транзакций? Это действие необратимо.`,
+        '🗑️ Массовое удаление транзакций'
+    );
+
+    if (!confirmed) {
         return;
     }
 
