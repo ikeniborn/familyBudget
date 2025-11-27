@@ -595,7 +595,7 @@
             // Create button
             const button = document.createElement('button');
             button.type = 'button';
-            button.className = 'btn btn-primary btn-md';
+            button.className = 'btn btn-ghost btn-md';
             button.innerHTML = `
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1075,9 +1075,24 @@
             this.isOpen = true;
             this.calendarElement.classList.remove('hidden');
 
-            // v5.1.3 bugfix: Set selection mode based on which input was clicked
+            // Set selection mode for range mode
             if (this.mode === 'range') {
-                this.selectingEnd = forceSelectingEnd;
+                if (forceSelectingEnd) {
+                    // Explicit override (when clicking on end input button)
+                    this.selectingEnd = true;
+                } else {
+                    // Smart selection mode based on current state
+                    if (this.startDate && !this.endDate) {
+                        // Start date selected, continue selecting end
+                        this.selectingEnd = true;
+                    } else if (this.startDate && this.endDate) {
+                        // Both dates selected, allow changing end date
+                        this.selectingEnd = true;
+                    } else {
+                        // No dates selected, start from beginning
+                        this.selectingEnd = false;
+                    }
+                }
             }
 
             this._render(); // Re-render to show current selection
