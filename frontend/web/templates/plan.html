@@ -38,22 +38,22 @@
             <!-- Уровень 1: Фильтры по дате -->
             <div class="filter-section">
                 <div class="filter-section-title">📅 Период</div>
-                <!-- v5.1.8: Vertical layout for mobile-friendly date filters -->
-                <div class="flex flex-col gap-3">
-                    <div class="form-control">
+                <!-- v5.1.9: Responsive layout - vertical on mobile, horizontal on desktop -->
+                <div class="flex flex-col gap-3 md:flex-row md:items-end md:gap-2">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text font-medium">Дата с</span>
                         </label>
                         <input type="text" id="filter-date-from" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
-                    <div class="form-control">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text font-medium">Дата по</span>
                         </label>
                         <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
-                    <!-- Calendar trigger button (range mode) - placed after both inputs -->
-                    <div id="date-range-calendar-trigger" class="flex justify-center"></div>
+                    <!-- Calendar trigger button (range mode) -->
+                    <div id="date-range-calendar-trigger"></div>
                 </div>
             </div>
 
