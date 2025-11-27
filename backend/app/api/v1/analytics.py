@@ -359,9 +359,8 @@ async def get_plan_fact_data(
     period: Optional[str] = Query(None, regex="^(month|quarter|year)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
-    article_type: str = Query("expense", regex="^(income|expense|all)$"),
+    article_type: str = Query("expense", regex="^(income|expense|debit|credit|all)$"),
     chart_mode: str = Query("cumulative", regex="^(normal|cumulative)$"),
-    transaction_filter: Optional[str] = Query(None, regex="^(debit|credit)$", description="Filter by transaction type: debit (списание) or credit (пополнение)"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -457,12 +456,7 @@ async def get_plan_fact_data(
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
-        # transaction_filter takes priority over article_type (debit→expense categories, credit→income categories)
-        if transaction_filter:
-            # transaction_filter: debit → expense categories, credit → income categories
-            filter_type = 'expense' if transaction_filter == 'debit' else 'income'
-            fact_query = fact_query.where(Article.type == filter_type)
-        elif article_type != 'all':
+        if article_type != 'all':
             fact_query = fact_query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
@@ -490,12 +484,7 @@ async def get_plan_fact_data(
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
-        # transaction_filter takes priority over article_type (debit→expense categories, credit→income categories)
-        if transaction_filter:
-            # transaction_filter: debit → expense categories, credit → income categories
-            filter_type = 'expense' if transaction_filter == 'debit' else 'income'
-            plan_query = plan_query.where(Article.type == filter_type)
-        elif article_type != 'all':
+        if article_type != 'all':
             plan_query = plan_query.where(Article.type == article_type)
 
         # Apply CFO filter if specified (v5.1.3)
@@ -923,12 +912,11 @@ async def get_trends_data(
 @router.get("/category-breakdown")
 async def get_category_breakdown(
     current_user: CurrentUser,
-    type: str = Query("expense", regex="^(income|expense|all)$"),
+    type: str = Query("expense", regex="^(income|expense|debit|credit|all)$"),
     period: Optional[str] = Query(None, regex="^(month|quarter|year|all)$"),
     date_from: Optional[date] = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
     date_to: Optional[date] = Query(None, description="End date for custom range (YYYY-MM-DD)"),
     record_type: str = Query("fact", regex="^(fact|plan)$"),
-    transaction_filter: Optional[str] = Query(None, regex="^(debit|credit)$", description="Filter by transaction type: debit (списание) or credit (пополнение)"),
     cfo_id: Optional[int] = Query(None, description="Filter by Financial Center ID"),
     article_ids: Optional[List[int]] = Query(None, description="Filter by category IDs (multiple selection)"),
     session: AsyncSession = Depends(get_session)
@@ -987,12 +975,7 @@ async def get_category_breakdown(
         )
 
         # Apply article type filter if not 'all' (v5.1.4)
-        # transaction_filter takes priority over type (debit→expense categories, credit→income categories)
-        if transaction_filter:
-            # transaction_filter: debit → expense categories, credit → income categories
-            filter_type = 'expense' if transaction_filter == 'debit' else 'income'
-            query = query.where(Article.type == filter_type)
-        elif type != 'all':
+        if type != 'all':
             query = query.where(Article.type == type)
 
         # Apply CFO filter if specified (v5.1.3)
