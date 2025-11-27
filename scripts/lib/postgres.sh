@@ -42,6 +42,191 @@ get_postgres_uid_from_image() {
 }
 
 # =============================================================================
+# POSTGRESQL ATOMIC DIRECTORY REPAIR (CRITICAL SAFEGUARD)
+# =============================================================================
+
+# Atomically repair PostgreSQL data directory by ensuring all critical directories exist
+# This function STOPS PostgreSQL completely before making any modifications to prevent
+# race conditions and corruption.
+#
+# Critical differences from verify_postgres_critical_directories():
+#   - ALWAYS stops PostgreSQL before repair (atomic operation)
+#   - Handles restart loops (detects via docker inspect RestartCount)
+#   - More aggressive - repairs even when container appears "running"
+#   - Used when corruption is suspected or needs guaranteed repair
+#
+# When to use:
+#   - Pre-deployment when corruption is suspected
+#   - When verify_postgres_critical_directories() is insufficient
+#   - Manual repair operations
+#   - Full cleanup mode
+#
+# Returns:
+#   0 - All critical directories present or successfully repaired
+#   1 - Repair failed (critical error)
+repair_postgres_directories_atomic() {
+    local postgres_data_dir="$DEPLOY_DIR/data/postgres"
+
+    step "PostgreSQL Atomic Directory Repair"
+
+    # Skip if data directory doesn't exist or is empty (fresh installation)
+    if [[ ! -d "$postgres_data_dir" ]] || [[ -z "$(ls -A "$postgres_data_dir" 2>/dev/null)" ]]; then
+        info "PostgreSQL data directory empty or doesn't exist - will be initialized by container"
+        return 0
+    fi
+
+    # Skip if not a PostgreSQL data directory
+    if [[ ! -f "$postgres_data_dir/PG_VERSION" ]]; then
+        info "No PG_VERSION found - not a PostgreSQL data directory"
+        return 0
+    fi
+
+    info "Detected initialized PostgreSQL database (PG_VERSION exists)"
+
+    # Check container status comprehensively
+    local container_exists=false
+    local container_status="not_found"
+    local restart_count=0
+
+    if docker ps -a --filter "name=familybudget-postgres" -q 2>/dev/null | grep -q .; then
+        container_exists=true
+        container_status=$(docker inspect familybudget-postgres --format='{{.State.Status}}' 2>/dev/null || echo "unknown")
+        restart_count=$(docker inspect familybudget-postgres --format='{{.RestartCount}}' 2>/dev/null || echo "0")
+    fi
+
+    # Determine if we need to stop PostgreSQL for repair
+    local needs_stop=false
+    local stop_reason=""
+
+    if [[ "$container_exists" == "true" ]]; then
+        if [[ "$container_status" == "running" ]] && [[ $restart_count -gt 0 ]]; then
+            needs_stop=true
+            stop_reason="Restart loop detected (count: $restart_count)"
+        elif [[ "$container_status" == "running" ]]; then
+            needs_stop=true
+            stop_reason="Container running - atomic operation requires full stop"
+        elif [[ "$container_status" == "restarting" ]]; then
+            needs_stop=true
+            stop_reason="Container in restart loop"
+        elif [[ "$container_status" =~ ^(paused|exited|dead)$ ]]; then
+            needs_stop=true
+            stop_reason="Container in unhealthy state: $container_status"
+        fi
+    fi
+
+    # CRITICAL: Stop PostgreSQL if needed for atomic repair
+    if [[ "$needs_stop" == "true" ]]; then
+        warning "$stop_reason"
+        info "Stopping PostgreSQL for atomic repair (REQUIRED for data safety)..."
+
+        # Try graceful stop first (30s timeout)
+        if docker stop familybudget-postgres --time 30 2>/dev/null; then
+            success "PostgreSQL stopped gracefully"
+        else
+            warning "Graceful stop failed or timed out - forcing stop..."
+            docker kill familybudget-postgres 2>/dev/null || true
+        fi
+
+        # Remove container to ensure clean state
+        docker rm familybudget-postgres 2>/dev/null || true
+
+        # Wait for full stop
+        sleep 3
+        info "PostgreSQL fully stopped - safe to repair data directory"
+    else
+        info "PostgreSQL not running - safe to repair"
+    fi
+
+    # List of CRITICAL directories (MUST exist for startup)
+    # Based on PostgreSQL 16 official documentation and production experience
+    local critical_dirs=(
+        "pg_notify"           # LISTEN/NOTIFY subsystem (FATAL if missing!)
+        "pg_tblspc"           # Tablespaces (FATAL if missing!)
+        "pg_dynshmem"         # Dynamic shared memory
+        "pg_stat"             # Statistics collector
+        "pg_logical/snapshots"  # Logical replication snapshots (common failure)
+        "pg_logical/mappings"   # Logical replication type mappings
+        "pg_commit_ts"        # Commit timestamps
+        "pg_serial"           # Serializable transaction tracking
+        "pg_replslot"         # Replication slots
+        "pg_snapshots"        # Transaction snapshots
+        "pg_twophase"         # Two-phase commit
+    )
+
+    # Check which directories are missing
+    local missing_dirs=()
+    for dir in "${critical_dirs[@]}"; do
+        if [[ ! -d "$postgres_data_dir/$dir" ]]; then
+            missing_dirs+=("$dir")
+        fi
+    done
+
+    # If all directories present, no action needed
+    if [[ ${#missing_dirs[@]} -eq 0 ]]; then
+        success "All ${#critical_dirs[@]} critical directories present"
+        info "PostgreSQL data directory structure is valid"
+        return 0
+    fi
+
+    # Report missing directories
+    warning "Detected ${#missing_dirs[@]} missing critical directories:"
+    for dir in "${missing_dirs[@]}"; do
+        echo "  ✗ $dir"
+    done
+    echo ""
+
+    # Get target UID for correct ownership (source of truth: Docker image)
+    local target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
+    local target_gid="$target_uid"
+    info "Using PostgreSQL UID from Docker image: $target_uid:$target_gid (postgres:16-alpine)"
+    echo ""
+
+    # Create missing directories atomically
+    info "Creating missing directories with correct ownership and permissions..."
+    local created=0
+    local failed=0
+
+    for dir in "${missing_dirs[@]}"; do
+        local dir_path="$postgres_data_dir/$dir"
+
+        if sudo mkdir -p "$dir_path" 2>/dev/null; then
+            # Set ownership to postgres UID
+            if sudo chown $target_uid:$target_gid "$dir_path" 2>/dev/null; then
+                # Set permissions to 0700 (drwx------) as required by PostgreSQL
+                if sudo chmod 0700 "$dir_path" 2>/dev/null; then
+                    success "  ✓ Created: $dir ($target_uid:$target_gid, 0700)"
+                    created=$((created + 1))
+                else
+                    error "  ✗ Failed to set permissions: $dir"
+                    failed=$((failed + 1))
+                fi
+            else
+                error "  ✗ Failed to set ownership: $dir"
+                failed=$((failed + 1))
+            fi
+        else
+            error "  ✗ Failed to create directory: $dir"
+            failed=$((failed + 1))
+        fi
+    done
+
+    echo ""
+
+    # Report results
+    if [[ $failed -gt 0 ]]; then
+        error "Atomic repair partially failed: $created created, $failed failed"
+        return 1
+    fi
+
+    if [[ $created -gt 0 ]]; then
+        success "Repaired $created missing directories atomically"
+        info "PostgreSQL can now start successfully"
+    fi
+
+    return 0
+}
+
+# =============================================================================
 # POSTGRESQL CRITICAL DIRECTORIES VERIFICATION (PRE-START CHECK)
 # =============================================================================
 
@@ -77,11 +262,37 @@ verify_postgres_critical_directories() {
         return 0
     fi
 
-    # CRITICAL: Only run when PostgreSQL is NOT running
-    # Running this check on active database could cause corruption
-    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
-        info "PostgreSQL is running - skipping directory check (will verify after next stop)"
-        return 0
+    # Check container status for restart loop detection
+    local container_exists=false
+    local container_status="not_found"
+    local restart_count=0
+
+    if docker ps -a --filter "name=familybudget-postgres" -q 2>/dev/null | grep -q .; then
+        container_exists=true
+        container_status=$(docker inspect familybudget-postgres --format='{{.State.Status}}' 2>/dev/null || echo "unknown")
+        restart_count=$(docker inspect familybudget-postgres --format='{{.RestartCount}}' 2>/dev/null || echo "0")
+    fi
+
+    # CRITICAL: Detect restart loops and stop container for repair
+    # Restart loop indicates missing critical directories
+    if [[ "$container_exists" == "true" ]]; then
+        if [[ $restart_count -gt 0 ]]; then
+            warning "PostgreSQL in restart loop detected (restart count: $restart_count)"
+            warning "This indicates missing critical directories - stopping container for repair..."
+
+            # Stop container to allow directory repair
+            docker stop familybudget-postgres --time 10 2>/dev/null || true
+            docker rm familybudget-postgres 2>/dev/null || true
+            sleep 2
+
+            info "PostgreSQL stopped - proceeding with directory repair"
+            # Continue to repair logic below
+        elif [[ "$container_status" == "running" ]]; then
+            # Container running and healthy (no restart loop) - skip check
+            info "PostgreSQL is running and healthy (no restart loop) - skipping lightweight directory check"
+            info "Directory verification will run after next container stop or via atomic repair"
+            return 0
+        fi
     fi
 
     # List of critical directories that MUST exist for PostgreSQL to start
@@ -544,6 +755,55 @@ verify_postgres_health_post_start() {
     fi
 
     success "PostgreSQL container is running"
+
+    # CRITICAL: Check for crash loop (restart count > 0 or restarting state)
+    # This catches corruption early, even if container shows as "running" briefly
+    local container_state=$(docker inspect familybudget-postgres --format='{{.State.Status}} {{.State.Restarting}} {{.RestartCount}}' 2>/dev/null || echo "unknown false 0")
+    read state restarting restart_count <<< "$container_state"
+
+    if [[ "$restarting" == "true" ]] || [[ $restart_count -gt 2 ]]; then
+        error "PostgreSQL container is in crash loop!"
+        echo ""
+        echo "Container state: $state"
+        echo "Restarting: $restarting"
+        echo "Restart count: $restart_count"
+        echo ""
+
+        # Get last 30 lines of logs for diagnosis
+        local logs=$(docker logs familybudget-postgres --tail=30 2>&1 || echo "Failed to get logs")
+
+        # Check for specific corruption patterns
+        if echo "$logs" | grep -qi "could not open directory"; then
+            local missing_dir=$(echo "$logs" | grep -oP 'could not open directory "\K[^"]+' | head -1)
+            error "CORRUPTION DETECTED: Missing directory '$missing_dir'"
+            echo ""
+            echo "Last 30 lines of PostgreSQL logs:"
+            echo "──────────────────────────────────────────────────────────────"
+            echo "$logs"
+            echo "──────────────────────────────────────────────────────────────"
+            echo ""
+            echo "💡 AUTOMATIC REPAIR OPTIONS:"
+            echo ""
+            echo "Option 1 (RECOMMENDED): Use atomic repair function"
+            echo "  cd ~/familyBudget && sudo bash scripts/lib/postgres.sh repair_postgres_directories_atomic"
+            echo ""
+            echo "Option 2: Re-run deployment with Full cleanup"
+            echo "  cd ~/familyBudget && sudo bash deploy.sh"
+            echo "  → Select: Cleanup [3] Full cleanup"
+            echo ""
+            return 1
+        fi
+
+        warning "PostgreSQL in crash loop but no 'could not open directory' detected"
+        info "This may indicate a different issue - check logs manually"
+        echo ""
+        echo "Last 30 lines of PostgreSQL logs:"
+        echo "──────────────────────────────────────────────────────────────"
+        echo "$logs"
+        echo "──────────────────────────────────────────────────────────────"
+        echo ""
+        return 1
+    fi
 
     # Check if PostgreSQL is accepting connections (health check)
     info "Checking PostgreSQL connection health..."

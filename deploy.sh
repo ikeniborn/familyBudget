@@ -1091,39 +1091,71 @@ main() {
 
     if [[ $health_check_result -ne 0 ]]; then
         warning "PostgreSQL corruption detected - AUTOMATIC RECOVERY MODE"
-        warning "Switching to Full cleanup mode to repair data directory"
         echo ""
 
-        # Override cleanup mode to full (automatic recovery)
-        CLEANUP_MODE="full"
-        info "Cleanup mode overridden: smart → full (automatic)"
+        # TRY IMMEDIATE ATOMIC REPAIR FIRST (lightweight, faster than Full cleanup)
+        info "Attempting immediate atomic repair (faster than Full cleanup)..."
+        set +e
+        repair_postgres_directories_atomic
+        atomic_repair_result=$?
+        set -e
 
-        # Ask user confirmation for automatic repair
-        echo ""
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "⚠️  AUTOMATIC RECOVERY CONFIRMATION"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo ""
-        echo "Deployment will perform Full cleanup to repair PostgreSQL:"
-        echo "  1. Stop all containers"
-        echo "  2. Remove networks"
-        echo "  3. Repair PostgreSQL data directory (pg_notify, etc.)"
-        echo "  4. Restart services"
-        echo ""
-        echo "DATA IS PRESERVED (volumes NOT deleted unless you type 'DELETE')."
-        echo ""
-        read -p "Continue with automatic repair? [Y/n]: " -r
-        echo ""
+        if [[ $atomic_repair_result -eq 0 ]]; then
+            success "Atomic repair completed - retrying health check"
+            echo ""
 
-        if [[ ! $REPLY =~ ^[Yy]?$ ]]; then
-            error "Automatic recovery cancelled by user"
-            error "PostgreSQL is corrupted and cannot be repaired automatically"
-            error "Manual recovery required - see options above"
-            exit 1
+            # Retry health check after repair
+            set +e
+            check_postgres_health_pre_deploy
+            health_check_result=$?
+            set -e
+
+            if [[ $health_check_result -eq 0 ]]; then
+                success "PostgreSQL healthy after atomic repair - continuing deployment normally"
+                info "Full cleanup NOT required (atomic repair was sufficient)"
+                echo ""
+                # Continue with normal deployment flow (skip Full cleanup section below)
+            else
+                warning "Atomic repair completed but PostgreSQL still unhealthy"
+                warning "Switching to Full cleanup mode for comprehensive repair"
+                echo ""
+                CLEANUP_MODE="full"
+            fi
+        else
+            warning "Atomic repair failed - switching to Full cleanup mode"
+            echo ""
+            CLEANUP_MODE="full"
         fi
 
-        success "Automatic recovery confirmed - proceeding with Full cleanup"
-        echo ""
+        # If atomic repair was insufficient, ask confirmation for Full cleanup
+        if [[ "$CLEANUP_MODE" == "full" ]]; then
+            info "Cleanup mode overridden: smart → full (automatic)"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "⚠️  AUTOMATIC RECOVERY CONFIRMATION (Full Cleanup Required)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo ""
+            echo "Atomic repair was insufficient - Full cleanup required:"
+            echo "  1. Stop all containers"
+            echo "  2. Remove networks"
+            echo "  3. Comprehensive PostgreSQL data directory repair"
+            echo "  4. Restart services"
+            echo ""
+            echo "DATA IS PRESERVED (volumes NOT deleted unless you type 'DELETE')."
+            echo ""
+            read -p "Continue with Full cleanup? [Y/n]: " -r
+            echo ""
+
+            if [[ ! $REPLY =~ ^[Yy]?$ ]]; then
+                error "Automatic recovery cancelled by user"
+                error "PostgreSQL is corrupted and cannot be repaired with atomic repair"
+                error "Full cleanup required - please run again and accept Full cleanup"
+                exit 1
+            fi
+
+            success "Full cleanup confirmed - proceeding with comprehensive repair"
+            echo ""
+        fi
     fi
     echo ""
 
@@ -1164,11 +1196,12 @@ main() {
     create_deployment_safety_backup "pre_start"
     echo ""
 
-    # PRE-START CHECK: Verify critical PostgreSQL directories exist
-    # This lightweight check ensures essential directories (pg_notify, pg_dynshmem, etc.)
+    # PRE-START CHECK: Atomically repair PostgreSQL directories if needed
+    # This ensures ALL critical directories (pg_notify, pg_dynshmem, pg_tblspc, etc.)
     # are present BEFORE starting PostgreSQL, preventing FATAL startup errors.
-    # Runs even during selective restarts (when POSTGRES_WAS_STOPPED=false).
-    verify_postgres_critical_directories
+    # Includes restart loop detection and automatic container stop for safe repair.
+    # Runs ALWAYS, even during selective restarts (when POSTGRES_WAS_STOPPED=false).
+    repair_postgres_directories_atomic
     echo ""
 
     start_services
