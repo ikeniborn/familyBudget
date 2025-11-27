@@ -862,6 +862,7 @@ async def get_all_articles(
         ArticleResponse(
             id=article.id,
             user_id=article.user_id,
+            user_name=user.first_name if user else None,  # Populate from joined User
             parent_id=article.parent_id,
             name=article.name,
             type=article.type,

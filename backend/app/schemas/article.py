@@ -203,6 +203,12 @@ class ArticleResponse(BaseModel):
         examples=[123]
     )
 
+    user_name: Optional[str] = Field(
+        default=None,
+        description="Owner user name (first_name from User model, populated in admin endpoints)",
+        examples=["Илья", "Радомир", None]
+    )
+
     parent_id: Optional[int] = Field(
         description="Parent article ID (NULL for root)",
         examples=[1, None]

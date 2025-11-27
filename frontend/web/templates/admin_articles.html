@@ -302,8 +302,8 @@ function renderTreeNodes(nodes, level) {
     nodes.forEach(node => {
         const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
         const prefix = level > 0 ? '↳ ' : '';
-        // Show user_name if available, otherwise show user_id, otherwise show '—'
-        const ownerLabel = node.user_name || (node.user_id ? `User #${node.user_id}` : '—');
+        // Show user_name (first_name) from backend
+        const ownerLabel = node.user_name || '—';
 
         // Full type mapping for all 4 types (with colored badges)
         let typeLabel, typeBadge;

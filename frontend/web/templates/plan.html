@@ -440,7 +440,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setupCreatePlanPeriodButtons();
 
     // Обработчик отправки формы создания плана
-    document.getElementById('form_create_modal').addEventListener('submit', async function(e) {
+    document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
         await createPlan(e);
     });

@@ -193,12 +193,15 @@ function renderCentersTable(centers) {
                 <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
               `;
 
+        // Format created_at date (YYYY-MM-DD HH:MM:SS → DD.MM.YYYY)
+        const createdDate = center.created_at ? new Date(center.created_at).toLocaleDateString('ru-RU') : '—';
+
         html += `
             <tr data-center-id="${center.id}">
                 <td class="font-medium">${center.name}${archivedBadge}</td>
                 <td class="font-mono text-sm">${center.code || '—'}</td>
                 <td>${description}</td>
-                <td>—</td>
+                <td>${createdDate}</td>
                 <td>
                     <div class="flex gap-1">
                         ${actionButtons}
