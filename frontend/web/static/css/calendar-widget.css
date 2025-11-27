@@ -106,11 +106,21 @@
   outline-offset: 2px;
 }
 
-/* Mobile touch improvements */
+/* Mobile touch improvements + modal positioning */
 @media (max-width: 768px) {
+  /* v5.1.8: Modal positioning for mobile - centered with backdrop */
   .calendar-widget {
-    min-width: 320px;  /* v5.1.4: Prevent calendar from becoming too narrow */
-    max-width: 90vw;
+    position: fixed !important;
+    top: 10% !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    bottom: 10%;
+    right: auto !important;
+    min-width: 320px;
+    max-width: calc(100% - 6%); /* 3% margin on each side */
+    max-height: 80vh; /* 10% top + 10% bottom */
+    overflow-y: auto;
+    z-index: 1000;
   }
 
   /* Larger touch targets for mobile */
@@ -143,6 +153,29 @@
 
   .calendar-widget .flex.items-center.gap-2 {
     gap: 0.25rem; /* Reduce from 8px to 4px */
+  }
+}
+
+/* v5.1.8: Backdrop overlay for mobile calendar (modal mode) */
+@media (max-width: 768px) {
+  .calendar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    animation: backdrop-fade-in 0.2s ease-out;
+  }
+
+  @keyframes backdrop-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 }
 

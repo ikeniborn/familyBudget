@@ -634,19 +634,30 @@
         }
 
         /**
-         * Position calendar below target input
+         * Position calendar below target input (desktop) or centered (mobile)
+         * v5.1.8: Modal positioning for mobile devices
          * @private
          */
         _positionCalendar() {
-            const targetInput = this.mode === 'single'
-                ? this.inputElement
-                : this.startInputElement;
+            const isMobile = window.innerWidth <= 768;
 
-            const rect = targetInput.getBoundingClientRect();
+            if (isMobile) {
+                // Mobile: Modal positioning (CSS handles centering via media query)
+                // No need to set position styles - CSS fixed positioning takes over
+                this.calendarElement.style.top = '';
+                this.calendarElement.style.left = '';
+            } else {
+                // Desktop: Position below target input
+                const targetInput = this.mode === 'single'
+                    ? this.inputElement
+                    : this.startInputElement;
 
-            // Position below input, aligned to left
-            this.calendarElement.style.top = `${rect.bottom + window.scrollY + 4}px`;
-            this.calendarElement.style.left = `${rect.left + window.scrollX}px`;
+                const rect = targetInput.getBoundingClientRect();
+
+                // Position below input, aligned to left
+                this.calendarElement.style.top = `${rect.bottom + window.scrollY + 4}px`;
+                this.calendarElement.style.left = `${rect.left + window.scrollX}px`;
+            }
         }
 
         /**
@@ -1080,10 +1091,20 @@
 
         /**
          * Open calendar
+         * v5.1.8: Added backdrop support for mobile modal mode
          * @param {boolean} forceSelectingEnd - Force selecting end date in range mode (v5.1.3 bugfix)
          */
         open(forceSelectingEnd = false) {
             this.isOpen = true;
+
+            // v5.1.8: Create backdrop for mobile
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile && !this.backdropElement) {
+                this.backdropElement = document.createElement('div');
+                this.backdropElement.className = 'calendar-backdrop';
+                this.backdropElement.addEventListener('click', () => this.close());
+                document.body.appendChild(this.backdropElement);
+            }
 
             // Position calendar below input (v5.1.4 fix)
             this._positionCalendar();
@@ -1115,10 +1136,17 @@
 
         /**
          * Close calendar
+         * v5.1.8: Added backdrop cleanup for mobile modal mode
          */
         close() {
             this.isOpen = false;
             this.calendarElement.classList.add('hidden');
+
+            // v5.1.8: Remove backdrop if exists
+            if (this.backdropElement) {
+                this.backdropElement.remove();
+                this.backdropElement = null;
+            }
         }
 
         /**
@@ -1134,6 +1162,7 @@
 
         /**
          * Destroy calendar widget
+         * v5.1.8: Added backdrop cleanup
          */
         destroy() {
             if (this.calendarElement) {
@@ -1141,6 +1170,11 @@
             }
             if (this.triggerButton) {
                 this.triggerButton.remove();
+            }
+            // v5.1.8: Remove backdrop if exists
+            if (this.backdropElement) {
+                this.backdropElement.remove();
+                this.backdropElement = null;
             }
         }
     }
