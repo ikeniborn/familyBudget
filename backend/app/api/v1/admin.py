@@ -1381,7 +1381,13 @@ async def get_all_facts(
             record_type=fact.record_type,
             financial_center_id=fact.financial_center_id,
             cost_center_id=fact.cost_center_id,
-            user_name=user.username if user else None,
+            user_name=(
+                user.first_name or
+                user.username or
+                user.last_name or
+                (f"User {user.telegram_id}" if user.telegram_id else None) or
+                f"Пользователь #{user.id}"
+            ) if user else None,
             article_name=article.name if article else None,
             article_type=article.type if article else None,  # For color logic
             financial_center_name=financial_center.name if financial_center else None,

@@ -423,7 +423,8 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
             });
 
             if (!response.ok) {
-                console.error(`[loadRecommendedAmounts] API error: ${response.status}`);
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
                 return;
             }
 
@@ -431,8 +432,6 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
 
             // Update button labels with new amounts
             updateQuickAmountButtons(formId, data.amounts);
-
-            console.log(`[loadRecommendedAmounts] Updated amounts for ${formId}:`, data.amounts, data.metadata);
 
         } catch (error) {
             if (error.name === 'AbortError') {

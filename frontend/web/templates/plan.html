@@ -399,7 +399,8 @@ async function loadRecommendedAmounts(formId, recordType = 'plan', category = nu
             });
 
             if (!response.ok) {
-                console.error(`[loadRecommendedAmounts] API error: ${response.status}`);
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
                 return;
             }
 
@@ -407,8 +408,6 @@ async function loadRecommendedAmounts(formId, recordType = 'plan', category = nu
 
             // Update button labels with new amounts
             updateQuickAmountButtons(formId, data.amounts);
-
-            console.log(`[loadRecommendedAmounts] Updated amounts for ${formId}:`, data.amounts, data.metadata);
 
         } catch (error) {
             if (error.name === 'AbortError') {
@@ -479,10 +478,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const createModalButton = document.querySelector('button[onclick="modal_add_plan.showModal()"]');
     if (createModalButton) {
         createModalButton.addEventListener('click', function() {
-            console.log('[Plan Modal] Create modal button clicked');
             // Retry initialization if categories failed to load initially
             if (!createCategoryTreeSelect) {
-                console.log('[Plan Modal] Retrying category initialization...');
                 initializeCreateModalCategories();
             }
         });
@@ -612,13 +609,11 @@ function initializeCreateModalCategories() {
     }
 
     if (createCategoryTreeSelect) {
-        console.log('[Plan Modal] Categories already initialized. Skipping.');
         return true;
     }
 
     try {
         const createType = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked')?.value || 'expense';
-        console.log(`[Plan Modal] Initializing ChoicesCategoryTree with type: ${createType}, categories: ${allCategories.length}`);
 
         createCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#form_modal_add_plan select[name="article_id"]', {
             type: createType,
@@ -630,7 +625,6 @@ function initializeCreateModalCategories() {
             }
         });
 
-        console.log('[Plan Modal] ChoicesCategoryTree initialized successfully');
         return true;
     } catch (error) {
         console.error('[Plan Modal] Failed to initialize ChoicesCategoryTree:', error);

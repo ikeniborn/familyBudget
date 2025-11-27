@@ -783,8 +783,6 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
             // Update button labels with new amounts
             updateQuickAmountButtons(formId, data.amounts);
 
-            console.log(`[loadRecommendedAmounts] Updated amounts for ${formId}:`, data.amounts, data.metadata);
-
         } catch (error) {
             if (error.name === 'AbortError') {
                 debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
