@@ -75,17 +75,11 @@ services:
       - "-c"
       - "log_min_duration_statement=1000"
       - "-c"
-      - "wal_level=replica"  # SEC-005 fix: Prevent pg_logical/snapshots error
-      - "-c"
-      - "max_replication_slots=2"  # Required for pg_logical directories creation
-      - "-c"
       - "shared_preload_libraries=pg_stat_statements"  # Query performance monitoring
       - "-c"
       - "pg_stat_statements.track=all"  # Track all queries (including nested)
       - "-c"
       - "pg_stat_statements.max=10000"  # Store up to 10k distinct queries
-      - "-c"
-      - "max_wal_senders=2"  # Required for pg_logical directories creation
 
   # Backend Application (FastAPI + HTMX)
   backend:
