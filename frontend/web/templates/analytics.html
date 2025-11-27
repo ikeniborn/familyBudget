@@ -199,9 +199,6 @@ let waterfallCategoriesData = [];
 // Global type filter (applies to Plan-Fact, Pie, Heatmap)
 let currentGlobalType = 'expense';
 
-// Transaction type filter (null/debit/credit for filtering article types)
-let currentTransactionType = null;
-
 // Chart mode filter (for Plan-Fact chart: normal vs cumulative)
 // Load from localStorage or default to 'cumulative'
 let currentChartMode = localStorage.getItem('budgetChartMode') || 'cumulative';
@@ -1762,7 +1759,7 @@ function updateHeatmapChart(data) {
         credit: 'Пополнение'
     };
 
-    const operationType = currentTransactionType || currentGlobalType;
+    const operationType = currentGlobalType;
     const typeLabel = typeMap[operationType] || 'расходов';
     const typeLabelSingular = typeLabelSingularMap[operationType] || 'Расход';
 
@@ -1842,13 +1839,13 @@ function updateHeatmapChart(data) {
             max: maxValue > 0 ? maxValue : 1000,
             // Color gradients: 4 types (expense=red, income=green, debit=blue, credit=orange)
             inRange: {
-                color: currentTransactionType === 'debit'
+                color: currentGlobalType === 'debit'
                     ? ['#FFFFFF', '#e3f2fd', '#90caf9', '#42a5f5', '#1e88e5', '#1565c0', '#0d47a1']  // Blue gradient
-                    : currentTransactionType === 'credit'
+                    : currentGlobalType === 'credit'
                     ? ['#FFFFFF', '#fff3e0', '#ffcc80', '#ff9800', '#f57c00', '#e65100', '#bf360c']  // Orange gradient
                     : currentGlobalType === 'expense'
                     ? ['#FFFFFF', '#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']  // Red gradient
-                    : ['#FFFFFF', '#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']  // Green gradient
+                    : ['#FFFFFF', '#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']  // Green gradient (income)
             },
             calculable: true,
             orient: 'horizontal',
