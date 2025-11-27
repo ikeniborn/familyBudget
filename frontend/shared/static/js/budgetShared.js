@@ -902,6 +902,10 @@
                 const dateButton = e.target.closest('[data-date]');
                 if (!dateButton || dateButton.disabled) return;
 
+                // CRITICAL: Stop propagation to prevent "click outside" handler from firing
+                // after _render() removes the clicked element from DOM
+                e.stopPropagation();
+
                 const dateStr = dateButton.dataset.date;
                 const date = new Date(dateStr + 'T00:00:00'); // Parse as local time
 
