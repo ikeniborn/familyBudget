@@ -474,23 +474,13 @@ document.addEventListener('DOMContentLoaded', function() {
         await createFact(e);
     });
 
-    // Initialize separate CalendarWidgets for filter date inputs (isolated instances)
-    // Calendar for "Дата с" (date from)
+    // Initialize CalendarWidget for filter date range
     new BudgetShared.CalendarWidget({
-        mode: 'single',
-        inputElement: document.getElementById('filter-date-from'),
-        onSelect: (date) => {
-            debugLog('Выбрана дата с:', date);
-            applyFilters(); // Auto-apply on selection
-        }
-    });
-
-    // Calendar for "Дата по" (date to)
-    new BudgetShared.CalendarWidget({
-        mode: 'single',
-        inputElement: document.getElementById('filter-date-to'),
-        onSelect: (date) => {
-            debugLog('Выбрана дата по:', date);
+        mode: 'range',
+        startInputElement: document.getElementById('filter-date-from'),
+        endInputElement: document.getElementById('filter-date-to'),
+        onSelect: (startDate, endDate) => {
+            debugLog('Выбран диапазон дат:', startDate, endDate);
             applyFilters(); // Auto-apply on selection
         }
     });
