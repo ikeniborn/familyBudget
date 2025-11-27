@@ -7,7 +7,7 @@ All endpoints require admin privileges (is_admin=True).
 
 import logging
 from datetime import datetime
-from typing import List
+from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -22,7 +22,11 @@ from backend.app.models.fact import BudgetFact as Fact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.user import User
 from backend.app.schemas.admin import SystemStatsResponse
-from backend.app.schemas.article import ArticleUpdate
+from backend.app.schemas.article import (
+    ArticleCreate,
+    ArticleResponse,
+    ArticleUpdate,
+)
 from backend.app.schemas.user import (
     UserCreate,
     UserDetailResponse,
@@ -58,39 +62,7 @@ class UserStatsResponse(BaseModel):
     last_fact_date: str | None
 
 
-class ArticleResponse(BaseModel):
-    """Article response model for admin."""
-    id: int
-    user_id: int
-    parent_id: int | None
-    name: str
-    type: str
-    code: str | None = None
-    is_active: bool
-    created_at: str | None = None
-    updated_at: str | None = None
-    usage_count: int | None = None
-    hierarchy: dict | None = None
-    user_name: str | None = None
-
-    class Config:
-        from_attributes = True
-
-
-class ArticleCreateRequest(BaseModel):
-    """Article create request model."""
-    parent_id: int | None = None
-    name: str
-    type: str  # "income" or "expense"
-    is_active: bool = True  # Default to active
-
-
-class ArticleUpdateRequest(BaseModel):
-    """Article update request model."""
-    name: str | None = None
-    type: str | None = None  # "income" or "expense"
-    parent_id: int | None = None
-    is_active: bool | None = None
+# Removed duplicate schemas - using imports from backend.app.schemas.article instead
 
 
 # ============================================================================
@@ -854,8 +826,8 @@ async def refresh_user_profile_from_telegram(
 async def get_all_articles(
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session),
-    include_inactive: bool = Query(True, description="Include archived categories (is_active=false)"),
-    type: str | None = Query(None, description="Filter by article type (income or expense)")
+    include_inactive: Annotated[bool, Query(description="Include archived categories (is_active=false)")] = True,
+    type: Annotated[str | None, Query(description="Filter by article type (income or expense)")] = None,
 ):
     """
     Get all articles (admin only).
@@ -895,11 +867,10 @@ async def get_all_articles(
             type=article.type,
             code=article.code,
             is_active=article.is_active,
-            created_at=article.created_at.isoformat() if article.created_at else None,
-            updated_at=article.updated_at.isoformat() if article.updated_at else None,
+            created_at=article.created_at,
+            updated_at=article.updated_at,
             usage_count=0,
             hierarchy=None,
-            user_name=user.full_name if user else None
         )
         for article, user in rows
     ]
@@ -907,7 +878,7 @@ async def get_all_articles(
 
 @router.post("/articles", response_model=ArticleResponse, status_code=201)
 async def create_article(
-    create_data: ArticleCreateRequest,
+    create_data: ArticleCreate,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
 ):
