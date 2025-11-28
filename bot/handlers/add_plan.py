@@ -709,5 +709,4 @@ addplan_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_command)],
     name="addplan_conversation",
     persistent=False,
-    per_message=True,
 )

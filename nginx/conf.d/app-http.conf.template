@@ -16,9 +16,9 @@ server {
     listen [::]:80;
     server_name {{DOMAIN}};
 
-    # Logging
-    access_log /var/log/nginx/{{DOMAIN}}_access.log;
-    error_log /var/log/nginx/{{DOMAIN}}_error.log;
+    # Logging (Docker best practice: stdout/stderr)
+    access_log /dev/stdout;
+    error_log /dev/stderr;
 
     # Let's Encrypt ACME challenge
     location /.well-known/acme-challenge/ {

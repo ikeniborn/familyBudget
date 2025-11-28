@@ -743,5 +743,4 @@ edit_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_edit)],
     name="edit_conversation",
     persistent=False,
-    per_message=True,
 )
