@@ -871,8 +871,8 @@ check_ssl_security() {
 
             # Get domain from .env or use localhost as fallback
             local test_host="localhost"
-            if [ -f "$DEPLOYMENT_DIR/.env" ]; then
-                local domain=$(grep "^BUDGET_DOMAIN=" "$DEPLOYMENT_DIR/.env" | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+            if [ -f "$DEPLOY_DIR/.env" ]; then
+                local domain=$(grep "^BUDGET_DOMAIN=" "$DEPLOY_DIR/.env" | cut -d'=' -f2 | tr -d '"' | tr -d "'")
                 [ -n "$domain" ] && test_host="$domain"
             fi
 
