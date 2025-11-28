@@ -1,0 +1,58 @@
+{
+  "name": "Семейный Бюджет",
+  "short_name": "Бюджет",
+  "description": "Управление семейным бюджетом с поддержкой категорий, транзакций и отчетов",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#4CAF50",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Добавить транзакцию",
+      "short_name": "Добавить",
+      "description": "Быстрое добавление новой транзакции",
+      "url": "/?action=add",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Статистика",
+      "short_name": "Статистика",
+      "description": "Просмотр статистики и отчетов",
+      "url": "/statistics",
+      "icons": [
+        {
+          "src": "/static/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ]
+}
