@@ -30,69 +30,53 @@ stop_services() {
     fi
 }
 
-# Clean deployment (remove volumes)
-clean_deployment() {
-    if [[ "$CLEAN_DEPLOY" == "true" ]]; then
-        warning "Clean deployment requested - this will DELETE ALL DATA!"
-        echo ""
-        read -p "Are you sure you want to delete all data? (type 'yes' to confirm): " -r
-        echo ""
-
-        if [[ $REPLY != "yes" ]]; then
-            error "Clean deployment cancelled by user"
-        fi
-
-        info "Removing volumes (DATA DELETION)..."
-        compose_cmd down -v >> "$LOG_FILE" 2>&1 || true
-
-        # Remove PostgreSQL data
-        if [[ -d "$DEPLOY_DIR/data/postgres" ]]; then
-            warning "Removing PostgreSQL data directory..."
-            sudo rm -rf "$DEPLOY_DIR/data/postgres"/* >> "$LOG_FILE" 2>&1 || true
-        fi
-
-        success "Clean deployment completed (ALL DATA DELETED)"
-    fi
-}
-
 # Start services
 start_services() {
     step "Starting services..."
 
-    if [[ "$DETACH_MODE" == "true" ]]; then
-        info "Starting services in detached mode (background)..."
-        local start_result=0
+    # Load .env to get DEPLOYMENT_PROFILE
+    if [[ -f "$DEPLOY_DIR/.env" ]]; then
+        set -a
+        source "$DEPLOY_DIR/.env" 2>/dev/null || true
+        set +a
+    fi
 
-        # Check if PostgreSQL should be kept running (selective restart)
-        if [[ "${POSTGRES_WAS_STOPPED:-true}" == "false" ]]; then
-            info "Selective restart detected - PostgreSQL will keep running"
-            info "Using --no-recreate to prevent container recreation"
+    info "Starting services in detached mode (background)..."
+    local start_result=0
 
-            # Strategy: Use --no-recreate for ALL services (including postgres)
-            # Docker Compose will decide which containers to recreate based on:
-            # - Image changes (new build)
-            # - Configuration changes (docker-compose.yml)
-            # - Volume/network changes
-            # --no-recreate prevents recreation even if image changed
-            if [[ -n "$COMPOSE_PROFILE" ]]; then
-                compose_cmd --profile "$COMPOSE_PROFILE" up --build -d --no-recreate >> "$LOG_FILE" 2>&1
+    # Check if PostgreSQL should be kept running (selective restart)
+    if [[ "${POSTGRES_WAS_STOPPED:-true}" == "false" ]]; then
+        info "Selective restart detected - PostgreSQL will keep running"
+        info "Strategy: --no-recreate for postgres only, recreate backend/bot to clear Python cache"
+
+        # Step 1: Keep PostgreSQL running with --no-recreate
+        info "Starting postgres with --no-recreate..."
+        compose_cmd up --build -d --no-recreate postgres >> "$LOG_FILE" 2>&1
+        start_result=$?
+
+        if [[ $start_result -eq 0 ]]; then
+            # Step 2: Recreate backend/bot/nginx (clears Python .pyc cache)
+            info "Recreating backend/bot/nginx (fresh containers for cache invalidation)..."
+            if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+                compose_cmd --profile full up --build -d backend bot nginx >> "$LOG_FILE" 2>&1
                 start_result=$?
             else
-                compose_cmd up --build -d --no-recreate >> "$LOG_FILE" 2>&1
-                start_result=$?
-            fi
-        else
-            # Full restart - recreate all containers
-            info "Full restart - all containers will be recreated"
-
-            if [[ -n "$COMPOSE_PROFILE" ]]; then
-                compose_cmd --profile "$COMPOSE_PROFILE" up --build -d >> "$LOG_FILE" 2>&1
-                start_result=$?
-            else
-                compose_cmd up --build -d >> "$LOG_FILE" 2>&1
+                compose_cmd up --build -d backend >> "$LOG_FILE" 2>&1
                 start_result=$?
             fi
         fi
+    else
+        # Full restart - recreate all containers
+        info "Full restart - all containers will be recreated"
+
+        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            compose_cmd --profile full up --build -d >> "$LOG_FILE" 2>&1
+            start_result=$?
+        else
+            compose_cmd up --build -d >> "$LOG_FILE" 2>&1
+            start_result=$?
+        fi
+    fi
 
         # Show detailed container status
         info "Checking container status..."
@@ -122,23 +106,14 @@ start_services() {
             done <<< "$unhealthy_containers"
         fi
 
-        if [[ $start_result -eq 0 ]]; then
-            if [[ -n "$unhealthy_containers" ]]; then
-                warning "Services started but some containers are unhealthy. Check logs above."
-            else
-                success "Services started successfully"
-            fi
+    if [[ $start_result -eq 0 ]]; then
+        if [[ -n "$unhealthy_containers" ]]; then
+            warning "Services started but some containers are unhealthy. Check logs above."
         else
-            error "Failed to start services. Check $LOG_FILE for details."
+            success "Services started successfully"
         fi
     else
-        info "Starting services in foreground mode..."
-        if [[ -n "$COMPOSE_PROFILE" ]]; then
-            compose_cmd --profile "$COMPOSE_PROFILE" up --build
-        else
-            compose_cmd up --build
-        fi
-        return 0
+        error "Failed to start services. Check $LOG_FILE for details."
     fi
 }
 

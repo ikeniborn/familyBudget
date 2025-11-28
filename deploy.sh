@@ -121,18 +121,12 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Default options
-DETACH_MODE=true
-RUN_MIGRATIONS=true
-CLEAN_DEPLOY=false
-COMPOSE_PROFILE=""
 SYNC_MODE=""  # mirror|update|clean|skip (empty = interactive)
-CLEANUP_MODE=""  # skip|smart|full (empty = interactive) (v5.1.3)
+CLEANUP_MODE=""  # skip|smart|full (empty = interactive)
 REPO_DIR_OVERRIDE=""  # User-specified repository directory
 REAPPLY_MIGRATION=false  # Manual reapply specific migration (downgrade/upgrade)
 REAPPLY_MIGRATION_FILE=""  # Revision ID to reapply (e.g., "b2232d851007")
-MIGRATIONS_ONLY=false  # Run only migrations without rebuilding containers
 AUTO_REAPPLY_MIGRATIONS="${AUTO_REAPPLY_MIGRATIONS:-false}"  # Auto-detect changed migrations (disabled by default)
-# Note: BUILD_IMAGES removed - now always enabled via 'docker compose up --build'
 
 # PostgreSQL state tracking (prevent race conditions)
 POSTGRES_WAS_STOPPED=true  # Track if PostgreSQL was stopped during cleanup
@@ -191,8 +185,7 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # =============================================================================
 # SERVICE FUNCTIONS (Loaded from scripts/lib/services.sh)
 # =============================================================================
-# Functions: stop_services, clean_deployment, start_services,
-#            wait_for_service, wait_for_services
+# Functions: stop_services, start_services, wait_for_service, wait_for_services
 
 # =============================================================================
 # MIGRATION FUNCTIONS (Loaded from scripts/lib/migrations.sh)
@@ -272,36 +265,19 @@ parse_args() {
                 print_help
                 exit 0
                 ;;
-            -d|--detach)
-                DETACH_MODE=true
-                shift
-                ;;
-            -f|--foreground)
-                DETACH_MODE=false
-                shift
-                ;;
-            -p|--profile)
-                COMPOSE_PROFILE="$2"
-                shift 2
-                ;;
-            --no-migrate)
-                RUN_MIGRATIONS=false
-                shift
-                ;;
-            --migrations-only)
-                MIGRATIONS_ONLY=true
-                RUN_MIGRATIONS=true  # Ensure migrations are enabled
-                shift
-                ;;
-            --clean)
-                CLEAN_DEPLOY=true
-                shift
-                ;;
             --sync-mode)
                 SYNC_MODE="$2"
                 # Validate sync mode
                 if [[ ! "$SYNC_MODE" =~ ^(mirror|update|clean|skip)$ ]]; then
                     error "Invalid sync mode: $SYNC_MODE. Must be: mirror, update, clean, or skip"
+                fi
+                shift 2
+                ;;
+            --cleanup-mode)
+                CLEANUP_MODE="$2"
+                # Validate cleanup mode
+                if [[ ! "$CLEANUP_MODE" =~ ^(skip|smart|full)$ ]]; then
+                    error "Invalid cleanup mode: $CLEANUP_MODE. Must be: skip, smart, or full"
                 fi
                 shift 2
                 ;;
@@ -332,11 +308,6 @@ parse_args() {
 #
 # Note: Skip if parameters already set via CLI or non-interactive mode.
 collect_deployment_parameters() {
-    # Skip if running migrations-only mode
-    if [[ "$MIGRATIONS_ONLY" == "true" ]]; then
-        return 0
-    fi
-
     # Skip if non-interactive (no TTY)
     if [[ ! -t 0 ]]; then
         info "Non-interactive mode: using defaults (sync=mirror, cleanup=smart)"
@@ -436,7 +407,7 @@ collect_deployment_parameters() {
     # - Not in clean sync mode (clean mode auto-cleans everything)
     # - CLEANUP_MODE not already set
     # - Old deployments exist
-    if [[ "${SYNC_MODE}" != "clean" ]] && [[ -z "$CLEANUP_MODE" ]] && [[ "${CLEAN_DEPLOY:-false}" != "true" ]]; then
+    if [[ "${SYNC_MODE}" != "clean" ]] && [[ -z "$CLEANUP_MODE" ]]; then
         # Check for old deployment artifacts
         local old_containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null | wc -l)
         local old_networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
@@ -764,81 +735,27 @@ main() {
     echo "========================================================================"
     echo ""
 
-    # Handle migrations-only mode (fast path)
-    if [[ "$MIGRATIONS_ONLY" == "true" ]]; then
-        info "Running in migrations-only mode (skipping build/restart)"
-        echo ""
-
-        # Check if postgres service is healthy
-        if ! compose_cmd ps | grep -q "familybudget-postgres.*healthy"; then
-            error "PostgreSQL service is not healthy"
-            error "Cannot run migrations-only mode without running PostgreSQL"
-            error "Please start services first: ./deploy.sh --profile full"
-            exit 1
-        fi
-
-        # Run migrations only
-        if ! run_alembic_migrations; then
-            error "Migrations failed"
-            exit 1
-        fi
-        echo ""
-
-        # Verify database schema after migrations
-        if ! verify_database_schema; then
-            error "Database schema verification failed"
-            error "Critical tables are missing - migrations may have failed partially"
-            exit 1
-        fi
-        echo ""
-
-        success "Migrations completed and verified successfully"
-        echo ""
-
-        # Show current database status
-        info "Current database revision:"
-        compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current"
-        echo ""
-
-        exit 0
-    fi
-
-    # Load .env to check deployment profile
+    # Load .env to auto-detect deployment profile
     if [[ -f "$DEPLOY_DIR/.env" ]]; then
         set -a
         source "$DEPLOY_DIR/.env" 2>/dev/null || true
         set +a
 
-        # Auto-detect profile from .env if not specified
-        if [[ -z "$COMPOSE_PROFILE" && "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            COMPOSE_PROFILE="full"
-            info "Auto-detected profile from .env: full"
+        # Display deployment profile info
+        if [[ -n "${DEPLOYMENT_PROFILE:-}" ]]; then
+            info "Deployment profile: ${DEPLOYMENT_PROFILE}"
+            if [[ "${SSL_TYPE:-none}" == "letsencrypt" ]]; then
+                info "SSL: Automatic (Let's Encrypt)"
+            fi
+            echo ""
         fi
     fi
-
-    # Display deployment configuration
-    info "Deployment configuration:"
-    echo "  Detach mode:      $DETACH_MODE"
-    echo "  Run migrations:   $RUN_MIGRATIONS"
-    echo "  Clean deploy:     $CLEAN_DEPLOY"
-    if [[ -n "$COMPOSE_PROFILE" ]]; then
-        echo "  Profile:          $COMPOSE_PROFILE"
-    else
-        echo "  Profile:          none (basic: postgres + backend)"
-    fi
-    if [[ -n "${DEPLOYMENT_PROFILE:-}" ]]; then
-        echo "  Deployment type:  ${DEPLOYMENT_PROFILE}"
-        if [[ "${SSL_TYPE:-none}" == "letsencrypt" ]]; then
-            echo "  SSL:              Automatic (Let's Encrypt)"
-        fi
-    fi
-    echo ""
 
     # Validate firewall rules before deployment
     validate_firewall_rules
 
     # Check if HTTP/HTTPS ports are available (for full profile with nginx)
-    if [[ "$COMPOSE_PROFILE" == "full" || "${DEPLOYMENT_PROFILE:-}" == "full" ]]; then
+    if [[ "${DEPLOYMENT_PROFILE:-}" == "full" ]]; then
         step "Checking Port Availability"
 
         # Load .env if not already loaded
@@ -1171,9 +1088,6 @@ main() {
     check_and_repair_postgres_data "$SYNC_MODE"
     echo ""
 
-    clean_deployment
-    echo ""
-
     # Note: Image building now happens automatically in start_services()
     # via 'docker compose up --build' which uses cache for unchanged images
 
@@ -1201,6 +1115,17 @@ main() {
     # are present BEFORE starting PostgreSQL, preventing FATAL startup errors.
     # Includes restart loop detection and automatic container stop for safe repair.
     # Runs ALWAYS, even during selective restarts (when POSTGRES_WAS_STOPPED=false).
+
+    # DEBUG: Check directories BEFORE repair function is called
+    print_message info "DEBUG: Pre-repair directory check..."
+    if [[ -d "$DATA_DIR/postgres/pg_notify" ]]; then
+        print_message success "DEBUG: pg_notify EXISTS before repair"
+    else
+        print_message error "DEBUG: pg_notify MISSING before repair"
+        print_message info "DEBUG: Listing $DATA_DIR/postgres:"
+        ls -la "$DATA_DIR/postgres/" | head -20 || true
+    fi
+
     repair_postgres_directories_atomic
     echo ""
 

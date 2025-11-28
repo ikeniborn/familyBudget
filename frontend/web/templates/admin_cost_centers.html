@@ -86,10 +86,6 @@
                 </label>
                 <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
             </div>
-            <div class="alert alert-info">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>Изменения создадут новую версию записи (SCD Type 2)</span>
-            </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-primary">💾 Сохранить</button>
@@ -100,9 +96,25 @@
         <button>close</button>
     </form>
 </dialog>
+
+<!-- Custom Confirmation Dialog -->
+<dialog id="confirm-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
+        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
+            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="confirmModalResolve(false)">close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
 <script>
 // Global state
 let centersData = [];
@@ -324,7 +336,34 @@ async function updateCenter(event) {
 
 // Delete cost center
 async function deleteCenter(centerId) {
-    if (!confirm('🗑️ Вы уверены, что хотите удалить этот МВЗ? Это действие необратимо.')) {
+    // First confirmation - warning about cascade deletion
+    const firstConfirm = await showConfirmDialog(
+        '⚠️ ВНИМАНИЕ: Удаление МВЗ приведёт к каскадному удалению!\n\n' +
+        '❌ Будут ФИЗИЧЕСКИ УДАЛЕНЫ:\n' +
+        '  • Сам МВЗ\n' +
+        '  • ВСЕ бюджетные записи (факты), связанные с этим МВЗ\n\n' +
+        '✅ Будет СОХРАНЕНО для аудита:\n' +
+        '  • История изменений (с меткой DELETE)\n\n' +
+        'Это действие НЕОБРАТИМО!\n\n' +
+        'Продолжить удаление?',
+        '⚠️ КАСКАДНОЕ УДАЛЕНИЕ'
+    );
+
+    if (!firstConfirm) {
+        return;
+    }
+
+    // Second confirmation - final check
+    const secondConfirm = await showConfirmDialog(
+        '🔴 ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ!\n\n' +
+        'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ этот МВЗ\n' +
+        'и ВСЕ связанные с ним записи?\n\n' +
+        'Это действие НЕВОЗМОЖНО отменить!\n\n' +
+        'Нажмите OK для окончательного подтверждения.',
+        '🔴 ОКОНЧАТЕЛЬНОЕ ПОДТВЕРЖДЕНИЕ'
+    );
+
+    if (!secondConfirm) {
         return;
     }
 
@@ -339,9 +378,19 @@ async function deleteCenter(centerId) {
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
 
-        // Success
+        // Parse response to get cascade deletion info
+        const result = await response.json();
+        const cascadeInfo = result.cascade_deleted || {};
+        const factsDeleted = cascadeInfo.facts || 0;
+
+        // Success with detailed message
         await loadCenters();
-        showNotification('✅ МВЗ успешно удален!', 'success');
+
+        const successMessage = factsDeleted > 0
+            ? `✅ МВЗ успешно удален!\n🗑️ Каскадно удалено записей: ${factsDeleted}`
+            : '✅ МВЗ успешно удален!';
+
+        showNotification(successMessage, 'success');
     } catch (error) {
         console.error('Error deleting cost center:', error);
         const errorMessage = error?.message || String(error);
@@ -383,7 +432,12 @@ function updateStatusFilter(status) {
 
 // Archive cost center
 async function archiveCenter(centerId) {
-    if (!confirm('📦 Вы уверены, что хотите архивировать этот МВЗ? Запись будет скрыта из выпадающих списков.')) {
+    const confirmed = await showConfirmDialog(
+        '📦 Вы уверены, что хотите архивировать этот МВЗ? Запись будет скрыта из выпадающих списков.',
+        '📦 Архивация МВЗ'
+    );
+
+    if (!confirmed) {
         return;
     }
 

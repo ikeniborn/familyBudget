@@ -83,96 +83,96 @@ repair_postgres_directories_atomic() {
 
     info "Detected initialized PostgreSQL database (PG_VERSION exists)"
 
-    # Check container status comprehensively
-    local container_exists=false
-    local container_status="not_found"
-    local restart_count=0
-
-    if docker ps -a --filter "name=familybudget-postgres" -q 2>/dev/null | grep -q .; then
-        container_exists=true
-        container_status=$(docker inspect familybudget-postgres --format='{{.State.Status}}' 2>/dev/null || echo "unknown")
-        restart_count=$(docker inspect familybudget-postgres --format='{{.RestartCount}}' 2>/dev/null || echo "0")
-    fi
-
-    # Determine if we need to stop PostgreSQL for repair
-    local needs_stop=false
-    local stop_reason=""
-
-    if [[ "$container_exists" == "true" ]]; then
-        if [[ "$container_status" == "running" ]] && [[ $restart_count -gt 0 ]]; then
-            needs_stop=true
-            stop_reason="Restart loop detected (count: $restart_count)"
-        elif [[ "$container_status" == "running" ]]; then
-            needs_stop=true
-            stop_reason="Container running - atomic operation requires full stop"
-        elif [[ "$container_status" == "restarting" ]]; then
-            needs_stop=true
-            stop_reason="Container in restart loop"
-        elif [[ "$container_status" =~ ^(paused|exited|dead)$ ]]; then
-            needs_stop=true
-            stop_reason="Container in unhealthy state: $container_status"
-        fi
-    fi
-
-    # CRITICAL: Stop PostgreSQL if needed for atomic repair
-    if [[ "$needs_stop" == "true" ]]; then
-        warning "$stop_reason"
-        info "Stopping PostgreSQL for atomic repair (REQUIRED for data safety)..."
-
-        # Try graceful stop first (30s timeout)
-        if docker stop familybudget-postgres --time 30 2>/dev/null; then
-            success "PostgreSQL stopped gracefully"
-        else
-            warning "Graceful stop failed or timed out - forcing stop..."
-            docker kill familybudget-postgres 2>/dev/null || true
-        fi
-
-        # Remove container to ensure clean state
-        docker rm familybudget-postgres 2>/dev/null || true
-
-        # Wait for full stop
-        sleep 3
-        info "PostgreSQL fully stopped - safe to repair data directory"
-    else
-        info "PostgreSQL not running - safe to repair"
-    fi
-
-    # List of CRITICAL directories (MUST exist for startup)
-    # Based on PostgreSQL 16 official documentation and production experience
-    local critical_dirs=(
-        "pg_notify"           # LISTEN/NOTIFY subsystem (FATAL if missing!)
-        "pg_tblspc"           # Tablespaces (FATAL if missing!)
-        "pg_dynshmem"         # Dynamic shared memory
-        "pg_stat"             # Statistics collector
+    # Persistent directories (MUST exist always - safe to create while PostgreSQL running)
+    local persistent_dirs=(
+        "pg_tblspc"             # Tablespaces (FATAL if missing!)
         "pg_logical/snapshots"  # Logical replication snapshots (common failure)
         "pg_logical/mappings"   # Logical replication type mappings
-        "pg_commit_ts"        # Commit timestamps
-        "pg_serial"           # Serializable transaction tracking
-        "pg_replslot"         # Replication slots
-        "pg_snapshots"        # Transaction snapshots
-        "pg_twophase"         # Two-phase commit
+        "pg_commit_ts"          # Commit timestamps
+        "pg_serial"             # Serializable transaction tracking
+        "pg_replslot"           # Replication slots
+        "pg_snapshots"          # Transaction snapshots
+        "pg_twophase"           # Two-phase commit
     )
 
-    # Check which directories are missing
+    # Runtime directories (created by PostgreSQL on startup, deleted on shutdown)
+    # DO NOT create these while PostgreSQL is running!
+    local runtime_dirs=(
+        "pg_notify"    # LISTEN/NOTIFY subsystem (runtime)
+        "pg_dynshmem"  # Dynamic shared memory (runtime)
+        "pg_stat"      # Statistics collector (runtime)
+    )
+
+    # Check if PostgreSQL is running
+    local postgres_running=false
+    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        postgres_running=true
+    fi
+
+    # If PostgreSQL is running, only check/create persistent directories
+    local dirs_to_check=()
+    if [[ "$postgres_running" == "true" ]]; then
+        info "PostgreSQL is running - checking/creating persistent directories only (safe)"
+        dirs_to_check=("${persistent_dirs[@]}")
+    else
+        info "PostgreSQL is stopped - checking all critical directories before start"
+        dirs_to_check=("${persistent_dirs[@]}" "${runtime_dirs[@]}")
+    fi
+
+    info "Checking directories in: $postgres_data_dir"
+
     local missing_dirs=()
-    for dir in "${critical_dirs[@]}"; do
+    local present_dirs=()
+    for dir in "${dirs_to_check[@]}"; do
         if [[ ! -d "$postgres_data_dir/$dir" ]]; then
             missing_dirs+=("$dir")
+        else
+            present_dirs+=("$dir")
         fi
     done
 
-    # If all directories present, no action needed
+    # If all directories present, no action needed (SILENT SUCCESS)
     if [[ ${#missing_dirs[@]} -eq 0 ]]; then
-        success "All ${#critical_dirs[@]} critical directories present"
-        info "PostgreSQL data directory structure is valid"
+        # ✅ SILENT SUCCESS - no output needed (everything is normal)
         return 0
     fi
 
-    # Report missing directories
-    warning "Detected ${#missing_dirs[@]} missing critical directories:"
+    # If PostgreSQL is running and we're only checking persistent dirs, create them safely
+    if [[ "$postgres_running" == "true" ]]; then
+        info "Found ${#missing_dirs[@]} missing persistent directories - creating safely while PostgreSQL runs"
+    else
+        # PostgreSQL is stopped - we might need to stop container if exists
+        local container_exists=false
+        local container_status="not_found"
+
+        if docker ps -a --filter "name=familybudget-postgres" -q 2>/dev/null | grep -q .; then
+            container_exists=true
+            container_status=$(docker inspect familybudget-postgres --format='{{.State.Status}}' 2>/dev/null || echo "unknown")
+        fi
+
+        # If container exists but in bad state, remove it
+        if [[ "$container_exists" == "true" ]] && [[ "$container_status" =~ ^(paused|exited|dead)$ ]]; then
+            warning "Container in unhealthy state: $container_status - removing"
+            docker rm familybudget-postgres 2>/dev/null || true
+        fi
+
+        info "PostgreSQL not running - safe to create directories"
+    fi
+
+    # Report missing directories (ONLY when actually repairing)
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    warning "⚠️  PostgreSQL Atomic Repair: Detected ${#missing_dirs[@]} missing critical directories"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    info "Missing directories (will be created):"
     for dir in "${missing_dirs[@]}"; do
         echo "  ✗ $dir"
     done
+    echo ""
+    info "Root cause: Bind mount architecture - PostgreSQL creates these directories"
+    info "only during initdb. If they're missing on subsequent starts → FATAL error."
+    info "This repair ensures all critical directories exist before container start."
     echo ""
 
     # Get target UID for correct ownership (source of truth: Docker image)
@@ -454,6 +454,14 @@ initialize_postgres_directory() {
 # Validate and fix PostgreSQL permissions UNCONDITIONALLY
 # This function runs ALWAYS before service start, regardless of POSTGRES_WAS_STOPPED
 # Use case: Smart cleanup may skip PostgreSQL restart, but permissions still need validation
+#
+# CRITICAL SAFETY: Prevents race conditions by checking PostgreSQL status BEFORE any filesystem operations
+# BIND MOUNT ISSUE: Using bind mount (/opt/budget/data/postgres) instead of Docker volume
+#   - PostgreSQL creates critical directories ONLY during initdb
+#   - If ANY directory is missing on next start → FATAL error
+#   - chown -R while PostgreSQL is running can corrupt data or delete temp files
+#
+# SOLUTION: Always check container status FIRST, never modify filesystem while PostgreSQL is active
 validate_postgres_permissions_always() {
     local postgres_data_dir="$DEPLOY_DIR/data/postgres"
 
@@ -471,6 +479,24 @@ validate_postgres_permissions_always() {
         return 0
     fi
 
+    # CRITICAL: Check PostgreSQL running status FIRST (before ANY filesystem operations!)
+    # This prevents race conditions where we modify permissions while PostgreSQL is writing data
+    local postgres_is_running=false
+    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        postgres_is_running=true
+    fi
+
+    # SAFETY GATE: If PostgreSQL is running → NO filesystem modifications allowed!
+    if [[ "$postgres_is_running" == "true" ]]; then
+        info "PostgreSQL is running - skipping ALL filesystem modifications (data safety)"
+        info "Permissions will be validated on next deployment when PostgreSQL stops"
+        success "Validation skipped safely (PostgreSQL active)"
+        return 0
+    fi
+
+    # PostgreSQL is stopped - safe to proceed with permission checks
+    info "PostgreSQL is stopped - safe to validate and fix permissions"
+
     # ALWAYS use UID from Docker image (correct source of truth)
     # Do NOT use UID from existing data - it may be wrong after rsync from dev
     local target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
@@ -478,24 +504,15 @@ validate_postgres_permissions_always() {
 
     info "Target PostgreSQL UID from Docker image: $target_uid:$target_gid (postgres:16-alpine)"
 
-    # Check PostgreSQL running status FIRST (critical for safe permission handling)
-    local postgres_is_running=false
-    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
-        postgres_is_running=true
-    fi
-
-    # Remove stale postmaster.pid lock file (ONLY if PostgreSQL is NOT running!)
+    # Remove stale postmaster.pid lock file
+    # NOTE: We already verified PostgreSQL is stopped (SAFETY GATE above), so lock file is stale
     if [[ -f "$postgres_data_dir/postmaster.pid" ]]; then
-        if [[ "$postgres_is_running" == "true" ]]; then
-            info "PostgreSQL is running - lock file is valid (NOT stale)"
+        warning "Found stale PostgreSQL lock file (postmaster.pid)"
+        info "Removing lock file (safe - PostgreSQL is stopped)..."
+        if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
+            success "Lock file removed"
         else
-            warning "Found stale PostgreSQL lock file (postmaster.pid)"
-            info "PostgreSQL is stopped - safe to remove lock file..."
-            if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
-                success "Lock file removed"
-            else
-                warning "Failed to remove lock file (continuing anyway)"
-            fi
+            warning "Failed to remove lock file (continuing anyway)"
         fi
     fi
 
@@ -506,14 +523,7 @@ validate_postgres_permissions_always() {
         warning "Incorrect ownership detected: $current_owner (expected $target_uid:$target_gid)"
         info "Fixing ownership recursively (CRITICAL for PostgreSQL startup)..."
 
-        # CRITICAL: Stop PostgreSQL if running (permissions cannot be changed while DB is active)
-        if [[ "$postgres_is_running" == "true" ]]; then
-            warning "PostgreSQL is running - stopping temporarily to fix permissions..."
-            docker compose -f "$DEPLOY_DIR/docker-compose.yml" stop postgres --timeout 30 >> "$LOG_FILE" 2>&1 || true
-            sleep 2
-            info "PostgreSQL stopped - safe to fix permissions"
-        fi
-
+        # NOTE: No need to stop PostgreSQL - SAFETY GATE already ensured it's stopped
         if sudo chown -R $target_uid:$target_gid "$postgres_data_dir"; then
             success "Ownership corrected to $target_uid:$target_gid (recursive)"
         else
@@ -521,22 +531,15 @@ validate_postgres_permissions_always() {
             return 1
         fi
     else
-        # Ownership correct on parent directory
+        # Ownership correct on parent directory - verify subdirectories recursively
         info "Parent directory ownership correct: $current_owner"
+        info "Verifying ownership consistency recursively..."
 
-        # CRITICAL SAFEGUARD: DO NOT run chown -R if PostgreSQL is running!
-        # Running chown on active database files causes corruption
-        if [[ "$postgres_is_running" == "true" ]]; then
-            success "PostgreSQL is running - skipping recursive permission check (ownership already correct)"
-            info "Recursive verification will run on next deployment when PostgreSQL stops"
+        # SAFE: PostgreSQL is stopped (verified by SAFETY GATE)
+        if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
+            success "PostgreSQL permissions validated: $target_uid:$target_gid (recursive)"
         else
-            # PostgreSQL is stopped - safe to verify recursively
-            info "PostgreSQL is stopped - verifying ownership consistency recursively..."
-            if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
-                success "PostgreSQL permissions validated: $target_uid:$target_gid (recursive)"
-            else
-                warning "Failed to recursively verify ownership (continuing anyway)"
-            fi
+            warning "Failed to recursively verify ownership (continuing anyway)"
         fi
     fi
 

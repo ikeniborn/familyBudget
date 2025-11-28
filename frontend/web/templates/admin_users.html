@@ -123,9 +123,25 @@
         <button>close</button>
     </form>
 </dialog>
+
+<!-- Custom Confirmation Dialog -->
+<dialog id="confirm-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
+        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
+            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="confirmModalResolve(false)">close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
 <script>
 // Global state
 let currentActiveFilter = null;  // null=all, true=active, false=inactive
@@ -312,7 +328,12 @@ function renderActions(user) {
 // Toggle admin privileges
 async function toggleAdmin(userId, makeAdmin) {
     const action = makeAdmin ? 'выдать' : 'забрать';
-    if (!confirm(`🔑 Вы уверены, что хотите ${action} права администратора?`)) {
+    const confirmed = await showConfirmDialog(
+        `🔑 Вы уверены, что хотите ${action} права администратора?`,
+        makeAdmin ? '✅ Выдача прав администратора' : '⚠️ Отзыв прав администратора'
+    );
+
+    if (!confirmed) {
         return;
     }
 
@@ -349,7 +370,12 @@ async function toggleAdmin(userId, makeAdmin) {
 
 // NEW: Activate user
 async function activateUser(userId) {
-    if (!confirm('✅ Вы уверены, что хотите активировать пользователя?')) {
+    const confirmed = await showConfirmDialog(
+        'Вы уверены, что хотите активировать этого пользователя? Пользователь получит доступ к системе.',
+        '✅ Активация пользователя'
+    );
+
+    if (!confirmed) {
         return;
     }
 
@@ -378,7 +404,12 @@ async function activateUser(userId) {
 
 // NEW: Deactivate user
 async function deactivateUser(userId) {
-    if (!confirm('⏸️ Вы уверены, что хотите деактивировать пользователя?')) {
+    const confirmed = await showConfirmDialog(
+        'Вы уверены, что хотите деактивировать этого пользователя? Пользователь потеряет доступ к системе.',
+        '⚠️ Деактивация пользователя'
+    );
+
+    if (!confirmed) {
         return;
     }
 
@@ -407,7 +438,12 @@ async function deactivateUser(userId) {
 
 // NEW: Refresh user profile from Telegram
 async function refreshUserProfile(userId) {
-    if (!confirm('🔄 Обновить данные пользователя из Telegram?\n\nПользователь должен был запустить бота @ikenibornbudgetbot.')) {
+    const confirmed = await showConfirmDialog(
+        'Обновить данные пользователя из Telegram?\n\nПользователь должен был запустить бота @ikenibornbudgetbot.',
+        '🔄 Обновление профиля'
+    );
+
+    if (!confirmed) {
         return;
     }
 

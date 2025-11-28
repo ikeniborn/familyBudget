@@ -302,7 +302,7 @@
     </main>
 
     <!-- Toast Container (for dynamic notifications) -->
-    <div id="toast-container" class="toast toast-top toast-end z-50" role="alert" aria-live="polite"></div>
+    <div id="toast-container" class="toast toast-top toast-center md:toast-end z-50 px-4 md:pr-4 md:pl-0" role="alert" aria-live="polite"></div>
 
     <!-- Footer -->
     <footer class="footer footer-center p-4 bg-base-200 text-base-content border-t">
@@ -355,8 +355,8 @@
                               type === 'error' ? 'alert-error' :
                               type === 'warning' ? 'alert-warning' : 'alert-info';
 
-            toast.className = `alert ${alertClass} shadow-lg`;
-            toast.innerHTML = `<span>${message}</span>`;
+            toast.className = `alert ${alertClass} shadow-lg max-w-md break-words`;
+            toast.innerHTML = `<span class="break-words">${message}</span>`;
 
             // Add to container
             container.appendChild(toast);

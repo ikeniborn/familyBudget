@@ -306,5 +306,8 @@ list_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_list)],
     name="list_conversation",
     persistent=False,
-    per_message=True,
+    # Explicit conversation tracking parameters (fixes PTBUserWarning)
+    per_user=True,     # Each user has independent pagination state
+    per_chat=True,     # Each chat has separate list view
+    per_message=False,  # Pagination callbacks can come from updated messages
 )

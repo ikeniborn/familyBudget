@@ -488,5 +488,4 @@ summary_conversation_handler = ConversationHandler(
         ],
     },
     fallbacks=[CommandHandler("cancel", cancel_summary)],
-    per_message=True,
 )

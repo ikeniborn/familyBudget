@@ -108,6 +108,7 @@ services:
       APP_ENV: ${APP_ENV:-production}
       DEBUG: ${DEBUG:-false}
       VERSION: ${VERSION:-4.0.0}
+      PYTHONDONTWRITEBYTECODE: 1  # Prevent .pyc cache files (force fresh code on restart)
 
       # Security
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
@@ -208,6 +209,9 @@ services:
       # Domain (for WebApp URL generation)
       DOMAIN: ${DOMAIN:-localhost}
 
+      # Application
+      PYTHONDONTWRITEBYTECODE: 1  # Prevent .pyc cache files (force fresh code on restart)
+
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
@@ -274,6 +278,14 @@ volumes:
       type: none
       o: bind
       device: ${DATA_DIR:-/opt/budget/data}/postgres  # Absolute path to prevent volume recreation
+    # BIND MOUNT ARCHITECTURE (not Docker managed volume)
+    # WHY: Direct access to PostgreSQL data from host for backups and debugging
+    # TRADE-OFF: PostgreSQL creates critical directories (pg_notify, pg_dynshmem, etc.) ONLY during initdb
+    #   - If ANY directory is missing on subsequent starts → FATAL error
+    #   - deploy.sh runs repair_postgres_directories_atomic() before EVERY start to ensure integrity
+    # ALTERNATIVE: Use Docker managed volume (better isolation, automatic permission handling)
+    #   - Requires migration: docker volume create + copy data
+    #   - Planned for v6.0+ (breaking change)
 
   postgres_backups:
     driver: local

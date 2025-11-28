@@ -35,9 +35,9 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
 
-    # Logging
-    access_log /var/log/nginx/{{DOMAIN}}_ssl_access.log;
-    error_log /var/log/nginx/{{DOMAIN}}_ssl_error.log;
+    # Logging (Docker best practice: stdout/stderr)
+    access_log /dev/stdout;
+    error_log /dev/stderr;
 
     # Client upload size
     client_max_body_size 20M;

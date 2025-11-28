@@ -634,19 +634,35 @@
         }
 
         /**
-         * Position calendar below target input
+         * Position calendar below target input (desktop) or centered (mobile)
+         * v5.1.9: Fixed CSS class approach for mobile modal mode
          * @private
          */
         _positionCalendar() {
-            const targetInput = this.mode === 'single'
-                ? this.inputElement
-                : this.startInputElement;
+            const isMobile = window.innerWidth <= 768;
 
-            const rect = targetInput.getBoundingClientRect();
+            if (isMobile) {
+                // Mobile: Add CSS class for modal positioning (centered)
+                this.calendarElement.classList.add('calendar-modal-mobile');
+                // Clear inline styles to let CSS class take over
+                this.calendarElement.style.top = '';
+                this.calendarElement.style.left = '';
+                this.calendarElement.style.transform = '';
+            } else {
+                // Desktop: Remove mobile class and position below target input
+                this.calendarElement.classList.remove('calendar-modal-mobile');
 
-            // Position below input, aligned to left
-            this.calendarElement.style.top = `${rect.bottom + window.scrollY + 4}px`;
-            this.calendarElement.style.left = `${rect.left + window.scrollX}px`;
+                const targetInput = this.mode === 'single'
+                    ? this.inputElement
+                    : this.startInputElement;
+
+                const rect = targetInput.getBoundingClientRect();
+
+                // Position below input, aligned to left
+                this.calendarElement.style.top = `${rect.bottom + window.scrollY + 4}px`;
+                this.calendarElement.style.left = `${rect.left + window.scrollX}px`;
+                this.calendarElement.style.transform = '';
+            }
         }
 
         /**
@@ -779,7 +795,7 @@
                         btnClass += ' btn-primary';
                     }
                 }
-                if (isInRange && !isSelected) btnClass += ' bg-primary/20';
+                if (isInRange && !isSelected) btnClass += ' bg-range-highlight';
                 if (isDisabled) btnClass += ' btn-disabled opacity-30';
 
                 html += `
@@ -1080,10 +1096,20 @@
 
         /**
          * Open calendar
+         * v5.1.8: Added backdrop support for mobile modal mode
          * @param {boolean} forceSelectingEnd - Force selecting end date in range mode (v5.1.3 bugfix)
          */
         open(forceSelectingEnd = false) {
             this.isOpen = true;
+
+            // v5.1.8: Create backdrop for mobile
+            const isMobile = window.innerWidth <= 768;
+            if (isMobile && !this.backdropElement) {
+                this.backdropElement = document.createElement('div');
+                this.backdropElement.className = 'calendar-backdrop';
+                this.backdropElement.addEventListener('click', () => this.close());
+                document.body.appendChild(this.backdropElement);
+            }
 
             // Position calendar below input (v5.1.4 fix)
             this._positionCalendar();
@@ -1115,10 +1141,20 @@
 
         /**
          * Close calendar
+         * v5.1.9: Added mobile CSS class cleanup
          */
         close() {
             this.isOpen = false;
             this.calendarElement.classList.add('hidden');
+
+            // v5.1.9: Remove mobile modal class
+            this.calendarElement.classList.remove('calendar-modal-mobile');
+
+            // v5.1.8: Remove backdrop if exists
+            if (this.backdropElement) {
+                this.backdropElement.remove();
+                this.backdropElement = null;
+            }
         }
 
         /**
@@ -1134,6 +1170,7 @@
 
         /**
          * Destroy calendar widget
+         * v5.1.8: Added backdrop cleanup
          */
         destroy() {
             if (this.calendarElement) {
@@ -1141,6 +1178,11 @@
             }
             if (this.triggerButton) {
                 this.triggerButton.remove();
+            }
+            // v5.1.8: Remove backdrop if exists
+            if (this.backdropElement) {
+                this.backdropElement.remove();
+                this.backdropElement = null;
             }
         }
     }

@@ -869,11 +869,19 @@ check_ssl_security() {
             local protocols=("ssl3" "tls1" "tls1_1" "tls1_2" "tls1_3")
             local protocol_names=("SSLv3" "TLSv1.0" "TLSv1.1" "TLSv1.2" "TLSv1.3")
 
+            # Get domain from .env or use localhost as fallback
+            local test_host="localhost"
+            if [ -f "$DEPLOY_DIR/.env" ]; then
+                local domain=$(grep "^BUDGET_DOMAIN=" "$DEPLOY_DIR/.env" | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+                [ -n "$domain" ] && test_host="$domain"
+            fi
+
             for i in "${!protocols[@]}"; do
                 local proto="${protocols[$i]}"
                 local proto_name="${protocol_names[$i]}"
 
-                if echo | openssl s_client -connect localhost:443 -"$proto" 2>/dev/null | grep -q "Cipher"; then
+                # Use SNI (-servername) for proper testing
+                if echo | openssl s_client -connect "$test_host:443" -servername "$test_host" -"$proto" 2>/dev/null | grep -q "Cipher"; then
                     # Insecure protocols
                     if [[ "$proto" == "ssl3" ]] || [[ "$proto" == "tls1" ]] || [[ "$proto" == "tls1_1" ]]; then
                         print_status "    $proto_name:" "✗ Enabled (insecure!)" "$RED"
@@ -1175,7 +1183,7 @@ check_recent_errors() {
         print_subheader "Backend (JSON Structured Logs)"
 
         # Get logs and try to parse as JSON
-        local backend_logs=$(docker logs --tail 300 "$backend_container" 2>&1)
+        local backend_logs=$(timeout 15 docker logs --tail 300 --since 1h "$backend_container" 2>&1 || true)
 
         # Count by level
         local backend_errors=$(echo "$backend_logs" | grep -i '"level".*"error"' | wc -l)
@@ -1267,7 +1275,7 @@ check_recent_errors() {
     if [ -n "$bot_container" ]; then
         print_subheader "Bot (Plain Text Logs)"
 
-        local bot_errors=$(docker logs --tail 200 "$bot_container" 2>&1 | grep -i "\[error\]\|\[critical\]" | tail -n 10)
+        local bot_errors=$( (timeout 10 docker logs --tail 200 --since 1h "$bot_container" 2>&1 || true) | grep -i "\[error\]\|\[critical\]" | tail -n 10)
 
         if [ -n "$bot_errors" ]; then
             local bot_error_count=$(echo "$bot_errors" | wc -l)
@@ -1289,7 +1297,7 @@ check_recent_errors() {
     if [ -n "$postgres_container" ]; then
         print_subheader "PostgreSQL (Database Logs)"
 
-        local pg_errors=$(docker logs --tail 200 "$postgres_container" 2>&1 | grep -i "ERROR:\|FATAL:\|PANIC:" | tail -n 10)
+        local pg_errors=$( (timeout 10 docker logs --tail 200 --since 1h "$postgres_container" 2>&1 || true) | grep -i "ERROR:\|FATAL:\|PANIC:" | tail -n 10)
 
         if [ -n "$pg_errors" ]; then
             local pg_error_count=$(echo "$pg_errors" | wc -l)
@@ -1320,7 +1328,7 @@ check_recent_errors() {
     if [ -n "$nginx_container" ]; then
         print_subheader "Nginx (Error Logs)"
 
-        local nginx_errors=$(docker logs --tail 200 "$nginx_container" 2>&1 | grep -i "\[error\]\|\[crit\]\|\[alert\]\|\[emerg\]" | tail -n 10)
+        local nginx_errors=$( (timeout 10 docker logs --tail 200 --since 1h "$nginx_container" 2>&1 || true) | grep -i "\[error\]\|\[crit\]\|\[alert\]\|\[emerg\]" | tail -n 10)
 
         if [ -n "$nginx_errors" ]; then
             local nginx_error_count=$(echo "$nginx_errors" | wc -l)

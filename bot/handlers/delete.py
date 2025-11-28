@@ -277,5 +277,8 @@ delete_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_delete)],
     name="delete_conversation",
     persistent=False,
-    per_message=True,
+    # Explicit conversation tracking parameters (fixes PTBUserWarning)
+    per_user=True,     # Each user has independent deletion flow
+    per_chat=True,     # Each chat has separate delete state
+    per_message=False,  # Confirmation callbacks from any message
 )

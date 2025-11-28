@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% from "components/modal_plan.html" import plan_modal %}
 
+{% block extra_head %}
+<!-- CalendarWidget CSS -->
+<link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     <!-- Page Header -->
@@ -38,7 +43,8 @@
             <!-- Уровень 1: Фильтры по дате -->
             <div class="filter-section">
                 <div class="filter-section-title">📅 Период</div>
-                <div class="flex gap-2 items-end">
+                <!-- v5.1.9: Responsive layout - vertical on mobile, horizontal on desktop -->
+                <div class="flex flex-col gap-3 md:flex-row md:items-end md:gap-2">
                     <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text font-medium">Дата с</span>
@@ -252,6 +258,21 @@
     </form>
 </dialog>
 
+<!-- Custom Confirmation Dialog -->
+<dialog id="confirm-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
+        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
+            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="confirmModalResolve(false)">close</button>
+    </form>
+</dialog>
+
 {% endblock %}
 
 {% block extra_styles %}
@@ -309,6 +330,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
 
@@ -1326,7 +1348,12 @@ async function deleteFact(factId) {
         return;
     }
 
-    if (!confirm('🗑️ Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.')) {
+    const confirmed = await showConfirmDialog(
+        'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
+        '🗑️ Удаление транзакции'
+    );
+
+    if (!confirmed) {
         return;
     }
 
@@ -1375,7 +1402,12 @@ async function deleteFact(factId) {
 async function batchDelete() {
     if (selectedFactIds.size === 0) return;
 
-    if (!confirm(`🗑️ Вы уверены, что хотите удалить ${selectedFactIds.size} транзакций? Это действие необратимо.`)) {
+    const confirmed = await showConfirmDialog(
+        `Вы уверены, что хотите удалить ${selectedFactIds.size} транзакций? Это действие необратимо.`,
+        '🗑️ Массовое удаление транзакций'
+    );
+
+    if (!confirmed) {
         return;
     }
 

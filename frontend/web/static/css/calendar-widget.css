@@ -54,7 +54,12 @@
   border-width: 2px;
 }
 
-/* Range selection background */
+/* Range selection background - light green highlight */
+.calendar-widget [data-date].bg-range-highlight {
+  background-color: #c8e6c9; /* Material Design Green 100 - light green */
+}
+
+/* Legacy class support (deprecated - use bg-range-highlight instead) */
 .calendar-widget [data-date].bg-primary\/20 {
   background-color: hsl(var(--p) / 0.2);
 }
@@ -106,10 +111,25 @@
   outline-offset: 2px;
 }
 
+/* v5.1.8: Mobile modal mode - applied via JS class */
+.calendar-widget.calendar-modal-mobile {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  right: auto;
+  bottom: auto;
+  min-width: 320px;
+  max-width: calc(100% - 6%); /* 3% margin on each side */
+  max-height: 85vh; /* Prevent excessive vertical stretch */
+  overflow-y: auto;
+  z-index: 1000;
+}
+
 /* Mobile touch improvements */
 @media (max-width: 768px) {
   .calendar-widget {
-    min-width: 320px;  /* v5.1.4: Prevent calendar from becoming too narrow */
+    min-width: 320px;
     max-width: 90vw;
   }
 
@@ -146,6 +166,29 @@
   }
 }
 
+/* v5.1.8: Backdrop overlay for mobile calendar (modal mode) */
+@media (max-width: 768px) {
+  .calendar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    animation: backdrop-fade-in 0.2s ease-out;
+  }
+
+  @keyframes backdrop-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
 /* Telegram WebApp specific adjustments */
 @media (max-width: 480px) {
   .calendar-widget {
@@ -167,6 +210,10 @@
 /* Dark mode adjustments (DaisyUI theme-aware) */
 [data-theme="dark"] .calendar-widget {
   border-color: hsl(var(--bc) / 0.2);
+}
+
+[data-theme="dark"] .calendar-widget [data-date].bg-range-highlight {
+  background-color: rgba(129, 199, 132, 0.25); /* Green with transparency for dark mode */
 }
 
 [data-theme="dark"] .calendar-widget [data-date].bg-primary\/20 {

@@ -783,20 +783,22 @@ async def delete_fact(
     session: AsyncSession = Depends(get_session),
 ) -> None:
     """
-    Delete a budget fact (hard delete).
+    Delete a budget fact with history tracking.
 
-    **Note:** Unlike Articles, Facts are hard deleted (removed from database).
-    Use with caution - this operation cannot be undone.
+    **History Tracking:**
+    - Creates DELETE history record before deletion (audit trail)
+    - History preserved even after fact is deleted
 
-    **User Isolation:**
-    - User can only delete their own facts
-    - Admins can delete any fact
+    **Shared Family Budget:**
+    - All authenticated users can delete any transaction
 
     **Returns:**
     - 204 No Content: Fact deleted successfully
-    - 403 Forbidden: User doesn't own fact
     - 404 Not Found: Fact not found
     """
+    from datetime import datetime
+    from backend.app.models.budget_fact_history import BudgetFactHistory
+
     # Load fact
     statement = select(BudgetFact).where(BudgetFact.id == fact_id)
     result = await session.execute(statement)
@@ -811,9 +813,37 @@ async def delete_fact(
     # Shared family budget - NO ownership check
     # All authenticated users can delete any transaction
 
-    # Hard delete
+    # 1. Create DELETE history record (audit trail)
+    now = datetime.utcnow()
+    delete_history = BudgetFactHistory(
+        fact_id=fact.id,
+        user_id=fact.user_id,
+        article_id=fact.article_id,
+        financial_center_id=fact.financial_center_id,
+        cost_center_id=fact.cost_center_id,
+        fact_date=fact.fact_date,
+        amount=fact.amount,
+        description=fact.description,
+        record_type=fact.record_type,
+        transfer_id=fact.transfer_id,
+        valid_from=now,
+        valid_to=datetime(9999, 12, 31),
+        is_current=False,  # Deleted records are never current
+        change_type="DELETE",
+        changed_fields=None,  # Full deletion
+        changed_by_user_id=current_user.id,
+        cascade_delete_source=None  # Direct user deletion
+    )
+    session.add(delete_history)
+
+    # 2. Delete fact
     await session.delete(fact)
     await session.commit()
+
+    logger.info(
+        f"Deleted fact {fact_id} (amount={fact.amount}, date={fact.fact_date}) "
+        f"by user {current_user.id}"
+    )
 
     return None
 
@@ -829,7 +859,11 @@ async def batch_delete_facts(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     """
-    Batch delete facts (Shared Family Budget).
+    Batch delete facts with history tracking (Shared Family Budget).
+
+    **History Tracking:**
+    - Creates DELETE history record for each fact before deletion (audit trail)
+    - History preserved even after facts are deleted
 
     **Shared Family Budget:**
     - All authenticated users can delete any transactions
@@ -846,6 +880,9 @@ async def batch_delete_facts(
     - 200 OK: Number of deleted facts
     - 400 Bad Request: Empty list or too many facts
     """
+    from datetime import datetime
+    from backend.app.models.budget_fact_history import BudgetFactHistory
+
     if not fact_ids:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -858,16 +895,51 @@ async def batch_delete_facts(
             detail="Cannot delete more than 500 facts at once"
         )
 
-    # Delete facts (bulk delete)
-    from sqlmodel import delete
-
-    stmt = delete(BudgetFact).where(BudgetFact.id.in_(fact_ids))
+    # 1. Load facts to delete (need full data for history)
+    stmt = select(BudgetFact).where(BudgetFact.id.in_(fact_ids))
     result = await session.execute(stmt)
+    facts_to_delete = result.scalars().all()
+
+    if not facts_to_delete:
+        return {
+            "message": "No facts found to delete",
+            "deleted_count": 0
+        }
+
+    # 2. Create DELETE history record for each fact (audit trail)
+    now = datetime.utcnow()
+    for fact in facts_to_delete:
+        delete_history = BudgetFactHistory(
+            fact_id=fact.id,
+            user_id=fact.user_id,
+            article_id=fact.article_id,
+            financial_center_id=fact.financial_center_id,
+            cost_center_id=fact.cost_center_id,
+            fact_date=fact.fact_date,
+            amount=fact.amount,
+            description=fact.description,
+            record_type=fact.record_type,
+            transfer_id=fact.transfer_id,
+            valid_from=now,
+            valid_to=datetime(9999, 12, 31),
+            is_current=False,  # Deleted records are never current
+            change_type="DELETE",
+            changed_fields=None,  # Full deletion
+            changed_by_user_id=current_user.id,
+            cascade_delete_source=None  # Direct user deletion (batch)
+        )
+        session.add(delete_history)
+
+        # 3. Delete fact
+        await session.delete(fact)
+
+    # 4. Commit all changes
     await session.commit()
 
-    logger.info(f"Batch deleted {result.rowcount} facts by user {current_user.id}")
+    deleted_count = len(facts_to_delete)
+    logger.info(f"Batch deleted {deleted_count} facts by user {current_user.id}")
 
     return {
-        "message": f"Deleted {result.rowcount} facts",
-        "deleted_count": result.rowcount
+        "message": f"Deleted {deleted_count} facts",
+        "deleted_count": deleted_count
     }

@@ -29,13 +29,8 @@ Usage:
 
 Options:
   -h, --help                      Show this help message
-  -d, --detach                    Run in detached mode (default)
-  -f, --foreground                Run in foreground (show logs)
-  -p, --profile PROFILE           Docker Compose profile (default: auto-detect from .env)
-  --no-migrate                    Skip database migrations
-  --migrations-only               Run ONLY migrations (skip build/restart containers)
-  --clean                         Clean deployment (remove volumes) - WARNING: DELETES DATA!
   --sync-mode MODE                Code sync mode: mirror|update|clean|skip (default: interactive)
+  --cleanup-mode MODE             Cleanup mode: skip|smart|full (default: interactive)
   --repo-dir PATH                 Repository directory path (default: auto-detect)
   --reapply-migration REVISION    Force reapply specific migration (downgrade then upgrade)
                                   Example: --reapply-migration b2232d851007
@@ -48,25 +43,40 @@ Sync Modes:
   clean    - Full cleanup + copy (DELETES everything except .env and backups/)
   skip     - No code synchronization (use current code in /opt/budget)
 
+Cleanup Modes:
+  skip     - Skip cleanup (deploy alongside old deployment, may cause conflicts)
+  smart    - Auto-detect changes & restart strategy (RECOMMENDED)
+             • Analyzes git diff to determine if PostgreSQL needs restart
+             • Keeps PostgreSQL running for frontend/backend changes only
+             • Full restart for DB migrations or config changes
+  full     - Full cleanup (stop all services, repair PostgreSQL if corrupted)
+             • Stops containers, removes networks
+             • Repairs PostgreSQL data directory if needed
+             • Data is preserved (volumes NOT deleted)
+
 Examples:
-  ./deploy.sh                                # Interactive sync mode + deploy
-  ./deploy.sh --sync-mode mirror             # Mirror sync + deploy
-  ./deploy.sh --sync-mode skip               # Deploy without code sync
-  ./deploy.sh --repo-dir ~/familyBudget      # Specify repository path
-  ./deploy.sh --reapply-migration b2232d851007  # Manually reapply specific migration (downgrade/upgrade)
-  AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh   # Enable auto-detection of changed migrations (dev/staging only)
+  ./deploy.sh                                           # Interactive sync + cleanup mode
+  ./deploy.sh --sync-mode mirror                        # Mirror sync + interactive cleanup
+  ./deploy.sh --cleanup-mode smart                      # Interactive sync + smart cleanup
+  ./deploy.sh --sync-mode mirror --cleanup-mode smart   # Fully automated (recommended)
+  ./deploy.sh --sync-mode update --cleanup-mode smart   # Update only + smart cleanup
+  ./deploy.sh --repo-dir ~/familyBudget                 # Specify repository path
+  ./deploy.sh --reapply-migration b2232d851007          # Reapply specific migration
+  AUTO_REAPPLY_MIGRATIONS=true ./deploy.sh              # Auto-detect changed migrations (dev/staging only)
 
 Workflow:
   1. Detects repository directory (current dir, ~/familyBudget, or ask)
   2. Syncs code from repository to /opt/budget (unless --sync-mode skip)
-  3. Builds Docker images (only changed layers)
-  4. Starts services with Docker Compose
-  5. Runs database migrations
-  6. Sets up SSL certificates (if configured)
+  3. Smart cleanup analyzes changes and determines restart strategy
+  4. Builds Docker images (only changed layers)
+  5. Starts services (profile auto-detected from .env DEPLOYMENT_PROFILE)
+  6. Runs database migrations (always - migrations are idempotent)
+  7. Sets up SSL certificates (if configured)
 
-Profiles:
-  none (default)   - PostgreSQL + Backend only
-  full             - All services (PostgreSQL + Backend + Bot + Nginx + Certbot)
+Deployment Profile:
+  Auto-detected from /opt/budget/.env (DEPLOYMENT_PROFILE=basic|full)
+  - basic: PostgreSQL + Backend only
+  - full:  All services (PostgreSQL + Backend + Bot + Nginx + Certbot)
 
 Prerequisites:
   - Docker and Docker Compose installed (run install.sh)

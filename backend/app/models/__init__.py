@@ -11,6 +11,7 @@ Models:
     FinancialCenter: Financial centers (bank accounts, wallets) with SCD Type 2
     CostCenter: Cost centers (projects, departments) with SCD Type 2
     BudgetFact: Budget transaction fact table
+    BudgetFactHistory: Budget fact change history (SCD Type 2)
     ArticleHierarchy: Closure table for article hierarchy
     RefreshToken: Refresh token storage for JWT authentication
     Notification: Budget alert notification history (supports broadcast)
@@ -24,11 +25,13 @@ Design Patterns:
 Usage:
     from backend.app.models import (
         User, Article, ArticleUsageStats, FinancialCenter, CostCenter,
-        BudgetFact, ArticleHierarchy, RefreshToken, Notification, ImportStaging
+        BudgetFact, BudgetFactHistory, ArticleHierarchy, RefreshToken,
+        Notification, ImportStaging
     )
 """
 
 from backend.app.models.article import Article, ArticleUsageStats
+from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
@@ -45,6 +48,7 @@ __all__ = [
     "FinancialCenter",
     "CostCenter",
     "BudgetFact",
+    "BudgetFactHistory",
     "ArticleHierarchy",
     "RefreshToken",
     "Notification",

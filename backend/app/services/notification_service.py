@@ -297,9 +297,8 @@ class NotificationService:
 
                 # Get all active expense articles
                 articles_stmt = select(Article).where(
-                    Article.is_current == True,
                     Article.is_active == True,
-                    Article.article_type == "expense",
+                    Article.type == "expense",
                 )
                 articles_result = await session.execute(articles_stmt)
                 articles = list(articles_result.scalars().all())

@@ -709,5 +709,13 @@ addplan_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_command)],
     name="addplan_conversation",
     persistent=False,
-    per_message=True,
+    # Explicit conversation tracking parameters (fixes PTBUserWarning)
+    # per_user=True: Each user has their own independent conversation state
+    # per_chat=True: In group chats, each chat has separate conversation state
+    # per_message=False: Callback queries can come from any message (not tied to specific message_id)
+    #   - This is correct for our use case: user can interact with different messages during conversation
+    #   - Alternative per_message=True would require callbacks ONLY from the original message with keyboard
+    per_user=True,
+    per_chat=True,
+    per_message=False,
 )

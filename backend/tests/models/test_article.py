@@ -195,7 +195,7 @@ async def test_article_scd2_query_current_only(session: AsyncSession, test_user:
     await session.commit()
 
     # Query only current versions
-    stmt = select(Article).where(Article.is_current == True)  # noqa: E712
+    stmt = select(Article).where(Article.is_active == True)  # noqa: E712
     result = await session.execute(stmt)
     articles = result.scalars().all()
 

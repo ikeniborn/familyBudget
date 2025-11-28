@@ -43,6 +43,15 @@ from backend.app.services.user_service import (
     update_user_profile,
     create_initial_history
 )
+from backend.app.services.article_service import (
+    update_article_profile as update_article_scd1,
+    create_initial_history as create_article_initial_history
+)
+from backend.app.services import (
+    archive_recursive,
+    restore_recursive,
+    has_changes
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 logger = logging.getLogger(__name__)
@@ -899,8 +908,6 @@ async def create_article(
     Raises:
         HTTPException: 400 if parent_id invalid or type mismatch
     """
-    from datetime import datetime
-
     # Validate parent_id if provided
     if create_data.parent_id is not None:
         parent_query = select(Article).where(
@@ -923,7 +930,7 @@ async def create_article(
     from backend.app.utils.code_generator import generate_code
     generated_code = await generate_code(session, Article)
 
-    # Create new article
+    # Create new article (SCD Type 1 - no versioning fields)
     new_article = Article(
         user_id=current_admin.id,
         parent_id=create_data.parent_id,
@@ -931,13 +938,17 @@ async def create_article(
         type=create_data.type,
         code=generated_code,
         is_active=create_data.is_active,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-        is_current=True
     )
     session.add(new_article)
     await session.commit()
     await session.refresh(new_article)
+
+    # Create initial history record (SCD Type 1 pattern)
+    await create_article_initial_history(
+        session=session,
+        article=new_article,
+        change_type="CREATE",
+    )
 
     # Return dict with datetime converted to ISO strings for JSON serialization
     return {
@@ -981,9 +992,7 @@ async def update_article(
         HTTPException: 404 if article not found
         HTTPException: 400 if parent_id invalid or creates circular reference
     """
-    from backend.app.services.scd2_service import create_new_version, has_changes
-
-    # Get current article version
+    # Get current article
     query = select(Article).where(
         Article.id == article_id,
     )
@@ -1069,10 +1078,32 @@ async def update_article(
         # Note: We'll need to recursively update children after main article update
         # The SCD2 service will handle parent_id redirection automatically
 
-    # Check if anything changed
+    # Handle is_active changes separately (archiving/restoring)
+    is_active_change = None
+    if "is_active" in updates and updates.get("is_active") != article.is_active:
+        is_active_change = updates["is_active"]
+        # Remove from updates - will be handled separately
+        del updates["is_active"]
+
+    # Check if anything changed (after removing is_active)
     changed, changed_fields = has_changes(article, updates)
+
+    # Process is_active change (recursive archive/restore)
+    if is_active_change is not None:
+        if is_active_change is False:
+            # Archive article and all descendants
+            archived_count = await archive_recursive(session, article_id)
+            logger.info(f"Archived {archived_count} articles")
+        else:
+            # Restore article and all descendants
+            restored_count = await restore_recursive(session, article_id)
+            logger.info(f"Restored {restored_count} articles")
+
+        # Refresh article to get updated is_active status
+        await session.refresh(article)
+
+    # If no other changes, return current article
     if not changed:
-        # No changes, return existing article as dict with ISO datetime strings
         return {
             "id": article.id,
             "user_id": article.user_id,
@@ -1083,42 +1114,23 @@ async def update_article(
             "is_active": article.is_active,
             "created_at": article.created_at.isoformat(),
             "updated_at": article.updated_at.isoformat(),
-            "usage_count": 0,  # Default - stats not loaded
+            "usage_count": 0,
             "hierarchy": None,
-            "user_name": None  # No user name in simple return
+            "user_name": None
         }
 
-    # Use SCD2Service to create new version (includes automatic child redirection)
-    new_article = await create_new_version(
+    # Use SCD Type 1 + History (in-place update with history tracking)
+    updated_article = await update_article_scd1(
         session=session,
-        old_instance=article,
+        article=article,
         updates=updates,
-        changed_fields=changed_fields,
         changed_by_user_id=current_admin.id,
-    )
-
-    # UPDATE TRANSACTIONS: Repoint all transactions from old article_id to new article_id
-    # This ensures historical transactions show under the new category attributes (e.g., new type)
-    # Without this, old transactions would be "lost" in analytics filtered by new attributes
-    update_stmt = (
-        sa_update(Fact)
-        .where(Fact.article_id == article.id)
-        .values(article_id=new_article.id)
-    )
-    await session.execute(update_stmt)
-    await session.commit()  # Commit transaction updates
-
-    # Refresh article to ensure it's not stale
-    await session.refresh(new_article)
-
-    logger.info(
-        f"Updated transactions: article_id {article.id} → {new_article.id} "
-        f"(old: {article.name}/{article.type}, new: {new_article.name}/{new_article.type})"
+        change_type="UPDATE",
     )
 
     # CASCADE: If type was changed, recursively update all children
     if "type" in updates and updates["type"] != article.type:
-        # Recursively update all descendants
+        # Get all descendants
         async def cascade_update_type(parent_article_id: int, new_type: str):
             """Recursively update type for all children of given article."""
             # Get all immediate children
@@ -1129,44 +1141,32 @@ async def update_article(
             children_list = children_result.scalars().all()
 
             for child in children_list:
-                # Only update if child has different type (should always be true if validations passed)
+                # Only update if child has different type
                 if child.type != new_type:
-                    old_child_id = child.id
-
-                    # Create new version with updated type
+                    # Update child type using SCD Type 1
                     child_updates = {"type": new_type}
-                    new_child = await create_new_version(
+                    await update_article_scd1(
                         session=session,
-                        old_instance=child,
+                        article=child,
                         updates=child_updates,
-                        changed_fields=["type"],
                         changed_by_user_id=current_admin.id,
+                        change_type="CASCADE_TYPE_UPDATE",
                     )
-
-                    # UPDATE TRANSACTIONS: Repoint child's transactions to new version
-                    update_child_stmt = (
-                        sa_update(Fact)
-                        .where(Fact.article_id == old_child_id)
-                        .values(article_id=new_child.id)
-                    )
-                    await session.execute(update_child_stmt)
-                    await session.commit()  # Commit cascade transaction updates
 
                     logger.info(
-                        f"CASCADE: Updated transactions for child: article_id {old_child_id} → {new_child.id} "
-                        f"({child.name}: {child.type} → {new_type})"
+                        f"CASCADE: Updated child type: {child.name} ({child.type} → {new_type})"
                     )
 
                     # Recursively update this child's children
-                    await cascade_update_type(new_child.id, new_type)
+                    await cascade_update_type(child.id, new_type)
 
-        # Start cascade from the newly created article
-        await cascade_update_type(new_article.id, new_article.type)
+        # Start cascade from the updated article
+        await cascade_update_type(updated_article.id, updated_article.type)
 
     # TRIGGER: Recalculate article usage statistics after category update
     # This ensures usage_count is up-to-date for category selection UI sorting
     try:
-        logger.info(f"Triggering article usage statistics recalculation after update of article {new_article.id}")
+        logger.info(f"Triggering article usage statistics recalculation after update of article {updated_article.id}")
         await session.execute(text("SELECT recalculate_article_usage_stats()"))
         logger.info("Article usage statistics recalculated successfully")
     except Exception as e:
@@ -1175,15 +1175,15 @@ async def update_article(
     # Return dict with datetime converted to ISO strings for JSON serialization
     # ArticleResponse includes usage_count which is not in Article model (comes from separate stats table)
     return {
-        "id": new_article.id,
-        "user_id": new_article.user_id,
-        "parent_id": new_article.parent_id,
-        "name": new_article.name,
-        "type": new_article.type,
-        "code": new_article.code,
-        "is_active": new_article.is_active,
-        "created_at": new_article.created_at.isoformat(),
-        "updated_at": new_article.updated_at.isoformat(),
+        "id": updated_article.id,
+        "user_id": updated_article.user_id,
+        "parent_id": updated_article.parent_id,
+        "name": updated_article.name,
+        "type": updated_article.type,
+        "code": updated_article.code,
+        "is_active": updated_article.is_active,
+        "created_at": updated_article.created_at.isoformat(),
+        "updated_at": updated_article.updated_at.isoformat(),
         "usage_count": 0,  # Default for updated articles - stats recalculated daily
         "hierarchy": None,
         "user_name": None  # No user name after update
@@ -1191,19 +1191,18 @@ async def update_article(
 
 
 @router.delete("/articles/{article_id}")
-async def deactivate_article(
+async def delete_article(
     article_id: int,
     current_admin: CurrentAdmin,
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Deactivate article (admin only).
+    Delete article physically (admin only).
 
-    Soft delete: sets valid_to=NOW() and is_current=False (SCD Type 2).
-    Does not physically delete the record.
+    Permanently deletes the article from database after validation.
 
     Args:
-        article_id: Article ID to deactivate
+        article_id: Article ID to delete
         current_admin: Current admin user (from dependency)
         session: Database session
 
@@ -1212,23 +1211,23 @@ async def deactivate_article(
 
     Raises:
         HTTPException: 404 if article not found
-        HTTPException: 400 if article has active children
+        HTTPException: 400 if article has children or is used in transactions
     """
-    from datetime import datetime
+    from backend.app.models.hierarchy import ArticleHierarchy
+    from backend.app.models.article_history import ArticleHistory
+    from backend.app.models.article import ArticleUsageStats
 
-    # Get current article version
-    query = select(Article).where(
-        Article.id == article_id,
-    )
+    # Get article
+    query = select(Article).where(Article.id == article_id)
     result = await session.execute(query)
     article = result.scalar_one_or_none()
 
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
 
-    # Check for active children
+    # Check if article has children
     children_query = select(func.count(Article.id)).where(
-        Article.parent_id == article_id,
+        Article.parent_id == article_id
     )
     children_result = await session.execute(children_query)
     children_count = children_result.scalar()
@@ -1236,16 +1235,117 @@ async def deactivate_article(
     if children_count > 0:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot deactivate article with {children_count} active children. Deactivate children first."
+            detail=f"Cannot delete article with {children_count} child categories. Delete children first."
         )
 
-    # Deactivate article
-    article.valid_to = datetime.utcnow()
-    article.is_current = False
-    session.add(article)
+    # NOTE: Removed validation blocking deletion when article has transactions
+    # Now we CASCADE DELETE facts with history tracking (see below)
+
+    # 1. Create DELETE history record (for audit trail)
+    now = datetime.utcnow()
+    delete_history = ArticleHistory(
+        article_id=article.id,
+        user_id=article.user_id,
+        parent_id=article.parent_id,
+        name=article.name,
+        description=article.description,
+        type=article.type,
+        code=article.code,
+        is_active=article.is_active,
+        valid_from=now,
+        valid_to=datetime(9999, 12, 31),
+        is_current=False,  # Deleted records are never current
+        change_type="DELETE",
+        changed_fields=None,  # Full deletion
+        changed_by_user_id=current_admin.id,
+    )
+    session.add(delete_history)
+
+    # 2. CASCADE DELETE: Delete facts with history tracking
+    from backend.app.models.fact import BudgetFact
+    from backend.app.models.budget_fact_history import BudgetFactHistory
+
+    # Count facts for this article
+    facts_count_query = select(func.count(BudgetFact.id)).where(
+        BudgetFact.article_id == article_id
+    )
+    facts_count_result = await session.execute(facts_count_query)
+    facts_count = facts_count_result.scalar()
+
+    # If facts exist, delete them with history tracking
+    if facts_count > 0:
+        # Load all facts for this article
+        facts_query = select(BudgetFact).where(
+            BudgetFact.article_id == article_id
+        )
+        facts_result = await session.execute(facts_query)
+        facts_to_delete = facts_result.scalars().all()
+
+        # Create BudgetFactHistory record for each deleted fact
+        for fact in facts_to_delete:
+            fact_delete_history = BudgetFactHistory(
+                fact_id=fact.id,
+                user_id=fact.user_id,
+                article_id=fact.article_id,
+                financial_center_id=fact.financial_center_id,
+                cost_center_id=fact.cost_center_id,
+                amount=fact.amount,
+                fact_date=fact.fact_date,
+                description=fact.description,
+                record_type=fact.record_type,
+                transfer_id=fact.transfer_id,
+                valid_from=now,
+                valid_to=datetime(9999, 12, 31),
+                is_current=False,
+                change_type="DELETE",
+                changed_fields=None,  # Full deletion
+                changed_by_user_id=current_admin.id,
+                cascade_delete_source=f"article_id:{article_id}",  # Mark as cascade deleted
+            )
+            session.add(fact_delete_history)
+
+            # Delete fact
+            await session.delete(fact)
+
+    # 3. Delete from ArticleHierarchy (closure table)
+    hierarchy_delete = select(ArticleHierarchy).where(
+        (ArticleHierarchy.ancestor_id == article_id) |
+        (ArticleHierarchy.descendant_id == article_id)
+    )
+    hierarchy_result = await session.execute(hierarchy_delete)
+    hierarchy_records = hierarchy_result.scalars().all()
+    for record in hierarchy_records:
+        await session.delete(record)
+
+    # 4. History records are PRESERVED for audit (NOT deleted)
+    # ArticleHistory keeps full change history including DELETE record above
+
+    # 5. Delete from ArticleUsageStats if exists
+    usage_stats_delete = select(ArticleUsageStats).where(
+        ArticleUsageStats.article_id == article_id
+    )
+    usage_stats_result = await session.execute(usage_stats_delete)
+    usage_stats_record = usage_stats_result.scalar_one_or_none()
+    if usage_stats_record:
+        await session.delete(usage_stats_record)
+
+    # 6. Delete article
+    await session.delete(article)
     await session.commit()
 
-    return {"message": "Article deactivated successfully", "article_id": article_id}
+    logger.info(
+        f"Physically deleted article {article_id} ({article.name}) "
+        f"with {facts_count} cascade-deleted facts "
+        f"by admin {current_admin.id}"
+    )
+
+    return {
+        "message": "Article deleted successfully",
+        "article_id": article_id,
+        "cascade_deleted": {
+            "facts": facts_count
+        }
+    }
 
 
 # ============================================================================
