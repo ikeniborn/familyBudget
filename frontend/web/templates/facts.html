@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% from "components/modal_transaction.html" import transaction_modal %}
 
+{% block extra_head %}
+<!-- CalendarWidget CSS -->
+<link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+{% endblock %}
+
 {% block content %}
 <div class="space-y-6">
     <!-- Page Header -->
