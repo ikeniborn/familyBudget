@@ -209,10 +209,29 @@
 @media (max-width: 640px) {
     .choices-tailwind .choices__inner {
         @apply min-h-[48px] text-base;  /* Prevent zoom on iOS */
+        touch-action: manipulation;  /* Prevent double-tap zoom */
     }
 
     .choices-tailwind .choices__list--dropdown .choices__item {
         @apply py-3.5 text-base;
+    }
+
+    /* CRITICAL: Prevent zoom on search input (iOS/Android/Yandex Browser) */
+    .choices-tailwind .choices__input--cloned {
+        font-size: 17px !important;  /* 17px more reliable than 16px */
+        -webkit-text-size-adjust: 100%;  /* Disable font boosting */
+        touch-action: manipulation;  /* Prevent double-tap zoom */
+    }
+
+    .choices-tailwind .choices__input {
+        font-size: 17px !important;
+        -webkit-text-size-adjust: 100%;
+        touch-action: manipulation;
+    }
+
+    /* Prevent zoom on dropdown itself */
+    .choices-tailwind .choices__list--dropdown {
+        touch-action: manipulation;
     }
 }
 

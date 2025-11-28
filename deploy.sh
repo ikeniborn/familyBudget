@@ -806,6 +806,23 @@ main() {
     sync_code_to_deploy
     echo ""
 
+    # Update Service Worker cache version (PWA)
+    # IMPORTANT: Must run AFTER sync to avoid git conflicts in source repository
+    # Updates sw.js ONLY in /opt/budget, leaving source repository clean
+    step "Updating Service Worker Cache Version"
+    cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
+
+    if [[ -f "scripts/update-sw-version.sh" ]]; then
+        info "Running update-sw-version.sh in deployment directory..."
+        bash scripts/update-sw-version.sh || {
+            warning "Failed to update SW version, continuing deployment..."
+        }
+        echo ""
+    else
+        warning "scripts/update-sw-version.sh not found, skipping SW version update"
+        echo ""
+    fi
+
     # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync
     print_message info "Post-sync check: Verifying npm environment preservation..."
     if [[ ! -d "/opt/budget/.npm-isolated/node_modules" ]]; then

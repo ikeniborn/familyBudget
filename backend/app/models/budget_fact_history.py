@@ -9,11 +9,11 @@ when, and who made the change. This includes CASCADE DELETIONS when dimension
 records (articles, financial centers, cost centers) are deleted.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import ARRAY, String
+from sqlalchemy import DateTime, ARRAY, String
 from sqlmodel import Column, Field, SQLModel
 
 
@@ -218,14 +218,13 @@ class BudgetFactHistory(SQLModel, table=True):
 
     # SCD Type 2 fields
     valid_from: datetime = Field(
-        nullable=False,
-        index=True,
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
         description="Start of validity period"
     )
 
     valid_to: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         default=datetime(9999, 12, 31),
-        nullable=False,
         description="End of validity period (9999-12-31 for current version)"
     )
 
@@ -262,8 +261,8 @@ class BudgetFactHistory(SQLModel, table=True):
 
     # Audit field
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
-        nullable=False,
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+        default_factory=lambda: datetime.now(timezone.utc),
         description="When history record was created"
     )
 

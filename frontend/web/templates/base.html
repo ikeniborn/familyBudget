@@ -8,8 +8,21 @@
     <meta name="app-env" content="{{ app_env|default('production') }}">
     <title>{% block title %}{{ page_title }}{% endblock %} - Семейный бюджет</title>
 
-    <!-- Favicon -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+
+    <!-- iOS Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Бюджет">
+
+    <!-- Android -->
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <!-- Favicon & PWA Icons -->
+    <link rel="icon" type="image/x-icon" href="/static/icons/favicon.ico">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
 
     <!-- Tailwind CSS + DaisyUI (Local Build) -->
     <link rel="stylesheet" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER">
@@ -427,6 +440,63 @@
         });
 
         debugLog('[Mobile Modal Fix] Initialized real viewport height calculation');
+    </script>
+
+    <!-- Service Worker Registration (PWA) -->
+    <script>
+        // Service Worker регистрация для Progressive Web App
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        debugLog('[PWA] Service Worker registered:', registration.scope);
+
+                        // Проверка обновлений при каждой загрузке страницы
+                        registration.update();
+
+                        // Автоматическая проверка обновлений каждые 24 часа
+                        setInterval(() => {
+                            registration.update();
+                        }, 24 * 60 * 60 * 1000);
+
+                        // Обработка обновлений SW
+                        registration.addEventListener('updatefound', () => {
+                            const newWorker = registration.installing;
+                            if (!newWorker) return;
+
+                            newWorker.addEventListener('statechange', () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // Новая версия доступна
+                                    debugLog('[PWA] New version available');
+
+                                    // Показываем уведомление пользователю
+                                    showToast('Доступна новая версия приложения', 'info');
+
+                                    // Опциональный автоматический reload (можно убрать если нужен ручной контроль)
+                                    setTimeout(() => {
+                                        newWorker.postMessage({ action: 'skipWaiting' });
+                                    }, 3000);
+                                }
+                            });
+                        });
+                    })
+                    .catch((err) => {
+                        console.error('[PWA] Service Worker registration failed:', err);
+                    });
+
+                // Обработка контроллера SW (reload при активации нового SW)
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        debugLog('[PWA] Reloading page for new Service Worker');
+                        window.location.reload();
+                    }
+                });
+            });
+        } else {
+            debugLog('[PWA] Service Worker not supported in this browser');
+        }
     </script>
 </body>
 </html>

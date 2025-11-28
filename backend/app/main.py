@@ -256,6 +256,42 @@ app.mount("/shared", StaticFiles(directory=str(FrontendPaths.SHARED)), name="sha
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
 
+# PWA endpoints (must be before web_router to avoid being caught by catch-all routes)
+@app.get("/sw.js", include_in_schema=False)
+async def service_worker():
+    """Serve Service Worker for PWA"""
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+
+    sw_path = Path("/app/sw.js")
+    if not sw_path.exists():
+        raise HTTPException(status_code=404, detail="Service Worker not found")
+
+    return FileResponse(
+        str(sw_path),
+        media_type="application/javascript; charset=utf-8",
+        headers={
+            "Cache-Control": "public, max-age=0, must-revalidate",
+            "Service-Worker-Allowed": "/"
+        }
+    )
+
+@app.get("/manifest.json", include_in_schema=False)
+async def pwa_manifest():
+    """Serve PWA Manifest"""
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+
+    manifest_path = Path("/app/manifest.json")
+    if not manifest_path.exists():
+        raise HTTPException(status_code=404, detail="Manifest not found")
+
+    return FileResponse(
+        str(manifest_path),
+        media_type="application/manifest+json",
+        headers={"Cache-Control": "public, max-age=604800"}  # 7 days
+    )
+
 # Include routers
 app.include_router(health_router)  # Health endpoints at /health, /ready, /ping
 app.include_router(api_router)  # API endpoints at /api/v1

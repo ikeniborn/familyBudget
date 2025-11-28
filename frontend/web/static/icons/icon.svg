@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#388E3C;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bagGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F5E6D3;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#E8D5B7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D4B896;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="coinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD54F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFC107;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="shadowGrad" cx="50%" cy="50%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#bgGrad)"/>
+
+  <!-- Shadow under bag -->
+  <ellipse cx="256" cy="420" rx="140" ry="25" fill="url(#shadowGrad)"/>
+
+  <!-- Money bag -->
+  <g transform="translate(256, 240)">
+    <!-- Bag body -->
+    <path d="M -100 -20 Q -100 140 0 140 Q 100 140 100 -20 L 80 -20 Q 80 110 0 110 Q -80 110 -80 -20 Z"
+          fill="url(#bagGrad)" stroke="#A0826D" stroke-width="4"/>
+
+    <!-- Bag texture lines -->
+    <line x1="-70" y1="20" x2="-60" y2="25" stroke="#C9B49A" stroke-width="2" opacity="0.5"/>
+    <line x1="60" y1="25" x2="70" y2="20" stroke="#C9B49A" stroke-width="2" opacity="0.5"/>
+    <line x1="-80" y1="50" x2="-65" y2="55" stroke="#C9B49A" stroke-width="2" opacity="0.5"/>
+    <line x1="65" y1="55" x2="80" y2="50" stroke="#C9B49A" stroke-width="2" opacity="0.5"/>
+
+    <!-- Bag neck/rope -->
+    <ellipse cx="0" cy="-20" rx="85" ry="20" fill="#8B6F47" stroke="#5D4E37" stroke-width="3"/>
+    <path d="M -85 -20 Q -85 -5 -70 -5 L 70 -5 Q 85 -5 85 -20" fill="#6B5A3D"/>
+
+    <!-- Rope knot -->
+    <ellipse cx="0" cy="-35" rx="15" ry="12" fill="#8B6F47" stroke="#5D4E37" stroke-width="2"/>
+    <path d="M -8 -42 Q 0 -50 8 -42" fill="none" stroke="#5D4E37" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Dollar/Ruble symbol on bag -->
+    <text x="0" y="70" font-family="Arial, sans-serif" font-size="80" font-weight="bold"
+          fill="#8B6F47" text-anchor="middle" opacity="0.4">₽</text>
+  </g>
+
+  <!-- Coins around bag -->
+  <g>
+    <!-- Coin 1 (left, small) -->
+    <circle cx="140" cy="340" r="35" fill="url(#coinGrad)"/>
+    <circle cx="140" cy="340" r="35" fill="none" stroke="#F57C00" stroke-width="2.5" opacity="0.5"/>
+    <circle cx="140" cy="340" r="28" fill="none" stroke="#FFE082" stroke-width="1.5" opacity="0.6"/>
+    <text x="140" y="355" font-family="Arial, sans-serif" font-size="32" font-weight="bold"
+          fill="#F57C00" text-anchor="middle">₽</text>
+
+    <!-- Coin 2 (right, medium) -->
+    <circle cx="370" cy="350" r="40" fill="url(#coinGrad)"/>
+    <circle cx="370" cy="350" r="40" fill="none" stroke="#F57C00" stroke-width="3" opacity="0.5"/>
+    <circle cx="370" cy="350" r="32" fill="none" stroke="#FFE082" stroke-width="2" opacity="0.6"/>
+    <text x="370" y="367" font-family="Arial, sans-serif" font-size="38" font-weight="bold"
+          fill="#F57C00" text-anchor="middle">₽</text>
+
+    <!-- Coin 3 (top left, flying) -->
+    <g transform="translate(180, 150) rotate(-15)">
+      <circle cx="0" cy="0" r="30" fill="url(#coinGrad)" opacity="0.95"/>
+      <circle cx="0" cy="0" r="30" fill="none" stroke="#F57C00" stroke-width="2" opacity="0.5"/>
+      <circle cx="0" cy="0" r="24" fill="none" stroke="#FFE082" stroke-width="1.5" opacity="0.6"/>
+      <text x="0" y="12" font-family="Arial, sans-serif" font-size="28" font-weight="bold"
+            fill="#F57C00" text-anchor="middle">₽</text>
+    </g>
+
+    <!-- Coin 4 (top right, flying) -->
+    <g transform="translate(335, 160) rotate(20)">
+      <circle cx="0" cy="0" r="32" fill="url(#coinGrad)" opacity="0.95"/>
+      <circle cx="0" cy="0" r="32" fill="none" stroke="#F57C00" stroke-width="2" opacity="0.5"/>
+      <circle cx="0" cy="0" r="25" fill="none" stroke="#FFE082" stroke-width="1.5" opacity="0.6"/>
+      <text x="0" y="12" font-family="Arial, sans-serif" font-size="30" font-weight="bold"
+            fill="#F57C00" text-anchor="middle">₽</text>
+    </g>
+  </g>
+
+  <!-- Sparkles/shine effects -->
+  <g opacity="0.8">
+    <circle cx="200" cy="120" r="4" fill="#FFFFFF"/>
+    <circle cx="310" cy="110" r="3" fill="#FFFFFF"/>
+    <circle cx="380" cy="200" r="3" fill="#FFFFFF"/>
+    <circle cx="130" cy="280" r="3" fill="#FFFFFF"/>
+  </g>
+</svg>
