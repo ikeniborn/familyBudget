@@ -104,6 +104,66 @@ familyBudget/
 - `Notification` - Уведомления (broadcast support)
 - `ImportStaging` - Staging table для импорта из Tinkoff
 
+**2a. PostgreSQL Data Directory (Bind Mount Architecture)**
+
+**ВАЖНО:** PostgreSQL использует **bind mount** вместо Docker managed volume.
+
+```yaml
+# docker-compose.yml
+volumes:
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /opt/budget/data/postgres  # Bind mount to host directory
+```
+
+**Архитектурные особенности:**
+
+1. **Инициализация (`initdb`):**
+   - PostgreSQL создает критические директории ТОЛЬКО при первой инициализации
+   - Критические директории: `pg_notify`, `pg_dynshmem`, `pg_stat`, `pg_tblspc`, `pg_logical/snapshots`, и др.
+
+2. **Последующие запуски:**
+   - PostgreSQL **НЕ проверяет** наличие критических директорий
+   - Если хотя бы одна директория отсутствует → **FATAL**: "could not open directory pg_notify"
+
+3. **Автоматическое восстановление:**
+   - `deploy.sh` вызывает `repair_postgres_directories_atomic()` перед КАЖДЫМ запуском
+   - Функция создает отсутствующие директории с правильными permissions (70:70 для Alpine)
+   - Если все директории присутствуют → silent success (no output)
+
+4. **Race Conditions Prevention:**
+   - `validate_postgres_permissions_always()` проверяет статус PostgreSQL ПЕРЕД любыми операциями с ФС
+   - Если PostgreSQL запущен → NO filesystem modifications (возврат без изменений)
+   - Рекурсивный `chown -R` запускается ТОЛЬКО когда PostgreSQL остановлен
+
+**Troubleshooting:**
+
+```bash
+# Проверить структуру директорий
+ls -la /opt/budget/data/postgres/
+
+# Вручную создать отсутствующие директории
+cd ~/familyBudget
+sudo bash -c "source scripts/lib/config.sh; source scripts/lib/utils.sh; source scripts/lib/postgres.sh; repair_postgres_directories_atomic"
+
+# Проверить логи PostgreSQL
+docker logs familybudget-postgres --tail 50
+
+# Миграция на Docker managed volume (future) - НЕ делать в production без backup!
+# docker volume create familybudget_postgres_data
+# docker compose down postgres
+# cp -a /opt/budget/data/postgres/* /var/lib/docker/volumes/familybudget_postgres_data/_data/
+# # Изменить docker-compose.yml - убрать driver_opts
+# docker compose up -d postgres
+```
+
+**Планы на будущее (v6.0+):**
+- Миграция на Docker managed volume для лучшей изоляции и автоматического управления permissions
+- Breaking change - требует миграцию данных существующих установок
+
 **3. Database Migrations (Alembic)**
 - `backend/db/migrations/env.py` - Alembic environment
 - `backend/db/migrations/versions/` - Migration files

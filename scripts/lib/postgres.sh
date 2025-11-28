@@ -161,18 +161,30 @@ repair_postgres_directories_atomic() {
         fi
     done
 
-    # If all directories present, no action needed
+    # If all directories present, no action needed (SILENT SUCCESS)
+    # ARCHITECTURE NOTE: This function runs on EVERY deployment to ensure data integrity.
+    # We intentionally suppress output when everything is OK to avoid false alarms.
+    # Users were confused by constant "11 missing directories" messages when bind mount
+    # temporarily doesn't have some subdirectories created yet.
     if [[ ${#missing_dirs[@]} -eq 0 ]]; then
-        success "All ${#critical_dirs[@]} critical directories present"
-        info "PostgreSQL data directory structure is valid"
+        # ✅ SILENT SUCCESS - no output needed (everything is normal)
         return 0
     fi
 
-    # Report missing directories
-    warning "Detected ${#missing_dirs[@]} missing critical directories:"
+    # Report missing directories (ONLY when actually repairing)
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    warning "⚠️  PostgreSQL Atomic Repair: Detected ${#missing_dirs[@]} missing critical directories"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    info "Missing directories (will be created):"
     for dir in "${missing_dirs[@]}"; do
         echo "  ✗ $dir"
     done
+    echo ""
+    info "Root cause: Bind mount architecture - PostgreSQL creates these directories"
+    info "only during initdb. If they're missing on subsequent starts → FATAL error."
+    info "This repair ensures all critical directories exist before container start."
     echo ""
 
     # Get target UID for correct ownership (source of truth: Docker image)
@@ -454,6 +466,14 @@ initialize_postgres_directory() {
 # Validate and fix PostgreSQL permissions UNCONDITIONALLY
 # This function runs ALWAYS before service start, regardless of POSTGRES_WAS_STOPPED
 # Use case: Smart cleanup may skip PostgreSQL restart, but permissions still need validation
+#
+# CRITICAL SAFETY: Prevents race conditions by checking PostgreSQL status BEFORE any filesystem operations
+# BIND MOUNT ISSUE: Using bind mount (/opt/budget/data/postgres) instead of Docker volume
+#   - PostgreSQL creates critical directories ONLY during initdb
+#   - If ANY directory is missing on next start → FATAL error
+#   - chown -R while PostgreSQL is running can corrupt data or delete temp files
+#
+# SOLUTION: Always check container status FIRST, never modify filesystem while PostgreSQL is active
 validate_postgres_permissions_always() {
     local postgres_data_dir="$DEPLOY_DIR/data/postgres"
 
@@ -471,6 +491,24 @@ validate_postgres_permissions_always() {
         return 0
     fi
 
+    # CRITICAL: Check PostgreSQL running status FIRST (before ANY filesystem operations!)
+    # This prevents race conditions where we modify permissions while PostgreSQL is writing data
+    local postgres_is_running=false
+    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        postgres_is_running=true
+    fi
+
+    # SAFETY GATE: If PostgreSQL is running → NO filesystem modifications allowed!
+    if [[ "$postgres_is_running" == "true" ]]; then
+        info "PostgreSQL is running - skipping ALL filesystem modifications (data safety)"
+        info "Permissions will be validated on next deployment when PostgreSQL stops"
+        success "Validation skipped safely (PostgreSQL active)"
+        return 0
+    fi
+
+    # PostgreSQL is stopped - safe to proceed with permission checks
+    info "PostgreSQL is stopped - safe to validate and fix permissions"
+
     # ALWAYS use UID from Docker image (correct source of truth)
     # Do NOT use UID from existing data - it may be wrong after rsync from dev
     local target_uid=$(get_postgres_uid_from_image "postgres:16-alpine")
@@ -478,24 +516,15 @@ validate_postgres_permissions_always() {
 
     info "Target PostgreSQL UID from Docker image: $target_uid:$target_gid (postgres:16-alpine)"
 
-    # Check PostgreSQL running status FIRST (critical for safe permission handling)
-    local postgres_is_running=false
-    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
-        postgres_is_running=true
-    fi
-
-    # Remove stale postmaster.pid lock file (ONLY if PostgreSQL is NOT running!)
+    # Remove stale postmaster.pid lock file
+    # NOTE: We already verified PostgreSQL is stopped (SAFETY GATE above), so lock file is stale
     if [[ -f "$postgres_data_dir/postmaster.pid" ]]; then
-        if [[ "$postgres_is_running" == "true" ]]; then
-            info "PostgreSQL is running - lock file is valid (NOT stale)"
+        warning "Found stale PostgreSQL lock file (postmaster.pid)"
+        info "Removing lock file (safe - PostgreSQL is stopped)..."
+        if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
+            success "Lock file removed"
         else
-            warning "Found stale PostgreSQL lock file (postmaster.pid)"
-            info "PostgreSQL is stopped - safe to remove lock file..."
-            if sudo rm -f "$postgres_data_dir/postmaster.pid"; then
-                success "Lock file removed"
-            else
-                warning "Failed to remove lock file (continuing anyway)"
-            fi
+            warning "Failed to remove lock file (continuing anyway)"
         fi
     fi
 
@@ -506,14 +535,7 @@ validate_postgres_permissions_always() {
         warning "Incorrect ownership detected: $current_owner (expected $target_uid:$target_gid)"
         info "Fixing ownership recursively (CRITICAL for PostgreSQL startup)..."
 
-        # CRITICAL: Stop PostgreSQL if running (permissions cannot be changed while DB is active)
-        if [[ "$postgres_is_running" == "true" ]]; then
-            warning "PostgreSQL is running - stopping temporarily to fix permissions..."
-            docker compose -f "$DEPLOY_DIR/docker-compose.yml" stop postgres --timeout 30 >> "$LOG_FILE" 2>&1 || true
-            sleep 2
-            info "PostgreSQL stopped - safe to fix permissions"
-        fi
-
+        # NOTE: No need to stop PostgreSQL - SAFETY GATE already ensured it's stopped
         if sudo chown -R $target_uid:$target_gid "$postgres_data_dir"; then
             success "Ownership corrected to $target_uid:$target_gid (recursive)"
         else
@@ -521,22 +543,15 @@ validate_postgres_permissions_always() {
             return 1
         fi
     else
-        # Ownership correct on parent directory
+        # Ownership correct on parent directory - verify subdirectories recursively
         info "Parent directory ownership correct: $current_owner"
+        info "Verifying ownership consistency recursively..."
 
-        # CRITICAL SAFEGUARD: DO NOT run chown -R if PostgreSQL is running!
-        # Running chown on active database files causes corruption
-        if [[ "$postgres_is_running" == "true" ]]; then
-            success "PostgreSQL is running - skipping recursive permission check (ownership already correct)"
-            info "Recursive verification will run on next deployment when PostgreSQL stops"
+        # SAFE: PostgreSQL is stopped (verified by SAFETY GATE)
+        if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
+            success "PostgreSQL permissions validated: $target_uid:$target_gid (recursive)"
         else
-            # PostgreSQL is stopped - safe to verify recursively
-            info "PostgreSQL is stopped - verifying ownership consistency recursively..."
-            if sudo chown -R $target_uid:$target_gid "$postgres_data_dir" 2>/dev/null; then
-                success "PostgreSQL permissions validated: $target_uid:$target_gid (recursive)"
-            else
-                warning "Failed to recursively verify ownership (continuing anyway)"
-            fi
+            warning "Failed to recursively verify ownership (continuing anyway)"
         fi
     fi
 

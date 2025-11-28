@@ -242,4 +242,8 @@ search_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_search)],
     name="search_conversation",
     persistent=False,
+    # Explicit conversation tracking parameters (fixes PTBUserWarning)
+    per_user=True,     # Each user has independent search state
+    per_chat=True,     # Each chat has separate search results
+    per_message=False,  # Search is single-step (no callbacks needed)
 )

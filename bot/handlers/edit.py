@@ -743,4 +743,8 @@ edit_conversation_handler = ConversationHandler(
     fallbacks=[CommandHandler("cancel", cancel_edit)],
     name="edit_conversation",
     persistent=False,
+    # Explicit conversation tracking parameters (fixes PTBUserWarning)
+    per_user=True,     # Each user has independent edit flow
+    per_chat=True,     # Each chat has separate edit state
+    per_message=False,  # Callbacks can come from updated messages during multi-step editing
 )
