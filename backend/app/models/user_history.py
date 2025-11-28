@@ -8,7 +8,7 @@ All changes to User table are logged here with metadata about what changed,
 when, and who made the change.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from sqlalchemy import ARRAY, BigInteger, Column, String
@@ -213,9 +213,9 @@ class UserHistory(SQLModel, table=True):
         description="User ID who made the change (NULL for automatic changes)"
     )
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
-        description="Timestamp when history record was created"
+        description="Timestamp when history record was created (timezone-aware UTC)"
     )
 
     def __repr__(self) -> str:

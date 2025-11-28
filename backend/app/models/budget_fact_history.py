@@ -9,7 +9,7 @@ when, and who made the change. This includes CASCADE DELETIONS when dimension
 records (articles, financial centers, cost centers) are deleted.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
@@ -262,7 +262,7 @@ class BudgetFactHistory(SQLModel, table=True):
 
     # Audit field
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=lambda: datetime.now(timezone.utc),
         nullable=False,
         description="When history record was created"
     )
