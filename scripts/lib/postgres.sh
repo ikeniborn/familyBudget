@@ -116,6 +116,12 @@ repair_postgres_directories_atomic() {
     info "Checking directories in: $postgres_data_dir"
     info "First 3 critical dirs to check: ${critical_dirs[0]}, ${critical_dirs[1]}, ${critical_dirs[2]}"
 
+    # DEBUG: Check script execution context
+    info "DEBUG: Running as user=$(whoami), EUID=$EUID, UID=$UID"
+    info "DEBUG: Parent dir permissions: $(ls -ld $postgres_data_dir 2>&1 || echo 'cannot stat')"
+    info "DEBUG: First dir check (ls): $(ls -ld $postgres_data_dir/${critical_dirs[0]} 2>&1 | head -1 || echo 'not found')"
+    info "DEBUG: First dir check (test -d): $([[ -d $postgres_data_dir/${critical_dirs[0]} ]] && echo 'EXISTS' || echo 'MISSING')"
+
     local missing_dirs=()
     local present_dirs=()
     for dir in "${critical_dirs[@]}"; do
