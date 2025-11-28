@@ -103,6 +103,16 @@ repair_postgres_directories_atomic() {
     # Why: PostgreSQL deletes runtime directories (pg_notify, pg_dynshmem, pg_stat, etc.)
     # during graceful shutdown. If we stop first, they'll ALWAYS be missing - FALSE ALARM!
     # Solution: Check while running → if present, no action needed (silent success).
+
+    # DEBUG: Check PostgreSQL container status BEFORE directory check
+    local container_running="false"
+    if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        container_running="true"
+        info "PostgreSQL container is RUNNING - checking directories while active"
+    else
+        info "PostgreSQL container is STOPPED - checking directories in stopped state"
+    fi
+
     local missing_dirs=()
     for dir in "${critical_dirs[@]}"; do
         if [[ ! -d "$postgres_data_dir/$dir" ]]; then
@@ -117,8 +127,12 @@ repair_postgres_directories_atomic() {
     # and deleted on graceful shutdown - this is NORMAL PostgreSQL behavior!
     if [[ ${#missing_dirs[@]} -eq 0 ]]; then
         # ✅ SILENT SUCCESS - no output needed (everything is normal)
+        success "All ${#critical_dirs[@]} critical directories present - no repair needed"
         return 0
     fi
+
+    # DEBUG: Report which directories are missing and PostgreSQL state
+    info "Found ${#missing_dirs[@]} missing directories WHILE PostgreSQL is: $container_running"
 
     # Check container status comprehensively
     local container_exists=false
