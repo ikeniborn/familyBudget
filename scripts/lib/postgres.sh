@@ -113,12 +113,26 @@ repair_postgres_directories_atomic() {
         info "PostgreSQL container is STOPPED - checking directories in stopped state"
     fi
 
+    info "Checking directories in: $postgres_data_dir"
+    info "First 3 critical dirs to check: ${critical_dirs[0]}, ${critical_dirs[1]}, ${critical_dirs[2]}"
+
     local missing_dirs=()
+    local present_dirs=()
     for dir in "${critical_dirs[@]}"; do
         if [[ ! -d "$postgres_data_dir/$dir" ]]; then
             missing_dirs+=("$dir")
+        else
+            present_dirs+=("$dir")
         fi
     done
+
+    info "Result: ${#present_dirs[@]} present, ${#missing_dirs[@]} missing"
+    if [[ ${#present_dirs[@]} -gt 0 ]]; then
+        info "Example present: ${present_dirs[0]}"
+    fi
+    if [[ ${#missing_dirs[@]} -gt 0 ]]; then
+        info "Example missing: ${missing_dirs[0]}"
+    fi
 
     # If all directories present, no action needed (SILENT SUCCESS)
     # ARCHITECTURE NOTE: This function runs on EVERY deployment to ensure data integrity.
