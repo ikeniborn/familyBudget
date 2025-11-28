@@ -9,6 +9,9 @@
  * Используйте git hash или timestamp для автоматической инвалидации кеша.
  */
 
+// Debug mode (включить только для отладки)
+const DEBUG = false;
+
 // ВАЖНО: Обновляйте при каждом деплое! (можно использовать ${GIT_HASH} или ${TIMESTAMP})
 const CACHE_VERSION = 'v20251129_0031';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
@@ -28,12 +31,12 @@ const STATIC_CACHE = [
 
 // Install event - кешируем критическую статику
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing version:', CACHE_VERSION);
+  if (DEBUG) console.log('[SW] Installing version:', CACHE_VERSION);
 
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[SW] Caching static files');
+        if (DEBUG) console.log('[SW] Caching static files');
         // Используем Promise.allSettled чтобы не сломаться если какой-то файл 404
         return Promise.allSettled(
           STATIC_CACHE.map(url =>
@@ -45,7 +48,7 @@ self.addEventListener('install', (event) => {
         );
       })
       .then(() => {
-        console.log('[SW] Skip waiting');
+        if (DEBUG) console.log('[SW] Skip waiting');
         return self.skipWaiting();
       })
       .catch((err) => {
@@ -56,7 +59,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - удаляем старые кеши
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating version:', CACHE_VERSION);
+  if (DEBUG) console.log('[SW] Activating version:', CACHE_VERSION);
 
   event.waitUntil(
     caches.keys()
@@ -65,13 +68,13 @@ self.addEventListener('activate', (event) => {
           cacheNames
             .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
             .map((name) => {
-              console.log('[SW] Deleting old cache:', name);
+              if (DEBUG) console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
             })
         );
       })
       .then(() => {
-        console.log('[SW] Claiming clients');
+        if (DEBUG) console.log('[SW] Claiming clients');
         return self.clients.claim();
       })
   );
@@ -116,7 +119,7 @@ self.addEventListener('fetch', (event) => {
           return caches.match(request)
             .then(cachedResponse => {
               if (cachedResponse) {
-                console.log('[SW] Serving API from cache (offline):', url.pathname);
+                if (DEBUG) console.log('[SW] Serving API from cache (offline):', url.pathname);
                 return cachedResponse;
               }
               // Если нет в кеше - возвращаем offline страницу или ошибку
@@ -151,7 +154,7 @@ self.addEventListener('fetch', (event) => {
           return caches.match(request)
             .then(cachedResponse => {
               if (cachedResponse) {
-                console.log('[SW] Serving HTML from cache (offline):', url.pathname);
+                if (DEBUG) console.log('[SW] Serving HTML from cache (offline):', url.pathname);
                 return cachedResponse;
               }
               // Если нет в кеше - показываем offline страницу
@@ -173,7 +176,7 @@ self.addEventListener('fetch', (event) => {
       caches.match(request, { ignoreSearch: true })
         .then((cachedResponse) => {
           if (cachedResponse) {
-            console.log('[SW] Serving from cache:', url.pathname);
+            if (DEBUG) console.log('[SW] Serving from cache:', url.pathname);
 
             // Stale-while-revalidate: обновляем кеш в фоне если версия изменилась
             // Проверяем актуальность файла через network request
@@ -186,7 +189,7 @@ self.addEventListener('fetch', (event) => {
                 // Обновляем кеш если версия изменилась
                 if (!cachedETag || cachedETag !== newETag || url.search) {
                   caches.open(CACHE_NAME).then((cache) => {
-                    console.log('[SW] Updating cache for:', url.pathname + url.search);
+                    if (DEBUG) console.log('[SW] Updating cache for:', url.pathname + url.search);
                     cache.put(request, response);
                   });
                 }
@@ -222,7 +225,7 @@ self.addEventListener('fetch', (event) => {
 
 // Message handling (для ручного управления кешем и обновлений)
 self.addEventListener('message', (event) => {
-  console.log('[SW] Message received:', event.data);
+  if (DEBUG) console.log('[SW] Message received:', event.data);
 
   if (event.data.action === 'skipWaiting') {
     self.skipWaiting();
@@ -235,7 +238,7 @@ self.addEventListener('message', (event) => {
           cacheNames.map((name) => caches.delete(name))
         );
       }).then(() => {
-        console.log('[SW] All caches cleared');
+        if (DEBUG) console.log('[SW] All caches cleared');
         // Отправляем сообщение обратно клиенту
         self.clients.matchAll().then(clients => {
           clients.forEach(client => {
