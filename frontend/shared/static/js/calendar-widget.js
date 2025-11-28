@@ -316,7 +316,7 @@ class CalendarWidget {
       let btnClass = 'btn btn-sm btn-ghost w-full aspect-square p-0';
       if (isToday) btnClass += ' border border-primary';
       if (isSelected) btnClass += ' btn-primary';
-      if (isInRange && !isSelected) btnClass += ' bg-primary/20';
+      if (isInRange && !isSelected) btnClass += ' bg-range-highlight';
       if (isDisabled) btnClass += ' btn-disabled opacity-30';
 
       html += `

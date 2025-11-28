@@ -83,43 +83,47 @@ repair_postgres_directories_atomic() {
 
     info "Detected initialized PostgreSQL database (PG_VERSION exists)"
 
-    # List of CRITICAL directories (MUST exist for startup)
-    # Based on PostgreSQL 16 official documentation and production experience
-    local critical_dirs=(
-        "pg_notify"           # LISTEN/NOTIFY subsystem (FATAL if missing!)
-        "pg_tblspc"           # Tablespaces (FATAL if missing!)
-        "pg_dynshmem"         # Dynamic shared memory
-        "pg_stat"             # Statistics collector
+    # Persistent directories (MUST exist always - safe to create while PostgreSQL running)
+    local persistent_dirs=(
+        "pg_tblspc"             # Tablespaces (FATAL if missing!)
         "pg_logical/snapshots"  # Logical replication snapshots (common failure)
         "pg_logical/mappings"   # Logical replication type mappings
-        "pg_commit_ts"        # Commit timestamps
-        "pg_serial"           # Serializable transaction tracking
-        "pg_replslot"         # Replication slots
-        "pg_snapshots"        # Transaction snapshots
-        "pg_twophase"         # Two-phase commit
+        "pg_commit_ts"          # Commit timestamps
+        "pg_serial"             # Serializable transaction tracking
+        "pg_replslot"           # Replication slots
+        "pg_snapshots"          # Transaction snapshots
+        "pg_twophase"           # Two-phase commit
     )
 
-    # CRITICAL: Check directories BEFORE stopping PostgreSQL!
-    # Why: PostgreSQL deletes runtime directories (pg_notify, pg_dynshmem, pg_stat, etc.)
-    # during graceful shutdown. If we stop first, they'll ALWAYS be missing - FALSE ALARM!
-    # Solution: Check while running → if present, no action needed (silent success).
+    # Runtime directories (created by PostgreSQL on startup, deleted on shutdown)
+    # DO NOT create these while PostgreSQL is running!
+    local runtime_dirs=(
+        "pg_notify"    # LISTEN/NOTIFY subsystem (runtime)
+        "pg_dynshmem"  # Dynamic shared memory (runtime)
+        "pg_stat"      # Statistics collector (runtime)
+    )
 
-    # CRITICAL FIX: If PostgreSQL is RUNNING, do NOT check/repair directories!
-    # Root cause: PostgreSQL DELETES runtime directories during graceful shutdown.
-    # If we check while running, we see directories from PREVIOUS shutdown (missing),
-    # and unnecessarily stop a healthy PostgreSQL instance!
-    # Solution: Only repair when PostgreSQL is STOPPED (before start).
+    # Check if PostgreSQL is running
+    local postgres_running=false
     if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
-        info "PostgreSQL is running - skipping directory repair (will check on next stop/start)"
-        return 0  # Silent success
+        postgres_running=true
     fi
 
-    info "PostgreSQL is stopped - checking critical directories before start"
+    # If PostgreSQL is running, only check/create persistent directories
+    local dirs_to_check=()
+    if [[ "$postgres_running" == "true" ]]; then
+        info "PostgreSQL is running - checking/creating persistent directories only (safe)"
+        dirs_to_check=("${persistent_dirs[@]}")
+    else
+        info "PostgreSQL is stopped - checking all critical directories before start"
+        dirs_to_check=("${persistent_dirs[@]}" "${runtime_dirs[@]}")
+    fi
+
     info "Checking directories in: $postgres_data_dir"
 
     local missing_dirs=()
     local present_dirs=()
-    for dir in "${critical_dirs[@]}"; do
+    for dir in "${dirs_to_check[@]}"; do
         if [[ ! -d "$postgres_data_dir/$dir" ]]; then
             missing_dirs+=("$dir")
         else
@@ -128,65 +132,31 @@ repair_postgres_directories_atomic() {
     done
 
     # If all directories present, no action needed (SILENT SUCCESS)
-    # PostgreSQL runtime directories (pg_notify, pg_dynshmem, pg_stat) are created on startup
-    # and deleted on graceful shutdown - this is NORMAL PostgreSQL behavior!
     if [[ ${#missing_dirs[@]} -eq 0 ]]; then
         # ✅ SILENT SUCCESS - no output needed (everything is normal)
         return 0
     fi
 
-    # Check container status comprehensively
-    local container_exists=false
-    local container_status="not_found"
-    local restart_count=0
-
-    if docker ps -a --filter "name=familybudget-postgres" -q 2>/dev/null | grep -q .; then
-        container_exists=true
-        container_status=$(docker inspect familybudget-postgres --format='{{.State.Status}}' 2>/dev/null || echo "unknown")
-        restart_count=$(docker inspect familybudget-postgres --format='{{.RestartCount}}' 2>/dev/null || echo "0")
-    fi
-
-    # Determine if we need to stop PostgreSQL for repair
-    local needs_stop=false
-    local stop_reason=""
-
-    if [[ "$container_exists" == "true" ]]; then
-        if [[ "$container_status" == "running" ]] && [[ $restart_count -gt 0 ]]; then
-            needs_stop=true
-            stop_reason="Restart loop detected (count: $restart_count)"
-        elif [[ "$container_status" == "running" ]]; then
-            needs_stop=true
-            stop_reason="Container running - atomic operation requires full stop"
-        elif [[ "$container_status" == "restarting" ]]; then
-            needs_stop=true
-            stop_reason="Container in restart loop"
-        elif [[ "$container_status" =~ ^(paused|exited|dead)$ ]]; then
-            needs_stop=true
-            stop_reason="Container in unhealthy state: $container_status"
-        fi
-    fi
-
-    # CRITICAL: Stop PostgreSQL if needed for atomic repair
-    if [[ "$needs_stop" == "true" ]]; then
-        warning "$stop_reason"
-        info "Stopping PostgreSQL for atomic repair (REQUIRED for data safety)..."
-
-        # Try graceful stop first (30s timeout)
-        if docker stop familybudget-postgres --time 30 2>/dev/null; then
-            success "PostgreSQL stopped gracefully"
-        else
-            warning "Graceful stop failed or timed out - forcing stop..."
-            docker kill familybudget-postgres 2>/dev/null || true
-        fi
-
-        # Remove container to ensure clean state
-        docker rm familybudget-postgres 2>/dev/null || true
-
-        # Wait for full stop
-        sleep 3
-        info "PostgreSQL fully stopped - safe to repair data directory"
+    # If PostgreSQL is running and we're only checking persistent dirs, create them safely
+    if [[ "$postgres_running" == "true" ]]; then
+        info "Found ${#missing_dirs[@]} missing persistent directories - creating safely while PostgreSQL runs"
     else
-        info "PostgreSQL not running - safe to repair"
+        # PostgreSQL is stopped - we might need to stop container if exists
+        local container_exists=false
+        local container_status="not_found"
+
+        if docker ps -a --filter "name=familybudget-postgres" -q 2>/dev/null | grep -q .; then
+            container_exists=true
+            container_status=$(docker inspect familybudget-postgres --format='{{.State.Status}}' 2>/dev/null || echo "unknown")
+        fi
+
+        # If container exists but in bad state, remove it
+        if [[ "$container_exists" == "true" ]] && [[ "$container_status" =~ ^(paused|exited|dead)$ ]]; then
+            warning "Container in unhealthy state: $container_status - removing"
+            docker rm familybudget-postgres 2>/dev/null || true
+        fi
+
+        info "PostgreSQL not running - safe to create directories"
     fi
 
     # Report missing directories (ONLY when actually repairing)

@@ -52,7 +52,12 @@
   border-width: 2px;
 }
 
-/* Range selection background */
+/* Range selection background - light green highlight */
+.calendar-widget [data-date].bg-range-highlight {
+  background-color: #c8e6c9; /* Material Design Green 100 - light green */
+}
+
+/* Legacy class support (deprecated - use bg-range-highlight instead) */
 .calendar-widget [data-date].bg-primary\/20 {
   background-color: hsl(var(--p) / 0.2);
 }
@@ -142,6 +147,10 @@
 /* Dark mode adjustments (DaisyUI theme-aware) */
 [data-theme="dark"] .calendar-widget {
   border-color: hsl(var(--bc) / 0.2);
+}
+
+[data-theme="dark"] .calendar-widget [data-date].bg-range-highlight {
+  background-color: rgba(129, 199, 132, 0.25); /* Green with transparency for dark mode */
 }
 
 [data-theme="dark"] .calendar-widget [data-date].bg-primary\/20 {
