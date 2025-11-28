@@ -1292,6 +1292,8 @@ async def delete_article(
                 amount=fact.amount,
                 fact_date=fact.fact_date,
                 description=fact.description,
+                record_type=fact.record_type,
+                transfer_id=fact.transfer_id,
                 valid_from=now,
                 valid_to=datetime(9999, 12, 31),
                 is_current=False,
