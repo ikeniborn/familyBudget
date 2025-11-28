@@ -50,6 +50,8 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/",  # Home page (uses CurrentUserOptional)
         "/analytics",  # Analytics page (uses CurrentUserOptional)
         "/favicon.ico",  # Browser favicon
+        "/manifest.json",  # PWA manifest (required for install prompt)
+        "/sw.js",  # Service Worker (required for PWA caching)
     }
 
     # Public path prefixes (startswith check)
