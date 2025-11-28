@@ -218,14 +218,13 @@ class BudgetFactHistory(SQLModel, table=True):
 
     # SCD Type 2 fields
     valid_from: datetime = Field(
-        nullable=False,
-        index=True,
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
         description="Start of validity period"
     )
 
     valid_to: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         default=datetime(9999, 12, 31),
-        nullable=False,
         description="End of validity period (9999-12-31 for current version)"
     )
 
@@ -262,8 +261,8 @@ class BudgetFactHistory(SQLModel, table=True):
 
     # Audit field
     created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         default_factory=lambda: datetime.now(timezone.utc),
-        nullable=False,
         description="When history record was created"
     )
 

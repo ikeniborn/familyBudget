@@ -180,13 +180,12 @@ class UserHistory(SQLModel, table=True):
 
     # SCD Type 2 fields (temporal validity)
     valid_from: datetime = Field(
-        nullable=False,
-        index=True,
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
         description="Start of validity period (when change occurred)"
     )
     valid_to: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         default=datetime(9999, 12, 31, 23, 59, 59),
-        nullable=False,
         description="End of validity period (9999-12-31 23:59:59 for current version)"
     )
     is_current: bool = Field(
@@ -213,8 +212,8 @@ class UserHistory(SQLModel, table=True):
         description="User ID who made the change (NULL for automatic changes)"
     )
     created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
         default_factory=lambda: datetime.now(timezone.utc),
-        nullable=False,
         description="Timestamp when history record was created (timezone-aware UTC)"
     )
 
