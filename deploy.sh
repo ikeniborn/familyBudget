@@ -802,13 +802,18 @@ main() {
     fi
     echo ""
 
+    # Synchronize code from repository to /opt/budget
+    sync_code_to_deploy
+    echo ""
+
     # Update Service Worker cache version (PWA)
-    # IMPORTANT: Must run BEFORE sync to get git hash from source repository
+    # IMPORTANT: Must run AFTER sync to avoid git conflicts in source repository
+    # Updates sw.js ONLY in /opt/budget, leaving source repository clean
     step "Updating Service Worker Cache Version"
-    cd "$SCRIPT_DIR" || error_return "Failed to cd to $SCRIPT_DIR"
+    cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
 
     if [[ -f "scripts/update-sw-version.sh" ]]; then
-        info "Running update-sw-version.sh in source repository..."
+        info "Running update-sw-version.sh in deployment directory..."
         bash scripts/update-sw-version.sh || {
             warning "Failed to update SW version, continuing deployment..."
         }
@@ -817,10 +822,6 @@ main() {
         warning "scripts/update-sw-version.sh not found, skipping SW version update"
         echo ""
     fi
-
-    # Synchronize code from repository to /opt/budget
-    sync_code_to_deploy
-    echo ""
 
     # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync
     print_message info "Post-sync check: Verifying npm environment preservation..."
