@@ -260,3 +260,46 @@ select.category-filter option[data-type="credit"] {
         border-color: #374151; /* Darker border */
     }
 }
+
+/* ==================================
+   Mobile: Prevent Auto-Zoom on Form Fields
+   ================================== */
+
+/**
+ * Fix for iOS Safari and Android Chrome auto-zoom behavior.
+ *
+ * Problem:
+ * - Mobile browsers automatically zoom when user focuses on form fields with font-size < 16px
+ * - This causes page to zoom in, making it difficult to fill forms and submit
+ * - Affects: <select>, <input>, <textarea> in DaisyUI (default font-size ~14px)
+ *
+ * Solution:
+ * - Set font-size to 16px for all form elements on mobile devices
+ * - Prevents auto-zoom while maintaining accessibility (users can still pinch-zoom)
+ * - 16px is the recommended minimum for mobile forms (iOS HIG, Material Design)
+ *
+ * Note:
+ * - Choices.js category selects already have 16px (choices-tailwind.css:211)
+ * - This rule applies to DaisyUI native selects (ЦФО, МВЗ), inputs (amount, date), and textareas (description)
+ *
+ * @see https://stackoverflow.com/questions/2989263/disable-auto-zoom-in-input-text-tag-safari-on-iphone
+ * @see frontend/web/static/css/choices-tailwind.css:209-217 (Choices.js mobile optimization)
+ */
+@media (max-width: 640px) {
+    /* DaisyUI form elements */
+    .select,
+    .input,
+    .textarea {
+        font-size: 16px !important;
+    }
+
+    /* DaisyUI select options */
+    .select option {
+        font-size: 16px !important;
+    }
+
+    /* Form labels (improve readability on mobile) */
+    .label-text {
+        font-size: 14px;
+    }
+}
