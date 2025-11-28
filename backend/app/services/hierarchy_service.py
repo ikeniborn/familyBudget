@@ -20,6 +20,7 @@ Performance:
     No recursive queries needed.
 """
 
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import func
@@ -27,6 +28,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.article import Article
+from backend.app.models.article_history import ArticleHistory
 from backend.app.models.hierarchy import ArticleHierarchy
 
 
@@ -409,16 +411,19 @@ async def get_level(
 async def archive_recursive(
     session: AsyncSession,
     article_id: int,
+    changed_by_user_id: Optional[int] = None,
 ) -> int:
     """
     Archive article and ALL its descendants recursively.
 
     Sets is_active=False for the article and all children (all depth levels).
     This operation is RECURSIVE - all subcategories are archived automatically.
+    Creates ArticleHistory records with change_type='ARCHIVE' for audit trail.
 
     Args:
         session: AsyncSession for database operations
         article_id: Article ID to archive (with all children)
+        changed_by_user_id: User ID who performed the archive action (optional)
 
     Returns:
         Number of articles archived (including the article itself)
@@ -451,9 +456,28 @@ async def archive_recursive(
     if not articles_to_archive:
         return 0
 
-    # Update is_active=False for all articles
+    # Update is_active=False for all articles and create history records
     archived_count = 0
+    now = datetime.now(timezone.utc)
+
     for article in articles_to_archive:
+        # Create ArticleHistory record BEFORE modifying article
+        archive_history = ArticleHistory(
+            article_id=article.id,
+            user_id=article.user_id,
+            name=article.name,
+            type=article.type,
+            parent_id=article.parent_id,
+            is_active=article.is_active,  # Store current state (True)
+            valid_from=now,
+            is_current=False,
+            changed_fields=["is_active"],
+            change_type="ARCHIVE",
+            changed_by_user_id=changed_by_user_id
+        )
+        session.add(archive_history)
+
+        # AFTER creating history: update article
         article.is_active = False
         session.add(article)
         archived_count += 1
@@ -467,16 +491,19 @@ async def archive_recursive(
 async def restore_recursive(
     session: AsyncSession,
     article_id: int,
+    changed_by_user_id: Optional[int] = None,
 ) -> int:
     """
     Restore article and ALL its descendants recursively.
 
     Sets is_active=True for the article and all children (all depth levels).
     This operation is RECURSIVE - all subcategories are restored automatically.
+    Creates ArticleHistory records with change_type='RESTORE' for audit trail.
 
     Args:
         session: AsyncSession for database operations
         article_id: Article ID to restore (with all children)
+        changed_by_user_id: User ID who performed the restore action (optional)
 
     Returns:
         Number of articles restored (including the article itself)
@@ -508,9 +535,28 @@ async def restore_recursive(
     if not articles_to_restore:
         return 0
 
-    # Update is_active=True for all articles
+    # Update is_active=True for all articles and create history records
     restored_count = 0
+    now = datetime.now(timezone.utc)
+
     for article in articles_to_restore:
+        # Create ArticleHistory record BEFORE modifying article
+        restore_history = ArticleHistory(
+            article_id=article.id,
+            user_id=article.user_id,
+            name=article.name,
+            type=article.type,
+            parent_id=article.parent_id,
+            is_active=article.is_active,  # Store current state (False)
+            valid_from=now,
+            is_current=False,
+            changed_fields=["is_active"],
+            change_type="RESTORE",
+            changed_by_user_id=changed_by_user_id
+        )
+        session.add(restore_history)
+
+        # AFTER creating history: update article
         article.is_active = True
         session.add(article)
         restored_count += 1

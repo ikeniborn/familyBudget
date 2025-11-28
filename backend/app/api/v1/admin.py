@@ -1238,19 +1238,8 @@ async def delete_article(
             detail=f"Cannot delete article with {children_count} child categories. Delete children first."
         )
 
-    # Check if article is used in BudgetFact transactions
-    from backend.app.models.fact import BudgetFact
-    usage_query = select(func.count(BudgetFact.id)).where(
-        BudgetFact.article_id == article_id
-    )
-    usage_result = await session.execute(usage_query)
-    usage_count = usage_result.scalar()
-
-    if usage_count > 0:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot delete article used in {usage_count} transactions. Archive instead of deleting."
-        )
+    # NOTE: Removed validation blocking deletion when article has transactions
+    # Now we CASCADE DELETE facts with history tracking (see below)
 
     # 1. Create DELETE history record (for audit trail)
     now = datetime.utcnow()
@@ -1272,7 +1261,51 @@ async def delete_article(
     )
     session.add(delete_history)
 
-    # 2. Delete from ArticleHierarchy (closure table)
+    # 2. CASCADE DELETE: Delete facts with history tracking
+    from backend.app.models.fact import BudgetFact
+    from backend.app.models.fact_history import BudgetFactHistory
+
+    # Count facts for this article
+    facts_count_query = select(func.count(BudgetFact.id)).where(
+        BudgetFact.article_id == article_id
+    )
+    facts_count_result = await session.execute(facts_count_query)
+    facts_count = facts_count_result.scalar()
+
+    # If facts exist, delete them with history tracking
+    if facts_count > 0:
+        # Load all facts for this article
+        facts_query = select(BudgetFact).where(
+            BudgetFact.article_id == article_id
+        )
+        facts_result = await session.execute(facts_query)
+        facts_to_delete = facts_result.scalars().all()
+
+        # Create BudgetFactHistory record for each deleted fact
+        for fact in facts_to_delete:
+            fact_delete_history = BudgetFactHistory(
+                fact_id=fact.id,
+                user_id=fact.user_id,
+                article_id=fact.article_id,
+                financial_center_id=fact.financial_center_id,
+                cost_center_id=fact.cost_center_id,
+                amount=fact.amount,
+                fact_date=fact.fact_date,
+                description=fact.description,
+                valid_from=now,
+                valid_to=datetime(9999, 12, 31),
+                is_current=False,
+                change_type="DELETE",
+                changed_fields=None,  # Full deletion
+                changed_by_user_id=current_admin.id,
+                cascade_delete_source=f"article_id:{article_id}",  # Mark as cascade deleted
+            )
+            session.add(fact_delete_history)
+
+            # Delete fact
+            await session.delete(fact)
+
+    # 3. Delete from ArticleHierarchy (closure table)
     hierarchy_delete = select(ArticleHierarchy).where(
         (ArticleHierarchy.ancestor_id == article_id) |
         (ArticleHierarchy.descendant_id == article_id)
@@ -1282,10 +1315,10 @@ async def delete_article(
     for record in hierarchy_records:
         await session.delete(record)
 
-    # 3. History records are PRESERVED for audit (NOT deleted)
+    # 4. History records are PRESERVED for audit (NOT deleted)
     # ArticleHistory keeps full change history including DELETE record above
 
-    # 4. Delete from ArticleUsageStats if exists
+    # 5. Delete from ArticleUsageStats if exists
     usage_stats_delete = select(ArticleUsageStats).where(
         ArticleUsageStats.article_id == article_id
     )
@@ -1294,18 +1327,22 @@ async def delete_article(
     if usage_stats_record:
         await session.delete(usage_stats_record)
 
-    # 5. Delete article
+    # 6. Delete article
     await session.delete(article)
     await session.commit()
 
     logger.info(
         f"Physically deleted article {article_id} ({article.name}) "
+        f"with {facts_count} cascade-deleted facts "
         f"by admin {current_admin.id}"
     )
 
     return {
         "message": "Article deleted successfully",
-        "article_id": article_id
+        "article_id": article_id,
+        "cascade_deleted": {
+            "facts": facts_count
+        }
     }
 
 

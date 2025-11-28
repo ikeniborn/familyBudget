@@ -405,12 +405,12 @@ async def update_article(
         if is_active_change is False:
             # Archive article and all descendants
             logger.info(f"[ARTICLE UPDATE] Archiving article {article_id} and all descendants")
-            archived_count = await archive_recursive(session, article_id)
+            archived_count = await archive_recursive(session, article_id, changed_by_user_id=current_user.id)
             logger.info(f"[ARTICLE UPDATE] Archived {archived_count} articles")
         else:
             # Restore article and all descendants
             logger.info(f"[ARTICLE UPDATE] Restoring article {article_id} and all descendants")
-            restored_count = await restore_recursive(session, article_id)
+            restored_count = await restore_recursive(session, article_id, changed_by_user_id=current_user.id)
             logger.info(f"[ARTICLE UPDATE] Restored {restored_count} articles")
 
         # Refresh old_article to get updated is_active status
@@ -486,7 +486,7 @@ async def delete_article(
         )
 
     # Soft delete: archive article and all descendants
-    await archive_recursive(session, article_id)
+    await archive_recursive(session, article_id, changed_by_user_id=current_user.id)
 
     return None
 
