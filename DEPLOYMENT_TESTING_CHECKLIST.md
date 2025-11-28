@@ -125,16 +125,17 @@ sudo bash deploy.sh --sync-mode update --cleanup-mode smart
 # Проверить логи деплоя (НЕ должно быть "11 missing directories")
 cat /opt/budget/logs/deploy.log | tail -100
 
-# ✅ EXPECTED (если все директории OK):
-# [INFO] PostgreSQL is stopped - safe to validate and fix permissions
-# [SUCCESS] PostgreSQL permissions validated: 70:70 (recursive)
-# ← НЕТ WARNING о missing directories!
+# ✅ EXPECTED (normal flow - directories present):
+# [INFO] Detected initialized PostgreSQL database (PG_VERSION exists)
+# [INFO] PostgreSQL not running - safe to repair
+# ← НЕТ WARNING о missing directories! Silent success return.
 
-# ⚠️ EXPECTED (только если реально есть проблема):
+# ⚠️ EXPECTED (только если реально есть проблема - directories missing BEFORE stop):
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# ⚠️  PostgreSQL Atomic Repair: Detected N missing critical directories
+# [WARNING] ⚠️  PostgreSQL Atomic Repair: Detected N missing critical directories
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# (с детальным объяснением root cause)
+# ← Это означает РЕАЛЬНУЮ проблему (директории были удалены внешним процессом)
+# (с детальным объяснением root cause и списком missing директорий)
 ```
 
 #### 3.2 Check Container Status
@@ -318,7 +319,8 @@ done
 ### ❌ FAIL Criteria (требуется fix)
 
 1. **Deployment Logs:**
-   - ❌ Постоянный "11 missing directories" warning при каждом деплое
+   - ❌ "11 missing directories" warning появляется ПРИ КАЖДОМ деплое (false alarm - FIXED!)
+   - ❌ "11 missing directories" warning появляется ДАЖЕ КОГДА PostgreSQL healthy и running
 
 2. **Container Status:**
    - ❌ PostgreSQL unhealthy или restarting

@@ -83,6 +83,43 @@ repair_postgres_directories_atomic() {
 
     info "Detected initialized PostgreSQL database (PG_VERSION exists)"
 
+    # List of CRITICAL directories (MUST exist for startup)
+    # Based on PostgreSQL 16 official documentation and production experience
+    local critical_dirs=(
+        "pg_notify"           # LISTEN/NOTIFY subsystem (FATAL if missing!)
+        "pg_tblspc"           # Tablespaces (FATAL if missing!)
+        "pg_dynshmem"         # Dynamic shared memory
+        "pg_stat"             # Statistics collector
+        "pg_logical/snapshots"  # Logical replication snapshots (common failure)
+        "pg_logical/mappings"   # Logical replication type mappings
+        "pg_commit_ts"        # Commit timestamps
+        "pg_serial"           # Serializable transaction tracking
+        "pg_replslot"         # Replication slots
+        "pg_snapshots"        # Transaction snapshots
+        "pg_twophase"         # Two-phase commit
+    )
+
+    # CRITICAL: Check directories BEFORE stopping PostgreSQL!
+    # Why: PostgreSQL deletes runtime directories (pg_notify, pg_dynshmem, pg_stat, etc.)
+    # during graceful shutdown. If we stop first, they'll ALWAYS be missing - FALSE ALARM!
+    # Solution: Check while running → if present, no action needed (silent success).
+    local missing_dirs=()
+    for dir in "${critical_dirs[@]}"; do
+        if [[ ! -d "$postgres_data_dir/$dir" ]]; then
+            missing_dirs+=("$dir")
+        fi
+    done
+
+    # If all directories present, no action needed (SILENT SUCCESS)
+    # ARCHITECTURE NOTE: This function runs on EVERY deployment to ensure data integrity.
+    # We intentionally suppress output when everything is OK to avoid false alarms.
+    # PostgreSQL runtime directories (pg_notify, pg_dynshmem, pg_stat) are created on startup
+    # and deleted on graceful shutdown - this is NORMAL PostgreSQL behavior!
+    if [[ ${#missing_dirs[@]} -eq 0 ]]; then
+        # ✅ SILENT SUCCESS - no output needed (everything is normal)
+        return 0
+    fi
+
     # Check container status comprehensively
     local container_exists=false
     local container_status="not_found"
@@ -135,40 +172,6 @@ repair_postgres_directories_atomic() {
         info "PostgreSQL fully stopped - safe to repair data directory"
     else
         info "PostgreSQL not running - safe to repair"
-    fi
-
-    # List of CRITICAL directories (MUST exist for startup)
-    # Based on PostgreSQL 16 official documentation and production experience
-    local critical_dirs=(
-        "pg_notify"           # LISTEN/NOTIFY subsystem (FATAL if missing!)
-        "pg_tblspc"           # Tablespaces (FATAL if missing!)
-        "pg_dynshmem"         # Dynamic shared memory
-        "pg_stat"             # Statistics collector
-        "pg_logical/snapshots"  # Logical replication snapshots (common failure)
-        "pg_logical/mappings"   # Logical replication type mappings
-        "pg_commit_ts"        # Commit timestamps
-        "pg_serial"           # Serializable transaction tracking
-        "pg_replslot"         # Replication slots
-        "pg_snapshots"        # Transaction snapshots
-        "pg_twophase"         # Two-phase commit
-    )
-
-    # Check which directories are missing
-    local missing_dirs=()
-    for dir in "${critical_dirs[@]}"; do
-        if [[ ! -d "$postgres_data_dir/$dir" ]]; then
-            missing_dirs+=("$dir")
-        fi
-    done
-
-    # If all directories present, no action needed (SILENT SUCCESS)
-    # ARCHITECTURE NOTE: This function runs on EVERY deployment to ensure data integrity.
-    # We intentionally suppress output when everything is OK to avoid false alarms.
-    # Users were confused by constant "11 missing directories" messages when bind mount
-    # temporarily doesn't have some subdirectories created yet.
-    if [[ ${#missing_dirs[@]} -eq 0 ]]; then
-        # ✅ SILENT SUCCESS - no output needed (everything is normal)
-        return 0
     fi
 
     # Report missing directories (ONLY when actually repairing)
