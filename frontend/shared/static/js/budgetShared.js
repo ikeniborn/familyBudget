@@ -795,7 +795,7 @@
                         btnClass += ' btn-primary';
                     }
                 }
-                if (isInRange && !isSelected) btnClass += ' bg-primary/20';
+                if (isInRange && !isSelected) btnClass += ' bg-range-highlight';
                 if (isDisabled) btnClass += ' btn-disabled opacity-30';
 
                 html += `
