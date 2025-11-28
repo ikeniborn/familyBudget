@@ -13,7 +13,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from sqlalchemy import ARRAY, String
+from sqlalchemy import DateTime, ARRAY, String
 from sqlmodel import Column, Field, SQLModel
 
 

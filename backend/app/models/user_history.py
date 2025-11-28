@@ -11,7 +11,7 @@ when, and who made the change.
 from datetime import datetime, timezone
 from typing import List, Optional
 
-from sqlalchemy import ARRAY, BigInteger, Column, String
+from sqlalchemy import DateTime, ARRAY, BigInteger, Column, String
 from sqlmodel import Field, SQLModel
 
 

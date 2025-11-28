@@ -802,6 +802,22 @@ main() {
     fi
     echo ""
 
+    # Update Service Worker cache version (PWA)
+    # IMPORTANT: Must run BEFORE sync to get git hash from source repository
+    step "Updating Service Worker Cache Version"
+    cd "$SCRIPT_DIR" || error_return "Failed to cd to $SCRIPT_DIR"
+
+    if [[ -f "scripts/update-sw-version.sh" ]]; then
+        info "Running update-sw-version.sh in source repository..."
+        bash scripts/update-sw-version.sh || {
+            warning "Failed to update SW version, continuing deployment..."
+        }
+        echo ""
+    else
+        warning "scripts/update-sw-version.sh not found, skipping SW version update"
+        echo ""
+    fi
+
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
     echo ""
@@ -825,22 +841,6 @@ main() {
         print_message success "npm environment preserved successfully"
     fi
     echo ""
-
-    # Update Service Worker cache version (PWA)
-    # IMPORTANT: Must run BEFORE minification to ensure new cache version
-    step "Updating Service Worker Cache Version"
-    cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
-
-    if [[ -f "scripts/update-sw-version.sh" ]]; then
-        info "Running update-sw-version.sh..."
-        bash scripts/update-sw-version.sh || {
-            warning "Failed to update SW version, continuing deployment..."
-        }
-        echo ""
-    else
-        warning "scripts/update-sw-version.sh not found, skipping SW version update"
-        echo ""
-    fi
 
     # Minify static assets (JS and CSS) for production
     echo ""

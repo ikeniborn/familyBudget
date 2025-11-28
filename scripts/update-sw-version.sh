@@ -1,6 +1,6 @@
 #!/bin/bash
 # Helper script для автоматического обновления Service Worker CACHE_VERSION
-# Использует git hash для уникальной версии
+# Использует timestamp в формате cache busting (YYYYMMDD_HHMM)
 
 set -e
 
@@ -20,14 +20,11 @@ if [ ! -f "$SW_FILE" ]; then
     exit 1
 fi
 
-# Получить git hash (короткая версия, 7 символов)
-GIT_HASH=$(git rev-parse --short=7 HEAD 2>/dev/null || echo "unknown")
+# Получить timestamp (формат cache busting: YYYYMMDD_HHMM)
+TIMESTAMP=$(date +"%Y%m%d_%H%M")
 
-# Получить timestamp
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-
-# Новая версия: v{timestamp}_{git_hash}
-NEW_VERSION="v${TIMESTAMP}_${GIT_HASH}"
+# Новая версия: v{timestamp}
+NEW_VERSION="v${TIMESTAMP}"
 
 echo -e "${YELLOW}[INFO]${NC} New version: $NEW_VERSION"
 
