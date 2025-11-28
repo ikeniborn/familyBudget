@@ -477,65 +477,7 @@ cd ~/familyBudget  # Репозиторий
 
 **ВАЖНО**: Всегда тестируйте изменения на тестовом сервере `budget-test` перед деплоем в production.
 
-### Workflow 1: Полная установка на чистом сервере
-
-Используется при первичной установке или после полной очистки сервера.
-
-```bash
-# 1. Подключиться по SSH к тестовому серверу
-ssh budget-test
-
-# 2. Клонировать репозиторий (если еще не клонирован)
-git clone https://github.com/yourusername/familyBudget.git ~/familyBudget
-cd ~/familyBudget
-
-# 3. Установить системные зависимости (один раз)
-sudo ./install.sh
-
-# 4. Настроить окружение (.env файл)
-./setup.sh
-# Следовать интерактивным вопросам:
-# - TELEGRAM_BOT_TOKEN
-# - ADMIN_TELEGRAM_ID
-# - Профиль деплоя (basic/full)
-# - Домен и SSL
-# - PostgreSQL настройки
-
-# 5. Деплой приложения
-./deploy.sh --profile full
-
-# 6. ВАЖНО: Анализ результатов деплоя
-# Проанализировать логи терминала процесса установки
-# После успешного завершения проанализировать:
-cat /opt/budget/logs/deploy.log
-
-# 7. Запустить диагностику
-sudo bash logs.sh
-
-# Проанализировать вывод:
-# - Статус всех контейнеров (должны быть healthy)
-# - Health checks (/health, /ready, /ping)
-# - Ошибки в логах
-# - Resource usage
-# - Database connectivity
-# - SSL certificates (если используется)
-
-# 8. Проанализировать логи контейнеров
-cd /opt/budget
-docker compose logs backend
-docker compose logs postgres
-docker compose logs bot
-docker compose logs nginx
-
-# 9. Если обнаружены проблемы:
-# - Зафиксировать проблемы из логов
-# - Выйти с сервера (exit)
-# - Исправить проблемы локально в скриптах
-# - Сделать коммит и пуш
-# - Вернуться к шагу 1
-```
-
-### Workflow 2: Обновление существующего деплоя
+### Workflow: Обновление существующего деплоя
 
 Используется для тестирования изменений на уже работающем сервере.
 
