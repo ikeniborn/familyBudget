@@ -1305,7 +1305,7 @@ async def delete_article(
             session.add(fact_delete_history)
 
             # Delete fact
-            session.delete(fact)
+            await session.delete(fact)
 
     # 3. Delete from ArticleHierarchy (closure table)
     hierarchy_delete = select(ArticleHierarchy).where(
@@ -1315,7 +1315,7 @@ async def delete_article(
     hierarchy_result = await session.execute(hierarchy_delete)
     hierarchy_records = hierarchy_result.scalars().all()
     for record in hierarchy_records:
-        session.delete(record)
+        await session.delete(record)
 
     # 4. History records are PRESERVED for audit (NOT deleted)
     # ArticleHistory keeps full change history including DELETE record above
@@ -1327,10 +1327,10 @@ async def delete_article(
     usage_stats_result = await session.execute(usage_stats_delete)
     usage_stats_record = usage_stats_result.scalar_one_or_none()
     if usage_stats_record:
-        session.delete(usage_stats_record)
+        await session.delete(usage_stats_record)
 
     # 6. Delete article
-    session.delete(article)
+    await session.delete(article)
     await session.commit()
 
     logger.info(
