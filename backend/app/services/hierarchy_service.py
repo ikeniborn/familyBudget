@@ -472,7 +472,7 @@ async def archive_recursive(
             parent_id=article.parent_id,
             is_active=article.is_active,  # Store current state (True)
             valid_from=now,
-            valid_to=datetime(9999, 12, 31, 23, 59, 59),
+            valid_to=datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
             is_current=False,
             changed_fields=["is_active"],
             change_type="ARCHIVE",
@@ -554,7 +554,7 @@ async def restore_recursive(
             parent_id=article.parent_id,
             is_active=article.is_active,  # Store current state (False)
             valid_from=now,
-            valid_to=datetime(9999, 12, 31, 23, 59, 59),
+            valid_to=datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc),
             is_current=False,
             changed_fields=["is_active"],
             change_type="RESTORE",
