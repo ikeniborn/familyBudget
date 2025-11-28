@@ -442,6 +442,163 @@ CORS_ORIGINS=["https://your-domain.com","https://web.telegram.org","https://oaut
 - HSTS (Strict Transport Security)
 - JWT token validation
 
+## Best Practices & Common Pitfalls
+
+### SQLAlchemy 2.0 AsyncSession
+
+**КРИТИЧЕСКИ ВАЖНО:** Всегда используйте `await` для всех async методов AsyncSession.
+
+**Правильно:**
+```python
+# Async методы требуют await
+await session.execute(query)
+await session.commit()
+await session.delete(obj)
+await session.refresh(obj)
+```
+
+**НЕПРАВИЛЬНО (RuntimeWarning):**
+```python
+# ❌ БЕЗ await - корутина создается, но НЕ выполняется!
+session.delete(obj)  # RuntimeWarning: coroutine 'AsyncSession.delete' was never awaited
+await session.commit()  # Коммит пустой транзакции - ничего не удалено!
+```
+
+**Последствия пропуска `await`:**
+- RuntimeWarning в логах
+- Корутины не выполняются
+- `commit()` коммитит пустую транзакцию
+- Данные остаются в БД (несмотря на success логи)
+- Очень сложно отловить (код работает, логи пишутся, но ничего не происходит)
+
+**См. также:** `backend/app/api/v1/endpoints/facts.py`, `financial_centers.py`, `cost_centers.py` - примеры правильного использования.
+
+---
+
+### History Tables: Полное копирование полей
+
+**Правило:** При создании записей в History tables (`BudgetFactHistory`, `ArticleHistory`, etc.) ОБЯЗАТЕЛЬНО копировать ВСЕ поля из основной таблицы, включая nullable поля.
+
+**Почему это важно:**
+- History таблицы должны сохранять snapshot данных на момент изменения
+- NOT NULL constraints в History таблице строже, чем в основной (для data quality)
+- Пропущенное поле = constraint violation = rollback транзакции
+
+**Пример (BudgetFactHistory):**
+```python
+# ✅ ПРАВИЛЬНО - все поля скопированы
+fact_history = BudgetFactHistory(
+    fact_id=fact.id,
+    user_id=fact.user_id,
+    article_id=fact.article_id,
+    financial_center_id=fact.financial_center_id,  # nullable, но копируем
+    cost_center_id=fact.cost_center_id,            # nullable, но копируем
+    amount=fact.amount,
+    fact_date=fact.fact_date,
+    description=fact.description,
+    record_type=fact.record_type,  # ⚠️ ОБЯЗАТЕЛЬНО! NOT NULL в history
+    transfer_id=fact.transfer_id,  # nullable, но копируем для полноты
+    valid_from=datetime.utcnow(),
+    is_current=True,
+    change_type="CREATE",
+)
+
+# ❌ НЕПРАВИЛЬНО - пропущено record_type
+fact_history = BudgetFactHistory(
+    fact_id=fact.id,
+    # ... другие поля ...
+    # record_type НЕ скопировано → IntegrityError: null value in column "record_type"
+)
+```
+
+**Checklist при добавлении полей в основную таблицу:**
+1. Добавить поле в основную таблицу (например, `BudgetFact`)
+2. ✅ Добавить поле в History таблицу (`BudgetFactHistory`)
+3. ✅ Обновить ВСЕ места создания History записей
+4. ✅ Создать Alembic миграцию для обеих таблиц
+
+**См. также:** `backend/app/models/budget_fact_history.py:64-84` - docstring с примерами.
+
+---
+
+### RuntimeWarnings: Не игнорировать!
+
+**Правило:** RuntimeWarnings в логах Python/FastAPI ВСЕГДА указывают на проблему в коде.
+
+**Типичные warnings и их значения:**
+
+| Warning | Root Cause | Последствия |
+|---------|-----------|-------------|
+| `coroutine ... was never awaited` | Пропущен `await` для async функции | Код не выполняется |
+| `Enable tracemalloc to get the object allocation traceback` | Следствие первого warning | Помогает найти место проблемы |
+| `ResourceWarning: unclosed ...` | Не закрыт file/socket/connection | Memory leak |
+
+**Как отлавливать:**
+```bash
+# Мониторинг логов на warnings
+docker compose logs backend | grep -i "warning"
+
+# Включить tracemalloc для debugging (добавить в backend/app/main.py)
+import tracemalloc
+tracemalloc.start()
+```
+
+**⚠️ ВАЖНО:** Если в логах `status_code: 200` И одновременно RuntimeWarning → операция НЕ выполнилась, несмотря на success response!
+
+---
+
+### Testing: Проверять БД после операций
+
+**Правило:** После операций изменения данных (CREATE/UPDATE/DELETE) ВСЕГДА проверять фактическое состояние БД, а не только HTTP статус коды.
+
+**Почему HTTP 200 != Successful Operation:**
+- Async корутины могут не выполниться (см. выше)
+- Логирование происходит ДО commit (может rollback после)
+- Middleware может перехватить ошибки и вернуть 200
+
+**Best practice testing workflow:**
+
+```bash
+# 1. Выполнить операцию через API
+curl -X DELETE https://example.com/api/v1/admin/articles/45
+
+# 2. ✅ ОБЯЗАТЕЛЬНО: Проверить БД
+docker compose exec postgres psql -U familybudget -d familybudget -c \
+  "SELECT COUNT(*) FROM t_d_article WHERE id = 45;"
+
+# 3. Проверить логи на warnings/errors
+docker compose logs backend | grep -A10 "DELETE.*articles/45" | grep -i "warning\|error"
+
+# 4. Для DELETE операций: проверить History tables
+docker compose exec postgres psql -U familybudget -d familybudget -c \
+  "SELECT change_type, COUNT(*) FROM t_d_article_history WHERE article_id = 45 GROUP BY change_type;"
+```
+
+**SQL запросы для проверки:**
+```sql
+-- После DELETE: проверить что записи удалены
+SELECT COUNT(*) FROM t_f_budget_fact WHERE article_id = 45;  -- Должно быть 0
+
+-- Проверить что History записи созданы
+SELECT COUNT(*) FROM t_f_budget_fact_history
+WHERE article_id = 45 AND change_type = 'DELETE';  -- Должно быть > 0
+
+-- Проверить что все поля заполнены (нет NULL в NOT NULL колонках)
+SELECT COUNT(*) FROM t_f_budget_fact_history
+WHERE article_id = 45 AND record_type IS NULL;  -- Должно быть 0
+```
+
+**Integration тесты должны:**
+1. ✅ Вызвать API endpoint
+2. ✅ Проверить HTTP статус код
+3. ✅ **Проверить БД напрямую** (SELECT после INSERT/UPDATE/DELETE)
+4. ✅ Проверить History tables (для SCD Type 2)
+5. ✅ Проверить логи на warnings
+
+**См. также:** `tests/integration/test_article_deletion.py` (если создан).
+
+---
+
 ## Workflow для обновления приложения
 
 **Критически важно понимать три директории:**
