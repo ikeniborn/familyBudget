@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#388E3C;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="coinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD54F;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFC107;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="url(#grad)"/>
+
+  <!-- Bar chart background panel -->
+  <rect x="90" y="140" width="332" height="260" rx="20" fill="#ffffff" opacity="0.15"/>
+
+  <!-- Bar chart -->
+  <g transform="translate(130, 160)">
+    <!-- Bar 1 (shortest) -->
+    <rect x="0" y="140" width="50" height="80" rx="8" fill="#ffffff" opacity="0.9"/>
+    <!-- Bar 2 (medium) -->
+    <rect x="70" y="80" width="50" height="140" rx="8" fill="#ffffff" opacity="0.9"/>
+    <!-- Bar 3 (tallest) -->
+    <rect x="140" y="30" width="50" height="190" rx="8" fill="#ffffff" opacity="0.9"/>
+    <!-- Bar 4 (medium-high) -->
+    <rect x="210" y="60" width="50" height="160" rx="8" fill="#ffffff" opacity="0.9"/>
+
+    <!-- Grid lines (subtle) -->
+    <line x1="-10" y1="220" x2="270" y2="220" stroke="#ffffff" stroke-width="2" opacity="0.3"/>
+  </g>
+
+  <!-- Coins (front) -->
+  <g transform="translate(256, 320)">
+    <!-- Coin 1 (left, back) -->
+    <circle cx="-40" cy="20" r="50" fill="url(#coinGrad)" opacity="0.95"/>
+    <circle cx="-40" cy="20" r="50" fill="none" stroke="#F57C00" stroke-width="3" opacity="0.5"/>
+    <circle cx="-40" cy="20" r="42" fill="none" stroke="#FFE082" stroke-width="2" opacity="0.6"/>
+    <text x="-40" y="35" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#F57C00" text-anchor="middle">₽</text>
+
+    <!-- Coin 2 (right, front) -->
+    <circle cx="40" cy="0" r="55" fill="url(#coinGrad)"/>
+    <circle cx="40" cy="0" r="55" fill="none" stroke="#F57C00" stroke-width="3" opacity="0.5"/>
+    <circle cx="40" cy="0" r="46" fill="none" stroke="#FFE082" stroke-width="2" opacity="0.6"/>
+    <text x="40" y="18" font-family="Arial, sans-serif" font-size="52" font-weight="bold" fill="#F57C00" text-anchor="middle">₽</text>
+  </g>
+</svg>
