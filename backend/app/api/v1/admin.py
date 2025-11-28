@@ -1263,7 +1263,7 @@ async def delete_article(
 
     # 2. CASCADE DELETE: Delete facts with history tracking
     from backend.app.models.fact import BudgetFact
-    from backend.app.models.fact_history import BudgetFactHistory
+    from backend.app.models.budget_fact_history import BudgetFactHistory
 
     # Count facts for this article
     facts_count_query = select(func.count(BudgetFact.id)).where(

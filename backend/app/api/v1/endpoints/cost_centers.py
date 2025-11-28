@@ -445,10 +445,10 @@ async def delete_cost_center(
             session.add(delete_fact_history)
 
             # Delete fact
-            session.delete(fact)
+            await session.delete(fact)
 
     # 3. Delete cost center
-    session.delete(cost_center)
+    await session.delete(cost_center)
     await session.commit()
 
     logger.info(
