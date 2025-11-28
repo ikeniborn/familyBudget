@@ -58,7 +58,7 @@ start_services() {
             # Step 2: Recreate backend/bot/nginx (clears Python .pyc cache)
             info "Recreating backend/bot/nginx (fresh containers for cache invalidation)..."
             if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-                compose_cmd --profile full up --build -d backend bot nginx certbot >> "$LOG_FILE" 2>&1
+                compose_cmd --profile full up --build -d backend bot nginx >> "$LOG_FILE" 2>&1
                 start_result=$?
             else
                 compose_cmd up --build -d backend >> "$LOG_FILE" 2>&1
