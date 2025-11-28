@@ -1,26 +1,30 @@
 /**
  * Service Worker для Family Budget PWA
  * Стратегия кеширования:
- * - Статика (CSS/JS/fonts): Cache First
+ * - Статика с cache busting (CSS/JS): Cache First с ignoreSearch
  * - API endpoints: Network First
  * - HTML страницы: Network First
+ *
+ * ВАЖНО: CACHE_VERSION должна обновляться при каждом деплое!
+ * Используйте git hash или timestamp для автоматической инвалидации кеша.
  */
 
+// ВАЖНО: Обновляйте при каждом деплое! (можно использовать ${GIT_HASH} или ${TIMESTAMP})
 const CACHE_VERSION = 'v1.0.0';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
-// Критическая статика для кеширования при установке
+// Критическая статика БЕЗ версий (для precaching в install event)
+// ТОЛЬКО файлы которые НЕ используют cache busting
 const STATIC_CACHE = [
   '/',
-  '/static/css/vendor/tailwind-daisyui.min.css',
-  '/static/js/vendor/htmx.min.js',
-  '/static/js/vendor/htmx-ext-json-enc.min.js',
-  '/static/js/vendor/choices.min.js',
-  '/shared/static/js/budgetShared.min.js',
-  '/shared/static/js/categoryTree.min.js',
-  '/shared/static/css/choices-tailwind.css',
-  '/web/static/css/custom.css'
+  '/manifest.json',
+  '/static/icons/icon-192.png',
+  '/static/icons/icon-512.png',
+  '/static/icons/favicon.ico'
 ];
+
+// Файлы с cache busting - кешируются RUNTIME (не в install event)
+// Service Worker будет кешировать их при первом запросе
 
 // Install event - кешируем критическую статику
 self.addEventListener('install', (event) => {
@@ -165,20 +169,32 @@ self.addEventListener('fetch', (event) => {
   // Стратегия 3: Статика (CSS/JS/fonts/images) - Cache First (быстрая загрузка)
   if (url.pathname.match(/\.(css|js|png|jpg|jpeg|svg|woff2|woff|ttf|ico|gif|webp)$/)) {
     event.respondWith(
-      caches.match(request)
+      // КРИТИЧНО: ignoreSearch: true для корректной работы с cache busting (?v=...)
+      caches.match(request, { ignoreSearch: true })
         .then((cachedResponse) => {
           if (cachedResponse) {
             console.log('[SW] Serving from cache:', url.pathname);
-            // Опционально: обновляем кеш в фоне (stale-while-revalidate)
+
+            // Stale-while-revalidate: обновляем кеш в фоне если версия изменилась
+            // Проверяем актуальность файла через network request
             fetch(request).then((response) => {
               if (response.ok) {
-                caches.open(CACHE_NAME).then((cache) => {
-                  cache.put(request, response);
-                });
+                // Сравниваем ETag или Last-Modified для определения изменений
+                const cachedETag = cachedResponse.headers.get('etag');
+                const newETag = response.headers.get('etag');
+
+                // Обновляем кеш если версия изменилась
+                if (!cachedETag || cachedETag !== newETag || url.search) {
+                  caches.open(CACHE_NAME).then((cache) => {
+                    console.log('[SW] Updating cache for:', url.pathname + url.search);
+                    cache.put(request, response);
+                  });
+                }
               }
             }).catch(() => {
-              // Игнорируем ошибки фонового обновления
+              // Игнорируем ошибки фонового обновления (offline mode)
             });
+
             return cachedResponse;
           }
 
