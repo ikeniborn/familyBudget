@@ -1115,6 +1115,17 @@ main() {
     # are present BEFORE starting PostgreSQL, preventing FATAL startup errors.
     # Includes restart loop detection and automatic container stop for safe repair.
     # Runs ALWAYS, even during selective restarts (when POSTGRES_WAS_STOPPED=false).
+
+    # DEBUG: Check directories BEFORE repair function is called
+    print_message info "DEBUG: Pre-repair directory check..."
+    if [[ -d "$DATA_DIR/postgres/pg_notify" ]]; then
+        print_message success "DEBUG: pg_notify EXISTS before repair"
+    else
+        print_message error "DEBUG: pg_notify MISSING before repair"
+        print_message info "DEBUG: Listing $DATA_DIR/postgres:"
+        ls -la "$DATA_DIR/postgres/" | head -20 || true
+    fi
+
     repair_postgres_directories_atomic
     echo ""
 
