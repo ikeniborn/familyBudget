@@ -826,6 +826,22 @@ main() {
     fi
     echo ""
 
+    # Update Service Worker cache version (PWA)
+    # IMPORTANT: Must run BEFORE minification to ensure new cache version
+    step "Updating Service Worker Cache Version"
+    cd "/opt/budget" || error_return "Failed to cd to /opt/budget"
+
+    if [[ -f "scripts/update-sw-version.sh" ]]; then
+        info "Running update-sw-version.sh..."
+        bash scripts/update-sw-version.sh || {
+            warning "Failed to update SW version, continuing deployment..."
+        }
+        echo ""
+    else
+        warning "scripts/update-sw-version.sh not found, skipping SW version update"
+        echo ""
+    fi
+
     # Minify static assets (JS and CSS) for production
     echo ""
     print_message info "Minifying static assets..."
