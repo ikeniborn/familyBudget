@@ -104,23 +104,18 @@ repair_postgres_directories_atomic() {
     # during graceful shutdown. If we stop first, they'll ALWAYS be missing - FALSE ALARM!
     # Solution: Check while running → if present, no action needed (silent success).
 
-    # DEBUG: Check PostgreSQL container status BEFORE directory check
-    local container_running="false"
+    # CRITICAL FIX: If PostgreSQL is RUNNING, do NOT check/repair directories!
+    # Root cause: PostgreSQL DELETES runtime directories during graceful shutdown.
+    # If we check while running, we see directories from PREVIOUS shutdown (missing),
+    # and unnecessarily stop a healthy PostgreSQL instance!
+    # Solution: Only repair when PostgreSQL is STOPPED (before start).
     if docker ps --filter "name=familybudget-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
-        container_running="true"
-        info "PostgreSQL container is RUNNING - checking directories while active"
-    else
-        info "PostgreSQL container is STOPPED - checking directories in stopped state"
+        info "PostgreSQL is running - skipping directory repair (will check on next stop/start)"
+        return 0  # Silent success
     fi
 
+    info "PostgreSQL is stopped - checking critical directories before start"
     info "Checking directories in: $postgres_data_dir"
-    info "First 3 critical dirs to check: ${critical_dirs[0]}, ${critical_dirs[1]}, ${critical_dirs[2]}"
-
-    # DEBUG: Check script execution context
-    info "DEBUG: Running as user=$(whoami), EUID=$EUID, UID=$UID"
-    info "DEBUG: Parent dir permissions: $(ls -ld $postgres_data_dir 2>&1 || echo 'cannot stat')"
-    info "DEBUG: First dir check (ls): $(ls -ld $postgres_data_dir/${critical_dirs[0]} 2>&1 | head -1 || echo 'not found')"
-    info "DEBUG: First dir check (test -d): $([[ -d $postgres_data_dir/${critical_dirs[0]} ]] && echo 'EXISTS' || echo 'MISSING')"
 
     local missing_dirs=()
     local present_dirs=()
@@ -132,27 +127,13 @@ repair_postgres_directories_atomic() {
         fi
     done
 
-    info "Result: ${#present_dirs[@]} present, ${#missing_dirs[@]} missing"
-    if [[ ${#present_dirs[@]} -gt 0 ]]; then
-        info "Example present: ${present_dirs[0]}"
-    fi
-    if [[ ${#missing_dirs[@]} -gt 0 ]]; then
-        info "Example missing: ${missing_dirs[0]}"
-    fi
-
     # If all directories present, no action needed (SILENT SUCCESS)
-    # ARCHITECTURE NOTE: This function runs on EVERY deployment to ensure data integrity.
-    # We intentionally suppress output when everything is OK to avoid false alarms.
     # PostgreSQL runtime directories (pg_notify, pg_dynshmem, pg_stat) are created on startup
     # and deleted on graceful shutdown - this is NORMAL PostgreSQL behavior!
     if [[ ${#missing_dirs[@]} -eq 0 ]]; then
         # ✅ SILENT SUCCESS - no output needed (everything is normal)
-        success "All ${#critical_dirs[@]} critical directories present - no repair needed"
         return 0
     fi
-
-    # DEBUG: Report which directories are missing and PostgreSQL state
-    info "Found ${#missing_dirs[@]} missing directories WHILE PostgreSQL is: $container_running"
 
     # Check container status comprehensively
     local container_exists=false
