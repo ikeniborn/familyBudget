@@ -1175,7 +1175,7 @@ check_recent_errors() {
         print_subheader "Backend (JSON Structured Logs)"
 
         # Get logs and try to parse as JSON
-        local backend_logs=$(docker logs --tail 300 "$backend_container" 2>&1)
+        local backend_logs=$(timeout 15 docker logs --tail 300 --since 1h "$backend_container" 2>&1 || true)
 
         # Count by level
         local backend_errors=$(echo "$backend_logs" | grep -i '"level".*"error"' | wc -l)
@@ -1267,7 +1267,7 @@ check_recent_errors() {
     if [ -n "$bot_container" ]; then
         print_subheader "Bot (Plain Text Logs)"
 
-        local bot_errors=$(docker logs --tail 200 "$bot_container" 2>&1 | grep -i "\[error\]\|\[critical\]" | tail -n 10)
+        local bot_errors=$( (timeout 10 docker logs --tail 200 --since 1h "$bot_container" 2>&1 || true) | grep -i "\[error\]\|\[critical\]" | tail -n 10)
 
         if [ -n "$bot_errors" ]; then
             local bot_error_count=$(echo "$bot_errors" | wc -l)
@@ -1289,7 +1289,7 @@ check_recent_errors() {
     if [ -n "$postgres_container" ]; then
         print_subheader "PostgreSQL (Database Logs)"
 
-        local pg_errors=$(docker logs --tail 200 "$postgres_container" 2>&1 | grep -i "ERROR:\|FATAL:\|PANIC:" | tail -n 10)
+        local pg_errors=$( (timeout 10 docker logs --tail 200 --since 1h "$postgres_container" 2>&1 || true) | grep -i "ERROR:\|FATAL:\|PANIC:" | tail -n 10)
 
         if [ -n "$pg_errors" ]; then
             local pg_error_count=$(echo "$pg_errors" | wc -l)
@@ -1320,7 +1320,7 @@ check_recent_errors() {
     if [ -n "$nginx_container" ]; then
         print_subheader "Nginx (Error Logs)"
 
-        local nginx_errors=$(docker logs --tail 200 "$nginx_container" 2>&1 | grep -i "\[error\]\|\[crit\]\|\[alert\]\|\[emerg\]" | tail -n 10)
+        local nginx_errors=$( (timeout 10 docker logs --tail 200 --since 1h "$nginx_container" 2>&1 || true) | grep -i "\[error\]\|\[crit\]\|\[alert\]\|\[emerg\]" | tail -n 10)
 
         if [ -n "$nginx_errors" ]; then
             local nginx_error_count=$(echo "$nginx_errors" | wc -l)
