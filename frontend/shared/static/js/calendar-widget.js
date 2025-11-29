@@ -85,7 +85,8 @@ class CalendarWidget {
 
     // DOM elements
     this.calendarElement = null;
-    this.triggerButton = null;
+    this.triggerButton = null; // First button (backward compatibility)
+    this.triggerButtons = []; // All buttons (for click outside detection)
 
     this._init();
   }
@@ -157,6 +158,9 @@ class CalendarWidget {
     if (!this.triggerButton) {
       this.triggerButton = button;
     }
+
+    // Store all buttons for click outside detection
+    this.triggerButtons.push(button);
 
     // Wrap input in relative container if not already wrapped
     const parent = targetInput.parentElement;
@@ -438,11 +442,17 @@ class CalendarWidget {
 
     // Click outside to close
     document.addEventListener('click', (e) => {
-      if (this.isOpen &&
-          !this.calendarElement.contains(e.target) &&
-          !this.triggerButton.contains(e.target)) {
-        this.close();
-      }
+      if (!this.isOpen) return;
+
+      // Check if click is inside calendar
+      if (this.calendarElement.contains(e.target)) return;
+
+      // Check if click is on any trigger button
+      const clickedButton = this.triggerButtons.some(btn => btn.contains(e.target));
+      if (clickedButton) return;
+
+      // Click is outside - close calendar
+      this.close();
     });
 
     // Keyboard navigation
@@ -569,8 +579,8 @@ class CalendarWidget {
    */
   open() {
     this.isOpen = true;
+    this._positionCalendar(); // Position BEFORE showing (prevent visual jump)
     this.calendarElement.classList.remove('hidden');
-    this._positionCalendar(); // Position calendar before showing
     this._render(); // Re-render to show current selection
   }
 
