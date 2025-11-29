@@ -33,11 +33,12 @@
     </div>
 
     <!-- Filters Section -->
-    <div tabindex="0" class="collapse collapse-arrow bg-base-100 shadow-lg">
-        <div class="collapse-title text-xl font-medium flex justify-between items-center">
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="filters-toggle" class="peer" />
+        <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
             <span>🔍 Фильтры</span>
             <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
-        </div>
+        </label>
         <div class="collapse-content">
             <div class="pt-4">
 
@@ -140,7 +141,10 @@
                 </div>
             </div>
 
-            <div class="flex justify-end mt-4">
+            <div class="flex justify-between items-center mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="collapseFilters()">
+                    ⬆️ Свернуть
+                </button>
                 <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
             </div>
             </div>
@@ -279,6 +283,20 @@
 
 {% block extra_styles %}
 <style>
+/* Hide filters toggle checkbox */
+#filters-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Collapse behavior with checkbox */
+#filters-toggle:checked ~ .collapse-content {
+    max-height: 1000px;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
 /* Улучшенное отображение select элементов */
 .select {
     min-height: 3rem;
@@ -464,6 +482,14 @@ async function loadRecommendedAmounts(formId, recordType = 'plan', category = nu
     }, 300); // 300ms debounce
 }
 
+// Collapse filters panel
+function collapseFilters() {
+    const checkbox = document.getElementById('filters-toggle');
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+}
+
 // Utility function to truncate text to specified length
 function truncateText(text, maxLength = 30) {
     if (!text || text === '—') return text;
@@ -478,6 +504,19 @@ document.addEventListener('DOMContentLoaded', function() {
     loadFinancialCenters();
     loadCostCenters();
     loadFacts();
+
+    // Setup filters collapse behavior (prevent closing when clicking on open header)
+    const filtersLabel = document.querySelector('label[for="filters-toggle"]');
+    const filtersCheckbox = document.getElementById('filters-toggle');
+
+    if (filtersLabel && filtersCheckbox) {
+        filtersLabel.addEventListener('click', function(e) {
+            // If already open, prevent toggling (only allow collapse via "Свернуть" button)
+            if (filtersCheckbox.checked) {
+                e.preventDefault();
+            }
+        });
+    }
 
     // Инициализация кнопок типа плана для create_modal
     setupCreatePlanTypeButtons();

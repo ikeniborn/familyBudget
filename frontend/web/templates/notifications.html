@@ -18,11 +18,12 @@
     </div>
 
     <!-- Filters Section -->
-    <div tabindex="0" class="collapse collapse-arrow bg-base-100 shadow-lg">
-        <div class="collapse-title text-xl font-medium flex justify-between items-center">
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="filters-toggle" class="peer" />
+        <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
             <span>🔍 Фильтры</span>
             <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
-        </div>
+        </label>
         <div class="collapse-content">
             <div class="pt-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
@@ -53,7 +54,10 @@
                     </div>
                 </div>
             </div>
-            <div class="flex justify-end">
+            <div class="flex justify-between items-center">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="collapseFilters()">
+                    ⬆️ Свернуть
+                </button>
                 <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
             </div>
             </div>
@@ -152,8 +156,34 @@
 </div>
 {% endblock %}
 
+{% block extra_styles %}
+<style>
+/* Hide filters toggle checkbox */
+#filters-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Collapse behavior with checkbox */
+#filters-toggle:checked ~ .collapse-content {
+    max-height: 1000px;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+</style>
+{% endblock %}
+
 {% block extra_scripts %}
 <script>
+// Collapse filters panel
+function collapseFilters() {
+    const checkbox = document.getElementById('filters-toggle');
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+}
+
 // Global state
 let currentPage = 1;
 let itemsPerPage = 50;
@@ -162,6 +192,19 @@ let currentNotifications = [];
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
+    // Setup filters collapse behavior (prevent closing when clicking on open header)
+    const filtersLabel = document.querySelector('label[for="filters-toggle"]');
+    const filtersCheckbox = document.getElementById('filters-toggle');
+
+    if (filtersLabel && filtersCheckbox) {
+        filtersLabel.addEventListener('click', function(e) {
+            // If already open, prevent toggling (only allow collapse via "Свернуть" button)
+            if (filtersCheckbox.checked) {
+                e.preventDefault();
+            }
+        });
+    }
+
     // Инициализация CalendarWidget для фильтров дат (Range Picker) с кнопкой
     new BudgetShared.CalendarWidget({
         mode: 'range',
