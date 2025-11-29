@@ -11,11 +11,11 @@
  * - Accessibility focus states
  * - HTML5 <dialog> support (top layer positioning)
  *
- * Z-Index Hierarchy (v5.1.10+):
+ * Z-Index Hierarchy (v5.1.12+):
  * - Modal backdrop (DaisyUI): z-50 (50)
  * - Modal content (DaisyUI): z-50 (50)
- * - Calendar (non-dialog): z-index: 2000 (set via JS)
  * - Toast notifications: z-index: 3000
+ * - Calendar widget: z-index: 9999 (set via JS and CSS)
  *
  * NOTE: HTML5 <dialog> creates a top layer above any z-index.
  * When calendar input is inside <dialog>, the calendar is moved into
@@ -27,6 +27,7 @@
   min-width: 320px;  /* v5.1.4: Prevent calendar from becoming too narrow */
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   animation: calendar-fade-in 0.2s ease-out;
+  z-index: 9999; /* Ensure calendar appears above all other elements */
 }
 
 /* Calendar inside dialog modal - ensure it's above modal content */
@@ -96,24 +97,16 @@
 /* Month/Year dropdowns */
 .calendar-widget select {
   font-size: 0.875rem;
-  padding: 0.375rem 2rem 0.375rem 0.75rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  min-height: 2.5rem; /* Ensure full text display */
 }
 
 /* v5.1.4: Prevent header overflow - limit month/year select widths */
 .calendar-widget select[data-action="select-month"],
 .calendar-widget select[data-action="select-year"] {
-  max-width: 110px;
-  min-width: 90px;
+  max-width: 120px;
+  min-width: 95px;
   flex-shrink: 1;
-}
-
-/* Desktop: Increase height for month/year selects for better UX */
-@media (min-width: 768px) {
-  .calendar-widget select[data-action="select-month"],
-  .calendar-widget select[data-action="select-year"] {
-    min-height: 2.5rem; /* 40px */
-    padding: 0.5rem 2rem 0.5rem 0.75rem;
-  }
 }
 
 /* Navigation buttons */

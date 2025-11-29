@@ -238,10 +238,10 @@ class CalendarWidget {
     this.calendarElement = document.createElement('div');
     this.calendarElement.className = 'calendar-widget fixed shadow-lg rounded-lg bg-base-100 border border-base-300';
     this.calendarElement.style.width = '320px';
-    // High z-index for non-dialog cases (when calendar is in document.body)
+    // Very high z-index to ensure calendar appears above all other elements
     // NOTE: HTML5 <dialog> uses top layer which is above any z-index
     // When inside dialog, calendar is moved into .modal-box with absolute positioning
-    this.calendarElement.style.zIndex = '2000';
+    this.calendarElement.style.zIndex = '9999';
     this.calendarElement.style.visibility = 'hidden'; // Hidden but occupies space (for getBoundingClientRect)
     this.calendarElement.style.opacity = '0'; // Invisible
     this.calendarElement.style.transition = 'opacity 0.15s ease-out'; // Smooth appearance
@@ -269,13 +269,13 @@ class CalendarWidget {
           </button>
 
           <div class="flex items-center gap-2">
-            <select class="select select-sm select-bordered" data-action="select-month" aria-label="Выбрать месяц">
+            <select class="select select-bordered" data-action="select-month" aria-label="Выбрать месяц">
               ${CalendarWidget.MONTH_NAMES.map((name, i) =>
                 `<option value="${i}" ${i === this.currentMonth ? 'selected' : ''}>${name}</option>`
               ).join('')}
             </select>
 
-            <select class="select select-sm select-bordered" data-action="select-year" aria-label="Выбрать год">
+            <select class="select select-bordered" data-action="select-year" aria-label="Выбрать год">
               ${this._generateYearOptions()}
             </select>
           </div>
@@ -776,12 +776,28 @@ class CalendarWidget {
       top = inputRect.top - calendarHeight - spacing - scrollTop;
     }
 
-    // Mobile: Center calendar if screen is narrow (extended range to cover all mobile devices)
-    // Changed from < 400px to < 768px to match Tailwind's md breakpoint
+    // Mobile: Center calendar both horizontally and vertically
     if (viewportWidth < 768) {
+      // Horizontal centering
       left = (viewportWidth - calendarWidth) / 2;
       // Ensure minimum spacing from edges
       if (left < spacing) left = spacing;
+
+      // Vertical centering for better UX on mobile
+      top = (viewportHeight - calendarHeight) / 2;
+      // Ensure minimum spacing from top
+      if (top < spacing) top = spacing;
+    }
+
+    // Desktop in dialog: Center horizontally within modal-box
+    if (isDesktop && this._isInsideDialog) {
+      const modalBox = this.calendarElement.parentElement;
+      if (modalBox) {
+        const modalRect = modalBox.getBoundingClientRect();
+        const modalWidth = modalRect.width;
+        // Center horizontally within modal
+        left = (modalWidth - calendarWidth) / 2;
+      }
     }
 
     // Apply position
