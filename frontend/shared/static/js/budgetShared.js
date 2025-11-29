@@ -1127,7 +1127,6 @@ class CalendarWidget {
     const viewportHeight = window.innerHeight;
     const isDesktop = viewportWidth >= 768;
     const spacing = isDesktop ? 4 : 8; // Gap between input and calendar (smaller on desktop)
-    const horizontalOffset = isDesktop ? 60 : 0; // Desktop: shift calendar left for better positioning
 
     // If inside dialog, calculate position relative to dialog instead of viewport
     let scrollTop = 0;
@@ -1142,10 +1141,16 @@ class CalendarWidget {
 
     // Calculate initial position (below input)
     let top = inputRect.bottom + spacing - scrollTop;
-    let left = inputRect.left - scrollLeft - horizontalOffset;
+    let left = inputRect.left - scrollLeft;
+
+    // Desktop: align calendar to RIGHT edge of input (for filter panels on the right)
+    if (isDesktop) {
+      left = inputRect.right - calendarWidth - scrollLeft;
+    }
 
     // Adjust horizontal position if calendar goes off-screen (right edge)
-    if (left + calendarWidth > viewportWidth) {
+    // Only for mobile - desktop calendar is already right-aligned
+    if (!isDesktop && left + calendarWidth > viewportWidth) {
       left = viewportWidth - calendarWidth - spacing;
     }
 

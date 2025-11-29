@@ -29,13 +29,21 @@ function syncFiltersUI(filters) {
     // Date from filter
     const dateFromInput = document.getElementById('filter-date-from');
     if (dateFromInput) {
-        dateFromInput.value = filters.date_from || '';
+        // Convert from API format (YYYY-MM-DD) to display format (DD.MM.YYYY)
+        const dateFromValue = filters.date_from
+            ? DateFormatter.formatForDisplay(filters.date_from)
+            : '';
+        dateFromInput.value = dateFromValue;
     }
 
     // Date to filter
     const dateToInput = document.getElementById('filter-date-to');
     if (dateToInput) {
-        dateToInput.value = filters.date_to || '';
+        // Convert from API format (YYYY-MM-DD) to display format (DD.MM.YYYY)
+        const dateToValue = filters.date_to
+            ? DateFormatter.formatForDisplay(filters.date_to)
+            : '';
+        dateToInput.value = dateToValue;
     }
 
     // Financial center filter
