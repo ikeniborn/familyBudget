@@ -1170,10 +1170,27 @@ class CalendarWidget {
 
     // Mobile: Center calendar both horizontally and vertically
     if (viewportWidth < 768) {
-      // Horizontal centering
-      left = (viewportWidth - calendarWidth) / 2;
-      // Ensure minimum spacing from edges
-      if (left < spacing) left = spacing;
+      // Check if calendar is inside modal dialog
+      if (this._isInsideDialog) {
+        const modalBox = this.calendarElement.parentElement;
+        if (modalBox) {
+          const modalRect = modalBox.getBoundingClientRect();
+          const modalWidth = modalRect.width;
+          // Center horizontally within modal-box (fix for mobile modal centering)
+          left = (modalWidth - calendarWidth) / 2;
+          // Ensure minimum spacing from modal edges
+          if (left < spacing) left = spacing;
+        } else {
+          // Fallback: center relative to viewport
+          left = (viewportWidth - calendarWidth) / 2;
+          if (left < spacing) left = spacing;
+        }
+      } else {
+        // Not in dialog: center relative to viewport
+        left = (viewportWidth - calendarWidth) / 2;
+        // Ensure minimum spacing from edges
+        if (left < spacing) left = spacing;
+      }
 
       // Vertical centering for better UX on mobile
       top = (viewportHeight - calendarHeight) / 2;

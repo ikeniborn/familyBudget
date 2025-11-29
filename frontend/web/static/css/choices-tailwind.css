@@ -216,17 +216,20 @@
         @apply py-3.5 text-base;
     }
 
-    /* CRITICAL: Prevent zoom on search input (iOS/Android/Yandex Browser) */
-    .choices-tailwind .choices__input--cloned {
-        font-size: 17px !important;  /* 17px more reliable than 16px */
+    /* CRITICAL: Prevent zoom on ALL input elements (iOS/Android/Yandex Browser) */
+    /* Higher specificity to ensure rule applies */
+    .choices-tailwind .choices__input,
+    .choices-tailwind .choices__input--cloned,
+    .choices-tailwind input.choices__input,
+    .choices-tailwind input.choices__input--cloned {
+        font-size: 16px !important;  /* Minimum to prevent zoom */
+        max-height: none !important;  /* Prevent height constraints */
         -webkit-text-size-adjust: 100%;  /* Disable font boosting */
+        -moz-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
         touch-action: manipulation;  /* Prevent double-tap zoom */
-    }
-
-    .choices-tailwind .choices__input {
-        font-size: 17px !important;
-        -webkit-text-size-adjust: 100%;
-        touch-action: manipulation;
+        user-select: text;  /* Allow text selection */
     }
 
     /* Prevent zoom on dropdown itself */
