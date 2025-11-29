@@ -254,6 +254,58 @@ regenerate_nginx_config() {
 }
 
 # =============================================================================
+# PWA ICONS REGENERATION
+# =============================================================================
+
+# Regenerate PWA icons from SVG if trigger file exists
+# Trigger: tmp/budget-icon-v3.svg presence in deployment directory
+# This function runs AFTER code sync and BEFORE Service Worker cache update
+regenerate_pwa_icons_if_needed() {
+    local trigger_svg="$DEPLOY_DIR/tmp/budget-icon-v3.svg"
+    local icons_script="$DEPLOY_DIR/scripts/generate_pwa_icons.sh"
+
+    # Check if trigger file exists
+    if [[ ! -f "$trigger_svg" ]]; then
+        info "PWA icons: No changes detected (trigger file not found), skipping regeneration"
+        return 0
+    fi
+
+    step "Regenerating PWA Icons"
+
+    # Verify generation script exists
+    if [[ ! -f "$icons_script" ]]; then
+        warning "generate_pwa_icons.sh not found, skipping PWA icons regeneration"
+        warning "Expected location: $icons_script"
+        return 0
+    fi
+
+    info "Trigger file detected: $trigger_svg"
+    info "Running PWA icons generation..."
+    echo ""
+
+    cd "$DEPLOY_DIR" || {
+        error "Failed to cd to $DEPLOY_DIR"
+        return 1
+    }
+
+    # Run generation script
+    if bash "$icons_script" "$trigger_svg"; then
+        success "PWA icons regenerated successfully"
+
+        # Remove trigger file after successful generation
+        rm -f "$trigger_svg"
+        info "Removed trigger file: $trigger_svg"
+    else
+        warning "PWA icons generation failed, continuing deployment..."
+        warning "Trigger file NOT removed: $trigger_svg"
+        return 0
+    fi
+
+    echo ""
+    return 0
+}
+
+# =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
@@ -805,6 +857,10 @@ main() {
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
     echo ""
+
+    # Regenerate PWA icons if trigger file exists (AFTER sync, BEFORE SW cache update)
+    # This ensures new icons are available before Service Worker cache is updated
+    regenerate_pwa_icons_if_needed
 
     # Update Service Worker cache version (PWA)
     # IMPORTANT: Must run AFTER sync to avoid git conflicts in source repository

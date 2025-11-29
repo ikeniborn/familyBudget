@@ -1,78 +1,26 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <!-- Градиенты для 4 квадрантов (светлый → темный зеленый) -->
-    <linearGradient id="gradTopLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#A5D6A7;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#66BB6A;stop-opacity:1" />
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366F1"/>
+      <stop offset="100%" style="stop-color:#4F46E5"/>
     </linearGradient>
-
-    <linearGradient id="gradTopRight" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#4CAF50;stop-opacity:1" />
-    </linearGradient>
-
-    <linearGradient id="gradBottomLeft" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#388E3C;stop-opacity:1" />
-    </linearGradient>
-
-    <linearGradient id="gradBottomRight" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#388E3C;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1" />
-    </linearGradient>
-
-    <!-- Blur filter для расплывчатых переходов -->
-    <filter id="blurFilter" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="25" />
-    </filter>
-
-    <!-- Text shadow для глубины -->
-    <filter id="textShadow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="4" />
-      <feOffset dx="2" dy="4" result="offsetblur" />
-      <feComponentTransfer>
-        <feFuncA type="linear" slope="0.5" />
-      </feComponentTransfer>
-      <feMerge>
-        <feMergeNode />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
   </defs>
-
-  <!-- Круглая маска для PWA -->
-  <clipPath id="circleMask">
-    <circle cx="256" cy="256" r="256" />
-  </clipPath>
-
-  <g clip-path="url(#circleMask)">
-    <!-- Основные квадранты -->
-    <rect x="0" y="0" width="256" height="256" fill="url(#gradTopLeft)" />
-    <rect x="256" y="0" width="256" height="256" fill="url(#gradTopRight)" />
-    <rect x="0" y="256" width="256" height="256" fill="url(#gradBottomLeft)" />
-    <rect x="256" y="256" width="256" height="256" fill="url(#gradBottomRight)" />
-
-    <!-- Overlay слой с blur для мягких переходов между квадрантами -->
-    <g opacity="0.6">
-      <!-- Горизонтальная полоса для вертикального blend -->
-      <rect x="230" y="0" width="52" height="512" fill="url(#gradTopLeft)" filter="url(#blurFilter)" />
-      <!-- Вертикальная полоса для горизонтального blend -->
-      <rect x="0" y="230" width="512" height="52" fill="url(#gradTopLeft)" filter="url(#blurFilter)" />
-    </g>
+  
+  <!-- Фон -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  
+  <!-- Столбчатый график -->
+  <rect x="80" y="280" width="56" height="120" rx="8" fill="#fff" opacity="0.6"/>
+  <rect x="156" y="220" width="56" height="180" rx="8" fill="#fff" opacity="0.75"/>
+  <rect x="232" y="160" width="56" height="240" rx="8" fill="#fff" opacity="0.9"/>
+  
+  <!-- Символ рубля (изящный) -->
+  <g fill="none" stroke="#fff" stroke-width="20" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Вертикальная линия -->
+    <line x1="340" y1="130" x2="340" y2="380"/>
+    <!-- Верхняя дуга (полукруг) -->
+    <path d="M340 130 L380 130 Q430 130 430 190 Q430 250 380 250 L340 250"/>
+    <!-- Горизонтальная черта -->
+    <line x1="310" y1="300" x2="400" y2="300"/>
   </g>
-
-  <!-- Буквы "СБ" в центре -->
-  <text
-    x="256"
-    y="330"
-    font-family="Arial Black, Arial, sans-serif"
-    font-size="200"
-    font-weight="900"
-    fill="#FFFFFF"
-    text-anchor="middle"
-    stroke="#2E7D32"
-    stroke-width="6"
-    paint-order="stroke fill"
-    filter="url(#textShadow)"
-  >СБ</text>
 </svg>
