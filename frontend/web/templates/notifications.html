@@ -54,7 +54,7 @@
                     </div>
                 </div>
             </div>
-            <div class="flex justify-between items-center">
+            <div class="flex justify-end items-center gap-2">
                 <button class="btn btn-sm btn-ghost gap-1" onclick="collapseFilters()">
                     ⬆️ Свернуть
                 </button>
@@ -192,18 +192,7 @@ let currentNotifications = [];
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', function() {
-    // Setup filters collapse behavior (prevent closing when clicking on open header)
-    const filtersLabel = document.querySelector('label[for="filters-toggle"]');
-    const filtersCheckbox = document.getElementById('filters-toggle');
-
-    if (filtersLabel && filtersCheckbox) {
-        filtersLabel.addEventListener('click', function(e) {
-            // If already open, prevent toggling (only allow collapse via "Свернуть" button)
-            if (filtersCheckbox.checked) {
-                e.preventDefault();
-            }
-        });
-    }
+    // Allow filters collapse behavior - native DaisyUI toggle on header click
 
     // Инициализация CalendarWidget для фильтров дат (Range Picker) с кнопкой
     new BudgetShared.CalendarWidget({
