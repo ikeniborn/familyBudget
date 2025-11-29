@@ -184,16 +184,11 @@ class CalendarWidget {
    */
   _createCalendarElement() {
     this.calendarElement = document.createElement('div');
-    this.calendarElement.className = 'calendar-widget absolute z-50 mt-2 shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
+    this.calendarElement.className = 'calendar-widget fixed z-50 shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
     this.calendarElement.style.width = '320px';
 
-    // Position below input
-    const targetInput = this.mode === 'single'
-      ? this.inputElement
-      : this.startInputElement;
-
-    targetInput.parentElement.style.position = 'relative';
-    targetInput.parentElement.appendChild(this.calendarElement);
+    // Append to body for fixed positioning (avoid overflow: hidden in modals)
+    document.body.appendChild(this.calendarElement);
 
     this._render();
   }
@@ -575,7 +570,61 @@ class CalendarWidget {
   open() {
     this.isOpen = true;
     this.calendarElement.classList.remove('hidden');
+    this._positionCalendar(); // Position calendar before showing
     this._render(); // Re-render to show current selection
+  }
+
+  /**
+   * Position calendar relative to input element (fixed positioning)
+   * @private
+   */
+  _positionCalendar() {
+    const targetInput = this.mode === 'single'
+      ? this.inputElement
+      : this.startInputElement;
+
+    if (!targetInput) return;
+
+    const inputRect = targetInput.getBoundingClientRect();
+    const calendarWidth = 320; // Match width in _createCalendarElement
+    const calendarHeight = 400; // Approximate height (will adjust based on content)
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const spacing = 8; // Gap between input and calendar
+
+    // Calculate initial position (below input)
+    let top = inputRect.bottom + spacing;
+    let left = inputRect.left;
+
+    // Adjust horizontal position if calendar goes off-screen (right edge)
+    if (left + calendarWidth > viewportWidth) {
+      left = viewportWidth - calendarWidth - spacing;
+    }
+
+    // Adjust horizontal position if calendar goes off-screen (left edge)
+    if (left < spacing) {
+      left = spacing;
+    }
+
+    // Check if calendar fits below input
+    const spaceBelow = viewportHeight - inputRect.bottom;
+    const spaceAbove = inputRect.top;
+
+    // If not enough space below but enough space above, show above input
+    if (spaceBelow < calendarHeight && spaceAbove > calendarHeight) {
+      top = inputRect.top - calendarHeight - spacing;
+    }
+
+    // Mobile: Center calendar if screen is too small
+    if (viewportWidth < 400) {
+      left = (viewportWidth - calendarWidth) / 2;
+      // Ensure minimum spacing from edges
+      if (left < spacing) left = spacing;
+    }
+
+    // Apply position
+    this.calendarElement.style.top = `${top}px`;
+    this.calendarElement.style.left = `${left}px`;
   }
 
   /**
