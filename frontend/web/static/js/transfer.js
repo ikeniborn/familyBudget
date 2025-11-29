@@ -18,9 +18,8 @@ function initTransferModal() {
         transferDateWidget = new BudgetShared.CalendarWidget({
             mode: 'single',
             inputElement: document.querySelector('#transfer_date'),
-            onDateSelect: (date) => {
-                document.querySelector('#transfer_date').value =
-                    BudgetShared.DateFormatter.formatForDisplay(date);
+            onSelect: (date) => {
+                debugLog('Выбрана дата для перевода:', date);
             }
         });
     }

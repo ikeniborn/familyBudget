@@ -76,6 +76,12 @@
   background-color: #c8e6c9; /* Material Design Green 100 - light green */
 }
 
+/* Range boundaries - red border for start and end dates */
+.calendar-widget [data-date].border-error {
+  border-color: hsl(var(--er)) !important;
+  border-width: 2px !important;
+}
+
 /* Legacy class support (deprecated - use bg-range-highlight instead) */
 .calendar-widget [data-date].bg-primary\/20 {
   background-color: hsl(var(--p) / 0.2);

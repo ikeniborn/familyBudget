@@ -433,6 +433,7 @@ class CalendarWidget {
    * @param {HTMLElement} [options.startInputElement] - Start date input for range picker
    * @param {HTMLElement} [options.endInputElement] - End date input for range picker
    * @param {string} [options.mode='single'] - Picker mode: 'single' or 'range'
+   * @param {string} [options.triggerContainer] - CSS selector for custom trigger button container (range mode only)
    * @param {Function} [options.onSelect] - Callback when date is selected
    * @param {Date} [options.defaultDate] - Default selected date
    * @param {Date} [options.minDate] - Minimum selectable date
@@ -440,6 +441,7 @@ class CalendarWidget {
    */
   constructor(options) {
     this.mode = options.mode || 'single';
+    this.triggerContainer = options.triggerContainer || null;
     this.onSelect = options.onSelect || (() => {});
     this.minDate = options.minDate || null;
     this.maxDate = options.maxDate || null;
@@ -518,10 +520,56 @@ class CalendarWidget {
       // Single mode: create one button for inputElement
       this._createSingleButton(this.inputElement);
     } else {
-      // Range mode: create buttons for BOTH startInputElement and endInputElement
+      // Range mode: check if custom trigger container is specified
+      if (this.triggerContainer) {
+        // Custom trigger container - create ONE button in specified container
+        this._createCustomTriggerButton();
+      } else {
+        // Default behavior: create buttons for BOTH startInputElement and endInputElement
+        this._createSingleButton(this.startInputElement);
+        this._createSingleButton(this.endInputElement);
+      }
+    }
+  }
+
+  /**
+   * Create custom trigger button in specified container (range mode only)
+   * @private
+   */
+  _createCustomTriggerButton() {
+    const container = document.querySelector(this.triggerContainer);
+    if (!container) {
+      console.warn(`CalendarWidget: triggerContainer "${this.triggerContainer}" not found, falling back to default buttons`);
       this._createSingleButton(this.startInputElement);
       this._createSingleButton(this.endInputElement);
+      return;
     }
+
+    // Create button
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-ghost btn-sm';
+    button.innerHTML = `
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    `;
+    button.setAttribute('aria-label', 'Открыть календарь');
+
+    // Store reference
+    this.triggerButton = button;
+    this.triggerButtons.push(button);
+
+    // Append to container
+    container.appendChild(button);
+
+    // Add click event to open calendar
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.open();
+    });
   }
 
   /**
@@ -706,10 +754,12 @@ class CalendarWidget {
       const isDisabled = this._isDateDisabled(date);
       const isSelected = this._isDateSelected(date);
       const isInRange = this._isDateInRange(date);
+      const isRangeBoundary = this._isRangeBoundary(date);
 
       let btnClass = 'btn btn-sm btn-ghost w-full aspect-square p-0';
       if (isToday) btnClass += ' border border-primary';
       if (isSelected) btnClass += ' btn-primary';
+      if (isRangeBoundary) btnClass += ' border-2 border-error'; // Red border for range boundaries
       if (isInRange && !isSelected) btnClass += ' bg-range-highlight';
       if (isDisabled) btnClass += ' btn-disabled opacity-30';
 
@@ -762,6 +812,17 @@ class CalendarWidget {
   _isDateInRange(date) {
     if (this.mode !== 'range' || !this.startDate || !this.endDate) return false;
     return date > this.startDate && date < this.endDate;
+  }
+
+  /**
+   * Check if date is a range boundary (start or end date)
+   * @private
+   */
+  _isRangeBoundary(date) {
+    if (this.mode !== 'range') return false;
+    const startMatch = this.startDate && date.getTime() === this.startDate.getTime();
+    const endMatch = this.endDate && date.getTime() === this.endDate.getTime();
+    return startMatch || endMatch;
   }
 
   /**
