@@ -107,6 +107,15 @@
   flex-shrink: 1;
 }
 
+/* Desktop: Increase height for month/year selects for better UX */
+@media (min-width: 768px) {
+  .calendar-widget select[data-action="select-month"],
+  .calendar-widget select[data-action="select-year"] {
+    min-height: 2.5rem; /* 40px */
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+  }
+}
+
 /* Navigation buttons */
 .calendar-widget [data-action="prev-month"],
 .calendar-widget [data-action="next-month"] {
