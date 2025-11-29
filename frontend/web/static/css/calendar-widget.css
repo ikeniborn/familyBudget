@@ -9,6 +9,17 @@
  * - Touch-friendly button sizing
  * - Smooth transitions
  * - Accessibility focus states
+ * - HTML5 <dialog> support (top layer positioning)
+ *
+ * Z-Index Hierarchy (v5.1.10+):
+ * - Modal backdrop (DaisyUI): z-50 (50)
+ * - Modal content (DaisyUI): z-50 (50)
+ * - Calendar (non-dialog): z-index: 2000 (set via JS)
+ * - Toast notifications: z-index: 3000
+ *
+ * NOTE: HTML5 <dialog> creates a top layer above any z-index.
+ * When calendar input is inside <dialog>, the calendar is moved into
+ * .modal-box with absolute positioning (handled by JS).
  */
 
 /* Calendar container */
@@ -16,6 +27,12 @@
   min-width: 320px;  /* v5.1.4: Prevent calendar from becoming too narrow */
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   animation: calendar-fade-in 0.2s ease-out;
+}
+
+/* Calendar inside dialog modal - ensure it's above modal content */
+.modal-box .calendar-widget {
+  position: absolute;
+  z-index: 10; /* Above modal content */
 }
 
 /* Fade-in animation */
@@ -111,7 +128,7 @@
   outline-offset: 2px;
 }
 
-/* v5.1.8: Mobile modal mode - applied via JS class */
+/* v5.1.8: Mobile modal mode - applied via JS class (legacy, kept for compatibility) */
 .calendar-widget.calendar-modal-mobile {
   position: fixed;
   top: 50%;
@@ -123,7 +140,7 @@
   max-width: calc(100% - 6%); /* 3% margin on each side */
   max-height: 85vh; /* Prevent excessive vertical stretch */
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 2000; /* v5.1.10: Increased from 1000 to match non-modal calendar */
 }
 
 /* Mobile touch improvements */
@@ -175,7 +192,7 @@
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
-    z-index: 999;
+    z-index: 1999; /* v5.1.10: Below calendar (2000) but above other content */
     animation: backdrop-fade-in 0.2s ease-out;
   }
 

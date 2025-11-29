@@ -39,12 +39,14 @@
     </div>
 
     <!-- Filters Section -->
-    <div class="card bg-base-100 shadow-lg">
-        <div class="card-body">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">🔍 Фильтры</h2>
-                <button class="btn btn-sm btn-ghost" onclick="resetFilters()">Сбросить</button>
-            </div>
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="filters-toggle" />
+        <div class="collapse-title text-xl font-medium flex justify-between items-center pr-12">
+            <span>🔍 Фильтры</span>
+            <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
+        </div>
+        <div class="collapse-content">
+            <div class="pt-4">
 
             <!-- Уровень 1: Фильтры по дате -->
             <div class="filter-section">
@@ -146,6 +148,7 @@
 
             <div class="flex justify-end mt-4">
                 <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
+            </div>
             </div>
         </div>
     </div>

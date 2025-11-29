@@ -190,12 +190,16 @@ class CalendarWidget {
     this.calendarElement = document.createElement('div');
     this.calendarElement.className = 'calendar-widget fixed shadow-lg rounded-lg bg-base-100 border border-base-300';
     this.calendarElement.style.width = '320px';
-    this.calendarElement.style.zIndex = '9999'; // Above modals (DaisyUI modals use z-index: 999)
+    // High z-index for non-dialog cases (when calendar is in document.body)
+    // NOTE: HTML5 <dialog> uses top layer which is above any z-index
+    // When inside dialog, calendar is moved into .modal-box with absolute positioning
+    this.calendarElement.style.zIndex = '2000';
     this.calendarElement.style.visibility = 'hidden'; // Hidden but occupies space (for getBoundingClientRect)
     this.calendarElement.style.opacity = '0'; // Invisible
     this.calendarElement.style.transition = 'opacity 0.15s ease-out'; // Smooth appearance
 
-    // Append to body for fixed positioning (avoid overflow: hidden in modals)
+    // Append to body for fixed positioning
+    // Will be moved into dialog's .modal-box if input is inside <dialog> (see _moveToDialog)
     document.body.appendChild(this.calendarElement);
 
     this._render();
@@ -579,10 +583,58 @@ class CalendarWidget {
   }
 
   /**
+   * Move calendar into dialog if input is inside an open dialog element
+   * This is necessary because HTML5 <dialog> creates a top layer above any z-index
+   * @private
+   */
+  _moveToDialog() {
+    const targetInput = this.mode === 'single'
+      ? this.inputElement
+      : this.startInputElement;
+
+    if (!targetInput) return;
+
+    // Check if input is inside an open dialog
+    const dialogElement = targetInput.closest('dialog[open]');
+
+    if (dialogElement) {
+      // Input is inside an open dialog - move calendar into .modal-box for proper layering
+      const modalBox = dialogElement.querySelector('.modal-box');
+      if (modalBox && this.calendarElement.parentElement !== modalBox) {
+        // Store original parent for restoration
+        this._originalParent = this.calendarElement.parentElement;
+        // Move calendar into dialog's modal-box
+        modalBox.appendChild(this.calendarElement);
+        // Switch to absolute positioning within dialog
+        this.calendarElement.style.position = 'absolute';
+        this._isInsideDialog = true;
+      }
+    }
+  }
+
+  /**
+   * Restore calendar back to document.body if it was moved to a dialog
+   * @private
+   */
+  _restoreToBody() {
+    if (this._isInsideDialog && this._originalParent) {
+      // Move calendar back to original parent (document.body)
+      this._originalParent.appendChild(this.calendarElement);
+      // Restore fixed positioning
+      this.calendarElement.style.position = 'fixed';
+      this._isInsideDialog = false;
+      this._originalParent = null;
+    }
+  }
+
+  /**
    * Open calendar
    */
   open() {
     this.isOpen = true;
+
+    // Check if we need to move calendar into a dialog (for proper layering above dialog backdrop)
+    this._moveToDialog();
 
     // Make visible but transparent for positioning calculation
     this.calendarElement.style.visibility = 'visible';
@@ -591,15 +643,19 @@ class CalendarWidget {
     // Calculate and set position
     this._positionCalendar();
 
-    // Small delay to ensure position is applied before showing
+    // Use double requestAnimationFrame to ensure layout is complete before showing
+    // This prevents visual "jumps" on mobile devices
     requestAnimationFrame(() => {
-      this.calendarElement.style.opacity = '1';
-      this._render(); // Re-render to show current selection
+      requestAnimationFrame(() => {
+        this.calendarElement.style.opacity = '1';
+        this._render(); // Re-render to show current selection
+      });
     });
   }
 
   /**
-   * Position calendar relative to input element (fixed positioning)
+   * Position calendar relative to input element
+   * Uses fixed positioning for non-dialog, absolute positioning for dialog
    * @private
    */
   _positionCalendar() {
@@ -611,14 +667,29 @@ class CalendarWidget {
 
     const inputRect = targetInput.getBoundingClientRect();
     const calendarWidth = 320; // Match width in _createCalendarElement
-    const calendarHeight = 400; // Approximate height (will adjust based on content)
+
+    // Use REAL calendar height instead of approximate 400px to prevent visual jumps
+    const calendarRect = this.calendarElement.getBoundingClientRect();
+    const calendarHeight = calendarRect.height || 400; // Fallback to 400 if height is 0
+
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
     const spacing = 8; // Gap between input and calendar
 
+    // If inside dialog, calculate position relative to dialog instead of viewport
+    let scrollTop = 0;
+    let scrollLeft = 0;
+    if (this._isInsideDialog) {
+      const modalBox = this.calendarElement.parentElement;
+      if (modalBox) {
+        scrollTop = modalBox.scrollTop;
+        scrollLeft = modalBox.scrollLeft;
+      }
+    }
+
     // Calculate initial position (below input)
-    let top = inputRect.bottom + spacing;
-    let left = inputRect.left;
+    let top = inputRect.bottom + spacing - scrollTop;
+    let left = inputRect.left - scrollLeft;
 
     // Adjust horizontal position if calendar goes off-screen (right edge)
     if (left + calendarWidth > viewportWidth) {
@@ -636,11 +707,12 @@ class CalendarWidget {
 
     // If not enough space below but enough space above, show above input
     if (spaceBelow < calendarHeight && spaceAbove > calendarHeight) {
-      top = inputRect.top - calendarHeight - spacing;
+      top = inputRect.top - calendarHeight - spacing - scrollTop;
     }
 
-    // Mobile: Center calendar if screen is too small
-    if (viewportWidth < 400) {
+    // Mobile: Center calendar if screen is narrow (extended range to cover all mobile devices)
+    // Changed from < 400px to < 768px to match Tailwind's md breakpoint
+    if (viewportWidth < 768) {
       left = (viewportWidth - calendarWidth) / 2;
       // Ensure minimum spacing from edges
       if (left < spacing) left = spacing;
@@ -658,6 +730,9 @@ class CalendarWidget {
     this.isOpen = false;
     this.calendarElement.style.visibility = 'hidden';
     this.calendarElement.style.opacity = '0';
+
+    // Restore calendar back to document.body if it was moved to a dialog
+    this._restoreToBody();
   }
 
   /**
