@@ -13,7 +13,7 @@
 const DEBUG = false;
 
 // ВАЖНО: Обновляйте при каждом деплое! (можно использовать ${GIT_HASH} или ${TIMESTAMP})
-const CACHE_VERSION = 'v20251129_0031';
+const CACHE_VERSION = 'v20251129_1503';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Критическая статика БЕЗ версий (для precaching в install event)
