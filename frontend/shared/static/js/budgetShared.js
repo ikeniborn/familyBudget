@@ -865,7 +865,7 @@ class CalendarWidget {
           this.clearRange();
           break;
         case 'close':
-          this.close();
+          this.applyAndClose();
           break;
       }
     });
@@ -907,7 +907,10 @@ class CalendarWidget {
       const clickedButton = this.triggerButtons.some(btn => btn.contains(e.target));
       if (clickedButton) return;
 
-      // Click is outside - close calendar
+      // Range mode: don't close on outside click (user must click "Закрыть" button)
+      if (this.mode === 'range') return;
+
+      // Single mode: close calendar on outside click
       this.close();
     });
 
@@ -975,8 +978,8 @@ class CalendarWidget {
         this.startInputElement.value = startDisplay;
         this.endInputElement.value = endDisplay;
         this.selectingEnd = false;
-        this.onSelect(startDisplay, endDisplay);
-        this.close();
+        this._render(); // Re-render to show selected range, but don't close calendar
+        // onSelect will be called when user clicks "Закрыть" button
       }
     }
   }
@@ -1171,6 +1174,21 @@ class CalendarWidget {
     // Apply position
     this.calendarElement.style.top = `${top}px`;
     this.calendarElement.style.left = `${left}px`;
+  }
+
+  /**
+   * Apply selection and close calendar (called by "Закрыть" button)
+   */
+  applyAndClose() {
+    // For range mode: call onSelect callback if both dates are selected
+    if (this.mode === 'range' && this.startDate && this.endDate) {
+      const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+      const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+      this.onSelect(startDisplay, endDisplay);
+    }
+
+    // Close calendar
+    this.close();
   }
 
   /**
