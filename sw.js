@@ -12,8 +12,9 @@
 // Debug mode (включить только для отладки)
 const DEBUG = false;
 
-// ВАЖНО: Обновляйте при каждом деплое! (можно использовать ${GIT_HASH} или ${TIMESTAMP})
-const CACHE_VERSION = 'v20251129_0031';
+// ВАЖНО: Автоматически обновляется при деплое через scripts/update-sw-version.sh
+// НЕ изменяйте CACHE_VERSION_PLACEHOLDER вручную!
+const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';
 const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Критическая статика БЕЗ версий (для precaching в install event)
