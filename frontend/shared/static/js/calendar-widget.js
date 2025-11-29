@@ -188,9 +188,12 @@ class CalendarWidget {
    */
   _createCalendarElement() {
     this.calendarElement = document.createElement('div');
-    this.calendarElement.className = 'calendar-widget fixed shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
+    this.calendarElement.className = 'calendar-widget fixed shadow-lg rounded-lg bg-base-100 border border-base-300';
     this.calendarElement.style.width = '320px';
     this.calendarElement.style.zIndex = '9999'; // Above modals (DaisyUI modals use z-index: 999)
+    this.calendarElement.style.visibility = 'hidden'; // Hidden but occupies space (for getBoundingClientRect)
+    this.calendarElement.style.opacity = '0'; // Invisible
+    this.calendarElement.style.transition = 'opacity 0.15s ease-out'; // Smooth appearance
 
     // Append to body for fixed positioning (avoid overflow: hidden in modals)
     document.body.appendChild(this.calendarElement);
@@ -580,9 +583,19 @@ class CalendarWidget {
    */
   open() {
     this.isOpen = true;
-    this._positionCalendar(); // Position BEFORE showing (prevent visual jump)
-    this.calendarElement.classList.remove('hidden');
-    this._render(); // Re-render to show current selection
+
+    // Make visible but transparent for positioning calculation
+    this.calendarElement.style.visibility = 'visible';
+    this.calendarElement.style.opacity = '0';
+
+    // Calculate and set position
+    this._positionCalendar();
+
+    // Small delay to ensure position is applied before showing
+    requestAnimationFrame(() => {
+      this.calendarElement.style.opacity = '1';
+      this._render(); // Re-render to show current selection
+    });
   }
 
   /**
@@ -643,7 +656,8 @@ class CalendarWidget {
    */
   close() {
     this.isOpen = false;
-    this.calendarElement.classList.add('hidden');
+    this.calendarElement.style.visibility = 'hidden';
+    this.calendarElement.style.opacity = '0';
   }
 
   /**
