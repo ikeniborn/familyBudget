@@ -365,6 +365,7 @@
 let allCategories = [];
 let createCategoryTreeSelect = null;
 let editCategoryTreeSelect = null;
+let editDateCalendar = null; // CalendarWidget instance for edit modal
 
 // Global state
 let currentPage = 0;
@@ -1330,17 +1331,14 @@ async function showEditModal(factId) {
     // Initialize CalendarWidget for edit modal date input
     const editDateInput = document.getElementById('edit-date');
     if (editDateInput) {
-        // Remove existing calendar widget if any
-        const existingCalendar = editDateInput.parentElement.querySelector('.calendar-widget');
-        if (existingCalendar) {
-            existingCalendar.remove();
-        }
-        const existingButton = editDateInput.parentElement.querySelector('button[aria-label="Открыть календарь"]');
-        if (existingButton) {
-            existingButton.remove();
+        // Destroy previous calendar instance if exists (prevent memory leak)
+        if (editDateCalendar) {
+            editDateCalendar.destroy();
+            editDateCalendar = null;
         }
 
-        new BudgetShared.CalendarWidget({
+        // Create new calendar instance
+        editDateCalendar = new BudgetShared.CalendarWidget({
             mode: 'single',
             inputElement: editDateInput,
             onSelect: (date) => {

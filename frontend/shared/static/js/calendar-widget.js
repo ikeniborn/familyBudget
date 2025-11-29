@@ -188,8 +188,9 @@ class CalendarWidget {
    */
   _createCalendarElement() {
     this.calendarElement = document.createElement('div');
-    this.calendarElement.className = 'calendar-widget fixed z-50 shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
+    this.calendarElement.className = 'calendar-widget fixed shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
     this.calendarElement.style.width = '320px';
+    this.calendarElement.style.zIndex = '9999'; // Above modals (DaisyUI modals use z-index: 999)
 
     // Append to body for fixed positioning (avoid overflow: hidden in modals)
     document.body.appendChild(this.calendarElement);
@@ -657,15 +658,31 @@ class CalendarWidget {
   }
 
   /**
-   * Destroy calendar widget
+   * Destroy calendar widget and remove from DOM
+   * Prevents memory leaks when recreating calendars in modals
    */
   destroy() {
+    // Close if open
+    if (this.isOpen) {
+      this.close();
+    }
+
+    // Remove calendar element from DOM
     if (this.calendarElement) {
       this.calendarElement.remove();
     }
-    if (this.triggerButton) {
-      this.triggerButton.remove();
-    }
+
+    // Remove ALL trigger buttons
+    this.triggerButtons.forEach(btn => {
+      if (btn && btn.parentNode) {
+        btn.remove();
+      }
+    });
+
+    // Clear references
+    this.triggerButtons = [];
+    this.triggerButton = null;
+    this.calendarElement = null;
   }
 }
 
