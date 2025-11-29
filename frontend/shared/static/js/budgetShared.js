@@ -1219,8 +1219,6 @@ class ChoicesCategoryTree {
      */
     async init() {
         try {
-            console.log('[ChoicesCategoryTree] Initializing...');
-
             // Load categories from API
             await this.loadCategories();
 
@@ -1243,8 +1241,6 @@ class ChoicesCategoryTree {
             if (selectedId) {
                 await this.updatePathDisplay(parseInt(selectedId));
             }
-
-            console.log('[ChoicesCategoryTree] Initialized successfully');
         } catch (error) {
             console.error('[ChoicesCategoryTree] Initialization error:', error);
             this.showError('Ошибка загрузки категорий');
@@ -1262,7 +1258,6 @@ class ChoicesCategoryTree {
         // Check cache first (30 second TTL)
         const cached = ChoicesCategoryTree._cache.get(cacheKey);
         if (cached && (Date.now() - cached.timestamp) < 30000) {
-            console.log(`[ChoicesCategoryTree] Using cached categories for ${cacheKey}`);
             this.categories = cached.data;
             return;
         }
@@ -1270,15 +1265,12 @@ class ChoicesCategoryTree {
         // Check if request is already in flight
         const pendingRequest = ChoicesCategoryTree._pendingRequests.get(cacheKey);
         if (pendingRequest) {
-            console.log(`[ChoicesCategoryTree] Waiting for pending request for ${cacheKey}`);
             this.categories = await pendingRequest;
             return;
         }
 
         // Create new request
         const url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000&include_inactive=${this.options.showInactive}`;
-
-        console.log(`[ChoicesCategoryTree] Loading categories from: ${url}`);
 
         // Build headers conditionally
         const headers = {};
@@ -1290,11 +1282,8 @@ class ChoicesCategoryTree {
                 throw new Error('No authentication token available');
             }
             headers['Authorization'] = `Bearer ${token}`;
-            console.log('[ChoicesCategoryTree] Using Bearer token authentication');
-        } else {
-            // Otherwise, rely on cookie-based auth (web interface)
-            console.log('[ChoicesCategoryTree] Using cookie-based authentication');
         }
+        // Otherwise, rely on cookie-based auth (web interface)
 
         // Create and store promise
         const requestPromise = fetch(url, {
@@ -1320,8 +1309,6 @@ class ChoicesCategoryTree {
                 data: categories,
                 timestamp: Date.now()
             });
-
-            console.log(`[ChoicesCategoryTree] Loaded ${categories.length} categories (cached for 30s)`);
 
             return categories;
         }).finally(() => {
@@ -1354,8 +1341,6 @@ class ChoicesCategoryTree {
                 this.childrenMap.get(category.parent_id).push(category.id);
             }
         }
-
-        console.log(`[ChoicesCategoryTree] Built hierarchy maps: ${this.categoryMap.size} categories, ${this.childrenMap.size} parents`);
     }
 
     /**
@@ -1426,8 +1411,6 @@ class ChoicesCategoryTree {
         this.element.addEventListener('change', (event) => {
             this.handleCategoryChange(event);
         });
-
-        console.log(`[ChoicesCategoryTree] Initialized Choices.js with ${choices.length} items`);
     }
 
     /**
@@ -1466,8 +1449,6 @@ class ChoicesCategoryTree {
             this.pathDisplay.textContent = '';
             return;
         }
-
-        console.log(`[ChoicesCategoryTree] Category changed: ${categoryId}`);
 
         // Update path display
         await this.updatePathDisplay(categoryId);
@@ -1577,8 +1558,6 @@ class ChoicesCategoryTree {
         this.categories = [];
         this.categoryMap.clear();
         this.childrenMap.clear();
-
-        console.log('[ChoicesCategoryTree] Destroyed');
     }
 
     /**
@@ -1588,8 +1567,6 @@ class ChoicesCategoryTree {
      * @param {string} newType - New category type ('income' or 'expense')
      */
     async updateType(newType) {
-        console.log(`[ChoicesCategoryTree] Updating type from ${this.options.type} to ${newType}`);
-
         // Update type in options
         this.options.type = newType;
 
@@ -1631,8 +1608,6 @@ class ChoicesCategoryTree {
 
             // Set new choices
             this.choices.setChoices(choices, 'value', 'label', true);
-
-            console.log(`[ChoicesCategoryTree] Updated with ${choices.length} categories`);
         }
     }
 
@@ -1640,7 +1615,6 @@ class ChoicesCategoryTree {
      * Refresh categories (reload from API).
      */
     async refresh() {
-        console.log('[ChoicesCategoryTree] Refreshing categories...');
 
         // Destroy old instance
         if (this.choices) {
@@ -1668,33 +1642,23 @@ class ChoicesCategoryTree {
      * @param {number} categoryId - Category ID to select
      */
     async setSelectedCategory(categoryId) {
-        console.log('[ChoicesCategoryTree] setSelectedCategory called with:', categoryId, 'type:', typeof categoryId);
-
         if (this.choices) {
             // Get all available choices from _store (not _currentState)
             const availableChoices = this.choices._store?.choices || [];
-            console.log('[ChoicesCategoryTree] Available choices count:', availableChoices.length);
 
             // Find the choice we're trying to set
             const targetChoice = availableChoices.find(c => c.value == categoryId || c.value === categoryId.toString());
-            console.log('[ChoicesCategoryTree] Target choice found:', targetChoice, 'value type:', typeof targetChoice?.value);
 
             if (targetChoice) {
                 // CRITICAL: Use the same type as stored in choices
                 // If value is a number, pass number; if string, pass string
                 const valueToSet = targetChoice.value;
-                console.log('[ChoicesCategoryTree] Calling setChoiceByValue with:', valueToSet, 'type:', typeof valueToSet);
 
                 this.choices.setChoiceByValue(valueToSet);
 
-                // Verify it was set
-                const currentValue = this.element.value;
-                console.log('[ChoicesCategoryTree] After setChoiceByValue - element.value:', currentValue, 'type:', typeof currentValue);
-
                 await this.updatePathDisplay(categoryId);
             } else {
-                console.error('[ChoicesCategoryTree] Category not found in choices:', categoryId);
-                console.log('[ChoicesCategoryTree] Available values:', availableChoices.map(c => ({value: c.value, type: typeof c.value})));
+                console.warn('[ChoicesCategoryTree] Category not found in choices:', categoryId);
             }
         } else {
             console.error('[ChoicesCategoryTree] setSelectedCategory failed - no choices instance');
