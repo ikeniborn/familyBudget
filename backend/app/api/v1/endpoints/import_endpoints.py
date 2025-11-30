@@ -132,9 +132,11 @@ async def upload_file(
     if not bank:
         raise HTTPException(404, "Bank provider not found")
 
-    # Save file to /tmp with unique filename
+    # Save file to /app/uploads/temp with unique filename
+    temp_dir = Path("/app/uploads/temp")
+    temp_dir.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
     temp_filename = f"import_{uuid.uuid4().hex}_{file.filename or 'unknown.csv'}"
-    temp_file_path = Path("/tmp") / temp_filename
+    temp_file_path = temp_dir / temp_filename
 
     try:
         with open(temp_file_path, "wb") as f:
