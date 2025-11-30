@@ -1174,16 +1174,13 @@ class CalendarWidget {
       if (this._isInsideDialog) {
         const modalBox = this.calendarElement.parentElement;
         if (modalBox) {
-          // Use clientWidth for accurate inner width (excludes scrollbar)
+          // Use clientWidth for accurate inner width (includes padding, excludes scrollbar)
           const modalWidth = modalBox.clientWidth;
-          // Get computed padding to account for modal-box padding
-          const computedStyle = window.getComputedStyle(modalBox);
-          const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-          const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-          const availableWidth = modalWidth - paddingLeft - paddingRight;
 
-          // Center horizontally within available space
-          left = paddingLeft + (availableWidth - calendarWidth) / 2;
+          // Simple centering: clientWidth already accounts for padding
+          // position: absolute uses border-box coordinates
+          left = (modalWidth - calendarWidth) / 2;
+
           // Ensure minimum spacing from modal edges
           if (left < spacing) left = spacing;
         } else {
@@ -1208,15 +1205,11 @@ class CalendarWidget {
     if (isDesktop && this._isInsideDialog) {
       const modalBox = this.calendarElement.parentElement;
       if (modalBox) {
-        // Use clientWidth for accurate inner width
+        // Use clientWidth for accurate inner width (includes padding, excludes scrollbar)
         const modalWidth = modalBox.clientWidth;
-        const computedStyle = window.getComputedStyle(modalBox);
-        const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-        const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-        const availableWidth = modalWidth - paddingLeft - paddingRight;
 
-        // Center horizontally within available space
-        left = paddingLeft + (availableWidth - calendarWidth) / 2;
+        // Simple centering: clientWidth already accounts for padding
+        left = (modalWidth - calendarWidth) / 2;
       }
     }
 
