@@ -11,7 +11,7 @@ Table: t_import_staging
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Text, Column, BigInteger
+from sqlalchemy import JSON, Text, Column, BigInteger, ForeignKey
 from sqlmodel import Field, SQLModel
 
 
@@ -67,8 +67,7 @@ class ImportStaging(SQLModel, table=True):
     # File upload reference
     file_upload_id: Optional[int] = Field(
         default=None,
-        sa_column=Column(BigInteger, nullable=True),
-        foreign_key="t_import_file_upload.id",
+        sa_column=Column(BigInteger, ForeignKey("t_import_file_upload.id"), nullable=True),
         description="Reference to file upload metadata"
     )
 
