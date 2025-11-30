@@ -11,7 +11,7 @@ Table: t_import_file_upload
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import JSON, Text, Column
+from sqlalchemy import JSON, Text, Column, BigInteger
 from sqlmodel import Field, SQLModel
 
 
@@ -48,7 +48,7 @@ class ImportFileUpload(SQLModel, table=True):
     id: Optional[int] = Field(
         default=None,
         primary_key=True,
-        sa_column_kwargs={"type_": "BigInteger"},
+        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
         description="Auto-incrementing primary key (BIGSERIAL)"
     )
 
