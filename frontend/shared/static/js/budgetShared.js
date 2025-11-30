@@ -1170,53 +1170,45 @@ class CalendarWidget {
 
     // Mobile: Center calendar both horizontally and vertically
     if (viewportWidth < 768) {
-      // Check if calendar is inside modal dialog
-      if (this._isInsideDialog) {
-        const modalBox = this.calendarElement.parentElement;
-        if (modalBox) {
-          // Use clientWidth for accurate inner width (excludes scrollbar)
-          const modalWidth = modalBox.clientWidth;
-          // Get computed padding to account for modal-box padding
-          const computedStyle = window.getComputedStyle(modalBox);
-          const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-          const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-          const availableWidth = modalWidth - paddingLeft - paddingRight;
+      // Check if calendar is inside modal-box (direct check, more reliable)
+      const parent = this.calendarElement.parentElement;
+      const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
 
-          // Center horizontally within available space
-          left = paddingLeft + (availableWidth - calendarWidth) / 2;
-          // Ensure minimum spacing from modal edges
-          if (left < spacing) left = spacing;
-        } else {
-          // Fallback: center relative to viewport
-          left = (viewportWidth - calendarWidth) / 2;
-          if (left < spacing) left = spacing;
-        }
+      if (isInsideModalBox) {
+        // Calendar inside modal-box: center within modal-box
+        const modalWidth = parent.clientWidth;
+
+        // Simple centering formula: left = (containerWidth - calendarWidth) / 2
+        left = (modalWidth - calendarWidth) / 2;
+
+        // Ensure minimum spacing from modal edges
+        if (left < spacing) left = spacing;
       } else {
-        // Not in dialog: center relative to viewport
+        // Not in modal: center relative to viewport
         left = (viewportWidth - calendarWidth) / 2;
+
         // Ensure minimum spacing from edges
         if (left < spacing) left = spacing;
       }
 
       // Vertical centering for better UX on mobile
       top = (viewportHeight - calendarHeight) / 2;
+
       // Ensure minimum spacing from top
       if (top < spacing) top = spacing;
     }
 
     // Desktop in dialog: Center horizontally within modal-box
-    if (isDesktop && this._isInsideDialog) {
-      const modalBox = this.calendarElement.parentElement;
-      if (modalBox) {
-        // Use clientWidth for accurate inner width
-        const modalWidth = modalBox.clientWidth;
-        const computedStyle = window.getComputedStyle(modalBox);
-        const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
-        const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
-        const availableWidth = modalWidth - paddingLeft - paddingRight;
+    if (isDesktop) {
+      const parent = this.calendarElement.parentElement;
+      const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
 
-        // Center horizontally within available space
-        left = paddingLeft + (availableWidth - calendarWidth) / 2;
+      if (isInsideModalBox) {
+        // Calendar inside modal-box: center within modal-box
+        const modalWidth = parent.clientWidth;
+
+        // Simple centering formula: left = (containerWidth - calendarWidth) / 2
+        left = (modalWidth - calendarWidth) / 2;
       }
     }
 
