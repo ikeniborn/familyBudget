@@ -17,6 +17,11 @@
   animation: calendar-fade-in 0.2s ease-out;
 }
 
+/* Calendar with .absolute class (dynamically added when moved to modal-box) */
+.calendar-widget.absolute {
+  position: absolute !important; /* Override Tailwind .fixed class */
+}
+
 /* Fade-in animation */
 @keyframes calendar-fade-in {
   from {

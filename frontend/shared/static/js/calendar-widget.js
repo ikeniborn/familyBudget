@@ -671,6 +671,8 @@ class CalendarWidget {
         // Move calendar into dialog's modal-box
         modalBox.appendChild(this.calendarElement);
         // Switch to absolute positioning within dialog
+        this.calendarElement.classList.remove('fixed');
+        this.calendarElement.classList.add('absolute');
         this.calendarElement.style.position = 'absolute';
         this._isInsideDialog = true;
       }
@@ -686,6 +688,8 @@ class CalendarWidget {
       // Move calendar back to original parent (document.body)
       this._originalParent.appendChild(this.calendarElement);
       // Restore fixed positioning
+      this.calendarElement.classList.remove('absolute');
+      this.calendarElement.classList.add('fixed');
       this.calendarElement.style.position = 'fixed';
       this._isInsideDialog = false;
       this._originalParent = null;
@@ -828,31 +832,6 @@ class CalendarWidget {
         left = (modalWidth - calendarWidth) / 2;
       }
     }
-
-    // Debug logging for position calculation
-    const parent = this.calendarElement.parentElement;
-    const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
-    const isMobile = viewportWidth < 768;
-    const inputId = this.inputElement.id || this.inputElement.name || 'unknown';
-
-    console.log(`[CalendarWidget Position Debug] Input: ${inputId}`, {
-      isMobile,
-      isInsideModalBox,
-      viewportWidth,
-      viewportHeight,
-      calendarWidth,
-      calendarHeight,
-      calculatedTop: top,
-      calculatedLeft: left,
-      inputRect: {
-        top: inputRect.top,
-        left: inputRect.left,
-        bottom: inputRect.bottom
-      },
-      parentWidth: parent ? parent.clientWidth : 'N/A',
-      scrollTop,
-      scrollLeft
-    });
 
     // Apply position
     this.calendarElement.style.top = `${top}px`;
