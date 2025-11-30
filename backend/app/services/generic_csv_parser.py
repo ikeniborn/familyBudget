@@ -10,7 +10,7 @@ Pattern: Service layer (business logic)
 import csv
 import io
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 
 class GenericCSVParser:
@@ -126,7 +126,7 @@ class GenericCSVParser:
         return staging_records
 
     @staticmethod
-    def _parse_date(date_str: str) -> datetime.date | None:
+    def _parse_date(date_str: str) -> Optional[datetime.date]:
         """
         Parse date from string (supports multiple formats).
 
@@ -173,7 +173,7 @@ class GenericCSVParser:
         return None
 
     @staticmethod
-    def _parse_amount(amount_str: str) -> float | None:
+    def _parse_amount(amount_str: str) -> Optional[float]:
         """
         Parse amount from string (handles Russian format).
 
