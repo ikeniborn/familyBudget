@@ -1,6 +1,9 @@
 #!/bin/bash
 # Helper script для автоматического обновления Service Worker CACHE_VERSION
 # Использует timestamp в формате cache busting (YYYYMMDD_HHMM)
+#
+# ВАЖНО: sw.js в репозитории содержит PLACEHOLDER: const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';
+# Этот скрипт заменяет PLACEHOLDER на реальную версию при деплое в /opt/budget
 
 set -e
 
@@ -32,7 +35,10 @@ echo -e "${YELLOW}[INFO]${NC} New version: $NEW_VERSION"
 cp "$SW_FILE" "${SW_FILE}.bak"
 
 # Обновить CACHE_VERSION в sw.js
-sed -i.tmp "s/const CACHE_VERSION = 'v[^']*';/const CACHE_VERSION = '${NEW_VERSION}';/" "$SW_FILE"
+# Поддерживает оба паттерна:
+# - CACHE_VERSION_PLACEHOLDER (в репозитории)
+# - v{YYYYMMDD_HHMM} (предыдущая версия после деплоя)
+sed -i.tmp "s/const CACHE_VERSION = '\(CACHE_VERSION_PLACEHOLDER\|v[^']*\)';/const CACHE_VERSION = '${NEW_VERSION}';/" "$SW_FILE"
 rm -f "${SW_FILE}.tmp"
 
 # Проверить что замена прошла успешно
@@ -49,4 +55,5 @@ fi
 echo -e "${YELLOW}[INFO]${NC} Changes:"
 grep "const CACHE_VERSION" "$SW_FILE"
 
-echo -e "${GREEN}[SUCCESS]${NC} Done! Remember to commit the updated sw.js"
+echo -e "${GREEN}[SUCCESS]${NC} Done! sw.js updated in deployment directory (/opt/budget)"
+echo -e "${YELLOW}[INFO]${NC} Note: Repository version will keep CACHE_VERSION_PLACEHOLDER (by design)"

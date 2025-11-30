@@ -9,6 +9,17 @@
  * - Touch-friendly button sizing
  * - Smooth transitions
  * - Accessibility focus states
+ * - HTML5 <dialog> support (top layer positioning)
+ *
+ * Z-Index Hierarchy (v5.1.12+):
+ * - Modal backdrop (DaisyUI): z-50 (50)
+ * - Modal content (DaisyUI): z-50 (50)
+ * - Toast notifications: z-index: 3000
+ * - Calendar widget: z-index: 9999 (set via JS and CSS)
+ *
+ * NOTE: HTML5 <dialog> creates a top layer above any z-index.
+ * When calendar input is inside <dialog>, the calendar is moved into
+ * .modal-box with absolute positioning (handled by JS).
  */
 
 /* Calendar container */
@@ -16,6 +27,13 @@
   min-width: 320px;  /* v5.1.4: Prevent calendar from becoming too narrow */
   box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
   animation: calendar-fade-in 0.2s ease-out;
+  z-index: 9999; /* Ensure calendar appears above all other elements */
+}
+
+/* Calendar inside dialog modal - ensure it's above modal content */
+.modal-box .calendar-widget {
+  position: absolute;
+  z-index: 10; /* Above modal content */
 }
 
 /* Fade-in animation */
@@ -59,6 +77,12 @@
   background-color: #c8e6c9; /* Material Design Green 100 - light green */
 }
 
+/* Range boundaries - red border for start and end dates */
+.calendar-widget [data-date].border-error {
+  border-color: hsl(var(--er)) !important;
+  border-width: 2px !important;
+}
+
 /* Legacy class support (deprecated - use bg-range-highlight instead) */
 .calendar-widget [data-date].bg-primary\/20 {
   background-color: hsl(var(--p) / 0.2);
@@ -73,14 +97,15 @@
 /* Month/Year dropdowns */
 .calendar-widget select {
   font-size: 0.875rem;
-  padding: 0.375rem 2rem 0.375rem 0.75rem;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  min-height: 2.5rem; /* Ensure full text display */
 }
 
 /* v5.1.4: Prevent header overflow - limit month/year select widths */
 .calendar-widget select[data-action="select-month"],
 .calendar-widget select[data-action="select-year"] {
-  max-width: 110px;
-  min-width: 90px;
+  max-width: 120px;
+  min-width: 95px;
   flex-shrink: 1;
 }
 
@@ -111,7 +136,7 @@
   outline-offset: 2px;
 }
 
-/* v5.1.8: Mobile modal mode - applied via JS class */
+/* v5.1.8: Mobile modal mode - applied via JS class (legacy, kept for compatibility) */
 .calendar-widget.calendar-modal-mobile {
   position: fixed;
   top: 50%;
@@ -123,7 +148,7 @@
   max-width: calc(100% - 6%); /* 3% margin on each side */
   max-height: 85vh; /* Prevent excessive vertical stretch */
   overflow-y: auto;
-  z-index: 1000;
+  z-index: 2000; /* v5.1.10: Increased from 1000 to match non-modal calendar */
 }
 
 /* Mobile touch improvements */
@@ -175,7 +200,7 @@
     right: 0;
     bottom: 0;
     background-color: rgba(0, 0, 0, 0.5);
-    z-index: 999;
+    z-index: 1999; /* v5.1.10: Below calendar (2000) but above other content */
     animation: backdrop-fade-in 0.2s ease-out;
   }
 

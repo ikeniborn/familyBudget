@@ -205,6 +205,19 @@
     @apply outline-2 outline-blue-500 outline-offset-2;
 }
 
+/* CRITICAL: Prevent zoom on input focus (iOS/Android/Yandex Browser) - GLOBAL RULE */
+/* Apply to ALL devices, not just mobile, to ensure consistent behavior */
+.choices-tailwind .choices__input,
+.choices-tailwind .choices__input--cloned,
+.choices-tailwind input.choices__input,
+.choices-tailwind input.choices__input--cloned {
+    font-size: 16px !important;  /* Minimum to prevent auto-zoom on mobile browsers */
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
 /* Mobile optimizations */
 @media (max-width: 640px) {
     .choices-tailwind .choices__inner {
@@ -216,17 +229,22 @@
         @apply py-3.5 text-base;
     }
 
-    /* CRITICAL: Prevent zoom on search input (iOS/Android/Yandex Browser) */
-    .choices-tailwind .choices__input--cloned {
-        font-size: 17px !important;  /* 17px more reliable than 16px */
-        -webkit-text-size-adjust: 100%;  /* Disable font boosting */
-        touch-action: manipulation;  /* Prevent double-tap zoom */
-    }
-
-    .choices-tailwind .choices__input {
-        font-size: 17px !important;
-        -webkit-text-size-adjust: 100%;
-        touch-action: manipulation;
+    /* CRITICAL: Prevent zoom on ALL input elements (iOS/Android/Yandex Browser) */
+    /* Mobile-specific overrides with maximum specificity */
+    .choices-tailwind .choices__input,
+    .choices-tailwind .choices__input--cloned,
+    .choices-tailwind input.choices__input,
+    .choices-tailwind input.choices__input--cloned {
+        font-size: 16px !important;  /* Minimum to prevent zoom */
+        min-height: 44px !important;  /* Touch-friendly height */
+        max-height: none !important;  /* Prevent height constraints */
+        line-height: 1.5 !important;  /* Ensure readability */
+        -webkit-text-size-adjust: 100% !important;  /* Disable font boosting */
+        -moz-text-size-adjust: 100% !important;
+        -ms-text-size-adjust: 100% !important;
+        text-size-adjust: 100% !important;
+        touch-action: manipulation !important;  /* Prevent double-tap zoom */
+        user-select: text !important;  /* Allow text selection */
     }
 
     /* Prevent zoom on dropdown itself */

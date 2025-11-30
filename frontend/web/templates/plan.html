@@ -33,12 +33,14 @@
     </div>
 
     <!-- Filters Section -->
-    <div class="card bg-base-100 shadow-lg">
-        <div class="card-body">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">🔍 Фильтры</h2>
-                <button class="btn btn-sm btn-ghost" onclick="resetFilters()">Сбросить</button>
-            </div>
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="filters-toggle" class="peer" />
+        <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
+            <span>🔍 Фильтры</span>
+            <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
+        </label>
+        <div class="collapse-content">
+            <div class="pt-4">
 
             <!-- Уровень 1: Фильтры по дате -->
             <div class="filter-section">
@@ -58,7 +60,7 @@
                         <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
                     </div>
                     <!-- Calendar trigger button (range mode) -->
-                    <div id="date-range-calendar-trigger"></div>
+                    <div id="date-range-calendar-trigger" class="flex items-end pb-0"></div>
                 </div>
             </div>
 
@@ -139,14 +141,18 @@
                 </div>
             </div>
 
-            <div class="flex justify-end mt-4">
+            <div class="flex justify-end items-center gap-2 mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="collapseFilters()">
+                    ⬆️ Свернуть
+                </button>
                 <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
+            </div>
             </div>
         </div>
     </div>
 
     <!-- Stats Section -->
-    <div class="stats shadow w-full">
+    <div class="stats stats-vertical sm:stats-horizontal shadow w-full">
         <div class="stat">
             <div class="stat-figure text-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
@@ -277,6 +283,20 @@
 
 {% block extra_styles %}
 <style>
+/* Hide filters toggle checkbox */
+#filters-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Collapse behavior with checkbox */
+#filters-toggle:checked ~ .collapse-content {
+    max-height: 1000px;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
 /* Улучшенное отображение select элементов */
 .select {
     min-height: 3rem;
@@ -339,6 +359,7 @@
 let allCategories = [];
 let createCategoryTreeSelect = null;
 let editCategoryTreeSelect = null;
+let editDateCalendar = null; // CalendarWidget instance for edit modal
 
 // Global state
 let currentPage = 0;
@@ -461,6 +482,14 @@ async function loadRecommendedAmounts(formId, recordType = 'plan', category = nu
     }, 300); // 300ms debounce
 }
 
+// Collapse filters panel
+function collapseFilters() {
+    const checkbox = document.getElementById('filters-toggle');
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+}
+
 // Utility function to truncate text to specified length
 function truncateText(text, maxLength = 30) {
     if (!text || text === '—') return text;
@@ -475,6 +504,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadFinancialCenters();
     loadCostCenters();
     loadFacts();
+
+    // Allow filters collapse behavior - native DaisyUI toggle on header click
 
     // Инициализация кнопок типа плана для create_modal
     setupCreatePlanTypeButtons();
@@ -1265,14 +1296,14 @@ async function showEditModal(factId) {
     // Initialize CalendarWidget for edit modal date input
     const editDateInput = document.getElementById('edit-date');
     if (editDateInput) {
-        // Remove existing calendar widget if any
-        const existingCalendar = editDateInput.parentElement.querySelector('.calendar-widget');
-        if (existingCalendar) {
-            existingCalendar.remove();
+        // Destroy previous calendar instance if exists (prevent memory leak)
+        if (editDateCalendar) {
+            editDateCalendar.destroy();
+            editDateCalendar = null;
         }
 
-        // Initialize new CalendarWidget
-        new BudgetShared.CalendarWidget({
+        // Create new calendar instance
+        editDateCalendar = new BudgetShared.CalendarWidget({
             mode: 'single',
             inputElement: editDateInput,
             onSelect: (date) => {

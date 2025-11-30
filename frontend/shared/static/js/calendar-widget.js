@@ -46,6 +46,7 @@ class CalendarWidget {
    * @param {HTMLElement} [options.startInputElement] - Start date input for range picker
    * @param {HTMLElement} [options.endInputElement] - End date input for range picker
    * @param {string} [options.mode='single'] - Picker mode: 'single' or 'range'
+   * @param {string} [options.triggerContainer] - CSS selector for custom trigger button container (range mode only)
    * @param {Function} [options.onSelect] - Callback when date is selected
    * @param {Date} [options.defaultDate] - Default selected date
    * @param {Date} [options.minDate] - Minimum selectable date
@@ -53,6 +54,7 @@ class CalendarWidget {
    */
   constructor(options) {
     this.mode = options.mode || 'single';
+    this.triggerContainer = options.triggerContainer || null;
     this.onSelect = options.onSelect || (() => {});
     this.minDate = options.minDate || null;
     this.maxDate = options.maxDate || null;
@@ -85,7 +87,8 @@ class CalendarWidget {
 
     // DOM elements
     this.calendarElement = null;
-    this.triggerButton = null;
+    this.triggerButton = null; // First button (backward compatibility)
+    this.triggerButtons = []; // All buttons (for click outside detection)
 
     this._init();
   }
@@ -130,10 +133,56 @@ class CalendarWidget {
       // Single mode: create one button for inputElement
       this._createSingleButton(this.inputElement);
     } else {
-      // Range mode: create buttons for BOTH startInputElement and endInputElement
+      // Range mode: check if custom trigger container is specified
+      if (this.triggerContainer) {
+        // Custom trigger container - create ONE button in specified container
+        this._createCustomTriggerButton();
+      } else {
+        // Default behavior: create buttons for BOTH startInputElement and endInputElement
+        this._createSingleButton(this.startInputElement);
+        this._createSingleButton(this.endInputElement);
+      }
+    }
+  }
+
+  /**
+   * Create custom trigger button in specified container (range mode only)
+   * @private
+   */
+  _createCustomTriggerButton() {
+    const container = document.querySelector(this.triggerContainer);
+    if (!container) {
+      console.warn(`CalendarWidget: triggerContainer "${this.triggerContainer}" not found, falling back to default buttons`);
       this._createSingleButton(this.startInputElement);
       this._createSingleButton(this.endInputElement);
+      return;
     }
+
+    // Create button
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn btn-ghost';
+    button.innerHTML = `
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    `;
+    button.setAttribute('aria-label', 'Открыть календарь');
+
+    // Store reference
+    this.triggerButton = button;
+    this.triggerButtons.push(button);
+
+    // Append to container
+    container.appendChild(button);
+
+    // Add click event to open calendar
+    button.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.open();
+    });
   }
 
   /**
@@ -157,6 +206,9 @@ class CalendarWidget {
     if (!this.triggerButton) {
       this.triggerButton = button;
     }
+
+    // Store all buttons for click outside detection
+    this.triggerButtons.push(button);
 
     // Wrap input in relative container if not already wrapped
     const parent = targetInput.parentElement;
@@ -184,16 +236,19 @@ class CalendarWidget {
    */
   _createCalendarElement() {
     this.calendarElement = document.createElement('div');
-    this.calendarElement.className = 'calendar-widget absolute z-50 mt-2 shadow-lg rounded-lg bg-base-100 border border-base-300 hidden';
+    this.calendarElement.className = 'calendar-widget fixed shadow-lg rounded-lg bg-base-100 border border-base-300';
     this.calendarElement.style.width = '320px';
+    // Very high z-index to ensure calendar appears above all other elements
+    // NOTE: HTML5 <dialog> uses top layer which is above any z-index
+    // When inside dialog, calendar is moved into .modal-box with absolute positioning
+    this.calendarElement.style.zIndex = '9999';
+    this.calendarElement.style.visibility = 'hidden'; // Hidden but occupies space (for getBoundingClientRect)
+    this.calendarElement.style.opacity = '0'; // Invisible
+    this.calendarElement.style.transition = 'opacity 0.15s ease-out'; // Smooth appearance
 
-    // Position below input
-    const targetInput = this.mode === 'single'
-      ? this.inputElement
-      : this.startInputElement;
-
-    targetInput.parentElement.style.position = 'relative';
-    targetInput.parentElement.appendChild(this.calendarElement);
+    // Append to body for fixed positioning
+    // Will be moved into dialog's .modal-box if input is inside <dialog> (see _moveToDialog)
+    document.body.appendChild(this.calendarElement);
 
     this._render();
   }
@@ -214,13 +269,13 @@ class CalendarWidget {
           </button>
 
           <div class="flex items-center gap-2">
-            <select class="select select-sm select-bordered" data-action="select-month" aria-label="Выбрать месяц">
+            <select class="select select-bordered" data-action="select-month" aria-label="Выбрать месяц">
               ${CalendarWidget.MONTH_NAMES.map((name, i) =>
                 `<option value="${i}" ${i === this.currentMonth ? 'selected' : ''}>${name}</option>`
               ).join('')}
             </select>
 
-            <select class="select select-sm select-bordered" data-action="select-year" aria-label="Выбрать год">
+            <select class="select select-bordered" data-action="select-year" aria-label="Выбрать год">
               ${this._generateYearOptions()}
             </select>
           </div>
@@ -312,10 +367,12 @@ class CalendarWidget {
       const isDisabled = this._isDateDisabled(date);
       const isSelected = this._isDateSelected(date);
       const isInRange = this._isDateInRange(date);
+      const isRangeBoundary = this._isRangeBoundary(date);
 
       let btnClass = 'btn btn-sm btn-ghost w-full aspect-square p-0';
       if (isToday) btnClass += ' border border-primary';
       if (isSelected) btnClass += ' btn-primary';
+      if (isRangeBoundary) btnClass += ' border-2 border-error'; // Red border for range boundaries
       if (isInRange && !isSelected) btnClass += ' bg-range-highlight';
       if (isDisabled) btnClass += ' btn-disabled opacity-30';
 
@@ -371,6 +428,17 @@ class CalendarWidget {
   }
 
   /**
+   * Check if date is a range boundary (start or end date)
+   * @private
+   */
+  _isRangeBoundary(date) {
+    if (this.mode !== 'range') return false;
+    const startMatch = this.startDate && date.getTime() === this.startDate.getTime();
+    const endMatch = this.endDate && date.getTime() === this.endDate.getTime();
+    return startMatch || endMatch;
+  }
+
+  /**
    * Format date to ISO string (YYYY-MM-DD)
    * @private
    */
@@ -410,7 +478,7 @@ class CalendarWidget {
           this.clearRange();
           break;
         case 'close':
-          this.close();
+          this.applyAndClose();
           break;
       }
     });
@@ -443,11 +511,20 @@ class CalendarWidget {
 
     // Click outside to close
     document.addEventListener('click', (e) => {
-      if (this.isOpen &&
-          !this.calendarElement.contains(e.target) &&
-          !this.triggerButton.contains(e.target)) {
-        this.close();
-      }
+      if (!this.isOpen) return;
+
+      // Check if click is inside calendar
+      if (this.calendarElement.contains(e.target)) return;
+
+      // Check if click is on any trigger button
+      const clickedButton = this.triggerButtons.some(btn => btn.contains(e.target));
+      if (clickedButton) return;
+
+      // Range mode: don't close on outside click (user must click "Закрыть" button)
+      if (this.mode === 'range') return;
+
+      // Single mode: close calendar on outside click
+      this.close();
     });
 
     // Keyboard navigation
@@ -514,8 +591,8 @@ class CalendarWidget {
         this.startInputElement.value = startDisplay;
         this.endInputElement.value = endDisplay;
         this.selectingEnd = false;
-        this.onSelect(startDisplay, endDisplay);
-        this.close();
+        this._render(); // Re-render to show selected range, but don't close calendar
+        // onSelect will be called when user clicks "Закрыть" button
       }
     }
   }
@@ -570,12 +647,202 @@ class CalendarWidget {
   }
 
   /**
+   * Move calendar into dialog if input is inside an open dialog element
+   * This is necessary because HTML5 <dialog> creates a top layer above any z-index
+   * @private
+   */
+  _moveToDialog() {
+    const targetInput = this.mode === 'single'
+      ? this.inputElement
+      : this.startInputElement;
+
+    if (!targetInput) return;
+
+    // Check if input is inside an open dialog
+    const dialogElement = targetInput.closest('dialog[open]');
+
+    if (dialogElement) {
+      // Input is inside an open dialog - move calendar into .modal-box for proper layering
+      const modalBox = dialogElement.querySelector('.modal-box');
+      if (modalBox && this.calendarElement.parentElement !== modalBox) {
+        // Store original parent for restoration
+        this._originalParent = this.calendarElement.parentElement;
+        // Move calendar into dialog's modal-box
+        modalBox.appendChild(this.calendarElement);
+        // Switch to absolute positioning within dialog
+        this.calendarElement.style.position = 'absolute';
+        this._isInsideDialog = true;
+      }
+    }
+  }
+
+  /**
+   * Restore calendar back to document.body if it was moved to a dialog
+   * @private
+   */
+  _restoreToBody() {
+    if (this._isInsideDialog && this._originalParent) {
+      // Move calendar back to original parent (document.body)
+      this._originalParent.appendChild(this.calendarElement);
+      // Restore fixed positioning
+      this.calendarElement.style.position = 'fixed';
+      this._isInsideDialog = false;
+      this._originalParent = null;
+    }
+  }
+
+  /**
    * Open calendar
    */
   open() {
     this.isOpen = true;
-    this.calendarElement.classList.remove('hidden');
-    this._render(); // Re-render to show current selection
+
+    // Check if we need to move calendar into a dialog (for proper layering above dialog backdrop)
+    this._moveToDialog();
+
+    // Make visible but transparent for positioning calculation
+    this.calendarElement.style.visibility = 'visible';
+    this.calendarElement.style.opacity = '0';
+
+    // Calculate and set position
+    this._positionCalendar();
+
+    // Use double requestAnimationFrame to ensure layout is complete before showing
+    // This prevents visual "jumps" on mobile devices
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        this.calendarElement.style.opacity = '1';
+        this._render(); // Re-render to show current selection
+      });
+    });
+  }
+
+  /**
+   * Position calendar relative to input element
+   * Uses fixed positioning for non-dialog, absolute positioning for dialog
+   * @private
+   */
+  _positionCalendar() {
+    const targetInput = this.mode === 'single'
+      ? this.inputElement
+      : this.startInputElement;
+
+    if (!targetInput) return;
+
+    const inputRect = targetInput.getBoundingClientRect();
+    const calendarWidth = 320; // Match width in _createCalendarElement
+
+    // Use REAL calendar height instead of approximate 400px to prevent visual jumps
+    const calendarRect = this.calendarElement.getBoundingClientRect();
+    const calendarHeight = calendarRect.height || 400; // Fallback to 400 if height is 0
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const isDesktop = viewportWidth >= 768;
+    const spacing = isDesktop ? 4 : 8; // Gap between input and calendar (smaller on desktop)
+
+    // If inside dialog, calculate position relative to dialog instead of viewport
+    let scrollTop = 0;
+    let scrollLeft = 0;
+    if (this._isInsideDialog) {
+      const modalBox = this.calendarElement.parentElement;
+      if (modalBox) {
+        scrollTop = modalBox.scrollTop;
+        scrollLeft = modalBox.scrollLeft;
+      }
+    }
+
+    // Calculate initial position (below input)
+    let top = inputRect.bottom + spacing - scrollTop;
+    let left = inputRect.left - scrollLeft;
+
+    // Desktop: align calendar to RIGHT edge of input (for filter panels on the right)
+    if (isDesktop) {
+      left = inputRect.right - calendarWidth - scrollLeft;
+    }
+
+    // Adjust horizontal position if calendar goes off-screen (right edge)
+    // Only for mobile - desktop calendar is already right-aligned
+    if (!isDesktop && left + calendarWidth > viewportWidth) {
+      left = viewportWidth - calendarWidth - spacing;
+    }
+
+    // Adjust horizontal position if calendar goes off-screen (left edge)
+    if (left < spacing) {
+      left = spacing;
+    }
+
+    // Check if calendar fits below input
+    const spaceBelow = viewportHeight - inputRect.bottom;
+    const spaceAbove = inputRect.top;
+
+    // If not enough space below but enough space above, show above input
+    if (spaceBelow < calendarHeight && spaceAbove > calendarHeight) {
+      top = inputRect.top - calendarHeight - spacing - scrollTop;
+    }
+
+    // Mobile: Center calendar both horizontally and vertically
+    if (viewportWidth < 768) {
+      // Check if calendar is inside modal-box (direct check, more reliable)
+      const parent = this.calendarElement.parentElement;
+      const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
+
+      if (isInsideModalBox) {
+        // Calendar inside modal-box: center within modal-box
+        const modalWidth = parent.clientWidth;
+
+        // Simple centering formula: left = (containerWidth - calendarWidth) / 2
+        left = (modalWidth - calendarWidth) / 2;
+
+        // Ensure minimum spacing from modal edges
+        if (left < spacing) left = spacing;
+      } else {
+        // Not in modal: center relative to viewport
+        left = (viewportWidth - calendarWidth) / 2;
+
+        // Ensure minimum spacing from edges
+        if (left < spacing) left = spacing;
+      }
+
+      // Vertical centering for better UX on mobile
+      top = (viewportHeight - calendarHeight) / 2;
+
+      // Ensure minimum spacing from top
+      if (top < spacing) top = spacing;
+    }
+
+    // Desktop in dialog: Center horizontally within modal-box
+    if (isDesktop) {
+      const parent = this.calendarElement.parentElement;
+      const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
+
+      if (isInsideModalBox) {
+        // Calendar inside modal-box: center within modal-box
+        const modalWidth = parent.clientWidth;
+
+        // Simple centering formula: left = (containerWidth - calendarWidth) / 2
+        left = (modalWidth - calendarWidth) / 2;
+      }
+    }
+
+    // Apply position
+    this.calendarElement.style.top = `${top}px`;
+    this.calendarElement.style.left = `${left}px`;
+  }
+
+  /**
+   * Apply selection and close calendar (called by "Закрыть" button)
+   */
+  applyAndClose() {
+    // For range mode: call onSelect callback if both dates are selected
+    if (this.mode === 'range' && this.startDate && this.endDate) {
+      const startDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.startDate));
+      const endDisplay = DateFormatter.formatForDisplay(this._formatDateISO(this.endDate));
+      this.onSelect(startDisplay, endDisplay);
+    }
+
+    // Close calendar
+    this.close();
   }
 
   /**
@@ -583,7 +850,11 @@ class CalendarWidget {
    */
   close() {
     this.isOpen = false;
-    this.calendarElement.classList.add('hidden');
+    this.calendarElement.style.visibility = 'hidden';
+    this.calendarElement.style.opacity = '0';
+
+    // Restore calendar back to document.body if it was moved to a dialog
+    this._restoreToBody();
   }
 
   /**
@@ -598,15 +869,31 @@ class CalendarWidget {
   }
 
   /**
-   * Destroy calendar widget
+   * Destroy calendar widget and remove from DOM
+   * Prevents memory leaks when recreating calendars in modals
    */
   destroy() {
+    // Close if open
+    if (this.isOpen) {
+      this.close();
+    }
+
+    // Remove calendar element from DOM
     if (this.calendarElement) {
       this.calendarElement.remove();
     }
-    if (this.triggerButton) {
-      this.triggerButton.remove();
-    }
+
+    // Remove ALL trigger buttons
+    this.triggerButtons.forEach(btn => {
+      if (btn && btn.parentNode) {
+        btn.remove();
+      }
+    });
+
+    // Clear references
+    this.triggerButtons = [];
+    this.triggerButton = null;
+    this.calendarElement = null;
   }
 }
 

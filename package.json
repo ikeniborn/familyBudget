@@ -6,9 +6,10 @@
   "scripts": {
     "build:css": "tailwindcss -i ./frontend/web/static/css/tailwind.input.css -o ./frontend/web/static/css/vendor/tailwind-daisyui.min.css --minify",
     "watch:css": "tailwindcss -i ./frontend/web/static/css/tailwind.input.css -o ./frontend/web/static/css/vendor/tailwind-daisyui.min.css --watch",
+    "bundle": "bash scripts/lib/build-bundle.sh",
     "minify:js": "bash scripts/lib/minify.sh js",
     "minify:css": "bash scripts/lib/minify.sh css",
-    "build": "npm run build:css && npm run minify:js && npm run minify:css",
+    "build": "npm run build:css && npm run bundle && npm run minify:js && npm run minify:css",
     "validate:minified": "bash scripts/lib/minify.sh validate"
   },
   "repository": {

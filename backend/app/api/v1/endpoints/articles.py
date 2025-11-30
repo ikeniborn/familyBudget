@@ -200,10 +200,20 @@ async def list_articles(
         statement = statement.order_by(Article.name.asc())
 
     # Count total (before pagination)
-    # Need to count distinct articles (not rows with joins)
-    count_stmt = select(func.count(func.distinct(Article.id))).select_from(
-        statement.subquery()
-    )
+    # Build separate count query to avoid cartesian product warning
+    # Reuse same WHERE conditions but without JOIN and ORDER BY
+    count_stmt = select(func.count(Article.id))
+
+    # Apply same filters as main query
+    if type_filter:
+        count_stmt = count_stmt.where(Article.type == type_filter)
+
+    if parent_id is not None:
+        count_stmt = count_stmt.where(Article.parent_id == parent_id)
+
+    if not include_inactive:
+        count_stmt = count_stmt.where(Article.is_active == True)  # noqa: E712
+
     total_result = await session.execute(count_stmt)
     total = total_result.scalar_one()
 

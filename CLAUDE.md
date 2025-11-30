@@ -245,6 +245,50 @@ npm run build
 npm run validate:minified
 ```
 
+### PWA Icons (Генерация иконок)
+
+**ВАЖНО:** PWA иконки НЕ хранятся в git - они генерируются автоматически при деплое из SVG файла.
+
+```bash
+# Регенерировать PWA иконки локально (для тестирования)
+./scripts/generate_pwa_icons.sh
+
+# Или указать конкретный SVG файл
+./scripts/generate_pwa_icons.sh path/to/icon.svg
+```
+
+**Автоматическая регенерация при деплое:**
+
+1. **Добавить новую иконку в репозиторий:**
+   ```bash
+   # Скопировать новую SVG иконку в tmp/
+   cp new-icon.svg tmp/budget-icon-v3.svg
+   git add tmp/budget-icon-v3.svg
+   git commit -m "chore: update PWA icon source"
+   git push
+   ```
+
+2. **При деплое автоматически:**
+   - `tmp/budget-icon-v3.svg` копируется в `/opt/budget/tmp/`
+   - `deploy.sh` обнаруживает триггер файл
+   - Вызывается `generate_pwa_icons.sh` для регенерации всех иконок
+   - Триггер файл удаляется после успешной генерации
+   - Service Worker cache обновляется с новыми иконками
+
+3. **Сгенерированные файлы:**
+   - `frontend/web/static/icons/icon-192.png` (192x192)
+   - `frontend/web/static/icons/icon-512.png` (512x512)
+   - `frontend/web/static/icons/icon-maskable-512.png` (512x512 с safe zone)
+   - `frontend/web/static/icons/apple-touch-icon.png` (180x180)
+   - `frontend/web/static/icons/favicon.ico` (16x16, 32x32, 48x48)
+   - `frontend/web/static/icons/icon.svg` (копия источника)
+
+**Примечания:**
+- Если `tmp/budget-icon-v3.svg` НЕ существует при деплое → иконки не регенерируются
+- Это экономит время деплоя когда иконки не изменялись
+- Service Worker CACHE_VERSION автоматически обновляется при каждом деплое
+- `sw.js` в репозитории содержит `CACHE_VERSION_PLACEHOLDER` - реальная версия генерируется при деплое
+
 ### Тестирование
 
 ```bash
