@@ -57,10 +57,12 @@
                         <label class="label">
                             <span class="label-text font-medium">Дата по</span>
                         </label>
-                        <input type="text" id="filter-date-to" class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" readonly>
+                        <div class="flex gap-2 items-center">
+                            <input type="text" id="filter-date-to" class="input input-bordered flex-1" placeholder="ДД.ММ.ГГГГ" readonly>
+                            <!-- Calendar trigger button (range mode) -->
+                            <div id="date-range-calendar-trigger" class="flex items-center"></div>
+                        </div>
                     </div>
-                    <!-- Calendar trigger button (range mode) -->
-                    <div id="date-range-calendar-trigger" class="flex items-end pb-0"></div>
                 </div>
             </div>
 

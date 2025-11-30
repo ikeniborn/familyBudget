@@ -628,6 +628,7 @@ class CalendarWidget {
     // Very high z-index to ensure calendar appears above all other elements
     // NOTE: HTML5 <dialog> uses top layer which is above any z-index
     // When inside dialog, calendar is moved into .modal-box with absolute positioning
+    this.calendarElement.style.position = 'fixed'; // Explicit fixed positioning (Tailwind 'fixed' class may not load in time)
     this.calendarElement.style.zIndex = '9999';
     this.calendarElement.style.visibility = 'hidden'; // Hidden but occupies space (for getBoundingClientRect)
     this.calendarElement.style.opacity = '0'; // Invisible
@@ -1057,6 +1058,8 @@ class CalendarWidget {
         // Move calendar into dialog's modal-box
         modalBox.appendChild(this.calendarElement);
         // Switch to absolute positioning within dialog
+        this.calendarElement.classList.remove('fixed');
+        this.calendarElement.classList.add('absolute');
         this.calendarElement.style.position = 'absolute';
         this._isInsideDialog = true;
       }
@@ -1072,6 +1075,8 @@ class CalendarWidget {
       // Move calendar back to original parent (document.body)
       this._originalParent.appendChild(this.calendarElement);
       // Restore fixed positioning
+      this.calendarElement.classList.remove('absolute');
+      this.calendarElement.classList.add('fixed');
       this.calendarElement.style.position = 'fixed';
       this._isInsideDialog = false;
       this._originalParent = null;
@@ -1123,7 +1128,9 @@ class CalendarWidget {
     const calendarRect = this.calendarElement.getBoundingClientRect();
     const calendarHeight = calendarRect.height || 400; // Fallback to 400 if height is 0
 
-    const viewportWidth = window.innerWidth;
+    // For position: fixed, use document.documentElement.clientWidth (excludes scrollbar)
+    // window.innerWidth can include scrollbar on some devices causing misalignment
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
     const viewportHeight = window.innerHeight;
     const isDesktop = viewportWidth >= 768;
     const spacing = isDesktop ? 4 : 8; // Gap between input and calendar (smaller on desktop)
@@ -1168,14 +1175,14 @@ class CalendarWidget {
       top = inputRect.top - calendarHeight - spacing - scrollTop;
     }
 
-    // Mobile: Center calendar both horizontally and vertically
+    // Mobile: Center calendar horizontally, vertical positioning depends on context
     if (viewportWidth < 768) {
       // Check if calendar is inside modal-box (direct check, more reliable)
       const parent = this.calendarElement.parentElement;
       const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
 
       if (isInsideModalBox) {
-        // Calendar inside modal-box: center within modal-box
+        // Calendar inside modal-box: center horizontally within modal-box
         const modalWidth = parent.clientWidth;
 
         // Simple centering formula: left = (containerWidth - calendarWidth) / 2
@@ -1183,19 +1190,31 @@ class CalendarWidget {
 
         // Ensure minimum spacing from modal edges
         if (left < spacing) left = spacing;
+
+        // Keep vertical position relative to input (already calculated with scrollTop compensation)
+        // DO NOT apply viewport vertical centering inside modal-box
       } else {
-        // Not in modal: center relative to viewport
-        left = (viewportWidth - calendarWidth) / 2;
+        // Not in modal: center relative to viewport (both horizontally and vertically)
+        // Tested on iPhone 7-17 viewport widths (portrait):
+        // - iPhone 7/8: 375px → (375-320)/2 = 27.5px left offset
+        // - iPhone 12/13/14: 390px → (390-320)/2 = 35px left offset
+        // - iPhone 12/13/14 Pro/15/15 Pro: 393px → (393-320)/2 = 36.5px left offset
+        // - iPhone 7/8 Plus/XR/11: 414px → (414-320)/2 = 47px left offset
+        // - iPhone 12/13/14 Plus/Pro Max: 428px → (428-320)/2 = 54px left offset
+        // - iPhone 15 Plus/Pro Max: 430px → (430-320)/2 = 55px left offset
+        left = Math.round((viewportWidth - calendarWidth) / 2);
 
-        // Ensure minimum spacing from edges
-        if (left < spacing) left = spacing;
+        // Ensure minimum spacing from edges (prevent touching screen edges)
+        const minOffset = spacing;
+        const maxOffset = viewportWidth - calendarWidth - spacing;
+        left = Math.max(minOffset, Math.min(left, maxOffset));
+
+        // Vertical centering for better UX on mobile outside modals
+        top = (viewportHeight - calendarHeight) / 2;
+
+        // Ensure minimum spacing from top
+        if (top < spacing) top = spacing;
       }
-
-      // Vertical centering for better UX on mobile
-      top = (viewportHeight - calendarHeight) / 2;
-
-      // Ensure minimum spacing from top
-      if (top < spacing) top = spacing;
     }
 
     // Desktop in dialog: Center horizontally within modal-box
