@@ -47,7 +47,6 @@ class ImportFileUpload(SQLModel, table=True):
     # Primary key
     id: Optional[int] = Field(
         default=None,
-        primary_key=True,
         sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
         description="Auto-incrementing primary key (BIGSERIAL)"
     )
