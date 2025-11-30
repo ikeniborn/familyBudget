@@ -787,10 +787,16 @@ class CalendarWidget {
       if (this._isInsideDialog) {
         const modalBox = this.calendarElement.parentElement;
         if (modalBox) {
-          const modalRect = modalBox.getBoundingClientRect();
-          const modalWidth = modalRect.width;
-          // Center horizontally within modal-box (fix for mobile modal centering)
-          left = (modalWidth - calendarWidth) / 2;
+          // Use clientWidth for accurate inner width (excludes scrollbar)
+          const modalWidth = modalBox.clientWidth;
+          // Get computed padding to account for modal-box padding
+          const computedStyle = window.getComputedStyle(modalBox);
+          const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+          const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+          const availableWidth = modalWidth - paddingLeft - paddingRight;
+
+          // Center horizontally within available space
+          left = paddingLeft + (availableWidth - calendarWidth) / 2;
           // Ensure minimum spacing from modal edges
           if (left < spacing) left = spacing;
         } else {
@@ -815,10 +821,15 @@ class CalendarWidget {
     if (isDesktop && this._isInsideDialog) {
       const modalBox = this.calendarElement.parentElement;
       if (modalBox) {
-        const modalRect = modalBox.getBoundingClientRect();
-        const modalWidth = modalRect.width;
-        // Center horizontally within modal
-        left = (modalWidth - calendarWidth) / 2;
+        // Use clientWidth for accurate inner width
+        const modalWidth = modalBox.clientWidth;
+        const computedStyle = window.getComputedStyle(modalBox);
+        const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+        const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+        const availableWidth = modalWidth - paddingLeft - paddingRight;
+
+        // Center horizontally within available space
+        left = paddingLeft + (availableWidth - calendarWidth) / 2;
       }
     }
 
