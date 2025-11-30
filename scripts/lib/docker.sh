@@ -787,6 +787,96 @@ cleanup_old_deployment() {
     esac
 }
 
+# Cleanup dangling Docker images and build cache
+cleanup_docker_images() {
+    local force_mode="${1:-false}"  # true = auto-cleanup, false = interactive
+
+    info "Checking for dangling Docker images and build cache..."
+
+    # Get dangling images count
+    local dangling_images_count=$(docker images -f "dangling=true" -q 2>/dev/null | wc -l || echo "0")
+    local dangling_images_size="0"
+
+    if [[ $dangling_images_count -gt 0 ]]; then
+        dangling_images_size=$(docker images -f "dangling=true" --format "{{.Size}}" 2>/dev/null | sed 's/MB//' | awk '{sum+=$1} END {printf "%.1f", sum}' || echo "0")
+    fi
+
+    # Get build cache size
+    local build_cache_size=$(docker system df -v 2>/dev/null | grep "Build Cache" | awk '{print $NF}' || echo "0B")
+
+    # Display findings
+    if [[ $dangling_images_count -gt 0 ]] || [[ "$build_cache_size" != "0B" ]]; then
+        warning "Found Docker cleanup candidates:"
+        echo "  • Dangling images: $dangling_images_count (~${dangling_images_size}MB)"
+        echo "  • Build cache: $build_cache_size"
+        echo ""
+
+        # Ask for confirmation unless force mode
+        local should_cleanup=false
+        if [[ "$force_mode" == "true" ]]; then
+            should_cleanup=true
+            info "Auto-cleanup mode enabled - removing dangling resources..."
+        else
+            if [[ -t 0 ]]; then  # Interactive mode
+                echo "These resources are safe to remove and will be recreated when needed."
+                read -p "Remove dangling images and build cache? [y/N]: " -r
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
+                    should_cleanup=true
+                fi
+            else
+                # Non-interactive mode - auto cleanup
+                should_cleanup=true
+                info "Non-interactive mode - auto-removing dangling resources"
+            fi
+        fi
+
+        if [[ "$should_cleanup" == "true" ]]; then
+            local cleanup_success=true
+
+            # Remove dangling images
+            if [[ $dangling_images_count -gt 0 ]]; then
+                info "Removing $dangling_images_count dangling images..."
+                if docker image prune -f >> "$LOG_FILE" 2>&1; then
+                    success "Removed $dangling_images_count dangling images (~${dangling_images_size}MB freed)"
+                else
+                    warning "Failed to remove some dangling images"
+                    cleanup_success=false
+                fi
+            fi
+
+            # Remove build cache
+            if [[ "$build_cache_size" != "0B" ]]; then
+                info "Removing build cache ($build_cache_size)..."
+                if docker builder prune -f >> "$LOG_FILE" 2>&1; then
+                    success "Removed build cache ($build_cache_size freed)"
+                else
+                    warning "Failed to remove build cache"
+                    cleanup_success=false
+                fi
+            fi
+
+            if [[ "$cleanup_success" == "true" ]]; then
+                echo ""
+                success "Docker cleanup completed successfully"
+
+                # Show new disk usage
+                local new_docker_usage=$(docker system df 2>/dev/null | tail -n +2 || echo "")
+                if [[ -n "$new_docker_usage" ]]; then
+                    echo ""
+                    info "Docker disk usage after cleanup:"
+                    echo "$new_docker_usage"
+                fi
+            fi
+        else
+            info "Skipping Docker cleanup"
+        fi
+    else
+        success "No dangling Docker resources found - cleanup not needed"
+    fi
+
+    echo ""
+}
+
 # Find free subnets in range 172.20-172.30
 
 # Check if port is used by our docker-compose services

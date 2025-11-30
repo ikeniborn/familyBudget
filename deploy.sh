@@ -1153,6 +1153,10 @@ main() {
     cleanup_old_deployment
     echo ""
 
+    # Cleanup dangling Docker images and build cache to free disk space
+    cleanup_docker_images false  # false = interactive mode (asks user)
+    echo ""
+
     # Initialize PostgreSQL directory with correct permissions (skipped if PostgreSQL is running)
     initialize_postgres_directory
     echo ""
