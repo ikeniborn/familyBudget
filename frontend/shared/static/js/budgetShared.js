@@ -1216,6 +1216,31 @@ class CalendarWidget {
       }
     }
 
+    // Debug logging for position calculation
+    const parent = this.calendarElement.parentElement;
+    const isInsideModalBox = parent && parent.classList && parent.classList.contains('modal-box');
+    const isMobile = viewportWidth < 768;
+    const inputId = this.inputElement.id || this.inputElement.name || 'unknown';
+
+    console.log(`[CalendarWidget Position Debug] Input: ${inputId}`, {
+      isMobile,
+      isInsideModalBox,
+      viewportWidth,
+      viewportHeight,
+      calendarWidth,
+      calendarHeight,
+      calculatedTop: top,
+      calculatedLeft: left,
+      inputRect: {
+        top: inputRect.top,
+        left: inputRect.left,
+        bottom: inputRect.bottom
+      },
+      parentWidth: parent ? parent.clientWidth : 'N/A',
+      scrollTop,
+      scrollLeft
+    });
+
     // Apply position
     this.calendarElement.style.top = `${top}px`;
     this.calendarElement.style.left = `${left}px`;
