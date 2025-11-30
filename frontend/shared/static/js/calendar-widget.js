@@ -241,6 +241,7 @@ class CalendarWidget {
     // Very high z-index to ensure calendar appears above all other elements
     // NOTE: HTML5 <dialog> uses top layer which is above any z-index
     // When inside dialog, calendar is moved into .modal-box with absolute positioning
+    this.calendarElement.style.position = 'fixed'; // Explicit fixed positioning (Tailwind 'fixed' class may not load in time)
     this.calendarElement.style.zIndex = '9999';
     this.calendarElement.style.visibility = 'hidden'; // Hidden but occupies space (for getBoundingClientRect)
     this.calendarElement.style.opacity = '0'; // Invisible
