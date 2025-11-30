@@ -14,6 +14,7 @@ Changes:
 - Line 101 (Part 1 Global): Removed "AND a.is_current = TRUE"
 - Line 159 (Part 2 Per-category): Removed "AND a.is_current = TRUE"
 
+
 After SCD Type 1 migration:
 - All records in t_d_article are current (no versioning)
 - No need for is_current filter

@@ -9,6 +9,7 @@ Add PostgreSQL function to rebuild Article Hierarchy Closure Table.
 This function rebuilds the t_d_article_hierarchy closure table from scratch
 based on the parent_id adjacency list in t_d_article table.
 
+
 Use cases:
 1. After data migration when closure table is corrupted or empty
 2. Manual maintenance when hierarchy integrity is questionable

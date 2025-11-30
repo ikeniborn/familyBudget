@@ -4,6 +4,7 @@ Revision ID: 7922e6509813
 Revises: 7f9e8c6d5b4a
 Create Date: 2025-11-28 14:15:00.000000
 
+
 Fix ON DELETE CASCADE constraints in history tables.
 
 History tables should NOT have ON DELETE CASCADE constraints because:
