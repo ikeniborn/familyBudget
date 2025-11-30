@@ -65,7 +65,7 @@ api_router.include_router(export_router)
 # Admin Export endpoints (TASK-022 Enhanced) ✅
 api_router.include_router(admin_export_router)
 
-# Import endpoints (FR-080 - Tinkoff CSV Import) ✅
+# Import endpoints (FR-080 Enhanced - Multi-Bank CSV Import) ✅
 api_router.include_router(import_router)
 
 # Transfers endpoints (Transfer Feature) ✅

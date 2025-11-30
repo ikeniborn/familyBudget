@@ -34,16 +34,17 @@ class ImportExecutor:
     """
 
     @staticmethod
-    def parse_tinkoff_amount(amount_str: str) -> Decimal:
+    def parse_amount(amount_str: str) -> Decimal:
         """
-        Parse Tinkoff amount string to Decimal.
+        Parse amount string to Decimal.
 
-        Tinkoff CSV format: "+500,00" or "-900,00"
-        - Sign indicates direction (+ income, - expense)
-        - Comma as decimal separator
+        Supports multiple formats:
+        - Russian format: "+500,00" or "-900,00" (comma as decimal separator)
+        - International: "+500.00" or "-900.00" (dot as decimal separator)
+        - With spaces: "-1 234,56" (space as thousand separator)
 
         Args:
-            amount_str: Amount string from Tinkoff CSV (e.g., "-900,00")
+            amount_str: Amount string from CSV (e.g., "-900,00" or "-900.00")
 
         Returns:
             Decimal with sign preserved
@@ -52,8 +53,8 @@ class ImportExecutor:
             ValueError: If amount cannot be parsed
         """
         try:
-            # Remove spaces, replace comma with dot
-            cleaned = amount_str.strip().replace(",", ".")
+            # Remove spaces (thousand separator), replace comma with dot
+            cleaned = amount_str.strip().replace(" ", "").replace(",", ".")
             return Decimal(cleaned)
         except (InvalidOperation, ValueError) as e:
             raise ValueError(f"Invalid amount format: {amount_str}") from e
@@ -86,7 +87,7 @@ class ImportExecutor:
 
         # Check amount can be parsed
         try:
-            ImportExecutor.parse_tinkoff_amount(record.tinkoff_amount)
+            ImportExecutor.parse_amount(record.amount_string)
         except ValueError as e:
             return False, f"Invalid amount: {e}"
 
@@ -156,11 +157,11 @@ class ImportExecutor:
                     continue
 
                 # Parse amount and ensure it's positive
-                amount = ImportExecutor.parse_tinkoff_amount(record.tinkoff_amount)
+                amount = ImportExecutor.parse_amount(record.amount_string)
                 amount = abs(amount)  # Always store as positive
 
-                # Build description: concatenate tinkoff_description + budget_description
-                description = record.tinkoff_description or ""
+                # Build description: concatenate CSV description + budget_description
+                description = record.description or ""
                 if record.budget_description:
                     if description:
                         description = f"{description} ({record.budget_description})"
@@ -173,7 +174,7 @@ class ImportExecutor:
                     article_id=record.article_id,
                     financial_center_id=record.financial_center_id,
                     cost_center_id=record.cost_center_id,
-                    fact_date=record.tinkoff_date,
+                    fact_date=record.fact_date,
                     amount=amount,
                     description=description,
                     record_type="fact",
