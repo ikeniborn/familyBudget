@@ -75,6 +75,8 @@ class ImportStagingResponse(BaseModel):
     tinkoff_card: Optional[str] = Field(None, description="Card number (e.g., '*5958')")
 
     # User-assigned enrichment
+    budget_description: Optional[str] = Field(None, description="Custom budget description (user-assigned)")
+
     article_id: Optional[int] = Field(None, description="Budget category ID (assigned by user)")
     article_name: Optional[str] = Field(None, description="Budget category name (enriched)")
     article_type: Optional[str] = Field(None, description="Article type: income/expense (enriched)")
@@ -108,8 +110,13 @@ class ImportStagingUpdate(BaseModel):
     """
     Schema for updating a single staging record.
 
-    Allows user to assign category, FC, CC and mark as selected.
+    Allows user to assign category, FC, CC, budget description and mark as selected.
     """
+
+    budget_description: Optional[str] = Field(
+        None,
+        description="Custom budget description to override tinkoff_description"
+    )
 
     article_id: Optional[int] = Field(
         None,

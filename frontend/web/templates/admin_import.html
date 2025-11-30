@@ -73,59 +73,59 @@
 
             <!-- Bulk Operations Toolbar -->
             <div class="bg-base-200 p-4 rounded-lg mb-4" id="bulk-toolbar">
-                <div class="flex flex-wrap gap-4 items-end justify-between">
-                    <div class="flex flex-wrap gap-4 items-end">
-                        <div class="form-control">
-                            <label class="label cursor-pointer gap-2">
-                                <input type="checkbox" id="select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll()" />
-                                <span class="label-text font-semibold">Выбрать все</span>
-                            </label>
-                        </div>
-
-                        <div class="divider divider-horizontal"></div>
-
-                        <div class="form-control w-48">
-                            <label class="label py-0">
-                                <span class="label-text text-xs">Тип категории</span>
-                            </label>
-                            <select id="bulk-article-type" class="select select-bordered w-full" onchange="updateBulkCategoryType()">
-                                <option value="">-- Все типы --</option>
-                                <option value="expense">💸 Расходы</option>
-                                <option value="income">💰 Доходы</option>
-                                <option value="debit">🔵 Списание</option>
-                                <option value="credit">🟠 Пополнение</option>
-                            </select>
-                        </div>
-
-                        <div class="form-control w-64">
-                            <label class="label py-0">
-                                <span class="label-text text-xs">Категория (массово)</span>
-                            </label>
-                            <select id="bulk-article" class="select select-bordered w-full">
-                                <option value="">-- Выберите категорию --</option>
-                            </select>
-                        </div>
-
-                        <div class="form-control w-48">
-                            <label class="label py-0">
-                                <span class="label-text text-xs">ЦФО (массово)</span>
-                            </label>
-                            <select id="bulk-fc" class="select select-bordered w-full">
-                                <option value="">-- Выберите ЦФО --</option>
-                            </select>
-                        </div>
-
-                        <div class="form-control w-48">
-                            <label class="label py-0">
-                                <span class="label-text text-xs">МВЗ (массово)</span>
-                            </label>
-                            <select id="bulk-cc" class="select select-bordered w-full">
-                                <option value="">-- Выберите МВЗ --</option>
-                            </select>
-                        </div>
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div class="form-control">
+                        <label class="label cursor-pointer gap-2">
+                            <input type="checkbox" id="select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll()" />
+                            <span class="label-text font-semibold">Выбрать все</span>
+                        </label>
                     </div>
 
-                    <button class="btn btn-sm btn-primary" onclick="applyBulkUpdate()">
+                    <div class="divider divider-horizontal"></div>
+
+                    <div class="form-control w-48">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">Тип категории</span>
+                        </label>
+                        <select id="bulk-article-type" class="select select-bordered w-full" onchange="updateBulkCategoryType()">
+                            <option value="">-- Все типы --</option>
+                            <option value="expense">💸 Расходы</option>
+                            <option value="income">💰 Доходы</option>
+                            <option value="debit">🔵 Списание</option>
+                            <option value="credit">🟠 Пополнение</option>
+                        </select>
+                    </div>
+
+                    <div class="form-control w-64">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">Категория (массово)</span>
+                        </label>
+                        <select id="bulk-article" class="select select-bordered w-full">
+                            <option value="">-- Выберите категорию --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-control w-48">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">ЦФО (массово)</span>
+                        </label>
+                        <select id="bulk-fc" class="select select-bordered w-full">
+                            <option value="">-- Выберите ЦФО --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-control w-48">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">МВЗ (массово)</span>
+                        </label>
+                        <select id="bulk-cc" class="select select-bordered w-full">
+                            <option value="">-- Выберите МВЗ --</option>
+                        </select>
+                    </div>
+
+                    <div class="flex-1"></div>
+
+                    <button class="btn btn-sm btn-primary ml-auto" onclick="applyBulkUpdate()">
                         ✅ Применить к выбранным
                     </button>
                 </div>
@@ -735,7 +735,8 @@ function renderStagingTable() {
                     <th><input type="checkbox" class="checkbox checkbox-xs" id="select-all-header" onchange="toggleSelectAll()" /></th>
                     <th>Дата</th>
                     <th>Сумма</th>
-                    <th>Описание</th>
+                    <th>Описание Импорт</th>
+                    <th>Описание бюджета</th>
                     <th>Категория Tinkoff</th>
                     <th>Категория бюджета</th>
                     <th>ЦФО</th>
@@ -759,6 +760,13 @@ function renderStagingTable() {
                 <td>${record.tinkoff_date}</td>
                 <td class="${amountClass} font-mono">${record.tinkoff_amount}</td>
                 <td class="max-w-xs truncate" title="${record.tinkoff_description || ''}">${record.tinkoff_description || '-'}</td>
+                <td>
+                    <input type="text" class="input input-bordered input-sm w-full max-w-xs"
+                           id="budget-desc-${record.id}"
+                           value="${record.budget_description || ''}"
+                           placeholder="Своё описание..."
+                           onchange="updateRecord(${record.id}, 'budget_description', this.value)" />
+                </td>
                 <td class="text-xs">${record.tinkoff_category || '-'}</td>
                 <td>
                     <select class="select select-bordered w-48 max-w-xs" id="article-${record.id}" onchange="updateRecord(${record.id}, 'article_id', this.value)">
@@ -901,7 +909,17 @@ function updateSelectAllCheckbox() {
 async function updateRecord(id, field, value) {
     try {
         const payload = {};
-        payload[field] = value === '' ? null : (field === 'is_selected' ? value : parseInt(value));
+
+        // Handle different field types
+        if (value === '') {
+            payload[field] = null;
+        } else if (field === 'is_selected') {
+            payload[field] = value;
+        } else if (field === 'budget_description') {
+            payload[field] = value;
+        } else {
+            payload[field] = parseInt(value);
+        }
 
         const response = await fetch(`/api/v1/import/staging/${id}`, {
             method: 'PUT',

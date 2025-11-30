@@ -159,6 +159,14 @@ class ImportExecutor:
                 amount = ImportExecutor.parse_tinkoff_amount(record.tinkoff_amount)
                 amount = abs(amount)  # Always store as positive
 
+                # Build description: concatenate tinkoff_description + budget_description
+                description = record.tinkoff_description or ""
+                if record.budget_description:
+                    if description:
+                        description = f"{description} ({record.budget_description})"
+                    else:
+                        description = record.budget_description
+
                 # Create BudgetFact
                 fact = BudgetFact(
                     user_id=user_id,
@@ -167,7 +175,7 @@ class ImportExecutor:
                     cost_center_id=record.cost_center_id,
                     fact_date=record.tinkoff_date,
                     amount=amount,
-                    description=record.tinkoff_description,
+                    description=description,
                     record_type="fact",
                     created_at=datetime.utcnow(),
                     updated_at=datetime.utcnow()

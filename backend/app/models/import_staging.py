@@ -102,6 +102,12 @@ class ImportStaging(SQLModel, table=True):
     )
 
     # User-assigned enrichment fields (mutable via UI)
+    budget_description: Optional[str] = Field(
+        default=None,
+        sa_type=Text,
+        description="Custom budget description (overrides tinkoff_description in final import)"
+    )
+
     article_id: Optional[int] = Field(
         default=None,
         foreign_key="t_d_article.id",

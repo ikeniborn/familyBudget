@@ -206,6 +206,7 @@ async def list_staging(
             tinkoff_mcc=record.tinkoff_mcc,
             tinkoff_description=record.tinkoff_description,
             tinkoff_card=record.tinkoff_card,
+            budget_description=record.budget_description,
             article_id=record.article_id,
             article_name=article.name if article else None,
             article_type=article.type if article else None,
@@ -320,6 +321,8 @@ async def update_staging_record(
             )
 
     # Apply updates
+    if update_data.budget_description is not None:
+        staging.budget_description = update_data.budget_description
     if update_data.article_id is not None:
         staging.article_id = update_data.article_id
     if update_data.financial_center_id is not None:
@@ -366,6 +369,7 @@ async def update_staging_record(
         tinkoff_mcc=staging.tinkoff_mcc,
         tinkoff_description=staging.tinkoff_description,
         tinkoff_card=staging.tinkoff_card,
+        budget_description=staging.budget_description,
         article_id=staging.article_id,
         article_name=article.name if article else None,
         article_type=article.type if article else None,
@@ -483,6 +487,8 @@ async def bulk_update_staging(
     # Apply updates to all records in transaction
     updated_count = 0
     for record in staging_records:
+        if bulk_data.updates.budget_description is not None:
+            record.budget_description = bulk_data.updates.budget_description
         if bulk_data.updates.article_id is not None:
             record.article_id = bulk_data.updates.article_id
         if bulk_data.updates.financial_center_id is not None:
