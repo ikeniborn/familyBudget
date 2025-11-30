@@ -1154,7 +1154,7 @@ main() {
     echo ""
 
     # Cleanup dangling Docker images and build cache to free disk space
-    cleanup_docker_images false  # false = interactive mode (asks user)
+    cleanup_docker_images true  # true = auto-cleanup (no confirmation needed)
     echo ""
 
     # Initialize PostgreSQL directory with correct permissions (skipped if PostgreSQL is running)
