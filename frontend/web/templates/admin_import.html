@@ -953,7 +953,15 @@ async function loadFinancialCenters() {
     try {
         const response = await fetch('/api/v1/financial-centers', { credentials: 'include' });
         if (response.ok) {
-            financialCenters = await response.json();
+            const data = await response.json();
+
+            // Ensure data is an array before using it
+            if (!Array.isArray(data)) {
+                console.error('Financial centers API returned non-array:', data);
+                return;
+            }
+
+            financialCenters = data;
 
             // Populate bulk FC selector
             const bulkFc = document.getElementById('bulk-fc');
@@ -973,7 +981,15 @@ async function loadCostCenters() {
     try {
         const response = await fetch('/api/v1/cost-centers', { credentials: 'include' });
         if (response.ok) {
-            costCenters = await response.json();
+            const data = await response.json();
+
+            // Ensure data is an array before using it
+            if (!Array.isArray(data)) {
+                console.error('Cost centers API returned non-array:', data);
+                return;
+            }
+
+            costCenters = data;
 
             // Populate bulk CC selector
             const bulkCc = document.getElementById('bulk-cc');
