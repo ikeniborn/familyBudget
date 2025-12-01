@@ -363,14 +363,14 @@ async def get_quick_stats_html(
     # Generate HTML - clean metrics without wrapper card
     html = f"""
     <!-- Desktop version: horizontal flex layout -->
-    <div class="flex flex-row gap-4 w-full max-sm:hidden">
+    <div class="flex flex-row gap-4 w-full max-md:hidden">
         <!-- Доходы -->
-        <div class="bg-base-200 rounded-lg p-4 shadow flex-1">
-            <div class="flex items-center justify-between mb-2">
+        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
+            <div class="flex items-center justify-between mb-1.5">
                 <span class="font-semibold text-sm">💰 Доходы</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_income_pct)} font-bold">{format_pct(plan_execution_income_pct)}</span>
             </div>
-            <div class="space-y-2">
+            <div class="space-y-1">
                 <div>
                     <div class="text-xs opacity-60">План</div>
                     <div class="font-semibold text-base">{format_money(month_plan_income)}</div>
@@ -383,12 +383,12 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Расходы -->
-        <div class="bg-base-200 rounded-lg p-4 shadow flex-1">
-            <div class="flex items-center justify-between mb-2">
+        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
+            <div class="flex items-center justify-between mb-1.5">
                 <span class="font-semibold text-sm">💸 Расходы</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_expense_pct)} font-bold">{format_pct(plan_execution_expense_pct)}</span>
             </div>
-            <div class="space-y-2">
+            <div class="space-y-1">
                 <div>
                     <div class="text-xs opacity-60">План</div>
                     <div class="font-semibold text-base">{format_money(month_plan_expense)}</div>
@@ -401,12 +401,12 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Пополнение -->
-        <div class="bg-base-200 rounded-lg p-4 shadow flex-1">
-            <div class="flex items-center justify-between mb-2">
+        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
+            <div class="flex items-center justify-between mb-1.5">
                 <span class="font-semibold text-sm">➕ Пополнение</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_credit_pct)} font-bold">{format_pct(plan_execution_credit_pct)}</span>
             </div>
-            <div class="space-y-2">
+            <div class="space-y-1">
                 <div>
                     <div class="text-xs opacity-60">План</div>
                     <div class="font-semibold text-base">{format_money(month_plan_credit)}</div>
@@ -419,12 +419,12 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Списание -->
-        <div class="bg-base-200 rounded-lg p-4 shadow flex-1">
-            <div class="flex items-center justify-between mb-2">
+        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
+            <div class="flex items-center justify-between mb-1.5">
                 <span class="font-semibold text-sm">➖ Списание</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_debit_pct)} font-bold">{format_pct(plan_execution_debit_pct)}</span>
             </div>
-            <div class="space-y-2">
+            <div class="space-y-1">
                 <div>
                     <div class="text-xs opacity-60">План</div>
                     <div class="font-semibold text-base">{format_money(month_plan_debit)}</div>
@@ -438,7 +438,7 @@ async def get_quick_stats_html(
     </div>
 
     <!-- Mobile version: 2x2 grid -->
-    <div class="grid grid-cols-2 gap-3 sm:hidden">
+    <div class="grid grid-cols-2 gap-3 md:hidden">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="flex items-center justify-between mb-0.5">
