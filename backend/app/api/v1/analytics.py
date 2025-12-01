@@ -362,8 +362,18 @@ async def get_quick_stats_html(
 
     # Generate HTML - clean metrics without wrapper card
     html = f"""
+    <style>
+        @media (min-width: 768px) {{
+            #desktop-stats {{ display: flex !important; }}
+            #mobile-stats {{ display: none !important; }}
+        }}
+        @media (max-width: 767px) {{
+            #desktop-stats {{ display: none !important; }}
+            #mobile-stats {{ display: grid !important; }}
+        }}
+    </style>
     <!-- Desktop version: horizontal flex layout -->
-    <div class="hidden md:flex flex-row gap-4 w-full">
+    <div id="desktop-stats" class="flex flex-row gap-4 w-full">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
             <div class="flex items-center justify-between mb-1.5">
@@ -438,7 +448,7 @@ async def get_quick_stats_html(
     </div>
 
     <!-- Mobile version: 2x2 grid -->
-    <div class="grid grid-cols-2 gap-3 md:hidden">
+    <div id="mobile-stats" class="grid grid-cols-2 gap-3">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="flex items-center justify-between mb-0.5">
