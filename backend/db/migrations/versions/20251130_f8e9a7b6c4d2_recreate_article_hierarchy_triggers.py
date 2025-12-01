@@ -75,6 +75,9 @@ def upgrade() -> None:
     op.execute("""
         CREATE OR REPLACE FUNCTION trg_article_hierarchy_update()
         RETURNS TRIGGER AS $$
+        DECLARE
+            child_record RECORD;
+            ancestor_record RECORD;
         BEGIN
             -- Only rebuild if parent_id actually changed
             IF OLD.parent_id IS DISTINCT FROM NEW.parent_id THEN
