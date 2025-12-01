@@ -364,20 +364,32 @@ async def get_quick_stats_html(
     html = f"""
     <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
         <div class="stat">
-            <div class="stat-figure text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            </div>
             <div class="stat-title">Сегодня</div>
-            <div class="stat-value text-sm lg:text-2xl">
-                <span class="text-success">+{format_money(today_income + today_credit)}</span> /
-                <span class="text-error">-{format_money(today_expense + today_debit)}</span>
+            <div class="stat-value text-xs">
+                <div class="overflow-x-auto">
+                    <table class="table table-xs">
+                        <thead>
+                            <tr>
+                                <th class="text-center">Доходы</th>
+                                <th class="text-center">Расходы</th>
+                                <th class="text-center">Пополнение</th>
+                                <th class="text-center">Списание</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-center text-success font-bold">{format_money(today_income)}</td>
+                                <td class="text-center text-error font-bold">{format_money(today_expense)}</td>
+                                <td class="text-center text-info font-bold">{format_money(today_credit)}</td>
+                                <td class="text-center text-warning font-bold">{format_money(today_debit)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
         <div class="stat">
-            <div class="stat-figure text-accent">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-            </div>
             <div class="stat-title">План-факт месяца</div>
             <div class="stat-value text-xs">
                 <div class="overflow-x-auto">
