@@ -391,9 +391,11 @@ async def execute_import(
 
     for record in records:
         # Parse amount string (handle both comma and dot as decimal separator)
+        # Convert to absolute value since bank CSVs store expenses as negative numbers
+        # but database requires positive amounts (check_amount_positive constraint)
         try:
             amount_str = record.amount_string.replace(",", ".")
-            amount = Decimal(amount_str)
+            amount = abs(Decimal(amount_str))
         except Exception as e:
             logger.error(f"Failed to parse amount '{record.amount_string}' for record {record.id}: {e}")
             raise HTTPException(
