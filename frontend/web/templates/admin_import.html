@@ -285,8 +285,8 @@
     </form>
 </dialog>
 
-<!-- Global Loading Overlay -->
-<div id="global-loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center" style="display: none;">
+<!-- Global Loading Overlay (z-index higher than DaisyUI modal) -->
+<div id="global-loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="display: none; z-index: 9999;">
     <div class="bg-base-100 rounded-lg p-8 shadow-2xl flex flex-col items-center gap-4">
         <span class="loading loading-spinner loading-lg text-primary"></span>
         <p class="text-lg font-semibold" id="global-loading-text">Обработка...</p>
@@ -308,15 +308,26 @@ let costCenters = [];
 
 // ========== Global Loading Overlay ==========
 function showGlobalLoading(message = 'Обработка...') {
+    console.log('[DEBUG] showGlobalLoading called with message:', message);
     const overlay = document.getElementById('global-loading-overlay');
     const text = document.getElementById('global-loading-text');
+
+    if (!overlay) {
+        console.error('[ERROR] global-loading-overlay element not found!');
+        return;
+    }
+
     text.textContent = message;
     overlay.style.display = 'flex';
+    console.log('[DEBUG] Overlay display set to flex, z-index:', window.getComputedStyle(overlay).zIndex);
 }
 
 function hideGlobalLoading() {
+    console.log('[DEBUG] hideGlobalLoading called');
     const overlay = document.getElementById('global-loading-overlay');
-    overlay.style.display = 'none';
+    if (overlay) {
+        overlay.style.display = 'none';
+    }
 }
 
 // ========== Reset Workflow ==========
@@ -1371,7 +1382,16 @@ async function clearStaging() {
     );
     if (!confirmed) return;
 
-    // Show global loading overlay immediately after confirmation
+    // Force close modal dialog and wait a moment for it to fully close
+    const modal = document.getElementById('confirm-dialog');
+    if (modal) {
+        modal.close();
+    }
+
+    // Small delay to ensure modal is fully closed before showing overlay
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Show global loading overlay
     showGlobalLoading(`Удаление ${recordCount} записей...`);
 
     // Copy records to delete and clear the array immediately to prevent double-deletion
