@@ -28,44 +28,31 @@
                     <option value="">-- Выберите банк --</option>
                 </select>
             </div>
-            <div id="bank-selection-result" class="mt-4"></div>
-        </div>
-    </div>
-
-    <!-- Step 1.5: Actions after bank selection -->
-    <div class="card bg-base-100 shadow-lg" id="step-1-5-actions" style="display: none;">
-        <div class="card-body">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="card-title text-2xl">📋 Выберите действие</h2>
-                <button type="button" class="btn btn-ghost btn-sm gap-2" onclick="resetWorkflow()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <!-- Dynamic action buttons and info (shown after bank selection) -->
+            <div id="bank-selection-result" class="mt-4" style="display: none;">
+                <!-- Staging Info Alert -->
+                <div id="staging-info-alert" class="alert alert-warning mb-4" style="display: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 w-6 h-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
-                    Начать заново
-                </button>
-            </div>
+                    <span id="staging-info-text"></span>
+                </div>
 
-            <!-- Staging Info (показывается только если есть данные) -->
-            <div id="staging-info-alert" class="alert alert-info mb-4" style="display: none;">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                <span id="staging-info-text"></span>
-            </div>
-
-            <div class="flex gap-2">
-                <button type="button" class="btn btn-primary gap-2" id="upload-new-file-btn" onclick="proceedToUpload()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Загрузить файл
-                </button>
-                <button type="button" class="btn btn-secondary gap-2" id="skip-to-enrichment-btn" onclick="skipToEnrichment()" style="display: none;">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Перейти к обогащению
-                </button>
+                <!-- Action Buttons -->
+                <div class="flex gap-2">
+                    <button type="button" class="btn btn-primary gap-2" id="upload-new-file-btn" onclick="proceedToUpload()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        Загрузить файл
+                    </button>
+                    <button type="button" class="btn btn-secondary gap-2" id="skip-to-enrichment-btn" onclick="skipToEnrichment()" style="display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Перейти к обогащению
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -175,15 +162,8 @@
         <div class="card-body">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="card-title text-2xl">📋 Шаг 4: Обогащение транзакций</h2>
-                <div class="flex gap-2 items-center">
-                    <button type="button" class="btn btn-ghost btn-sm gap-2" onclick="resetWorkflow()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Начать заново
-                    </button>
-                    <div id="staging-stats" class="stats shadow">
-                        <div class="stat py-2 px-4">
+                <div id="staging-stats" class="stats shadow">
+                    <div class="stat py-2 px-4">
                         <div class="stat-title text-xs">Всего</div>
                         <div class="stat-value text-2xl" id="stat-total">0</div>
                     </div>
@@ -195,7 +175,6 @@
                         <div class="stat-title text-xs">Готово к импорту</div>
                         <div class="stat-value text-2xl text-success" id="stat-ready">0</div>
                     </div>
-                </div>
                 </div>
             </div>
 
@@ -290,6 +269,12 @@
                     </svg>
                     Очистить staging
                 </button>
+                <button type="button" class="btn btn-ghost btn-sm gap-2" onclick="resetWorkflow()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Начать заново
+                </button>
             </div>
 
             <div id="import-result" class="mt-4"></div>
@@ -327,9 +312,9 @@ let costCenters = [];
 
 // ========== Reset Workflow ==========
 function resetWorkflow() {
-    // Hide all steps
+    // Hide all steps except step 1
     document.getElementById('step-1-bank-selection').style.display = 'block';
-    document.getElementById('step-1-5-actions').style.display = 'none';
+    document.getElementById('bank-selection-result').style.display = 'none';
     document.getElementById('step-2-upload').style.display = 'none';
     document.getElementById('step-3-mapping').style.display = 'none';
     document.getElementById('step-4-enrichment').style.display = 'none';
@@ -399,15 +384,10 @@ async function onBankSelected() {
     if (bankId) {
         selectedBankId = parseInt(bankId);
 
-        // Hide Step 1, Show Step 1.5 (action selection)
-        document.getElementById('step-1-bank-selection').style.display = 'none';
-        document.getElementById('step-1-5-actions').style.display = 'block';
-        updateProgressIndicator(2);
-
         // Try to load saved mapping for later
         await loadSavedMapping(selectedBankId);
 
-        // Check staging and update UI
+        // Check staging and update UI (show buttons in step 1)
         await checkStagingAndUpdateUI();
     }
 }
@@ -421,25 +401,38 @@ async function checkStagingAndUpdateUI() {
         if (!response.ok) {
             console.error('Failed to check staging');
             hideStagingInfo();
+            showBankSelectionResult(0);
             return;
         }
 
         const stagingData = await response.json();
 
-        if (stagingData.length > 0) {
+        // Filter staging by selected bank
+        const bankStagingData = stagingData.filter(r => r.bank_provider_id === selectedBankId);
+
+        if (bankStagingData.length > 0) {
             // Show staging info and skip button
             document.getElementById('staging-info-text').textContent =
-                `В staging уже есть ${stagingData.length} записей.`;
+                `Для выбранного банка в staging уже есть ${bankStagingData.length} записей.`;
             document.getElementById('staging-info-alert').style.display = 'flex';
             document.getElementById('skip-to-enrichment-btn').style.display = 'inline-flex';
         } else {
             // Hide staging info and skip button
             hideStagingInfo();
         }
+
+        // Show bank selection result with buttons
+        showBankSelectionResult(bankStagingData.length);
     } catch (error) {
         console.error('Error checking staging:', error);
         hideStagingInfo();
+        showBankSelectionResult(0);
     }
+}
+
+function showBankSelectionResult(stagingCount) {
+    // Show the bank-selection-result div with action buttons
+    document.getElementById('bank-selection-result').style.display = 'block';
 }
 
 function hideStagingInfo() {
@@ -447,17 +440,19 @@ function hideStagingInfo() {
     document.getElementById('skip-to-enrichment-btn').style.display = 'none';
 }
 
-// Step 1.5: Proceed to upload
+// Proceed to upload (from step 1)
 async function proceedToUpload() {
-    // Check if staging has data
+    // Check if staging has data for selected bank
     try {
         const response = await fetch('/api/v1/admin/staging', { credentials: 'include' });
         if (response.ok) {
             const stagingData = await response.json();
-            if (stagingData.length > 0) {
+            const bankStagingData = stagingData.filter(r => r.bank_provider_id === selectedBankId);
+
+            if (bankStagingData.length > 0) {
                 // Ask for confirmation to clear staging
                 const confirmed = await showConfirmDialog(
-                    `В staging есть ${stagingData.length} записей. Они будут очищены перед загрузкой нового файла. Продолжить?`,
+                    `Для выбранного банка в staging есть ${bankStagingData.length} записей. Они будут очищены перед загрузкой нового файла. Продолжить?`,
                     'Подтверждение'
                 );
 
@@ -465,26 +460,69 @@ async function proceedToUpload() {
                     return;
                 }
 
-                // Clear staging
-                await clearStaging();
+                // Clear staging for selected bank
+                await clearStagingByBank();
             }
         }
     } catch (error) {
         console.error('Error checking staging:', error);
     }
 
-    // Hide Step 1.5, Show Step 2 upload form
-    document.getElementById('step-1-5-actions').style.display = 'none';
+    // Hide Step 1, Show Step 2 upload form
+    document.getElementById('step-1-bank-selection').style.display = 'none';
     document.getElementById('step-2-upload').style.display = 'block';
     updateProgressIndicator(2);
 }
 
 async function skipToEnrichment() {
-    // Hide Step 1.5, Go directly to enrichment step (Step 4)
-    document.getElementById('step-1-5-actions').style.display = 'none';
-    await loadStagingTable();
+    // Go directly to enrichment step (Step 4) with filtered staging
+    await loadStagingTableByBank();
+    document.getElementById('step-1-bank-selection').style.display = 'none';
     document.getElementById('step-4-enrichment').style.display = 'block';
     updateProgressIndicator(4);
+}
+
+async function clearStagingByBank() {
+    // Clear staging records for selected bank only
+    try {
+        const response = await fetch('/api/v1/admin/staging', { credentials: 'include' });
+        if (!response.ok) return;
+
+        const stagingData = await response.json();
+        const bankStagingData = stagingData.filter(r => r.bank_provider_id === selectedBankId);
+
+        // Delete each record for selected bank
+        for (const record of bankStagingData) {
+            await fetch(`/api/v1/admin/staging/${record.id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+        }
+
+        showNotification(`Очищено ${bankStagingData.length} записей для выбранного банка`, 'success');
+    } catch (error) {
+        console.error('Error clearing staging by bank:', error);
+    }
+}
+
+async function loadStagingTableByBank() {
+    // Load staging filtered by selected bank
+    try {
+        const response = await fetch('/api/v1/admin/staging', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load staging');
+
+        const allStagingRecords = await response.json();
+        stagingRecords = allStagingRecords.filter(r => r.bank_provider_id === selectedBankId);
+        renderStagingTable();
+        updateProgressIndicator(4);
+
+    } catch (error) {
+        console.error('Load staging error:', error);
+        showNotification(`Ошибка загрузки staging: ${error.message}`, 'error');
+    }
 }
 
 async function clearStaging() {
@@ -933,7 +971,15 @@ async function loadStagingTable() {
 
         if (!response.ok) throw new Error('Failed to load staging');
 
-        stagingRecords = await response.json();
+        const allStagingRecords = await response.json();
+
+        // Filter by selected bank if bank is selected
+        if (selectedBankId) {
+            stagingRecords = allStagingRecords.filter(r => r.bank_provider_id === selectedBankId);
+        } else {
+            stagingRecords = allStagingRecords;
+        }
+
         renderStagingTable();
 
         // Hide Step 3, Show Step 4 enrichment
@@ -1294,7 +1340,8 @@ async function executeImport() {
 }
 
 async function clearStaging() {
-    if (!confirm('Удалить ВСЕ записи из staging?')) return;
+    const confirmed = await showConfirmDialog('Удалить ВСЕ записи из staging?', 'Подтверждение');
+    if (!confirmed) return;
 
     try {
         const response = await fetch('/api/v1/admin/staging', {
@@ -1309,7 +1356,9 @@ async function clearStaging() {
 
         showNotification('Staging очищен', 'success');
         stagingRecords = [];
-        renderStagingTable();
+
+        // Return to step 1 after clearing
+        resetWorkflow();
 
     } catch (error) {
         console.error('Clear staging error:', error);
