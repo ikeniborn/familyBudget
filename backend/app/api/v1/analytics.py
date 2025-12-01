@@ -48,24 +48,33 @@ def distribute_plan_by_days(
     end_date: date
 ) -> List[float]:
     """
-    Distribute monthly plans evenly across all days.
+    Distribute monthly plans evenly across ACTUAL days in period (not full month).
 
     Algorithm:
         1. Group all plans by month (sum plans for same month)
-        2. Calculate average per day = total_plan_for_month / days_in_month
-        3. Return array with average for each day in range
+        2. Count actual days in period for each month (start_date to end_date)
+        3. Calculate average per day = total_plan_for_month / actual_days_in_period
+        4. Return array with average for each day in range
 
-    Example:
-        Plan: 30000₽ on 2025-11-01
-        Result: 1000₽ per day for all days in November (30 days)
+    Example (current month):
+        Plan: 10000₽ for Dec 2025
+        Period: 2025-12-01 to 2025-12-01 (today is Dec 1)
+        Actual days: 1
+        Result: 10000₽ per day (10000 / 1)
+
+    Example (past month):
+        Plan: 30000₽ for Nov 2025
+        Period: 2025-11-01 to 2025-11-30
+        Actual days: 30
+        Result: 1000₽ per day (30000 / 30)
 
     Args:
         plan_by_date: Dict mapping date → plan amount (from DB query)
         start_date: First date in range
-        end_date: Last date in range (inclusive)
+        end_date: Last date in range (inclusive, usually today)
 
     Returns:
-        List of plan amounts for each day in range (distributed evenly)
+        List of plan amounts for each day in range (distributed evenly across actual days)
     """
     # 1. Group plans by month and sum
     month_plans: Dict[Tuple[int, int], Dict[str, float]] = {}
@@ -74,20 +83,32 @@ def distribute_plan_by_days(
         month_key = (plan_date.year, plan_date.month)
 
         if month_key not in month_plans:
-            days_in_month = cal_module.monthrange(plan_date.year, plan_date.month)[1]
             month_plans[month_key] = {
                 'total': 0.0,
-                'days': days_in_month,
+                'actual_days': 0,  # Will count actual days in period below
                 'avg_per_day': 0.0
             }
 
         month_plans[month_key]['total'] += amount
 
-    # 2. Calculate average per day for each month
-    for month_key, plan_info in month_plans.items():
-        plan_info['avg_per_day'] = plan_info['total'] / plan_info['days']
+    # 2. Count actual days for each month within the period (start_date to end_date)
+    #    For current month: only days from start to today, NOT full month
+    current_date = start_date
+    while current_date <= end_date:
+        month_key = (current_date.year, current_date.month)
+        if month_key in month_plans:
+            month_plans[month_key]['actual_days'] += 1
+        current_date += timedelta(days=1)
 
-    # 3. Generate array with average for each day
+    # 3. Calculate average per day for each month (using actual days, not full month)
+    for month_key, plan_info in month_plans.items():
+        actual_days = plan_info['actual_days']
+        if actual_days > 0:
+            plan_info['avg_per_day'] = plan_info['total'] / actual_days
+        else:
+            plan_info['avg_per_day'] = 0.0
+
+    # 4. Generate array with average for each day
     result = []
     current_date = start_date
 
@@ -869,7 +890,19 @@ async def get_plan_fact_data(
                 )
                 # Использовать РАСПРЕДЕЛЕННЫЙ план (среднее на месяц)
                 month_key = (current_date.year, current_date.month)
-                month_plan = plan_distributed_by_month.get(month_key, 0.0)
+                month_plan_avg = plan_distributed_by_month.get(month_key, 0.0)
+
+                # Корректировка для текущего месяца: пропорционально прошедшим дням
+                # Если month_end < последний день месяца (неполный месяц), пропорционально уменьшить
+                _, last_day_of_month = cal_module.monthrange(current_date.year, current_date.month)
+                actual_days_in_month = (month_end - month_start).days + 1  # Фактически прошедшие дни
+
+                if actual_days_in_month < last_day_of_month:
+                    # Текущий месяц неполный - пропорциональная корректировка
+                    month_plan = month_plan_avg / last_day_of_month * actual_days_in_month
+                else:
+                    # Прошедший месяц - используем полное среднее значение
+                    month_plan = month_plan_avg
 
                 # Label: "Янв 2025"
                 month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
