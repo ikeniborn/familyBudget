@@ -1575,7 +1575,8 @@ class ChoicesCategoryTree {
                                  ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}
                                  data-id="${data.id}"
                                  data-value="${data.value}"
-                                 ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}>
+                                 ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}
+                                 style="padding-left: 0.75rem;">
                                 <span style="font-weight: 500;">${label}</span>
                                 ${parentText ? `<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${parentText})</span>` : ''}
                             </div>
