@@ -1352,18 +1352,27 @@ async function clearStaging() {
     );
     if (!confirmed) return;
 
-    // Show loading state on button
+    // Show loading state on button immediately after confirmation
     const clearBtn = document.querySelector('button[onclick="clearStaging()"]');
+    if (!clearBtn) {
+        console.error('Clear staging button not found');
+        return;
+    }
+
     const originalHTML = clearBtn.innerHTML;
     clearBtn.disabled = true;
     clearBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Очистка...';
+
+    // Copy records to delete and clear the array immediately to prevent double-deletion
+    const recordsToDelete = [...stagingRecords];
+    stagingRecords = [];
 
     try {
         let deletedCount = 0;
         let errorCount = 0;
 
         // Delete each record individually
-        for (const record of stagingRecords) {
+        for (const record of recordsToDelete) {
             try {
                 const response = await fetch(`/api/v1/admin/staging/${record.id}`, {
                     method: 'DELETE',
@@ -1384,6 +1393,9 @@ async function clearStaging() {
                 // Don't log to console - suppress errors
             }
         }
+
+        // Small delay to ensure spinner is visible
+        await new Promise(resolve => setTimeout(resolve, 500));
 
         if (errorCount > 0) {
             showNotification(
