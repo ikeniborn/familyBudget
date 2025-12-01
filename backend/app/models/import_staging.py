@@ -71,6 +71,14 @@ class ImportStaging(SQLModel, table=True):
         description="Reference to file upload metadata"
     )
 
+    # Bank provider reference (for filtering staging by bank)
+    bank_provider_id: Optional[int] = Field(
+        default=None,
+        foreign_key="t_d_bank_provider.id",
+        index=True,
+        description="Bank provider ID (for filtering staging records by bank)"
+    )
+
     # Generic CSV fields (mapped from any bank's CSV)
     fact_date: date = Field(
         nullable=False,

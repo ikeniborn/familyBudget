@@ -470,6 +470,8 @@ async def parse_file(
 
         # Insert records to staging
         for record_data in staging_records:
+            # Add bank_provider_id from file_upload
+            record_data['bank_provider_id'] = file_upload.bank_provider_id
             staging = ImportStaging(**record_data)
             session.add(staging)
 

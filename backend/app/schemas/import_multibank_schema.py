@@ -162,6 +162,7 @@ class StagingRecordResponse(BaseModel):
         ...     id=1,
         ...     user_id=123,
         ...     file_upload_id=456,
+        ...     bank_provider_id=1,
         ...     fact_date="2025-11-18",
         ...     amount_string="-900,00",
         ...     description="Кафе",
@@ -176,6 +177,7 @@ class StagingRecordResponse(BaseModel):
     id: int
     user_id: int
     file_upload_id: Optional[int]
+    bank_provider_id: Optional[int]
     fact_date: str
     amount_string: str
     description: Optional[str]
