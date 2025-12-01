@@ -27,6 +27,7 @@ Usage:
 from typing import Sequence, Union
 
 from alembic import op
+from sqlalchemy import text
 
 
 # revision identifiers, used by Alembic.
@@ -195,7 +196,7 @@ def upgrade() -> None:
     # =========================================================================
 
     print("Rebuilding article hierarchy closure table...")
-    result = op.get_bind().execute(op.text("SELECT rebuild_article_hierarchy_closure_table()"))
+    result = op.get_bind().execute(text("SELECT rebuild_article_hierarchy_closure_table()"))
     count = result.scalar()
     print(f"✓ Rebuilt closure table: {count} hierarchy records created")
 
