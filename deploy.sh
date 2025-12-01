@@ -1206,6 +1206,15 @@ main() {
     repair_postgres_directories_atomic
     echo ""
 
+    # Prepare upload directories for backend container (import feature)
+    # Creates /opt/budget/uploads and /opt/budget/uploads/temp with correct permissions
+    # Backend runs as appuser (UID:GID 999:999), host directory must match to allow file writes
+    step "Preparing upload directories"
+    prepare_upload_directories || {
+        error "Failed to prepare upload directories. Check permissions."
+    }
+    echo ""
+
     start_services
     echo ""
 

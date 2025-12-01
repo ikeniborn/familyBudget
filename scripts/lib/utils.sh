@@ -105,6 +105,61 @@ is_postgres_healthy() {
 }
 
 # =============================================================================
+# DIRECTORY PREPARATION
+# =============================================================================
+
+# Prepare upload directories with correct permissions for backend container
+# Creates /opt/budget/uploads and /opt/budget/uploads/temp with UID:GID 999:999
+# This matches the 'appuser' in backend/Dockerfile (created by groupadd -r appuser && useradd -r -g appuser appuser)
+#
+# Why this is needed:
+#   - Backend container runs as non-root user 'appuser' (UID=999, GID=999)
+#   - docker-compose.yml mounts host directory ./uploads to container /app/uploads
+#   - Host directory permissions override container internal permissions
+#   - If host directory is root:root, backend cannot write files (PermissionError)
+#
+# Returns: 0 on success, 1 on failure
+prepare_upload_directories() {
+    local upload_dir="$DEPLOY_DIR/uploads"
+    local temp_dir="$upload_dir/temp"
+    local backend_uid=999  # appuser UID from backend/Dockerfile
+    local backend_gid=999  # appuser GID from backend/Dockerfile
+
+    # Create directories if they don't exist
+    if [[ ! -d "$upload_dir" ]]; then
+        info "Creating uploads directory: $upload_dir"
+        mkdir -p "$upload_dir" || {
+            error_return "Failed to create uploads directory"
+            return 1
+        }
+    fi
+
+    if [[ ! -d "$temp_dir" ]]; then
+        info "Creating temp uploads directory: $temp_dir"
+        mkdir -p "$temp_dir" || {
+            error_return "Failed to create temp directory"
+            return 1
+        }
+    fi
+
+    # Set ownership to backend container user (appuser UID:GID 999:999)
+    info "Setting ownership for uploads directory (UID:GID $backend_uid:$backend_gid)"
+    chown -R "$backend_uid:$backend_gid" "$upload_dir" || {
+        error_return "Failed to set ownership for uploads directory"
+        return 1
+    }
+
+    # Set permissions (755 = rwxr-xr-x: owner can write, others can read/execute)
+    chmod -R 755 "$upload_dir" || {
+        error_return "Failed to set permissions for uploads directory"
+        return 1
+    }
+
+    success "Upload directories prepared successfully"
+    return 0
+}
+
+# =============================================================================
 # DOCKER COMPOSE WRAPPER
 # =============================================================================
 
