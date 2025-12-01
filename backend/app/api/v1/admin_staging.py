@@ -239,6 +239,60 @@ async def clear_all_staging(
     return {"message": f"Cleared {count} staging records"}
 
 
+@router.post("/bulk-delete")
+async def bulk_delete_staging(
+    request: BulkUpdateRequest,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Bulk delete staging records (admin only).
+
+    Deletes multiple staging records by IDs.
+
+    **Request Body:**
+    ```json
+    {
+        "staging_ids": [1, 2, 3, 4, 5]
+    }
+    ```
+
+    **Returns:**
+    - Success message with count
+
+    **Example:**
+    ```
+    POST /api/v1/admin/staging/bulk-delete
+    Response: {"message": "Deleted 5 staging records"}
+    ```
+    """
+    logger.info(
+        f"Bulk deleting {len(request.staging_ids)} staging records for admin user {current_admin.id}"
+    )
+
+    if not request.staging_ids:
+        raise HTTPException(400, "staging_ids cannot be empty")
+
+    # Get all staging records
+    statement = select(ImportStaging).where(
+        ImportStaging.id.in_(request.staging_ids),
+        ImportStaging.user_id == current_admin.id
+    )
+    result = await session.execute(statement)
+    records = result.scalars().all()
+
+    if not records:
+        raise HTTPException(404, "No staging records found")
+
+    # Delete records
+    for record in records:
+        await session.delete(record)
+
+    await session.commit()
+
+    return {"message": f"Deleted {len(records)} staging records"}
+
+
 @router.post("/bulk-update")
 async def bulk_update_staging(
     request: BulkUpdateRequest,

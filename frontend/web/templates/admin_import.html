@@ -285,14 +285,6 @@
     </form>
 </dialog>
 
-<!-- Global Loading Overlay (z-index higher than DaisyUI modal) -->
-<div id="global-loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center" style="display: none; z-index: 9999;">
-    <div class="bg-base-100 rounded-lg p-8 shadow-2xl flex flex-col items-center gap-4">
-        <span class="loading loading-spinner loading-lg text-primary"></span>
-        <p class="text-lg font-semibold" id="global-loading-text">Обработка...</p>
-    </div>
-</div>
-
 <script>
 // ========== Global State ==========
 let selectedBankId = null;
@@ -305,30 +297,6 @@ let stagingRecords = [];
 let allArticles = [];
 let financialCenters = [];
 let costCenters = [];
-
-// ========== Global Loading Overlay ==========
-function showGlobalLoading(message = 'Обработка...') {
-    console.log('[DEBUG] showGlobalLoading called with message:', message);
-    const overlay = document.getElementById('global-loading-overlay');
-    const text = document.getElementById('global-loading-text');
-
-    if (!overlay) {
-        console.error('[ERROR] global-loading-overlay element not found!');
-        return;
-    }
-
-    text.textContent = message;
-    overlay.style.display = 'flex';
-    console.log('[DEBUG] Overlay display set to flex, z-index:', window.getComputedStyle(overlay).zIndex);
-}
-
-function hideGlobalLoading() {
-    console.log('[DEBUG] hideGlobalLoading called');
-    const overlay = document.getElementById('global-loading-overlay');
-    if (overlay) {
-        overlay.style.display = 'none';
-    }
-}
 
 // ========== Reset Workflow ==========
 function resetWorkflow() {
@@ -1382,66 +1350,51 @@ async function clearStaging() {
     );
     if (!confirmed) return;
 
-    // Force close modal dialog and wait a moment for it to fully close
+    // Force close modal dialog
     const modal = document.getElementById('confirm-dialog');
     if (modal) {
         modal.close();
     }
 
-    // Small delay to ensure modal is fully closed before showing overlay
+    // Small delay to ensure modal is fully closed
     await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Show global loading overlay
-    showGlobalLoading(`Удаление ${recordCount} записей...`);
+    // Show notification with dynamic loader
+    showNotification(`Удаление ${recordCount} записей...`, 'loading');
 
     // Copy records to delete and clear the array immediately to prevent double-deletion
     const recordsToDelete = [...stagingRecords];
     stagingRecords = [];
 
     try {
-        let deletedCount = 0;
-        let errorCount = 0;
+        // Bulk delete with single API request
+        const stagingIds = recordsToDelete.map(r => r.id);
 
-        // Delete each record individually
-        for (const record of recordsToDelete) {
-            try {
-                const response = await fetch(`/api/v1/admin/staging/${record.id}`, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                });
+        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ staging_ids: stagingIds })
+        });
 
-                if (response.ok) {
-                    deletedCount++;
-                } else if (response.status === 404) {
-                    // Record already deleted - ignore
-                    deletedCount++;
-                } else {
-                    errorCount++;
-                }
-            } catch (err) {
-                errorCount++;
-            }
+        if (!response.ok) {
+            throw new Error(`Ошибка сервера: ${response.status}`);
         }
 
-        // Hide loading overlay
-        hideGlobalLoading();
-
-        if (errorCount > 0) {
-            showNotification(
-                `Удалено ${deletedCount} записей, ${errorCount} ошибок`,
-                'warning'
-            );
-        } else {
-            showNotification(`Удалено ${deletedCount} записей`, 'success');
-        }
+        const result = await response.json();
+        showNotification(result.message, 'success');
 
         // Return to step 1 after clearing
         resetWorkflow();
 
     } catch (error) {
         console.error('Clear staging error:', error);
-        hideGlobalLoading();
-        showNotification(`Ошибка: ${error.message}`, 'error');
+        showNotification(`Ошибка удаления: ${error.message}`, 'error');
+
+        // Restore records if deletion failed
+        stagingRecords = recordsToDelete;
     }
 }
 
@@ -1484,39 +1437,42 @@ function formatAmount(amount) {
 function showNotification(message, type = 'info') {
     const alertClass = type === 'error' ? 'alert-error' :
                        type === 'success' ? 'alert-success' :
-                       type === 'warning' ? 'alert-warning' : 'alert-info';
+                       type === 'warning' ? 'alert-warning' :
+                       type === 'loading' ? 'alert-info' : 'alert-info';
 
-    // Try to find a visible result div
-    const resultDivs = [
-        document.getElementById('mapping-result'),
-        document.getElementById('import-result')
-    ].filter(div => div && div.offsetParent !== null); // Only visible divs
+    // Remove previous notification if exists
+    const existingNotification = document.getElementById('notification-toast');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
 
-    if (resultDivs.length > 0) {
-        // Use existing result div
-        const alert = document.createElement('div');
-        alert.className = `alert ${alertClass}`;
-        alert.innerHTML = `<span>${message}</span>`;
+    // Create toast notification at top right
+    const toast = document.createElement('div');
+    toast.id = 'notification-toast';
+    toast.className = `alert ${alertClass} fixed top-4 right-4 z-[9999] max-w-md shadow-lg flex items-center gap-3`;
 
-        resultDivs[0].innerHTML = '';
-        resultDivs[0].appendChild(alert);
-
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            alert.remove();
-        }, 5000);
+    // Add spinner for loading type
+    if (type === 'loading') {
+        toast.innerHTML = `
+            <span class="loading loading-spinner loading-md"></span>
+            <span>${message}</span>
+        `;
     } else {
-        // Create toast notification at top right
-        const toast = document.createElement('div');
-        toast.className = `alert ${alertClass} fixed top-4 right-4 z-50 max-w-md shadow-lg`;
         toast.innerHTML = `<span>${message}</span>`;
-        document.body.appendChild(toast);
+    }
 
-        // Auto-hide after 5 seconds
+    document.body.appendChild(toast);
+
+    // Auto-hide after 5 seconds (except for loading type)
+    if (type !== 'loading') {
         setTimeout(() => {
-            toast.remove();
+            if (toast && toast.parentNode) {
+                toast.remove();
+            }
         }, 5000);
     }
+
+    return toast;
 }
 
 // ========== Load Reference Data ==========
