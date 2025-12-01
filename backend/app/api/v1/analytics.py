@@ -343,12 +343,8 @@ async def get_quick_stats_html(
     plan_execution_credit_pct = (month_credit / month_plan_credit * 100.0) if month_plan_credit > 0 else 0.0
     plan_execution_debit_pct = (month_debit / month_plan_debit * 100.0) if month_plan_debit > 0 else 0.0
 
-    # Format numbers with thousands separator
+    # Format money without decimals (integer display with space separator)
     def format_money(amount: float) -> str:
-        return f"{amount:,.2f}".replace(",", " ")
-
-    # Format money for mobile (no decimals, space separator)
-    def format_money_mobile(amount: float) -> str:
         return f"{int(amount):,}".replace(",", " ")
 
     # Format percentage
@@ -462,11 +458,11 @@ async def get_quick_stats_html(
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
                     <div class="text-[8px] opacity-60">План</div>
-                    <div class="font-semibold text-[10px]">{format_money_mobile(month_plan_income)}</div>
+                    <div class="font-semibold text-[10px]">{format_money(month_plan_income)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
                     <div class="text-[8px] opacity-60">Факт</div>
-                    <div class="font-bold text-success text-[10px]">{format_money_mobile(month_income)}</div>
+                    <div class="font-bold text-success text-[10px]">{format_money(month_income)}</div>
                 </div>
             </div>
         </div>
@@ -480,11 +476,11 @@ async def get_quick_stats_html(
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
                     <div class="text-[8px] opacity-60">План</div>
-                    <div class="font-semibold text-[10px]">{format_money_mobile(month_plan_expense)}</div>
+                    <div class="font-semibold text-[10px]">{format_money(month_plan_expense)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
                     <div class="text-[8px] opacity-60">Факт</div>
-                    <div class="font-bold text-error text-[10px]">{format_money_mobile(month_expense)}</div>
+                    <div class="font-bold text-error text-[10px]">{format_money(month_expense)}</div>
                 </div>
             </div>
         </div>
@@ -498,11 +494,11 @@ async def get_quick_stats_html(
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
                     <div class="text-[8px] opacity-60">План</div>
-                    <div class="font-semibold text-[10px]">{format_money_mobile(month_plan_credit)}</div>
+                    <div class="font-semibold text-[10px]">{format_money(month_plan_credit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
                     <div class="text-[8px] opacity-60">Факт</div>
-                    <div class="font-bold text-info text-[10px]">{format_money_mobile(month_credit)}</div>
+                    <div class="font-bold text-info text-[10px]">{format_money(month_credit)}</div>
                 </div>
             </div>
         </div>
@@ -516,11 +512,11 @@ async def get_quick_stats_html(
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
                     <div class="text-[8px] opacity-60">План</div>
-                    <div class="font-semibold text-[10px]">{format_money_mobile(month_plan_debit)}</div>
+                    <div class="font-semibold text-[10px]">{format_money(month_plan_debit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
                     <div class="text-[8px] opacity-60">Факт</div>
-                    <div class="font-bold text-warning text-[10px]">{format_money_mobile(month_debit)}</div>
+                    <div class="font-bold text-warning text-[10px]">{format_money(month_debit)}</div>
                 </div>
             </div>
         </div>
