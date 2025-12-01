@@ -180,27 +180,85 @@ def calculate_cumulative(data: List[float]) -> List[float]:
     return cumulative
 
 
-def get_previous_period(start_date: date, end_date: date) -> Tuple[date, date]:
+def get_previous_period(start_date: date, end_date: date, period: str | None = None) -> Tuple[date, date]:
     """
-    Calculate previous period boundaries by shifting backwards by period length.
+    Calculate previous period boundaries.
+
+    For calendar periods (month, quarter, year): returns previous FULL calendar period.
+    For custom ranges: shifts backwards by period length.
 
     Used for waterfall chart initial balance calculation.
 
-    Example:
-        Input:  15.10.2025 - 10.11.2025 (27 days)
-        Output: 18.09.2025 - 14.10.2025 (27 days before)
+    Examples:
+        Calendar month:
+            Input:  01.11.2025 - 30.11.2025, period='month'
+            Output: 01.10.2025 - 31.10.2025 (full October)
+
+        Custom range:
+            Input:  15.10.2025 - 10.11.2025, period=None
+            Output: 18.09.2025 - 14.10.2025 (27 days before)
 
     Args:
         start_date: Start of current period
         end_date: End of current period
+        period: Period type ('month', 'quarter', 'year') or None for custom
 
     Returns:
         Tuple of (prev_start_date, prev_end_date)
     """
-    period_length = (end_date - start_date).days + 1
-    prev_end = start_date - timedelta(days=1)
-    prev_start = prev_end - timedelta(days=period_length - 1)
-    return prev_start, prev_end
+    if period == 'month':
+        # Previous calendar month
+        # Go back 1 month from start_date
+        if start_date.month == 1:
+            prev_year = start_date.year - 1
+            prev_month = 12
+        else:
+            prev_year = start_date.year
+            prev_month = start_date.month - 1
+
+        prev_start = date(prev_year, prev_month, 1)
+        _, last_day = cal_module.monthrange(prev_year, prev_month)
+        prev_end = date(prev_year, prev_month, last_day)
+
+        return prev_start, prev_end
+
+    elif period == 'quarter':
+        # Previous calendar quarter
+        # Determine current quarter
+        current_quarter = (start_date.month - 1) // 3 + 1
+
+        # Previous quarter
+        if current_quarter == 1:
+            prev_quarter = 4
+            prev_year = start_date.year - 1
+        else:
+            prev_quarter = current_quarter - 1
+            prev_year = start_date.year
+
+        # Quarter bounds
+        first_month = (prev_quarter - 1) * 3 + 1
+        last_month = first_month + 2
+
+        prev_start = date(prev_year, first_month, 1)
+        _, last_day = cal_module.monthrange(prev_year, last_month)
+        prev_end = date(prev_year, last_month, last_day)
+
+        return prev_start, prev_end
+
+    elif period == 'year':
+        # Previous calendar year
+        prev_year = start_date.year - 1
+        prev_start = date(prev_year, 1, 1)
+        prev_end = date(prev_year, 12, 31)
+
+        return prev_start, prev_end
+
+    else:
+        # Custom range: shift backwards by period length
+        period_length = (end_date - start_date).days + 1
+        prev_end = start_date - timedelta(days=1)
+        prev_start = prev_end - timedelta(days=period_length - 1)
+        return prev_start, prev_end
 
 
 # ==================== Analytics Endpoints ====================
@@ -1358,7 +1416,8 @@ async def get_waterfall_data(
                 })
 
         # Calculate initial balance from previous period
-        prev_start, prev_end = get_previous_period(start_date, end_date)
+        # Pass period parameter to get correct calendar period (month/quarter/year)
+        prev_start, prev_end = get_previous_period(start_date, end_date, period)
 
         initial_balance_query = select(
             func.sum(
