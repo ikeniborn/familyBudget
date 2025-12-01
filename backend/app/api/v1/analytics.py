@@ -360,75 +360,132 @@ async def get_quick_stats_html(
         else:
             return "text-error"
 
-    # Generate HTML using DaisyUI stats components
+    # Generate HTML - single card with plan-fact table (full width, responsive)
     html = f"""
-    <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
-        <div class="stat">
-            <div class="stat-title">Сегодня</div>
-            <div class="stat-value text-xs">
-                <div class="overflow-x-auto">
-                    <table class="table table-xs">
-                        <thead>
-                            <tr>
-                                <th class="text-center">Доходы</th>
-                                <th class="text-center">Расходы</th>
-                                <th class="text-center">Пополнение</th>
-                                <th class="text-center">Списание</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="text-center text-success font-bold">{format_money(today_income)}</td>
-                                <td class="text-center text-error font-bold">{format_money(today_expense)}</td>
-                                <td class="text-center text-info font-bold">{format_money(today_credit)}</td>
-                                <td class="text-center text-warning font-bold">{format_money(today_debit)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <div class="card bg-base-100 shadow-xl w-full">
+        <div class="card-body p-3 sm:p-6">
+            <h3 class="card-title text-base sm:text-lg mb-2 sm:mb-4">План-факт месяца</h3>
 
-        <div class="stat">
-            <div class="stat-title">План-факт месяца</div>
-            <div class="stat-value text-xs">
-                <div class="overflow-x-auto">
-                    <table class="table table-xs">
-                        <thead>
-                            <tr>
-                                <th></th>
-                                <th class="text-right">План</th>
-                                <th class="text-right">Факт</th>
-                                <th class="text-right">Исполнение</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td class="font-semibold">Доходы</td>
-                                <td class="text-right">{format_money(month_plan_income)}</td>
-                                <td class="text-right text-success">{format_money(month_income)}</td>
-                                <td class="text-right {get_pct_color(plan_execution_income_pct)} font-bold">{format_pct(plan_execution_income_pct)}</td>
-                            </tr>
-                            <tr>
-                                <td class="font-semibold">Расходы</td>
-                                <td class="text-right">{format_money(month_plan_expense)}</td>
-                                <td class="text-right text-error">{format_money(month_expense)}</td>
-                                <td class="text-right {get_pct_color(plan_execution_expense_pct)} font-bold">{format_pct(plan_execution_expense_pct)}</td>
-                            </tr>
-                            <tr>
-                                <td class="font-semibold">Пополнение</td>
-                                <td class="text-right">{format_money(month_plan_credit)}</td>
-                                <td class="text-right text-info">{format_money(month_credit)}</td>
-                                <td class="text-right {get_pct_color(plan_execution_credit_pct)} font-bold">{format_pct(plan_execution_credit_pct)}</td>
-                            </tr>
-                            <tr>
-                                <td class="font-semibold">Списание</td>
-                                <td class="text-right">{format_money(month_plan_debit)}</td>
-                                <td class="text-right text-warning">{format_money(month_debit)}</td>
-                                <td class="text-right {get_pct_color(plan_execution_debit_pct)} font-bold">{format_pct(plan_execution_debit_pct)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- Desktop version: horizontal table -->
+            <div class="hidden lg:block overflow-x-auto">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th class="text-left text-base">Категория</th>
+                            <th class="text-right text-base">План</th>
+                            <th class="text-right text-base">Факт</th>
+                            <th class="text-right text-base">Исполнение</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="font-semibold text-base">💰 Доходы</td>
+                            <td class="text-right text-base">{format_money(month_plan_income)}</td>
+                            <td class="text-right text-success font-bold text-base">{format_money(month_income)}</td>
+                            <td class="text-right {get_pct_color(plan_execution_income_pct)} font-bold text-lg">{format_pct(plan_execution_income_pct)}</td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold text-base">💸 Расходы</td>
+                            <td class="text-right text-base">{format_money(month_plan_expense)}</td>
+                            <td class="text-right text-error font-bold text-base">{format_money(month_expense)}</td>
+                            <td class="text-right {get_pct_color(plan_execution_expense_pct)} font-bold text-lg">{format_pct(plan_execution_expense_pct)}</td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold text-base">➕ Пополнение</td>
+                            <td class="text-right text-base">{format_money(month_plan_credit)}</td>
+                            <td class="text-right text-info font-bold text-base">{format_money(month_credit)}</td>
+                            <td class="text-right {get_pct_color(plan_execution_credit_pct)} font-bold text-lg">{format_pct(plan_execution_credit_pct)}</td>
+                        </tr>
+                        <tr>
+                            <td class="font-semibold text-base">➖ Списание</td>
+                            <td class="text-right text-base">{format_money(month_plan_debit)}</td>
+                            <td class="text-right text-warning font-bold text-base">{format_money(month_debit)}</td>
+                            <td class="text-right {get_pct_color(plan_execution_debit_pct)} font-bold text-lg">{format_pct(plan_execution_debit_pct)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Mobile version: compact cards -->
+            <div class="lg:hidden space-y-3">
+                <!-- Доходы -->
+                <div class="card bg-base-200 shadow">
+                    <div class="card-body p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">💰 Доходы</span>
+                            <span class="badge badge-lg {get_pct_color(plan_execution_income_pct)} font-bold">{format_pct(plan_execution_income_pct)}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <div class="text-xs opacity-70">План</div>
+                                <div class="font-semibold">{format_money(month_plan_income)}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs opacity-70">Факт</div>
+                                <div class="font-bold text-success">{format_money(month_income)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Расходы -->
+                <div class="card bg-base-200 shadow">
+                    <div class="card-body p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">💸 Расходы</span>
+                            <span class="badge badge-lg {get_pct_color(plan_execution_expense_pct)} font-bold">{format_pct(plan_execution_expense_pct)}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <div class="text-xs opacity-70">План</div>
+                                <div class="font-semibold">{format_money(month_plan_expense)}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs opacity-70">Факт</div>
+                                <div class="font-bold text-error">{format_money(month_expense)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Пополнение -->
+                <div class="card bg-base-200 shadow">
+                    <div class="card-body p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">➕ Пополнение</span>
+                            <span class="badge badge-lg {get_pct_color(plan_execution_credit_pct)} font-bold">{format_pct(plan_execution_credit_pct)}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <div class="text-xs opacity-70">План</div>
+                                <div class="font-semibold">{format_money(month_plan_credit)}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs opacity-70">Факт</div>
+                                <div class="font-bold text-info">{format_money(month_credit)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Списание -->
+                <div class="card bg-base-200 shadow">
+                    <div class="card-body p-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="font-semibold text-sm">➖ Списание</span>
+                            <span class="badge badge-lg {get_pct_color(plan_execution_debit_pct)} font-bold">{format_pct(plan_execution_debit_pct)}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div>
+                                <div class="text-xs opacity-70">План</div>
+                                <div class="font-semibold">{format_money(month_plan_debit)}</div>
+                            </div>
+                            <div>
+                                <div class="text-xs opacity-70">Факт</div>
+                                <div class="font-bold text-warning">{format_money(month_debit)}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
