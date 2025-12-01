@@ -320,22 +320,28 @@ async def get_quick_stats_html(
     month_plan_result = await session.execute(month_plan_query)
     month_plan_data = {row.type: float(row.total) for row in month_plan_result.all()}
 
-    # Calculate stats (include credit as income, debit as expense)
-    today_income = today_data.get("income", 0.0) + today_data.get("credit", 0.0)
-    today_expense = today_data.get("expense", 0.0) + today_data.get("debit", 0.0)
-    today_balance = today_income - today_expense
+    # Calculate stats (separate income/expense and credit/debit)
+    today_income = today_data.get("income", 0.0)
+    today_expense = today_data.get("expense", 0.0)
+    today_credit = today_data.get("credit", 0.0)
+    today_debit = today_data.get("debit", 0.0)
 
-    month_income = month_data.get("income", 0.0) + month_data.get("credit", 0.0)
-    month_expense = month_data.get("expense", 0.0) + month_data.get("debit", 0.0)
-    month_balance = month_income - month_expense
+    month_income = month_data.get("income", 0.0)
+    month_expense = month_data.get("expense", 0.0)
+    month_credit = month_data.get("credit", 0.0)
+    month_debit = month_data.get("debit", 0.0)
 
-    # Calculate PLAN stats for current month
-    month_plan_income = month_plan_data.get("income", 0.0) + month_plan_data.get("credit", 0.0)
-    month_plan_expense = month_plan_data.get("expense", 0.0) + month_plan_data.get("debit", 0.0)
+    # Calculate PLAN stats for current month (separate income/expense and credit/debit)
+    month_plan_income = month_plan_data.get("income", 0.0)
+    month_plan_expense = month_plan_data.get("expense", 0.0)
+    month_plan_credit = month_plan_data.get("credit", 0.0)
+    month_plan_debit = month_plan_data.get("debit", 0.0)
 
     # Calculate plan execution percentage (with division by zero protection)
     plan_execution_income_pct = (month_income / month_plan_income * 100.0) if month_plan_income > 0 else 0.0
     plan_execution_expense_pct = (month_expense / month_plan_expense * 100.0) if month_plan_expense > 0 else 0.0
+    plan_execution_credit_pct = (month_credit / month_plan_credit * 100.0) if month_plan_credit > 0 else 0.0
+    plan_execution_debit_pct = (month_debit / month_plan_debit * 100.0) if month_plan_debit > 0 else 0.0
 
     # Format numbers with thousands separator
     def format_money(amount: float) -> str:
@@ -363,25 +369,8 @@ async def get_quick_stats_html(
             </div>
             <div class="stat-title">Сегодня</div>
             <div class="stat-value text-sm lg:text-2xl">
-                <span class="text-success">+{format_money(today_income)}</span> /
-                <span class="text-error">-{format_money(today_expense)}</span>
-            </div>
-            <div class="stat-desc">
-                Баланс: <span class="font-bold {'text-success' if today_balance >= 0 else 'text-error'}">{format_money(abs(today_balance))} ₽</span>
-            </div>
-        </div>
-
-        <div class="stat">
-            <div class="stat-figure text-secondary">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
-            </div>
-            <div class="stat-title">Текущий месяц</div>
-            <div class="stat-value text-sm lg:text-2xl">
-                <span class="text-success">+{format_money(month_income)}</span> /
-                <span class="text-error">-{format_money(month_expense)}</span>
-            </div>
-            <div class="stat-desc">
-                Баланс: <span class="font-bold {'text-success' if month_balance >= 0 else 'text-error'}">{format_money(abs(month_balance))} ₽</span>
+                <span class="text-success">+{format_money(today_income + today_credit)}</span> /
+                <span class="text-error">-{format_money(today_expense + today_debit)}</span>
             </div>
         </div>
 
@@ -390,19 +379,45 @@ async def get_quick_stats_html(
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
             </div>
             <div class="stat-title">План-факт месяца</div>
-            <div class="stat-value text-xs lg:text-xl">
-                <div class="mb-1">
-                    <span class="text-success text-xs lg:text-sm">Доходы: </span>
-                    <span class="{get_pct_color(plan_execution_income_pct)} font-bold">{format_pct(plan_execution_income_pct)}</span>
+            <div class="stat-value text-xs">
+                <div class="overflow-x-auto">
+                    <table class="table table-xs">
+                        <thead>
+                            <tr>
+                                <th></th>
+                                <th class="text-right">План</th>
+                                <th class="text-right">Факт</th>
+                                <th class="text-right">Исполнение</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="font-semibold">Доходы</td>
+                                <td class="text-right">{format_money(month_plan_income)}</td>
+                                <td class="text-right text-success">{format_money(month_income)}</td>
+                                <td class="text-right {get_pct_color(plan_execution_income_pct)} font-bold">{format_pct(plan_execution_income_pct)}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-semibold">Расходы</td>
+                                <td class="text-right">{format_money(month_plan_expense)}</td>
+                                <td class="text-right text-error">{format_money(month_expense)}</td>
+                                <td class="text-right {get_pct_color(plan_execution_expense_pct)} font-bold">{format_pct(plan_execution_expense_pct)}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-semibold">Пополнение</td>
+                                <td class="text-right">{format_money(month_plan_credit)}</td>
+                                <td class="text-right text-info">{format_money(month_credit)}</td>
+                                <td class="text-right {get_pct_color(plan_execution_credit_pct)} font-bold">{format_pct(plan_execution_credit_pct)}</td>
+                            </tr>
+                            <tr>
+                                <td class="font-semibold">Списание</td>
+                                <td class="text-right">{format_money(month_plan_debit)}</td>
+                                <td class="text-right text-warning">{format_money(month_debit)}</td>
+                                <td class="text-right {get_pct_color(plan_execution_debit_pct)} font-bold">{format_pct(plan_execution_debit_pct)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div>
-                    <span class="text-error text-xs lg:text-sm">Расходы: </span>
-                    <span class="{get_pct_color(plan_execution_expense_pct)} font-bold">{format_pct(plan_execution_expense_pct)}</span>
-                </div>
-            </div>
-            <div class="stat-desc text-xs">
-                План: <span class="text-success">{format_money(month_plan_income)}</span> / <span class="text-error">{format_money(month_plan_expense)}</span><br>
-                Факт: <span class="text-success">{format_money(month_income)}</span> / <span class="text-error">{format_money(month_expense)}</span>
             </div>
         </div>
     </div>
