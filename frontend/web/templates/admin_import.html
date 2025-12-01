@@ -91,12 +91,6 @@
 
             <!-- Post-upload actions (показываются после загрузки файла) -->
             <div id="post-upload-actions" class="mt-4" style="display: none;">
-                <div class="alert alert-success mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span id="upload-success-text">Файл успешно загружен</span>
-                </div>
                 <div class="flex gap-2">
                     <button type="button" class="btn btn-primary gap-2" id="create-mapping-btn" onclick="createMapping()" style="display: none;">
                         Создать маппинг
@@ -479,7 +473,7 @@ async function skipToEnrichment() {
 }
 
 async function clearStagingByBank() {
-    // Clear staging records for selected bank only
+    // Clear staging records for selected bank only (silent - no notifications)
     try {
         const response = await fetch('/api/v1/admin/staging', { credentials: 'include' });
         if (!response.ok) return;
@@ -491,27 +485,20 @@ async function clearStagingByBank() {
             return; // Nothing to clear
         }
 
-        let deletedCount = 0;
-
-        // Delete each record for selected bank
+        // Delete each record for selected bank (suppress 404 errors in console)
         for (const record of bankStagingData) {
             try {
-                const response = await fetch(`/api/v1/admin/staging/${record.id}`, {
+                await fetch(`/api/v1/admin/staging/${record.id}`, {
                     method: 'DELETE',
                     credentials: 'include'
                 });
-
-                if (response.ok || response.status === 404) {
-                    deletedCount++;
-                }
+                // Ignore response - 200 or 404 both mean "record is gone"
             } catch (err) {
-                console.error(`Error deleting record ${record.id}:`, err);
+                // Silently ignore errors - this is a cleanup operation
             }
         }
-
-        showNotification(`Очищено ${deletedCount} записей для выбранного банка`, 'success');
     } catch (error) {
-        console.error('Error clearing staging by bank:', error);
+        // Silently ignore - this is a cleanup operation before upload
     }
 }
 
@@ -1365,6 +1352,12 @@ async function clearStaging() {
     );
     if (!confirmed) return;
 
+    // Show loading state on button
+    const clearBtn = document.querySelector('button[onclick="clearStaging()"]');
+    const originalHTML = clearBtn.innerHTML;
+    clearBtn.disabled = true;
+    clearBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Очистка...';
+
     try {
         let deletedCount = 0;
         let errorCount = 0;
@@ -1384,11 +1377,11 @@ async function clearStaging() {
                     deletedCount++;
                 } else {
                     errorCount++;
-                    console.error(`Failed to delete record ${record.id}: ${response.status}`);
+                    // Don't log to console - suppress 404 errors
                 }
             } catch (err) {
                 errorCount++;
-                console.error(`Error deleting record ${record.id}:`, err);
+                // Don't log to console - suppress errors
             }
         }
 
@@ -1407,6 +1400,10 @@ async function clearStaging() {
     } catch (error) {
         console.error('Clear staging error:', error);
         showNotification(`Ошибка: ${error.message}`, 'error');
+
+        // Restore button state on error
+        clearBtn.disabled = false;
+        clearBtn.innerHTML = originalHTML;
     }
 }
 
