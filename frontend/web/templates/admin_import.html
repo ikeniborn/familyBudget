@@ -36,6 +36,15 @@
     <div class="card bg-base-100 shadow-lg" id="step-2-upload" style="display: none;">
         <div class="card-body">
             <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка файла</h2>
+
+            <!-- Staging Info (показывается только если есть данные) -->
+            <div id="staging-info-alert" class="alert alert-info mb-4" style="display: none;">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span id="staging-info-text"></span>
+            </div>
+
             <form id="upload-form" onsubmit="uploadCSV(event)" class="space-y-4">
                 <div class="form-control">
                     <label class="label">
@@ -54,7 +63,7 @@
                         </svg>
                         Загрузить и проанализировать CSV
                     </button>
-                    <button type="button" class="btn btn-secondary gap-2" onclick="checkAndSkipToEnrichment()">
+                    <button type="button" class="btn btn-secondary gap-2" id="skip-to-enrichment-btn" onclick="checkAndSkipToEnrichment()" style="display: none;">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -259,7 +268,7 @@ async function loadBanks() {
     }
 }
 
-function onBankSelected() {
+async function onBankSelected() {
     const bankId = document.getElementById('bank-selector').value;
     if (bankId) {
         selectedBankId = parseInt(bankId);
@@ -267,8 +276,46 @@ function onBankSelected() {
         updateProgressIndicator(2);
 
         // Try to load saved mapping
-        loadSavedMapping(selectedBankId);
+        await loadSavedMapping(selectedBankId);
+
+        // Check staging and update UI
+        await checkStagingAndUpdateUI();
     }
+}
+
+async function checkStagingAndUpdateUI() {
+    try {
+        const response = await fetch('/api/v1/admin/staging', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            console.error('Failed to check staging');
+            hideStagingInfo();
+            return;
+        }
+
+        const stagingData = await response.json();
+
+        if (stagingData.length > 0) {
+            // Show staging info and skip button
+            document.getElementById('staging-info-text').textContent =
+                `В staging уже есть ${stagingData.length} записей. Вы можете пропустить загрузку нового файла и перейти к обогащению.`;
+            document.getElementById('staging-info-alert').style.display = 'flex';
+            document.getElementById('skip-to-enrichment-btn').style.display = 'inline-flex';
+        } else {
+            // Hide staging info and skip button
+            hideStagingInfo();
+        }
+    } catch (error) {
+        console.error('Error checking staging:', error);
+        hideStagingInfo();
+    }
+}
+
+function hideStagingInfo() {
+    document.getElementById('staging-info-alert').style.display = 'none';
+    document.getElementById('skip-to-enrichment-btn').style.display = 'none';
 }
 
 async function loadSavedMapping(bankId) {
@@ -363,26 +410,11 @@ async function checkAndSkipToEnrichment() {
     }
 
     try {
-        const response = await fetch('/api/v1/admin/staging', {
-            credentials: 'include'
-        });
-
-        if (!response.ok) throw new Error('Failed to check staging');
-
-        const stagingData = await response.json();
-
-        if (stagingData.length === 0) {
-            showNotification('В staging нет данных. Загрузите и обработайте CSV файл.', 'error');
-            return;
-        }
-
-        // Jump to enrichment step
-        showNotification(`Найдено ${stagingData.length} записей в staging`, 'success');
+        // Jump directly to enrichment step
         await loadStagingTable();
-
     } catch (error) {
-        console.error('Check staging error:', error);
-        showNotification(`Ошибка проверки staging: ${error.message}`, 'error');
+        console.error('Skip to enrichment error:', error);
+        showNotification(`Ошибка загрузки staging: ${error.message}`, 'error');
     }
 }
 
