@@ -1,7 +1,7 @@
 """
 Import Staging Model
 
-Temporary staging table for Tinkoff CSV import workflow.
+Temporary staging table for multi-bank CSV import workflow.
 Holds imported transactions before user enrichment (category, FC, CC assignment).
 
 Pattern: Staging table (temporary, deleted after import execution)
@@ -11,13 +11,13 @@ Table: t_import_staging
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Text
+from sqlalchemy import JSON, Text, Column, BigInteger, ForeignKey
 from sqlmodel import Field, SQLModel
 
 
 class ImportStaging(SQLModel, table=True):
     """
-    Staging table for Tinkoff bank CSV import.
+    Staging table for multi-bank CSV import.
 
     Stores raw CSV transactions temporarily while user enriches them with:
     - article_id (budget category)
@@ -26,7 +26,7 @@ class ImportStaging(SQLModel, table=True):
     - is_selected flag (whether to import this transaction)
 
     Workflow:
-    1. CSV upload → parse → insert ALL transactions here
+    1. CSV upload → parse with mapping → insert ALL transactions here
     2. User edits in UI (assign category, FC, mark is_selected)
     3. Execute import → transfer is_selected=true to t_f_budget_fact
     4. Cleanup staging
@@ -35,15 +35,14 @@ class ImportStaging(SQLModel, table=True):
     Pattern: Temporary staging (deleted after import)
 
     Examples:
-        # Raw Tinkoff CSV transaction
+        # Generic CSV transaction (from any bank)
         >>> staging = ImportStaging(
         ...     user_id=123,
-        ...     tinkoff_date=date(2025, 11, 18),
-        ...     tinkoff_amount="-900,00",
-        ...     tinkoff_category="Фастфуд",
-        ...     tinkoff_mcc="5814",
-        ...     tinkoff_description="Кафе",
-        ...     tinkoff_card="*5958",
+        ...     file_upload_id=456,
+        ...     fact_date=date(2025, 11, 18),
+        ...     amount_string="-900,00",
+        ...     description="Кафе",
+        ...     csv_metadata={"category": "Фастфуд", "mcc": "5814", "card": "*5958"},
         ...     is_selected=False
         ... )
     """
@@ -65,43 +64,52 @@ class ImportStaging(SQLModel, table=True):
         description="User who uploaded this CSV import"
     )
 
-    # Raw Tinkoff CSV fields (immutable)
-    tinkoff_date: date = Field(
-        nullable=False,
-        description="Transaction date from Tinkoff CSV (Дата операции)"
+    # File upload reference
+    file_upload_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(BigInteger, ForeignKey("t_import_file_upload.id"), nullable=True),
+        description="Reference to file upload metadata"
     )
 
-    tinkoff_amount: str = Field(
+    # Bank provider reference (for filtering staging by bank)
+    bank_provider_id: Optional[int] = Field(
+        default=None,
+        foreign_key="t_d_bank_provider.id",
+        index=True,
+        description="Bank provider ID (for filtering staging records by bank)"
+    )
+
+    # Generic CSV fields (mapped from any bank's CSV)
+    fact_date: date = Field(
+        nullable=False,
+        description="Transaction date (mapped from CSV column)"
+    )
+
+    amount_string: str = Field(
         max_length=20,
         nullable=False,
-        description="Raw amount string from CSV with sign and comma (e.g., '-900,00')"
+        description="Raw amount string from CSV with sign and separator (e.g., '-900,00')"
     )
 
-    tinkoff_category: Optional[str] = Field(
+    description: Optional[str] = Field(
         default=None,
-        max_length=255,
-        description="Tinkoff's category (e.g., 'Фастфуд', 'Супермаркеты')"
+        sa_column=Column(Text),
+        description="Transaction description from CSV (mapped column)"
     )
 
-    tinkoff_mcc: Optional[str] = Field(
+    csv_metadata: Optional[dict] = Field(
         default=None,
-        max_length=10,
-        description="Merchant Category Code from Tinkoff (e.g., '5814')"
-    )
-
-    tinkoff_description: Optional[str] = Field(
-        default=None,
-        sa_type=Text,  # TEXT type
-        description="Transaction description from Tinkoff CSV"
-    )
-
-    tinkoff_card: Optional[str] = Field(
-        default=None,
-        max_length=20,
-        description="Card number from Tinkoff CSV (e.g., '*5958')"
+        sa_column=Column(JSON),
+        description="Bank-specific metadata (category, mcc, card, etc.) for UI filters"
     )
 
     # User-assigned enrichment fields (mutable via UI)
+    budget_description: Optional[str] = Field(
+        default=None,
+        sa_type=Text,
+        description="Custom budget description (overrides tinkoff_description in final import)"
+    )
+
     article_id: Optional[int] = Field(
         default=None,
         foreign_key="t_d_article.id",

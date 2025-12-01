@@ -180,27 +180,85 @@ def calculate_cumulative(data: List[float]) -> List[float]:
     return cumulative
 
 
-def get_previous_period(start_date: date, end_date: date) -> Tuple[date, date]:
+def get_previous_period(start_date: date, end_date: date, period: str | None = None) -> Tuple[date, date]:
     """
-    Calculate previous period boundaries by shifting backwards by period length.
+    Calculate previous period boundaries.
+
+    For calendar periods (month, quarter, year): returns previous FULL calendar period.
+    For custom ranges: shifts backwards by period length.
 
     Used for waterfall chart initial balance calculation.
 
-    Example:
-        Input:  15.10.2025 - 10.11.2025 (27 days)
-        Output: 18.09.2025 - 14.10.2025 (27 days before)
+    Examples:
+        Calendar month:
+            Input:  01.11.2025 - 30.11.2025, period='month'
+            Output: 01.10.2025 - 31.10.2025 (full October)
+
+        Custom range:
+            Input:  15.10.2025 - 10.11.2025, period=None
+            Output: 18.09.2025 - 14.10.2025 (27 days before)
 
     Args:
         start_date: Start of current period
         end_date: End of current period
+        period: Period type ('month', 'quarter', 'year') or None for custom
 
     Returns:
         Tuple of (prev_start_date, prev_end_date)
     """
-    period_length = (end_date - start_date).days + 1
-    prev_end = start_date - timedelta(days=1)
-    prev_start = prev_end - timedelta(days=period_length - 1)
-    return prev_start, prev_end
+    if period == 'month':
+        # Previous calendar month
+        # Go back 1 month from start_date
+        if start_date.month == 1:
+            prev_year = start_date.year - 1
+            prev_month = 12
+        else:
+            prev_year = start_date.year
+            prev_month = start_date.month - 1
+
+        prev_start = date(prev_year, prev_month, 1)
+        _, last_day = cal_module.monthrange(prev_year, prev_month)
+        prev_end = date(prev_year, prev_month, last_day)
+
+        return prev_start, prev_end
+
+    elif period == 'quarter':
+        # Previous calendar quarter
+        # Determine current quarter
+        current_quarter = (start_date.month - 1) // 3 + 1
+
+        # Previous quarter
+        if current_quarter == 1:
+            prev_quarter = 4
+            prev_year = start_date.year - 1
+        else:
+            prev_quarter = current_quarter - 1
+            prev_year = start_date.year
+
+        # Quarter bounds
+        first_month = (prev_quarter - 1) * 3 + 1
+        last_month = first_month + 2
+
+        prev_start = date(prev_year, first_month, 1)
+        _, last_day = cal_module.monthrange(prev_year, last_month)
+        prev_end = date(prev_year, last_month, last_day)
+
+        return prev_start, prev_end
+
+    elif period == 'year':
+        # Previous calendar year
+        prev_year = start_date.year - 1
+        prev_start = date(prev_year, 1, 1)
+        prev_end = date(prev_year, 12, 31)
+
+        return prev_start, prev_end
+
+    else:
+        # Custom range: shift backwards by period length
+        period_length = (end_date - start_date).days + 1
+        prev_end = start_date - timedelta(days=1)
+        prev_start = prev_end - timedelta(days=period_length - 1)
+        return prev_start, prev_end
 
 
 # ==================== Analytics Endpoints ====================
@@ -279,72 +337,269 @@ async def get_quick_stats_html(
     today = date.today()
     month_start = date(today.year, today.month, 1)
 
-    # Today's stats
+    # Today's stats (FACTS ONLY - exclude plans)
     # Shared family budget - NO user_id filter
     today_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.fact_date == today
+        Fact.fact_date == today,
+        Fact.record_type == "fact"
     ).group_by(Article.type)
 
     today_result = await session.execute(today_query)
     today_data = {row.type: float(row.total) for row in today_result.all()}
 
-    # This month's stats
+    # This month's stats (FACTS ONLY - exclude plans)
     # Shared family budget - NO user_id filter
     month_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= month_start,
-        Fact.fact_date <= today
+        Fact.fact_date <= today,
+        Fact.record_type == "fact"
     ).group_by(Article.type)
 
     month_result = await session.execute(month_query)
     month_data = {row.type: float(row.total) for row in month_result.all()}
 
-    # Calculate stats (include credit as income, debit as expense)
-    today_income = today_data.get("income", 0.0) + today_data.get("credit", 0.0)
-    today_expense = today_data.get("expense", 0.0) + today_data.get("debit", 0.0)
-    today_balance = today_income - today_expense
+    # This month's PLANS (for plan-fact comparison)
+    # Shared family budget - NO user_id filter
+    month_plan_query = select(
+        Article.type.label("type"),
+        func.sum(Fact.amount).label("total")
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.fact_date >= month_start,
+        Fact.fact_date <= date(today.year, today.month, cal_module.monthrange(today.year, today.month)[1]),
+        Fact.record_type == "plan"
+    ).group_by(Article.type)
 
-    month_income = month_data.get("income", 0.0) + month_data.get("credit", 0.0)
-    month_expense = month_data.get("expense", 0.0) + month_data.get("debit", 0.0)
-    month_balance = month_income - month_expense
+    month_plan_result = await session.execute(month_plan_query)
+    month_plan_data = {row.type: float(row.total) for row in month_plan_result.all()}
 
-    # Format numbers with thousands separator
+    # Calculate stats (separate income/expense and credit/debit)
+    today_income = today_data.get("income", 0.0)
+    today_expense = today_data.get("expense", 0.0)
+    today_credit = today_data.get("credit", 0.0)
+    today_debit = today_data.get("debit", 0.0)
+
+    month_income = month_data.get("income", 0.0)
+    month_expense = month_data.get("expense", 0.0)
+    month_credit = month_data.get("credit", 0.0)
+    month_debit = month_data.get("debit", 0.0)
+
+    # Calculate PLAN stats for current month (separate income/expense and credit/debit)
+    month_plan_income = month_plan_data.get("income", 0.0)
+    month_plan_expense = month_plan_data.get("expense", 0.0)
+    month_plan_credit = month_plan_data.get("credit", 0.0)
+    month_plan_debit = month_plan_data.get("debit", 0.0)
+
+    # Calculate plan execution percentage (with division by zero protection)
+    plan_execution_income_pct = (month_income / month_plan_income * 100.0) if month_plan_income > 0 else 0.0
+    plan_execution_expense_pct = (month_expense / month_plan_expense * 100.0) if month_plan_expense > 0 else 0.0
+    plan_execution_credit_pct = (month_credit / month_plan_credit * 100.0) if month_plan_credit > 0 else 0.0
+    plan_execution_debit_pct = (month_debit / month_plan_debit * 100.0) if month_plan_debit > 0 else 0.0
+
+    # Format money without decimals (integer display with space separator)
     def format_money(amount: float) -> str:
-        return f"{amount:,.2f}".replace(",", " ")
+        return f"{int(amount):,}".replace(",", " ")
 
-    # Generate HTML using DaisyUI stats components
+    # Format percentage
+    def format_pct(pct: float) -> str:
+        return f"{pct:.1f}%"
+
+    # Get color class for percentage (green >= 95%, yellow 80-94%, red < 80%)
+    def get_pct_color(pct: float) -> str:
+        if pct >= 95.0:
+            return "text-success"
+        elif pct >= 80.0:
+            return "text-warning"
+        else:
+            return "text-error"
+
+    # Generate HTML - clean metrics without wrapper card
     html = f"""
-    <div class="stats stats-vertical lg:stats-horizontal shadow w-full">
-        <div class="stat">
-            <div class="stat-figure text-primary">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+    <style>
+        @media (min-width: 768px) {{
+            #desktop-stats {{ display: flex !important; }}
+            #mobile-stats {{ display: none !important; }}
+        }}
+        @media (max-width: 767px) {{
+            #desktop-stats {{ display: none !important; }}
+            #mobile-stats {{ display: grid !important; }}
+        }}
+    </style>
+    <!-- Desktop version: horizontal flex layout -->
+    <div id="desktop-stats" class="flex flex-row gap-4 w-full">
+        <!-- Доходы -->
+        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
+            <div class="mb-1">
+                <span class="font-semibold text-[10px]">💰 Доходы</span>
             </div>
-            <div class="stat-title">Сегодня</div>
-            <div class="stat-value text-sm lg:text-2xl">
-                <span class="text-success">+{format_money(today_income)}</span> /
-                <span class="text-error">-{format_money(today_expense)}</span>
-            </div>
-            <div class="stat-desc">
-                Баланс: <span class="font-bold {'text-success' if today_balance >= 0 else 'text-error'}">{format_money(abs(today_balance))} ₽</span>
+            <div class="space-y-0.5">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">План</div>
+                    <div class="font-semibold text-[8px]">{format_money(month_plan_income)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">Факт</div>
+                    <div class="font-bold text-success text-[8px]">{format_money(month_income)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_income_pct)} text-[6px]">{format_pct(plan_execution_income_pct)}</div>
+                </div>
             </div>
         </div>
 
-        <div class="stat">
-            <div class="stat-figure text-secondary">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+        <!-- Расходы -->
+        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
+            <div class="mb-1">
+                <span class="font-semibold text-[10px]">💸 Расходы</span>
             </div>
-            <div class="stat-title">Текущий месяц</div>
-            <div class="stat-value text-sm lg:text-2xl">
-                <span class="text-success">+{format_money(month_income)}</span> /
-                <span class="text-error">-{format_money(month_expense)}</span>
+            <div class="space-y-0.5">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">План</div>
+                    <div class="font-semibold text-[8px]">{format_money(month_plan_expense)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">Факт</div>
+                    <div class="font-bold text-error text-[8px]">{format_money(month_expense)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_expense_pct)} text-[6px]">{format_pct(plan_execution_expense_pct)}</div>
+                </div>
             </div>
-            <div class="stat-desc">
-                Баланс: <span class="font-bold {'text-success' if month_balance >= 0 else 'text-error'}">{format_money(abs(month_balance))} ₽</span>
+        </div>
+
+        <!-- Пополнение -->
+        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
+            <div class="mb-1">
+                <span class="font-semibold text-[10px]">➕ Пополнение</span>
+            </div>
+            <div class="space-y-0.5">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">План</div>
+                    <div class="font-semibold text-[8px]">{format_money(month_plan_credit)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">Факт</div>
+                    <div class="font-bold text-info text-[8px]">{format_money(month_credit)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_credit_pct)} text-[6px]">{format_pct(plan_execution_credit_pct)}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Списание -->
+        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
+            <div class="mb-1">
+                <span class="font-semibold text-[10px]">➖ Списание</span>
+            </div>
+            <div class="space-y-0.5">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">План</div>
+                    <div class="font-semibold text-[8px]">{format_money(month_plan_debit)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">Факт</div>
+                    <div class="font-bold text-warning text-[8px]">{format_money(month_debit)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[8px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_debit_pct)} text-[6px]">{format_pct(plan_execution_debit_pct)}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile version: 2x2 grid -->
+    <div id="mobile-stats" class="grid grid-cols-2 gap-3">
+        <!-- Доходы -->
+        <div class="bg-base-200 rounded-lg p-2 shadow">
+            <div class="mb-0.5">
+                <span class="font-semibold text-[8px]">💰 Доходы</span>
+            </div>
+            <div class="space-y-0.5">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">План</div>
+                    <div class="font-semibold text-[8px]">{format_money(month_plan_income)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">Факт</div>
+                    <div class="font-bold text-success text-[8px]">{format_money(month_income)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_income_pct)} text-[6px]">{format_pct(plan_execution_income_pct)}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Расходы -->
+        <div class="bg-base-200 rounded-lg p-2 shadow">
+            <div class="mb-0.5">
+                <span class="font-semibold text-[8px]">💸 Расходы</span>
+            </div>
+            <div class="space-y-0.5">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">План</div>
+                    <div class="font-semibold text-[8px]">{format_money(month_plan_expense)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">Факт</div>
+                    <div class="font-bold text-error text-[8px]">{format_money(month_expense)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_expense_pct)} text-[6px]">{format_pct(plan_execution_expense_pct)}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Пополнение -->
+        <div class="bg-base-200 rounded-lg p-2 shadow">
+            <div class="mb-0.5">
+                <span class="font-semibold text-[8px]">➕ Пополнение</span>
+            </div>
+            <div class="space-y-0.5">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">План</div>
+                    <div class="font-semibold text-[8px]">{format_money(month_plan_credit)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">Факт</div>
+                    <div class="font-bold text-info text-[8px]">{format_money(month_credit)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_credit_pct)} text-[6px]">{format_pct(plan_execution_credit_pct)}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Списание -->
+        <div class="bg-base-200 rounded-lg p-2 shadow">
+            <div class="mb-0.5">
+                <span class="font-semibold text-[8px]">➖ Списание</span>
+            </div>
+            <div class="space-y-0.5">
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">План</div>
+                    <div class="font-semibold text-[8px]">{format_money(month_plan_debit)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">Факт</div>
+                    <div class="font-bold text-warning text-[8px]">{format_money(month_debit)}</div>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <div class="text-[6px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_debit_pct)} text-[6px]">{format_pct(plan_execution_debit_pct)}</div>
+                </div>
             </div>
         </div>
     </div>
@@ -433,9 +688,10 @@ async def get_plan_fact_data(
             elif period == "quarter":
                 # Current calendar quarter (from Q start to today)
                 start_date, end_date = get_current_calendar_quarter(today)
-                # Count months from quarter start to current month
-                periods_count = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month + 1
-                date_format = "month"  # Show by months
+                # Count weeks from quarter start to current date
+                days_diff = (end_date - start_date).days + 1
+                periods_count = (days_diff + 6) // 7  # Number of weeks (rounded up)
+                date_format = "week"  # Show by weeks with ISO numbers
             else:  # year
                 # Current calendar year (from Jan 1 to today)
                 start_date, end_date = get_current_calendar_year(today)
@@ -546,7 +802,7 @@ async def get_plan_fact_data(
                 plan_period.append(plan_amount)  # Distributed plan
                 current_date += timedelta(days=1)
         elif date_format == "week":
-            # Для period='month': группировать по календарным неделям
+            # Для period='quarter': группировать по календарным неделям (ISO week numbers)
             # Note: For week aggregation, plan distribution is done at day level first
             # then aggregated by week
             plan_distributed_list = distribute_plan_by_days(plan_by_date, start_date, end_date)
@@ -558,23 +814,38 @@ async def get_plan_fact_data(
                 current_date += timedelta(days=1)
                 idx += 1
 
-            rolling_weeks_data = get_rolling_weeks(periods_count, end_date, include_incomplete=True)
-            for week_start, week_end, iso_label in rolling_weeks_data:
-                # Агрегировать факты за неделю
+            # Generate weeks within quarter boundaries (from start_date to end_date)
+            # Find Monday of the week containing start_date
+            week_start = start_date - timedelta(days=start_date.weekday())
+
+            while week_start <= end_date:
+                week_end = week_start + timedelta(days=6)
+                # Don't go beyond the quarter range
+                actual_week_end = min(week_end, end_date)
+                actual_week_start = max(week_start, start_date)
+
+                # Get ISO week number for this week
+                iso_label = get_iso_week_number(week_start)
+
+                # Aggregate facts for this week (within quarter bounds)
                 week_fact = sum(
                     amount for d, amount in fact_by_date.items()
-                    if week_start <= d <= week_end
+                    if actual_week_start <= d <= actual_week_end
                 )
-                # Агрегировать РАСПРЕДЕЛЕННЫЕ планы за неделю
+                # Aggregate distributed plans for this week (within quarter bounds)
                 week_plan = sum(
                     amount for d, amount in plan_distributed_dict.items()
-                    if week_start <= d <= week_end
+                    if actual_week_start <= d <= actual_week_end
                 )
+
                 labels.append(iso_label)
                 fact_data.append(week_fact)
                 plan_data.append(week_plan)
                 fact_period.append(week_fact)
                 plan_period.append(week_plan)
+
+                # Move to next week
+                week_start += timedelta(days=7)
         elif date_format == "month":
             # Для quarter/year периодов: группировать по календарным месяцам
             # Plan distribution: use distributed plan by month (avg per month)
@@ -791,19 +1062,17 @@ async def get_trends_data(
                 current_date += timedelta(days=1)
 
         elif period == "quarter":
-            # Для period='quarter' (>31 и ≤91 дней): агрегация по календарным неделям (weekly) (v5.1.3 fix)
-            # Iterate through weeks from start_date to end_date
-            current_date = start_date
+            # Для period='quarter': агрегация по календарным неделям с ISO номерами
             # Find the Monday of the week containing start_date
-            week_start = current_date - timedelta(days=current_date.weekday())
+            week_start = start_date - timedelta(days=start_date.weekday())
 
             while week_start <= end_date:
                 week_end = week_start + timedelta(days=6)
-                # Don't go beyond the overall range
+                # Don't go beyond the quarter range
                 actual_week_end = min(week_end, end_date)
                 actual_week_start = max(week_start, start_date)
 
-                # Aggregate week data
+                # Aggregate week data (only within quarter boundaries)
                 week_income = sum(
                     data["income"] for d, data in data_by_date.items()
                     if actual_week_start <= d <= actual_week_end
@@ -813,9 +1082,10 @@ async def get_trends_data(
                     if actual_week_start <= d <= actual_week_end
                 )
 
-                # Label: "Нед дд.мм-дд.мм"
-                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
-                labels.append(week_label)
+                # Get ISO week number for label
+                iso_label = get_iso_week_number(week_start)
+
+                labels.append(iso_label)
                 income_data.append(week_income)
                 expense_data.append(week_expense)
 
@@ -1090,7 +1360,7 @@ async def get_waterfall_data(
                 # Current calendar quarter (from Q start to today)
                 start_date, end_date = get_current_calendar_quarter(today)
                 group_by_expr = Fact.fact_date
-                label_format = "month"  # Group by months
+                label_format = "week"  # Group by weeks with ISO numbers
             else:  # year
                 # Current calendar year (from Jan 1 to today)
                 start_date, end_date = get_current_calendar_year(today)
@@ -1170,7 +1440,8 @@ async def get_waterfall_data(
                 })
 
         # Calculate initial balance from previous period
-        prev_start, prev_end = get_previous_period(start_date, end_date)
+        # Pass period parameter to get correct calendar period (month/quarter/year)
+        prev_start, prev_end = get_previous_period(start_date, end_date, period)
 
         initial_balance_query = select(
             func.sum(
@@ -1245,34 +1516,42 @@ async def get_waterfall_data(
                 current_date += timedelta(days=1)
 
         elif label_format == "week":
-            # Для custom range >31 и ≤91 дней: агрегация по календарным неделям (v5.1.3 fix)
-            # Generate ALL weeks in range, even if no data exists
+            # Для period='quarter': агрегация по календарным неделям с ISO номерами
+            # Generate ALL weeks in quarter range, even if no data exists
             # Find Monday of the week containing start_date
             week_start = start_date - timedelta(days=start_date.weekday())
 
             while week_start <= end_date:
-                # Find the Monday from date_trunc result (if exists in period_data)
-                # period_data keys are week start dates (Mondays) from date_trunc('week')
-                week_data = period_data.get(week_start, {"income": 0.0, "expense": 0.0, "articles": []})
-
-                week_income = week_data["income"]
-                week_expense = week_data["expense"]
-                week_balance = week_income - week_expense
-                cumulative_balance += week_balance
-
-                # Format label as "Нед дд.мм-дд.мм"
                 week_end = week_start + timedelta(days=6)
-                # Don't go beyond the overall range
+                # Don't go beyond the quarter range
                 actual_week_end = min(week_end, end_date)
                 actual_week_start = max(week_start, start_date)
 
-                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
+                # Aggregate data for this week from period_data (which is keyed by date)
+                week_income = 0.0
+                week_expense = 0.0
+                week_articles = []
 
-                labels.append(week_label)
+                # Aggregate all days in this week
+                current_date = actual_week_start
+                while current_date <= actual_week_end:
+                    day_data = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
+                    week_income += day_data["income"]
+                    week_expense += day_data["expense"]
+                    week_articles.extend(day_data.get("articles", []))
+                    current_date += timedelta(days=1)
+
+                week_balance = week_income - week_expense
+                cumulative_balance += week_balance
+
+                # Get ISO week number for label
+                iso_label = get_iso_week_number(week_start)
+
+                labels.append(iso_label)
                 income_data.append(week_income)
                 expense_data.append(week_expense)
                 balance_data.append(cumulative_balance)
-                categories_data.append(week_data.get("articles", []))
+                categories_data.append(week_articles)
 
                 # Move to next week
                 week_start += timedelta(days=7)

@@ -372,6 +372,9 @@ async def get_recent_facts_html(
         # Shared family budget - NO user isolation filter
         # All authenticated users see all transactions
 
+        # Filter only actual transactions (exclude plans)
+        statement = statement.where(BudgetFact.record_type == "fact")
+
         # Order by most recent (by creation time in DB, not transaction date)
         # This shows newest added transactions first, regardless of their fact_date
         statement = statement.order_by(BudgetFact.created_at.desc())
