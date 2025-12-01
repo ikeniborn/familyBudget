@@ -377,17 +377,17 @@ async def get_quick_stats_html(
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
             <div class="flex items-center justify-between mb-1.5">
-                <span class="font-semibold text-sm">💰 Доходы</span>
+                <span class="font-semibold text-xs">💰 Доходы</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_income_pct)} font-bold">{format_pct(plan_execution_income_pct)}</span>
             </div>
             <div class="space-y-1">
                 <div>
-                    <div class="text-xs opacity-60">План</div>
-                    <div class="font-semibold text-base">{format_money(month_plan_income)}</div>
+                    <div class="text-[10px] opacity-60">План</div>
+                    <div class="font-semibold text-sm">{format_money(month_plan_income)}</div>
                 </div>
                 <div>
-                    <div class="text-xs opacity-60">Факт</div>
-                    <div class="font-bold text-success text-base">{format_money(month_income)}</div>
+                    <div class="text-[10px] opacity-60">Факт</div>
+                    <div class="font-bold text-success text-sm">{format_money(month_income)}</div>
                 </div>
             </div>
         </div>
@@ -395,17 +395,17 @@ async def get_quick_stats_html(
         <!-- Расходы -->
         <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
             <div class="flex items-center justify-between mb-1.5">
-                <span class="font-semibold text-sm">💸 Расходы</span>
+                <span class="font-semibold text-xs">💸 Расходы</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_expense_pct)} font-bold">{format_pct(plan_execution_expense_pct)}</span>
             </div>
             <div class="space-y-1">
                 <div>
-                    <div class="text-xs opacity-60">План</div>
-                    <div class="font-semibold text-base">{format_money(month_plan_expense)}</div>
+                    <div class="text-[10px] opacity-60">План</div>
+                    <div class="font-semibold text-sm">{format_money(month_plan_expense)}</div>
                 </div>
                 <div>
-                    <div class="text-xs opacity-60">Факт</div>
-                    <div class="font-bold text-error text-base">{format_money(month_expense)}</div>
+                    <div class="text-[10px] opacity-60">Факт</div>
+                    <div class="font-bold text-error text-sm">{format_money(month_expense)}</div>
                 </div>
             </div>
         </div>
@@ -413,17 +413,17 @@ async def get_quick_stats_html(
         <!-- Пополнение -->
         <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
             <div class="flex items-center justify-between mb-1.5">
-                <span class="font-semibold text-sm">➕ Пополнение</span>
+                <span class="font-semibold text-xs">➕ Пополнение</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_credit_pct)} font-bold">{format_pct(plan_execution_credit_pct)}</span>
             </div>
             <div class="space-y-1">
                 <div>
-                    <div class="text-xs opacity-60">План</div>
-                    <div class="font-semibold text-base">{format_money(month_plan_credit)}</div>
+                    <div class="text-[10px] opacity-60">План</div>
+                    <div class="font-semibold text-sm">{format_money(month_plan_credit)}</div>
                 </div>
                 <div>
-                    <div class="text-xs opacity-60">Факт</div>
-                    <div class="font-bold text-info text-base">{format_money(month_credit)}</div>
+                    <div class="text-[10px] opacity-60">Факт</div>
+                    <div class="font-bold text-info text-sm">{format_money(month_credit)}</div>
                 </div>
             </div>
         </div>
@@ -431,17 +431,17 @@ async def get_quick_stats_html(
         <!-- Списание -->
         <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
             <div class="flex items-center justify-between mb-1.5">
-                <span class="font-semibold text-sm">➖ Списание</span>
+                <span class="font-semibold text-xs">➖ Списание</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_debit_pct)} font-bold">{format_pct(plan_execution_debit_pct)}</span>
             </div>
             <div class="space-y-1">
                 <div>
-                    <div class="text-xs opacity-60">План</div>
-                    <div class="font-semibold text-base">{format_money(month_plan_debit)}</div>
+                    <div class="text-[10px] opacity-60">План</div>
+                    <div class="font-semibold text-sm">{format_money(month_plan_debit)}</div>
                 </div>
                 <div>
-                    <div class="text-xs opacity-60">Факт</div>
-                    <div class="font-bold text-warning text-base">{format_money(month_debit)}</div>
+                    <div class="text-[10px] opacity-60">Факт</div>
+                    <div class="font-bold text-warning text-sm">{format_money(month_debit)}</div>
                 </div>
             </div>
         </div>
