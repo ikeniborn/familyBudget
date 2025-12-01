@@ -610,9 +610,10 @@ async def get_plan_fact_data(
             elif period == "quarter":
                 # Current calendar quarter (from Q start to today)
                 start_date, end_date = get_current_calendar_quarter(today)
-                # Count months from quarter start to current month
-                periods_count = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month + 1
-                date_format = "month"  # Show by months
+                # Count weeks from quarter start to current date
+                days_diff = (end_date - start_date).days + 1
+                periods_count = (days_diff + 6) // 7  # Number of weeks (rounded up)
+                date_format = "week"  # Show by weeks with ISO numbers
             else:  # year
                 # Current calendar year (from Jan 1 to today)
                 start_date, end_date = get_current_calendar_year(today)
@@ -723,7 +724,7 @@ async def get_plan_fact_data(
                 plan_period.append(plan_amount)  # Distributed plan
                 current_date += timedelta(days=1)
         elif date_format == "week":
-            # Для period='month': группировать по календарным неделям
+            # Для period='quarter': группировать по календарным неделям (ISO week numbers)
             # Note: For week aggregation, plan distribution is done at day level first
             # then aggregated by week
             plan_distributed_list = distribute_plan_by_days(plan_by_date, start_date, end_date)
@@ -735,23 +736,38 @@ async def get_plan_fact_data(
                 current_date += timedelta(days=1)
                 idx += 1
 
-            rolling_weeks_data = get_rolling_weeks(periods_count, end_date, include_incomplete=True)
-            for week_start, week_end, iso_label in rolling_weeks_data:
-                # Агрегировать факты за неделю
+            # Generate weeks within quarter boundaries (from start_date to end_date)
+            # Find Monday of the week containing start_date
+            week_start = start_date - timedelta(days=start_date.weekday())
+
+            while week_start <= end_date:
+                week_end = week_start + timedelta(days=6)
+                # Don't go beyond the quarter range
+                actual_week_end = min(week_end, end_date)
+                actual_week_start = max(week_start, start_date)
+
+                # Get ISO week number for this week
+                iso_label = get_iso_week_number(week_start)
+
+                # Aggregate facts for this week (within quarter bounds)
                 week_fact = sum(
                     amount for d, amount in fact_by_date.items()
-                    if week_start <= d <= week_end
+                    if actual_week_start <= d <= actual_week_end
                 )
-                # Агрегировать РАСПРЕДЕЛЕННЫЕ планы за неделю
+                # Aggregate distributed plans for this week (within quarter bounds)
                 week_plan = sum(
                     amount for d, amount in plan_distributed_dict.items()
-                    if week_start <= d <= week_end
+                    if actual_week_start <= d <= actual_week_end
                 )
+
                 labels.append(iso_label)
                 fact_data.append(week_fact)
                 plan_data.append(week_plan)
                 fact_period.append(week_fact)
                 plan_period.append(week_plan)
+
+                # Move to next week
+                week_start += timedelta(days=7)
         elif date_format == "month":
             # Для quarter/year периодов: группировать по календарным месяцам
             # Plan distribution: use distributed plan by month (avg per month)
@@ -968,19 +984,17 @@ async def get_trends_data(
                 current_date += timedelta(days=1)
 
         elif period == "quarter":
-            # Для period='quarter' (>31 и ≤91 дней): агрегация по календарным неделям (weekly) (v5.1.3 fix)
-            # Iterate through weeks from start_date to end_date
-            current_date = start_date
+            # Для period='quarter': агрегация по календарным неделям с ISO номерами
             # Find the Monday of the week containing start_date
-            week_start = current_date - timedelta(days=current_date.weekday())
+            week_start = start_date - timedelta(days=start_date.weekday())
 
             while week_start <= end_date:
                 week_end = week_start + timedelta(days=6)
-                # Don't go beyond the overall range
+                # Don't go beyond the quarter range
                 actual_week_end = min(week_end, end_date)
                 actual_week_start = max(week_start, start_date)
 
-                # Aggregate week data
+                # Aggregate week data (only within quarter boundaries)
                 week_income = sum(
                     data["income"] for d, data in data_by_date.items()
                     if actual_week_start <= d <= actual_week_end
@@ -990,9 +1004,10 @@ async def get_trends_data(
                     if actual_week_start <= d <= actual_week_end
                 )
 
-                # Label: "Нед дд.мм-дд.мм"
-                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
-                labels.append(week_label)
+                # Get ISO week number for label
+                iso_label = get_iso_week_number(week_start)
+
+                labels.append(iso_label)
                 income_data.append(week_income)
                 expense_data.append(week_expense)
 
@@ -1267,7 +1282,7 @@ async def get_waterfall_data(
                 # Current calendar quarter (from Q start to today)
                 start_date, end_date = get_current_calendar_quarter(today)
                 group_by_expr = Fact.fact_date
-                label_format = "month"  # Group by months
+                label_format = "week"  # Group by weeks with ISO numbers
             else:  # year
                 # Current calendar year (from Jan 1 to today)
                 start_date, end_date = get_current_calendar_year(today)
@@ -1422,34 +1437,42 @@ async def get_waterfall_data(
                 current_date += timedelta(days=1)
 
         elif label_format == "week":
-            # Для custom range >31 и ≤91 дней: агрегация по календарным неделям (v5.1.3 fix)
-            # Generate ALL weeks in range, even if no data exists
+            # Для period='quarter': агрегация по календарным неделям с ISO номерами
+            # Generate ALL weeks in quarter range, even if no data exists
             # Find Monday of the week containing start_date
             week_start = start_date - timedelta(days=start_date.weekday())
 
             while week_start <= end_date:
-                # Find the Monday from date_trunc result (if exists in period_data)
-                # period_data keys are week start dates (Mondays) from date_trunc('week')
-                week_data = period_data.get(week_start, {"income": 0.0, "expense": 0.0, "articles": []})
-
-                week_income = week_data["income"]
-                week_expense = week_data["expense"]
-                week_balance = week_income - week_expense
-                cumulative_balance += week_balance
-
-                # Format label as "Нед дд.мм-дд.мм"
                 week_end = week_start + timedelta(days=6)
-                # Don't go beyond the overall range
+                # Don't go beyond the quarter range
                 actual_week_end = min(week_end, end_date)
                 actual_week_start = max(week_start, start_date)
 
-                week_label = f"Нед {actual_week_start.strftime('%d.%m')}-{actual_week_end.strftime('%d.%m')}"
+                # Aggregate data for this week from period_data (which is keyed by date)
+                week_income = 0.0
+                week_expense = 0.0
+                week_articles = []
 
-                labels.append(week_label)
+                # Aggregate all days in this week
+                current_date = actual_week_start
+                while current_date <= actual_week_end:
+                    day_data = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
+                    week_income += day_data["income"]
+                    week_expense += day_data["expense"]
+                    week_articles.extend(day_data.get("articles", []))
+                    current_date += timedelta(days=1)
+
+                week_balance = week_income - week_expense
+                cumulative_balance += week_balance
+
+                # Get ISO week number for label
+                iso_label = get_iso_week_number(week_start)
+
+                labels.append(iso_label)
                 income_data.append(week_income)
                 expense_data.append(week_expense)
                 balance_data.append(cumulative_balance)
-                categories_data.append(week_data.get("articles", []))
+                categories_data.append(week_articles)
 
                 # Move to next week
                 week_start += timedelta(days=7)
