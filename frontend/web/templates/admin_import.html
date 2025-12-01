@@ -60,15 +60,7 @@
     <!-- Step 2: File Upload -->
     <div class="card bg-base-100 shadow-lg" id="step-2-upload" style="display: none;">
         <div class="card-body">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="card-title text-2xl">📤 Шаг 2: Загрузка файла</h2>
-                <button type="button" class="btn btn-ghost btn-sm gap-2" onclick="resetWorkflow()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Начать заново
-                </button>
-            </div>
+            <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка файла</h2>
 
             <form id="upload-form" onsubmit="uploadCSV(event)" class="space-y-4">
                 <div class="form-control">
@@ -87,6 +79,12 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
                         Загрузить CSV
+                    </button>
+                    <button type="button" class="btn btn-ghost btn-sm gap-2" onclick="resetWorkflow()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Начать заново
                     </button>
                 </div>
             </form>
@@ -119,17 +117,9 @@
     <!-- Step 3: Column Mapping -->
     <div class="card bg-base-100 shadow-lg" id="step-3-mapping" style="display: none;">
         <div class="card-body">
-            <div class="flex justify-between items-center mb-4">
-                <div>
-                    <h2 class="card-title text-2xl">🔗 Шаг 3: Маппинг колонок</h2>
-                    <p class="text-base-content/70">Укажите соответствие между колонками CSV и полями бюджета</p>
-                </div>
-                <button type="button" class="btn btn-ghost btn-sm gap-2" onclick="resetWorkflow()">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Начать заново
-                </button>
+            <div class="mb-4">
+                <h2 class="card-title text-2xl">🔗 Шаг 3: Маппинг колонок</h2>
+                <p class="text-base-content/70">Укажите соответствие между колонками CSV и полями бюджета</p>
             </div>
 
             <!-- Mapping Table -->
@@ -151,6 +141,12 @@
             <div class="flex gap-2 mt-4">
                 <button class="btn btn-primary" id="save-mapping-btn" onclick="saveMapping()">Сохранить маппинг</button>
                 <button class="btn btn-secondary" id="apply-mapping-btn" onclick="parseWithMapping()" style="display: none;">Перейти к обогащению</button>
+                <button type="button" class="btn btn-ghost btn-sm gap-2" onclick="resetWorkflow()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Начать заново
+                </button>
             </div>
 
             <div id="mapping-result" class="mt-4"></div>
@@ -491,15 +487,29 @@ async function clearStagingByBank() {
         const stagingData = await response.json();
         const bankStagingData = stagingData.filter(r => r.bank_provider_id === selectedBankId);
 
-        // Delete each record for selected bank
-        for (const record of bankStagingData) {
-            await fetch(`/api/v1/admin/staging/${record.id}`, {
-                method: 'DELETE',
-                credentials: 'include'
-            });
+        if (bankStagingData.length === 0) {
+            return; // Nothing to clear
         }
 
-        showNotification(`Очищено ${bankStagingData.length} записей для выбранного банка`, 'success');
+        let deletedCount = 0;
+
+        // Delete each record for selected bank
+        for (const record of bankStagingData) {
+            try {
+                const response = await fetch(`/api/v1/admin/staging/${record.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (response.ok || response.status === 404) {
+                    deletedCount++;
+                }
+            } catch (err) {
+                console.error(`Error deleting record ${record.id}:`, err);
+            }
+        }
+
+        showNotification(`Очищено ${deletedCount} записей для выбранного банка`, 'success');
     } catch (error) {
         console.error('Error clearing staging by bank:', error);
     }
@@ -1340,22 +1350,56 @@ async function executeImport() {
 }
 
 async function clearStaging() {
-    const confirmed = await showConfirmDialog('Удалить ВСЕ записи из staging?', 'Подтверждение');
+    // Clear only records for selected bank (from current stagingRecords)
+    const recordCount = stagingRecords.length;
+
+    if (recordCount === 0) {
+        showNotification('Нет записей для удаления', 'info');
+        return;
+    }
+
+    const bankName = selectedBankId ? 'выбранного банка' : 'staging';
+    const confirmed = await showConfirmDialog(
+        `Удалить ${recordCount} записей ${bankName}?`,
+        'Подтверждение'
+    );
     if (!confirmed) return;
 
     try {
-        const response = await fetch('/api/v1/admin/staging', {
-            method: 'DELETE',
-            credentials: 'include'
-        });
+        let deletedCount = 0;
+        let errorCount = 0;
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Clear failed');
+        // Delete each record individually
+        for (const record of stagingRecords) {
+            try {
+                const response = await fetch(`/api/v1/admin/staging/${record.id}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    deletedCount++;
+                } else if (response.status === 404) {
+                    // Record already deleted - ignore
+                    deletedCount++;
+                } else {
+                    errorCount++;
+                    console.error(`Failed to delete record ${record.id}: ${response.status}`);
+                }
+            } catch (err) {
+                errorCount++;
+                console.error(`Error deleting record ${record.id}:`, err);
+            }
         }
 
-        showNotification('Staging очищен', 'success');
-        stagingRecords = [];
+        if (errorCount > 0) {
+            showNotification(
+                `Удалено ${deletedCount} записей, ${errorCount} ошибок`,
+                'warning'
+            );
+        } else {
+            showNotification(`Удалено ${deletedCount} записей`, 'success');
+        }
 
         // Return to step 1 after clearing
         resetWorkflow();
