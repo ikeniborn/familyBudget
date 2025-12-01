@@ -19,11 +19,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        't_import_staging',
-        sa.Column('budget_description', sa.Text(), nullable=True)
-    )
+    # Use raw SQL with IF NOT EXISTS for idempotency
+    # Allows migration to be safely re-run without errors
+    op.execute("""
+        ALTER TABLE t_import_staging
+        ADD COLUMN IF NOT EXISTS budget_description TEXT;
+    """)
 
 
 def downgrade() -> None:
-    op.drop_column('t_import_staging', 'budget_description')
+    # Use raw SQL with IF EXISTS for idempotency
+    op.execute("""
+        ALTER TABLE t_import_staging
+        DROP COLUMN IF EXISTS budget_description;
+    """)

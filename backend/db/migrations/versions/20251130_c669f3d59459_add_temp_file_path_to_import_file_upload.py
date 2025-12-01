@@ -20,12 +20,18 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add temp_file_path column to t_import_file_upload table."""
-    op.add_column(
-        't_import_file_upload',
-        sa.Column('temp_file_path', sa.String(500), nullable=True)
-    )
+    # Use raw SQL with IF NOT EXISTS for idempotency
+    # Allows migration to be safely re-run without errors
+    op.execute("""
+        ALTER TABLE t_import_file_upload
+        ADD COLUMN IF NOT EXISTS temp_file_path VARCHAR(500);
+    """)
 
 
 def downgrade() -> None:
     """Remove temp_file_path column from t_import_file_upload table."""
-    op.drop_column('t_import_file_upload', 'temp_file_path')
+    # Use raw SQL with IF EXISTS for idempotency
+    op.execute("""
+        ALTER TABLE t_import_file_upload
+        DROP COLUMN IF EXISTS temp_file_path;
+    """)
