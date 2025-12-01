@@ -955,13 +955,16 @@ async function loadFinancialCenters() {
         if (response.ok) {
             const data = await response.json();
 
-            // Ensure data is an array before using it
-            if (!Array.isArray(data)) {
-                console.error('Financial centers API returned non-array:', data);
+            // Extract financial_centers array from paginated response
+            const fcArray = data.financial_centers || data;
+
+            // Ensure we have an array
+            if (!Array.isArray(fcArray)) {
+                console.error('Financial centers API returned invalid data:', data);
                 return;
             }
 
-            financialCenters = data;
+            financialCenters = fcArray;
 
             // Populate bulk FC selector
             const bulkFc = document.getElementById('bulk-fc');
@@ -983,13 +986,16 @@ async function loadCostCenters() {
         if (response.ok) {
             const data = await response.json();
 
-            // Ensure data is an array before using it
-            if (!Array.isArray(data)) {
-                console.error('Cost centers API returned non-array:', data);
+            // Extract cost_centers array from paginated response
+            const ccArray = data.cost_centers || data;
+
+            // Ensure we have an array
+            if (!Array.isArray(ccArray)) {
+                console.error('Cost centers API returned invalid data:', data);
                 return;
             }
 
-            costCenters = data;
+            costCenters = ccArray;
 
             // Populate bulk CC selector
             const bulkCc = document.getElementById('bulk-cc');
