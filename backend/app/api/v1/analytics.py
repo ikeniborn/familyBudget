@@ -279,30 +279,46 @@ async def get_quick_stats_html(
     today = date.today()
     month_start = date(today.year, today.month, 1)
 
-    # Today's stats
+    # Today's stats (FACTS ONLY - exclude plans)
     # Shared family budget - NO user_id filter
     today_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.fact_date == today
+        Fact.fact_date == today,
+        Fact.record_type == "fact"
     ).group_by(Article.type)
 
     today_result = await session.execute(today_query)
     today_data = {row.type: float(row.total) for row in today_result.all()}
 
-    # This month's stats
+    # This month's stats (FACTS ONLY - exclude plans)
     # Shared family budget - NO user_id filter
     month_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= month_start,
-        Fact.fact_date <= today
+        Fact.fact_date <= today,
+        Fact.record_type == "fact"
     ).group_by(Article.type)
 
     month_result = await session.execute(month_query)
     month_data = {row.type: float(row.total) for row in month_result.all()}
+
+    # This month's PLANS (for plan-fact comparison)
+    # Shared family budget - NO user_id filter
+    month_plan_query = select(
+        Article.type.label("type"),
+        func.sum(Fact.amount).label("total")
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.fact_date >= month_start,
+        Fact.fact_date <= date(today.year, today.month, cal_module.monthrange(today.year, today.month)[1]),
+        Fact.record_type == "plan"
+    ).group_by(Article.type)
+
+    month_plan_result = await session.execute(month_plan_query)
+    month_plan_data = {row.type: float(row.total) for row in month_plan_result.all()}
 
     # Calculate stats (include credit as income, debit as expense)
     today_income = today_data.get("income", 0.0) + today_data.get("credit", 0.0)
@@ -313,9 +329,30 @@ async def get_quick_stats_html(
     month_expense = month_data.get("expense", 0.0) + month_data.get("debit", 0.0)
     month_balance = month_income - month_expense
 
+    # Calculate PLAN stats for current month
+    month_plan_income = month_plan_data.get("income", 0.0) + month_plan_data.get("credit", 0.0)
+    month_plan_expense = month_plan_data.get("expense", 0.0) + month_plan_data.get("debit", 0.0)
+
+    # Calculate plan execution percentage (with division by zero protection)
+    plan_execution_income_pct = (month_income / month_plan_income * 100.0) if month_plan_income > 0 else 0.0
+    plan_execution_expense_pct = (month_expense / month_plan_expense * 100.0) if month_plan_expense > 0 else 0.0
+
     # Format numbers with thousands separator
     def format_money(amount: float) -> str:
         return f"{amount:,.2f}".replace(",", " ")
+
+    # Format percentage
+    def format_pct(pct: float) -> str:
+        return f"{pct:.1f}%"
+
+    # Get color class for percentage (green >= 95%, yellow 80-94%, red < 80%)
+    def get_pct_color(pct: float) -> str:
+        if pct >= 95.0:
+            return "text-success"
+        elif pct >= 80.0:
+            return "text-warning"
+        else:
+            return "text-error"
 
     # Generate HTML using DaisyUI stats components
     html = f"""
@@ -345,6 +382,27 @@ async def get_quick_stats_html(
             </div>
             <div class="stat-desc">
                 Баланс: <span class="font-bold {'text-success' if month_balance >= 0 else 'text-error'}">{format_money(abs(month_balance))} ₽</span>
+            </div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            </div>
+            <div class="stat-title">План-факт месяца</div>
+            <div class="stat-value text-xs lg:text-xl">
+                <div class="mb-1">
+                    <span class="text-success text-xs lg:text-sm">Доходы: </span>
+                    <span class="{get_pct_color(plan_execution_income_pct)} font-bold">{format_pct(plan_execution_income_pct)}</span>
+                </div>
+                <div>
+                    <span class="text-error text-xs lg:text-sm">Расходы: </span>
+                    <span class="{get_pct_color(plan_execution_expense_pct)} font-bold">{format_pct(plan_execution_expense_pct)}</span>
+                </div>
+            </div>
+            <div class="stat-desc text-xs">
+                План: <span class="text-success">{format_money(month_plan_income)}</span> / <span class="text-error">{format_money(month_plan_expense)}</span><br>
+                Факт: <span class="text-success">{format_money(month_income)}</span> / <span class="text-error">{format_money(month_expense)}</span>
             </div>
         </div>
     </div>
