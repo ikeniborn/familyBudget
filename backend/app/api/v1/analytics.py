@@ -363,7 +363,7 @@ async def get_quick_stats_html(
     # Generate HTML - clean metrics without wrapper card
     html = f"""
     <!-- Desktop version: horizontal table -->
-    <div class="hidden lg:block overflow-x-auto">
+    <div class="hidden md:block overflow-x-auto">
         <table class="table table-zebra w-full">
             <thead>
                 <tr>
@@ -403,7 +403,7 @@ async def get_quick_stats_html(
     </div>
 
     <!-- Mobile version: compact cards -->
-    <div class="lg:hidden space-y-2">
+    <div class="md:hidden space-y-2">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-2 shadow-sm">
             <div class="flex items-center justify-between mb-1">
