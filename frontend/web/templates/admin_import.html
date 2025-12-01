@@ -32,10 +32,10 @@
         </div>
     </div>
 
-    <!-- Step 2: File Upload -->
-    <div class="card bg-base-100 shadow-lg" id="step-2-upload" style="display: none;">
+    <!-- Step 1.5: Actions after bank selection -->
+    <div class="card bg-base-100 shadow-lg" id="step-1-5-actions" style="display: none;">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка файла</h2>
+            <h2 class="card-title text-2xl mb-4">📋 Выберите действие</h2>
 
             <!-- Staging Info (показывается только если есть данные) -->
             <div id="staging-info-alert" class="alert alert-info mb-4" style="display: none;">
@@ -44,6 +44,28 @@
                 </svg>
                 <span id="staging-info-text"></span>
             </div>
+
+            <div class="flex gap-2">
+                <button type="button" class="btn btn-primary gap-2" id="upload-new-file-btn" onclick="proceedToUpload()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Загрузить файл
+                </button>
+                <button type="button" class="btn btn-secondary gap-2" id="skip-to-enrichment-btn" onclick="skipToEnrichment()" style="display: none;">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Перейти к обогащению
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: File Upload -->
+    <div class="card bg-base-100 shadow-lg" id="step-2-upload" style="display: none;">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка файла</h2>
 
             <form id="upload-form" onsubmit="uploadCSV(event)" class="space-y-4">
                 <div class="form-control">
@@ -61,16 +83,31 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        Загрузить и проанализировать CSV
-                    </button>
-                    <button type="button" class="btn btn-secondary gap-2" id="skip-to-enrichment-btn" onclick="checkAndSkipToEnrichment()" style="display: none;">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Пропустить (перейти к обогащению)
+                        Загрузить CSV
                     </button>
                 </div>
             </form>
+
+            <!-- Post-upload actions (показываются после загрузки файла) -->
+            <div id="post-upload-actions" class="mt-4" style="display: none;">
+                <div class="alert alert-success mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="upload-success-text">Файл успешно загружен</span>
+                </div>
+                <div class="flex gap-2">
+                    <button type="button" class="btn btn-primary gap-2" id="create-mapping-btn" onclick="createMapping()" style="display: none;">
+                        Создать маппинг
+                    </button>
+                    <button type="button" class="btn btn-primary gap-2" id="update-mapping-btn" onclick="updateMappingMode()" style="display: none;">
+                        Обновить маппинг
+                    </button>
+                    <button type="button" class="btn btn-secondary gap-2" id="use-existing-mapping-btn" onclick="useExistingMapping()" style="display: none;">
+                        Перейти к обогащению с текущим маппингом
+                    </button>
+                </div>
+            </div>
 
             <div id="upload-result" class="mt-4"></div>
         </div>
@@ -99,8 +136,8 @@
             </div>
 
             <div class="flex gap-2 mt-4">
-                <button class="btn btn-primary" onclick="saveMapping()">Сохранить маппинг</button>
-                <button class="btn btn-secondary" id="apply-mapping-btn" onclick="parseWithMapping()" disabled>Применить маппинг и перейти к обогащению</button>
+                <button class="btn btn-primary" id="save-mapping-btn" onclick="saveMapping()">Сохранить маппинг</button>
+                <button class="btn btn-secondary" id="apply-mapping-btn" onclick="parseWithMapping()" style="display: none;">Перейти к обогащению</button>
             </div>
 
             <div id="mapping-result" class="mt-4"></div>
@@ -275,10 +312,12 @@ async function onBankSelected() {
     const bankId = document.getElementById('bank-selector').value;
     if (bankId) {
         selectedBankId = parseInt(bankId);
-        document.getElementById('step-2-upload').style.display = 'block';
+
+        // Show Step 1.5 (action selection)
+        document.getElementById('step-1-5-actions').style.display = 'block';
         updateProgressIndicator(2);
 
-        // Try to load saved mapping
+        // Try to load saved mapping for later
         await loadSavedMapping(selectedBankId);
 
         // Check staging and update UI
@@ -303,7 +342,7 @@ async function checkStagingAndUpdateUI() {
         if (stagingData.length > 0) {
             // Show staging info and skip button
             document.getElementById('staging-info-text').textContent =
-                `В staging уже есть ${stagingData.length} записей. Вы можете пропустить загрузку нового файла и перейти к обогащению.`;
+                `В staging уже есть ${stagingData.length} записей.`;
             document.getElementById('staging-info-alert').style.display = 'flex';
             document.getElementById('skip-to-enrichment-btn').style.display = 'inline-flex';
         } else {
@@ -319,6 +358,72 @@ async function checkStagingAndUpdateUI() {
 function hideStagingInfo() {
     document.getElementById('staging-info-alert').style.display = 'none';
     document.getElementById('skip-to-enrichment-btn').style.display = 'none';
+}
+
+// Step 1.5: Proceed to upload
+async function proceedToUpload() {
+    // Check if staging has data
+    try {
+        const response = await fetch('/api/v1/admin/staging', { credentials: 'include' });
+        if (response.ok) {
+            const stagingData = await response.json();
+            if (stagingData.length > 0) {
+                // Ask for confirmation to clear staging
+                const confirmed = await showConfirmDialog(
+                    `В staging есть ${stagingData.length} записей. Они будут очищены перед загрузкой нового файла. Продолжить?`,
+                    'Подтверждение'
+                );
+
+                if (!confirmed) {
+                    return;
+                }
+
+                // Clear staging
+                await clearStaging();
+            }
+        }
+    } catch (error) {
+        console.error('Error checking staging:', error);
+    }
+
+    // Show upload form
+    document.getElementById('step-2-upload').style.display = 'block';
+    updateProgressIndicator(2);
+}
+
+async function skipToEnrichment() {
+    // Go directly to enrichment step
+    await loadStagingTable();
+    document.getElementById('step-4-enrichment').style.display = 'block';
+    updateProgressIndicator(4);
+}
+
+async function clearStaging() {
+    try {
+        const response = await fetch('/api/v1/admin/staging', {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            showNotification('Staging очищен', 'success');
+        } else {
+            showNotification('Ошибка очистки staging', 'error');
+        }
+    } catch (error) {
+        console.error('Error clearing staging:', error);
+        showNotification('Ошибка очистки staging', 'error');
+    }
+}
+
+function showConfirmDialog(message, title = 'Подтверждение') {
+    return new Promise((resolve) => {
+        if (window.confirm(message)) {
+            resolve(true);
+        } else {
+            resolve(false);
+        }
+    });
 }
 
 async function loadSavedMapping(bankId) {
@@ -392,18 +497,67 @@ async function uploadCSV(event) {
         const result = await response.json();
         uploadedFileId = result.file_id;
 
-        showNotification('Файл успешно загружен и проанализирован', 'success');
+        // Hide upload form
+        document.getElementById('upload-form').style.display = 'none';
 
         // Get CSV structure
         await analyzeFile(uploadedFileId);
+
+        // Check if mapping exists and show appropriate buttons
+        await showPostUploadActions();
 
     } catch (error) {
         console.error('Upload error:', error);
         showNotification(`Ошибка загрузки: ${error.message}`, 'error');
     } finally {
         uploadBtn.disabled = false;
-        uploadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg> Загрузить и проанализировать CSV';
+        uploadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg> Загрузить CSV';
     }
+}
+
+async function showPostUploadActions() {
+    const postUploadDiv = document.getElementById('post-upload-actions');
+    postUploadDiv.style.display = 'block';
+
+    const createMappingBtn = document.getElementById('create-mapping-btn');
+    const updateMappingBtn = document.getElementById('update-mapping-btn');
+    const useExistingBtn = document.getElementById('use-existing-mapping-btn');
+
+    // Check if saved mapping exists
+    if (savedMappingId) {
+        // Mapping exists - show update and use existing buttons
+        createMappingBtn.style.display = 'none';
+        updateMappingBtn.style.display = 'inline-flex';
+        useExistingBtn.style.display = 'inline-flex';
+        showNotification('Файл загружен. Найден существующий маппинг.', 'success');
+    } else {
+        // No mapping - show only create mapping button
+        createMappingBtn.style.display = 'inline-flex';
+        updateMappingBtn.style.display = 'none';
+        useExistingBtn.style.display = 'none';
+        showNotification('Файл загружен. Создайте маппинг колонок.', 'success');
+    }
+}
+
+// Step 2: Button actions
+async function createMapping() {
+    // Show mapping step
+    await showMappingStep(false); // false = new mapping
+}
+
+async function updateMappingMode() {
+    // Show mapping step in update mode
+    await showMappingStep(true); // true = update mode
+}
+
+async function useExistingMapping() {
+    // Use existing mapping and parse file
+    if (!uploadedFileId || !savedMappingId) {
+        showNotification('Отсутствует файл или маппинг', 'error');
+        return;
+    }
+
+    await parseWithMapping();
 }
 
 async function checkAndSkipToEnrichment() {
@@ -446,10 +600,31 @@ async function analyzeFile(fileId) {
 }
 
 // ========== Step 3: Column Mapping ==========
-function showColumnMapping() {
+async function showMappingStep(isUpdateMode = false) {
+    // Show mapping step
     document.getElementById('step-3-mapping').style.display = 'block';
     updateProgressIndicator(3);
 
+    // Render mapping table
+    renderMappingTable();
+
+    // Set button visibility based on mode
+    const saveMappingBtn = document.getElementById('save-mapping-btn');
+    const applyMappingBtn = document.getElementById('apply-mapping-btn');
+
+    // Always show save button
+    saveMappingBtn.style.display = 'inline-flex';
+
+    // Hide "Перейти к обогащению" button initially (will be shown after save)
+    if (!savedMappingId) {
+        applyMappingBtn.style.display = 'none';
+    } else {
+        // If mapping already exists (update mode), show the button
+        applyMappingBtn.style.display = 'inline-flex';
+    }
+}
+
+function renderMappingTable() {
     const tableBody = document.getElementById('mapping-table-body');
     tableBody.innerHTML = '';
 
@@ -516,9 +691,11 @@ function showColumnMapping() {
         row.appendChild(exampleCell);
         tableBody.appendChild(row);
     });
+}
 
-    // Enable Apply Mapping button if mapping exists
-    updateApplyMappingButtonState();
+function showColumnMapping() {
+    // Legacy function - redirects to new function
+    showMappingStep(false);
 }
 
 function updateSampleData(fieldKey, csvColumn, exampleCell) {
@@ -532,7 +709,12 @@ function updateSampleData(fieldKey, csvColumn, exampleCell) {
 function updateApplyMappingButtonState() {
     const applyBtn = document.getElementById('apply-mapping-btn');
     if (applyBtn) {
-        applyBtn.disabled = !savedMappingId;
+        // Show button only if mapping is saved
+        if (savedMappingId) {
+            applyBtn.style.display = 'inline-flex';
+        } else {
+            applyBtn.style.display = 'none';
+        }
     }
 }
 
@@ -572,10 +754,13 @@ async function saveMapping() {
         savedMappingId = result.mapping_id;
         currentMapping = result.mapping;
 
-        // Enable Apply Mapping button
+        // Show "Перейти к обогащению" button
         updateApplyMappingButtonState();
 
-        showNotification('Маппинг сохранён', 'success');
+        // Refresh sample data with saved mapping
+        renderMappingTable();
+
+        showNotification('Маппинг сохранён. Теперь можно перейти к обогащению.', 'success');
 
     } catch (error) {
         console.error('Save mapping error:', error);
