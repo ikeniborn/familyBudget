@@ -82,6 +82,7 @@ async def list_staging_records(
             id=record.id,
             user_id=record.user_id,
             file_upload_id=record.file_upload_id,
+            bank_provider_id=record.bank_provider_id,
             fact_date=record.fact_date.isoformat(),
             amount_string=record.amount_string,
             description=record.description,
