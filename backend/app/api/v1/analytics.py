@@ -127,21 +127,20 @@ def distribute_plan_by_months(
     end_date: date
 ) -> Dict[Tuple[int, int], float]:
     """
-    Distribute plans evenly across months (for quarter/year periods).
+    Group plans by month (for quarter/year periods).
 
     Algorithm:
-        1. Group all plans by quarter or year
-        2. Calculate number of months in period
-        3. Calculate average per month = total_plan_for_period / num_months
-        4. Return dict mapping month_key → average amount
+        1. Group all plans by their actual month (from plan_date.month)
+        2. Sum plans for each month separately
+        3. Return dict mapping month_key → total plan amount for that month
 
-    Example (quarter):
-        Plan: 90000₽ for Q1 2025
-        Result: 30000₽ per month (Jan, Feb, Mar)
+    Example (year, today Dec 1):
+        Plan: 10000₽ on Dec 1, 5000₽ on Jan 15
+        Result: Jan = 5000₽, Feb-Nov = 0₽, Dec = 10000₽
 
-    Example (year):
-        Plan: 360000₽ for 2025
-        Result: 30000₽ per month (Jan-Dec)
+    Example (quarter Q1):
+        Plan: 30000₽ on Jan 1, 20000₽ on Feb 1
+        Result: Jan = 30000₽, Feb = 20000₽, Mar = 0₽
 
     Args:
         plan_by_date: Dict mapping date → plan amount (from DB query)
@@ -149,24 +148,24 @@ def distribute_plan_by_months(
         end_date: Last date in range (inclusive)
 
     Returns:
-        Dict mapping (year, month) → average plan amount
+        Dict mapping (year, month) → total plan amount for that month
     """
-    # 1. Calculate number of months in the period
-    num_months = (end_date.year - start_date.year) * 12 + end_date.month - start_date.month + 1
+    # 1. Group plans by their actual month
+    month_plans: Dict[Tuple[int, int], float] = {}
 
-    # 2. Sum all plans in the period
-    total_plan = sum(plan_by_date.values())
+    for plan_date, amount in plan_by_date.items():
+        month_key = (plan_date.year, plan_date.month)
+        if month_key not in month_plans:
+            month_plans[month_key] = 0.0
+        month_plans[month_key] += amount
 
-    # 3. Calculate average per month
-    avg_per_month = total_plan / num_months if num_months > 0 else 0.0
-
-    # 4. Create dict for each month in range
+    # 2. Create result dict for ALL months in range (fill 0 for months without plans)
     result: Dict[Tuple[int, int], float] = {}
     current_date = start_date
 
     while current_date <= end_date:
         month_key = (current_date.year, current_date.month)
-        result[month_key] = avg_per_month
+        result[month_key] = month_plans.get(month_key, 0.0)
 
         # Move to next month
         if current_date.month == 12:
@@ -888,21 +887,10 @@ async def get_plan_fact_data(
                     amount for d, amount in fact_by_date.items()
                     if month_start <= d <= month_end
                 )
-                # Использовать РАСПРЕДЕЛЕННЫЙ план (среднее на месяц)
+                # Получить ПОЛНЫЙ план для месяца
+                # НЕ делим на дни - просто берем полную сумму плана на месяц
                 month_key = (current_date.year, current_date.month)
-                month_plan_avg = plan_distributed_by_month.get(month_key, 0.0)
-
-                # Корректировка для текущего месяца: пропорционально прошедшим дням
-                # Если month_end < последний день месяца (неполный месяц), пропорционально уменьшить
-                _, last_day_of_month = cal_module.monthrange(current_date.year, current_date.month)
-                actual_days_in_month = (month_end - month_start).days + 1  # Фактически прошедшие дни
-
-                if actual_days_in_month < last_day_of_month:
-                    # Текущий месяц неполный - пропорциональная корректировка
-                    month_plan = month_plan_avg / last_day_of_month * actual_days_in_month
-                else:
-                    # Прошедший месяц - используем полное среднее значение
-                    month_plan = month_plan_avg
+                month_plan = plan_distributed_by_month.get(month_key, 0.0)
 
                 # Label: "Янв 2025"
                 month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
