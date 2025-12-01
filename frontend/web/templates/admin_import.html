@@ -942,9 +942,10 @@ function showNotification(message, type = 'info') {
 // ========== Load Reference Data ==========
 async function loadArticles() {
     try {
-        const response = await fetch('/api/v1/articles', { credentials: 'include' });
+        const response = await fetch('/api/v1/articles?limit=1000', { credentials: 'include' });
         if (response.ok) {
-            allArticles = await response.json();
+            const data = await response.json();
+            allArticles = data.articles || [];
         }
     } catch (error) {
         console.error('Error loading articles:', error);
