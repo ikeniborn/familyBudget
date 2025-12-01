@@ -61,7 +61,7 @@ COPY --chown=appuser:appuser backend/ $APP_HOME/backend/
 COPY --chown=appuser:appuser frontend/ $APP_HOME/frontend/
 
 # Create directories for logs and uploads
-RUN mkdir -p $APP_HOME/logs $APP_HOME/uploads && \
+RUN mkdir -p $APP_HOME/logs $APP_HOME/uploads $APP_HOME/uploads/temp && \
     chown -R appuser:appuser $APP_HOME/logs $APP_HOME/uploads
 
 # Switch to non-root user
