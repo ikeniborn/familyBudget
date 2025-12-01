@@ -355,6 +355,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Переинициализировать кнопки периода (v5.1.3: как в plan.html)
                 setupPlanPeriodButtons();
+
+                // Обновить быструю статистику (план-факт блок)
+                htmx.trigger('#quick-stats', 'load');
             } else {
                 const error = await response.json();
                 showNotification('❌ Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
