@@ -363,7 +363,7 @@ async def get_quick_stats_html(
     # Generate HTML - clean metrics without wrapper card
     html = f"""
     <!-- Desktop version: 1x4 grid -->
-    <div class="hidden md:grid md:grid-cols-4 gap-3 w-full">
+    <div class="hidden sm:grid sm:grid-cols-4 gap-6 w-full">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-3 shadow">
             <div class="flex items-center justify-between mb-2">
@@ -438,7 +438,7 @@ async def get_quick_stats_html(
     </div>
 
     <!-- Mobile version: 2x2 grid -->
-    <div class="md:hidden grid grid-cols-2 gap-1.5">
+    <div class="sm:hidden grid grid-cols-2 gap-1.5">
         <!-- Доходы -->
         <div class="bg-base-200 rounded p-1.5 shadow-sm">
             <div class="flex items-center justify-between mb-0.5">
