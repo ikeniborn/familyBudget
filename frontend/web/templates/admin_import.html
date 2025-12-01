@@ -245,6 +245,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadFinancialCenters();
     await loadCostCenters();
     await loadArticles();
+
+    // Populate bulk selectors after data is loaded
+    updateBulkCategoryType();
 });
 
 // ========== Step 1: Bank Selection ==========
@@ -821,15 +824,14 @@ function updateBulkCategoryType() {
     const articleSelect = document.getElementById('bulk-article');
 
     articleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
-
-    if (!typeSelect.value) {
-        articleSelect.disabled = true;
-        return;
-    }
-
     articleSelect.disabled = false;
 
-    const filtered = allArticles.filter(a => a.type === typeSelect.value);
+    // If no type selected, show all articles
+    // If type selected, show only matching articles
+    const filtered = typeSelect.value
+        ? allArticles.filter(a => a.type === typeSelect.value)
+        : allArticles;
+
     filtered.forEach(article => {
         const option = document.createElement('option');
         option.value = article.id;
