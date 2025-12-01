@@ -19,22 +19,32 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.bank_provider import BankProvider
+from backend.app.models.budget_fact import BudgetFact
+from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.import_column_mapping import ImportColumnMapping
 from backend.app.models.import_file_upload import ImportFileUpload
 from backend.app.models.import_staging import ImportStaging
 from backend.app.schemas.import_multibank_schema import (
     AnalyzeResponse,
     BankProviderResponse,
+    BulkUpdateRequest,
     FileUploadResponse,
+    ImportExecuteRequest,
+    ImportExecuteResponse,
     MappingResponse,
     MappingSaveRequest,
     ParseRequest,
     ParseResponse,
+    StagingRecordResponse,
+    StagingUpdateRequest,
 )
 from backend.app.services.bank_provider_service import BankProviderService
 from backend.app.services.csv_analyzer import CSVAnalyzer

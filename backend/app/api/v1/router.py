@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from backend.app.api.v1.admin import router as admin_router
 from backend.app.api.v1.admin_analytics import router as admin_analytics_router
 from backend.app.api.v1.admin_export import router as admin_export_router
+from backend.app.api.v1.admin_staging import router as admin_staging_router
 from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
@@ -55,6 +56,9 @@ api_router.include_router(analytics_router)
 
 # Admin endpoints (TASK-048) ✅
 api_router.include_router(admin_router)
+
+# Admin Staging endpoints (FR-080 Enhanced - Multi-Bank CSV Import) ✅
+api_router.include_router(admin_staging_router)
 
 # Admin Analytics endpoints (TASK-021) ✅
 api_router.include_router(admin_analytics_router)

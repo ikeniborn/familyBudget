@@ -149,3 +149,108 @@ class ParseResponse(BaseModel):
     success: bool = Field(description="Whether parsing succeeded")
     total_inserted: int = Field(description="Number of records inserted to staging")
     message: str = Field(description="Success/error message")
+
+
+class StagingRecordResponse(BaseModel):
+    """
+    Response schema for staging record.
+
+    Used in GET /api/v1/admin/staging endpoint.
+
+    Examples:
+        >>> record = StagingRecordResponse(
+        ...     id=1,
+        ...     user_id=123,
+        ...     file_upload_id=456,
+        ...     fact_date="2025-11-18",
+        ...     amount_string="-900,00",
+        ...     description="Кафе",
+        ...     csv_metadata={"category": "Фастфуд"},
+        ...     article_id=None,
+        ...     financial_center_id=None,
+        ...     cost_center_id=None,
+        ...     is_selected=False
+        ... )
+    """
+
+    id: int
+    user_id: int
+    file_upload_id: Optional[int]
+    fact_date: str
+    amount_string: str
+    description: Optional[str]
+    csv_metadata: Optional[dict]
+    budget_description: Optional[str]
+    article_id: Optional[int]
+    financial_center_id: Optional[int]
+    cost_center_id: Optional[int]
+    is_selected: bool
+
+
+class StagingUpdateRequest(BaseModel):
+    """
+    Request schema for updating staging record fields.
+
+    Used in PATCH /api/v1/admin/staging/{staging_id} endpoint.
+
+    Examples:
+        >>> request = StagingUpdateRequest(article_id=5)
+        >>> request = StagingUpdateRequest(financial_center_id=3, cost_center_id=7)
+    """
+
+    article_id: Optional[int] = None
+    financial_center_id: Optional[int] = None
+    cost_center_id: Optional[int] = None
+    budget_description: Optional[str] = None
+
+
+class BulkUpdateRequest(BaseModel):
+    """
+    Request schema for bulk updating staging records.
+
+    Used in POST /api/v1/admin/staging/bulk-update endpoint.
+
+    Examples:
+        >>> request = BulkUpdateRequest(
+        ...     staging_ids=[1, 2, 3],
+        ...     article_id=5,
+        ...     financial_center_id=3
+        ... )
+    """
+
+    staging_ids: list[int] = Field(description="List of staging record IDs to update")
+    article_id: Optional[int] = None
+    financial_center_id: Optional[int] = None
+    cost_center_id: Optional[int] = None
+
+
+class ImportExecuteRequest(BaseModel):
+    """
+    Request schema for executing import from staging to budget facts.
+
+    Used in POST /api/v1/admin/staging/import endpoint.
+
+    Examples:
+        >>> request = ImportExecuteRequest(staging_ids=[1, 2, 3, 4, 5])
+    """
+
+    staging_ids: list[int] = Field(description="List of staging record IDs to import")
+
+
+class ImportExecuteResponse(BaseModel):
+    """
+    Response schema for import execution result.
+
+    Used in POST /api/v1/admin/staging/import endpoint.
+
+    Examples:
+        >>> response = ImportExecuteResponse(
+        ...     success=True,
+        ...     total_imported=5,
+        ...     message="Successfully imported 5 transactions"
+        ... )
+    """
+
+    success: bool
+    total_imported: int
+    message: str
