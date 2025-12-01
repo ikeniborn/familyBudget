@@ -27,8 +27,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.bank_provider import BankProvider
-from backend.app.models.budget_fact import BudgetFact
-from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.import_column_mapping import ImportColumnMapping
 from backend.app.models.import_file_upload import ImportFileUpload
 from backend.app.models.import_staging import ImportStaging
