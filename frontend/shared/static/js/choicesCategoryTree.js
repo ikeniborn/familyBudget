@@ -291,7 +291,7 @@ class ChoicesCategoryTree {
 
                         return template(`
                             <div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}"
-                                 data-select-text="${this.config.itemSelectText}"
+                                 data-select-text=""
                                  data-choice
                                  ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}
                                  data-id="${data.id}"
