@@ -263,6 +263,21 @@
     </div>
 </div>
 
+<!-- Custom Confirm Dialog Modal -->
+<dialog id="confirm-dialog" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4" id="confirm-dialog-title">Подтверждение</h3>
+        <p class="py-4" id="confirm-dialog-message"></p>
+        <div class="modal-action">
+            <button class="btn btn-error" id="confirm-dialog-yes">Да</button>
+            <button class="btn" id="confirm-dialog-no">Нет</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button id="confirm-dialog-backdrop">закрыть</button>
+    </form>
+</dialog>
+
 <script>
 // ========== Global State ==========
 let selectedBankId = null;
@@ -418,11 +433,43 @@ async function clearStaging() {
 
 function showConfirmDialog(message, title = 'Подтверждение') {
     return new Promise((resolve) => {
-        if (window.confirm(message)) {
+        const modal = document.getElementById('confirm-dialog');
+        const titleEl = document.getElementById('confirm-dialog-title');
+        const messageEl = document.getElementById('confirm-dialog-message');
+        const yesBtn = document.getElementById('confirm-dialog-yes');
+        const noBtn = document.getElementById('confirm-dialog-no');
+        const backdrop = document.getElementById('confirm-dialog-backdrop');
+
+        // Set content
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+
+        // Remove previous event listeners
+        const newYesBtn = yesBtn.cloneNode(true);
+        const newNoBtn = noBtn.cloneNode(true);
+        const newBackdrop = backdrop.cloneNode(true);
+        yesBtn.parentNode.replaceChild(newYesBtn, yesBtn);
+        noBtn.parentNode.replaceChild(newNoBtn, noBtn);
+        backdrop.parentNode.replaceChild(newBackdrop, backdrop);
+
+        // Add event listeners
+        newYesBtn.addEventListener('click', () => {
+            modal.close();
             resolve(true);
-        } else {
+        });
+
+        newNoBtn.addEventListener('click', () => {
+            modal.close();
             resolve(false);
-        }
+        });
+
+        newBackdrop.addEventListener('click', () => {
+            modal.close();
+            resolve(false);
+        });
+
+        // Show modal
+        modal.showModal();
     });
 }
 
@@ -590,8 +637,7 @@ async function analyzeFile(fileId) {
         console.log('CSV headers:', csvHeaders);
         console.log('Sample rows:', csvSampleRows);
 
-        // Show mapping step
-        showColumnMapping();
+        // Don't show mapping step automatically - wait for user to click button
 
     } catch (error) {
         console.error('Analyze error:', error);
