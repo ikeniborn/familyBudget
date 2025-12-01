@@ -103,8 +103,6 @@
                     </button>
                 </div>
             </div>
-
-            <div id="upload-result" class="mt-4"></div>
         </div>
     </div>
 
@@ -1456,23 +1454,39 @@ function formatAmount(amount) {
 }
 
 function showNotification(message, type = 'info') {
-    const alertClass = type === 'error' ? 'alert-error' : type === 'success' ? 'alert-success' : 'alert-info';
-    const alert = document.createElement('div');
-    alert.className = `alert ${alertClass}`;
-    alert.innerHTML = `<span>${message}</span>`;
+    const alertClass = type === 'error' ? 'alert-error' :
+                       type === 'success' ? 'alert-success' :
+                       type === 'warning' ? 'alert-warning' : 'alert-info';
 
-    // Show in appropriate result div
-    const resultDiv = document.getElementById('upload-result') ||
-                     document.getElementById('mapping-result') ||
-                     document.getElementById('import-result');
+    // Try to find a visible result div
+    const resultDivs = [
+        document.getElementById('mapping-result'),
+        document.getElementById('import-result')
+    ].filter(div => div && div.offsetParent !== null); // Only visible divs
 
-    if (resultDiv) {
-        resultDiv.innerHTML = '';
-        resultDiv.appendChild(alert);
+    if (resultDivs.length > 0) {
+        // Use existing result div
+        const alert = document.createElement('div');
+        alert.className = `alert ${alertClass}`;
+        alert.innerHTML = `<span>${message}</span>`;
+
+        resultDivs[0].innerHTML = '';
+        resultDivs[0].appendChild(alert);
 
         // Auto-hide after 5 seconds
         setTimeout(() => {
             alert.remove();
+        }, 5000);
+    } else {
+        // Create toast notification at top right
+        const toast = document.createElement('div');
+        toast.className = `alert ${alertClass} fixed top-4 right-4 z-50 max-w-md shadow-lg`;
+        toast.innerHTML = `<span>${message}</span>`;
+        document.body.appendChild(toast);
+
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            toast.remove();
         }, 5000);
     }
 }
