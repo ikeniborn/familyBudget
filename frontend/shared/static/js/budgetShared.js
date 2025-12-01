@@ -1492,22 +1492,58 @@ class ChoicesCategoryTree {
     }
 
     /**
+     * Get parent chain for a category (from root to parent, excluding self).
+     * Builds chain locally using categoryMap (no API calls).
+     *
+     * @param {number} categoryId - Category ID
+     * @returns {Array} Array of parent categories (root to parent)
+     */
+    getParentChain(categoryId) {
+        const chain = [];
+        const category = this.categoryMap.get(categoryId);
+
+        if (!category || !category.parent_id) {
+            return chain;  // No parents
+        }
+
+        let currentParentId = category.parent_id;
+
+        while (currentParentId) {
+            const parent = this.categoryMap.get(currentParentId);
+            if (!parent) break;
+
+            chain.unshift(parent);  // Add to beginning (root first)
+            currentParentId = parent.parent_id;
+        }
+
+        return chain;
+    }
+
+    /**
      * Initialize Choices.js with categories.
      *
      * @param {Array} categories - Categories to display
      */
     initChoices(categories) {
-        // Prepare choices data
-        const choices = categories.map(cat => ({
-            value: cat.id,
-            label: cat.name,
-            customProperties: {
-                usage_count: cat.usage_count || 0,
-                parent_id: cat.parent_id,
-            }
-        }));
+        // Prepare choices data with parent chain
+        const choices = categories.map(cat => {
+            const parentChain = this.getParentChain(cat.id);
+            const parentText = parentChain.length > 0
+                ? parentChain.map(p => p.name).join(' › ')
+                : '';
 
-        // Initialize Choices.js
+            return {
+                value: cat.id,
+                label: cat.name,
+                customProperties: {
+                    usage_count: cat.usage_count || 0,
+                    parent_id: cat.parent_id,
+                    parent_text: parentText,  // Store formatted parent chain
+                }
+            };
+        });
+
+        // Initialize Choices.js with custom templates
         this.choices = new Choices(this.element, {
             searchEnabled: true,
             searchPlaceholderValue: 'Поиск категории...',
@@ -1522,6 +1558,45 @@ class ChoicesCategoryTree {
                 distance: 100,         // Character distance for matches
                 ignoreLocation: true,  // Don't care where in string match occurs
                 keys: ['label'],       // Search in label field
+            },
+
+            // Custom templates for dropdown items (show parent chain)
+            callbackOnCreateTemplates: (template) => {
+                return {
+                    // Dropdown item template (shown in dropdown list)
+                    choice: (classNames, data) => {
+                        const parentText = data.customProperties?.parent_text || '';
+                        const label = data.label;
+
+                        return template(`
+                            <div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}"
+                                 data-select-text="${this.config.itemSelectText}"
+                                 data-choice
+                                 ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}
+                                 data-id="${data.id}"
+                                 data-value="${data.value}"
+                                 ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}>
+                                <span style="font-weight: 500;">${label}</span>
+                                ${parentText ? `<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${parentText})</span>` : ''}
+                            </div>
+                        `);
+                    },
+
+                    // Selected item template (shown after selection)
+                    item: (classNames, data) => {
+                        // For selected item, show only label (no parent chain)
+                        return template(`
+                            <div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}"
+                                 data-item
+                                 data-id="${data.id}"
+                                 data-value="${data.value}"
+                                 ${data.active ? 'aria-selected="true"' : ''}
+                                 ${data.disabled ? 'aria-disabled="true"' : ''}>
+                                ${data.label}
+                            </div>
+                        `);
+                    },
+                };
             },
 
             // Styling
@@ -1737,15 +1812,23 @@ class ChoicesCategoryTree {
             // Clear existing choices
             this.choices.clearStore();
 
-            // Prepare new choices data
-            const choices = displayCategories.map(cat => ({
-                value: cat.id,
-                label: cat.name,
-                customProperties: {
-                    usage_count: cat.usage_count || 0,
-                    parent_id: cat.parent_id,
-                }
-            }));
+            // Prepare new choices data with parent chain
+            const choices = displayCategories.map(cat => {
+                const parentChain = this.getParentChain(cat.id);
+                const parentText = parentChain.length > 0
+                    ? parentChain.map(p => p.name).join(' › ')
+                    : '';
+
+                return {
+                    value: cat.id,
+                    label: cat.name,
+                    customProperties: {
+                        usage_count: cat.usage_count || 0,
+                        parent_id: cat.parent_id,
+                        parent_text: parentText,
+                    }
+                };
+            });
 
             // Set new choices
             this.choices.setChoices(choices, 'value', 'label', true);
