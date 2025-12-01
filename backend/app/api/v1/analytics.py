@@ -363,7 +363,7 @@ async def get_quick_stats_html(
     # Generate HTML - clean metrics without wrapper card
     html = f"""
     <!-- Desktop version: horizontal flex layout -->
-    <div class="hidden md:flex md:flex-row gap-4 w-full">
+    <div class="hidden md:flex flex-row gap-4 w-full">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
             <div class="flex items-center justify-between mb-1.5">
