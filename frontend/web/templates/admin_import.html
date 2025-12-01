@@ -135,7 +135,7 @@
                         <label class="label py-0">
                             <span class="label-text text-xs">Тип категории</span>
                         </label>
-                        <select id="bulk-article-type" class="select select-bordered w-full select-sm" onchange="updateBulkCategoryType()">
+                        <select id="bulk-article-type" class="select select-bordered w-full select-sm" onchange="updateBulkCategoryType()" style="height: 3rem; min-height: 3rem;">
                             <option value="">-- Все типы --</option>
                             <option value="expense">💸 Расходы</option>
                             <option value="income">💰 Доходы</option>
@@ -146,7 +146,7 @@
                         <label class="label py-0">
                             <span class="label-text text-xs">Категория</span>
                         </label>
-                        <select id="bulk-article" class="select select-bordered w-full select-sm" disabled>
+                        <select id="bulk-article" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;" disabled>
                             <option value="">-- Выберите тип --</option>
                         </select>
                     </div>
@@ -155,7 +155,7 @@
                         <label class="label py-0">
                             <span class="label-text text-xs">ЦФО</span>
                         </label>
-                        <select id="bulk-fc" class="select select-bordered w-full select-sm">
+                        <select id="bulk-fc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
                             <option value="">-- Не выбрано --</option>
                         </select>
                     </div>
@@ -164,7 +164,7 @@
                         <label class="label py-0">
                             <span class="label-text text-xs">ЦЗ</span>
                         </label>
-                        <select id="bulk-cc" class="select select-bordered w-full select-sm">
+                        <select id="bulk-cc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
                             <option value="">-- Не выбрано --</option>
                         </select>
                     </div>
@@ -683,6 +683,8 @@ function createArticleSelect(record) {
     const select = document.createElement('select');
     select.id = `article-${record.id}`;
     select.className = 'select select-bordered select-sm w-full';
+    select.style.height = '3rem';
+    select.style.minHeight = '3rem';
 
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
@@ -714,6 +716,8 @@ function createFCSelect(record) {
     const select = document.createElement('select');
     select.id = `fc-${record.id}`;
     select.className = 'select select-bordered select-sm w-full';
+    select.style.height = '3rem';
+    select.style.minHeight = '3rem';
 
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
@@ -739,6 +743,8 @@ function createCCSelect(record) {
     const select = document.createElement('select');
     select.id = `cc-${record.id}`;
     select.className = 'select select-bordered select-sm w-full';
+    select.style.height = '3rem';
+    select.style.minHeight = '3rem';
 
     const emptyOption = document.createElement('option');
     emptyOption.value = '';
@@ -791,7 +797,7 @@ function updateBulkCategoryType() {
 
     articleSelect.disabled = false;
 
-    const filtered = allArticles.filter(a => a.record_type === typeSelect.value);
+    const filtered = allArticles.filter(a => a.type === typeSelect.value);
     filtered.forEach(article => {
         const option = document.createElement('option');
         option.value = article.id;
