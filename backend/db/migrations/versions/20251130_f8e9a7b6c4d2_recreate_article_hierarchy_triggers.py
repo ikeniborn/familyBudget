@@ -114,7 +114,7 @@ def upgrade() -> None:
                     ON CONFLICT (ancestor_id, descendant_id) DO NOTHING;
 
                     -- Rebuild paths to this article's descendants
-                    FOR child_id IN (
+                    FOR child_record IN (
                         SELECT descendant_id
                         FROM t_d_article_hierarchy
                         WHERE ancestor_id = NEW.id
@@ -126,10 +126,10 @@ def upgrade() -> None:
                             WHERE descendant_id = NEW.id
                         ) LOOP
                             INSERT INTO t_d_article_hierarchy (ancestor_id, descendant_id, depth)
-                            SELECT ancestor_record.ancestor_id, child_id, ancestor_record.depth + child_depth.depth
+                            SELECT ancestor_record.ancestor_id, child_record.descendant_id, ancestor_record.depth + child_depth.depth
                             FROM t_d_article_hierarchy child_depth
                             WHERE child_depth.ancestor_id = NEW.id
-                              AND child_depth.descendant_id = child_id
+                              AND child_depth.descendant_id = child_record.descendant_id
                             ON CONFLICT (ancestor_id, descendant_id) DO NOTHING;
                         END LOOP;
                     END LOOP;
