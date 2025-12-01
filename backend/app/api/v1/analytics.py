@@ -362,10 +362,10 @@ async def get_quick_stats_html(
 
     # Generate HTML - clean metrics without wrapper card
     html = f"""
-    <!-- Desktop version: 1x4 grid -->
-    <div class="hidden sm:grid sm:grid-cols-4 gap-6 w-full">
+    <!-- Desktop version: horizontal flex layout -->
+    <div class="hidden sm:flex sm:flex-row gap-4 w-full">
         <!-- Доходы -->
-        <div class="bg-base-200 rounded-lg p-3 shadow">
+        <div class="bg-base-200 rounded-lg p-4 shadow flex-1">
             <div class="flex items-center justify-between mb-2">
                 <span class="font-semibold text-sm">💰 Доходы</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_income_pct)} font-bold">{format_pct(plan_execution_income_pct)}</span>
@@ -383,7 +383,7 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Расходы -->
-        <div class="bg-base-200 rounded-lg p-3 shadow">
+        <div class="bg-base-200 rounded-lg p-4 shadow flex-1">
             <div class="flex items-center justify-between mb-2">
                 <span class="font-semibold text-sm">💸 Расходы</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_expense_pct)} font-bold">{format_pct(plan_execution_expense_pct)}</span>
@@ -401,7 +401,7 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Пополнение -->
-        <div class="bg-base-200 rounded-lg p-3 shadow">
+        <div class="bg-base-200 rounded-lg p-4 shadow flex-1">
             <div class="flex items-center justify-between mb-2">
                 <span class="font-semibold text-sm">➕ Пополнение</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_credit_pct)} font-bold">{format_pct(plan_execution_credit_pct)}</span>
@@ -419,7 +419,7 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Списание -->
-        <div class="bg-base-200 rounded-lg p-3 shadow">
+        <div class="bg-base-200 rounded-lg p-4 shadow flex-1">
             <div class="flex items-center justify-between mb-2">
                 <span class="font-semibold text-sm">➖ Списание</span>
                 <span class="badge badge-sm {get_pct_color(plan_execution_debit_pct)} font-bold">{format_pct(plan_execution_debit_pct)}</span>
@@ -438,9 +438,9 @@ async def get_quick_stats_html(
     </div>
 
     <!-- Mobile version: 2x2 grid -->
-    <div class="sm:hidden grid grid-cols-2 gap-1.5">
+    <div class="sm:hidden grid grid-cols-2 gap-3">
         <!-- Доходы -->
-        <div class="bg-base-200 rounded p-1.5 shadow-sm">
+        <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="flex items-center justify-between mb-0.5">
                 <span class="font-semibold text-[11px]">💰 Доходы</span>
                 <span class="badge badge-xs {get_pct_color(plan_execution_income_pct)} font-bold text-[9px] py-0">{format_pct(plan_execution_income_pct)}</span>
@@ -458,7 +458,7 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Расходы -->
-        <div class="bg-base-200 rounded p-1.5 shadow-sm">
+        <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="flex items-center justify-between mb-0.5">
                 <span class="font-semibold text-[11px]">💸 Расходы</span>
                 <span class="badge badge-xs {get_pct_color(plan_execution_expense_pct)} font-bold text-[9px] py-0">{format_pct(plan_execution_expense_pct)}</span>
@@ -476,7 +476,7 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Пополнение -->
-        <div class="bg-base-200 rounded p-1.5 shadow-sm">
+        <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="flex items-center justify-between mb-0.5">
                 <span class="font-semibold text-[11px]">➕ Пополнение</span>
                 <span class="badge badge-xs {get_pct_color(plan_execution_credit_pct)} font-bold text-[9px] py-0">{format_pct(plan_execution_credit_pct)}</span>
@@ -494,7 +494,7 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Списание -->
-        <div class="bg-base-200 rounded p-1.5 shadow-sm">
+        <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="flex items-center justify-between mb-0.5">
                 <span class="font-semibold text-[11px]">➖ Списание</span>
                 <span class="badge badge-xs {get_pct_color(plan_execution_debit_pct)} font-bold text-[9px] py-0">{format_pct(plan_execution_debit_pct)}</span>
