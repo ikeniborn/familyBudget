@@ -924,8 +924,20 @@ async function executeImport() {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Import failed');
+            const errorData = await response.json();
+            console.error('Import API error:', errorData);
+
+            // Extract error message from different possible formats
+            let errorMessage = 'Import failed';
+            if (typeof errorData.detail === 'string') {
+                errorMessage = errorData.detail;
+            } else if (errorData.detail && errorData.detail.message) {
+                errorMessage = errorData.detail.message;
+            } else if (errorData.message) {
+                errorMessage = errorData.message;
+            }
+
+            throw new Error(errorMessage);
         }
 
         const result = await response.json();
