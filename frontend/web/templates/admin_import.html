@@ -47,12 +47,20 @@
                     </label>
                 </div>
 
-                <button type="submit" class="btn btn-primary gap-2" id="upload-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    Загрузить и проанализировать CSV
-                </button>
+                <div class="flex gap-2">
+                    <button type="submit" class="btn btn-primary gap-2" id="upload-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        Загрузить и проанализировать CSV
+                    </button>
+                    <button type="button" class="btn btn-secondary gap-2" onclick="checkAndSkipToEnrichment()">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Пропустить (перейти к обогащению)
+                    </button>
+                </div>
             </form>
 
             <div id="upload-result" class="mt-4"></div>
@@ -83,7 +91,7 @@
 
             <div class="flex gap-2 mt-4">
                 <button class="btn btn-primary" onclick="saveMapping()">Сохранить маппинг</button>
-                <button class="btn btn-secondary" onclick="parseWithMapping()">Применить маппинг и перейти к обогащению</button>
+                <button class="btn btn-secondary" id="apply-mapping-btn" onclick="parseWithMapping()" disabled>Применить маппинг и перейти к обогащению</button>
             </div>
 
             <div id="mapping-result" class="mt-4"></div>
@@ -274,16 +282,25 @@ async function loadSavedMapping(bankId) {
             savedMappingId = data.mapping_id;
             currentMapping = data.mapping;
             console.log('Loaded saved mapping:', currentMapping);
+
+            // Enable Apply Mapping button if mapping exists
+            updateApplyMappingButtonState();
         } else {
             // No saved mapping - will use default or empty
+            savedMappingId = null;
             const errorData = await response.json();
             if (errorData.detail && errorData.detail.default_mapping) {
                 currentMapping = errorData.detail.default_mapping;
                 console.log('Using default mapping:', currentMapping);
             }
+
+            // Disable Apply Mapping button since no saved mapping
+            updateApplyMappingButtonState();
         }
     } catch (error) {
         console.error('Error loading saved mapping:', error);
+        savedMappingId = null;
+        updateApplyMappingButtonState();
     }
 }
 
@@ -336,6 +353,36 @@ async function uploadCSV(event) {
     } finally {
         uploadBtn.disabled = false;
         uploadBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg> Загрузить и проанализировать CSV';
+    }
+}
+
+async function checkAndSkipToEnrichment() {
+    if (!selectedBankId) {
+        showNotification('Сначала выберите банк', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/admin/staging', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to check staging');
+
+        const stagingData = await response.json();
+
+        if (stagingData.length === 0) {
+            showNotification('В staging нет данных. Загрузите и обработайте CSV файл.', 'error');
+            return;
+        }
+
+        // Jump to enrichment step
+        showNotification(`Найдено ${stagingData.length} записей в staging`, 'success');
+        await loadStagingTable();
+
+    } catch (error) {
+        console.error('Check staging error:', error);
+        showNotification(`Ошибка проверки staging: ${error.message}`, 'error');
     }
 }
 
@@ -410,14 +457,22 @@ function showColumnMapping() {
             select.appendChild(option);
         });
 
+        // Add change event listener to update sample data
+        const exampleCell = document.createElement('td');
+        exampleCell.id = `example-${field.key}`;
+        exampleCell.className = 'text-sm text-base-content/70';
+
+        select.onchange = function() {
+            updateSampleData(field.key, this.value, exampleCell);
+        };
+
         selectCell.appendChild(select);
 
-        const exampleCell = document.createElement('td');
+        // Initialize example data
         if (csvSampleRows.length > 0) {
-            const selectedHeader = currentMapping[field.key];
+            const selectedHeader = currentMapping[field.key] || select.value;
             if (selectedHeader && csvSampleRows[0][selectedHeader]) {
                 exampleCell.textContent = csvSampleRows[0][selectedHeader];
-                exampleCell.className = 'text-sm text-base-content/70';
             }
         }
 
@@ -426,6 +481,24 @@ function showColumnMapping() {
         row.appendChild(exampleCell);
         tableBody.appendChild(row);
     });
+
+    // Enable Apply Mapping button if mapping exists
+    updateApplyMappingButtonState();
+}
+
+function updateSampleData(fieldKey, csvColumn, exampleCell) {
+    if (csvSampleRows.length > 0 && csvColumn) {
+        exampleCell.textContent = csvSampleRows[0][csvColumn] || '';
+    } else {
+        exampleCell.textContent = '';
+    }
+}
+
+function updateApplyMappingButtonState() {
+    const applyBtn = document.getElementById('apply-mapping-btn');
+    if (applyBtn) {
+        applyBtn.disabled = !savedMappingId;
+    }
 }
 
 async function saveMapping() {
@@ -463,6 +536,9 @@ async function saveMapping() {
         const result = await response.json();
         savedMappingId = result.mapping_id;
         currentMapping = result.mapping;
+
+        // Enable Apply Mapping button
+        updateApplyMappingButtonState();
 
         showNotification('Маппинг сохранён', 'success');
 
