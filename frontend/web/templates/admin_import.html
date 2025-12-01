@@ -391,6 +391,8 @@ function showColumnMapping() {
         const select = document.createElement('select');
         select.id = `mapping-${field.key}`;
         select.className = 'select select-bordered select-sm w-full';
+        select.style.height = '3rem';
+        select.style.minHeight = '3rem';
 
         const emptyOption = document.createElement('option');
         emptyOption.value = '';
