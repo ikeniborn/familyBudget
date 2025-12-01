@@ -483,18 +483,19 @@ async function clearStagingByBank() {
             return; // Nothing to clear
         }
 
-        // Delete each record for selected bank (suppress 404 errors in console)
-        for (const record of bankStagingData) {
-            try {
-                await fetch(`/api/v1/admin/staging/${record.id}`, {
-                    method: 'DELETE',
-                    credentials: 'include'
-                });
-                // Ignore response - 200 or 404 both mean "record is gone"
-            } catch (err) {
-                // Silently ignore errors - this is a cleanup operation
-            }
-        }
+        // Bulk delete with single API request
+        const stagingIds = bankStagingData.map(r => r.id);
+
+        await fetch('/api/v1/admin/staging/bulk-delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ staging_ids: stagingIds })
+        });
+        // Ignore response - this is a cleanup operation
+
     } catch (error) {
         // Silently ignore - this is a cleanup operation before upload
     }
