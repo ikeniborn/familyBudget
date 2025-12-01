@@ -614,10 +614,10 @@ function createArticleSelect(record) {
     select.appendChild(emptyOption);
 
     // Filter articles by type
-    const amount = parseFloat(record.amount_string);
+    const amount = parseFloat(record.amount_string.replace(',', '.'));
     const recordType = amount < 0 ? 'expense' : 'income';
 
-    const filteredArticles = allArticles.filter(a => a.record_type === recordType);
+    const filteredArticles = allArticles.filter(a => a.type === recordType);
 
     filteredArticles.forEach(article => {
         const option = document.createElement('option');
