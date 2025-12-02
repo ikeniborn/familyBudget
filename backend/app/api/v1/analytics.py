@@ -2121,6 +2121,10 @@ async def get_plans_monthly_comparison(
     1. Bar chart: Operation types with current vs previous month columns
     2. Bar chart: Categories with current vs previous month columns
 
+    **Previous month data logic:**
+    - If selected month is current calendar month → previous month shows FACT data
+    - If selected month is a future month → previous month shows PLAN data
+
     Args:
         planning_month: Target month in YYYY-MM format (defaults to current month)
         financial_center_id: Optional filter by ЦФО
@@ -2150,12 +2154,20 @@ async def get_plans_monthly_comparison(
     else:
         previous_month_date = date(current_month_date.year, current_month_date.month - 1, 1)
 
-    async def get_month_data(month_date: date) -> dict:
-        """Get plan data for a specific month."""
+    # Determine record_type for previous month based on selected month
+    # If selected month is current calendar month → previous shows fact data
+    # If selected month is future → previous shows plan data
+    today = date.today()
+    actual_current_month = date(today.year, today.month, 1)
+    is_current_or_past_month = current_month_date <= actual_current_month
+    previous_month_record_type = "fact" if is_current_or_past_month else "plan"
+
+    async def get_month_data(month_date: date, record_type: str = "plan") -> dict:
+        """Get data for a specific month with specified record_type."""
         # Base conditions (without article filters for type totals)
         base_conditions = [
             Fact.user_id == current_user.id,
-            Fact.record_type == "plan",
+            Fact.record_type == record_type,
             func.date_trunc("month", Fact.fact_date) == month_date
         ]
 
@@ -2228,9 +2240,14 @@ async def get_plans_monthly_comparison(
         count_result = await session.execute(count_stmt)
         total_records = count_result.scalar_one()
 
+        # Generate month name with data type prefix for legend
+        base_month_name = get_russian_month_name(month_date.month, month_date.year)
+        data_type_label = "Факт" if record_type == "fact" else "План"
+
         return {
             "month": month_date.strftime("%Y-%m"),
-            "month_name": get_russian_month_name(month_date.month, month_date.year),
+            "month_name": f"{data_type_label} {base_month_name}",
+            "record_type": record_type,
             "by_type": by_type,
             "total": sum(by_type.values()),
             "total_records": total_records,
@@ -2238,8 +2255,10 @@ async def get_plans_monthly_comparison(
         }
 
     # Get data for both months
-    current_data = await get_month_data(current_month_date)
-    previous_data = await get_month_data(previous_month_date)
+    # Current month always shows plan data
+    # Previous month shows fact data for current/past months, plan data for future months
+    current_data = await get_month_data(current_month_date, record_type="plan")
+    previous_data = await get_month_data(previous_month_date, record_type=previous_month_record_type)
 
     # Merge categories from both months for comparison chart
     all_categories = {}
@@ -2292,6 +2311,7 @@ async def get_plans_monthly_comparison(
     return {
         "current_month": current_data,
         "previous_month": previous_data,
+        "previous_month_data_type": previous_month_record_type,
         "categories_comparison": categories_comparison,
         "comparison_by_type": comparison_by_type,
         "filters": {
