@@ -213,7 +213,7 @@ function openTransferModal() {
 }
 
 /**
- * Handle Transfer Form Submit
+ * Handle Transfer Form Submit (with offline support)
  */
 async function handleTransferSubmit(event) {
     event.preventDefault();
@@ -235,47 +235,79 @@ async function handleTransferSubmit(event) {
     // 2. Client-side validation
     const validationError = validateTransferData(data);
     if (validationError) {
-        showNotification(validationError, 'error');
+        if (typeof showToast === 'function') {
+            showToast(validationError, 'error');
+        } else {
+            alert(validationError);
+        }
         return;
     }
 
-    // 3. Submit to backend
+    // 3. Submit to backend (with offline fallback)
     try {
-        const response = await fetch('/api/v1/transfers', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-            credentials: 'include'  // Include cookies for auth
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to create transfer');
-        }
-
-        const result = await response.json();
-        console.log('Transfer created:', result);
-
-        // 4. Show success notification
-        showNotification(
-            `✅ Перевод создан успешно (ID: ${result.transfer_id})`,
-            'success'
-        );
-
-        // 5. Close modal and reload page
+        // Close modal first (before showing toast)
         document.querySelector('#transfer_modal').close();
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
+        event.target.reset();
 
+        // Use OfflineManager for offline support
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createTransfer(data);
+
+            if (result._offline) {
+                // Saved offline - will sync when online
+                if (typeof showToast === 'function') {
+                    showToast('Перевод сохранен оффлайн (будет синхронизирован при подключении)', 'warning');
+                }
+                console.log('[Transfer] Saved offline:', result);
+
+                // Update pending count if function exists
+                if (typeof updatePendingCount === 'function') {
+                    await updatePendingCount();
+                }
+            } else {
+                // Saved online
+                if (typeof showToast === 'function') {
+                    showToast('Перевод создан успешно!', 'success');
+                }
+                console.log('[Transfer] Saved online:', result);
+
+                // Reload page to show new transfer
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            }
+        } else {
+            // Fallback to direct fetch if OfflineManager not available
+            const response = await fetch('/api/v1/transfers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || error.message || 'Failed to create transfer');
+            }
+
+            const result = await response.json();
+            console.log('[Transfer] Created:', result);
+
+            if (typeof showToast === 'function') {
+                showToast('Перевод создан успешно!', 'success');
+            }
+
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
     } catch (error) {
-        console.error('Transfer error:', error);
-        showNotification(
-            `❌ Ошибка: ${error.message}`,
-            'error'
-        );
+        console.error('[Transfer] Error:', error);
+        if (typeof showToast === 'function') {
+            showToast('Ошибка при создании перевода: ' + error.message, 'error');
+        } else {
+            alert('Ошибка: ' + error.message);
+        }
     }
 }
 
@@ -305,21 +337,7 @@ function validateTransferData(data) {
     return null;  // No errors
 }
 
-/**
- * Show Notification (reuse existing notification system)
- */
-function showNotification(message, type = 'info') {
-    // Если на странице есть HTMX notifications, используем их
-    if (typeof htmx !== 'undefined') {
-        htmx.trigger('#notifications', 'notify', {
-            message: message,
-            type: type
-        });
-    } else {
-        // Fallback: simple alert
-        alert(message);
-    }
-}
+// showNotification removed - using global showToast() from base.html
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', initTransferModal);

@@ -773,6 +773,22 @@ class OfflineManager {
     }
 
     /**
+     * Get all pending sync items for display
+     * @returns {Promise<Array>} Array of pending items
+     */
+    async getPendingSyncItems() {
+        return await this.db.getSyncQueue('pending');
+    }
+
+    /**
+     * Sync all pending items in queue
+     * @returns {Promise<void>}
+     */
+    async syncQueue() {
+        await this.sync();
+    }
+
+    /**
      * Clear all offline data (DANGEROUS!)
      * @returns {Promise<void>}
      */

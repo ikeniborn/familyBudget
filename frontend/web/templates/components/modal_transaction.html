@@ -1,7 +1,7 @@
 {% macro transaction_modal(modal_id='modal_add_transaction') %}
 <dialog id="{{ modal_id }}" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">➕ Добавить транзакцию</h3>
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">➕ Добавить факт</h3>
 
         <form id="form_{{ modal_id }}" class="space-y-2 sm:space-y-4">
             <!-- Дата -->
@@ -98,7 +98,7 @@
                     <span class="label-text">Описание (необязательно)</span>
                 </label>
                 <textarea name="description" class="textarea textarea-bordered"
-                          placeholder="Комментарий к транзакции" rows="2"></textarea>
+                          placeholder="Комментарий к факту" rows="2"></textarea>
             </div>
 
             <div class="modal-action">

@@ -121,7 +121,7 @@ async def facts(
         {
             "request": request,
             "user": current_user,
-            "page_title": "Транзакции"
+            "page_title": "Факты"
         }
     )
 

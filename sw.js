@@ -161,13 +161,27 @@ self.addEventListener('fetch', (event) => {
           // Fallback на кеш если сеть недоступна
           // Только OFFLINE_PAGES доступны в offline режиме
           if (!OFFLINE_PAGES.includes(url.pathname)) {
-            if (DEBUG) console.log('[SW] Page not available offline:', url.pathname);
+            if (DEBUG) console.log('[SW] Page not available offline, redirecting to home:', url.pathname);
             // Редирект на главную страницу для недоступных страниц
-            return caches.match('/')
-              .then(homeResponse => homeResponse || new Response(
-                '<h1>Страница недоступна</h1><p>Эта страница недоступна в offline режиме. Перейдите на <a href="/">главную</a>.</p>',
-                { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-              ));
+            // Используем JavaScript redirect т.к. SW не может сделать HTTP 302
+            return new Response(
+              `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0;url=/">
+  <title>Redirect</title>
+  <script>window.location.replace('/');</script>
+</head>
+<body>
+  <p>Эта страница недоступна в offline режиме. <a href="/">Перейти на главную</a></p>
+</body>
+</html>`,
+              {
+                status: 200,
+                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+              }
+            );
           }
 
           return caches.match(request)

@@ -50,19 +50,19 @@
                             Добавить перевод
                         </button>
 
-                        <a href="/analytics" class="btn btn-outline btn-primary justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                            Панель аналитики
-                        </a>
-
                         <button onclick="modal_add_plan.showModal()" class="btn btn-outline btn-info justify-start gap-3">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
                             Добавить план
                         </button>
+
+                        <a id="analytics-btn" href="/analytics" class="btn btn-outline btn-primary justify-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Панель аналитики
+                        </a>
                     </div>
                 </div>
             </div>
@@ -79,6 +79,41 @@
                         <div class="flex items-center justify-center py-8">
                             <span class="loading loading-spinner loading-lg text-primary"></span>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Records (shown when offline or items waiting to sync) -->
+            <div id="pending-records-card" class="card bg-base-100 shadow-xl hidden">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">
+                        ⏳ Ожидают синхронизации
+                        <span id="pending-count-badge" class="badge badge-warning badge-sm">0</span>
+                    </h2>
+                    <div id="pending-records-container">
+                        <div class="overflow-x-auto">
+                            <table class="table table-zebra table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Тип</th>
+                                        <th>Дата</th>
+                                        <th>Сумма</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pending-records-tbody">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-actions justify-end mt-4">
+                        <button onclick="syncPendingRecords()" class="btn btn-sm btn-primary gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Синхронизировать
+                        </button>
                     </div>
                 </div>
             </div>
@@ -185,6 +220,25 @@ function openAddTransactionModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Скрыть кнопку аналитики в offline режиме
+    function updateAnalyticsButtonVisibility() {
+        const analyticsBtn = document.getElementById('analytics-btn');
+        if (analyticsBtn) {
+            // Используем offlineManager если доступен, иначе navigator.onLine
+            const isOnline = window.offlineManager
+                ? (navigator.onLine && window.offlineManager.isOnline)
+                : navigator.onLine;
+            analyticsBtn.style.display = isOnline ? '' : 'none';
+        }
+    }
+
+    // Проверить при загрузке
+    updateAnalyticsButtonVisibility();
+
+    // Слушать изменения статуса сети
+    window.addEventListener('online', updateAnalyticsButtonVisibility);
+    window.addEventListener('offline', updateAnalyticsButtonVisibility);
+
     // Загрузить категории, ЦФО и МВЗ для обеих форм
     loadCategories();
     loadFinancialCenters();
@@ -901,6 +955,142 @@ function setupPlanTypeButtons() {
         });
     });
 }
+
+// === Pending Records Management ===
+
+// Load and display pending records from sync queue
+async function loadPendingRecords() {
+    const card = document.getElementById('pending-records-card');
+    const tbody = document.getElementById('pending-records-tbody');
+    const countBadge = document.getElementById('pending-count-badge');
+
+    if (!card || !tbody || !window.offlineManager) {
+        return;
+    }
+
+    try {
+        const pendingItems = await window.offlineManager.getPendingSyncItems();
+
+        if (pendingItems.length === 0) {
+            card.classList.add('hidden');
+            countBadge.textContent = '0';
+            return;
+        }
+
+        // Show the card
+        card.classList.remove('hidden');
+        countBadge.textContent = pendingItems.length;
+
+        // Populate table
+        tbody.innerHTML = pendingItems.map(item => {
+            const typeLabel = getRecordTypeLabel(item.type);
+            const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
+            const amount = item.data.amount ? parseFloat(item.data.amount).toFixed(2) : '—';
+            const statusBadge = getStatusBadge(item);
+
+            return `
+                <tr>
+                    <td>${typeLabel}</td>
+                    <td>${date}</td>
+                    <td>${amount}</td>
+                    <td>${statusBadge}</td>
+                </tr>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('[Pending Records] Error loading:', error);
+    }
+}
+
+// Get human-readable type label
+function getRecordTypeLabel(type) {
+    const labels = {
+        'fact': '📊 Факт',
+        'plan': '📋 План',
+        'transfer': '↔️ Перевод'
+    };
+    return labels[type] || type;
+}
+
+// Get status badge HTML
+function getStatusBadge(item) {
+    if (item.retryCount > 0) {
+        return `<span class="badge badge-warning badge-sm">Повтор ${item.retryCount}</span>`;
+    }
+    return '<span class="badge badge-info badge-sm">Ожидает</span>';
+}
+
+// Sync pending records manually
+async function syncPendingRecords() {
+    if (!window.offlineManager) {
+        showToast('Менеджер синхронизации недоступен', 'error');
+        return;
+    }
+
+    const isOnline = navigator.onLine && window.offlineManager.isOnline;
+    if (!isOnline) {
+        showToast('Нет подключения к серверу', 'warning');
+        return;
+    }
+
+    try {
+        showToast('Синхронизация...', 'info');
+        await window.offlineManager.syncQueue();
+        await loadPendingRecords();
+
+        // Reload recent transactions
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+
+        showToast('Синхронизация завершена', 'success');
+    } catch (error) {
+        console.error('[Sync] Error:', error);
+        showToast('Ошибка синхронизации: ' + error.message, 'error');
+    }
+}
+
+// Update pending count badge (called from other modules)
+async function updatePendingCount() {
+    const countBadge = document.getElementById('pending-count-badge');
+
+    if (!countBadge || !window.offlineManager) {
+        return 0;
+    }
+
+    try {
+        const pendingItems = await window.offlineManager.getPendingSyncItems();
+        countBadge.textContent = pendingItems.length;
+
+        // Also update card visibility
+        const card = document.getElementById('pending-records-card');
+        if (card) {
+            if (pendingItems.length > 0) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        }
+
+        return pendingItems.length;
+    } catch (error) {
+        console.error('[Pending Count] Error:', error);
+        return 0;
+    }
+}
+
+// Initialize pending records on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for offlineManager to be ready
+    setTimeout(() => {
+        loadPendingRecords();
+    }, 500);
+
+    // Also listen for online/offline events
+    window.addEventListener('online', loadPendingRecords);
+    window.addEventListener('offline', loadPendingRecords);
+});
 </script>
 
 <!-- Include Transfer Modal -->
