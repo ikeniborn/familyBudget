@@ -716,6 +716,16 @@ class OfflineManager {
     }
 
     /**
+     * Get sync queue item by ID (for status checking)
+     * @param {number} id - Fact ID
+     * @returns {Promise<Object|null>} Queue item or null if not found
+     */
+    async getSyncQueueItem(id) {
+        const queue = await this.db.getSyncQueue();
+        return queue.find(item => item.data && item.data.id === id) || null;
+    }
+
+    /**
      * Clear all offline data (DANGEROUS!)
      * @returns {Promise<void>}
      */

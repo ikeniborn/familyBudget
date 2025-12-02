@@ -114,10 +114,10 @@
     <script src="/static/js/vendor/choices.min.js"></script>
 
     <!-- Offline Mode Scripts -->
-    <script src="/static/js/offline/idb.min.js?v=PLACEHOLDER"></script>
-    <script src="/static/js/offline/offlineManager.min.js?v=PLACEHOLDER"></script>
-    <script src="/static/js/offline/conflictResolver.min.js?v=PLACEHOLDER"></script>
-    <script src="/static/js/offline/pushManager.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/offline/idb.min.js?v={{ cache_version }}"></script>
+    <script src="/static/js/offline/offlineManager.min.js?v={{ cache_version }}"></script>
+    <script src="/static/js/offline/conflictResolver.min.js?v={{ cache_version }}"></script>
+    <script src="/static/js/offline/pushManager.min.js?v={{ cache_version }}"></script>
 
     <!-- ECharts (for analytics pages) -->
     {% block extra_head %}{% endblock %}
