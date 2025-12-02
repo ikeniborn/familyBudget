@@ -1142,7 +1142,7 @@ function renderFactsTable(facts) {
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>
                         <th>👤 Пользователь</th>
-                        <th>🔄 Статус</th>
+                        <th>💾 Сохранено</th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -1200,6 +1200,7 @@ function renderFactsTable(facts) {
 }
 
 // Update sync status indicators for all facts in the table
+// Shows "Да" (true) for synced records, "Нет" (false) for offline pending
 async function updateSyncStatuses() {
     const statusCells = document.querySelectorAll('.sync-status-cell');
 
@@ -1208,7 +1209,7 @@ async function updateSyncStatuses() {
         console.warn('[Sync Status] OfflineManager not initialized yet');
         // Show synced status for all (facts are loaded from server)
         statusCells.forEach(cell => {
-            cell.innerHTML = '<span class="text-success" title="Синхронизировано с сервером">✅</span>';
+            cell.innerHTML = '<span class="badge badge-success badge-sm" title="Синхронизировано с сервером">Да</span>';
         });
         return;
     }
@@ -1221,20 +1222,20 @@ async function updateSyncStatuses() {
             const queueItem = await window.offlineManager.getSyncQueueItem(factId);
 
             if (queueItem) {
-                // Fact is pending sync
+                // Fact is pending sync - NOT saved to server yet
                 if (queueItem.retryCount > 0) {
-                    cell.innerHTML = '<span class="badge badge-warning badge-sm" title="Попытка повторной отправки">⚠️ Повтор</span>';
+                    cell.innerHTML = '<span class="badge badge-warning badge-sm" title="Повторная попытка отправки">Нет</span>';
                 } else {
-                    cell.innerHTML = '<span class="badge badge-info badge-sm" title="Ожидает отправки на сервер">⏳ Ожидает</span>';
+                    cell.innerHTML = '<span class="badge badge-info badge-sm" title="Ожидает отправки на сервер">Нет</span>';
                 }
             } else {
-                // Fact is synced
-                cell.innerHTML = '<span class="text-success" title="Синхронизировано с сервером">✅</span>';
+                // Fact is synced - saved to server
+                cell.innerHTML = '<span class="badge badge-success badge-sm" title="Синхронизировано с сервером">Да</span>';
             }
         } catch (error) {
             console.warn('[Sync Status] Error checking status for fact', factId, error);
             // Assume synced if we can't check (fact loaded from server)
-            cell.innerHTML = '<span class="text-success" title="Синхронизировано">✅</span>';
+            cell.innerHTML = '<span class="badge badge-success badge-sm" title="Синхронизировано">Да</span>';
         }
     }
 }

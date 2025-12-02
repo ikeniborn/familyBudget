@@ -372,7 +372,8 @@
 
     <!-- Toast Container (for dynamic notifications) -->
     <!-- z-[9999] ensures toasts appear above modals (DaisyUI modals use ~z-999) -->
-    <div id="toast-container" class="toast toast-top toast-center md:toast-end z-[9999] px-4 md:pr-4 md:pl-0" role="alert" aria-live="polite"></div>
+    <!-- Mobile-optimized: centered, smaller padding, responsive width -->
+    <div id="toast-container" class="toast toast-top toast-center z-[9999] px-2 sm:px-4 w-full sm:w-auto max-w-[calc(100vw-1rem)] sm:max-w-md" role="alert" aria-live="polite"></div>
 
     <!-- Footer -->
     <footer class="footer footer-center p-4 bg-base-200 text-base-content border-t">
@@ -414,7 +415,7 @@
             }
         });
 
-        // Toast notification system
+        // Toast notification system (mobile-optimized)
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             if (!container) return;
@@ -425,8 +426,9 @@
                               type === 'error' ? 'alert-error' :
                               type === 'warning' ? 'alert-warning' : 'alert-info';
 
-            toast.className = `alert ${alertClass} shadow-lg max-w-md break-words`;
-            toast.innerHTML = `<span class="break-words">${message}</span>`;
+            // Mobile-optimized: smaller text, word wrap, max width
+            toast.className = `alert ${alertClass} shadow-lg w-full sm:max-w-md text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4`;
+            toast.innerHTML = `<span class="break-words whitespace-normal leading-tight">${message}</span>`;
 
             // Add to container
             container.appendChild(toast);

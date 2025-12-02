@@ -21,11 +21,16 @@ const CACHE_NAME = `budget-${CACHE_VERSION}`;
 // ТОЛЬКО файлы которые НЕ используют cache busting
 const STATIC_CACHE = [
   '/',
+  '/facts',
+  '/plan',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
   '/static/icons/favicon.ico'
 ];
+
+// Страницы доступные в offline режиме (только эти страницы работают без сети)
+const OFFLINE_PAGES = ['/', '/facts', '/plan'];
 
 // Файлы с cache busting - кешируются RUNTIME (не в install event)
 // Service Worker будет кешировать их при первом запросе
@@ -143,15 +148,28 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Кешируем HTML страницы для offline доступа
-          const clonedResponse = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clonedResponse);
-          });
+          // Кешируем только OFFLINE_PAGES для offline доступа
+          if (OFFLINE_PAGES.includes(url.pathname)) {
+            const clonedResponse = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clonedResponse);
+            });
+          }
           return response;
         })
         .catch(() => {
           // Fallback на кеш если сеть недоступна
+          // Только OFFLINE_PAGES доступны в offline режиме
+          if (!OFFLINE_PAGES.includes(url.pathname)) {
+            if (DEBUG) console.log('[SW] Page not available offline:', url.pathname);
+            // Редирект на главную страницу для недоступных страниц
+            return caches.match('/')
+              .then(homeResponse => homeResponse || new Response(
+                '<h1>Страница недоступна</h1><p>Эта страница недоступна в offline режиме. Перейдите на <a href="/">главную</a>.</p>',
+                { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+              ));
+          }
+
           return caches.match(request)
             .then(cachedResponse => {
               if (cachedResponse) {

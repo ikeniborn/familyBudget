@@ -1183,6 +1183,7 @@ function renderFactsTable(facts) {
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>
                         <th>👤 Пользователь</th>
+                        <th>💾 Сохранено</th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -1212,7 +1213,7 @@ function renderFactsTable(facts) {
         const articleName = fact.article_name || '—';
 
         html += `
-            <tr>
+            <tr data-plan-id="${fact.id}">
                 <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
                 <td><code class="badge badge-ghost">${fact.id}</code></td>
                 <td>${formattedDate}</td>
@@ -1222,6 +1223,9 @@ function renderFactsTable(facts) {
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td>${fact.user_name || '—'}</td>
+                <td class="sync-status-cell" data-plan-id="${fact.id}">
+                    <span class="loading loading-spinner loading-xs"></span>
+                </td>
                 <td>
                     <div class="flex gap-1">
                         <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
@@ -1239,6 +1243,50 @@ function renderFactsTable(facts) {
     `;
 
     container.innerHTML = html;
+
+    // Update sync status for each plan
+    updatePlanSyncStatuses();
+}
+
+// Update sync status indicators for all plans in the table
+// Shows "Да" (true) for synced records, "Нет" (false) for offline pending
+async function updatePlanSyncStatuses() {
+    const statusCells = document.querySelectorAll('.sync-status-cell');
+
+    // Check if OfflineManager instance is available
+    if (!window.offlineManager) {
+        console.warn('[Sync Status] OfflineManager not initialized yet');
+        // Show synced status for all (plans are loaded from server)
+        statusCells.forEach(cell => {
+            cell.innerHTML = '<span class="badge badge-success badge-sm" title="Синхронизировано с сервером">Да</span>';
+        });
+        return;
+    }
+
+    for (const cell of statusCells) {
+        const planId = parseInt(cell.dataset.planId);
+
+        try {
+            // Check if plan is in sync queue
+            const queueItem = await window.offlineManager.getSyncQueueItem(planId);
+
+            if (queueItem) {
+                // Plan is pending sync - NOT saved to server yet
+                if (queueItem.retryCount > 0) {
+                    cell.innerHTML = '<span class="badge badge-warning badge-sm" title="Повторная попытка отправки">Нет</span>';
+                } else {
+                    cell.innerHTML = '<span class="badge badge-info badge-sm" title="Ожидает отправки на сервер">Нет</span>';
+                }
+            } else {
+                // Plan is synced - saved to server
+                cell.innerHTML = '<span class="badge badge-success badge-sm" title="Синхронизировано с сервером">Да</span>';
+            }
+        } catch (error) {
+            console.warn('[Sync Status] Error checking status for plan', planId, error);
+            // Assume synced if we can't check (plan loaded from server)
+            cell.innerHTML = '<span class="badge badge-success badge-sm" title="Синхронизировано">Да</span>';
+        }
+    }
 }
 
 // Toggle select all checkboxes
