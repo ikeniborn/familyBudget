@@ -1917,7 +1917,8 @@ function initAnalyticsMonthButtons() {
         const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
 
         const btn = document.createElement('button');
-        btn.className = offset === 0 ? 'join-item btn btn-sm btn-primary' : 'join-item btn btn-sm btn-outline';
+        btn.className = offset === 0 ? 'join-item btn btn-primary' : 'join-item btn btn-outline';
+        btn.style.height = '3rem';
         btn.textContent = label;
         btn.dataset.month = yearMonth;
         btn.onclick = () => selectAnalyticsMonth(yearMonth, btn);
@@ -1974,15 +1975,16 @@ async function loadAnalyticsCFOFilter() {
 // Load article filter options for analytics
 async function loadAnalyticsArticleFilter(articleType = null) {
     try {
-        let url = '/api/v1/articles/tree';
+        let url = '/api/v1/admin/articles?limit=1000&sort_by=usage_count';
         if (articleType) {
-            url += `?type=${articleType}`;
+            url += `&type=${articleType}`;
         }
 
         const response = await fetch(url);
         if (!response.ok) return;
 
-        const articles = await response.json();
+        const data = await response.json();
+        const articles = Array.isArray(data) ? data : (data.articles || []);
         analyticsArticlesCache = articles;
 
         const select = document.getElementById('analytics-article');
@@ -1994,24 +1996,36 @@ async function loadAnalyticsArticleFilter(articleType = null) {
         // Clear and repopulate
         select.innerHTML = '<option value="">Все категории</option>';
 
-        // Build tree structure
-        const buildOptions = (items, level = 0) => {
-            items.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                const indent = '›  '.repeat(level);
-                const icon = item.children && item.children.length > 0 ? '📂' : '▸';
-                option.textContent = `${indent}${icon} ${item.name}`;
-                option.dataset.type = item.type;
-                select.appendChild(option);
+        // Build tree and flatten (same as plan filter)
+        const tree = buildArticleTree(articles);
+        const flatNodes = flattenArticleTree(tree);
 
-                if (item.children && item.children.length > 0) {
-                    buildOptions(item.children, level + 1);
-                }
-            });
-        };
+        // Group by type while preserving hierarchical order
+        const groupedByType = { 'expense': [], 'income': [], 'debit': [], 'credit': [] };
+        flatNodes.forEach(node => {
+            if (groupedByType[node.type]) {
+                groupedByType[node.type].push(node);
+            }
+        });
 
-        buildOptions(articles);
+        // Flatten back in type order
+        const sortedNodes = [
+            ...groupedByType['expense'],
+            ...groupedByType['income'],
+            ...groupedByType['debit'],
+            ...groupedByType['credit']
+        ];
+
+        // Build options
+        sortedNodes.forEach(node => {
+            const option = document.createElement('option');
+            option.value = node.id;
+            const indent = '›  '.repeat(node.level);
+            const icon = node.isLeaf ? '▸' : '📂';
+            option.textContent = `${indent}${icon} ${node.name}`;
+            option.dataset.type = node.type;
+            select.appendChild(option);
+        });
 
         // Restore selection if still valid
         if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
@@ -2170,7 +2184,9 @@ function updateComparisonChart(data) {
         },
         xAxis: {
             type: 'category',
-            data: types.map(t => typeLabels[t])
+            data: types.map(t => typeLabels[t]),
+            axisLine: { lineStyle: { color: '#e5e7eb' } },
+            axisTick: { lineStyle: { color: '#e5e7eb' } }
         },
         yAxis: {
             type: 'value',
@@ -2180,7 +2196,12 @@ function updateComparisonChart(data) {
                     if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
                     return value;
                 }
-            }
+            },
+            splitLine: {
+                show: true,
+                lineStyle: { color: '#e5e7eb', type: 'dashed' }
+            },
+            axisLine: { show: true, lineStyle: { color: '#e5e7eb' } }
         },
         series: [
             {
@@ -2188,7 +2209,7 @@ function updateComparisonChart(data) {
                 type: 'bar',
                 data: types.map((t, i) => ({
                     value: previousByType[t] || 0,
-                    itemStyle: { color: typeColors[t], opacity: 0.5 }
+                    itemStyle: { color: typeColors[t], opacity: 0.25 }
                 })),
                 barWidth: '30%'
             },
