@@ -1820,7 +1820,17 @@ async function createFact(event) {
 
             modal_add_transaction.close();
             event.target.reset();
-            await loadFacts(); // Перезагрузить список транзакций
+
+            // Reload facts list only if online (offline save won't be visible until sync anyway)
+            if (!result._offline && navigator.onLine) {
+                await loadFacts();
+            } else {
+                debugLog('[createFact] Skipping loadFacts() - offline mode');
+                // Update pending count badge instead
+                if (typeof updatePendingCount === 'function') {
+                    await updatePendingCount();
+                }
+            }
 
             // Установить дату обратно на сегодня
             const createFactDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');

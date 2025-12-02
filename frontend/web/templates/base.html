@@ -164,10 +164,12 @@
 
         <div class="navbar-end gap-1 sm:gap-2">
             <!-- Offline Status Icon (shown only when offline) -->
-            <div id="offline-icon" class="hidden" title="Оффлайн режим">
+            <div id="offline-icon" class="hidden" title="Нет подключения к интернету">
                 <div class="btn btn-ghost btn-circle btn-sm sm:btn-md text-warning">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m-3.536-3.536a5 5 0 010-7.072M13 12a1 1 0 11-2 0 1 1 0 012 0zm-5.657 5.657a9 9 0 010-12.728m3.536 3.536a5 5 0 010 7.072" />
+                    <!-- Cloud with X icon - clearly indicates no connection -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 11l-4 4m0-4l4 4" />
                     </svg>
                 </div>
             </div>
