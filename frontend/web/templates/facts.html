@@ -1203,12 +1203,22 @@ function renderFactsTable(facts) {
 async function updateSyncStatuses() {
     const statusCells = document.querySelectorAll('.sync-status-cell');
 
+    // Check if OfflineManager instance is available
+    if (!window.offlineManager) {
+        console.warn('[Sync Status] OfflineManager not initialized yet');
+        // Show synced status for all (facts are loaded from server)
+        statusCells.forEach(cell => {
+            cell.innerHTML = '<span class="text-success" title="Синхронизировано с сервером">✅</span>';
+        });
+        return;
+    }
+
     for (const cell of statusCells) {
         const factId = parseInt(cell.dataset.factId);
 
         try {
-            // Check if fact is in sync queue
-            const queueItem = await window.OfflineManager.getSyncQueueItem(factId);
+            // Check if fact is in sync queue (use instance, not class)
+            const queueItem = await window.offlineManager.getSyncQueueItem(factId);
 
             if (queueItem) {
                 // Fact is pending sync
