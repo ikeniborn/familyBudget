@@ -20,18 +20,27 @@ class OfflineManager {
         this.syncInProgress = false;
         this.retryDelay = 5000; // 5 seconds
         this.maxRetries = 3;
+        this.isInitialized = false;
+        this.lastToastTime = 0;
+        this.toastDebounceMs = 3000; // Prevent toast spam
 
-        // Initialize
-        this.init();
+        // Note: Don't auto-init in constructor - let base.html call init() explicitly
+        // This prevents double initialization
     }
 
     async init() {
+        // Prevent double initialization
+        if (this.isInitialized) {
+            console.log('[Offline] Already initialized, skipping');
+            return;
+        }
+
         console.log('[Offline] Initializing OfflineManager');
 
         // Initialize IndexedDB
         await this.db.init();
 
-        // Setup network listeners
+        // Setup network listeners (only once)
         window.addEventListener('online', () => this.handleOnline());
         window.addEventListener('offline', () => this.handleOffline());
 
@@ -52,6 +61,25 @@ class OfflineManager {
 
         // Clear expired cache periodically
         setInterval(() => this.db.clearExpiredCache(), 60000); // Every minute
+
+        this.isInitialized = true;
+    }
+
+    /**
+     * Show toast with debounce to prevent spam
+     * @private
+     */
+    _showToastDebounced(message, type) {
+        const now = Date.now();
+        if (now - this.lastToastTime < this.toastDebounceMs) {
+            console.log('[Offline] Toast debounced:', message);
+            return;
+        }
+        this.lastToastTime = now;
+
+        if (typeof showToast === 'function') {
+            showToast(message, type);
+        }
     }
 
     /**
@@ -637,19 +665,17 @@ class OfflineManager {
         console.log('[Offline] Network restored');
         this.isOnline = true;
 
-        // Show notification
-        if (typeof showToast === 'function') {
-            showToast('Соединение восстановлено', 'success');
-        }
+        // Show notification (debounced to prevent spam)
+        this._showToastDebounced('Соединение восстановлено', 'success');
 
         // Trigger sync
         const results = await this.sync();
 
-        // Show sync results
+        // Show sync results (only if there were items to sync)
         if (results.synced > 0) {
-            if (typeof showToast === 'function') {
-                showToast(`Синхронизировано: ${results.synced} записей`, 'success');
-            }
+            // Reset debounce time to allow sync result toast
+            this.lastToastTime = 0;
+            this._showToastDebounced(`Синхронизировано: ${results.synced} записей`, 'success');
 
             // Request notification permission if not already granted
             if ('Notification' in window && Notification.permission === 'default') {
@@ -667,9 +693,8 @@ class OfflineManager {
         console.log('[Offline] Network lost');
         this.isOnline = false;
 
-        if (typeof showToast === 'function') {
-            showToast('Работаем оффлайн', 'warning');
-        }
+        // Show notification (debounced to prevent spam)
+        this._showToastDebounced('Работаем оффлайн', 'warning');
 
         // Emit custom event for UI updates
         window.dispatchEvent(new CustomEvent('offline-status-change', {

@@ -29,15 +29,22 @@ class PushNotificationManager {
 
     /**
      * Initialize Push Manager
+     * @param {Object} options - Initialization options
+     * @param {boolean} options.requestPermission - Request permission on init (default: false)
      */
-    async init() {
+    async init(options = {}) {
         if (!this.isSupported) {
             console.warn('[Push] Push Notifications not supported');
             return false;
         }
 
         // Load VAPID public key from server
-        await this.loadVapidKey();
+        try {
+            await this.loadVapidKey();
+        } catch (error) {
+            console.error('[Push] Failed to initialize - VAPID key error:', error);
+            return false;
+        }
 
         // Check current permission
         if (Notification.permission === 'granted') {
@@ -45,6 +52,11 @@ class PushNotificationManager {
             await this.subscribe();
         } else if (Notification.permission === 'default') {
             console.log('[Push] Permission not requested yet');
+            // Request permission if requested (requires user gesture on iOS)
+            if (options.requestPermission) {
+                console.log('[Push] Requesting permission on init...');
+                await this.requestPermission();
+            }
         } else {
             console.log('[Push] Permission denied');
         }

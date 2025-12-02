@@ -249,15 +249,15 @@
                 <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm text-xs sm:text-sm px-3 sm:px-4">Вход</a>
             {% endif %}
 
-            <!-- Mobile Menu -->
+            <!-- Mobile Menu (with JS toggle for iOS PWA compatibility) -->
             {% if user %}
-            <div class="dropdown dropdown-end lg:hidden">
-                <label tabindex="0" class="btn btn-ghost btn-circle">
+            <div id="mobile-menu-dropdown" class="dropdown dropdown-end lg:hidden">
+                <button id="mobile-menu-btn" type="button" class="btn btn-ghost btn-circle" aria-label="Открыть меню" aria-expanded="false" aria-controls="mobile-menu-content">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
-                </label>
-                <ul tabindex="0" class="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-52">
+                </button>
+                <ul id="mobile-menu-content" class="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-52">
                     {% if user %}
                         <!-- User info with avatar -->
                         <li class="menu-title">
@@ -350,6 +350,24 @@
     <main id="main-content" class="flex-1 container mx-auto px-4 py-8 max-w-7xl" role="main">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Push Notification Permission Banner (for iOS/Android) -->
+    {% if user %}
+    <div id="push-permission-banner" class="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40 hidden">
+        <div class="flex items-start gap-3">
+            <span class="text-2xl">🔔</span>
+            <div class="flex-1">
+                <p class="font-medium text-sm">Включить уведомления?</p>
+                <p class="text-xs opacity-70 mt-1">Получайте уведомления о синхронизации данных</p>
+            </div>
+            <button id="push-permission-close" class="btn btn-ghost btn-xs btn-circle" aria-label="Закрыть">✕</button>
+        </div>
+        <div class="flex gap-2 mt-3">
+            <button id="push-permission-enable" class="btn btn-primary btn-sm flex-1">Включить</button>
+            <button id="push-permission-later" class="btn btn-ghost btn-sm">Позже</button>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Toast Container (for dynamic notifications) -->
     <div id="toast-container" class="toast toast-top toast-center md:toast-end z-50 px-4 md:pr-4 md:pl-0" role="alert" aria-live="polite"></div>
@@ -477,6 +495,70 @@
         });
 
         debugLog('[Mobile Modal Fix] Initialized real viewport height calculation');
+
+        // Mobile Menu Toggle (for iOS PWA compatibility)
+        // DaisyUI dropdown relies on CSS :focus which doesn't work well on iOS PWA
+        (function initMobileMenu() {
+            const menuBtn = document.getElementById('mobile-menu-btn');
+            const menuContent = document.getElementById('mobile-menu-content');
+            const menuDropdown = document.getElementById('mobile-menu-dropdown');
+
+            if (!menuBtn || !menuContent) return;
+
+            let isOpen = false;
+
+            function openMenu() {
+                isOpen = true;
+                menuDropdown.classList.add('dropdown-open');
+                menuBtn.setAttribute('aria-expanded', 'true');
+                debugLog('[Mobile Menu] Opened');
+            }
+
+            function closeMenu() {
+                isOpen = false;
+                menuDropdown.classList.remove('dropdown-open');
+                menuBtn.setAttribute('aria-expanded', 'false');
+                // Remove focus to ensure CSS dropdown also closes
+                menuBtn.blur();
+                debugLog('[Mobile Menu] Closed');
+            }
+
+            function toggleMenu(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isOpen) {
+                    closeMenu();
+                } else {
+                    openMenu();
+                }
+            }
+
+            // Toggle on button click
+            menuBtn.addEventListener('click', toggleMenu);
+
+            // Close when clicking outside
+            document.addEventListener('click', (e) => {
+                if (isOpen && !menuDropdown.contains(e.target)) {
+                    closeMenu();
+                }
+            });
+
+            // Close when clicking a menu link or button
+            menuContent.querySelectorAll('a, button').forEach(el => {
+                el.addEventListener('click', () => {
+                    closeMenu();
+                });
+            });
+
+            // Close on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isOpen) {
+                    closeMenu();
+                }
+            });
+
+            debugLog('[Mobile Menu] Initialized JS toggle');
+        })();
     </script>
 
     <!-- Service Worker Registration (PWA) -->
@@ -559,19 +641,19 @@
             }
         });
 
-        // Network status handlers
+        // Network status handlers (UI only, toast handled by OfflineManager)
         window.addEventListener('online', () => {
             debugLog('[Offline] Network online');
             const badge = document.getElementById('offline-badge');
             if (badge) badge.classList.add('hidden');
-            showToast('Соединение восстановлено', 'success');
+            // Note: Toast is handled by OfflineManager.handleOnline() with debounce
         });
 
         window.addEventListener('offline', () => {
             debugLog('[Offline] Network offline');
             const badge = document.getElementById('offline-badge');
             if (badge) badge.classList.remove('hidden');
-            showToast('Работаем в оффлайн режиме', 'warning');
+            // Note: Toast is handled by OfflineManager.handleOffline() with debounce
         });
 
         // Update pending count
@@ -627,6 +709,91 @@
                 }
             });
         }
+
+        // Push Notification Permission Banner
+        (function initPushBanner() {
+            const banner = document.getElementById('push-permission-banner');
+            const enableBtn = document.getElementById('push-permission-enable');
+            const laterBtn = document.getElementById('push-permission-later');
+            const closeBtn = document.getElementById('push-permission-close');
+
+            if (!banner || !window.pushManager) return;
+
+            // Check if we should show the banner
+            const BANNER_DISMISSED_KEY = 'push-banner-dismissed';
+            const BANNER_SHOW_DELAY = 5000; // Show after 5 seconds
+
+            function shouldShowBanner() {
+                // Don't show if not supported
+                if (!('Notification' in window) || !('PushManager' in window)) {
+                    debugLog('[Push Banner] Not supported');
+                    return false;
+                }
+                // Don't show if already granted or denied
+                if (Notification.permission !== 'default') {
+                    debugLog('[Push Banner] Permission already:', Notification.permission);
+                    return false;
+                }
+                // Don't show if dismissed recently (24 hours)
+                const dismissed = localStorage.getItem(BANNER_DISMISSED_KEY);
+                if (dismissed) {
+                    const dismissedTime = parseInt(dismissed, 10);
+                    const hoursSinceDismissed = (Date.now() - dismissedTime) / (1000 * 60 * 60);
+                    if (hoursSinceDismissed < 24) {
+                        debugLog('[Push Banner] Dismissed recently:', hoursSinceDismissed.toFixed(1), 'hours ago');
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            function showBanner() {
+                if (shouldShowBanner()) {
+                    banner.classList.remove('hidden');
+                    debugLog('[Push Banner] Shown');
+                }
+            }
+
+            function hideBanner() {
+                banner.classList.add('hidden');
+            }
+
+            function dismissBanner() {
+                hideBanner();
+                localStorage.setItem(BANNER_DISMISSED_KEY, Date.now().toString());
+                debugLog('[Push Banner] Dismissed');
+            }
+
+            // Enable button - request permission (MUST be triggered by user gesture for iOS)
+            if (enableBtn) {
+                enableBtn.addEventListener('click', async () => {
+                    debugLog('[Push Banner] Enable clicked');
+                    hideBanner();
+                    try {
+                        const granted = await window.pushManager.requestPermission();
+                        if (granted) {
+                            showToast('Уведомления включены', 'success');
+                        } else {
+                            showToast('Уведомления отклонены', 'warning');
+                        }
+                    } catch (error) {
+                        console.error('[Push Banner] Error requesting permission:', error);
+                        showToast('Ошибка включения уведомлений', 'error');
+                    }
+                });
+            }
+
+            // Later/Close buttons - dismiss for 24 hours
+            if (laterBtn) {
+                laterBtn.addEventListener('click', dismissBanner);
+            }
+            if (closeBtn) {
+                closeBtn.addEventListener('click', dismissBanner);
+            }
+
+            // Show banner after delay (gives time for page to load)
+            setTimeout(showBanner, BANNER_SHOW_DELAY);
+        })();
     </script>
     {% endif %}
 </body>
