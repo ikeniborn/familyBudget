@@ -250,3 +250,289 @@ self.addEventListener('message', (event) => {
     );
   }
 });
+
+// =============================================================================
+// OFFLINE MODE SUPPORT (v2.0.0)
+// =============================================================================
+
+/**
+ * IndexedDB Helper Functions
+ * Используются для работы с offline data из Service Worker
+ */
+const DB_NAME = 'FamilyBudgetDB';
+const DB_VERSION = 1;
+
+async function openIndexedDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getSyncQueue(status = 'pending') {
+  const db = await openIndexedDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readonly');
+    const store = transaction.objectStore('sync_queue');
+    const index = store.index('status');
+    const request = index.getAll(status);
+
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function updateSyncQueueItem(id, updates) {
+  const db = await openIndexedDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readwrite');
+    const store = transaction.objectStore('sync_queue');
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const item = getRequest.result;
+      if (!item) {
+        reject(new Error(`Sync queue item ${id} not found`));
+        return;
+      }
+
+      const updated = { ...item, ...updates };
+      const putRequest = store.put(updated);
+
+      putRequest.onsuccess = () => resolve();
+      putRequest.onerror = () => reject(putRequest.error);
+    };
+
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+/**
+ * Background Sync Event Handler
+ * Синхронизирует offline данные при восстановлении сети
+ * Support: Chrome, Edge, Яндекс.Браузер (Safari не поддерживает)
+ */
+self.addEventListener('sync', (event) => {
+  console.log('[SW] Background Sync triggered:', event.tag);
+
+  if (event.tag === 'sync-budget-data') {
+    event.waitUntil(syncBudgetData());
+  }
+});
+
+async function syncBudgetData() {
+  console.log('[SW] Starting background sync...');
+
+  const results = {
+    synced: 0,
+    failed: 0
+  };
+
+  try {
+    const queue = await getSyncQueue('pending');
+    console.log(`[SW] Found ${queue.length} pending items`);
+
+    for (const item of queue) {
+      try {
+        await syncItem(item);
+        results.synced++;
+      } catch (error) {
+        console.error(`[SW] Sync failed for item ${item.id}:`, error);
+
+        const retryCount = (item.retryCount || 0) + 1;
+
+        if (retryCount >= 3) {
+          // Max retries reached
+          await updateSyncQueueItem(item.id, {
+            status: 'failed',
+            error: error.message,
+            retryCount
+          });
+          results.failed++;
+        } else {
+          // Retry later
+          await updateSyncQueueItem(item.id, {
+            status: 'pending',
+            error: error.message,
+            retryCount
+          });
+        }
+      }
+    }
+
+    console.log(`[SW] Background sync complete: ${results.synced} synced, ${results.failed} failed`);
+
+    // Show notification if synced items
+    if (results.synced > 0) {
+      await self.registration.showNotification('Синхронизация завершена', {
+        body: `Синхронизировано записей: ${results.synced}`,
+        icon: '/static/icons/icon-192.png',
+        badge: '/static/icons/icon-192.png',
+        tag: 'sync-completed',
+        data: { type: 'sync_completed', count: results.synced }
+      });
+    }
+
+    return results;
+  } catch (error) {
+    console.error('[SW] Background sync failed:', error);
+    throw error;
+  }
+}
+
+async function syncItem(item) {
+  console.log(`[SW] Syncing item ${item.id} (${item.operation} ${item.entity})`);
+
+  // Update status
+  await updateSyncQueueItem(item.id, { status: 'syncing' });
+
+  let response;
+
+  switch (item.operation) {
+    case 'create':
+      response = await syncCreate(item);
+      break;
+    case 'update':
+      response = await syncUpdate(item);
+      break;
+    case 'delete':
+      response = await syncDelete(item);
+      break;
+    default:
+      throw new Error(`Unknown operation: ${item.operation}`);
+  }
+
+  // Mark as completed
+  await updateSyncQueueItem(item.id, { status: 'completed' });
+
+  console.log(`[SW] Item ${item.id} synced successfully`);
+
+  return response;
+}
+
+async function syncCreate(item) {
+  const endpoint = item.entity === 'fact' ? '/api/v1/facts' :
+                   item.entity === 'transfer' ? '/api/v1/transfers' :
+                   '/api/v1/plans';
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item.data),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || `Failed to sync ${item.entity}`);
+  }
+
+  return await response.json();
+}
+
+async function syncUpdate(item) {
+  const id = item.data.id;
+  const endpoint = item.entity === 'fact' ? `/api/v1/facts/${id}` :
+                   item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
+                   `/api/v1/plans/${id}`;
+
+  const response = await fetch(endpoint, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item.data),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || `Failed to update ${item.entity}`);
+  }
+
+  return await response.json();
+}
+
+async function syncDelete(item) {
+  const id = item.data.id;
+  const endpoint = item.entity === 'fact' ? `/api/v1/facts/${id}` :
+                   item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
+                   `/api/v1/plans/${id}`;
+
+  const response = await fetch(endpoint, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || `Failed to delete ${item.entity}`);
+  }
+
+  return await response.json();
+}
+
+/**
+ * Push Notification Event Handler
+ * Показывает push-уведомления от сервера
+ * Support: Chrome, Edge, Safari 16.4+, Яндекс.Браузер
+ */
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push notification received');
+
+  const data = event.data ? event.data.json() : {};
+
+  const title = data.title || 'Family Budget';
+  const options = {
+    body: data.body || 'Новое уведомление',
+    icon: '/static/icons/icon-192.png',
+    badge: '/static/icons/icon-192.png',
+    tag: data.tag || 'notification',
+    requireInteraction: data.requireInteraction || false,
+    data: data
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+/**
+ * Notification Click Event Handler
+ * Открывает приложение при клике на уведомление
+ */
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event.notification.tag);
+
+  event.notification.close();
+
+  // Determine URL based on notification type
+  let url = '/';
+  if (event.notification.data) {
+    const data = event.notification.data;
+
+    if (data.type === 'sync_completed') {
+      url = '/facts';  // Open facts page
+    } else if (data.url) {
+      url = data.url;
+    }
+  }
+
+  // Open or focus app window
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        // Check if there's already a window open
+        for (let i = 0; i < windowClients.length; i++) {
+          const client = windowClients[i];
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return client.focus().then(client => client.navigate(url));
+          }
+        }
+
+        // No window open, open new one
+        if (clients.openWindow) {
+          return clients.openWindow(url);
+        }
+      })
+  );
+});
