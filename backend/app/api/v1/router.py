@@ -19,6 +19,7 @@ from backend.app.api.v1.endpoints import (
     financial_centers_router,
     import_router,
     notifications_router,
+    push_router,
     transfers_router,
     users_router,
 )
@@ -74,3 +75,6 @@ api_router.include_router(import_router)
 
 # Transfers endpoints (Transfer Feature) ✅
 api_router.include_router(transfers_router)
+
+# Push Notification endpoints (PWA Offline Mode) ✅
+api_router.include_router(push_router)
