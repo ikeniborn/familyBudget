@@ -645,8 +645,11 @@ async function uploadCSV(event) {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Upload failed');
+            const errorData = await response.json();
+            const errorMessage = typeof errorData.detail === 'string'
+                ? errorData.detail
+                : (errorData.detail?.msg || JSON.stringify(errorData.detail) || 'Upload failed');
+            throw new Error(errorMessage);
         }
 
         const result = await response.json();
