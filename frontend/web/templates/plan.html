@@ -224,7 +224,7 @@
                     <label class="label">
                         <span class="label-text font-medium">📁 Категория</span>
                     </label>
-                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="loadPlanAnalytics()">
+                    <select id="analytics-article" class="select select-bordered h-12 w-full" title="Фильтр категорий (для справки, не влияет на аналитику)">
                         <option value="">Все категории</option>
                         <!-- Options populated dynamically -->
                     </select>
@@ -2054,22 +2054,19 @@ async function loadAnalyticsArticleFilter(articleType = null) {
     }
 }
 
-// Handle article type change in analytics
+// Handle article type change in analytics (only updates category dropdown, NOT analytics)
 function onAnalyticsArticleTypeChange() {
     const typeSelect = document.getElementById('analytics-article-type');
     const articleType = typeSelect?.value || null;
 
-    // Reload article filter with type filter
+    // Reload article filter with type filter (for reference only, doesn't affect analytics)
     loadAnalyticsArticleFilter(articleType);
-
-    // Reload analytics
-    loadPlanAnalytics();
 }
 
-// Load plan analytics data
+// Load plan analytics data (only depends on month and CFO, NOT on article type/category)
 async function loadPlanAnalytics() {
     try {
-        // Build URL with filters
+        // Build URL with filters (only month and CFO affect analytics)
         let url = `/api/v1/analytics/plans/monthly-comparison?planning_month=${currentAnalyticsMonth}`;
 
         const cfoFilter = document.getElementById('analytics-cfo-filter');
@@ -2077,15 +2074,7 @@ async function loadPlanAnalytics() {
             url += `&financial_center_id=${cfoFilter.value}`;
         }
 
-        const typeFilter = document.getElementById('analytics-article-type');
-        if (typeFilter && typeFilter.value) {
-            url += `&article_type=${typeFilter.value}`;
-        }
-
-        const articleFilter = document.getElementById('analytics-article');
-        if (articleFilter && articleFilter.value) {
-            url += `&article_id=${articleFilter.value}`;
-        }
+        // Note: article_type and article_id are NOT included - analytics shows full picture
 
         const response = await fetch(url);
         if (!response.ok) {
@@ -2194,21 +2183,31 @@ function updateComparisonChart(data) {
             bottom: 0
         },
         grid: {
-            left: '3%',
+            left: '5%',
             right: '4%',
-            bottom: '15%',
+            bottom: '20%',
             top: '10%',
             containLabel: true
         },
         xAxis: {
             type: 'category',
+            name: 'Тип операции',
+            nameLocation: 'center',
+            nameGap: 30,
+            nameTextStyle: { color: '#6b7280', fontSize: 12 },
             data: types.map(t => typeLabels[t]),
             axisLine: { lineStyle: { color: '#e5e7eb' } },
-            axisTick: { lineStyle: { color: '#e5e7eb' } }
+            axisTick: { lineStyle: { color: '#e5e7eb' } },
+            axisLabel: { color: '#374151' }
         },
         yAxis: {
             type: 'value',
+            name: 'Сумма, ₽',
+            nameLocation: 'center',
+            nameGap: 50,
+            nameTextStyle: { color: '#6b7280', fontSize: 12 },
             axisLabel: {
+                color: '#374151',
                 formatter: function(value) {
                     if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
                     if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
