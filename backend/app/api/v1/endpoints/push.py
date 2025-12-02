@@ -16,7 +16,7 @@ from typing import Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.deps import get_current_user
+from backend.app.core.auth import get_current_user
 from backend.app.db.session import get_session
 from backend.app.models.user import User
 from backend.app.schemas.push import (
