@@ -371,7 +371,8 @@
     {% endif %}
 
     <!-- Toast Container (for dynamic notifications) -->
-    <div id="toast-container" class="toast toast-top toast-center md:toast-end z-50 px-4 md:pr-4 md:pl-0" role="alert" aria-live="polite"></div>
+    <!-- z-[9999] ensures toasts appear above modals (DaisyUI modals use ~z-999) -->
+    <div id="toast-container" class="toast toast-top toast-center md:toast-end z-[9999] px-4 md:pr-4 md:pl-0" role="alert" aria-live="polite"></div>
 
     <!-- Footer -->
     <footer class="footer footer-center p-4 bg-base-200 text-base-content border-t">

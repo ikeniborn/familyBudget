@@ -113,14 +113,21 @@ class OfflineManager {
      * @returns {Promise<Object>} Created fact
      */
     async createFact(data) {
-        if (this.isOnline) {
+        // Use navigator.onLine directly as it's more reliable on iOS PWA
+        // this.isOnline may not update quickly enough when network changes
+        const actuallyOnline = navigator.onLine && this.isOnline;
+
+        if (actuallyOnline) {
             try {
                 return await this.createFactOnline(data);
             } catch (error) {
                 console.warn('[Offline] Online create failed, falling back to offline:', error);
+                // Update internal state
+                this.isOnline = false;
                 return await this.createFactOffline(data);
             }
         } else {
+            console.log('[Offline] Creating fact offline (navigator.onLine:', navigator.onLine, ', this.isOnline:', this.isOnline, ')');
             return await this.createFactOffline(data);
         }
     }
@@ -134,8 +141,16 @@ class OfflineManager {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to create fact');
+            // Try to parse error response, with fallback
+            let errorMessage = 'Failed to create fact';
+            try {
+                const error = await response.json();
+                // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+                errorMessage = error.detail || error.message || errorMessage;
+            } catch (parseError) {
+                console.warn('[Offline] Failed to parse error response:', parseError);
+            }
+            throw new Error(errorMessage);
         }
 
         return await response.json();
@@ -217,7 +232,8 @@ class OfflineManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to update fact');
+            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+            throw new Error(error.detail || error.message || 'Failed to update fact');
         }
 
         return await response.json();
@@ -291,7 +307,8 @@ class OfflineManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to delete fact');
+            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+            throw new Error(error.detail || error.message || 'Failed to delete fact');
         }
 
         return await response.json();
@@ -346,7 +363,8 @@ class OfflineManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to create transfer');
+            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+            throw new Error(error.detail || error.message || 'Failed to create transfer');
         }
 
         return await response.json();
@@ -416,7 +434,8 @@ class OfflineManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to create plan');
+            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+            throw new Error(error.detail || error.message || 'Failed to create plan');
         }
 
         return await response.json();
@@ -613,7 +632,8 @@ class OfflineManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `Failed to sync ${item.entity}`);
+            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+            throw new Error(error.detail || error.message || `Failed to sync ${item.entity}`);
         }
 
         return await response.json();
@@ -634,7 +654,8 @@ class OfflineManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `Failed to update ${item.entity}`);
+            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+            throw new Error(error.detail || error.message || `Failed to update ${item.entity}`);
         }
 
         return await response.json();
@@ -653,7 +674,8 @@ class OfflineManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `Failed to delete ${item.entity}`);
+            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+            throw new Error(error.detail || error.message || `Failed to delete ${item.entity}`);
         }
 
         return await response.json();

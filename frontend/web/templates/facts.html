@@ -1891,21 +1891,8 @@ function setTransactionDate(offsetDays) {
     }
 }
 
-// Toast notification helper
-function showToast(message, type = 'info') {
-    // Простая реализация toast уведомлений
-    // В production рекомендуется использовать библиотеку типа toastify
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-50 shadow-lg`;
-    toast.innerHTML = `
-        <span>${message}</span>
-    `;
-    document.body.appendChild(toast);
-
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
+// Toast notification helper - using global showToast() from base.html
+// (already defined in base.html with z-[9999] to appear above modals)
 
 // Функция открытия модального окна создания транзакции с проверкой даты
 function openCreateModal() {
