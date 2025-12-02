@@ -2099,26 +2099,36 @@ async def get_plans_monthly_comparison(
     financial_center_id: Optional[int] = Query(
         None,
         description="Filter by financial center ID (omit for all centers)"
+    ),
+    article_type: Optional[str] = Query(
+        None,
+        description="Filter by article type: expense, income, debit, credit"
+    ),
+    article_id: Optional[int] = Query(
+        None,
+        description="Filter by specific article/category ID"
     )
 ):
     """
     Get plan analytics with comparison between current and previous months.
 
     Provides data for planning analytics:
-    - Totals for current and previous planning months
-    - Breakdown by categories
+    - Totals by operation type (expense, income, debit, credit)
+    - Breakdown by categories with current vs previous month
     - Month-over-month comparison
 
     Used for plan.html analytics section with 2 charts:
-    1. Bar chart: Current vs Previous month comparison
-    2. Pie chart: Distribution by categories
+    1. Bar chart: Operation types with current vs previous month columns
+    2. Bar chart: Categories with current vs previous month columns
 
     Args:
         planning_month: Target month in YYYY-MM format (defaults to current month)
         financial_center_id: Optional filter by ЦФО
+        article_type: Optional filter by article type
+        article_id: Optional filter by specific category
 
     Returns:
-        JSON with current_month, previous_month data and comparison metrics
+        JSON with by_type totals, categories_comparison, and month data
     """
     # Determine current planning month
     if planning_month:
@@ -2142,7 +2152,7 @@ async def get_plans_monthly_comparison(
 
     async def get_month_data(month_date: date) -> dict:
         """Get plan data for a specific month."""
-        # Base query for plans in the month
+        # Base conditions (without article filters for type totals)
         base_conditions = [
             Fact.user_id == current_user.id,
             Fact.record_type == "plan",
@@ -2152,7 +2162,7 @@ async def get_plans_monthly_comparison(
         if financial_center_id is not None:
             base_conditions.append(Fact.financial_center_id == financial_center_id)
 
-        # Query for totals by article type
+        # Query for totals by article type (always all 4 types, no article filter)
         totals_stmt = (
             select(
                 Article.type,
@@ -2167,8 +2177,20 @@ async def get_plans_monthly_comparison(
         totals_result = await session.execute(totals_stmt)
         totals_by_type = {row.type: float(row.total) for row in totals_result.all()}
 
-        income = totals_by_type.get("income", 0.0)
-        expense = totals_by_type.get("expense", 0.0)
+        # Ensure all 4 types present
+        by_type = {
+            "expense": totals_by_type.get("expense", 0.0),
+            "income": totals_by_type.get("income", 0.0),
+            "debit": totals_by_type.get("debit", 0.0),
+            "credit": totals_by_type.get("credit", 0.0)
+        }
+
+        # Add article filters for category breakdown
+        category_conditions = list(base_conditions)
+        if article_type is not None:
+            category_conditions.append(Article.type == article_type)
+        if article_id is not None:
+            category_conditions.append(Fact.article_id == article_id)
 
         # Query for breakdown by category
         categories_stmt = (
@@ -2180,7 +2202,7 @@ async def get_plans_monthly_comparison(
             )
             .select_from(Fact)
             .join(Article, Fact.article_id == Article.id)
-            .where(*base_conditions)
+            .where(*category_conditions)
             .group_by(Article.id, Article.name, Article.type)
             .order_by(func.sum(Fact.amount).desc())
         )
@@ -2199,7 +2221,9 @@ async def get_plans_monthly_comparison(
         # Count total records
         count_stmt = (
             select(func.count(Fact.id))
-            .where(*base_conditions)
+            .select_from(Fact)
+            .join(Article, Fact.article_id == Article.id)
+            .where(*category_conditions)
         )
         count_result = await session.execute(count_stmt)
         total_records = count_result.scalar_one()
@@ -2207,9 +2231,8 @@ async def get_plans_monthly_comparison(
         return {
             "month": month_date.strftime("%Y-%m"),
             "month_name": get_russian_month_name(month_date.month, month_date.year),
-            "income": income,
-            "expense": expense,
-            "balance": income - expense,
+            "by_type": by_type,
+            "total": sum(by_type.values()),
             "total_records": total_records,
             "by_category": by_category
         }
@@ -2218,7 +2241,36 @@ async def get_plans_monthly_comparison(
     current_data = await get_month_data(current_month_date)
     previous_data = await get_month_data(previous_month_date)
 
-    # Calculate comparison metrics
+    # Merge categories from both months for comparison chart
+    all_categories = {}
+    for cat in current_data["by_category"]:
+        all_categories[cat["category_id"]] = {
+            "category_id": cat["category_id"],
+            "category_name": cat["category_name"],
+            "category_type": cat["category_type"],
+            "current": cat["amount"],
+            "previous": 0.0
+        }
+    for cat in previous_data["by_category"]:
+        if cat["category_id"] in all_categories:
+            all_categories[cat["category_id"]]["previous"] = cat["amount"]
+        else:
+            all_categories[cat["category_id"]] = {
+                "category_id": cat["category_id"],
+                "category_name": cat["category_name"],
+                "category_type": cat["category_type"],
+                "current": 0.0,
+                "previous": cat["amount"]
+            }
+
+    # Sort by max amount (current or previous)
+    categories_comparison = sorted(
+        all_categories.values(),
+        key=lambda x: max(x["current"], x["previous"]),
+        reverse=True
+    )
+
+    # Calculate comparison metrics for each type
     def calc_change(current: float, previous: float) -> dict:
         change = current - previous
         if previous > 0:
@@ -2229,22 +2281,24 @@ async def get_plans_monthly_comparison(
             change_percent = 0.0
         return {"change": change, "change_percent": change_percent}
 
-    income_comparison = calc_change(current_data["income"], previous_data["income"])
-    expense_comparison = calc_change(current_data["expense"], previous_data["expense"])
+    comparison_by_type = {}
+    for op_type in ["expense", "income", "debit", "credit"]:
+        comp = calc_change(
+            current_data["by_type"][op_type],
+            previous_data["by_type"][op_type]
+        )
+        comparison_by_type[op_type] = comp
 
     return {
         "current_month": current_data,
         "previous_month": previous_data,
-        "comparison": {
-            "income_change": income_comparison["change"],
-            "income_change_percent": income_comparison["change_percent"],
-            "expense_change": expense_comparison["change"],
-            "expense_change_percent": expense_comparison["change_percent"],
-            "balance_change": current_data["balance"] - previous_data["balance"]
-        },
+        "categories_comparison": categories_comparison,
+        "comparison_by_type": comparison_by_type,
         "filters": {
             "planning_month": current_month_date.strftime("%Y-%m"),
-            "financial_center_id": financial_center_id
+            "financial_center_id": financial_center_id,
+            "article_type": article_type,
+            "article_id": article_id
         }
     }
 
