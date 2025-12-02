@@ -163,6 +163,15 @@
         </div>
 
         <div class="navbar-end gap-1 sm:gap-2">
+            <!-- Offline Status Icon (shown only when offline) -->
+            <div id="offline-icon" class="hidden" title="Оффлайн режим">
+                <div class="btn btn-ghost btn-circle btn-sm sm:btn-md text-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m-3.536-3.536a5 5 0 010-7.072M13 12a1 1 0 11-2 0 1 1 0 012 0zm-5.657 5.657a9 9 0 010-12.728m3.536 3.536a5 5 0 010 7.072" />
+                    </svg>
+                </div>
+            </div>
+
             <!-- Telegram Bot Link -->
             <a href="https://t.me/ikenibornbudgetbot" target="_blank" rel="noopener noreferrer"
                class="btn btn-ghost btn-circle btn-sm sm:btn-md"
@@ -324,16 +333,6 @@
             {% endif %}
         </div>
     </header>
-
-    <!-- Offline Badge (positioned below navbar, accounting for iOS safe area) -->
-    <div id="offline-badge" class="fixed z-50 hidden" style="top: calc(4rem + env(safe-area-inset-top, 0px) + 0.5rem); left: 50%; transform: translateX(-50%);">
-        <div class="alert alert-warning shadow-lg py-2 px-4">
-            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M5.636 5.636a9 9 0 000 12.728M12 12h.01" />
-            </svg>
-            <span class="text-sm">Оффлайн</span>
-        </div>
-    </div>
 
     <!-- Pending Sync Badge -->
     <div id="pending-sync-badge" class="fixed top-16 left-4 z-50 hidden">
@@ -644,14 +643,14 @@
         // Network status handlers (UI only, toast handled by OfflineManager)
         window.addEventListener('online', () => {
             debugLog('[Offline] Network online');
-            const badge = document.getElementById('offline-badge');
+            const badge = document.getElementById('offline-icon');
             if (badge) badge.classList.add('hidden');
             // Note: Toast is handled by OfflineManager.handleOnline() with debounce
         });
 
         window.addEventListener('offline', () => {
             debugLog('[Offline] Network offline');
-            const badge = document.getElementById('offline-badge');
+            const badge = document.getElementById('offline-icon');
             if (badge) badge.classList.remove('hidden');
             // Note: Toast is handled by OfflineManager.handleOffline() with debounce
         });
@@ -679,7 +678,7 @@
         // Update offline UI
         function updateOfflineUI() {
             // Update offline badge
-            const offlineBadge = document.getElementById('offline-badge');
+            const offlineBadge = document.getElementById('offline-icon');
             if (offlineBadge) {
                 if (!navigator.onLine) {
                     offlineBadge.classList.remove('hidden');
