@@ -224,7 +224,7 @@
                     <label class="label">
                         <span class="label-text font-medium">📁 Категория</span>
                     </label>
-                    <select id="analytics-article" class="select select-bordered h-12 w-full" title="Фильтр категорий (для справки, не влияет на аналитику)">
+                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleChange()" title="Фильтр категорий для графика">
                         <option value="">Все категории</option>
                         <!-- Options populated dynamically -->
                     </select>
@@ -2054,13 +2054,60 @@ async function loadAnalyticsArticleFilter(articleType = null) {
     }
 }
 
-// Handle article type change in analytics (only updates category dropdown, NOT analytics)
+// Handle article type change in analytics
 function onAnalyticsArticleTypeChange() {
     const typeSelect = document.getElementById('analytics-article-type');
     const articleType = typeSelect?.value || null;
 
-    // Reload article filter with type filter (for reference only, doesn't affect analytics)
+    // Reload article filter with type filter
     loadAnalyticsArticleFilter(articleType);
+
+    // Update categories chart with new filter
+    loadCategoriesChartData();
+}
+
+// Handle article filter change - updates only categories chart
+function onAnalyticsArticleChange() {
+    loadCategoriesChartData();
+}
+
+// Load data for categories chart only (with article type/category filters)
+async function loadCategoriesChartData() {
+    try {
+        let url = `/api/v1/analytics/plans/monthly-comparison?planning_month=${currentAnalyticsMonth}`;
+
+        const cfoFilter = document.getElementById('analytics-cfo-filter');
+        if (cfoFilter && cfoFilter.value) {
+            url += `&financial_center_id=${cfoFilter.value}`;
+        }
+
+        // Apply article type and category filters for categories chart
+        const typeFilter = document.getElementById('analytics-article-type');
+        if (typeFilter && typeFilter.value) {
+            url += `&article_type=${typeFilter.value}`;
+        }
+
+        const articleFilter = document.getElementById('analytics-article');
+        if (articleFilter && articleFilter.value) {
+            url += `&article_id=${articleFilter.value}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Update only categories chart
+        if (!analyticsCategoriesChart) {
+            initCategoriesChart();
+        }
+        updateCategoriesChart(data);
+
+    } catch (error) {
+        console.error('Error loading categories chart data:', error);
+    }
 }
 
 // Load plan analytics data (only depends on month and CFO, NOT on article type/category)
