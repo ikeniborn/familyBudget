@@ -80,6 +80,17 @@ class PushNotificationManager {
 
             const data = await response.json();
             this.vapidPublicKey = data.public_key;
+
+            // Validate VAPID key format (should be base64url, 65+ chars)
+            if (!this.vapidPublicKey || this.vapidPublicKey.length < 65 ||
+                this.vapidPublicKey.includes('PLACEHOLDER') ||
+                this.vapidPublicKey.includes('0123456789')) {
+                console.warn('[Push] VAPID key appears to be a placeholder - push notifications disabled');
+                this.vapidPublicKey = null;
+                this.isSupported = false;
+                return;
+            }
+
             console.log('[Push] VAPID key loaded');
         } catch (error) {
             console.error('[Push] Failed to load VAPID key:', error);

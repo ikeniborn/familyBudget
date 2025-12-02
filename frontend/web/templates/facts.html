@@ -1899,6 +1899,32 @@ function showToast(message, type = 'info') {
 
 // Функция открытия модального окна создания транзакции с проверкой даты
 function openCreateModal() {
+    // Check if required data is available (categories and financial centers must be loaded)
+    const categorySelect = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
+    const fcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+
+    const hasCategoryOptions = categorySelect && categorySelect.options.length > 1;
+    const hasFCOptions = fcSelect && fcSelect.options.length > 1;
+
+    if (!hasCategoryOptions || !hasFCOptions) {
+        // Data not loaded - check if offline
+        if (!navigator.onLine) {
+            showToast('Оффлайн: данные не загружены. Требуется подключение для первой загрузки.', 'error');
+            return;
+        }
+        // Online but data not loaded - try to reload
+        showToast('Загрузка данных...', 'info');
+        Promise.all([loadFinancialCenters(), loadCostCenters()]).then(() => {
+            // Re-check after loading
+            if (categorySelect.options.length > 1 && fcSelect.options.length > 1) {
+                modal_add_transaction.showModal();
+            } else {
+                showToast('Ошибка загрузки данных. Попробуйте обновить страницу.', 'error');
+            }
+        });
+        return;
+    }
+
     modal_add_transaction.showModal();
 
     // Проверить и установить дату, если поле пустое (после сброса формы)
