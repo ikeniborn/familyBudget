@@ -4,6 +4,8 @@
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+<!-- ECharts library for analytics charts -->
+<script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
 {% endblock %}
 
 {% block content %}
@@ -172,6 +174,82 @@
             </div>
             <div class="stat-title">Текущая страница</div>
             <div class="stat-value text-secondary" id="stat-page-info">0-0 из 0</div>
+        </div>
+    </div>
+
+    <!-- Plan Analytics Section -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">📊 Аналитика планирования</h2>
+
+            <!-- Analytics Filters -->
+            <div class="flex flex-col sm:flex-row gap-4 mb-4">
+                <!-- Planning Month Filter -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📅 Месяц планирования</span>
+                    </label>
+                    <div class="btn-group" id="analytics-month-buttons">
+                        <!-- Buttons populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- CFO Filter for Analytics -->
+                <div class="form-control flex-1">
+                    <label class="label">
+                        <span class="label-text font-medium">🏦 Финансовый центр</span>
+                    </label>
+                    <select id="analytics-cfo-filter" class="select select-bordered w-full sm:w-64" onchange="loadPlanAnalytics()">
+                        <option value="">Все ЦФО</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Доходы (текущий)</div>
+                    <div class="stat-value text-success text-lg" id="analytics-current-income">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Расходы (текущий)</div>
+                    <div class="stat-value text-error text-lg" id="analytics-current-expense">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Доходы (пред.)</div>
+                    <div class="stat-value text-success/70 text-lg" id="analytics-prev-income">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Расходы (пред.)</div>
+                    <div class="stat-value text-error/70 text-lg" id="analytics-prev-expense">0</div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Comparison Chart -->
+                <div class="bg-base-200 rounded-box p-4">
+                    <h3 class="font-semibold mb-2">📊 Сравнение месяцев</h3>
+                    <div id="chart-plan-comparison" style="height: 300px;"></div>
+                </div>
+
+                <!-- Categories Pie Chart -->
+                <div class="bg-base-200 rounded-box p-4">
+                    <h3 class="font-semibold mb-2">🥧 Распределение по категориям</h3>
+                    <div class="flex gap-2 mb-2">
+                        <button class="btn btn-xs btn-error" id="pie-type-expense" onclick="updatePieType('expense')">Расходы</button>
+                        <button class="btn btn-xs btn-outline btn-success" id="pie-type-income" onclick="updatePieType('income')">Доходы</button>
+                    </div>
+                    <div id="chart-plan-categories" style="height: 280px;"></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="analytics-empty-state" class="hidden text-center py-8 text-base-content/60">
+                <div class="text-4xl mb-2">📅</div>
+                <p>Нет данных для отображения. Добавьте плановые записи.</p>
+            </div>
         </div>
     </div>
 
@@ -1785,5 +1863,354 @@ function showToast(message, type = 'info') {
         toast.remove();
     }, 3000);
 }
+
+// ==================== Plan Analytics ====================
+
+// Analytics state
+let analyticsComparisonChart = null;
+let analyticsCategoriesChart = null;
+let currentAnalyticsMonth = null;  // YYYY-MM format
+let currentPieType = 'expense';
+let analyticsData = null;
+
+// Initialize analytics on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initAnalyticsMonthButtons();
+    loadAnalyticsCFOFilter();
+    loadPlanAnalytics();
+});
+
+// Initialize month buttons for analytics
+function initAnalyticsMonthButtons() {
+    const container = document.getElementById('analytics-month-buttons');
+    if (!container) return;
+
+    const today = new Date();
+    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
+    // Create buttons for current month and next 2 months
+    for (let offset = 0; offset < 3; offset++) {
+        const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+
+        const btn = document.createElement('button');
+        btn.className = offset === 0 ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+        btn.textContent = label;
+        btn.dataset.month = yearMonth;
+        btn.onclick = () => selectAnalyticsMonth(yearMonth, btn);
+
+        container.appendChild(btn);
+
+        // Set initial month
+        if (offset === 0) {
+            currentAnalyticsMonth = yearMonth;
+        }
+    }
+}
+
+// Select analytics month
+function selectAnalyticsMonth(month, clickedBtn) {
+    currentAnalyticsMonth = month;
+
+    // Update button styles
+    const buttons = document.querySelectorAll('#analytics-month-buttons button');
+    buttons.forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    });
+    clickedBtn.classList.remove('btn-outline');
+    clickedBtn.classList.add('btn-primary');
+
+    // Reload analytics
+    loadPlanAnalytics();
+}
+
+// Load CFO filter options for analytics
+async function loadAnalyticsCFOFilter() {
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const centers = data.financial_centers || [];
+
+        const select = document.getElementById('analytics-cfo-filter');
+        if (!select) return;
+
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.id;
+            option.textContent = center.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading CFO filter:', error);
+    }
+}
+
+// Load plan analytics data
+async function loadPlanAnalytics() {
+    try {
+        // Build URL with filters
+        let url = `/api/v1/analytics/plans/monthly-comparison?planning_month=${currentAnalyticsMonth}`;
+
+        const cfoFilter = document.getElementById('analytics-cfo-filter');
+        if (cfoFilter && cfoFilter.value) {
+            url += `&financial_center_id=${cfoFilter.value}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        analyticsData = await response.json();
+
+        // Update summary cards
+        updateAnalyticsSummary(analyticsData);
+
+        // Check if we have any data
+        const hasData = analyticsData.current_month.total_records > 0 ||
+                       analyticsData.previous_month.total_records > 0;
+
+        const emptyState = document.getElementById('analytics-empty-state');
+        const chartsGrid = document.querySelector('.grid.grid-cols-1.lg\\:grid-cols-2.gap-6');
+
+        if (!hasData) {
+            emptyState?.classList.remove('hidden');
+            chartsGrid?.classList.add('hidden');
+        } else {
+            emptyState?.classList.add('hidden');
+            chartsGrid?.classList.remove('hidden');
+
+            // Initialize and update charts
+            initComparisonChart();
+            updateComparisonChart(analyticsData);
+
+            initCategoriesChart();
+            updateCategoriesChart(analyticsData, currentPieType);
+        }
+
+    } catch (error) {
+        console.error('Error loading plan analytics:', error);
+        showToast('Ошибка загрузки аналитики: ' + error.message, 'error');
+    }
+}
+
+// Update summary cards
+function updateAnalyticsSummary(data) {
+    const formatAmount = (amount) => {
+        return new Intl.NumberFormat('ru-RU', {
+            style: 'decimal',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount);
+    };
+
+    document.getElementById('analytics-current-income').textContent = formatAmount(data.current_month.income);
+    document.getElementById('analytics-current-expense').textContent = formatAmount(data.current_month.expense);
+    document.getElementById('analytics-prev-income').textContent = formatAmount(data.previous_month.income);
+    document.getElementById('analytics-prev-expense').textContent = formatAmount(data.previous_month.expense);
+}
+
+// Initialize comparison bar chart
+function initComparisonChart() {
+    const chartDom = document.getElementById('chart-plan-comparison');
+    if (!chartDom) return;
+
+    if (analyticsComparisonChart) {
+        analyticsComparisonChart.dispose();
+    }
+
+    analyticsComparisonChart = echarts.init(chartDom);
+}
+
+// Update comparison chart with data
+function updateComparisonChart(data) {
+    if (!analyticsComparisonChart) return;
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function(params) {
+                let result = params[0].axisValue + '<br/>';
+                params.forEach(param => {
+                    const value = new Intl.NumberFormat('ru-RU').format(param.value);
+                    result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+                });
+                return result;
+            }
+        },
+        legend: {
+            data: ['Доходы', 'Расходы'],
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: [data.previous_month.month_name, data.current_month.month_name]
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                formatter: function(value) {
+                    if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+                    if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
+                    return value;
+                }
+            }
+        },
+        series: [
+            {
+                name: 'Доходы',
+                type: 'bar',
+                data: [data.previous_month.income, data.current_month.income],
+                itemStyle: { color: '#22c55e' },
+                barWidth: '35%'
+            },
+            {
+                name: 'Расходы',
+                type: 'bar',
+                data: [data.previous_month.expense, data.current_month.expense],
+                itemStyle: { color: '#ef4444' },
+                barWidth: '35%'
+            }
+        ]
+    };
+
+    analyticsComparisonChart.setOption(option);
+}
+
+// Initialize categories pie chart
+function initCategoriesChart() {
+    const chartDom = document.getElementById('chart-plan-categories');
+    if (!chartDom) return;
+
+    if (analyticsCategoriesChart) {
+        analyticsCategoriesChart.dispose();
+    }
+
+    analyticsCategoriesChart = echarts.init(chartDom);
+}
+
+// Update categories pie chart
+function updateCategoriesChart(data, type) {
+    if (!analyticsCategoriesChart) return;
+
+    // Filter categories by type and use current month data
+    const categories = data.current_month.by_category.filter(c => c.category_type === type);
+
+    if (categories.length === 0) {
+        // Show empty state
+        analyticsCategoriesChart.setOption({
+            title: {
+                text: 'Нет данных',
+                subtext: `Планы по ${type === 'expense' ? 'расходам' : 'доходам'} не найдены`,
+                left: 'center',
+                top: 'center',
+                textStyle: { fontSize: 14, color: '#999' }
+            },
+            series: []
+        });
+        return;
+    }
+
+    // Prepare data for pie chart
+    const pieData = categories.map(c => ({
+        name: c.category_name,
+        value: c.amount
+    }));
+
+    const option = {
+        tooltip: {
+            trigger: 'item',
+            formatter: function(params) {
+                const value = new Intl.NumberFormat('ru-RU').format(params.value);
+                return `${params.name}<br/>${value} ₽ (${params.percent}%)`;
+            }
+        },
+        legend: {
+            type: 'scroll',
+            orient: 'vertical',
+            right: 10,
+            top: 20,
+            bottom: 20
+        },
+        series: [
+            {
+                name: type === 'expense' ? 'Расходы' : 'Доходы',
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['35%', '50%'],
+                avoidLabelOverlap: false,
+                itemStyle: {
+                    borderRadius: 6,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                },
+                label: {
+                    show: false,
+                    position: 'center'
+                },
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: 16,
+                        fontWeight: 'bold',
+                        formatter: '{b}\n{d}%'
+                    }
+                },
+                labelLine: { show: false },
+                data: pieData
+            }
+        ]
+    };
+
+    analyticsCategoriesChart.setOption(option, true);
+}
+
+// Update pie chart type (expense/income)
+function updatePieType(type) {
+    currentPieType = type;
+
+    // Update button styles
+    const expenseBtn = document.getElementById('pie-type-expense');
+    const incomeBtn = document.getElementById('pie-type-income');
+
+    if (type === 'expense') {
+        expenseBtn?.classList.remove('btn-outline');
+        expenseBtn?.classList.add('btn-error');
+        incomeBtn?.classList.remove('btn-success');
+        incomeBtn?.classList.add('btn-outline');
+    } else {
+        incomeBtn?.classList.remove('btn-outline');
+        incomeBtn?.classList.add('btn-success');
+        expenseBtn?.classList.remove('btn-error');
+        expenseBtn?.classList.add('btn-outline');
+    }
+
+    // Update chart if we have data
+    if (analyticsData) {
+        updateCategoriesChart(analyticsData, type);
+    }
+}
+
+// Handle window resize for charts
+window.addEventListener('resize', function() {
+    if (analyticsComparisonChart) {
+        analyticsComparisonChart.resize();
+    }
+    if (analyticsCategoriesChart) {
+        analyticsCategoriesChart.resize();
+    }
+});
 </script>
 {% endblock %}

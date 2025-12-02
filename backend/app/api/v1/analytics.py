@@ -2082,3 +2082,179 @@ async def get_recommended_amounts(
             article_name=article_name
         )
     )
+
+
+# ==================== Plan Analytics Endpoints ====================
+
+
+@router.get("/plans/monthly-comparison")
+async def get_plans_monthly_comparison(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    planning_month: Optional[str] = Query(
+        None,
+        description="Planning month in YYYY-MM format (defaults to current month)",
+        regex=r"^\d{4}-(0[1-9]|1[0-2])$"
+    ),
+    financial_center_id: Optional[int] = Query(
+        None,
+        description="Filter by financial center ID (omit for all centers)"
+    )
+):
+    """
+    Get plan analytics with comparison between current and previous months.
+
+    Provides data for planning analytics:
+    - Totals for current and previous planning months
+    - Breakdown by categories
+    - Month-over-month comparison
+
+    Used for plan.html analytics section with 2 charts:
+    1. Bar chart: Current vs Previous month comparison
+    2. Pie chart: Distribution by categories
+
+    Args:
+        planning_month: Target month in YYYY-MM format (defaults to current month)
+        financial_center_id: Optional filter by ЦФО
+
+    Returns:
+        JSON with current_month, previous_month data and comparison metrics
+    """
+    # Determine current planning month
+    if planning_month:
+        try:
+            year, month = map(int, planning_month.split("-"))
+            current_month_date = date(year, month, 1)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid planning_month format. Use YYYY-MM."
+            )
+    else:
+        today = date.today()
+        current_month_date = date(today.year, today.month, 1)
+
+    # Calculate previous month
+    if current_month_date.month == 1:
+        previous_month_date = date(current_month_date.year - 1, 12, 1)
+    else:
+        previous_month_date = date(current_month_date.year, current_month_date.month - 1, 1)
+
+    async def get_month_data(month_date: date) -> dict:
+        """Get plan data for a specific month."""
+        # Base query for plans in the month
+        base_conditions = [
+            Fact.user_id == current_user.id,
+            Fact.record_type == "plan",
+            func.date_trunc("month", Fact.fact_date) == month_date
+        ]
+
+        if financial_center_id is not None:
+            base_conditions.append(Fact.financial_center_id == financial_center_id)
+
+        # Query for totals by article type
+        totals_stmt = (
+            select(
+                Article.type,
+                func.coalesce(func.sum(Fact.amount), 0).label("total")
+            )
+            .select_from(Fact)
+            .join(Article, Fact.article_id == Article.id)
+            .where(*base_conditions)
+            .group_by(Article.type)
+        )
+
+        totals_result = await session.execute(totals_stmt)
+        totals_by_type = {row.type: float(row.total) for row in totals_result.all()}
+
+        income = totals_by_type.get("income", 0.0)
+        expense = totals_by_type.get("expense", 0.0)
+
+        # Query for breakdown by category
+        categories_stmt = (
+            select(
+                Article.id.label("category_id"),
+                Article.name.label("category_name"),
+                Article.type.label("category_type"),
+                func.coalesce(func.sum(Fact.amount), 0).label("amount")
+            )
+            .select_from(Fact)
+            .join(Article, Fact.article_id == Article.id)
+            .where(*base_conditions)
+            .group_by(Article.id, Article.name, Article.type)
+            .order_by(func.sum(Fact.amount).desc())
+        )
+
+        categories_result = await session.execute(categories_stmt)
+        by_category = [
+            {
+                "category_id": row.category_id,
+                "category_name": row.category_name,
+                "category_type": row.category_type,
+                "amount": float(row.amount)
+            }
+            for row in categories_result.all()
+        ]
+
+        # Count total records
+        count_stmt = (
+            select(func.count(Fact.id))
+            .where(*base_conditions)
+        )
+        count_result = await session.execute(count_stmt)
+        total_records = count_result.scalar_one()
+
+        return {
+            "month": month_date.strftime("%Y-%m"),
+            "month_name": get_russian_month_name(month_date.month, month_date.year),
+            "income": income,
+            "expense": expense,
+            "balance": income - expense,
+            "total_records": total_records,
+            "by_category": by_category
+        }
+
+    # Get data for both months
+    current_data = await get_month_data(current_month_date)
+    previous_data = await get_month_data(previous_month_date)
+
+    # Calculate comparison metrics
+    def calc_change(current: float, previous: float) -> dict:
+        change = current - previous
+        if previous > 0:
+            change_percent = round((change / previous) * 100, 1)
+        elif current > 0:
+            change_percent = 100.0
+        else:
+            change_percent = 0.0
+        return {"change": change, "change_percent": change_percent}
+
+    income_comparison = calc_change(current_data["income"], previous_data["income"])
+    expense_comparison = calc_change(current_data["expense"], previous_data["expense"])
+
+    return {
+        "current_month": current_data,
+        "previous_month": previous_data,
+        "comparison": {
+            "income_change": income_comparison["change"],
+            "income_change_percent": income_comparison["change_percent"],
+            "expense_change": expense_comparison["change"],
+            "expense_change_percent": expense_comparison["change_percent"],
+            "balance_change": current_data["balance"] - previous_data["balance"]
+        },
+        "filters": {
+            "planning_month": current_month_date.strftime("%Y-%m"),
+            "financial_center_id": financial_center_id
+        }
+    }
+
+
+def get_russian_month_name(month: int, year: int) -> str:
+    """Get Russian month name with year."""
+    month_names = {
+        1: "Январь", 2: "Февраль", 3: "Март",
+        4: "Апрель", 5: "Май", 6: "Июнь",
+        7: "Июль", 8: "Август", 9: "Сентябрь",
+        10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
+    }
+    return f"{month_names.get(month, '')} {year}"
