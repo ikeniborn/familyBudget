@@ -113,6 +113,12 @@
     <!-- Choices.js JS -->
     <script src="/static/js/vendor/choices.min.js"></script>
 
+    <!-- Offline Mode Scripts -->
+    <script src="/static/js/offline/idb.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/offline/offlineManager.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/offline/conflictResolver.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/offline/pushManager.min.js?v=PLACEHOLDER"></script>
+
     <!-- ECharts (for analytics pages) -->
     {% block extra_head %}{% endblock %}
 </head>
@@ -319,6 +325,27 @@
         </div>
     </header>
 
+    <!-- Offline Badge -->
+    <div id="offline-badge" class="fixed top-16 right-4 z-50 hidden">
+        <div class="alert alert-warning shadow-lg max-w-xs">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Оффлайн режим</span>
+        </div>
+    </div>
+
+    <!-- Pending Sync Badge -->
+    <div id="pending-sync-badge" class="fixed top-16 left-4 z-50 hidden">
+        <div class="badge badge-error gap-2 p-3 shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span id="pending-count">0</span> ожидает синхронизации
+        </div>
+    </div>
+
     <!-- Main Content -->
     <main id="main-content" class="flex-1 container mx-auto px-4 py-8 max-w-7xl" role="main">
         {% block content %}{% endblock %}
@@ -508,5 +535,99 @@
             debugLog('[PWA] Service Worker not supported in this browser');
         }
     </script>
+
+    <!-- Offline Manager Initialization -->
+    {% if user %}
+    <script>
+        // Initialize offline manager
+        window.offlineManager = new OfflineManager();
+        window.pushManager = new PushNotificationManager();
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                await window.offlineManager.init();
+                debugLog('[Offline] OfflineManager initialized');
+
+                await window.pushManager.init();
+                debugLog('[Offline] PushManager initialized');
+
+                // Update UI
+                updateOfflineUI();
+            } catch (error) {
+                console.error('[Offline] Initialization error:', error);
+            }
+        });
+
+        // Network status handlers
+        window.addEventListener('online', () => {
+            debugLog('[Offline] Network online');
+            const badge = document.getElementById('offline-badge');
+            if (badge) badge.classList.add('hidden');
+            showToast('Соединение восстановлено', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+            debugLog('[Offline] Network offline');
+            const badge = document.getElementById('offline-badge');
+            if (badge) badge.classList.remove('hidden');
+            showToast('Работаем в оффлайн режиме', 'warning');
+        });
+
+        // Update pending count
+        async function updatePendingCount() {
+            if (!window.offlineManager) return;
+
+            try {
+                const count = await window.offlineManager.getPendingCount();
+                const badge = document.getElementById('pending-sync-badge');
+                const countEl = document.getElementById('pending-count');
+
+                if (count > 0) {
+                    if (badge) badge.classList.remove('hidden');
+                    if (countEl) countEl.textContent = count;
+                } else {
+                    if (badge) badge.classList.add('hidden');
+                }
+            } catch (error) {
+                console.error('[Offline] Error updating pending count:', error);
+            }
+        }
+
+        // Update offline UI
+        function updateOfflineUI() {
+            // Update offline badge
+            const offlineBadge = document.getElementById('offline-badge');
+            if (offlineBadge) {
+                if (!navigator.onLine) {
+                    offlineBadge.classList.remove('hidden');
+                } else {
+                    offlineBadge.classList.add('hidden');
+                }
+            }
+
+            // Update pending count
+            updatePendingCount();
+        }
+
+        // Poll pending count every 5 seconds
+        setInterval(updatePendingCount, 5000);
+
+        // Listen for sync events from Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'sync-completed') {
+                    debugLog('[Offline] Sync completed:', event.data);
+                    updatePendingCount();
+                    showToast(`Синхронизировано записей: ${event.data.count}`, 'success');
+                } else if (event.data && event.data.type === 'sync-failed') {
+                    debugLog('[Offline] Sync failed:', event.data);
+                    updatePendingCount();
+                    showToast(`Ошибка синхронизации: ${event.data.count} записей`, 'error');
+                }
+            });
+        }
+    </script>
+    {% endif %}
 </body>
 </html>
