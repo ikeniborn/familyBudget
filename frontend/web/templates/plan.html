@@ -1715,16 +1715,18 @@ async function createPlan(event) {
     };
 
     try {
-        const response = await fetch('/api/v1/facts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
+        // Use OfflineManager if available, otherwise fallback to direct fetch
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createPlan(data);
 
-        if (response.ok) {
-            showToast('План успешно создан!', 'success');
+            if (result._offline) {
+                showToast('План сохранён оффлайн (будет синхронизирован при подключении)', 'warning');
+                debugLog('[createPlan] Saved offline:', result);
+            } else {
+                showToast('План успешно создан!', 'success');
+                debugLog('[createPlan] Saved online:', result);
+            }
+
             create_modal.close();
             event.target.reset();
             await loadFacts(); // Перезагрузить список планов
@@ -1732,12 +1734,31 @@ async function createPlan(event) {
             // Переинициализировать кнопки периода
             setupCreatePlanPeriodButtons();
         } else {
-            const error = await response.json();
-            showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+            // Fallback to direct fetch if OfflineManager not available
+            const response = await fetch('/api/v1/facts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast('План успешно создан!', 'success');
+                create_modal.close();
+                event.target.reset();
+                await loadFacts(); // Перезагрузить список планов
+
+                // Переинициализировать кнопки периода
+                setupCreatePlanPeriodButtons();
+            } else {
+                const error = await response.json();
+                showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+            }
         }
     } catch (error) {
         console.error('Error creating plan:', error);
-        showToast('Ошибка подключения к серверу', 'error');
+        showToast('Ошибка при создании плана: ' + error.message, 'error');
     }
 }
 
