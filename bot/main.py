@@ -7,6 +7,11 @@ Starts the Telegram bot application.
 import asyncio
 import signal
 import sys
+import warnings
+
+# Suppress PTBUserWarning for per_message=False with CallbackQueryHandler
+# This must be set BEFORE importing bot modules that create ConversationHandlers
+warnings.filterwarnings("ignore", message=".*per_message.*CallbackQueryHandler.*", category=UserWarning)
 
 from bot.bot import get_bot_app
 from bot.config.settings import get_settings
