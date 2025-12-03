@@ -371,9 +371,9 @@
     {% endif %}
 
     <!-- Toast Container (for dynamic notifications) -->
-    <!-- z-[9999] ensures toasts appear above modals (DaisyUI modals use ~z-999) -->
-    <!-- Mobile-optimized: centered, smaller padding, responsive width -->
-    <div id="toast-container" class="toast toast-top toast-center z-[9999] px-2 sm:px-4 w-full sm:w-auto max-w-[calc(100vw-1rem)] sm:max-w-md" role="alert" aria-live="polite"></div>
+    <!-- z-[99999] ensures toasts appear above ALL elements including modals -->
+    <!-- Mobile: max 50% width, Desktop: max 400px, fixed position for overlay -->
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none" role="alert" aria-live="polite"></div>
 
     <!-- Footer -->
     <footer class="footer footer-center p-4 bg-base-200 text-base-content border-t">
@@ -415,7 +415,7 @@
             }
         });
 
-        // Toast notification system (mobile-optimized)
+        // Toast notification system (responsive, always on top)
         function showToast(message, type = 'info') {
             const container = document.getElementById('toast-container');
             if (!container) return;
@@ -426,23 +426,37 @@
                               type === 'error' ? 'alert-error' :
                               type === 'warning' ? 'alert-warning' : 'alert-info';
 
-            // Mobile-optimized: smaller text, word wrap, max width
-            toast.className = `alert ${alertClass} shadow-lg w-full sm:max-w-md text-sm sm:text-base py-2 sm:py-3 px-3 sm:px-4`;
-            toast.innerHTML = `<span class="break-words whitespace-normal leading-tight">${message}</span>`;
+            // Responsive toast:
+            // - Mobile: max 50% screen width
+            // - Desktop: max 400px width
+            // - Word wrap enabled, shadow for visibility
+            toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
+            toast.style.cssText = `
+                max-width: min(50vw, 400px);
+                width: auto;
+                min-width: 200px;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                hyphens: auto;
+            `;
+            toast.innerHTML = `
+                <span class="break-words whitespace-normal leading-tight text-sm sm:text-base">${message}</span>
+            `;
 
             // Add to container
             container.appendChild(toast);
 
-            // Auto-dismiss after 3 seconds
+            // Auto-dismiss after 3.5 seconds (longer for readability)
             setTimeout(() => {
-                toast.style.transition = 'opacity 0.3s';
+                toast.style.transition = 'opacity 0.3s, transform 0.3s';
                 toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
                 setTimeout(() => {
                     if (toast.parentNode === container) {
                         container.removeChild(toast);
                     }
                 }, 300);
-            }, 3000);
+            }, 3500);
         }
 
         // Logout handler

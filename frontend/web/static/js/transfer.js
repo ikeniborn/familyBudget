@@ -9,6 +9,7 @@ let transferDateWidget = null;
 let fromCategoryTree = null;
 let toCategoryTree = null;
 let transferRecordType = 'fact'; // Default to fact, can be 'plan' for planned transfers
+let allFinancialCenters = []; // Store all financial centers for filtering
 
 /**
  * Set transfer record type
@@ -65,6 +66,9 @@ function initTransferModal() {
 
     // 6. Load Financial Centers and Cost Centers dynamically
     loadTransferData();
+
+    // 7. Setup CFO filtering (exclude selected CFO from opposite dropdown)
+    setupCFOFiltering();
 }
 
 /**
@@ -79,37 +83,10 @@ async function loadTransferData() {
         });
         if (fcResponse.ok) {
             const fcData = await fcResponse.json();
-            const financialCenters = fcData.financial_centers || [];
+            allFinancialCenters = fcData.financial_centers || [];
 
-            // Populate FROM dropdown
-            const fromFCSelect = document.querySelector('#from_financial_center');
-            if (fromFCSelect) {
-                // Clear existing options (keep placeholder)
-                while (fromFCSelect.options.length > 1) {
-                    fromFCSelect.remove(1);
-                }
-                financialCenters.forEach(fc => {
-                    const option = document.createElement('option');
-                    option.value = fc.id;
-                    option.textContent = fc.name;
-                    fromFCSelect.appendChild(option);
-                });
-            }
-
-            // Populate TO dropdown
-            const toFCSelect = document.querySelector('#to_financial_center');
-            if (toFCSelect) {
-                // Clear existing options (keep placeholder)
-                while (toFCSelect.options.length > 1) {
-                    toFCSelect.remove(1);
-                }
-                financialCenters.forEach(fc => {
-                    const option = document.createElement('option');
-                    option.value = fc.id;
-                    option.textContent = fc.name;
-                    toFCSelect.appendChild(option);
-                });
-            }
+            // Populate both dropdowns initially
+            populateFinancialCenterDropdowns();
         }
 
         // Load Cost Centers
@@ -152,6 +129,75 @@ async function loadTransferData() {
         }
     } catch (error) {
         // Ignore load errors - user will see empty dropdowns
+    }
+}
+
+/**
+ * Populate Financial Center dropdowns
+ * Filters out the selected CFO from the opposite dropdown
+ */
+function populateFinancialCenterDropdowns() {
+    const fromFCSelect = document.querySelector('#from_financial_center');
+    const toFCSelect = document.querySelector('#to_financial_center');
+
+    if (!fromFCSelect || !toFCSelect) return;
+
+    const selectedFromId = fromFCSelect.value;
+    const selectedToId = toFCSelect.value;
+
+    // Clear existing options (keep placeholder)
+    while (fromFCSelect.options.length > 1) {
+        fromFCSelect.remove(1);
+    }
+    while (toFCSelect.options.length > 1) {
+        toFCSelect.remove(1);
+    }
+
+    // Populate FROM dropdown (exclude selected TO)
+    allFinancialCenters.forEach(fc => {
+        if (String(fc.id) !== selectedToId) {
+            const option = document.createElement('option');
+            option.value = fc.id;
+            option.textContent = fc.name;
+            if (String(fc.id) === selectedFromId) {
+                option.selected = true;
+            }
+            fromFCSelect.appendChild(option);
+        }
+    });
+
+    // Populate TO dropdown (exclude selected FROM)
+    allFinancialCenters.forEach(fc => {
+        if (String(fc.id) !== selectedFromId) {
+            const option = document.createElement('option');
+            option.value = fc.id;
+            option.textContent = fc.name;
+            if (String(fc.id) === selectedToId) {
+                option.selected = true;
+            }
+            toFCSelect.appendChild(option);
+        }
+    });
+}
+
+/**
+ * Setup CFO filtering event listeners
+ * When one CFO is selected, remove it from the opposite dropdown
+ */
+function setupCFOFiltering() {
+    const fromFCSelect = document.querySelector('#from_financial_center');
+    const toFCSelect = document.querySelector('#to_financial_center');
+
+    if (fromFCSelect) {
+        fromFCSelect.addEventListener('change', () => {
+            populateFinancialCenterDropdowns();
+        });
+    }
+
+    if (toFCSelect) {
+        toFCSelect.addEventListener('change', () => {
+            populateFinancialCenterDropdowns();
+        });
     }
 }
 
