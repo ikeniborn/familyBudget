@@ -1464,7 +1464,7 @@ async function updateFact(event) {
 
         closeEditModal();
         await loadFacts();
-        showNotification('✅ Транзакция успешно обновлена!', 'success');
+        showNotification('✅ Факт успешно обновлен!', 'success');
     } catch (error) {
         console.error('Error updating fact:', error);
         const errorMessage = error?.message || String(error);
@@ -1516,7 +1516,7 @@ async function deleteFact(factId) {
         await loadFacts();
 
         // Non-blocking toast notification
-        showToast('Транзакция успешно удалена', 'success');
+        showToast('Факт успешно удален', 'success');
     } catch (error) {
         console.error('Error deleting fact:', error);
         const errorMessage = error?.message || String(error);

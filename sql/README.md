@@ -90,7 +90,7 @@ sql/
 | 03 | `insert_t_d_article_parents.sql` | Родительские категории | 32 |
 | 04 | `insert_t_d_article_children.sql` | Подкатегории | 60 |
 | 05 | `create_partitions_t_f_budget_fact.sql` | Партиции 2023-2030 | 96 |
-| 06 | `insert_t_f_budget_fact.sql` | Транзакции | 6,662 |
+| 06 | `insert_t_f_budget_fact.sql` | Факты | 6,662 |
 
 **⚠️ ВАЖНО:** Иерархия (`t_d_article_hierarchy`) создается **автоматически триггерами** при выполнении файла 04!
 

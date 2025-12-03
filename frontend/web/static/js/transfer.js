@@ -220,14 +220,39 @@ async function handleTransferSubmit(event) {
 
     // 1. Collect form data
     const formData = new FormData(event.target);
+
+    // Helper to get selected option text
+    function getSelectedText(selectId) {
+        const select = document.querySelector(selectId);
+        if (!select) return null;
+        const selected = select.options[select.selectedIndex];
+        return selected ? selected.text : null;
+    }
+
+    // Get article names from category trees
+    let fromArticleName = null;
+    let toArticleName = null;
+    if (fromCategoryTree && fromCategoryTree.getSelectedItem) {
+        const selected = fromCategoryTree.getSelectedItem();
+        fromArticleName = selected ? selected.label : null;
+    }
+    if (toCategoryTree && toCategoryTree.getSelectedItem) {
+        const selected = toCategoryTree.getSelectedItem();
+        toArticleName = selected ? selected.label : null;
+    }
+
     const data = {
         transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
         amount: parseFloat(formData.get('amount')),
         from_financial_center_id: parseInt(formData.get('from_financial_center_id')),
+        from_financial_center_name: getSelectedText('#from_financial_center'), // For offline display
         from_article_id: parseInt(formData.get('from_article_id')),
+        from_article_name: fromArticleName, // For offline display
         from_cost_center_id: formData.get('from_cost_center_id') ? parseInt(formData.get('from_cost_center_id')) : null,
         to_financial_center_id: parseInt(formData.get('to_financial_center_id')),
+        to_financial_center_name: getSelectedText('#to_financial_center'), // For offline display
         to_article_id: parseInt(formData.get('to_article_id')),
+        to_article_name: toArticleName, // For offline display
         to_cost_center_id: formData.get('to_cost_center_id') ? parseInt(formData.get('to_cost_center_id')) : null,
         description: formData.get('description') || null
     };
@@ -260,9 +285,9 @@ async function handleTransferSubmit(event) {
                 }
                 console.log('[Transfer] Saved offline:', result);
 
-                // Update pending count if function exists
-                if (typeof updatePendingCount === 'function') {
-                    await updatePendingCount();
+                // Update pending records table if function exists
+                if (typeof loadPendingRecords === 'function') {
+                    await loadPendingRecords();
                 }
             } else {
                 // Saved online

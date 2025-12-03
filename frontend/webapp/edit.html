@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Редактировать транзакцию - Семейный бюджет</title>
+    <title>Редактировать факт - Семейный бюджет</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -201,13 +201,13 @@
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loading-overlay">
         <div class="loading-spinner"></div>
-        <div class="loading-text">Загрузка транзакции...</div>
+        <div class="loading-text">Загрузка факта...</div>
     </div>
 
     <div class="container" id="main-content" style="display: none;">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">Редактировать транзакцию</div>
+            <div class="page-title">Редактировать факт</div>
         </div>
 
         <!-- Transaction Type Selector -->
@@ -295,7 +295,7 @@
         <!-- Delete Section -->
         <div class="delete-section">
             <button type="button" class="btn-delete" id="delete-btn">
-                🗑 Удалить транзакцию
+                🗑 Удалить факт
             </button>
         </div>
     </div>
@@ -390,7 +390,7 @@
                 originalFact = facts.find(f => f.id === factId);
 
                 if (!originalFact) {
-                    throw new Error('Транзакция не найдена');
+                    throw new Error('Факт не найден');
                 }
 
                 // Populate form state
@@ -734,7 +734,7 @@
                 app.ui.hapticLight();
 
                 // Show confirmation dialog
-                const confirmed = confirm('Вы уверены, что хотите удалить эту транзакцию? Это действие нельзя отменить.');
+                const confirmed = confirm('Вы уверены, что хотите удалить этот факт? Это действие нельзя отменить.');
 
                 if (!confirmed) {
                     return;
@@ -747,7 +747,7 @@
                     await app.api.deleteFact(formState.factId);
 
                     app.ui.hideLoading();
-                    app.ui.showSuccess('Транзакция удалена', () => {
+                    app.ui.showSuccess('Факт удален', () => {
                         window.location.href = '/webapp/index.html';
                     });
 
@@ -798,7 +798,7 @@
                 const result = await app.api.updateFact(formState.factId, updateData);
 
                 app.ui.hideLoading();
-                app.ui.showSuccess('Транзакция обновлена', () => {
+                app.ui.showSuccess('Факт обновлен', () => {
                     window.history.back();
                 });
 

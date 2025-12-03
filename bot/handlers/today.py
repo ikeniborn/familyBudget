@@ -128,7 +128,7 @@ def format_today_statistics(today: date, summary: Dict, facts: List[Dict], artic
         💸 Расходы: **3 500.00** ₽ (5 шт)
         📈 Баланс: **+1 500.00** ₽
 
-        📋 **Транзакции:**
+        📋 **Факты:**
 
         💵 ДОХОДЫ:
         • Salary: 5 000.00 ₽
@@ -198,7 +198,7 @@ def format_today_statistics(today: date, summary: Dict, facts: List[Dict], artic
 
     # Add transactions section
     message_parts.append("")
-    message_parts.append("📋 **Транзакции:**")
+    message_parts.append("📋 **Факты:**")
 
     # Income section
     if income_facts:

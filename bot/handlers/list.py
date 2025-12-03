@@ -95,9 +95,9 @@ async def display_page(message_or_query, context: ContextTypes.DEFAULT_TYPE, pag
 
         if total == 0:
             text = (
-                "📝 **Список транзакций**\n\n"
-                "_У вас пока нет транзакций_\n\n"
-                "Используйте /add для добавления транзакций"
+                "📝 **Список фактов**\n\n"
+                "_У вас пока нет фактов_\n\n"
+                "Используйте /add для добавления фактов"
             )
             if edit_message and hasattr(message_or_query, "edit_message_text"):
                 await message_or_query.edit_message_text(text, parse_mode="Markdown")
@@ -132,7 +132,7 @@ async def display_page(message_or_query, context: ContextTypes.DEFAULT_TYPE, pag
 
     except Exception as e:
         logger.error(f"Error displaying transactions page: {e}", exc_info=True)
-        error_text = "❌ Произошла ошибка при загрузке списка транзакций."
+        error_text = "❌ Произошла ошибка при загрузке списка фактов."
         if edit_message and hasattr(message_or_query, "edit_message_text"):
             await message_or_query.edit_message_text(error_text)
         else:
@@ -158,7 +158,7 @@ def format_transactions_list(facts: list, articles_map: dict, page: int, total: 
     end = min((page + 1) * page_size, total)
 
     message_parts = [
-        "📝 **Список транзакций**",
+        "📝 **Список фактов**",
         f"_Показано {start}-{end} из {total}_",
         ""
     ]
@@ -255,7 +255,7 @@ async def pagination_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Handle close button
     if callback_data == "list:close":
-        await query.edit_message_text("✅ Список транзакций закрыт")
+        await query.edit_message_text("✅ Список фактов закрыт")
         return ConversationHandler.END
 
     # Handle page indicator (no-op)

@@ -136,7 +136,7 @@ async function handleTransactionSubmit(event) {
     const result = await window.offlineManager.createFact(data);
 
     if (result._offline) {
-      showToast('Транзакция сохранена оффлайн (будет синхронизирована)', 'warning');
+      showToast('Факт сохранен оффлайн (будет синхронизирована)', 'warning');
     } else {
       showToast('Транзакция создана успешно', 'success');
     }

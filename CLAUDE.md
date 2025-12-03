@@ -95,7 +95,7 @@ familyBudget/
 Все модели используют **SCD Type 1** (in-place updates) + отдельные **History tables** (SCD Type 2):
 - `Article` - Категории бюджета (иерархические, shared across users)
 - `ArticleHistory` - История изменений Article (SCD Type 2)
-- `BudgetFact` - Транзакции (fact table)
+- `BudgetFact` - Факты (fact table)
 - `BudgetFactHistory` - История изменений BudgetFact (SCD Type 2)
 - `User` - Пользователи (SCD Type 1 + UserHistory)
 - `FinancialCenter` - Финансовые центры (счета, кошельки)
