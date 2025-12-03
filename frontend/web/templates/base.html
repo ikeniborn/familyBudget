@@ -134,7 +134,7 @@
             </a>
         </div>
 
-        <div class="navbar-center hidden lg:flex">
+        <div id="navbar-center-menu" class="navbar-center hidden lg:flex">
             <ul class="menu menu-horizontal px-1" role="menubar">
                 {% if user %}
                 <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">Главная</a></li>
@@ -175,7 +175,7 @@
             </div>
 
             <!-- Telegram Bot Link -->
-            <a href="https://t.me/ikenibornbudgetbot" target="_blank" rel="noopener noreferrer"
+            <a id="telegram-link" href="https://t.me/ikenibornbudgetbot" target="_blank" rel="noopener noreferrer"
                class="btn btn-ghost btn-circle btn-sm sm:btn-md"
                aria-label="Open Telegram Bot"
                title="Открыть Telegram бота">
@@ -195,7 +195,7 @@
 
             {% if user %}
                 <!-- User Dropdown Menu (hidden on mobile, visible on desktop) -->
-                <div class="dropdown dropdown-end hidden lg:flex">
+                <div id="user-dropdown" class="dropdown dropdown-end hidden lg:flex">
                     <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
                         <!-- Avatar -->
                         {% if user.photo_url %}
@@ -662,15 +662,15 @@
         // Network status handlers (UI only, toast handled by OfflineManager)
         window.addEventListener('online', () => {
             debugLog('[Offline] Network online');
-            const badge = document.getElementById('offline-icon');
-            if (badge) badge.classList.add('hidden');
+            // Update all UI elements (badge, menus, dropdowns)
+            updateOfflineUI();
             // Note: Toast is handled by OfflineManager.handleOnline() with debounce
         });
 
         window.addEventListener('offline', () => {
             debugLog('[Offline] Network offline');
-            const badge = document.getElementById('offline-icon');
-            if (badge) badge.classList.remove('hidden');
+            // Update all UI elements (badge, menus, dropdowns)
+            updateOfflineUI();
             // Note: Toast is handled by OfflineManager.handleOffline() with debounce
         });
 
@@ -712,6 +712,24 @@
             const mobileMenuDropdown = document.getElementById('mobile-menu-dropdown');
             if (mobileMenuDropdown) {
                 mobileMenuDropdown.style.display = isOnline ? '' : 'none';
+            }
+
+            // Hide navbar center menu (desktop: Главная, Аналитика, etc.) when offline
+            const navbarCenterMenu = document.getElementById('navbar-center-menu');
+            if (navbarCenterMenu) {
+                navbarCenterMenu.style.display = isOnline ? '' : 'none';
+            }
+
+            // Hide Telegram link when offline (both mobile and desktop)
+            const telegramLink = document.getElementById('telegram-link');
+            if (telegramLink) {
+                telegramLink.style.display = isOnline ? '' : 'none';
+            }
+
+            // Hide user dropdown (desktop) when offline
+            const userDropdown = document.getElementById('user-dropdown');
+            if (userDropdown) {
+                userDropdown.style.display = isOnline ? '' : 'none';
             }
 
             // Update pending count
