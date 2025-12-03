@@ -79,25 +79,26 @@ server {
         proxy_set_header Host $host;
     }
 
-    # PWA Manifest
+    # PWA Manifest (served directly by nginx)
     location = /manifest.json {
-        proxy_pass http://backend;
-        proxy_set_header Host $host;
+        alias /usr/share/nginx/html/manifest.json;
         add_header Content-Type "application/manifest+json" always;
         add_header Cache-Control "public, max-age=604800" always;  # 7 days
         add_header Access-Control-Allow-Origin "*" always;
     }
 
-    # Service Worker
-    # Note: gzip disabled to fix Service Worker update issues in some browsers (Yandex Browser)
+    # Service Worker (served directly by nginx - minified + gzip pre-compressed)
+    # Files: /usr/share/nginx/html/sw.js (minified) + sw.js.gz (pre-compressed)
     location = /sw.js {
-        proxy_pass http://backend;
-        proxy_set_header Host $host;
-        gzip off;  # Disable compression for Service Worker (fixes update issues)
+        alias /usr/share/nginx/html/sw.js;
+        gzip_static on;  # Serve pre-compressed .gz file when client supports it
         add_header Content-Type "application/javascript; charset=utf-8" always;
         add_header Cache-Control "public, max-age=0, must-revalidate" always;  # Always check for updates
         add_header Service-Worker-Allowed "/" always;
         add_header Access-Control-Allow-Origin "*" always;
+        # Ensure ETag/Last-Modified for update checks
+        etag on;
+        if_modified_since exact;
     }
 
     # Static files

@@ -200,6 +200,60 @@ minify_js_directory() {
     print_message info "Finished processing $dir"
 }
 
+minify_service_worker() {
+    # Minify Service Worker (sw.js) and create gzip pre-compressed version
+    # This is handled separately because:
+    # 1. sw.js is in project root (not in frontend/)
+    # 2. We need gzip pre-compressed version for nginx gzip_static
+
+    local sw_source="sw.js"
+    local sw_minified="sw.min.js"
+    local sw_gzip="${sw_minified}.gz"
+
+    if [[ ! -f "$sw_source" ]]; then
+        print_message warning "Service Worker not found: $sw_source (skipping)"
+        return 0
+    fi
+
+    print_message info "→ Processing Service Worker..."
+
+    # Minify sw.js
+    print_message info "Minifying: $sw_source"
+    local terser_output
+    terser_output=$(timeout 60s terser "$sw_source" \
+        --compress \
+        --mangle \
+        --output "$sw_minified" 2>&1)
+    local terser_exit=$?
+
+    if [[ $terser_exit -eq 0 ]] && [[ -f "$sw_minified" ]]; then
+        local original_size=$(stat -c%s "$sw_source" 2>/dev/null || stat -f%z "$sw_source" 2>/dev/null)
+        local minified_size=$(stat -c%s "$sw_minified" 2>/dev/null || stat -f%z "$sw_minified" 2>/dev/null)
+        local reduction=$((100 - (minified_size * 100 / original_size)))
+        print_message success "✓ $sw_minified (${reduction}% smaller: ${original_size}B → ${minified_size}B)"
+        ((MINIFIED_JS_COUNT++))
+
+        # Create gzip pre-compressed version for nginx gzip_static
+        if command -v gzip &> /dev/null; then
+            gzip -9 -k -f "$sw_minified"
+            if [[ -f "$sw_gzip" ]]; then
+                local gzip_size=$(stat -c%s "$sw_gzip" 2>/dev/null || stat -f%z "$sw_gzip" 2>/dev/null)
+                local gzip_reduction=$((100 - (gzip_size * 100 / original_size)))
+                print_message success "✓ $sw_gzip (${gzip_reduction}% smaller: ${original_size}B → ${gzip_size}B)"
+            fi
+        else
+            print_message warning "gzip not found - skipping pre-compressed version"
+        fi
+    else
+        print_message error "Failed to minify Service Worker: $sw_source"
+        if [[ -n "$terser_output" ]]; then
+            echo "$terser_output" | head -3 >&2
+        fi
+        ((ERRORS_COUNT++))
+        return 1
+    fi
+}
+
 minify_all_js() {
     echo "┌────────────────────────────────────────────────────────────────────────────┐"
     print_message info "│ 📦 JavaScript Minification"
@@ -219,6 +273,10 @@ minify_all_js() {
     print_message info "→ Processing shared/ directory..."
     minify_js_directory "$SHARED_JS_DIR"
     print_message info "✓ Completed shared/ directory: $MINIFIED_JS_COUNT files so far"
+    echo
+
+    # Minify Service Worker (root level)
+    minify_service_worker
     echo
 
     print_message success "✅ JavaScript minification complete: $MINIFIED_JS_COUNT files"
