@@ -424,6 +424,73 @@ generate_jwt_secret() {
     fi
 }
 
+# Generate VAPID keys for Web Push notifications
+# Returns JSON with public_key and private_key
+generate_vapid_keys() {
+    # Check if Python and pywebpush are available
+    if ! command_exists python3; then
+        warning "Python3 not available, skipping VAPID key generation"
+        return 1
+    fi
+
+    # Try to generate using py_vapid
+    local vapid_output
+    vapid_output=$(python3 << 'PYTHON_SCRIPT' 2>/dev/null
+import json
+try:
+    from py_vapid import Vapid
+    import base64
+
+    # Generate new VAPID keys
+    vapid = Vapid()
+    vapid.generate_keys()
+
+    # Get raw key bytes
+    private_key_raw = vapid._private_key.private_bytes(
+        encoding=__import__('cryptography.hazmat.primitives.serialization', fromlist=['Encoding']).Encoding.Raw,
+        format=__import__('cryptography.hazmat.primitives.serialization', fromlist=['PrivateFormat']).PrivateFormat.Raw,
+        encryption_algorithm=__import__('cryptography.hazmat.primitives.serialization', fromlist=['NoEncryption']).NoEncryption()
+    )
+
+    public_key_raw = vapid._private_key.public_key().public_bytes(
+        encoding=__import__('cryptography.hazmat.primitives.serialization', fromlist=['Encoding']).Encoding.Raw,
+        format=__import__('cryptography.hazmat.primitives.serialization', fromlist=['PublicFormat']).PublicFormat.Raw
+    )
+
+    # Encode to base64url (no padding, URL-safe)
+    def base64url_encode(data):
+        return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
+
+    # Public key needs to be uncompressed point (0x04 prefix + x + y coordinates)
+    public_key_uncompressed = b'\x04' + public_key_raw
+    public_key_b64 = base64url_encode(public_key_uncompressed)
+    private_key_b64 = base64url_encode(private_key_raw)
+
+    print(json.dumps({
+        "public_key": public_key_b64,
+        "private_key": private_key_b64
+    }))
+except ImportError:
+    # pywebpush not installed
+    print('{"error": "pywebpush not installed"}')
+except Exception as e:
+    print(json.dumps({"error": str(e)}))
+PYTHON_SCRIPT
+)
+
+    if [[ $? -ne 0 || -z "$vapid_output" ]]; then
+        return 1
+    fi
+
+    # Check for error in output
+    if echo "$vapid_output" | grep -q '"error"'; then
+        return 1
+    fi
+
+    echo "$vapid_output"
+    return 0
+}
+
 # Get bot information from Telegram API
 get_bot_info() {
     local token=$1
@@ -526,6 +593,19 @@ collect_configuration() {
     generated_api_internal_key=$(generate_jwt_secret)  # Same generation method (hex 32 bytes)
     local generated_postgres_password
     generated_postgres_password=$(generate_password 32)
+
+    # Generate VAPID keys for Web Push notifications
+    local generated_vapid_public_key=""
+    local generated_vapid_private_key=""
+    local vapid_json
+    if vapid_json=$(generate_vapid_keys 2>/dev/null); then
+        generated_vapid_public_key=$(echo "$vapid_json" | python3 -c "import sys, json; print(json.load(sys.stdin)['public_key'])" 2>/dev/null)
+        generated_vapid_private_key=$(echo "$vapid_json" | python3 -c "import sys, json; print(json.load(sys.stdin)['private_key'])" 2>/dev/null)
+        info "VAPID keys generated for Web Push notifications"
+    else
+        warning "VAPID keys not generated (pywebpush not installed)"
+        info "Push notifications will be disabled. Install pywebpush and run setup.sh again to enable."
+    fi
     success "Secrets generated"
 
     echo ""
@@ -548,6 +628,25 @@ collect_configuration() {
     info "Internal API key will be auto-generated"
     CONFIG["API_INTERNAL_KEY"]=$generated_api_internal_key
     prompt "JWT expiration (days)" "JWT_EXPIRE_DAYS" "7"
+
+    echo ""
+
+    # VAPID configuration for Push Notifications
+    print_message "$CYAN" "▶ Push Notifications (VAPID)"
+    if [[ -n "$generated_vapid_public_key" && -n "$generated_vapid_private_key" ]]; then
+        info "VAPID keys auto-generated for Web Push"
+        CONFIG["VAPID_PUBLIC_KEY"]=$generated_vapid_public_key
+        CONFIG["VAPID_PRIVATE_KEY"]=$generated_vapid_private_key
+        # Use LETSENCRYPT_EMAIL if set, otherwise use default
+        local default_vapid_email="${CONFIG[LETSENCRYPT_EMAIL]:-admin@example.com}"
+        prompt "VAPID contact email (for push service notifications)" "VAPID_CONTACT_EMAIL" "$default_vapid_email"
+    else
+        warning "VAPID keys not available - push notifications disabled"
+        info "To enable: pip install pywebpush && run setup.sh again"
+        CONFIG["VAPID_PUBLIC_KEY"]=""
+        CONFIG["VAPID_PRIVATE_KEY"]=""
+        CONFIG["VAPID_CONTACT_EMAIL"]=""
+    fi
 
     echo ""
 
@@ -1065,6 +1164,13 @@ create_env_file() {
     sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${CONFIG[JWT_SECRET]}/" "$env_file"
     sed -i "s/^JWT_EXPIRE_DAYS=.*/JWT_EXPIRE_DAYS=${CONFIG[JWT_EXPIRE_DAYS]}/" "$env_file"
     sed -i "s/^API_INTERNAL_KEY=.*/API_INTERNAL_KEY=${CONFIG[API_INTERNAL_KEY]}/" "$env_file"
+
+    # VAPID keys for Push Notifications
+    if [[ -n "${CONFIG[VAPID_PUBLIC_KEY]}" ]]; then
+        sed -i "s|^VAPID_PUBLIC_KEY=.*|VAPID_PUBLIC_KEY=${CONFIG[VAPID_PUBLIC_KEY]}|" "$env_file"
+        sed -i "s|^VAPID_PRIVATE_KEY=.*|VAPID_PRIVATE_KEY=${CONFIG[VAPID_PRIVATE_KEY]}|" "$env_file"
+        sed -i "s|^VAPID_CONTACT_EMAIL=.*|VAPID_CONTACT_EMAIL=${CONFIG[VAPID_CONTACT_EMAIL]}|" "$env_file"
+    fi
 
     sed -i "s/^TELEGRAM_BOT_TOKEN=.*/TELEGRAM_BOT_TOKEN=${CONFIG[TELEGRAM_BOT_TOKEN]}/" "$env_file"
     sed -i "s/^TELEGRAM_BOT_USERNAME=.*/TELEGRAM_BOT_USERNAME=${CONFIG[TELEGRAM_BOT_USERNAME]}/" "$env_file"

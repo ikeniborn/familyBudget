@@ -19,19 +19,21 @@ Models:
     ImportFileUpload: Import file upload metadata (multi-bank import)
     ImportColumnMapping: User column mappings per bank (SCD Type 1)
     ImportStaging: Temporary staging table for multi-bank CSV import
+    UserConsent: GDPR consent records (append-only audit log)
 
 Design Patterns:
     - SCD Type 2: Slowly Changing Dimension Type 2 for tracking historical changes
     - SCD Type 1: In-place updates for column mappings
     - Closure Table: For efficient hierarchical queries on articles
     - Star Schema: BudgetFact as central fact table with dimension references
+    - Append-only: UserConsent for immutable audit trail
 
 Usage:
     from backend.app.models import (
         User, Article, ArticleUsageStats, FinancialCenter, CostCenter,
         BudgetFact, BudgetFactHistory, ArticleHierarchy, RefreshToken,
         Notification, BankProvider, ImportFileUpload, ImportColumnMapping,
-        ImportStaging
+        ImportStaging, UserConsent
     )
 """
 
@@ -48,6 +50,7 @@ from backend.app.models.import_staging import ImportStaging
 from backend.app.models.notification import Notification
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
+from backend.app.models.user_consent import UserConsent
 
 __all__ = [
     "User",
@@ -64,4 +67,5 @@ __all__ = [
     "ImportFileUpload",
     "ImportColumnMapping",
     "ImportStaging",
+    "UserConsent",
 ]

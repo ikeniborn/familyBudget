@@ -11,12 +11,13 @@ Browser Support:
 
 import json
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.auth import get_current_user
+from backend.app.core.config import get_settings
 from backend.app.db.session import get_session
 from backend.app.models.user import User
 from backend.app.schemas.push import (
@@ -27,15 +28,24 @@ from backend.app.schemas.push import (
 )
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 router = APIRouter(prefix="/push", tags=["push"])
 
-# VAPID Configuration
-# TODO: Generate proper VAPID keys using py_vapid library
-# For now, using placeholder - should be generated once and stored securely
-VAPID_PUBLIC_KEY = "BCMbJwHdGPAp3Rk5X8YN0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-VAPID_PRIVATE_KEY = "PRIVATE_KEY_PLACEHOLDER"  # Should be stored in environment variables
-VAPID_CLAIMS = {"sub": "mailto:admin@familybudget.example.com"}
+
+def is_vapid_configured() -> bool:
+    """Check if VAPID keys are properly configured."""
+    if not settings.VAPID_PUBLIC_KEY or not settings.VAPID_PRIVATE_KEY:
+        return False
+    # Check for placeholder values
+    if "PLACEHOLDER" in settings.VAPID_PUBLIC_KEY:
+        return False
+    if "0123456789" in settings.VAPID_PUBLIC_KEY:
+        return False
+    # Valid VAPID public key should be at least 65 chars (base64url encoded)
+    if len(settings.VAPID_PUBLIC_KEY) < 65:
+        return False
+    return True
 
 
 @router.get("/vapid-key", response_model=VAPIDKeyResponse)
@@ -50,12 +60,23 @@ async def get_vapid_key(
 
     Example response:
         {
-            "public_key": "BCMbJwHd..."
+            "public_key": "BCMbJwHd...",
+            "configured": true
         }
     """
     logger.info(f"[Push] User {current_user.id} requested VAPID key")
 
-    return {"public_key": VAPID_PUBLIC_KEY}
+    if not is_vapid_configured():
+        logger.warning("[Push] VAPID keys not configured - push notifications disabled")
+        return {
+            "public_key": "",
+            "configured": False
+        }
+
+    return {
+        "public_key": settings.VAPID_PUBLIC_KEY,
+        "configured": True
+    }
 
 
 @router.post("/subscribe", response_model=PushSubscriptionResponse)
@@ -89,6 +110,12 @@ async def subscribe_to_push(
             "user_agent": "Mozilla/5.0..."
         }
     """
+    if not is_vapid_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Push notifications not configured on server"
+        )
+
     try:
         # TODO: Store subscription in database
         # For now, just log it
@@ -180,37 +207,44 @@ async def send_push_notification(
             detail="Only administrators can send push notifications"
         )
 
-    try:
-        # TODO: Implement actual push notification sending using pywebpush
-        # 1. Get user subscription from database
-        # 2. Send push notification using webpush library
-        # 3. Handle errors (expired subscription, etc.)
+    if not is_vapid_configured():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Push notifications not configured on server"
+        )
 
+    try:
         logger.info(
             f"[Push] Admin {current_user.id} sending notification to user {notification.user_id}: "
             f"{notification.title}"
         )
 
-        # Example implementation (commented out until dependencies are installed):
+        # Example implementation with pywebpush:
         # from pywebpush import webpush, WebPushException
         #
         # subscription_info = await get_user_subscription(notification.user_id, session)
         # if not subscription_info:
         #     raise HTTPException(404, "No subscription found for user")
         #
-        # webpush(
-        #     subscription_info=subscription_info,
-        #     data=json.dumps({
-        #         "title": notification.title,
-        #         "body": notification.body,
-        #         "icon": "/static/icons/icon-192.png",
-        #         "badge": "/static/icons/icon-192.png",
-        #         "tag": "budget-notification",
-        #         "data": notification.data
-        #     }),
-        #     vapid_private_key=VAPID_PRIVATE_KEY,
-        #     vapid_claims=VAPID_CLAIMS
-        # )
+        # try:
+        #     webpush(
+        #         subscription_info=subscription_info,
+        #         data=json.dumps({
+        #             "title": notification.title,
+        #             "body": notification.body,
+        #             "icon": "/static/icons/icon-192.png",
+        #             "badge": "/static/icons/icon-192.png",
+        #             "tag": "budget-notification",
+        #             "data": notification.data
+        #         }),
+        #         vapid_private_key=settings.VAPID_PRIVATE_KEY,
+        #         vapid_claims={"sub": f"mailto:{settings.VAPID_CONTACT_EMAIL}"}
+        #     )
+        # except WebPushException as e:
+        #     if e.response and e.response.status_code == 410:
+        #         # Subscription expired - remove from database
+        #         await remove_subscription(subscription_info['endpoint'], session)
+        #     raise
 
         return {"status": "sent"}
 

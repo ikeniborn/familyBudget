@@ -84,6 +84,14 @@ class PushNotificationManager {
             }
 
             const data = await response.json();
+
+            // Check if push notifications are configured on server
+            if (data.configured === false || !data.public_key) {
+                this.vapidPublicKey = null;
+                this.isSupported = false;
+                return;
+            }
+
             this.vapidPublicKey = data.public_key;
 
             // Validate VAPID key format (should be base64url, 65+ chars)

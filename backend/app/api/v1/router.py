@@ -14,6 +14,7 @@ from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
     auth_router,
+    consent_router,
     cost_centers_router,
     facts_router,
     financial_centers_router,
@@ -78,3 +79,6 @@ api_router.include_router(transfers_router)
 
 # Push Notification endpoints (PWA Offline Mode) ✅
 api_router.include_router(push_router)
+
+# User Consent endpoints (GDPR Compliance) ✅
+api_router.include_router(consent_router)

@@ -352,6 +352,70 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Cookie Consent Banner (GDPR Compliance) -->
+    {% if user %}
+    <div id="cookie-consent-banner" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 hidden">
+        <div class="bg-base-100 w-full sm:max-w-lg sm:rounded-lg shadow-2xl p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-start gap-3 mb-4">
+                <span class="text-3xl">🍪</span>
+                <div class="flex-1">
+                    <h3 class="font-bold text-lg">Настройки конфиденциальности</h3>
+                    <p class="text-sm opacity-70 mt-1">
+                        Мы используем cookie и аналогичные технологии для улучшения работы приложения.
+                    </p>
+                </div>
+            </div>
+
+            <div class="space-y-3 mb-4">
+                <!-- Essential Cookies (always enabled) -->
+                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Необходимые cookie</div>
+                        <div class="text-xs opacity-60">Требуются для работы приложения</div>
+                    </div>
+                    <input type="checkbox" class="toggle toggle-primary toggle-sm" checked disabled id="consent-essential" data-consent-type="essential">
+                </div>
+
+                <!-- Analytics -->
+                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Аналитика</div>
+                        <div class="text-xs opacity-60">Помогает улучшить приложение</div>
+                    </div>
+                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-analytics" data-consent-type="analytics">
+                </div>
+
+                <!-- Push Notifications -->
+                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Push-уведомления</div>
+                        <div class="text-xs opacity-60">Уведомления о синхронизации и обновлениях</div>
+                    </div>
+                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-push" data-consent-type="push_notifications">
+                </div>
+
+                <!-- Personalization -->
+                <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Персонализация</div>
+                        <div class="text-xs opacity-60">Сохранение настроек и предпочтений</div>
+                    </div>
+                    <input type="checkbox" class="toggle toggle-primary toggle-sm" id="consent-personalization" data-consent-type="personalization">
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2">
+                <button id="consent-accept-all" class="btn btn-primary flex-1">Принять все</button>
+                <button id="consent-save-choices" class="btn btn-outline flex-1">Сохранить выбор</button>
+            </div>
+
+            <div class="text-xs opacity-50 mt-3 text-center">
+                <a href="/privacy-policy" class="link" target="_blank">Политика конфиденциальности</a> • v1.0
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Push Notification Permission Banner (for iOS/Android) -->
     {% if user %}
     <div id="push-permission-banner" class="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40 hidden">
@@ -753,6 +817,177 @@
                 }
             });
         }
+
+        // Cookie Consent Manager (GDPR Compliance)
+        (function initCookieConsent() {
+            const banner = document.getElementById('cookie-consent-banner');
+            const acceptAllBtn = document.getElementById('consent-accept-all');
+            const saveChoicesBtn = document.getElementById('consent-save-choices');
+
+            if (!banner) return;
+
+            const CONSENT_VERSION = '1.0';
+            const CONSENT_CHECKED_KEY = 'consent-checked';
+
+            // Get consent toggles
+            function getConsentToggles() {
+                return {
+                    essential: document.getElementById('consent-essential'),
+                    analytics: document.getElementById('consent-analytics'),
+                    push_notifications: document.getElementById('consent-push'),
+                    personalization: document.getElementById('consent-personalization')
+                };
+            }
+
+            // Get current consent choices from toggles
+            function getConsentChoices() {
+                const toggles = getConsentToggles();
+                return [
+                    { consent_type: 'essential', consent_given: true }, // Always true
+                    { consent_type: 'analytics', consent_given: toggles.analytics?.checked || false },
+                    { consent_type: 'push_notifications', consent_given: toggles.push_notifications?.checked || false },
+                    { consent_type: 'personalization', consent_given: toggles.personalization?.checked || false }
+                ];
+            }
+
+            // Check consent status from API
+            async function checkConsentStatus() {
+                try {
+                    const response = await fetch('/api/v1/consent/status', {
+                        credentials: 'same-origin'
+                    });
+
+                    if (!response.ok) {
+                        debugLog('[Consent] API error:', response.status);
+                        return { has_consented: false, consents: {} };
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    console.error('[Consent] Error checking status:', error);
+                    return { has_consented: false, consents: {} };
+                }
+            }
+
+            // Save consent choices to API
+            async function saveConsent(consents) {
+                try {
+                    const response = await fetch('/api/v1/consent', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            consents: consents,
+                            privacy_policy_version: CONSENT_VERSION
+                        })
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    debugLog('[Consent] Saved:', result);
+                    return true;
+                } catch (error) {
+                    console.error('[Consent] Error saving:', error);
+                    return false;
+                }
+            }
+
+            // Show banner
+            function showBanner() {
+                banner.classList.remove('hidden');
+                debugLog('[Consent] Banner shown');
+            }
+
+            // Hide banner
+            function hideBanner() {
+                banner.classList.add('hidden');
+                // Mark as checked for this session
+                sessionStorage.setItem(CONSENT_CHECKED_KEY, 'true');
+            }
+
+            // Update toggles based on saved consents
+            function updateTogglesFromConsents(consents) {
+                const toggles = getConsentToggles();
+
+                for (const [type, status] of Object.entries(consents)) {
+                    if (toggles[type] && type !== 'essential') {
+                        toggles[type].checked = status.consent_given;
+                    }
+                }
+            }
+
+            // Accept all handler
+            async function handleAcceptAll() {
+                const toggles = getConsentToggles();
+                // Check all toggles
+                if (toggles.analytics) toggles.analytics.checked = true;
+                if (toggles.push_notifications) toggles.push_notifications.checked = true;
+                if (toggles.personalization) toggles.personalization.checked = true;
+
+                const consents = getConsentChoices();
+                const success = await saveConsent(consents);
+
+                if (success) {
+                    hideBanner();
+                    showToast('Настройки сохранены', 'success');
+                } else {
+                    showToast('Ошибка сохранения настроек', 'error');
+                }
+            }
+
+            // Save choices handler
+            async function handleSaveChoices() {
+                const consents = getConsentChoices();
+                const success = await saveConsent(consents);
+
+                if (success) {
+                    hideBanner();
+                    showToast('Настройки сохранены', 'success');
+                } else {
+                    showToast('Ошибка сохранения настроек', 'error');
+                }
+            }
+
+            // Initialize
+            async function init() {
+                // Skip if already checked in this session
+                if (sessionStorage.getItem(CONSENT_CHECKED_KEY)) {
+                    debugLog('[Consent] Already checked this session');
+                    return;
+                }
+
+                // Check consent status from API
+                const status = await checkConsentStatus();
+                debugLog('[Consent] Status:', status);
+
+                if (!status.has_consented) {
+                    // No consent recorded - show banner
+                    showBanner();
+                } else {
+                    // Update toggles for any future settings page
+                    updateTogglesFromConsents(status.consents);
+                    // Mark as checked
+                    sessionStorage.setItem(CONSENT_CHECKED_KEY, 'true');
+                    debugLog('[Consent] User already consented');
+                }
+            }
+
+            // Event listeners
+            if (acceptAllBtn) {
+                acceptAllBtn.addEventListener('click', handleAcceptAll);
+            }
+            if (saveChoicesBtn) {
+                saveChoicesBtn.addEventListener('click', handleSaveChoices);
+            }
+
+            // Run init
+            init();
+        })();
 
         // Push Notification Permission Banner
         (function initPushBanner() {

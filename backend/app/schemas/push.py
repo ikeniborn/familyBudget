@@ -83,13 +83,16 @@ class VAPIDKeyResponse(BaseModel):
 
     Attributes:
         public_key: VAPID public key for browser push subscriptions
+        configured: Whether VAPID keys are properly configured on server
     """
     public_key: str = Field(..., description="VAPID public key (base64url encoded)")
+    configured: bool = Field(default=True, description="Whether push notifications are configured")
 
     class Config:
         json_schema_extra = {
             "example": {
-                "public_key": "BCMbJwHdGPAp3Rk5X8YN0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+                "public_key": "BCMbJwHdGPAp3Rk5X8YN...",
+                "configured": True
             }
         }
 
