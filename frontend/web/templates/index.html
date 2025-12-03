@@ -103,6 +103,7 @@
                                 <thead>
                                     <tr>
                                         <th>Тип</th>
+                                        <th>Тип категории</th>
                                         <th>Дата</th>
                                         <th>ЦФО</th>
                                         <th>Категория</th>
@@ -1138,15 +1139,15 @@ async function loadPendingRecords() {
             if (item.entity === 'transfer') {
                 // Check if plan transfer
                 const isPlanTransfer = item.data.record_type === 'plan';
-                const debitLabel = isPlanTransfer ? '📤 Списание (план)' : '📤 Списание';
-                const creditLabel = isPlanTransfer ? '📥 Пополнение (план)' : '📥 Пополнение';
+                const typeLabel = isPlanTransfer ? '📋 План' : '📊 Факт';
 
-                // Debit row (списание) - only amount column is colored
+                // Debit row (расход) - amount in red
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
                 rows.push(`
                     <tr>
-                        <td>${debitLabel}</td>
+                        <td>${typeLabel}</td>
+                        <td>📤 Расход</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
                         <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
@@ -1156,12 +1157,13 @@ async function loadPendingRecords() {
                     </tr>
                 `);
 
-                // Credit row (пополнение) - only amount column is colored
+                // Credit row (доход) - amount in green
                 const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
                 rows.push(`
                     <tr>
-                        <td>${creditLabel}</td>
+                        <td>${typeLabel}</td>
+                        <td>📥 Доход</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
@@ -1179,13 +1181,21 @@ async function loadPendingRecords() {
                 const categoryName = item.data.article_name ||
                     (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
 
+                // Determine category type (expense/income) based on article type
+                const articleType = item.data.article_type || '';
+                const isExpense = articleType === 'expense' || articleType === 'debit';
+                const categoryTypeLabel = isExpense ? '📤 Расход' : '📥 Доход';
+                const amountClass = isExpense ? 'text-error font-medium' : 'text-success font-medium';
+                const amountPrefix = isExpense ? '-' : '+';
+
                 rows.push(`
                     <tr>
                         <td>${typeLabel}</td>
+                        <td>${categoryTypeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
                         <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
-                        <td>${amount}</td>
+                        <td class="${amountClass}">${amountPrefix}${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td>${statusBadge}</td>
                     </tr>
