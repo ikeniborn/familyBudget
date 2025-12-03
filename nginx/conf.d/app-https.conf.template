@@ -89,9 +89,11 @@ server {
     }
 
     # Service Worker
+    # Note: gzip disabled to fix Service Worker update issues in some browsers (Yandex Browser)
     location = /sw.js {
         proxy_pass http://backend;
         proxy_set_header Host $host;
+        gzip off;  # Disable compression for Service Worker (fixes update issues)
         add_header Content-Type "application/javascript; charset=utf-8" always;
         add_header Cache-Control "public, max-age=0, must-revalidate" always;  # Always check for updates
         add_header Service-Worker-Allowed "/" always;
