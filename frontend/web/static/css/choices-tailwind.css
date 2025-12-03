@@ -59,19 +59,23 @@
 }
 
 /* Selected item (single select) */
-.choices-tailwind .choices__list--single .choices__item {
+.choices-tailwind .choices__list--single .choices__item,
+.choices-telegram .choices__list--single .choices__item {
     @apply text-gray-900 py-1;
 }
 
-.dark .choices-tailwind .choices__list--single .choices__item {
+.dark .choices-tailwind .choices__list--single .choices__item,
+.dark .choices-telegram .choices__list--single .choices__item {
     @apply text-white;
 }
 
-.choices-tailwind .choices__placeholder {
+.choices-tailwind .choices__placeholder,
+.choices-telegram .choices__placeholder {
     @apply text-gray-400 opacity-100;
 }
 
-.dark .choices-tailwind .choices__placeholder {
+.dark .choices-tailwind .choices__placeholder,
+.dark .choices-telegram .choices__placeholder {
     @apply text-gray-500;
 }
 
@@ -96,12 +100,14 @@
     display: none !important;
 }
 
-/* Tailwind-specific rules (for specificity) */
-.choices-tailwind .choices__list--dropdown .choices__placeholder {
+/* Tailwind/Telegram-specific rules (for specificity) */
+.choices-tailwind .choices__list--dropdown .choices__placeholder,
+.choices-telegram .choices__list--dropdown .choices__placeholder {
     display: none !important;
 }
 
-.choices-tailwind .choices__list--dropdown .choices__item[data-value=""] {
+.choices-tailwind .choices__list--dropdown .choices__item[data-value=""],
+.choices-telegram .choices__list--dropdown .choices__item[data-value=""] {
     display: none !important;
 }
 
@@ -111,7 +117,8 @@
     display: none !important;
 }
 
-.choices-tailwind .choices__list--single .choices__item[data-value=""]:not(:only-child) {
+.choices-tailwind .choices__list--single .choices__item[data-value=""]:not(:only-child),
+.choices-telegram .choices__list--single .choices__item[data-value=""]:not(:only-child) {
     display: none !important;
 }
 
@@ -121,7 +128,8 @@
     display: none !important;
 }
 
-.choices-tailwind .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
+.choices-tailwind .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child),
+.choices-telegram .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
     display: none !important;
 }
 
