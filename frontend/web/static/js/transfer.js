@@ -12,12 +12,31 @@ let transferRecordType = 'fact'; // Default to fact, can be 'plan' for planned t
 let allFinancialCenters = []; // Store all financial centers for filtering
 
 /**
- * Set transfer record type
+ * Set transfer record type and update UI accordingly
  * @param {string} type - 'fact' or 'plan'
  */
 function setTransferRecordType(type) {
     if (type === 'fact' || type === 'plan') {
         transferRecordType = type;
+        updateQuickDateButtonsVisibility();
+    }
+}
+
+/**
+ * Update visibility of quick date buttons based on transfer type
+ */
+function updateQuickDateButtonsVisibility() {
+    const factButtons = document.getElementById('transfer-quick-dates-fact');
+    const planButtons = document.getElementById('transfer-quick-dates-plan');
+
+    if (!factButtons || !planButtons) return;
+
+    if (transferRecordType === 'plan') {
+        factButtons.classList.add('hidden');
+        planButtons.classList.remove('hidden');
+    } else {
+        factButtons.classList.remove('hidden');
+        planButtons.classList.add('hidden');
     }
 }
 
@@ -203,14 +222,15 @@ function setupCFOFiltering() {
 
 /**
  * Setup Quick Date Selection Buttons
- * Handles "Today", "Yesterday", "Day Before Yesterday" buttons
+ * Handles "Today", "Yesterday", "Day Before Yesterday" buttons for facts
+ * Handles "Current", "Next", "After Next" month buttons for plans
  */
 function setupQuickDateButtons() {
-    const quickDateButtons = document.querySelectorAll('[data-quick-date]');
     const dateInput = document.querySelector('#transfer_date');
+    if (!dateInput) return;
 
-    if (quickDateButtons.length === 0 || !dateInput) return;
-
+    // Setup fact date buttons (Today, Yesterday, Day Before)
+    const quickDateButtons = document.querySelectorAll('[data-quick-date]');
     quickDateButtons.forEach(button => {
         button.addEventListener('click', function() {
             const quickDate = this.dataset.quickDate;
@@ -236,6 +256,42 @@ function setupQuickDateButtons() {
             const month = String(targetDate.getMonth() + 1).padStart(2, '0');
             const day = String(targetDate.getDate()).padStart(2, '0');
             const isoDate = `${year}-${month}-${day}`;
+
+            // Format for display (DD.MM.YYYY)
+            const formattedDate = BudgetShared.DateFormatter.formatForDisplay(isoDate);
+            dateInput.value = formattedDate;
+        });
+    });
+
+    // Setup plan period buttons (Current, Next, After Next month)
+    const quickPeriodButtons = document.querySelectorAll('[data-quick-period]');
+    quickPeriodButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const quickPeriod = this.dataset.quickPeriod;
+            const today = new Date();
+            let monthOffset = 0;
+
+            switch (quickPeriod) {
+                case 'current':
+                    monthOffset = 0;
+                    break;
+                case 'next':
+                    monthOffset = 1;
+                    break;
+                case 'after-next':
+                    monthOffset = 2;
+                    break;
+                default:
+                    return;
+            }
+
+            // Calculate target month (first day of the month)
+            const targetDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
+
+            // Convert Date to ISO format (YYYY-MM-DD)
+            const year = targetDate.getFullYear();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const isoDate = `${year}-${month}-01`;
 
             // Format for display (DD.MM.YYYY)
             const formattedDate = BudgetShared.DateFormatter.formatForDisplay(isoDate);

@@ -15,8 +15,8 @@
                     <span class="label-text">Дата перевода</span>
                 </label>
 
-                <!-- Quick Date Selection Buttons -->
-                <div class="flex gap-1 mb-2">
+                <!-- Quick Date Selection Buttons (for fact transfers) -->
+                <div id="transfer-quick-dates-fact" class="flex gap-1 mb-2">
                     <button type="button" class="btn btn-xs btn-outline flex-1" data-quick-date="today">
                         Сегодня
                     </button>
@@ -25,6 +25,19 @@
                     </button>
                     <button type="button" class="btn btn-xs btn-outline flex-1" data-quick-date="day-before">
                         Позавчера
+                    </button>
+                </div>
+
+                <!-- Quick Period Selection Buttons (for plan transfers) -->
+                <div id="transfer-quick-dates-plan" class="flex gap-1 mb-2 hidden">
+                    <button type="button" class="btn btn-xs btn-outline flex-1" data-quick-period="current">
+                        Текущий
+                    </button>
+                    <button type="button" class="btn btn-xs btn-outline flex-1" data-quick-period="next">
+                        Следующий
+                    </button>
+                    <button type="button" class="btn btn-xs btn-outline flex-1" data-quick-period="after-next">
+                        Последующий
                     </button>
                 </div>
 

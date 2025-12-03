@@ -61,7 +61,7 @@
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
-                            Плановый перевод
+                            Добавить перевод
                         </button>
 
                         <a id="analytics-btn" href="/analytics" class="btn btn-outline btn-primary justify-start gap-3">
@@ -103,9 +103,9 @@
                                 <thead>
                                     <tr>
                                         <th>Тип</th>
-                                        <th>Тип категории</th>
                                         <th>Дата</th>
                                         <th>ЦФО</th>
+                                        <th>Тип категории</th>
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
@@ -1137,19 +1137,19 @@ async function loadPendingRecords() {
 
             // For transfers, create two rows (debit and credit)
             if (item.entity === 'transfer') {
-                // Check if plan transfer for category type column
+                // Record type for transfer: fact or plan
                 const isPlanTransfer = item.data.record_type === 'plan';
-                const categoryTypeLabel = isPlanTransfer ? '📋 План' : '📊 Факт';
+                const typeLabel = isPlanTransfer ? 'План' : 'Факт';
 
                 // Debit row (списание) - amount in blue
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
                 rows.push(`
                     <tr>
-                        <td class="text-info">📤 Списание</td>
-                        <td>${categoryTypeLabel}</td>
+                        <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
+                        <td class="text-info">Списание</td>
                         <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
                         <td class="text-info font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
@@ -1162,10 +1162,10 @@ async function loadPendingRecords() {
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
                 rows.push(`
                     <tr>
-                        <td class="text-warning">📥 Пополнение</td>
-                        <td>${categoryTypeLabel}</td>
+                        <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
+                        <td class="text-warning">Пополнение</td>
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
                         <td class="text-warning font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
@@ -1181,25 +1181,25 @@ async function loadPendingRecords() {
                 const categoryName = item.data.article_name ||
                     (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
 
-                // Determine category type based on article type
+                // Determine category type based on fact_type (expense/income for facts)
                 // expense = red, income = green, debit = blue, credit = orange
-                const articleType = item.data.article_type || '';
+                const factType = item.data.fact_type || item.data.article_type || '';
                 let categoryTypeLabel, colorClass;
-                switch (articleType) {
+                switch (factType) {
                     case 'expense':
-                        categoryTypeLabel = '📤 Расход';
+                        categoryTypeLabel = 'Расход';
                         colorClass = 'text-error';
                         break;
                     case 'income':
-                        categoryTypeLabel = '📥 Доход';
+                        categoryTypeLabel = 'Доход';
                         colorClass = 'text-success';
                         break;
                     case 'debit':
-                        categoryTypeLabel = '📤 Списание';
+                        categoryTypeLabel = 'Списание';
                         colorClass = 'text-info';
                         break;
                     case 'credit':
-                        categoryTypeLabel = '📥 Пополнение';
+                        categoryTypeLabel = 'Пополнение';
                         colorClass = 'text-warning';
                         break;
                     default:
@@ -1210,9 +1210,9 @@ async function loadPendingRecords() {
                 rows.push(`
                     <tr>
                         <td>${typeLabel}</td>
-                        <td class="${colorClass}">${categoryTypeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
+                        <td class="${colorClass}">${categoryTypeLabel}</td>
                         <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
                         <td class="${colorClass} font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
@@ -1230,12 +1230,12 @@ async function loadPendingRecords() {
     }
 }
 
-// Get human-readable type label
+// Get human-readable type label (without icons)
 function getRecordTypeLabel(entity) {
     const labels = {
-        'fact': '📊 Факт',
-        'plan': '📋 План',
-        'transfer': '↔️ Перевод'
+        'fact': 'Факт',
+        'plan': 'План',
+        'transfer': 'Перевод'
     };
     return labels[entity] || entity || '—';
 }

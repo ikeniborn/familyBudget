@@ -105,6 +105,25 @@
     display: none !important;
 }
 
+/* CRITICAL: Hide placeholder in selected area when another item is selected */
+/* This fixes the bug where placeholder div remains visible after category selection */
+.choices__list--single .choices__item[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices-tailwind .choices__list--single .choices__item[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with class="undefined undefined" (malformed Choices.js output) */
+.choices__list--single .choices__item.undefined {
+    display: none !important;
+}
+
+.choices-tailwind .choices__list--single .choices__item.undefined {
+    display: none !important;
+}
+
 /* Dropdown */
 .choices-tailwind .choices__list--dropdown {
     @apply bg-white border border-gray-300 rounded-lg mt-1 shadow-lg max-h-[280px] overflow-y-auto;
