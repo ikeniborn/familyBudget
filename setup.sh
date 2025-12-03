@@ -246,7 +246,7 @@ check_deploy_dir() {
     # Verify required template files exist
     info "Checking required template files..."
     local required_templates=(
-        "$DEPLOY_DIR/nginx/conf.d/app.conf.template"
+        "$DEPLOY_DIR/nginx/conf.d/app-http.conf.template"
         "$DEPLOY_DIR/.env.example"
     )
 
