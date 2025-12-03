@@ -326,7 +326,7 @@
                     <span class="label-text">📁 Категория*</span>
                 </label>
                 <select id="edit-article" name="article_id" required class="select select-bordered">
-                    <option value="">-- Выберите категорию --</option>
+                    <option value="" disabled hidden>-- Выберите категорию --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
@@ -1336,7 +1336,7 @@ async function showEditModal(factId) {
     const editSelect = document.getElementById('edit-article');
     if (editSelect) {
         // Clear existing options
-        editSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
+        editSelect.innerHTML = '<option value="" disabled hidden>-- Выберите категорию --</option>';
 
         editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
             type: categoryType,
