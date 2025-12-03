@@ -73,6 +73,20 @@
     display: none !important;
 }
 
+/* Additional selector for elements with only "undefined" class (no choices__item) */
+.choices-telegram .choices__list--single .undefined {
+    display: none !important;
+}
+
+.choices-telegram .choices__list--single > div.undefined {
+    display: none !important;
+}
+
+/* Hide any element with data-value="" and aria-selected inside single list when not only child */
+.choices-telegram .choices__list--single > [data-value=""][aria-selected]:not(:only-child) {
+    display: none !important;
+}
+
 /* Hide placeholder in dropdown list */
 .choices-telegram .choices__list--dropdown .choices__placeholder,
 .choices-telegram .choices__list--dropdown .choices__item[data-value=""] {

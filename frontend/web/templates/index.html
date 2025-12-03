@@ -35,41 +35,73 @@
             <div class="card bg-base-100 shadow-xl">
                 <div class="card-body">
                     <h2 class="card-title text-xl mb-4">💡 Быстрые действия</h2>
-                    <div class="flex flex-col sm:flex-row flex-wrap gap-3">
-                        <button onclick="openAddTransactionModal()" class="btn btn-outline btn-success justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            Добавить факт
-                        </button>
 
-                        <button onclick="openFactTransferModal()" class="btn btn-outline btn-warning justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                            </svg>
-                            Добавить перевод
-                        </button>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Факты -->
+                        <div class="border border-success/30 rounded-lg p-3 bg-success/5">
+                            <h3 class="text-sm font-semibold text-success mb-2 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Факты
+                            </h3>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="openAddTransactionModal()" class="btn btn-sm btn-outline btn-success justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Добавить факт
+                                </button>
+                                <button onclick="openFactTransferModal()" class="btn btn-sm btn-outline btn-warning justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                    Перевод
+                                </button>
+                            </div>
+                        </div>
 
-                        <button onclick="modal_add_plan.showModal()" class="btn btn-outline btn-info justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                            Добавить план
-                        </button>
+                        <!-- Планы -->
+                        <div class="border border-info/30 rounded-lg p-3 bg-info/5">
+                            <h3 class="text-sm font-semibold text-info mb-2 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                Планы
+                            </h3>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="modal_add_plan.showModal()" class="btn btn-sm btn-outline btn-info justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Добавить план
+                                </button>
+                                <button onclick="openPlanTransferModal()" class="btn btn-sm btn-outline btn-warning justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                    Перевод
+                                </button>
+                            </div>
+                        </div>
 
-                        <button onclick="openPlanTransferModal()" class="btn btn-outline btn-warning justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                            </svg>
-                            Добавить перевод
-                        </button>
-
-                        <a id="analytics-btn" href="/analytics" class="btn btn-outline btn-primary justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                            Панель аналитики
-                        </a>
+                        <!-- Аналитика -->
+                        <div id="analytics-group" class="border border-primary/30 rounded-lg p-3 bg-primary/5">
+                            <h3 class="text-sm font-semibold text-primary mb-2 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                Аналитика
+                            </h3>
+                            <div class="flex flex-col gap-2">
+                                <a id="analytics-btn" href="/analytics" class="btn btn-sm btn-outline btn-primary justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    Панель аналитики
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -299,10 +331,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         debugLog('[Offline UI] Status:', isOnline ? 'online' : 'offline');
 
-        // Скрыть/показать кнопку аналитики
-        const analyticsBtn = document.getElementById('analytics-btn');
-        if (analyticsBtn) {
-            analyticsBtn.style.display = isOnline ? '' : 'none';
+        // Скрыть/показать группу аналитики
+        const analyticsGroup = document.getElementById('analytics-group');
+        if (analyticsGroup) {
+            analyticsGroup.style.display = isOnline ? '' : 'none';
         }
 
         // Скрыть/показать секцию последних фактов
