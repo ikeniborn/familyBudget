@@ -5,6 +5,10 @@ Allows users to configure bot settings:
 - Language (Russian/English)
 - Currency symbol (₽/$/)
 - Date format (DD.MM.YYYY / MM/DD/YYYY)
+import warnings
+
+# Suppress PTBUserWarning for per_message=False with CallbackQueryHandler
+warnings.filterwarnings("ignore", message=".*per_message.*CallbackQueryHandler.*", category=UserWarning)
 - Notifications (on/off)
 """
 

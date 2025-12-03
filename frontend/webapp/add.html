@@ -484,7 +484,7 @@
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
                     const amount = parseFloat(button.dataset.amount);
-                    document.getElementById('amount').value = amount.toFixed(2);
+                    document.getElementById('amount').value = Math.round(amount);
                     formState.amount = amount;
                     app.ui.hapticLight();
                 });

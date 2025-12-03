@@ -4,6 +4,10 @@
 Shows recent transactions with:
 - Date, category, amount, description
 - Pagination (10 transactions per page)
+import warnings
+
+# Suppress PTBUserWarning for per_message=False with CallbackQueryHandler
+warnings.filterwarnings("ignore", message=".*per_message.*CallbackQueryHandler.*", category=UserWarning)
 - Navigation buttons (Previous/Next)
 - Total count
 """

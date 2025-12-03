@@ -9,6 +9,10 @@ Allows users to:
 
 from datetime import date
 from decimal import Decimal
+import warnings
+
+# Suppress PTBUserWarning for per_message=False with CallbackQueryHandler
+warnings.filterwarnings("ignore", message=".*per_message.*CallbackQueryHandler.*", category=UserWarning)
 from typing import Dict, List
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update

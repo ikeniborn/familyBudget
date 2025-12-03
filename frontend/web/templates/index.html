@@ -704,7 +704,7 @@ async function loadCostCenters() {
 function setTransactionAmount(value) {
     const amountInput = document.querySelector('#form_modal_add_transaction input[name="amount"]');
     if (amountInput) {
-        amountInput.value = value.toFixed(2);
+        amountInput.value = Math.round(value);
         amountInput.focus();
     }
 }
@@ -713,7 +713,7 @@ function setTransactionAmount(value) {
 function setPlanAmount(value) {
     const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
     if (amountInput) {
-        amountInput.value = value.toFixed(2);
+        amountInput.value = Math.round(value);
         amountInput.focus();
     }
 }
