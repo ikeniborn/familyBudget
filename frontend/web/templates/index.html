@@ -851,22 +851,44 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
         recommendedAmountsController.abort();
     }
 
+    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
+    const fallbackDefaults = {
+        'fact-expense': [100, 500, 1000, 5000],
+        'fact-income': [10000, 20000, 50000, 100000],
+        'plan-expense': [100, 500, 1000, 5000],
+        'plan-income': [10000, 20000, 50000, 100000],
+    };
+
+    // Helper to apply fallback amounts
+    const applyFallback = (type) => {
+        const fallbackKey = `${recordType}-${type || 'expense'}`;
+        const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
+        updateQuickAmountButtons(formId, fallbackAmounts);
+    };
+
     // Debounce: wait 300ms after last call
     recommendedAmountsTimeout = setTimeout(async () => {
+        // Get form elements early to determine type for fallback
+        const form = document.getElementById(formId);
+        if (!form) {
+            console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
+            return;
+        }
+
+        // Get current type (income/expense)
+        const typeInput = form.querySelector('input[name="record_type"]:checked') ||
+                         form.querySelector('input[name="plan_type"]:checked');
+        const type = typeInput ? typeInput.value : 'expense';
+
+        // Check if offline - use fallback immediately without API call
+        if (!navigator.onLine) {
+            debugLog('[loadRecommendedAmounts] Offline - using fallback amounts');
+            applyFallback(type);
+            return;
+        }
+
         try {
             recommendedAmountsController = new AbortController();
-
-            // Get form elements
-            const form = document.getElementById(formId);
-            if (!form) {
-                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
-                return;
-            }
-
-            // Get current type (income/expense)
-            const typeInput = form.querySelector('input[name="record_type"]:checked') ||
-                             form.querySelector('input[name="plan_type"]:checked');
-            const type = typeInput ? typeInput.value : 'expense';
 
             // Get current category (from callback parameter or fallback to DOM)
             const articleId = category ? category.id : null;
@@ -894,20 +916,10 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
 
-                // Graceful fallback for 422 (validation error or no data)
-                if (response.status === 422) {
-                    console.warn(`[loadRecommendedAmounts] API validation error (using fallback):`, errorData);
-
-                    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
-                    const fallbackDefaults = {
-                        'fact-expense': [100, 500, 1000, 5000],
-                        'fact-income': [10000, 20000, 50000, 100000],
-                    };
-
-                    const fallbackKey = `${recordType}-${type || 'expense'}`;
-                    const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
-
-                    updateQuickAmountButtons(formId, fallbackAmounts);
+                // Graceful fallback for 422 (validation error or no data) or 503 (offline/service unavailable)
+                if (response.status === 422 || response.status === 503) {
+                    debugLog(`[loadRecommendedAmounts] API ${response.status} - using fallback amounts`);
+                    applyFallback(type);
                     return;
                 }
 
@@ -924,7 +936,9 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
             if (error.name === 'AbortError') {
                 debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
             } else {
-                console.error('[loadRecommendedAmounts] Failed to load:', error);
+                // Network error (offline, DNS failure, etc.) - use fallback silently
+                debugLog('[loadRecommendedAmounts] Network error - using fallback amounts:', error.message);
+                applyFallback(type);
             }
         }
     }, 300); // 300ms debounce
