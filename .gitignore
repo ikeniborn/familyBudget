@@ -230,6 +230,10 @@ certbot/
 # Project-specific (Family Budget)
 # =============================================================================
 
+# Deployment state files (generated during deployment)
+.last_deployed_version
+.migration_checksums
+
 # Nginx generated configs (auto-generated from templates)
 nginx/conf.d/app.conf
 

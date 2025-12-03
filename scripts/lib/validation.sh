@@ -36,6 +36,13 @@ Options:
                                   Example: --reapply-migration b2232d851007
                                   WARNING: May cause data loss if downgrade() drops data!
 
+Version Control:
+  --major                         Bump major version (X.0.0, e.g., 5.2.0 → 6.0.0)
+  --minor                         Bump minor version (default: X.Y.0, e.g., 5.2.0 → 5.3.0)
+  --patch                         Bump patch version (X.Y.Z, e.g., 5.2.0 → 5.2.1)
+  --version X.Y.Z                 Set explicit version (e.g., --version 6.0.0)
+  --no-version                    Skip version bump (keep current version)
+
 Sync Modes:
   mirror   - Full sync with --delete (removes files not in repository)
              Protected: .env, backups/, data/, logs/, .git/

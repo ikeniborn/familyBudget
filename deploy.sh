@@ -99,6 +99,7 @@ source "$SCRIPT_DIR/scripts/lib/cache_busting.sh"  # Depends on config.sh, utils
 source "$SCRIPT_DIR/scripts/lib/docker.sh"      # Depends on config.sh, utils.sh, postgres.sh
 source "$SCRIPT_DIR/scripts/lib/network.sh"     # Depends on config.sh, utils.sh, docker.sh (is_our_docker_container)
 source "$SCRIPT_DIR/scripts/lib/ssl.sh"         # Depends on config.sh, utils.sh
+source "$SCRIPT_DIR/scripts/lib/version.sh"     # Depends on config.sh, utils.sh (version management)
 
 # =============================================================================
 # CONFIGURATION (Legacy - variables moved to config.sh)
@@ -341,6 +342,30 @@ parse_args() {
                 REAPPLY_MIGRATION=true
                 REAPPLY_MIGRATION_FILE="$2"
                 shift 2
+                ;;
+            --major)
+                VERSION_BUMP_TYPE="major"
+                shift
+                ;;
+            --minor)
+                VERSION_BUMP_TYPE="minor"
+                shift
+                ;;
+            --patch)
+                VERSION_BUMP_TYPE="patch"
+                shift
+                ;;
+            --version)
+                VERSION_EXPLICIT="$2"
+                # Validate version format
+                if [[ ! "$VERSION_EXPLICIT" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    error "Invalid version format: $VERSION_EXPLICIT. Must be X.Y.Z (e.g., 5.2.0)"
+                fi
+                shift 2
+                ;;
+            --no-version)
+                VERSION_BUMP_TYPE="none"
+                shift
                 ;;
             *)
                 error "Unknown option: $1 (use --help for usage)"
@@ -840,6 +865,12 @@ main() {
     # This allows deployment to run unattended after parameter selection
     collect_deployment_parameters
 
+    # VERSION MANAGEMENT
+    # Process version bump (minor by default unless --major/--patch/--no-version specified)
+    # This updates VERSION, package.json, .env and determines if Docker rebuild is needed
+    process_version_bump "$SCRIPT_DIR"
+    echo ""
+
     # PRE-FLIGHT CHECK: Verify npm environment exists BEFORE sync
     # This prevents issues if rsync accidentally deletes .npm-isolated/
     print_message info "Pre-flight check: Verifying production npm environment..."
@@ -1280,6 +1311,12 @@ main() {
         echo ""
 
         verify_all_services
+        echo ""
+
+        # Save deployed version for next deployment comparison
+        if [[ -n "${NEW_VERSION:-}" ]]; then
+            save_deployed_version "$NEW_VERSION"
+        fi
         echo ""
 
         print_status
