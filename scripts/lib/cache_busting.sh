@@ -20,7 +20,12 @@ update_cache_versions() {
     local version=$1
     local repo_dir="${2:-.}"
 
-    echo "🔄 Updating cache versions to: ${version}" >&2
+    # Use print_message if available (when sourced from deploy.sh), otherwise echo
+    if declare -f info &>/dev/null; then
+        info "Updating cache versions to: ${version}"
+    else
+        echo "🔄 Updating cache versions to: ${version}" >&2
+    fi
 
     # Список файлов для обновления
     local files=(
@@ -93,10 +98,18 @@ update_cache_versions() {
     done
 
     if [[ $updated_count -gt 0 ]]; then
-        echo "✅ Cache versions updated in ${updated_count} files" >&2
+        if declare -f success &>/dev/null; then
+            success "Cache versions updated in ${updated_count} files (v=${version})"
+        else
+            echo "✅ Cache versions updated in ${updated_count} files" >&2
+        fi
         return 0
     else
-        echo "❌ No files updated" >&2
+        if declare -f warning &>/dev/null; then
+            warning "No files updated with cache versions"
+        else
+            echo "❌ No files updated" >&2
+        fi
         return 1
     fi
 }
