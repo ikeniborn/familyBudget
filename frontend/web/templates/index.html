@@ -321,6 +321,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Проверить при загрузке
     updateOfflineUI();
 
+    // Preload categories for offline use (both expense and income)
+    // This ensures categories are cached before user goes offline
+    if (typeof BudgetShared !== 'undefined' && BudgetShared.ChoicesCategoryTree) {
+        BudgetShared.ChoicesCategoryTree.preloadCategories().catch(err => {
+            debugLog('[Categories] Preload failed (will retry on demand):', err.message);
+        });
+    }
+
     // Слушать изменения статуса сети
     window.addEventListener('online', () => {
         debugLog('[Network] online event fired');

@@ -36,6 +36,68 @@ class ChoicesCategoryTree {
     static _pendingRequests = new Map();  // key: "type:showInactive" -> Promise
 
     /**
+     * Preload categories for offline use.
+     * Call this on page load to cache both expense and income categories.
+     * Categories will be available in offline mode after preloading.
+     *
+     * @param {Object} options - Preload options
+     * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
+     * @param {boolean} options.showInactive - Include archived categories (default: false)
+     * @returns {Promise<void>}
+     */
+    static async preloadCategories(options = {}) {
+        const apiBaseUrl = options.apiBaseUrl || '/api/v1';
+        const showInactive = options.showInactive || false;
+
+        const types = ['expense', 'income'];
+
+        // Preload both types in parallel
+        const preloadPromises = types.map(async (type) => {
+            const cacheKey = `${type}:${showInactive}`;
+
+            // Skip if already cached
+            if (ChoicesCategoryTree._cache.has(cacheKey)) {
+                console.log(`[ChoicesCategoryTree] ${type} categories already cached, skipping preload`);
+                return;
+            }
+
+            // Skip if request already in flight
+            if (ChoicesCategoryTree._pendingRequests.has(cacheKey)) {
+                console.log(`[ChoicesCategoryTree] ${type} categories request already in progress, waiting`);
+                return ChoicesCategoryTree._pendingRequests.get(cacheKey);
+            }
+
+            const url = `${apiBaseUrl}/articles?type=${type}&sort_by=usage_count&limit=1000&include_inactive=${showInactive}`;
+
+            try {
+                const response = await fetch(url, {
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    console.warn(`[ChoicesCategoryTree] Failed to preload ${type} categories: HTTP ${response.status}`);
+                    return;
+                }
+
+                const data = await response.json();
+                const categories = data.articles || [];
+
+                // Cache the result
+                ChoicesCategoryTree._cache.set(cacheKey, {
+                    data: categories,
+                    timestamp: Date.now()
+                });
+
+                console.log(`[ChoicesCategoryTree] Preloaded ${categories.length} ${type} categories`);
+            } catch (error) {
+                console.warn(`[ChoicesCategoryTree] Network error preloading ${type} categories:`, error.message);
+            }
+        });
+
+        await Promise.all(preloadPromises);
+    }
+
+    /**
      * Initialize category tree selector.
      *
      * @param {string} selector - CSS selector for select element
@@ -173,6 +235,20 @@ class ChoicesCategoryTree {
             });
 
             return categories;
+        }).catch(error => {
+            // Handle network errors (offline mode)
+            console.warn('[ChoicesCategoryTree] Network error loading categories (offline?):', error.message);
+
+            // Try to use stale cache if available (ignore TTL in offline mode)
+            const staleCache = ChoicesCategoryTree._cache.get(cacheKey);
+            if (staleCache && staleCache.data && staleCache.data.length > 0) {
+                console.log('[ChoicesCategoryTree] Using stale cache for offline mode');
+                return staleCache.data;
+            }
+
+            // No cache available - return empty array to avoid breaking UI
+            console.warn('[ChoicesCategoryTree] No cached categories available for offline mode');
+            return [];
         }).finally(() => {
             // Remove from pending requests
             ChoicesCategoryTree._pendingRequests.delete(cacheKey);
@@ -524,42 +600,53 @@ class ChoicesCategoryTree {
             this.pathDisplay.textContent = '';
         }
 
-        // Load new categories from API
-        await this.loadCategories();
+        try {
+            // Load new categories from API (with offline fallback)
+            await this.loadCategories();
 
-        // Build hierarchy maps
-        this.buildHierarchyMaps();
+            // Build hierarchy maps
+            this.buildHierarchyMaps();
 
-        // Filter to leaf categories if needed
-        const displayCategories = this.options.showLeafOnly
-            ? this.getLeafCategories()
-            : this.categories;
+            // Filter to leaf categories if needed
+            const displayCategories = this.options.showLeafOnly
+                ? this.getLeafCategories()
+                : this.categories;
 
-        // Update Choices.js without full recreation
-        if (this.choices) {
-            // Clear existing choices
-            this.choices.clearStore();
+            // Update Choices.js without full recreation
+            if (this.choices) {
+                // Clear existing choices
+                this.choices.clearStore();
 
-            // Prepare new choices data with parent chain
-            const choices = displayCategories.map(cat => {
-                const parentChain = this.getParentChain(cat.id);
-                const parentText = parentChain.length > 0
-                    ? parentChain.map(p => p.name).join(' › ')
-                    : '';
+                // Prepare new choices data with parent chain
+                const choices = displayCategories.map(cat => {
+                    const parentChain = this.getParentChain(cat.id);
+                    const parentText = parentChain.length > 0
+                        ? parentChain.map(p => p.name).join(' › ')
+                        : '';
 
-                return {
-                    value: cat.id,
-                    label: cat.name,
-                    customProperties: {
-                        usage_count: cat.usage_count || 0,
-                        parent_id: cat.parent_id,
-                        parent_text: parentText,
-                    }
-                };
-            });
+                    return {
+                        value: cat.id,
+                        label: cat.name,
+                        customProperties: {
+                            usage_count: cat.usage_count || 0,
+                            parent_id: cat.parent_id,
+                            parent_text: parentText,
+                        }
+                    };
+                });
 
-            // Set new choices
-            this.choices.setChoices(choices, 'value', 'label', true);
+                // Set new choices
+                this.choices.setChoices(choices, 'value', 'label', true);
+
+                // Log warning if no categories available (likely offline without cache)
+                if (choices.length === 0) {
+                    console.warn(`[ChoicesCategoryTree] No ${newType} categories available - user may be offline without cached data`);
+                }
+            }
+        } catch (error) {
+            console.error('[ChoicesCategoryTree] Error updating type:', error);
+            // Don't show alert - just log the error
+            // The dropdown will remain with old choices or empty
         }
     }
 
