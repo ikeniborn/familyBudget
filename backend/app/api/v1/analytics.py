@@ -537,25 +537,25 @@ async def get_quick_stats_html(
         </div>
     </div>
 
-    <!-- Mobile version: 2x2 grid -->
+    <!-- Mobile version: 2x2 grid (font reduced by 2px for mobile) -->
     <div id="mobile-stats" class="grid grid-cols-2 gap-3">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="mb-0.5">
-                <span class="font-semibold text-[8px]">💰 Доходы</span>
+                <span class="font-semibold text-[6px]">💰 Доходы</span>
             </div>
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">План</div>
-                    <div class="font-semibold text-[8px]">{format_money(month_plan_income)}</div>
+                    <div class="text-[5px] opacity-60">План</div>
+                    <div class="font-semibold text-[6px]">{format_money(month_plan_income)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Факт</div>
-                    <div class="font-bold text-success text-[8px]">{format_money(month_income)}</div>
+                    <div class="text-[5px] opacity-60">Факт</div>
+                    <div class="font-bold text-success text-[6px]">{format_money(month_income)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Исп., %</div>
-                    <div class="font-bold {get_pct_color(plan_execution_income_pct)} text-[6px]">{format_pct(plan_execution_income_pct)}</div>
+                    <div class="text-[5px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_income_pct)} text-[5px]">{format_pct(plan_execution_income_pct)}</div>
                 </div>
             </div>
         </div>
@@ -563,20 +563,20 @@ async def get_quick_stats_html(
         <!-- Расходы -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="mb-0.5">
-                <span class="font-semibold text-[8px]">💸 Расходы</span>
+                <span class="font-semibold text-[6px]">💸 Расходы</span>
             </div>
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">План</div>
-                    <div class="font-semibold text-[8px]">{format_money(month_plan_expense)}</div>
+                    <div class="text-[5px] opacity-60">План</div>
+                    <div class="font-semibold text-[6px]">{format_money(month_plan_expense)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Факт</div>
-                    <div class="font-bold text-error text-[8px]">{format_money(month_expense)}</div>
+                    <div class="text-[5px] opacity-60">Факт</div>
+                    <div class="font-bold text-error text-[6px]">{format_money(month_expense)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Исп., %</div>
-                    <div class="font-bold {get_pct_color(plan_execution_expense_pct)} text-[6px]">{format_pct(plan_execution_expense_pct)}</div>
+                    <div class="text-[5px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_expense_pct)} text-[5px]">{format_pct(plan_execution_expense_pct)}</div>
                 </div>
             </div>
         </div>
@@ -584,20 +584,20 @@ async def get_quick_stats_html(
         <!-- Пополнение -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="mb-0.5">
-                <span class="font-semibold text-[8px]">➕ Пополнение</span>
+                <span class="font-semibold text-[6px]">➕ Пополнение</span>
             </div>
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">План</div>
-                    <div class="font-semibold text-[8px]">{format_money(month_plan_credit)}</div>
+                    <div class="text-[5px] opacity-60">План</div>
+                    <div class="font-semibold text-[6px]">{format_money(month_plan_credit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Факт</div>
-                    <div class="font-bold text-info text-[8px]">{format_money(month_credit)}</div>
+                    <div class="text-[5px] opacity-60">Факт</div>
+                    <div class="font-bold text-info text-[6px]">{format_money(month_credit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Исп., %</div>
-                    <div class="font-bold {get_pct_color(plan_execution_credit_pct)} text-[6px]">{format_pct(plan_execution_credit_pct)}</div>
+                    <div class="text-[5px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_credit_pct)} text-[5px]">{format_pct(plan_execution_credit_pct)}</div>
                 </div>
             </div>
         </div>
@@ -605,20 +605,20 @@ async def get_quick_stats_html(
         <!-- Списание -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="mb-0.5">
-                <span class="font-semibold text-[8px]">➖ Списание</span>
+                <span class="font-semibold text-[6px]">➖ Списание</span>
             </div>
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">План</div>
-                    <div class="font-semibold text-[8px]">{format_money(month_plan_debit)}</div>
+                    <div class="text-[5px] opacity-60">План</div>
+                    <div class="font-semibold text-[6px]">{format_money(month_plan_debit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Факт</div>
-                    <div class="font-bold text-warning text-[8px]">{format_money(month_debit)}</div>
+                    <div class="text-[5px] opacity-60">Факт</div>
+                    <div class="font-bold text-warning text-[6px]">{format_money(month_debit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Исп., %</div>
-                    <div class="font-bold {get_pct_color(plan_execution_debit_pct)} text-[6px]">{format_pct(plan_execution_debit_pct)}</div>
+                    <div class="text-[5px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_debit_pct)} text-[5px]">{format_pct(plan_execution_debit_pct)}</div>
                 </div>
             </div>
         </div>

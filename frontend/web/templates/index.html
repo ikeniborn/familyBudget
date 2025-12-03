@@ -223,9 +223,34 @@ function openAddTransactionModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Проверка реального статуса сети через пинг сервера
+    async function checkServerConnection() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+            const response = await fetch('/ping', {
+                method: 'GET',
+                signal: controller.signal,
+                cache: 'no-store'
+            });
+            clearTimeout(timeoutId);
+            return response.ok;
+        } catch (error) {
+            debugLog('[Network] Server ping failed:', error.message);
+            return false;
+        }
+    }
+
     // Обновить видимость элементов в зависимости от статуса сети
-    function updateOfflineUI() {
-        const isOnline = navigator.onLine;
+    async function updateOfflineUI() {
+        // Сначала используем navigator.onLine, потом проверяем пингом
+        let isOnline = navigator.onLine;
+
+        // Если браузер говорит что онлайн - проверяем реально через пинг
+        if (isOnline) {
+            isOnline = await checkServerConnection();
+        }
+
         debugLog('[Offline UI] Status:', isOnline ? 'online' : 'offline');
 
         // Скрыть/показать кнопку аналитики
@@ -238,6 +263,12 @@ document.addEventListener('DOMContentLoaded', function() {
         const recentCard = document.getElementById('recent-transactions-card');
         if (recentCard) {
             recentCard.style.display = isOnline ? '' : 'none';
+        }
+
+        // Скрыть/показать меню-гамбургер (три полоски) при оффлайн
+        const mobileMenuDropdown = document.getElementById('mobile-menu-dropdown');
+        if (mobileMenuDropdown) {
+            mobileMenuDropdown.style.display = isOnline ? '' : 'none';
         }
     }
 
@@ -1047,40 +1078,74 @@ async function loadPendingRecords() {
 
         // Show the card
         card.classList.remove('hidden');
-        countBadge.textContent = pendingItems.length;
 
-        // Populate table
-        tbody.innerHTML = pendingItems.map(item => {
-            const typeLabel = getRecordTypeLabel(item.entity);
+        // Generate rows - transfers generate two rows (debit + credit)
+        const rows = [];
+        let totalRecords = 0;
+
+        pendingItems.forEach(item => {
             const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
             const amount = item.data.amount ? parseFloat(item.data.amount).toFixed(2) : '—';
             const statusBadge = getStatusBadge(item);
-
-            // Get ЦФО name (stored in data or use ID)
-            const cfoName = item.data.financial_center_name ||
-                (item.data.from_financial_center_name ? `${item.data.from_financial_center_name} → ${item.data.to_financial_center_name || ''}` : '') ||
-                (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
-
-            // Get category name (stored in data or use ID)
-            const categoryName = item.data.article_name ||
-                (item.data.from_article_name ? `${item.data.from_article_name} → ${item.data.to_article_name || ''}` : '') ||
-                (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
-
-            // Get description
             const description = item.data.description || '—';
 
-            return `
-                <tr>
-                    <td>${typeLabel}</td>
-                    <td>${date}</td>
-                    <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
-                    <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
-                    <td>${amount}</td>
-                    <td class="max-w-[150px] truncate" title="${description}">${description}</td>
-                    <td>${statusBadge}</td>
-                </tr>
-            `;
-        }).join('');
+            // For transfers, create two rows (debit and credit)
+            if (item.entity === 'transfer') {
+                // Debit row (списание)
+                const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
+                const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
+                rows.push(`
+                    <tr class="text-error/80">
+                        <td>📤 Списание</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
+                        <td>-${amount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `);
+
+                // Credit row (пополнение)
+                const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
+                const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
+                rows.push(`
+                    <tr class="text-success/80">
+                        <td>📥 Пополнение</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
+                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
+                        <td>+${amount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `);
+                totalRecords += 2;
+            } else {
+                // Regular fact or plan - single row
+                const typeLabel = getRecordTypeLabel(item.entity);
+                const cfoName = item.data.financial_center_name ||
+                    (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
+                const categoryName = item.data.article_name ||
+                    (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
+
+                rows.push(`
+                    <tr>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
+                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
+                        <td>${amount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `);
+                totalRecords += 1;
+            }
+        });
+
+        countBadge.textContent = totalRecords;
+        tbody.innerHTML = rows.join('');
     } catch (error) {
         console.error('[Pending Records] Error loading:', error);
     }
@@ -1122,9 +1187,13 @@ async function syncPendingRecords() {
         await window.offlineManager.syncQueue();
         await loadPendingRecords();
 
-        // Reload recent transactions
+        // Reload recent transactions and metrics
         htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
             target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+            target: '#quick-stats',
             swap: 'innerHTML'
         });
 

@@ -4,6 +4,10 @@
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+<!-- Choices.js for Transfer Modal -->
+<link rel="stylesheet" href="/static/css/vendor/choices.min.css">
+<link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
+<script src="/static/js/vendor/choices.min.js"></script>
 <!-- ECharts library for analytics charts -->
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
 {% endblock %}
@@ -20,6 +24,9 @@
             <div class="flex flex-wrap gap-2">
                 <button class="btn btn-sm btn-info gap-1" onclick="modal_add_plan.showModal()" title="Добавить новый план">
                     ➕ Добавить план
+                </button>
+                <button class="btn btn-sm btn-warning gap-1" onclick="transfer_modal.showModal()" title="Добавить перевод">
+                    🔄 Добавить перевод
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
@@ -303,6 +310,9 @@
 <!-- Create Plan Modal -->
 {{ plan_modal('modal_add_plan') }}
 
+<!-- Transfer Modal -->
+{% include "components/modal_transfer.html" %}
+
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
@@ -453,6 +463,7 @@
 {% block extra_scripts %}
 <script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/transfer.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
 
 <script>

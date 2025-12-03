@@ -682,14 +682,22 @@
 
         // Update offline UI
         function updateOfflineUI() {
+            const isOnline = navigator.onLine;
+
             // Update offline badge
             const offlineBadge = document.getElementById('offline-icon');
             if (offlineBadge) {
-                if (!navigator.onLine) {
+                if (!isOnline) {
                     offlineBadge.classList.remove('hidden');
                 } else {
                     offlineBadge.classList.add('hidden');
                 }
+            }
+
+            // Hide hamburger menu (mobile menu) when offline
+            const mobileMenuDropdown = document.getElementById('mobile-menu-dropdown');
+            if (mobileMenuDropdown) {
+                mobileMenuDropdown.style.display = isOnline ? '' : 'none';
             }
 
             // Update pending count
