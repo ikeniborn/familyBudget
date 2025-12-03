@@ -1141,33 +1141,33 @@ async function loadPendingRecords() {
                 const isPlanTransfer = item.data.record_type === 'plan';
                 const typeLabel = isPlanTransfer ? '📋 План' : '📊 Факт';
 
-                // Debit row (расход) - amount in red
+                // Debit row (списание) - amount in blue
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
                 rows.push(`
                     <tr>
                         <td>${typeLabel}</td>
-                        <td>📤 Расход</td>
+                        <td class="text-info">📤 Списание</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
                         <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
-                        <td class="text-error font-medium">-${amount}</td>
+                        <td class="text-info font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td>${statusBadge}</td>
                     </tr>
                 `);
 
-                // Credit row (доход) - amount in green
+                // Credit row (пополнение) - amount in orange
                 const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
                 rows.push(`
                     <tr>
                         <td>${typeLabel}</td>
-                        <td>📥 Доход</td>
+                        <td class="text-warning">📥 Пополнение</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
-                        <td class="text-success font-medium">+${amount}</td>
+                        <td class="text-warning font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td>${statusBadge}</td>
                     </tr>
@@ -1182,20 +1182,20 @@ async function loadPendingRecords() {
                     (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
 
                 // Determine category type (expense/income) based on article type
+                // Списание (expense/debit) = blue, Пополнение (income/credit) = orange
                 const articleType = item.data.article_type || '';
                 const isExpense = articleType === 'expense' || articleType === 'debit';
-                const categoryTypeLabel = isExpense ? '📤 Расход' : '📥 Доход';
-                const amountClass = isExpense ? 'text-error font-medium' : 'text-success font-medium';
-                const amountPrefix = isExpense ? '-' : '+';
+                const categoryTypeLabel = isExpense ? '📤 Списание' : '📥 Пополнение';
+                const colorClass = isExpense ? 'text-info' : 'text-warning';
 
                 rows.push(`
                     <tr>
                         <td>${typeLabel}</td>
-                        <td>${categoryTypeLabel}</td>
+                        <td class="${colorClass}">${categoryTypeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
                         <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
-                        <td class="${amountClass}">${amountPrefix}${amount}</td>
+                        <td class="${colorClass} font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td>${statusBadge}</td>
                     </tr>
