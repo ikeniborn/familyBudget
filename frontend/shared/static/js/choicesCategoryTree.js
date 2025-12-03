@@ -246,6 +246,10 @@ class ChoicesCategoryTree {
      * @param {Array} categories - Categories to display
      */
     initChoices(categories) {
+        // Clear placeholder option from select element before Choices.js initialization
+        // This prevents placeholder from appearing in dropdown list
+        this.element.innerHTML = '';
+
         // Prepare choices data with parent chain
         const choices = categories.map(cat => {
             const parentChain = this.getParentChain(cat.id);
@@ -268,6 +272,8 @@ class ChoicesCategoryTree {
         this.choices = new Choices(this.element, {
             searchEnabled: true,
             searchPlaceholderValue: 'Поиск категории...',
+            placeholder: true,
+            placeholderValue: '— Выберите категорию —',
             noResultsText: 'Не найдено',
             noChoicesText: 'Нет доступных категорий',
             itemSelectText: '',

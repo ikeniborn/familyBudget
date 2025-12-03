@@ -1181,12 +1181,31 @@ async function loadPendingRecords() {
                 const categoryName = item.data.article_name ||
                     (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
 
-                // Determine category type (expense/income) based on article type
-                // Списание (expense/debit) = blue, Пополнение (income/credit) = orange
+                // Determine category type based on article type
+                // expense = red, income = green, debit = blue, credit = orange
                 const articleType = item.data.article_type || '';
-                const isExpense = articleType === 'expense' || articleType === 'debit';
-                const categoryTypeLabel = isExpense ? '📤 Списание' : '📥 Пополнение';
-                const colorClass = isExpense ? 'text-info' : 'text-warning';
+                let categoryTypeLabel, colorClass;
+                switch (articleType) {
+                    case 'expense':
+                        categoryTypeLabel = '📤 Расход';
+                        colorClass = 'text-error';
+                        break;
+                    case 'income':
+                        categoryTypeLabel = '📥 Доход';
+                        colorClass = 'text-success';
+                        break;
+                    case 'debit':
+                        categoryTypeLabel = '📤 Списание';
+                        colorClass = 'text-info';
+                        break;
+                    case 'credit':
+                        categoryTypeLabel = '📥 Пополнение';
+                        colorClass = 'text-warning';
+                        break;
+                    default:
+                        categoryTypeLabel = '—';
+                        colorClass = '';
+                }
 
                 rows.push(`
                     <tr>
