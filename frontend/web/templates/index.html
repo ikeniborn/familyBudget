@@ -1137,17 +1137,17 @@ async function loadPendingRecords() {
 
             // For transfers, create two rows (debit and credit)
             if (item.entity === 'transfer') {
-                // Check if plan transfer
+                // Check if plan transfer for category type column
                 const isPlanTransfer = item.data.record_type === 'plan';
-                const typeLabel = isPlanTransfer ? '📋 План' : '📊 Факт';
+                const categoryTypeLabel = isPlanTransfer ? '📋 План' : '📊 Факт';
 
                 // Debit row (списание) - amount in blue
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
                 rows.push(`
                     <tr>
-                        <td>${typeLabel}</td>
                         <td class="text-info">📤 Списание</td>
+                        <td>${categoryTypeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
                         <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
@@ -1162,8 +1162,8 @@ async function loadPendingRecords() {
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
                 rows.push(`
                     <tr>
-                        <td>${typeLabel}</td>
                         <td class="text-warning">📥 Пополнение</td>
+                        <td>${categoryTypeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>

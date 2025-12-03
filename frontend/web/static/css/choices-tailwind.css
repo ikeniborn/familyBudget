@@ -76,17 +76,32 @@
 }
 
 /* Hide placeholder item in dropdown (it should only show in selected area) */
-.choices-tailwind .choices__list--dropdown .choices__placeholder {
+/* Global rules (work for all Choices.js instances) */
+.choices__list--dropdown .choices__placeholder {
     display: none !important;
 }
 
 /* Hide placeholder item by data attribute (Choices.js uses data-value="" for placeholder) */
-.choices-tailwind .choices__list--dropdown .choices__item[data-value=""] {
+.choices__list--dropdown .choices__item[data-value=""] {
     display: none !important;
 }
 
 /* Hide disabled placeholder items in dropdown */
-.choices-tailwind .choices__list--dropdown .choices__item--disabled.choices__placeholder {
+.choices__list--dropdown .choices__item--disabled.choices__placeholder {
+    display: none !important;
+}
+
+/* Also target by text content hint - items that look like placeholders */
+.choices__list--dropdown .choices__item--choice:first-child[data-value=""] {
+    display: none !important;
+}
+
+/* Tailwind-specific rules (for specificity) */
+.choices-tailwind .choices__list--dropdown .choices__placeholder {
+    display: none !important;
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item[data-value=""] {
     display: none !important;
 }
 
