@@ -80,6 +80,16 @@
     display: none !important;
 }
 
+/* Hide placeholder item by data attribute (Choices.js uses data-value="" for placeholder) */
+.choices-tailwind .choices__list--dropdown .choices__item[data-value=""] {
+    display: none !important;
+}
+
+/* Hide disabled placeholder items in dropdown */
+.choices-tailwind .choices__list--dropdown .choices__item--disabled.choices__placeholder {
+    display: none !important;
+}
+
 /* Dropdown */
 .choices-tailwind .choices__list--dropdown {
     @apply bg-white border border-gray-300 rounded-lg mt-1 shadow-lg max-h-[280px] overflow-y-auto;
