@@ -69,21 +69,17 @@
 }
 
 /* Hide placeholder div with class="undefined undefined" (malformed Choices.js output) */
-.choices-telegram .choices__list--single .choices__item.undefined {
+/* Only hide if it has data-value="" (empty = placeholder) AND is not the only child */
+.choices-telegram .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
     display: none !important;
 }
 
-/* Additional selector for elements with only "undefined" class (no choices__item) */
-.choices-telegram .choices__list--single .undefined {
+/* Hide placeholder div with only "undefined" class (no choices__item) - must have empty data-value */
+.choices-telegram .choices__list--single > .undefined[data-value=""]:not(:only-child) {
     display: none !important;
 }
 
-.choices-telegram .choices__list--single > div.undefined {
-    display: none !important;
-}
-
-/* Hide any element with data-value="" and aria-selected inside single list when not only child */
-.choices-telegram .choices__list--single > [data-value=""][aria-selected]:not(:only-child) {
+.choices-telegram .choices__list--single > div.undefined[data-value=""]:not(:only-child) {
     display: none !important;
 }
 
