@@ -31,11 +31,8 @@ class OfflineManager {
     async init() {
         // Prevent double initialization
         if (this.isInitialized) {
-            console.log('[Offline] Already initialized, skipping');
             return;
         }
-
-        console.log('[Offline] Initializing OfflineManager');
 
         // Initialize IndexedDB
         await this.db.init();
@@ -46,16 +43,12 @@ class OfflineManager {
 
         // Check initial network status
         if (this.isOnline) {
-            console.log('[Offline] Initial status: Online');
             // Sync pending items on load
             await this.sync();
-        } else {
-            console.log('[Offline] Initial status: Offline');
         }
 
         // Setup periodic sync fallback для Safari
         if (!this.supportsBackgroundSync()) {
-            console.log('[Offline] Background Sync not supported, using polling fallback');
             this.setupSyncPolling();
         }
 
@@ -72,7 +65,6 @@ class OfflineManager {
     _showToastDebounced(message, type) {
         const now = Date.now();
         if (now - this.lastToastTime < this.toastDebounceMs) {
-            console.log('[Offline] Toast debounced:', message);
             return;
         }
         this.lastToastTime = now;
@@ -98,7 +90,6 @@ class OfflineManager {
             if (this.isOnline && !this.syncInProgress) {
                 const pendingCount = await this.db.countSyncQueue('pending');
                 if (pendingCount > 0) {
-                    console.log('[Offline] Polling: Found pending items, triggering sync');
                     await this.sync();
                 }
             }
@@ -121,13 +112,11 @@ class OfflineManager {
             try {
                 return await this.createFactOnline(data);
             } catch (error) {
-                console.warn('[Offline] Online create failed, falling back to offline:', error);
                 // Update internal state
                 this.isOnline = false;
                 return await this.createFactOffline(data);
             }
         } else {
-            console.log('[Offline] Creating fact offline (navigator.onLine:', navigator.onLine, ', this.isOnline:', this.isOnline, ')');
             return await this.createFactOffline(data);
         }
     }
@@ -148,7 +137,7 @@ class OfflineManager {
                 // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
                 errorMessage = error.detail || error.message || errorMessage;
             } catch (parseError) {
-                console.warn('[Offline] Failed to parse error response:', parseError);
+                // Ignore parse errors
             }
             throw new Error(errorMessage);
         }
@@ -186,13 +175,10 @@ class OfflineManager {
             try {
                 const registration = await navigator.serviceWorker.ready;
                 await registration.sync.register('sync-budget-data');
-                console.log('[Offline] Background Sync registered');
             } catch (error) {
-                console.error('[Offline] Failed to register Background Sync:', error);
+                // Ignore Background Sync registration errors
             }
         }
-
-        console.log('[Offline] Fact created offline:', tempId);
 
         return {
             id: null,
@@ -214,7 +200,6 @@ class OfflineManager {
             try {
                 return await this.updateFactOnline(id, data);
             } catch (error) {
-                console.warn('[Offline] Online update failed, falling back to offline:', error);
                 return await this.updateFactOffline(id, data);
             }
         } else {
@@ -270,8 +255,6 @@ class OfflineManager {
             await registration.sync.register('sync-budget-data');
         }
 
-        console.log('[Offline] Fact update queued:', id);
-
         return {
             id,
             tempId,
@@ -291,7 +274,6 @@ class OfflineManager {
             try {
                 return await this.deleteFactOnline(id);
             } catch (error) {
-                console.warn('[Offline] Online delete failed, falling back to offline:', error);
                 return await this.deleteFactOffline(id);
             }
         } else {
@@ -334,8 +316,6 @@ class OfflineManager {
             const registration = await navigator.serviceWorker.ready;
             await registration.sync.register('sync-budget-data');
         }
-
-        console.log('[Offline] Fact delete queued:', id);
     }
 
     // ==================== TRANSFERS ====================
@@ -345,7 +325,6 @@ class OfflineManager {
             try {
                 return await this.createTransferOnline(data);
             } catch (error) {
-                console.warn('[Offline] Online create failed, falling back to offline:', error);
                 return await this.createTransferOffline(data);
             }
         } else {
@@ -398,8 +377,6 @@ class OfflineManager {
             await registration.sync.register('sync-budget-data');
         }
 
-        console.log('[Offline] Transfer created offline:', tempId);
-
         return {
             transfer_id: null,
             tempId,
@@ -416,7 +393,6 @@ class OfflineManager {
             try {
                 return await this.createPlanOnline(data);
             } catch (error) {
-                console.warn('[Offline] Online create failed, falling back to offline:', error);
                 return await this.createPlanOffline(data);
             }
         } else {
@@ -469,8 +445,6 @@ class OfflineManager {
             await registration.sync.register('sync-budget-data');
         }
 
-        console.log('[Offline] Plan created offline:', tempId);
-
         return {
             id: null,
             tempId,
@@ -488,17 +462,14 @@ class OfflineManager {
      */
     async sync() {
         if (this.syncInProgress) {
-            console.log('[Offline] Sync already in progress');
             return { skipped: true };
         }
 
         if (!this.isOnline) {
-            console.log('[Offline] Cannot sync: offline');
             return { skipped: true, reason: 'offline' };
         }
 
         this.syncInProgress = true;
-        console.log('[Offline] Starting sync...');
 
         const results = {
             synced: 0,
@@ -508,7 +479,6 @@ class OfflineManager {
 
         try {
             const queue = await this.db.getSyncQueue('pending');
-            console.log(`[Offline] Found ${queue.length} pending items`);
 
             for (const item of queue) {
                 try {
@@ -516,7 +486,6 @@ class OfflineManager {
                     results.synced++;
                     results.items.push({ ...item, status: 'synced' });
                 } catch (error) {
-                    console.error(`[Offline] Sync failed for item ${item.id}:`, error);
 
                     const retryCount = (item.retryCount || 0) + 1;
 
@@ -541,8 +510,6 @@ class OfflineManager {
                 }
             }
 
-            console.log(`[Offline] Sync complete: ${results.synced} synced, ${results.failed} failed`);
-
             // Clear completed items
             await this.db.clearCompletedSyncQueue();
 
@@ -557,8 +524,6 @@ class OfflineManager {
      * @private
      */
     async syncItem(item) {
-        console.log(`[Offline] Syncing item ${item.id} (${item.operation} ${item.entity})`);
-
         // Update status to syncing
         await this.db.updateSyncQueueItem(item.id, { status: 'syncing' });
 
@@ -612,8 +577,6 @@ class OfflineManager {
                 }
             }
         }
-
-        console.log(`[Offline] Item ${item.id} synced successfully`);
 
         return response;
     }
@@ -684,7 +647,6 @@ class OfflineManager {
     // ==================== EVENT HANDLERS ====================
 
     async handleOnline() {
-        console.log('[Offline] Network restored');
         this.isOnline = true;
 
         // Show notification (debounced to prevent spam)
@@ -712,7 +674,6 @@ class OfflineManager {
     }
 
     async handleOffline() {
-        console.log('[Offline] Network lost');
         this.isOnline = false;
 
         // Show notification (debounced to prevent spam)
@@ -729,19 +690,11 @@ class OfflineManager {
      */
     async requestNotificationPermission() {
         if (!('Notification' in window)) {
-            console.warn('[Offline] Notifications not supported');
             return false;
         }
 
         const permission = await Notification.requestPermission();
-
-        if (permission === 'granted') {
-            console.log('[Offline] Notification permission granted');
-            return true;
-        }
-
-        console.log('[Offline] Notification permission denied');
-        return false;
+        return permission === 'granted';
     }
 
     // ==================== UTILITY METHODS ====================
@@ -794,7 +747,6 @@ class OfflineManager {
      */
     async clearAll() {
         await this.db.clearAll();
-        console.log('[Offline] All offline data cleared');
     }
 }
 

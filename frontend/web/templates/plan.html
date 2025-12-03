@@ -25,8 +25,8 @@
                 <button class="btn btn-sm btn-info gap-1" onclick="modal_add_plan.showModal()" title="Добавить новый план">
                     ➕ Добавить план
                 </button>
-                <button class="btn btn-sm btn-warning gap-1" onclick="transfer_modal.showModal()" title="Добавить перевод">
-                    🔄 Добавить перевод
+                <button class="btn btn-sm btn-warning gap-1" onclick="openPlanTransferModal()" title="Добавить плановый перевод">
+                    🔄 Добавить плановый перевод
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
@@ -495,6 +495,42 @@ let filters = {
 // Debounce state for recommended amounts
 let recommendedAmountsTimeout = null;
 let recommendedAmountsController = null;
+
+/**
+ * Open transfer modal in plan mode
+ * Sets record_type to 'plan' and shows the modal
+ */
+function openPlanTransferModal() {
+    // Set transfer record type to plan
+    if (typeof setTransferRecordType === 'function') {
+        setTransferRecordType('plan');
+    }
+
+    // Update modal title to indicate plan transfer
+    const modalTitle = document.querySelector('#transfer_modal h3');
+    if (modalTitle) {
+        modalTitle.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            Плановый перевод
+        `;
+    }
+
+    // Show the modal
+    const modal = document.querySelector('#transfer_modal');
+    if (modal) {
+        // Set default date to first day of selected month
+        const selectedMonth = document.querySelector('input[name="month"]')?.value || new Date().toISOString().slice(0, 7);
+        const defaultDate = selectedMonth + '-01';
+        const dateInput = document.querySelector('#transfer_date');
+        if (dateInput && typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
+            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(defaultDate);
+        }
+
+        modal.showModal();
+    }
+}
 
 /**
  * Load recommended amounts from API and update quick amount buttons.

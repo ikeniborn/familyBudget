@@ -177,7 +177,7 @@ async def create_transfer(
         amount=abs(transfer.amount),  # Always positive (sign determined by article_type)
         description=expense_description,
         transfer_id=transfer_id,
-        record_type="fact",
+        record_type=transfer.record_type,  # Use record_type from request
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -192,7 +192,7 @@ async def create_transfer(
         amount=abs(transfer.amount),  # Positive for income
         description=income_description,
         transfer_id=transfer_id,
-        record_type="fact",
+        record_type=transfer.record_type,  # Use record_type from request
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )

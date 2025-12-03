@@ -1,12 +1,24 @@
 /**
  * Transfer Modal Logic
  * Handles transfer creation between financial centers
+ * Supports both fact and plan record types
  */
 
 // Global variables
 let transferDateWidget = null;
 let fromCategoryTree = null;
 let toCategoryTree = null;
+let transferRecordType = 'fact'; // Default to fact, can be 'plan' for planned transfers
+
+/**
+ * Set transfer record type
+ * @param {string} type - 'fact' or 'plan'
+ */
+function setTransferRecordType(type) {
+    if (type === 'fact' || type === 'plan') {
+        transferRecordType = type;
+    }
+}
 
 /**
  * Initialize Transfer Modal
@@ -29,10 +41,7 @@ function initTransferModal() {
         fromCategoryTree = new BudgetShared.ChoicesCategoryTree('#from_article', {
             type: 'debit',
             showLeafOnly: true,
-            searchEnabled: true,
-            onSelect: (article) => {
-                console.log('Selected FROM article:', article);
-            }
+            searchEnabled: true
         });
     }
 
@@ -41,10 +50,7 @@ function initTransferModal() {
         toCategoryTree = new BudgetShared.ChoicesCategoryTree('#to_article', {
             type: 'credit',
             showLeafOnly: true,
-            searchEnabled: true,
-            onSelect: (article) => {
-                console.log('Selected TO article:', article);
-            }
+            searchEnabled: true
         });
     }
 
@@ -104,8 +110,6 @@ async function loadTransferData() {
                     toFCSelect.appendChild(option);
                 });
             }
-        } else {
-            console.error('[Transfer Modal] Failed to load financial centers:', fcResponse.status);
         }
 
         // Load Cost Centers
@@ -145,11 +149,9 @@ async function loadTransferData() {
                     toCCSelect.appendChild(option);
                 });
             }
-        } else {
-            console.error('[Transfer Modal] Failed to load cost centers:', ccResponse.status);
         }
     } catch (error) {
-        console.error('[Transfer Modal] Failed to load data:', error);
+        // Ignore load errors - user will see empty dropdowns
     }
 }
 
@@ -180,7 +182,6 @@ function setupQuickDateButtons() {
                     targetDate.setDate(today.getDate() - 2);
                     break;
                 default:
-                    console.warn('Unknown quick date:', quickDate);
                     return;
             }
 
@@ -272,6 +273,7 @@ async function handleTransferSubmit(event) {
     const data = {
         transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
         amount: parseFloat(formData.get('amount')),
+        record_type: transferRecordType, // 'fact' or 'plan'
         from_financial_center_id: parseInt(formData.get('from_financial_center_id')),
         from_financial_center_name: getSelectedText('#from_financial_center'), // For offline display
         from_article_id: parseInt(formData.get('from_article_id')),
@@ -308,10 +310,12 @@ async function handleTransferSubmit(event) {
 
             if (result._offline) {
                 // Saved offline - will sync when online
+                const offlineMsg = transferRecordType === 'plan'
+                    ? 'Плановый перевод сохранен оффлайн (будет синхронизирован при подключении)'
+                    : 'Перевод сохранен оффлайн (будет синхронизирован при подключении)';
                 if (typeof showToast === 'function') {
-                    showToast('Перевод сохранен оффлайн (будет синхронизирован при подключении)', 'warning');
+                    showToast(offlineMsg, 'warning');
                 }
-                console.log('[Transfer] Saved offline:', result);
 
                 // Update pending records table if function exists
                 if (typeof loadPendingRecords === 'function') {
@@ -319,10 +323,12 @@ async function handleTransferSubmit(event) {
                 }
             } else {
                 // Saved online
+                const successMsg = transferRecordType === 'plan'
+                    ? 'Плановый перевод создан успешно!'
+                    : 'Перевод создан успешно!';
                 if (typeof showToast === 'function') {
-                    showToast('Перевод создан успешно!', 'success');
+                    showToast(successMsg, 'success');
                 }
-                console.log('[Transfer] Saved online:', result);
 
                 // Reload page to show new transfer
                 setTimeout(() => {
@@ -344,10 +350,12 @@ async function handleTransferSubmit(event) {
             }
 
             const result = await response.json();
-            console.log('[Transfer] Created:', result);
 
+            const successMsg = transferRecordType === 'plan'
+                ? 'Плановый перевод создан успешно!'
+                : 'Перевод создан успешно!';
             if (typeof showToast === 'function') {
-                showToast('Перевод создан успешно!', 'success');
+                showToast(successMsg, 'success');
             }
 
             setTimeout(() => {
@@ -355,9 +363,11 @@ async function handleTransferSubmit(event) {
             }, 1000);
         }
     } catch (error) {
-        console.error('[Transfer] Error:', error);
+        const errorPrefix = transferRecordType === 'plan'
+            ? 'Ошибка при создании планового перевода: '
+            : 'Ошибка при создании перевода: ';
         if (typeof showToast === 'function') {
-            showToast('Ошибка при создании перевода: ' + error.message, 'error');
+            showToast(errorPrefix + error.message, 'error');
         } else {
             alert('Ошибка: ' + error.message);
         }

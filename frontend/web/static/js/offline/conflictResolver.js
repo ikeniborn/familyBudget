@@ -25,16 +25,8 @@ class ConflictResolver {
      * @returns {Promise<Object>} Resolved data
      */
     async resolve(offlineData, serverData, entity, autoResolve = false) {
-        console.log('[ConflictResolver] Resolving conflict:', {
-            entity,
-            offlineData,
-            serverData,
-            autoResolve
-        });
-
         // Check if there's actually a conflict
         if (!this.hasConflict(offlineData, serverData)) {
-            console.log('[ConflictResolver] No conflict detected, using offline data');
             return offlineData.data;
         }
 
@@ -47,7 +39,6 @@ class ConflictResolver {
         const hasCriticalChanges = this.hasCriticalFieldChanges(offlineData, serverData, entity);
 
         if (hasCriticalChanges) {
-            console.log('[ConflictResolver] Critical field conflict detected, showing dialog');
             return await this.showConflictDialog(offlineData, serverData, entity);
         } else {
             // Non-critical changes, auto-merge
@@ -91,10 +82,6 @@ class ConflictResolver {
 
         for (const field of this.criticalFields) {
             if (offlineFields[field] !== serverFields[field]) {
-                console.log(`[ConflictResolver] Critical field '${field}' differs:`, {
-                    offline: offlineFields[field],
-                    server: serverFields[field]
-                });
                 return true;
             }
         }
@@ -111,10 +98,8 @@ class ConflictResolver {
         const serverTime = new Date(serverData.updated_at || serverData.created_at).getTime();
 
         if (offlineTime > serverTime) {
-            console.log('[ConflictResolver] LWW: Using offline data (newer)');
             return offlineData.data || offlineData;
         } else {
-            console.log('[ConflictResolver] LWW: Using server data (newer)');
             return serverData;
         }
     }
@@ -133,13 +118,11 @@ class ConflictResolver {
             if (offlineFields[field] && serverFields[field] &&
                 offlineFields[field] !== serverFields[field]) {
                 merged[field] = `${offlineFields[field]}\n---\n[Server]: ${serverFields[field]}`;
-                console.log(`[ConflictResolver] Merged text field '${field}'`);
             } else if (offlineFields[field]) {
                 merged[field] = offlineFields[field];
             }
         }
 
-        console.log('[ConflictResolver] Merged non-critical fields:', merged);
         return merged;
     }
 

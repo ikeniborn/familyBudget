@@ -42,20 +42,17 @@ class IndexedDBManager {
             const request = indexedDB.open(DB_NAME, DB_VERSION);
 
             request.onerror = () => {
-                console.error('[IDB] Failed to open database:', request.error);
                 reject(request.error);
             };
 
             request.onsuccess = () => {
                 this.db = request.result;
                 this.isInitialized = true;
-                console.log('[IDB] Database opened successfully');
                 resolve(this.db);
             };
 
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
-                console.log('[IDB] Upgrading database to version', DB_VERSION);
 
                 // Store 1: Offline Facts
                 if (!db.objectStoreNames.contains(STORES.facts)) {
@@ -66,7 +63,6 @@ class IndexedDBManager {
                     factsStore.createIndex('synced', 'synced', { unique: false });
                     factsStore.createIndex('createdAt', 'createdAt', { unique: false });
                     factsStore.createIndex('serverId', 'serverId', { unique: false });
-                    console.log('[IDB] Created store:', STORES.facts);
                 }
 
                 // Store 2: Offline Transfers
@@ -78,7 +74,6 @@ class IndexedDBManager {
                     transfersStore.createIndex('synced', 'synced', { unique: false });
                     transfersStore.createIndex('createdAt', 'createdAt', { unique: false });
                     transfersStore.createIndex('serverId', 'serverId', { unique: false });
-                    console.log('[IDB] Created store:', STORES.transfers);
                 }
 
                 // Store 3: Offline Plans
@@ -90,7 +85,6 @@ class IndexedDBManager {
                     plansStore.createIndex('synced', 'synced', { unique: false });
                     plansStore.createIndex('createdAt', 'createdAt', { unique: false });
                     plansStore.createIndex('serverId', 'serverId', { unique: false });
-                    console.log('[IDB] Created store:', STORES.plans);
                 }
 
                 // Store 4: Sync Queue
@@ -103,7 +97,6 @@ class IndexedDBManager {
                     queueStore.createIndex('timestamp', 'timestamp', { unique: false });
                     queueStore.createIndex('entity', 'entity', { unique: false });
                     queueStore.createIndex('operation', 'operation', { unique: false });
-                    console.log('[IDB] Created store:', STORES.syncQueue);
                 }
 
                 // Store 5: Data Cache (reference data)
@@ -112,7 +105,6 @@ class IndexedDBManager {
                         keyPath: 'key'
                     });
                     cacheStore.createIndex('expires', 'expires', { unique: false });
-                    console.log('[IDB] Created store:', STORES.cache);
                 }
             };
         });
@@ -131,12 +123,10 @@ class IndexedDBManager {
             const request = store.add(data);
 
             request.onsuccess = () => {
-                console.log(`[IDB] Added to ${storeName}:`, data);
                 resolve(request.result);
             };
 
             request.onerror = () => {
-                console.error(`[IDB] Failed to add to ${storeName}:`, request.error);
                 reject(request.error);
             };
         });
@@ -159,7 +149,6 @@ class IndexedDBManager {
             };
 
             request.onerror = () => {
-                console.error(`[IDB] Failed to get from ${storeName}:`, request.error);
                 reject(request.error);
             };
         });
@@ -189,7 +178,6 @@ class IndexedDBManager {
             };
 
             request.onerror = () => {
-                console.error(`[IDB] Failed to getAll from ${storeName}:`, request.error);
                 reject(request.error);
             };
         });
@@ -208,12 +196,10 @@ class IndexedDBManager {
             const request = store.put(data);
 
             request.onsuccess = () => {
-                console.log(`[IDB] Updated in ${storeName}:`, data);
                 resolve(request.result);
             };
 
             request.onerror = () => {
-                console.error(`[IDB] Failed to update in ${storeName}:`, request.error);
                 reject(request.error);
             };
         });
@@ -232,12 +218,10 @@ class IndexedDBManager {
             const request = store.delete(key);
 
             request.onsuccess = () => {
-                console.log(`[IDB] Deleted from ${storeName}:`, key);
                 resolve();
             };
 
             request.onerror = () => {
-                console.error(`[IDB] Failed to delete from ${storeName}:`, request.error);
                 reject(request.error);
             };
         });
@@ -267,7 +251,6 @@ class IndexedDBManager {
             };
 
             request.onerror = () => {
-                console.error(`[IDB] Failed to count in ${storeName}:`, request.error);
                 reject(request.error);
             };
         });
@@ -481,7 +464,6 @@ class IndexedDBManager {
             count++;
         }
 
-        console.log(`[IDB] Cleared ${count} completed items from sync queue`);
         return count;
     }
 
@@ -547,7 +529,6 @@ class IndexedDBManager {
             }
         }
 
-        console.log(`[IDB] Cleared ${count} expired cache entries`);
         return count;
     }
 
@@ -586,18 +567,14 @@ class IndexedDBManager {
                 const request = store.clear();
 
                 request.onsuccess = () => {
-                    console.log(`[IDB] Cleared store: ${storeName}`);
                     resolve();
                 };
 
                 request.onerror = () => {
-                    console.error(`[IDB] Failed to clear ${storeName}:`, request.error);
                     reject(request.error);
                 };
             });
         }
-
-        console.log('[IDB] All stores cleared');
     }
 
     /**

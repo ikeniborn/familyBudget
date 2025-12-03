@@ -34,7 +34,6 @@ class PushNotificationManager {
      */
     async init(options = {}) {
         if (!this.isSupported) {
-            console.warn('[Push] Push Notifications not supported');
             return false;
         }
 
@@ -42,23 +41,17 @@ class PushNotificationManager {
         try {
             await this.loadVapidKey();
         } catch (error) {
-            console.error('[Push] Failed to initialize - VAPID key error:', error);
             return false;
         }
 
         // Check current permission
         if (Notification.permission === 'granted') {
-            console.log('[Push] Permission already granted');
             await this.subscribe();
         } else if (Notification.permission === 'default') {
-            console.log('[Push] Permission not requested yet');
             // Request permission if requested (requires user gesture on iOS)
             if (options.requestPermission) {
-                console.log('[Push] Requesting permission on init...');
                 await this.requestPermission();
             }
-        } else {
-            console.log('[Push] Permission denied');
         }
 
         return true;
@@ -85,15 +78,11 @@ class PushNotificationManager {
             if (!this.vapidPublicKey || this.vapidPublicKey.length < 65 ||
                 this.vapidPublicKey.includes('PLACEHOLDER') ||
                 this.vapidPublicKey.includes('0123456789')) {
-                console.warn('[Push] VAPID key appears to be a placeholder - push notifications disabled');
                 this.vapidPublicKey = null;
                 this.isSupported = false;
                 return;
             }
-
-            console.log('[Push] VAPID key loaded');
         } catch (error) {
-            console.error('[Push] Failed to load VAPID key:', error);
             throw error;
         }
     }
@@ -104,25 +93,19 @@ class PushNotificationManager {
      */
     async requestPermission() {
         if (!this.isSupported) {
-            console.warn('[Push] Push Notifications not supported');
             return false;
         }
 
         if (Notification.permission === 'granted') {
-            console.log('[Push] Permission already granted');
             return true;
         }
-
-        console.log('[Push] Requesting permission...');
 
         const permission = await Notification.requestPermission();
 
         if (permission === 'granted') {
-            console.log('[Push] Permission granted');
             await this.subscribe();
             return true;
         } else {
-            console.log('[Push] Permission denied');
             return false;
         }
     }
@@ -152,10 +135,6 @@ class PushNotificationManager {
                     userVisibleOnly: true,
                     applicationServerKey: this.urlBase64ToUint8Array(this.vapidPublicKey)
                 });
-
-                console.log('[Push] Subscribed to push notifications');
-            } else {
-                console.log('[Push] Already subscribed');
             }
 
             this.subscription = subscription;
@@ -165,7 +144,6 @@ class PushNotificationManager {
 
             return subscription;
         } catch (error) {
-            console.error('[Push] Failed to subscribe:', error);
             throw error;
         }
     }
@@ -185,7 +163,6 @@ class PushNotificationManager {
 
             if (subscription) {
                 await subscription.unsubscribe();
-                console.log('[Push] Unsubscribed from push notifications');
 
                 // Remove subscription from backend
                 await this.removeSubscriptionFromBackend(subscription);
@@ -196,7 +173,6 @@ class PushNotificationManager {
 
             return false;
         } catch (error) {
-            console.error('[Push] Failed to unsubscribe:', error);
             throw error;
         }
     }
@@ -220,10 +196,7 @@ class PushNotificationManager {
             if (!response.ok) {
                 throw new Error('Failed to send subscription to backend');
             }
-
-            console.log('[Push] Subscription sent to backend');
         } catch (error) {
-            console.error('[Push] Failed to send subscription:', error);
             throw error;
         }
     }
@@ -246,10 +219,7 @@ class PushNotificationManager {
             if (!response.ok) {
                 throw new Error('Failed to remove subscription from backend');
             }
-
-            console.log('[Push] Subscription removed from backend');
         } catch (error) {
-            console.error('[Push] Failed to remove subscription:', error);
             throw error;
         }
     }
@@ -261,7 +231,6 @@ class PushNotificationManager {
      */
     async showLocalNotification(title, options = {}) {
         if (!this.isSupported || Notification.permission !== 'granted') {
-            console.warn('[Push] Cannot show notification: permission not granted');
             return;
         }
 
@@ -274,10 +243,8 @@ class PushNotificationManager {
                 requireInteraction: false,
                 ...options
             });
-
-            console.log('[Push] Local notification shown:', title);
         } catch (error) {
-            console.error('[Push] Failed to show notification:', error);
+            // Ignore notification errors
         }
     }
 
