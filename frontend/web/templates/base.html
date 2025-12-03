@@ -427,12 +427,12 @@
                               type === 'warning' ? 'alert-warning' : 'alert-info';
 
             // Responsive toast:
-            // - Mobile: max 50% screen width
+            // - Mobile: max 90% screen width
             // - Desktop: max 400px width
             // - Word wrap enabled, shadow for visibility
             toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
             toast.style.cssText = `
-                max-width: min(50vw, 400px);
+                max-width: min(90vw, 400px);
                 width: auto;
                 min-width: 200px;
                 word-wrap: break-word;
@@ -446,7 +446,7 @@
             // Add to container
             container.appendChild(toast);
 
-            // Auto-dismiss after 3.5 seconds (longer for readability)
+            // Auto-dismiss after 2 seconds
             setTimeout(() => {
                 toast.style.transition = 'opacity 0.3s, transform 0.3s';
                 toast.style.opacity = '0';
@@ -456,7 +456,7 @@
                         container.removeChild(toast);
                     }
                 }, 300);
-            }, 3500);
+            }, 2000);
         }
 
         // Logout handler

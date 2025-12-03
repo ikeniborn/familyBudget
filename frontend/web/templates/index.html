@@ -43,7 +43,7 @@
                             Добавить факт
                         </button>
 
-                        <button onclick="transfer_modal.showModal()" class="btn btn-outline btn-warning justify-start gap-3">
+                        <button onclick="openFactTransferModal()" class="btn btn-outline btn-warning justify-start gap-3">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                             </svg>
@@ -55,6 +55,13 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                             </svg>
                             Добавить план
+                        </button>
+
+                        <button onclick="openPlanTransferModal()" class="btn btn-outline btn-secondary justify-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            Плановый перевод
                         </button>
 
                         <a id="analytics-btn" href="/analytics" class="btn btn-outline btn-primary justify-start gap-3">
@@ -203,6 +210,44 @@
 // Глобальные переменные для CategoryTreeSelect компонентов
 let transactionCategoryTreeSelect = null;
 let planCategoryTreeSelect = null;
+
+// Открыть модальное окно фактического перевода
+function openFactTransferModal() {
+    // Set transfer type to 'fact'
+    if (typeof setTransferRecordType === 'function') {
+        setTransferRecordType('fact');
+    }
+    // Open transfer modal
+    const modal = document.querySelector('#transfer_modal');
+    if (modal) {
+        // Set today as default date
+        const today = BudgetShared.DateFormatter.today();
+        const dateInput = document.querySelector('#transfer_date');
+        if (dateInput) {
+            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(today);
+        }
+        modal.showModal();
+    }
+}
+
+// Открыть модальное окно планового перевода
+function openPlanTransferModal() {
+    // Set transfer type to 'plan'
+    if (typeof setTransferRecordType === 'function') {
+        setTransferRecordType('plan');
+    }
+    // Open transfer modal
+    const modal = document.querySelector('#transfer_modal');
+    if (modal) {
+        // Set today as default date
+        const today = BudgetShared.DateFormatter.today();
+        const dateInput = document.querySelector('#transfer_date');
+        if (dateInput) {
+            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(today);
+        }
+        modal.showModal();
+    }
+}
 
 // Открыть модальное окно добавления факта с инициализацией даты
 function openAddTransactionModal() {
@@ -1091,31 +1136,36 @@ async function loadPendingRecords() {
 
             // For transfers, create two rows (debit and credit)
             if (item.entity === 'transfer') {
-                // Debit row (списание)
+                // Check if plan transfer
+                const isPlanTransfer = item.data.record_type === 'plan';
+                const debitLabel = isPlanTransfer ? '📤 Списание (план)' : '📤 Списание';
+                const creditLabel = isPlanTransfer ? '📥 Пополнение (план)' : '📥 Пополнение';
+
+                // Debit row (списание) - only amount column is colored
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
                 rows.push(`
-                    <tr class="text-error/80">
-                        <td>📤 Списание</td>
+                    <tr>
+                        <td>${debitLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
                         <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
-                        <td>-${amount}</td>
+                        <td class="text-error font-medium">-${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td>${statusBadge}</td>
                     </tr>
                 `);
 
-                // Credit row (пополнение)
+                // Credit row (пополнение) - only amount column is colored
                 const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
                 rows.push(`
-                    <tr class="text-success/80">
-                        <td>📥 Пополнение</td>
+                    <tr>
+                        <td>${creditLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
-                        <td>+${amount}</td>
+                        <td class="text-success font-medium">+${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td>${statusBadge}</td>
                     </tr>
