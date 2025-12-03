@@ -229,16 +229,44 @@ async function handleTransferSubmit(event) {
         return selected ? selected.text : null;
     }
 
-    // Get article names from category trees (uses getSelectedCategory method)
+    // Get article names from category trees or fallback to selected option text
     let fromArticleName = null;
     let toArticleName = null;
+
+    // Try to get from category tree's categoryMap
     if (fromCategoryTree && fromCategoryTree.getSelectedCategory) {
         const selected = fromCategoryTree.getSelectedCategory();
         fromArticleName = selected ? selected.name : null;
     }
+    // Fallback: get from Choices.js inner text or select element
+    if (!fromArticleName) {
+        const fromSelect = document.querySelector('#from_article');
+        if (fromSelect) {
+            // Try Choices.js selected item text
+            const choicesItem = fromSelect.closest('.choices')?.querySelector('.choices__item--selectable[data-value]');
+            if (choicesItem) {
+                fromArticleName = choicesItem.textContent.trim().split('\n')[0]; // Get first line (category name)
+            } else if (fromSelect.selectedIndex >= 0) {
+                fromArticleName = fromSelect.options[fromSelect.selectedIndex]?.text;
+            }
+        }
+    }
+
     if (toCategoryTree && toCategoryTree.getSelectedCategory) {
         const selected = toCategoryTree.getSelectedCategory();
         toArticleName = selected ? selected.name : null;
+    }
+    // Fallback for TO category
+    if (!toArticleName) {
+        const toSelect = document.querySelector('#to_article');
+        if (toSelect) {
+            const choicesItem = toSelect.closest('.choices')?.querySelector('.choices__item--selectable[data-value]');
+            if (choicesItem) {
+                toArticleName = choicesItem.textContent.trim().split('\n')[0];
+            } else if (toSelect.selectedIndex >= 0) {
+                toArticleName = toSelect.options[toSelect.selectedIndex]?.text;
+            }
+        }
     }
 
     const data = {
