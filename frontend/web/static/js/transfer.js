@@ -23,21 +23,73 @@ function setTransferRecordType(type) {
 }
 
 /**
- * Update visibility of quick date buttons based on transfer type
+ * Update visibility of date/period sections based on transfer type
  */
 function updateQuickDateButtonsVisibility() {
-    const factButtons = document.getElementById('transfer-quick-dates-fact');
-    const planButtons = document.getElementById('transfer-quick-dates-plan');
+    const factSection = document.getElementById('transfer-date-section-fact');
+    const planSection = document.getElementById('transfer-period-section-plan');
 
-    if (!factButtons || !planButtons) return;
+    if (!factSection || !planSection) return;
 
     if (transferRecordType === 'plan') {
-        factButtons.classList.add('hidden');
-        planButtons.classList.remove('hidden');
+        factSection.classList.add('hidden');
+        planSection.classList.remove('hidden');
+        // Initialize period buttons with month names
+        initTransferPeriodButtons();
+        // Select first period by default
+        selectTransferPeriod(0);
     } else {
-        factButtons.classList.remove('hidden');
-        planButtons.classList.add('hidden');
+        factSection.classList.remove('hidden');
+        planSection.classList.add('hidden');
     }
+}
+
+/**
+ * Initialize transfer period buttons with month names
+ */
+function initTransferPeriodButtons() {
+    const monthNamesShort = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const now = new Date();
+
+    const buttons = [
+        { id: 'transfer_period_btn_1', offset: 0 },
+        { id: 'transfer_period_btn_2', offset: 1 },
+        { id: 'transfer_period_btn_3', offset: 2 }
+    ];
+
+    buttons.forEach(btn => {
+        const button = document.getElementById(btn.id);
+        if (!button) return;
+
+        const targetDate = new Date(now.getFullYear(), now.getMonth() + btn.offset, 1);
+        const monthIndex = targetDate.getMonth();
+        const year = targetDate.getFullYear();
+
+        button.textContent = `${monthNamesShort[monthIndex]} ${year}`;
+        button.dataset.year = year;
+        button.dataset.month = String(monthIndex + 1).padStart(2, '0');
+    });
+}
+
+/**
+ * Select transfer period and update hidden input
+ * @param {number} offset - Month offset (0 = current, 1 = next, 2 = after next)
+ */
+function selectTransferPeriod(offset) {
+    const buttons = document.querySelectorAll('.transfer-period-btn');
+    const hiddenInput = document.getElementById('transfer_plan_month');
+
+    buttons.forEach((btn, index) => {
+        if (index === offset) {
+            btn.classList.add('btn-active');
+            // Set hidden input value
+            if (hiddenInput && btn.dataset.year && btn.dataset.month) {
+                hiddenInput.value = `${btn.dataset.year}-${btn.dataset.month}`;
+            }
+        } else {
+            btn.classList.remove('btn-active');
+        }
+    });
 }
 
 /**
@@ -77,17 +129,33 @@ function initTransferModal() {
     // 4. Setup quick date buttons
     setupQuickDateButtons();
 
-    // 5. Attach form submit handler
+    // 5. Setup period buttons click handlers
+    setupPeriodButtons();
+
+    // 6. Attach form submit handler
     const form = document.querySelector('#form_transfer');
     if (form) {
         form.addEventListener('submit', handleTransferSubmit);
     }
 
-    // 6. Load Financial Centers and Cost Centers dynamically
+    // 7. Load Financial Centers and Cost Centers dynamically
     loadTransferData();
 
-    // 7. Setup CFO filtering (exclude selected CFO from opposite dropdown)
+    // 8. Setup CFO filtering (exclude selected CFO from opposite dropdown)
     setupCFOFiltering();
+}
+
+/**
+ * Setup period buttons click handlers
+ */
+function setupPeriodButtons() {
+    const periodButtons = document.querySelectorAll('.transfer-period-btn');
+    periodButtons.forEach((button, index) => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            selectTransferPeriod(index);
+        });
+    });
 }
 
 /**
@@ -372,8 +440,19 @@ async function handleTransferSubmit(event) {
         }
     }
 
+    // Handle date/period based on record type
+    let transferDate;
+    if (transferRecordType === 'plan') {
+        // For plans, use the period month (YYYY-MM) and set day to 01
+        const planMonth = formData.get('transfer_plan_month');
+        transferDate = planMonth ? `${planMonth}-01` : null;
+    } else {
+        // For facts, use the date picker value
+        transferDate = BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date'));
+    }
+
     const data = {
-        transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
+        transfer_date: transferDate,
         amount: parseFloat(formData.get('amount')),
         record_type: transferRecordType, // 'fact' or 'plan'
         from_financial_center_id: parseInt(formData.get('from_financial_center_id')),
@@ -492,7 +571,9 @@ function validateTransferData(data) {
 
     // Required fields
     if (!data.transfer_date) {
-        return 'Укажите дату перевода';
+        return data.record_type === 'plan'
+            ? 'Выберите период планирования'
+            : 'Укажите дату перевода';
     }
 
     if (!data.from_article_id || !data.to_article_id) {
