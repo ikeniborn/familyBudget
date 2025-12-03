@@ -67,8 +67,8 @@
                 </div>
             </div>
 
-            <!-- Recent Transactions -->
-            <div class="card bg-base-100 shadow-xl">
+            <!-- Recent Transactions (hidden when offline) -->
+            <div id="recent-transactions-card" class="card bg-base-100 shadow-xl">
                 <div class="card-body">
                     <h2 class="card-title text-xl mb-4">📈 Последние факты</h2>
                     <div id="recent-transactions"
@@ -223,29 +223,41 @@ function openAddTransactionModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Скрыть кнопку аналитики в offline режиме
-    function updateAnalyticsButtonVisibility() {
+    // Обновить видимость элементов в зависимости от статуса сети
+    function updateOfflineUI() {
+        const isOnline = navigator.onLine;
+        debugLog('[Offline UI] Status:', isOnline ? 'online' : 'offline');
+
+        // Скрыть/показать кнопку аналитики
         const analyticsBtn = document.getElementById('analytics-btn');
         if (analyticsBtn) {
-            // Используем только navigator.onLine (обновляется браузером мгновенно)
-            // offlineManager.isOnline может обновиться с задержкой после события online
-            analyticsBtn.style.display = navigator.onLine ? '' : 'none';
-            debugLog('[Analytics Button] visibility:', navigator.onLine ? 'visible' : 'hidden');
+            analyticsBtn.style.display = isOnline ? '' : 'none';
+        }
+
+        // Скрыть/показать секцию последних фактов
+        const recentCard = document.getElementById('recent-transactions-card');
+        if (recentCard) {
+            recentCard.style.display = isOnline ? '' : 'none';
         }
     }
 
     // Проверить при загрузке
-    updateAnalyticsButtonVisibility();
+    updateOfflineUI();
 
     // Слушать изменения статуса сети
     window.addEventListener('online', () => {
         debugLog('[Network] online event fired');
-        updateAnalyticsButtonVisibility();
-        loadPendingRecords(); // Also refresh pending table
+        updateOfflineUI();
+        loadPendingRecords();
+        // Перезагрузить последние факты при восстановлении сети
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
     });
     window.addEventListener('offline', () => {
         debugLog('[Network] offline event fired');
-        updateAnalyticsButtonVisibility();
+        updateOfflineUI();
     });
 
     // Загрузить категории, ЦФО и МВЗ для обеих форм
