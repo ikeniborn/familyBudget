@@ -44,9 +44,21 @@ class PushNotificationManager {
             return false;
         }
 
+        // Check if VAPID key is valid (may have been invalidated in loadVapidKey)
+        if (!this.isSupported || !this.vapidPublicKey) {
+            // Push not configured on server - silently disable
+            return false;
+        }
+
         // Check current permission
         if (Notification.permission === 'granted') {
-            await this.subscribe();
+            try {
+                await this.subscribe();
+            } catch (error) {
+                // Subscription failed - don't break initialization
+                console.warn('[Push] Subscription failed:', error.message);
+                return false;
+            }
         } else if (Notification.permission === 'default') {
             // Request permission if requested (requires user gesture on iOS)
             if (options.requestPermission) {
