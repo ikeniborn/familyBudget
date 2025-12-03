@@ -229,16 +229,16 @@ async function handleTransferSubmit(event) {
         return selected ? selected.text : null;
     }
 
-    // Get article names from category trees
+    // Get article names from category trees (uses getSelectedCategory method)
     let fromArticleName = null;
     let toArticleName = null;
-    if (fromCategoryTree && fromCategoryTree.getSelectedItem) {
-        const selected = fromCategoryTree.getSelectedItem();
-        fromArticleName = selected ? selected.label : null;
+    if (fromCategoryTree && fromCategoryTree.getSelectedCategory) {
+        const selected = fromCategoryTree.getSelectedCategory();
+        fromArticleName = selected ? selected.name : null;
     }
-    if (toCategoryTree && toCategoryTree.getSelectedItem) {
-        const selected = toCategoryTree.getSelectedItem();
-        toArticleName = selected ? selected.label : null;
+    if (toCategoryTree && toCategoryTree.getSelectedCategory) {
+        const selected = toCategoryTree.getSelectedCategory();
+        toArticleName = selected ? selected.name : null;
     }
 
     const data = {

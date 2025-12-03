@@ -316,11 +316,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const fcSelect = e.target.querySelector('[name="financial_center_id"]');
         const ccSelect = e.target.querySelector('[name="cost_center_id"]');
 
-        // Get article name from Choices.js or category tree
+        // Get article name from category tree (uses getSelectedCategory method)
         let articleName = null;
-        if (transactionCategoryTreeSelect && transactionCategoryTreeSelect.getSelectedItem) {
-            const selected = transactionCategoryTreeSelect.getSelectedItem();
-            articleName = selected ? selected.label : null;
+        if (transactionCategoryTreeSelect && transactionCategoryTreeSelect.getSelectedCategory) {
+            const selected = transactionCategoryTreeSelect.getSelectedCategory();
+            articleName = selected ? selected.name : null;
         }
 
         // v5.1.3: Унификация с facts.html - использовать fact_type вместо transaction_type
@@ -439,11 +439,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const fcSelect = e.target.querySelector('[name="financial_center_id"]');
         const ccSelect = e.target.querySelector('[name="cost_center_id"]');
 
-        // Get article name from Choices.js or category tree
+        // Get article name from category tree (uses getSelectedCategory method)
         let articleName = null;
-        if (planCategoryTreeSelect && planCategoryTreeSelect.getSelectedItem) {
-            const selected = planCategoryTreeSelect.getSelectedItem();
-            articleName = selected ? selected.label : null;
+        if (planCategoryTreeSelect && planCategoryTreeSelect.getSelectedCategory) {
+            const selected = planCategoryTreeSelect.getSelectedCategory();
+            articleName = selected ? selected.name : null;
         }
 
         // v5.1.3: Убрано поле transaction_type - не используется для планов
