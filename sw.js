@@ -387,6 +387,20 @@ async function syncBudgetData() {
       }
     }
 
+    // Notify all clients about sync completion
+    try {
+      const clients = await self.clients.matchAll({ type: 'window' });
+      clients.forEach(client => {
+        client.postMessage({
+          action: 'syncComplete',
+          synced: results.synced,
+          failed: results.failed
+        });
+      });
+    } catch (e) {
+      // Ignore postMessage errors
+    }
+
     // Show notification if synced items
     if (results.synced > 0) {
       try {
