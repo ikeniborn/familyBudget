@@ -511,10 +511,10 @@ async function handleTransferSubmit(event) {
                     showToast(successMsg, 'success');
                 }
 
-                // Reload page to show new transfer
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                // Trigger HTMX refresh if on a page with HTMX tables
+                if (typeof htmx !== 'undefined') {
+                    htmx.trigger(document.body, 'refreshData');
+                }
             }
         } else {
             // Fallback to direct fetch if OfflineManager not available
@@ -539,9 +539,10 @@ async function handleTransferSubmit(event) {
                 showToast(successMsg, 'success');
             }
 
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            // Trigger HTMX refresh if on a page with HTMX tables
+            if (typeof htmx !== 'undefined') {
+                htmx.trigger(document.body, 'refreshData');
+            }
         }
     } catch (error) {
         const errorPrefix = transferRecordType === 'plan'
