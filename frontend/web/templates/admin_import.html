@@ -184,8 +184,10 @@
                         </label>
                         <select id="bulk-article-type" class="select select-bordered w-full select-sm" onchange="updateBulkCategoryType()" style="height: 3rem; min-height: 3rem;">
                             <option value="">-- Все типы --</option>
-                            <option value="expense">💸 Расходы</option>
-                            <option value="income">💰 Доходы</option>
+                            <option value="expense" style="color: rgb(239, 68, 68);">💸 Расходы</option>
+                            <option value="income" style="color: rgb(34, 197, 94);">💰 Доходы</option>
+                            <option value="debit" style="color: rgb(59, 130, 246);">📤 Списание</option>
+                            <option value="credit" style="color: rgb(251, 146, 60);">📥 Пополнение</option>
                         </select>
                     </div>
 
@@ -1079,19 +1081,43 @@ function createArticleSelect(record) {
     emptyOption.textContent = '-- Выберите --';
     select.appendChild(emptyOption);
 
-    // Filter articles by type
+    // Filter articles by type based on amount sign
     const amount = parseFloat(record.amount_string.replace(',', '.'));
     const recordType = amount < 0 ? 'expense' : 'income';
 
     const filteredArticles = allArticles.filter(a => a.type === recordType);
 
-    filteredArticles.forEach(article => {
+    // Build tree and flatten with hierarchy
+    const tree = buildArticleTree(filteredArticles);
+    const flatNodes = flattenArticleTree(tree);
+
+    flatNodes.forEach(node => {
         const option = document.createElement('option');
-        option.value = article.id;
-        option.textContent = article.name;
-        if (record.article_id === article.id) {
+        option.value = node.id;
+
+        // Simplified indentation: use single symbol per level
+        const indent = '›  '.repeat(node.level);
+        const icon = node.isLeaf ? '▸' : '📂';
+        option.textContent = `${indent}${icon} ${node.name}`;
+
+        // Apply color coding by article type
+        const color = getArticleTypeColorStyle(node.type);
+        if (color) {
+            option.style.color = color;
+        }
+
+        // Set selected value
+        if (record.article_id === node.id) {
             option.selected = true;
         }
+
+        // Disable parent categories with visual styling
+        if (!node.isLeaf) {
+            option.disabled = true;
+            option.style.fontWeight = 'bold';
+            option.style.opacity = '0.7';
+        }
+
         select.appendChild(option);
     });
 
@@ -1154,6 +1180,54 @@ function createCCSelect(record) {
     return select;
 }
 
+// ========== Article Tree Utilities ==========
+// Build hierarchical tree from flat article list
+function buildArticleTree(articles) {
+    const sortedArticles = [...articles].sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+    const roots = sortedArticles.filter(a => !a.parent_id);
+
+    function buildNode(article, level = 0) {
+        const children = sortedArticles
+            .filter(a => a.parent_id === article.id)
+            .map(child => buildNode(child, level + 1));
+
+        return {
+            ...article,
+            level,
+            children,
+            isLeaf: children.length === 0
+        };
+    }
+
+    return roots.map(root => buildNode(root));
+}
+
+// Flatten tree for rendering
+function flattenArticleTree(nodes) {
+    const result = [];
+
+    function traverse(node) {
+        result.push(node);
+        if (node.children && node.children.length > 0) {
+            node.children.forEach(traverse);
+        }
+    }
+
+    nodes.forEach(traverse);
+    return result;
+}
+
+// Get color style by article type
+function getArticleTypeColorStyle(type) {
+    const colorMap = {
+        'expense': 'rgb(239, 68, 68)',   // Красный
+        'income': 'rgb(34, 197, 94)',    // Зелёный
+        'debit': 'rgb(59, 130, 246)',    // Синий
+        'credit': 'rgb(251, 146, 60)'    // Оранжевый
+    };
+    return colorMap[type] || '';
+}
+
 // ========== Bulk Operations ==========
 function toggleSelectAll() {
     const selectAll = document.getElementById('select-all').checked || document.getElementById('header-select-all').checked;
@@ -1185,10 +1259,54 @@ function updateBulkCategoryType() {
         ? allArticles.filter(a => a.type === typeSelect.value)
         : allArticles;
 
-    filtered.forEach(article => {
+    // Build tree and flatten with hierarchy
+    const tree = buildArticleTree(filtered);
+    const flatNodes = flattenArticleTree(tree);
+
+    // Group by type while preserving hierarchical order within each type
+    const groupedByType = {
+        'expense': [],
+        'income': [],
+        'debit': [],
+        'credit': []
+    };
+
+    flatNodes.forEach(node => {
+        if (groupedByType[node.type]) {
+            groupedByType[node.type].push(node);
+        }
+    });
+
+    // Flatten back in type order: expense → income → debit → credit
+    const sortedNodes = [
+        ...groupedByType['expense'],
+        ...groupedByType['income'],
+        ...groupedByType['debit'],
+        ...groupedByType['credit']
+    ];
+
+    sortedNodes.forEach(node => {
         const option = document.createElement('option');
-        option.value = article.id;
-        option.textContent = article.name;
+        option.value = node.id;
+
+        // Simplified indentation: use single symbol per level
+        const indent = '›  '.repeat(node.level);
+        const icon = node.isLeaf ? '▸' : '📂';
+        option.textContent = `${indent}${icon} ${node.name}`;
+
+        // Apply color coding by article type
+        const color = getArticleTypeColorStyle(node.type);
+        if (color) {
+            option.style.color = color;
+        }
+
+        // Disable parent categories with visual styling
+        if (!node.isLeaf) {
+            option.disabled = true;
+            option.style.fontWeight = 'bold';
+            option.style.opacity = '0.7';
+        }
+
         articleSelect.appendChild(option);
     });
 }
