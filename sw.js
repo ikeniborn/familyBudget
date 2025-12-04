@@ -416,8 +416,13 @@ async function syncBudgetData() {
 async function syncItem(item) {
   console.log(`[SW] Syncing item ${item.id} (${item.operation} ${item.entity})`);
 
-  // Update status
-  await updateSyncQueueItem(item.id, { status: 'syncing' });
+  // Update status (ignore errors - item may have been removed by main thread)
+  try {
+    await updateSyncQueueItem(item.id, { status: 'syncing' });
+  } catch (e) {
+    console.log(`[SW] Item ${item.id} already processed by main thread, skipping`);
+    return null;
+  }
 
   let response;
 
@@ -435,8 +440,12 @@ async function syncItem(item) {
       throw new Error(`Unknown operation: ${item.operation}`);
   }
 
-  // Mark as completed
-  await updateSyncQueueItem(item.id, { status: 'completed' });
+  // Mark as completed (ignore errors - item may have been removed)
+  try {
+    await updateSyncQueueItem(item.id, { status: 'completed' });
+  } catch (e) {
+    console.log(`[SW] Item ${item.id} status update skipped (already processed)`);
+  }
 
   console.log(`[SW] Item ${item.id} synced successfully`);
 
@@ -449,16 +458,33 @@ async function syncCreate(item) {
                    item.entity === 'transfer' ? '/api/v1/transfers' :
                    '/api/v1/facts';
 
+  // Clean data: remove display-only fields not expected by API
+  const cleanData = { ...item.data };
+  delete cleanData.article_name;
+  delete cleanData.financial_center_name;
+  delete cleanData.cost_center_name;
+  delete cleanData.plan_date;
+  delete cleanData.fact_type;
+
+  console.log(`[SW] Syncing ${item.entity} to ${endpoint}:`, cleanData);
+
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(item.data),
+    body: JSON.stringify(cleanData),
     credentials: 'include'
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || `Failed to sync ${item.entity}`);
+    let errorDetail = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorDetail = error.detail || errorDetail;
+    } catch (e) {
+      errorDetail = response.statusText || errorDetail;
+    }
+    console.error(`[SW] Sync ${item.entity} failed:`, errorDetail, 'Data:', cleanData);
+    throw new Error(errorDetail);
   }
 
   return await response.json();
@@ -471,16 +497,30 @@ async function syncUpdate(item) {
                    item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
                    `/api/v1/facts/${id}`;
 
+  // Clean data: remove display-only fields
+  const cleanData = { ...item.data };
+  delete cleanData.article_name;
+  delete cleanData.financial_center_name;
+  delete cleanData.cost_center_name;
+  delete cleanData.plan_date;
+  delete cleanData.fact_type;
+
   const response = await fetch(endpoint, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(item.data),
+    body: JSON.stringify(cleanData),
     credentials: 'include'
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || `Failed to update ${item.entity}`);
+    let errorDetail = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorDetail = error.detail || errorDetail;
+    } catch (e) {
+      errorDetail = response.statusText || errorDetail;
+    }
+    throw new Error(errorDetail);
   }
 
   return await response.json();
@@ -499,11 +539,18 @@ async function syncDelete(item) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || `Failed to delete ${item.entity}`);
+    let errorDetail = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorDetail = error.detail || errorDetail;
+    } catch (e) {
+      errorDetail = response.statusText || errorDetail;
+    }
+    throw new Error(errorDetail);
   }
 
-  return await response.json();
+  // DELETE returns 204 No Content, so no JSON body
+  return { success: true };
 }
 
 /**

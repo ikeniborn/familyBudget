@@ -588,17 +588,33 @@ class OfflineManager {
                          item.entity === 'transfer' ? '/api/v1/transfers' :
                          '/api/v1/facts';
 
+        // Clean data: remove display-only fields not expected by API
+        const cleanData = { ...item.data };
+        delete cleanData.article_name;
+        delete cleanData.financial_center_name;
+        delete cleanData.cost_center_name;
+        delete cleanData.plan_date;
+        delete cleanData.fact_type;
+
+        debugLog(`[OfflineManager] Syncing ${item.entity} to ${endpoint}:`, cleanData);
+
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item.data),
+            body: JSON.stringify(cleanData),
             credentials: 'include'
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
-            throw new Error(error.detail || error.message || `Failed to sync ${item.entity}`);
+            let errorDetail = `HTTP ${response.status}`;
+            try {
+                const error = await response.json();
+                errorDetail = error.detail || error.message || errorDetail;
+            } catch (e) {
+                errorDetail = response.statusText || errorDetail;
+            }
+            console.error(`[OfflineManager] Sync ${item.entity} failed:`, errorDetail);
+            throw new Error(errorDetail);
         }
 
         return await response.json();
@@ -611,17 +627,30 @@ class OfflineManager {
                          item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
                          `/api/v1/facts/${id}`;
 
+        // Clean data: remove display-only fields
+        const cleanData = { ...item.data };
+        delete cleanData.article_name;
+        delete cleanData.financial_center_name;
+        delete cleanData.cost_center_name;
+        delete cleanData.plan_date;
+        delete cleanData.fact_type;
+
         const response = await fetch(endpoint, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item.data),
+            body: JSON.stringify(cleanData),
             credentials: 'include'
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
-            throw new Error(error.detail || error.message || `Failed to update ${item.entity}`);
+            let errorDetail = `HTTP ${response.status}`;
+            try {
+                const error = await response.json();
+                errorDetail = error.detail || error.message || errorDetail;
+            } catch (e) {
+                errorDetail = response.statusText || errorDetail;
+            }
+            throw new Error(errorDetail);
         }
 
         return await response.json();
@@ -640,12 +669,18 @@ class OfflineManager {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
-            throw new Error(error.detail || error.message || `Failed to delete ${item.entity}`);
+            let errorDetail = `HTTP ${response.status}`;
+            try {
+                const error = await response.json();
+                errorDetail = error.detail || error.message || errorDetail;
+            } catch (e) {
+                errorDetail = response.statusText || errorDetail;
+            }
+            throw new Error(errorDetail);
         }
 
-        return await response.json();
+        // DELETE returns 204 No Content
+        return { success: true };
     }
 
     // ==================== EVENT HANDLERS ====================
