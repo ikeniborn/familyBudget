@@ -21,11 +21,16 @@ const CACHE_NAME = `budget-${CACHE_VERSION}`;
 // ТОЛЬКО файлы которые НЕ используют cache busting
 const STATIC_CACHE = [
   '/',
+  '/facts',
+  '/plan',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
   '/static/icons/favicon.ico'
 ];
+
+// Страницы доступные в offline режиме (только эти страницы работают без сети)
+const OFFLINE_PAGES = ['/', '/facts', '/plan'];
 
 // Файлы с cache busting - кешируются RUNTIME (не в install event)
 // Service Worker будет кешировать их при первом запросе
@@ -42,7 +47,7 @@ self.addEventListener('install', (event) => {
         return Promise.allSettled(
           STATIC_CACHE.map(url =>
             cache.add(url).catch(err => {
-              console.warn('[SW] Failed to cache:', url, err);
+              if (DEBUG) console.warn('[SW] Failed to cache:', url, err);
               return null;
             })
           )
@@ -143,15 +148,42 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Кешируем HTML страницы для offline доступа
-          const clonedResponse = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clonedResponse);
-          });
+          // Кешируем только OFFLINE_PAGES для offline доступа
+          if (OFFLINE_PAGES.includes(url.pathname)) {
+            const clonedResponse = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clonedResponse);
+            });
+          }
           return response;
         })
         .catch(() => {
           // Fallback на кеш если сеть недоступна
+          // Только OFFLINE_PAGES доступны в offline режиме
+          if (!OFFLINE_PAGES.includes(url.pathname)) {
+            if (DEBUG) console.log('[SW] Page not available offline, redirecting to home:', url.pathname);
+            // Редирект на главную страницу для недоступных страниц
+            // Используем JavaScript redirect т.к. SW не может сделать HTTP 302
+            return new Response(
+              `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0;url=/">
+  <title>Redirect</title>
+  <script>window.location.replace('/');</script>
+</head>
+<body>
+  <p>Эта страница недоступна в offline режиме. <a href="/">Перейти на главную</a></p>
+</body>
+</html>`,
+              {
+                status: 200,
+                headers: { 'Content-Type': 'text/html; charset=utf-8' }
+              }
+            );
+          }
+
           return caches.match(request)
             .then(cachedResponse => {
               if (cachedResponse) {
@@ -249,4 +281,332 @@ self.addEventListener('message', (event) => {
       })
     );
   }
+});
+
+// =============================================================================
+// OFFLINE MODE SUPPORT (v2.0.0)
+// =============================================================================
+
+/**
+ * IndexedDB Helper Functions
+ * Используются для работы с offline data из Service Worker
+ */
+const DB_NAME = 'FamilyBudgetDB';
+const DB_VERSION = 1;
+
+async function openIndexedDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getSyncQueue(status = 'pending') {
+  const db = await openIndexedDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readonly');
+    const store = transaction.objectStore('sync_queue');
+    const index = store.index('status');
+    const request = index.getAll(status);
+
+    request.onsuccess = () => resolve(request.result || []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function updateSyncQueueItem(id, updates) {
+  const db = await openIndexedDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readwrite');
+    const store = transaction.objectStore('sync_queue');
+    const getRequest = store.get(id);
+
+    getRequest.onsuccess = () => {
+      const item = getRequest.result;
+      if (!item) {
+        reject(new Error(`Sync queue item ${id} not found`));
+        return;
+      }
+
+      const updated = { ...item, ...updates };
+      const putRequest = store.put(updated);
+
+      putRequest.onsuccess = () => resolve();
+      putRequest.onerror = () => reject(putRequest.error);
+    };
+
+    getRequest.onerror = () => reject(getRequest.error);
+  });
+}
+
+/**
+ * Background Sync Event Handler
+ * Синхронизирует offline данные при восстановлении сети
+ * Support: Chrome, Edge, Яндекс.Браузер (Safari не поддерживает)
+ */
+self.addEventListener('sync', (event) => {
+  if (DEBUG) console.log('[SW] Background Sync triggered:', event.tag);
+
+  if (event.tag === 'sync-budget-data') {
+    event.waitUntil(syncBudgetData());
+  }
+});
+
+async function syncBudgetData() {
+  const results = { synced: 0, failed: 0 };
+
+  try {
+    const queue = await getSyncQueue('pending');
+    if (queue.length === 0) return results;
+
+    for (const item of queue) {
+      try {
+        const syncResult = await syncItem(item);
+        // Only count as synced if item was actually processed (not skipped)
+        if (syncResult !== null) {
+          results.synced++;
+        }
+      } catch (error) {
+        // Silently handle "item not found" errors (race condition with main thread)
+        if (error.message && error.message.includes('not found')) {
+          continue;
+        }
+
+        const retryCount = (item.retryCount || 0) + 1;
+        try {
+          if (retryCount >= 3) {
+            await updateSyncQueueItem(item.id, { status: 'failed', error: error.message, retryCount });
+            results.failed++;
+          } else {
+            await updateSyncQueueItem(item.id, { status: 'pending', error: error.message, retryCount });
+          }
+        } catch (e) {
+          // Item already removed by main thread - ignore
+        }
+      }
+    }
+
+    // Show notification if synced items
+    if (results.synced > 0) {
+      try {
+        await self.registration.showNotification('Синхронизация завершена', {
+          body: `Синхронизировано записей: ${results.synced}`,
+          icon: '/static/icons/icon-192.png',
+          badge: '/static/icons/icon-192.png',
+          tag: 'sync-completed',
+          data: { type: 'sync_completed', count: results.synced }
+        });
+      } catch (e) {
+        // Notification permission denied - ignore
+      }
+    }
+
+    return results;
+  } catch (error) {
+    // Only log real errors, not race condition errors
+    if (!error.message || !error.message.includes('not found')) {
+      console.error('[SW] Background sync failed:', error);
+    }
+    return results; // Return results instead of throwing
+  }
+}
+
+async function syncItem(item) {
+  // Update status (ignore errors - item may have been removed by main thread)
+  try {
+    await updateSyncQueueItem(item.id, { status: 'syncing' });
+  } catch (e) {
+    // Item already processed by main thread, skip
+    return null;
+  }
+
+  let response;
+
+  switch (item.operation) {
+    case 'create':
+      response = await syncCreate(item);
+      break;
+    case 'update':
+      response = await syncUpdate(item);
+      break;
+    case 'delete':
+      response = await syncDelete(item);
+      break;
+    default:
+      throw new Error(`Unknown operation: ${item.operation}`);
+  }
+
+  // Mark as completed (ignore errors - item may have been removed)
+  try {
+    await updateSyncQueueItem(item.id, { status: 'completed' });
+  } catch (e) {
+    // Already processed
+  }
+
+  return response;
+}
+
+async function syncCreate(item) {
+  // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+  const endpoint = item.entity === 'fact' || item.entity === 'plan' ? '/api/v1/facts' :
+                   item.entity === 'transfer' ? '/api/v1/transfers' :
+                   '/api/v1/facts';
+
+  // Clean data: remove display-only fields not expected by API
+  const cleanData = { ...item.data };
+  delete cleanData.article_name;
+  delete cleanData.financial_center_name;
+  delete cleanData.cost_center_name;
+  delete cleanData.plan_date;
+  delete cleanData.fact_type;
+
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cleanData),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    let errorDetail = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorDetail = error.detail || errorDetail;
+    } catch (e) {
+      errorDetail = response.statusText || errorDetail;
+    }
+    throw new Error(errorDetail);
+  }
+
+  return await response.json();
+}
+
+async function syncUpdate(item) {
+  const id = item.data.id;
+  // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+  const endpoint = item.entity === 'fact' || item.entity === 'plan' ? `/api/v1/facts/${id}` :
+                   item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
+                   `/api/v1/facts/${id}`;
+
+  // Clean data: remove display-only fields
+  const cleanData = { ...item.data };
+  delete cleanData.article_name;
+  delete cleanData.financial_center_name;
+  delete cleanData.cost_center_name;
+  delete cleanData.plan_date;
+  delete cleanData.fact_type;
+
+  const response = await fetch(endpoint, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cleanData),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    let errorDetail = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorDetail = error.detail || errorDetail;
+    } catch (e) {
+      errorDetail = response.statusText || errorDetail;
+    }
+    throw new Error(errorDetail);
+  }
+
+  return await response.json();
+}
+
+async function syncDelete(item) {
+  const id = item.data.id;
+  // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+  const endpoint = item.entity === 'fact' || item.entity === 'plan' ? `/api/v1/facts/${id}` :
+                   item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
+                   `/api/v1/facts/${id}`;
+
+  const response = await fetch(endpoint, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    let errorDetail = `HTTP ${response.status}`;
+    try {
+      const error = await response.json();
+      errorDetail = error.detail || errorDetail;
+    } catch (e) {
+      errorDetail = response.statusText || errorDetail;
+    }
+    throw new Error(errorDetail);
+  }
+
+  // DELETE returns 204 No Content, so no JSON body
+  return { success: true };
+}
+
+/**
+ * Push Notification Event Handler
+ * Показывает push-уведомления от сервера
+ * Support: Chrome, Edge, Safari 16.4+, Яндекс.Браузер
+ */
+self.addEventListener('push', (event) => {
+  if (DEBUG) console.log('[SW] Push notification received');
+
+  const data = event.data ? event.data.json() : {};
+
+  const title = data.title || 'Family Budget';
+  const options = {
+    body: data.body || 'Новое уведомление',
+    icon: '/static/icons/icon-192.png',
+    badge: '/static/icons/icon-192.png',
+    tag: data.tag || 'notification',
+    requireInteraction: data.requireInteraction || false,
+    data: data
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
+});
+
+/**
+ * Notification Click Event Handler
+ * Открывает приложение при клике на уведомление
+ */
+self.addEventListener('notificationclick', (event) => {
+  if (DEBUG) console.log('[SW] Notification clicked:', event.notification.tag);
+
+  event.notification.close();
+
+  // Determine URL based on notification type
+  let url = '/';
+  if (event.notification.data) {
+    const data = event.notification.data;
+
+    if (data.type === 'sync_completed') {
+      url = '/facts';  // Open facts page
+    } else if (data.url) {
+      url = data.url;
+    }
+  }
+
+  // Open or focus app window
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windowClients) => {
+        // Check if there's already a window open
+        for (let i = 0; i < windowClients.length; i++) {
+          const client = windowClients[i];
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return client.focus().then(client => client.navigate(url));
+          }
+        }
+
+        // No window open, open new one
+        if (clients.openWindow) {
+          return clients.openWindow(url);
+        }
+      })
+  );
 });

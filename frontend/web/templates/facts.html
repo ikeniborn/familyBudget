@@ -12,12 +12,12 @@
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 class="text-3xl font-bold mb-2">📊 Управление транзакциями</h1>
-                <p class="text-base-content/70">Просмотр, редактирование и удаление финансовых транзакций с расширенными фильтрами</p>
+                <h1 class="text-3xl font-bold mb-2">📊 Управление фактом</h1>
+                <p class="text-base-content/70">Просмотр, редактирование и удаление финансовых фактов с расширенными фильтрами</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-success gap-1" onclick="openCreateModal()" title="Добавить новую транзакцию">
-                    ➕ Добавить транзакцию
+                <button class="btn btn-sm btn-success gap-1" onclick="openCreateModal()" title="Добавить новый факт">
+                    ➕ Добавить факт
                 </button>
                 <button class="btn btn-sm btn-warning gap-1" onclick="openTransferModal()" title="Перевод между финансовыми центрами">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -25,13 +25,13 @@
                     </svg>
                     Добавить перевод
                 </button>
-                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных фактов в CSV">
                     📄 CSV
                 </button>
-                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('excel')" title="Экспорт отфильтрованных транзакций в Excel">
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('excel')" title="Экспорт отфильтрованных фактов в Excel">
                     📊 Excel
                 </button>
-                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('pdf')" title="Экспорт отфильтрованных транзакций в PDF">
+                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('pdf')" title="Экспорт отфильтрованных фактов в PDF">
                     📑 PDF
                 </button>
             </div>
@@ -95,7 +95,7 @@
                         <label class="label">
                             <span class="label-text font-medium">📁 Категория</span>
                         </label>
-                        <select id="filter-article" class="select select-bordered category-filter w-full" title="Фильтровать транзакции по категории">
+                        <select id="filter-article" class="select select-bordered category-filter w-full" title="Фильтровать факты по категории">
                             <option value="">Все категории</option>
                             <!-- Populated dynamically -->
                         </select>
@@ -106,7 +106,7 @@
                         <label class="label">
                             <span class="label-text font-medium">🏦 Финансовый центр</span>
                         </label>
-                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать транзакции по ЦФО">
+                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать факты по ЦФО">
                             <option value="">Все ЦФО</option>
                             <!-- Populated dynamically -->
                         </select>
@@ -117,7 +117,7 @@
                         <label class="label">
                             <span class="label-text font-medium">💼 Центр затрат</span>
                         </label>
-                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать транзакции по МВЗ">
+                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать факты по МВЗ">
                             <option value="">Все МВЗ</option>
                             <!-- Populated dynamically -->
                         </select>
@@ -133,7 +133,7 @@
                         <label class="label">
                             <span class="label-text font-medium">👤 Пользователь</span>
                         </label>
-                        <select id="filter-user" class="select select-bordered w-full" title="Фильтровать транзакции по пользователю">
+                        <select id="filter-user" class="select select-bordered w-full" title="Фильтровать факты по пользователю">
                             <option value="">Все пользователи</option>
                             <!-- Populated dynamically -->
                         </select>
@@ -143,7 +143,7 @@
                         <label class="label">
                             <span class="label-text font-medium">🔍 Поиск по комментариям</span>
                         </label>
-                        <input type="text" id="filter-search" class="input input-bordered w-full" placeholder="Введите текст для поиска..." title="Поиск по описанию транзакции (trigram search)">
+                        <input type="text" id="filter-search" class="input input-bordered w-full" placeholder="Введите текст для поиска..." title="Поиск по описанию факта (trigram search)">
                     </div>
                 </div>
             </div>
@@ -166,7 +166,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
                 </svg>
             </div>
-            <div class="stat-title">Всего транзакций</div>
+            <div class="stat-title">Всего фактов</div>
             <div class="stat-value text-primary" id="stat-total">0</div>
         </div>
         <div class="stat">
@@ -184,7 +184,7 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">📋 Транзакции</h2>
+                <h2 class="card-title text-2xl">📋 Факты</h2>
                 <button class="btn btn-sm btn-error gap-1" id="batch-delete-btn" onclick="batchDelete()" disabled>
                     🗑️ Удалить выбранные
                 </button>
@@ -212,7 +212,7 @@
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать транзакцию</h3>
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать факт</h3>
         <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2 sm:space-y-4">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-control">
@@ -248,7 +248,7 @@
                     <span class="label-text">📁 Категория*</span>
                 </label>
                 <select id="edit-article" name="article_id" required class="select select-bordered">
-                    <option value="">-- Выберите категорию --</option>
+                    <option value="" disabled hidden>-- Выберите категорию --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
@@ -533,7 +533,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Allow filters collapse behavior - native DaisyUI toggle on header click
 
-    // Инициализация кнопок типа транзакции для modal_add_transaction
+    // Инициализация кнопок типа факта для modal_add_transaction
     setupCreateTransactionTypeButtons();
 
     // Установить текущую дату для modal_add_transaction (DD.MM.YYYY формат для CalendarWidget)
@@ -544,7 +544,7 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     }
 
-    // Обработчик отправки формы создания транзакции
+    // Обработчик отправки формы создания факта
     document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
         e.preventDefault();
         await createFact(e);
@@ -1124,7 +1124,7 @@ function renderFactsTable(facts) {
     updateBatchDeleteButton();
 
     if (facts.length === 0) {
-        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📊 Транзакции не найдены. Измените фильтры или добавьте новые транзакции.</div>';
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📊 Факты не найдены. Измените фильтры или добавьте новые факты.</div>';
         return;
     }
 
@@ -1160,7 +1160,7 @@ function renderFactsTable(facts) {
         const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
 
         html += `
-            <tr>
+            <tr data-fact-id="${fact.id}">
                 <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
                 <td><code class="badge badge-ghost">${fact.id}</code></td>
                 <td>${formattedDate}</td>
@@ -1299,7 +1299,7 @@ async function showEditModal(factId) {
     const editSelect = document.getElementById('edit-article');
     if (editSelect) {
         // Clear existing options
-        editSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
+        editSelect.innerHTML = '<option value="" disabled hidden>-- Выберите категорию --</option>';
 
         editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
             type: categoryType,
@@ -1430,7 +1430,7 @@ async function updateFact(event) {
 
         closeEditModal();
         await loadFacts();
-        showNotification('✅ Транзакция успешно обновлена!', 'success');
+        showNotification('✅ Факт успешно обновлен!', 'success');
     } catch (error) {
         console.error('Error updating fact:', error);
         const errorMessage = error?.message || String(error);
@@ -1447,8 +1447,8 @@ async function deleteFact(factId) {
     }
 
     const confirmed = await showConfirmDialog(
-        'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
-        '🗑️ Удаление транзакции'
+        'Вы уверены, что хотите удалить этот факт? Это действие необратимо.',
+        '🗑️ Удаление факта'
     );
 
     if (!confirmed) {
@@ -1483,7 +1483,7 @@ async function deleteFact(factId) {
         await loadFacts();
 
         // Non-blocking toast notification
-        showToast('Транзакция успешно удалена', 'success');
+        showToast('Факт успешно удален', 'success');
     } catch (error) {
         console.error('Error deleting fact:', error);
         const errorMessage = error?.message || String(error);
@@ -1502,8 +1502,8 @@ async function batchDelete() {
     if (selectedFactIds.size === 0) return;
 
     const confirmed = await showConfirmDialog(
-        `Вы уверены, что хотите удалить ${selectedFactIds.size} транзакций? Это действие необратимо.`,
-        '🗑️ Массовое удаление транзакций'
+        `Вы уверены, что хотите удалить ${selectedFactIds.size} фактов? Это действие необратимо.`,
+        '🗑️ Массовое удаление фактов'
     );
 
     if (!confirmed) {
@@ -1525,7 +1525,7 @@ async function batchDelete() {
 
         const result = await response.json();
         await loadFacts();
-        showNotification(`✅ Удалено транзакций: ${result.deleted_count}`, 'success');
+        showNotification(`✅ Удалено фактов: ${result.deleted_count}`, 'success');
     } catch (error) {
         console.error('Error batch deleting facts:', error);
         const errorMessage = error?.message || String(error);
@@ -1678,7 +1678,7 @@ function exportFilteredFacts(format) {
 
 // === CREATE MODAL FUNCTIONS ===
 
-// Установить обработчики для кнопок типа транзакции в create modal
+// Установить обработчики для кнопок типа факта в create modal
 function setupCreateTransactionTypeButtons() {
     const typeButtons = document.querySelectorAll('.transaction-type-btn');
 
@@ -1705,7 +1705,7 @@ function setupCreateTransactionTypeButtons() {
                 createCategoryTreeSelect.updateType(createType);
             }
 
-            // Обновить рекомендуемые суммы для нового типа транзакции
+            // Обновить рекомендуемые суммы для нового типа факта
             loadRecommendedAmounts('form_modal_add_transaction', 'fact');  // FIXED: form_modal_add_transaction
         });
     });
@@ -1742,7 +1742,7 @@ function setupEditCategoryTypeButtons() {
     });
 }
 
-// Создать новую транзакцию
+// Создать новый факт
 async function createFact(event) {
     event.preventDefault();
 
@@ -1759,20 +1759,31 @@ async function createFact(event) {
     };
 
     try {
-        const response = await fetch('/api/v1/facts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify(data)
-        });
+        // Use OfflineManager if available, otherwise fallback to direct fetch
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createFact(data);
 
-        if (response.ok) {
-            showToast('Транзакция успешно создана!', 'success');
+            if (result._offline) {
+                showToast('Факт сохранен оффлайн (будет синхронизирован при подключении)', 'warning');
+                debugLog('[createFact] Saved offline:', result);
+            } else {
+                showToast('Факт успешно создан!', 'success');
+                debugLog('[createFact] Saved online:', result);
+            }
+
             modal_add_transaction.close();
             event.target.reset();
-            await loadFacts(); // Перезагрузить список транзакций
+
+            // Reload facts list only if online (offline save won't be visible until sync anyway)
+            if (!result._offline && navigator.onLine) {
+                await loadFacts();
+            } else {
+                debugLog('[createFact] Skipping loadFacts() - offline mode');
+                // Update pending count badge instead
+                if (typeof updatePendingCount === 'function') {
+                    await updatePendingCount();
+                }
+            }
 
             // Установить дату обратно на сегодня
             const createFactDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
@@ -1780,16 +1791,39 @@ async function createFact(event) {
                 createFactDateInput.value = BudgetShared.DateFormatter.today();
             }
         } else {
-            const error = await response.json();
-            showToast('Ошибка: ' + (error.detail || 'Не удалось создать транзакцию'), 'error');
+            // Fallback to direct fetch if OfflineManager not available
+            const response = await fetch('/api/v1/facts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast('Факт успешно создан!', 'success');
+                modal_add_transaction.close();
+                event.target.reset();
+                await loadFacts(); // Перезагрузить список фактов
+
+                // Установить дату обратно на сегодня
+                const createFactDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+                if (createFactDateInput) {
+                    createFactDateInput.value = BudgetShared.DateFormatter.today();
+                }
+            } else {
+                const error = await response.json();
+                showToast('Ошибка: ' + (error.detail || 'Не удалось создать факт'), 'error');
+            }
         }
     } catch (error) {
         console.error('Error creating fact:', error);
-        showToast('Ошибка подключения к серверу', 'error');
+        showToast('Ошибка при создании факта: ' + error.message, 'error');
     }
 }
 
-// Установить сумму транзакции из quick amount buttons
+// Установить сумму факта из quick amount buttons
 function setTransactionAmount(amount) {
     const amountInput = document.querySelector('#form_modal_add_transaction input[name="amount"]');
     if (amountInput) {
@@ -1797,7 +1831,7 @@ function setTransactionAmount(amount) {
     }
 }
 
-// Установить дату транзакции (offset в днях: 0 = сегодня, -1 = вчера)
+// Установить дату факта (offset в днях: 0 = сегодня, -1 = вчера)
 function setTransactionDate(offsetDays) {
     const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (dateInput) {
@@ -1810,24 +1844,37 @@ function setTransactionDate(offsetDays) {
     }
 }
 
-// Toast notification helper
-function showToast(message, type = 'info') {
-    // Простая реализация toast уведомлений
-    // В production рекомендуется использовать библиотеку типа toastify
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type} fixed top-4 right-4 w-96 z-50 shadow-lg`;
-    toast.innerHTML = `
-        <span>${message}</span>
-    `;
-    document.body.appendChild(toast);
+// Toast notification helper - using global showToast() from base.html
+// (already defined in base.html with z-[9999] to appear above modals)
 
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-
-// Функция открытия модального окна создания транзакции с проверкой даты
+// Функция открытия модального окна создания факта с проверкой даты
 function openCreateModal() {
+    // Check if required data is available (categories and financial centers must be loaded)
+    const categorySelect = document.querySelector('#form_modal_add_transaction select[name="article_id"]');
+    const fcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+
+    const hasCategoryOptions = categorySelect && categorySelect.options.length > 1;
+    const hasFCOptions = fcSelect && fcSelect.options.length > 1;
+
+    if (!hasCategoryOptions || !hasFCOptions) {
+        // Data not loaded - check if offline
+        if (!navigator.onLine) {
+            showToast('Оффлайн: данные не загружены. Требуется подключение для первой загрузки.', 'error');
+            return;
+        }
+        // Online but data not loaded - try to reload
+        showToast('Загрузка данных...', 'info');
+        Promise.all([loadFinancialCenters(), loadCostCenters()]).then(() => {
+            // Re-check after loading
+            if (categorySelect.options.length > 1 && fcSelect.options.length > 1) {
+                modal_add_transaction.showModal();
+            } else {
+                showToast('Ошибка загрузки данных. Попробуйте обновить страницу.', 'error');
+            }
+        });
+        return;
+    }
+
     modal_add_transaction.showModal();
 
     // Проверить и установить дату, если поле пустое (после сброса формы)

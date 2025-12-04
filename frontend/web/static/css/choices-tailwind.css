@@ -59,20 +59,87 @@
 }
 
 /* Selected item (single select) */
-.choices-tailwind .choices__list--single .choices__item {
+.choices-tailwind .choices__list--single .choices__item,
+.choices-telegram .choices__list--single .choices__item {
     @apply text-gray-900 py-1;
 }
 
-.dark .choices-tailwind .choices__list--single .choices__item {
+.dark .choices-tailwind .choices__list--single .choices__item,
+.dark .choices-telegram .choices__list--single .choices__item {
     @apply text-white;
 }
 
-.choices-tailwind .choices__placeholder {
+.choices-tailwind .choices__placeholder,
+.choices-telegram .choices__placeholder {
     @apply text-gray-400 opacity-100;
 }
 
-.dark .choices-tailwind .choices__placeholder {
+.dark .choices-tailwind .choices__placeholder,
+.dark .choices-telegram .choices__placeholder {
     @apply text-gray-500;
+}
+
+/* Hide placeholder item in dropdown (it should only show in selected area) */
+/* Global rules (work for all Choices.js instances) */
+.choices__list--dropdown .choices__placeholder {
+    display: none !important;
+}
+
+/* Hide placeholder item by data attribute (Choices.js uses data-value="" for placeholder) */
+.choices__list--dropdown .choices__item[data-value=""] {
+    display: none !important;
+}
+
+/* Hide disabled placeholder items in dropdown */
+.choices__list--dropdown .choices__item--disabled.choices__placeholder {
+    display: none !important;
+}
+
+/* Also target by text content hint - items that look like placeholders */
+.choices__list--dropdown .choices__item--choice:first-child[data-value=""] {
+    display: none !important;
+}
+
+/* Tailwind/Telegram-specific rules (for specificity) */
+.choices-tailwind .choices__list--dropdown .choices__placeholder,
+.choices-telegram .choices__list--dropdown .choices__placeholder {
+    display: none !important;
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item[data-value=""],
+.choices-telegram .choices__list--dropdown .choices__item[data-value=""] {
+    display: none !important;
+}
+
+/* CRITICAL: Hide placeholder in selected area when another item is selected */
+/* This fixes the bug where placeholder div remains visible after category selection */
+.choices__list--single .choices__item[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices-tailwind .choices__list--single .choices__item[data-value=""]:not(:only-child),
+.choices-telegram .choices__list--single .choices__item[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with class="undefined undefined" (malformed Choices.js output) */
+/* Only hide if it has data-value="" (empty = placeholder) AND is not the only child */
+.choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices-tailwind .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child),
+.choices-telegram .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with only "undefined" class (no choices__item) - must have empty data-value */
+.choices__list--single > .undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices__list--single > div.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
 }
 
 /* Dropdown */

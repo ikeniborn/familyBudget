@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Все транзакции - Семейный бюджет</title>
+    <title>Все факты - Семейный бюджет</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -331,7 +331,7 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">Все транзакции</div>
+            <div class="page-title">Все факты</div>
         </div>
 
         <!-- Filters Section -->
@@ -347,7 +347,7 @@
                 <div class="filters-body">
                     <!-- Date Range -->
                     <div class="filter-group">
-                        <label class="filter-label" title="Выберите период для фильтрации транзакций">Период</label>
+                        <label class="filter-label" title="Выберите период для фильтрации фактов">Период</label>
                         <div class="filter-row">
                             <input type="text" id="filter-date-from" class="input" placeholder="ДД.ММ.ГГГГ" title="Дата начала периода">
                             <input type="text" id="filter-date-to" class="input" placeholder="ДД.ММ.ГГГГ" title="Дата окончания периода">
@@ -356,8 +356,8 @@
 
                     <!-- Transaction Type -->
                     <div class="filter-group">
-                        <label class="filter-label" title="Фильтр по типу транзакции">Тип</label>
-                        <select id="filter-type" class="input" title="Выберите тип транзакции">
+                        <label class="filter-label" title="Фильтр по типу факта">Тип</label>
+                        <select id="filter-type" class="input" title="Выберите тип факта">
                             <option value="">Все</option>
                             <option value="expense">Расходы</option>
                             <option value="income">Доходы</option>
@@ -366,7 +366,7 @@
 
                     <!-- Category -->
                     <div class="filter-group">
-                        <label class="filter-label" title="Фильтр по категории транзакции">Категория</label>
+                        <label class="filter-label" title="Фильтр по категории факта">Категория</label>
                         <select id="filter-category" class="input" title="Выберите категорию">
                             <option value="">Все категории</option>
                             <!-- Categories will be loaded dynamically -->
@@ -375,7 +375,7 @@
 
                     <!-- Search -->
                     <div class="filter-group">
-                        <label class="filter-label" title="Поиск транзакций по тексту описания">Поиск по описанию</label>
+                        <label class="filter-label" title="Поиск фактов по тексту описания">Поиск по описанию</label>
                         <input type="text" id="filter-search" class="input" placeholder="Введите текст..." title="Введите текст для поиска">
                     </div>
 
@@ -390,7 +390,7 @@
 
         <!-- Loading State -->
         <div class="loading-state" id="loading-state">
-            <div>Загрузка транзакций...</div>
+            <div>Загрузка фактов...</div>
         </div>
 
         <!-- Transactions List -->
@@ -401,7 +401,7 @@
         <!-- Empty State -->
         <div class="empty-state" id="empty-state" style="display: none;">
             <div class="empty-state-icon">📭</div>
-            <div class="empty-state-text">Нет транзакций по выбранным фильтрам</div>
+            <div class="empty-state-text">Нет фактов по выбранным фильтрам</div>
             <button class="btn btn-secondary" id="reset-filters-btn">Сбросить фильтры</button>
         </div>
     </div>

@@ -35,42 +35,81 @@
             <div class="card bg-base-100 shadow-xl">
                 <div class="card-body">
                     <h2 class="card-title text-xl mb-4">💡 Быстрые действия</h2>
-                    <div class="flex flex-col sm:flex-row flex-wrap gap-3">
-                        <button onclick="openAddTransactionModal()" class="btn btn-outline btn-success justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                            </svg>
-                            Добавить транзакцию
-                        </button>
 
-                        <button onclick="transfer_modal.showModal()" class="btn btn-outline btn-warning justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                            </svg>
-                            Добавить перевод
-                        </button>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Факты -->
+                        <div class="border border-success/30 rounded-lg p-3 bg-success/5">
+                            <h3 class="text-sm font-semibold text-success mb-2 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Факты
+                            </h3>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="openAddTransactionModal()" class="btn btn-sm btn-outline btn-success justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Расход / Доход
+                                </button>
+                                <button onclick="openFactTransferModal()" class="btn btn-sm btn-outline btn-warning justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                    Перевод
+                                </button>
+                            </div>
+                        </div>
 
-                        <a href="/analytics" class="btn btn-outline btn-primary justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                            Панель аналитики
-                        </a>
+                        <!-- Планы -->
+                        <div class="border border-info/30 rounded-lg p-3 bg-info/5">
+                            <h3 class="text-sm font-semibold text-info mb-2 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                                Планы
+                            </h3>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="modal_add_plan.showModal()" class="btn btn-sm btn-outline btn-info justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Расход / Доход
+                                </button>
+                                <button onclick="openPlanTransferModal()" class="btn btn-sm btn-outline btn-warning justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                                    </svg>
+                                    Перевод
+                                </button>
+                            </div>
+                        </div>
 
-                        <button onclick="modal_add_plan.showModal()" class="btn btn-outline btn-info justify-start gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                            Добавить план
-                        </button>
+                        <!-- Аналитика -->
+                        <div id="analytics-group" class="border border-primary/30 rounded-lg p-3 bg-primary/5">
+                            <h3 class="text-sm font-semibold text-primary mb-2 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                Аналитика
+                            </h3>
+                            <div class="flex flex-col gap-2">
+                                <a id="analytics-btn" href="/analytics" class="btn btn-sm btn-outline btn-primary justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    Панель аналитики
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Recent Transactions -->
-            <div class="card bg-base-100 shadow-xl">
+            <!-- Recent Transactions (hidden when offline) -->
+            <div id="recent-transactions-card" class="card bg-base-100 shadow-xl">
                 <div class="card-body">
-                    <h2 class="card-title text-xl mb-4">📈 Последние транзакции</h2>
+                    <h2 class="card-title text-xl mb-4">📈 Последние факты</h2>
                     <div id="recent-transactions"
                          hx-get="/api/v1/facts/recent-html?limit=5"
                          hx-trigger="load"
@@ -79,6 +118,45 @@
                         <div class="flex items-center justify-center py-8">
                             <span class="loading loading-spinner loading-lg text-primary"></span>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pending Records (shown when offline or items waiting to sync) -->
+            <div id="pending-records-card" class="card bg-base-100 shadow-xl hidden">
+                <div class="card-body">
+                    <h2 class="card-title text-xl mb-4">
+                        ⏳ Ожидают синхронизации
+                        <span id="pending-count-badge" class="badge badge-warning badge-sm">0</span>
+                    </h2>
+                    <div id="pending-records-container">
+                        <div class="overflow-x-auto">
+                            <table class="table table-zebra table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Тип</th>
+                                        <th>Дата</th>
+                                        <th>ЦФО</th>
+                                        <th>Тип категории</th>
+                                        <th>Категория</th>
+                                        <th>Сумма</th>
+                                        <th>Описание</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pending-records-tbody">
+                                    <!-- Populated by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-actions justify-end mt-4">
+                        <button onclick="syncPendingRecords()" class="btn btn-sm btn-primary gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Синхронизировать
+                        </button>
                     </div>
                 </div>
             </div>
@@ -140,7 +218,7 @@
 </div>
 
 {% if user %}
-    <!-- Modal: Добавить транзакцию -->
+    <!-- Modal: Добавить факт -->
     {{ transaction_modal('modal_add_transaction') }}
 
     <!-- Modal: Добавить план -->
@@ -166,7 +244,45 @@
 let transactionCategoryTreeSelect = null;
 let planCategoryTreeSelect = null;
 
-// Открыть модальное окно добавления транзакции с инициализацией даты
+// Открыть модальное окно фактического перевода
+function openFactTransferModal() {
+    // Set transfer type to 'fact'
+    if (typeof setTransferRecordType === 'function') {
+        setTransferRecordType('fact');
+    }
+    // Open transfer modal
+    const modal = document.querySelector('#transfer_modal');
+    if (modal) {
+        // Set today as default date
+        const today = BudgetShared.DateFormatter.today();
+        const dateInput = document.querySelector('#transfer_date');
+        if (dateInput) {
+            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(today);
+        }
+        modal.showModal();
+    }
+}
+
+// Открыть модальное окно планового перевода
+function openPlanTransferModal() {
+    // Set transfer type to 'plan'
+    if (typeof setTransferRecordType === 'function') {
+        setTransferRecordType('plan');
+    }
+    // Open transfer modal
+    const modal = document.querySelector('#transfer_modal');
+    if (modal) {
+        // Set today as default date
+        const today = BudgetShared.DateFormatter.today();
+        const dateInput = document.querySelector('#transfer_date');
+        if (dateInput) {
+            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(today);
+        }
+        modal.showModal();
+    }
+}
+
+// Открыть модальное окно добавления факта с инициализацией даты
 function openAddTransactionModal() {
     // Открыть модальное окно сначала
     modal_add_transaction.showModal();
@@ -185,12 +301,88 @@ function openAddTransactionModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Проверка реального статуса сети через пинг сервера
+    async function checkServerConnection() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+            const response = await fetch('/ping', {
+                method: 'GET',
+                signal: controller.signal,
+                cache: 'no-store'
+            });
+            clearTimeout(timeoutId);
+            return response.ok;
+        } catch (error) {
+            debugLog('[Network] Server ping failed:', error.message);
+            return false;
+        }
+    }
+
+    // Обновить видимость элементов в зависимости от статуса сети
+    async function updateOfflineUI() {
+        // Сначала используем navigator.onLine, потом проверяем пингом
+        let isOnline = navigator.onLine;
+
+        // Если браузер говорит что онлайн - проверяем реально через пинг
+        if (isOnline) {
+            isOnline = await checkServerConnection();
+        }
+
+        debugLog('[Offline UI] Status:', isOnline ? 'online' : 'offline');
+
+        // Скрыть/показать группу аналитики
+        const analyticsGroup = document.getElementById('analytics-group');
+        if (analyticsGroup) {
+            analyticsGroup.style.display = isOnline ? '' : 'none';
+        }
+
+        // Скрыть/показать секцию последних фактов
+        const recentCard = document.getElementById('recent-transactions-card');
+        if (recentCard) {
+            recentCard.style.display = isOnline ? '' : 'none';
+        }
+
+        // Скрыть/показать меню-гамбургер (три полоски) при оффлайн
+        const mobileMenuDropdown = document.getElementById('mobile-menu-dropdown');
+        if (mobileMenuDropdown) {
+            mobileMenuDropdown.style.display = isOnline ? '' : 'none';
+        }
+    }
+
+    // Проверить при загрузке
+    updateOfflineUI();
+
+    // Preload categories for offline use (both expense and income)
+    // This ensures categories are cached before user goes offline
+    if (typeof BudgetShared !== 'undefined' && BudgetShared.ChoicesCategoryTree) {
+        BudgetShared.ChoicesCategoryTree.preloadCategories().catch(err => {
+            debugLog('[Categories] Preload failed (will retry on demand):', err.message);
+        });
+    }
+
+    // Слушать изменения статуса сети
+    window.addEventListener('online', () => {
+        debugLog('[Network] online event fired');
+        updateOfflineUI();
+        loadPendingRecords();
+        // Перезагрузить последние факты при восстановлении сети
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+    });
+    window.addEventListener('offline', () => {
+        debugLog('[Network] offline event fired');
+        updateOfflineUI();
+    });
+
     // Загрузить категории, ЦФО и МВЗ для обеих форм
     loadCategories();
     loadFinancialCenters();
     loadCostCenters();
 
-    // Инициализация кнопок типа транзакции (Расход/Доход)
+    // Инициализация кнопок типа факта (Расход/Доход)
     setupTransactionTypeButtons();
 
     // Установить текущую дату ДО инициализации CalendarWidget (DD.MM.YYYY формат)
@@ -206,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mode: 'single',
         inputElement: factDateInput,
         onSelect: (date) => {
-            debugLog('Выбрана дата для новой транзакции:', date);
+            debugLog('Выбрана дата для нового факта:', date);
         }
     });
 
@@ -224,11 +416,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа плана (Расход/Доход)
     setupPlanTypeButtons(); // Установить обработчики кликов и перезагрузку категорий
 
-    // Обработчик отправки формы транзакции
+    // Обработчик отправки формы факта (с поддержкой offline режима)
     document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
         e.preventDefault();
 
         const formData = new FormData(e.target);
+
+        // Helper to get selected option text
+        function getSelectedText(selectElement) {
+            if (!selectElement) return null;
+            const selected = selectElement.options[selectElement.selectedIndex];
+            return selected ? selected.text : null;
+        }
+
+        // Get form elements for names
+        const fcSelect = e.target.querySelector('[name="financial_center_id"]');
+        const ccSelect = e.target.querySelector('[name="cost_center_id"]');
+
+        // Get article name from category tree (uses getSelectedCategory method)
+        let articleName = null;
+        if (transactionCategoryTreeSelect && transactionCategoryTreeSelect.getSelectedCategory) {
+            const selected = transactionCategoryTreeSelect.getSelectedCategory();
+            articleName = selected ? selected.name : null;
+        }
 
         // v5.1.3: Унификация с facts.html - использовать fact_type вместо transaction_type
         const data = {
@@ -236,67 +446,96 @@ document.addEventListener('DOMContentLoaded', function() {
             fact_type: formData.get('record_type'), // v5.1.3: было transaction_type
             amount: parseFloat(formData.get('amount')),
             article_id: parseInt(formData.get('article_id')),
+            article_name: articleName, // For offline display
             financial_center_id: parseInt(formData.get('financial_center_id')),
+            financial_center_name: getSelectedText(fcSelect), // For offline display
             cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            cost_center_name: getSelectedText(ccSelect), // For offline display
             fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')), // DD.MM.YYYY → YYYY-MM-DD
             description: formData.get('description') || null
         };
 
         try {
-            const response = await fetch('/api/v1/facts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include', // v5.1.3: включить cookies для аутентификации
-                body: JSON.stringify(data)
-            });
+            // Use OfflineManager for offline support
+            if (window.offlineManager) {
+                const result = await window.offlineManager.createFact(data);
 
-            if (response.ok) {
-                const result = await response.json();
-
-                // Обновить список транзакций и статистику ПЕРЕД закрытием окна
-                // Используем htmx.ajax() напрямую вместо trigger (hx-trigger="load" не работает с manual trigger)
-                htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
-                    target: '#recent-transactions',
-                    swap: 'innerHTML'
-                });
-                console.log('[index.html] HTMX ajax request sent to /api/v1/facts/recent-html');
-
-                htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-                    target: '#quick-stats',
-                    swap: 'innerHTML'
-                });
-                console.log('[index.html] HTMX ajax request sent to /api/v1/analytics/quick-stats-html');
-
-                // Проверка что транзакция действительно создана (имеет ID)
-                if (result && result.id) {
-                    showNotification('✅ Транзакция успешно сохранена в базе данных!', 'success');
-                } else {
-                    showNotification('⚠️ Транзакция создана, но ID не получен. Обновите страницу.', 'error');
-                    console.error('Created transaction missing ID:', result);
-                }
-
-                // Закрыть модальное окно и сбросить форму ПОСЛЕ обновления таблицы
+                // Close modal and reset form first
                 modal_add_transaction.close();
                 e.target.reset();
 
-                // Установить дату обратно на сегодня
+                // Set date back to today
                 const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
                 if (transactionDateInput) {
                     transactionDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
                 }
+
+                if (result._offline) {
+                    // Saved offline - will sync when online
+                    showToast('Факт сохранен оффлайн (будет синхронизирована при подключении)', 'warning');
+                    debugLog('[index.html] Transaction saved offline:', result);
+                    // Update pending records table
+                    loadPendingRecords();
+                } else {
+                    // Saved online - update UI
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+
+                    if (result && result.id) {
+                        showToast('Факт успешно сохранен!', 'success');
+                    } else {
+                        showToast('Факт создан, но ID не получен', 'warning');
+                    }
+                    debugLog('[index.html] Transaction saved online:', result);
+                }
             } else {
-                const error = await response.json();
-                showNotification('❌ Ошибка: ' + (error.detail || 'Не удалось создать транзакцию'), 'error');
+                // Fallback to direct fetch if OfflineManager not available
+                const response = await fetch('/api/v1/facts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+
+                    modal_add_transaction.close();
+                    e.target.reset();
+
+                    const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+                    if (transactionDateInput) {
+                        transactionDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+                    }
+
+                    showToast('Факт успешно сохранен!', 'success');
+                } else {
+                    const error = await response.json();
+                    showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать факт'), 'error');
+                }
             }
         } catch (error) {
             console.error('Error creating transaction:', error);
-            showNotification('❌ Ошибка подключения к серверу', 'error');
+            showToast('Ошибка при создании факта: ' + error.message, 'error');
         }
     });
 
-    // Обработчик отправки формы плана
+    // Обработчик отправки формы плана (с поддержкой offline режима)
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
 
@@ -306,53 +545,97 @@ document.addEventListener('DOMContentLoaded', function() {
         const planMonth = formData.get('plan_month'); // "2025-11"
         const factDate = `${planMonth}-01`; // "2025-11-01"
 
+        // Helper to get selected option text
+        function getSelectedText(selectElement) {
+            if (!selectElement) return null;
+            const selected = selectElement.options[selectElement.selectedIndex];
+            return selected ? selected.text : null;
+        }
+
+        // Get form elements for names
+        const fcSelect = e.target.querySelector('[name="financial_center_id"]');
+        const ccSelect = e.target.querySelector('[name="cost_center_id"]');
+
+        // Get article name from category tree (uses getSelectedCategory method)
+        let articleName = null;
+        if (planCategoryTreeSelect && planCategoryTreeSelect.getSelectedCategory) {
+            const selected = planCategoryTreeSelect.getSelectedCategory();
+            articleName = selected ? selected.name : null;
+        }
+
         // v5.1.3: Убрано поле transaction_type - не используется для планов
         const data = {
             record_type: 'plan',
+            fact_type: formData.get('plan_type'), // expense или income - для отображения в pending table
             amount: parseFloat(formData.get('amount')),
             article_id: parseInt(formData.get('article_id')),
+            article_name: articleName, // For offline display
             financial_center_id: parseInt(formData.get('financial_center_id')),
+            financial_center_name: getSelectedText(fcSelect), // For offline display
             cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            cost_center_name: getSelectedText(ccSelect), // For offline display
+            plan_date: factDate, // For pending table display
             fact_date: factDate, // Обязательное поле - первое число месяца плана
             description: formData.get('description') || null
         };
 
         try {
-            const response = await fetch('/api/v1/facts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include', // v5.1.3: включить cookies для аутентификации
-                body: JSON.stringify(data)
-            });
+            // Use OfflineManager for offline support
+            if (window.offlineManager) {
+                const result = await window.offlineManager.createPlan(data);
 
-            if (response.ok) {
-                const result = await response.json();
-
-                // Проверка что план действительно создан (имеет ID)
-                if (result && result.id) {
-                    showNotification('✅ План успешно сохранен в базе данных!', 'success');
-                } else {
-                    showNotification('⚠️ План создан, но ID не получен. Обновите страницу.', 'error');
-                    console.error('Created plan missing ID:', result);
-                }
-
+                // Close modal and reset form first
                 modal_add_plan.close();
                 e.target.reset();
-
-                // Переинициализировать кнопки периода (v5.1.3: как в plan.html)
                 setupPlanPeriodButtons();
 
-                // Обновить быструю статистику (план-факт блок)
-                htmx.trigger('#quick-stats', 'load');
+                if (result._offline) {
+                    showToast('План сохранен оффлайн (будет синхронизирован при подключении)', 'warning');
+                    debugLog('[index.html] Plan saved offline:', result);
+                    // Update pending records table
+                    loadPendingRecords();
+                } else {
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+
+                    if (result && result.id) {
+                        showToast('План успешно сохранен!', 'success');
+                    } else {
+                        showToast('План создан, но ID не получен', 'warning');
+                    }
+                    debugLog('[index.html] Plan saved online:', result);
+                }
             } else {
-                const error = await response.json();
-                showNotification('❌ Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+                // Fallback to direct fetch if OfflineManager not available
+                const response = await fetch('/api/v1/facts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+
+                    modal_add_plan.close();
+                    e.target.reset();
+                    setupPlanPeriodButtons();
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+
+                    showToast('План успешно сохранен!', 'success');
+                } else {
+                    const error = await response.json();
+                    showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать план'), 'error');
+                }
             }
         } catch (error) {
             console.error('Error creating plan:', error);
-            showNotification('❌ Ошибка подключения к серверу', 'error');
+            showToast('Ошибка при создании плана: ' + error.message, 'error');
         }
     });
 });
@@ -365,7 +648,7 @@ async function loadCategories() {
         debugLog('[index.html] Categories loaded successfully');
     } catch (error) {
         console.error('Failed to load categories:', error);
-        showNotification('❌ Ошибка при загрузке категорий', 'error');
+        showToast('Ошибка при загрузке категорий', 'error');
     }
 }
 
@@ -401,7 +684,7 @@ async function loadTransactionCategories() {
         debugLog('[index.html] Transaction categories loaded');
     } catch (error) {
         console.error('Failed to load transaction categories:', error);
-        showNotification('❌ Ошибка при загрузке категорий транзакций', 'error');
+        showToast('Ошибка при загрузке категорий транзакций', 'error');
     }
 }
 
@@ -428,8 +711,8 @@ async function loadPlanCategories() {
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     debugLog('Plan category changed:', category);
-                    // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+                    // Update plan hints based on selected category
+                    loadPlanHints(category);
                 }
             });
         }
@@ -437,7 +720,7 @@ async function loadPlanCategories() {
         debugLog('[index.html] Plan categories loaded');
     } catch (error) {
         console.error('Failed to load plan categories:', error);
-        showNotification('❌ Ошибка при загрузке категорий планов', 'error');
+        showToast('Ошибка при загрузке категорий планов', 'error');
     }
 }
 
@@ -454,7 +737,7 @@ async function loadFinancialCenters() {
 
             // For other errors, show error toast
             console.warn('Failed to fetch financial centers: HTTP', response.status);
-            showNotification('❌ Не удалось загрузить список ЦФО', 'error');
+            showToast('Не удалось загрузить список ЦФО', 'error');
             return;
         }
 
@@ -463,7 +746,7 @@ async function loadFinancialCenters() {
 
         if (centers.length === 0) {
             console.warn('No financial centers returned from API');
-            showNotification('⚠️ Список ЦФО пуст. Пожалуйста, создайте ЦФО в справочнике.', 'error');
+            showToast('Список ЦФО пуст. Пожалуйста, создайте ЦФО в справочнике.', 'warning');
             return;
         }
 
@@ -489,9 +772,26 @@ async function loadFinancialCenters() {
                 select.appendChild(option);
             });
         });
+
+        // Add change listeners to reload recommended amounts when ЦФО changes
+        const transactionFcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+        if (transactionFcSelect) {
+            transactionFcSelect.addEventListener('change', () => {
+                const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
+                loadRecommendedAmounts('form_modal_add_transaction', 'fact', selectedCategory);
+            });
+        }
+
+        const planFcSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+        if (planFcSelect) {
+            planFcSelect.addEventListener('change', () => {
+                const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
+                loadPlanHints(selectedCategory);
+            });
+        }
     } catch (error) {
         console.error('Failed to load financial centers:', error);
-        showNotification('❌ Ошибка при загрузке ЦФО', 'error');
+        showToast('Ошибка при загрузке ЦФО', 'error');
     }
 }
 
@@ -544,137 +844,14 @@ async function loadCostCenters() {
     }
 }
 
-// Показать уведомление (toast) - DEPRECATED, use showNotification instead
-function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `alert alert-${type} shadow-lg fixed bottom-4 right-4 w-auto max-w-md z-50`;
-    toast.innerHTML = `
-        <div>
-            <span>${message}</span>
-        </div>
-    `;
-    document.body.appendChild(toast);
+// showToast и showNotification определены в base.html - используем глобальные функции
+// (не нужно переопределять здесь)
 
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
-
-// Унифицированная функция showNotification (responsive mobile/desktop)
-function showNotification(message, type) {
-    if (typeof message === 'object' && message !== null) {
-        message = message.detail || message.message || JSON.stringify(message);
-    }
-
-    // Responsive positioning function (вынесена за пределы if для повторного использования)
-    const updatePosition = (container) => {
-        if (window.innerWidth > 768) {
-            // Desktop: правый верхний угол с отступами (учитываем высоту навбара)
-            container.style.top = '80px';
-            container.style.right = '20px';
-            container.style.left = 'auto';
-            container.style.transform = 'none';
-        } else {
-            // Mobile: центр экрана
-            container.style.top = '50%';
-            container.style.left = '50%';
-            container.style.right = 'auto';
-            container.style.transform = 'translate(-50%, -50%)';
-        }
-    };
-
-    let toastContainer = document.getElementById('toast-container');
-    if (!toastContainer) {
-        toastContainer = document.createElement('div');
-        toastContainer.id = 'toast-container';
-        toastContainer.style.cssText = `
-            position: fixed;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        `;
-
-        document.body.appendChild(toastContainer);
-
-        // Update position on window resize
-        window.addEventListener('resize', () => updatePosition(toastContainer));
-    }
-
-    // ВАЖНО: обновляем позицию КАЖДЫЙ раз при показе уведомления (не только при создании контейнера)
-    updatePosition(toastContainer);
-
-    const toast = document.createElement('div');
-    toast.className = `notification-item notification-${type}`;
-    toast.style.cssText = `
-        background: ${type === 'error' ? '#ef4444' : '#10b981'};
-        color: white;
-        padding: 16px 24px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        min-width: 280px;
-        max-width: min(500px, calc(100vw - 40px));
-        width: auto;
-        box-sizing: border-box;
-        font-size: 14px;
-        line-height: 1.5;
-        animation: slideIn 0.3s ease-out;
-        cursor: pointer;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-        word-break: break-word;
-        white-space: normal;
-        hyphens: auto;
-    `;
-    toast.textContent = message;
-
-    if (!document.getElementById('toast-animations')) {
-        const style = document.createElement('style');
-        style.id = 'toast-animations';
-        style.textContent = `
-            @keyframes slideIn {
-                from {
-                    transform: translateX(400px);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-            @keyframes slideOut {
-                from {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateX(400px);
-                    opacity: 0;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-
-    toastContainer.appendChild(toast);
-
-    const dismissTimeout = setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => toast.remove(), 300);
-    }, 5000);
-
-    toast.addEventListener('click', () => {
-        clearTimeout(dismissTimeout);
-        toast.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => toast.remove(), 300);
-    });
-}
-
-// Quick Amount для формы транзакции
+// Quick Amount для формы факта
 function setTransactionAmount(value) {
     const amountInput = document.querySelector('#form_modal_add_transaction input[name="amount"]');
     if (amountInput) {
-        amountInput.value = value.toFixed(2);
+        amountInput.value = Math.round(value);
         amountInput.focus();
     }
 }
@@ -683,12 +860,12 @@ function setTransactionAmount(value) {
 function setPlanAmount(value) {
     const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
     if (amountInput) {
-        amountInput.value = value.toFixed(2);
+        amountInput.value = Math.round(value);
         amountInput.focus();
     }
 }
 
-// Quick Date для формы транзакции
+// Quick Date для формы факта
 function setTransactionDate(daysOffset) {
     const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (dateInput) {
@@ -697,6 +874,185 @@ function setTransactionDate(daysOffset) {
         // Use DD.MM.YYYY format
         dateInput.value = BudgetShared.DateFormatter.formatForDisplay(date.toISOString().split('T')[0]);
         dateInput.focus();
+    }
+}
+
+// ============ Plan Hints Functions ============
+
+// Debounce tracking for plan hints API calls
+let planHintsTimeout = null;
+let planHintsController = null;
+
+/**
+ * Load plan hints from API and update hint buttons.
+ * Shows previous month's plan and fact sums for selected category.
+ *
+ * @param {object|null} category - Selected category (from onCategoryChange callback)
+ */
+async function loadPlanHints(category = null) {
+    // Clear existing debounce timeout
+    if (planHintsTimeout) {
+        clearTimeout(planHintsTimeout);
+    }
+
+    // Cancel pending API call
+    if (planHintsController) {
+        planHintsController.abort();
+    }
+
+    // Get hint buttons
+    const prevPlanBtn = document.getElementById('hint-prev-plan');
+    const prevFactBtn = document.getElementById('hint-prev-fact');
+
+    if (!prevPlanBtn || !prevFactBtn) {
+        debugLog('[loadPlanHints] Hint buttons not found');
+        return;
+    }
+
+    // Show loading state
+    prevPlanBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    prevPlanBtn.disabled = true;
+    prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    prevFactBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    prevFactBtn.disabled = true;
+    prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    // Check if category is selected
+    const articleId = category ? category.id : null;
+    if (!articleId) {
+        // No category selected - show placeholder
+        prevPlanBtn.innerHTML = 'План пред. мес: --';
+        prevFactBtn.innerHTML = 'Факт пред. мес: --';
+        return;
+    }
+
+    // Check if offline - show placeholder immediately
+    if (!navigator.onLine) {
+        debugLog('[loadPlanHints] Offline - showing placeholder');
+        prevPlanBtn.innerHTML = 'План пред. мес: --';
+        prevFactBtn.innerHTML = 'Факт пред. мес: --';
+        return;
+    }
+
+    // Debounce: wait 300ms after last call
+    planHintsTimeout = setTimeout(async () => {
+        try {
+            planHintsController = new AbortController();
+
+            // Get current planning period from hidden input
+            const periodInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
+            const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
+
+            // Get current type (income/expense)
+            const typeInput = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked');
+            const articleType = typeInput ? typeInput.value : 'expense';
+
+            // Get current financial center (ЦФО)
+            const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+            const financialCenterId = cfoSelect ? cfoSelect.value : null;
+
+            // Build query params
+            const params = new URLSearchParams({
+                period: period,
+                article_type: articleType,
+            });
+
+            if (articleId) {
+                params.append('article_id', articleId);
+            }
+
+            if (financialCenterId) {
+                params.append('financial_center_id', financialCenterId);
+            }
+
+            // Call API
+            const response = await fetch(`/api/v1/analytics/plan-hints?${params.toString()}`, {
+                signal: planHintsController.signal,
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.error(`[loadPlanHints] API error: ${response.status}`, errorData);
+
+                // Show error state
+                prevPlanBtn.innerHTML = 'План пред. мес: --';
+                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+                return;
+            }
+
+            const data = await response.json();
+
+            // Update hint buttons
+            updatePlanHintButtons(data);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                debugLog('[loadPlanHints] Request cancelled (debounce)');
+            } else {
+                console.error('[loadPlanHints] Failed to load:', error);
+
+                // Show error state
+                prevPlanBtn.innerHTML = 'План пред. мес: --';
+                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+            }
+        }
+    }, 300);
+}
+
+/**
+ * Update plan hint buttons with data from API.
+ *
+ * @param {object} data - Response from /api/v1/analytics/plan-hints
+ */
+function updatePlanHintButtons(data) {
+    const prevPlanBtn = document.getElementById('hint-prev-plan');
+    const prevFactBtn = document.getElementById('hint-prev-fact');
+
+    if (!prevPlanBtn || !prevFactBtn) return;
+
+    // Format amounts
+    const formatAmount = (amount) => {
+        if (amount === null || amount === undefined) return '--';
+        const num = parseFloat(amount);
+        if (num >= 1000) {
+            return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
+        }
+        return num.toFixed(0);
+    };
+
+    // Get previous period month name
+    const prevPeriodParts = data.prev_period.split('-');
+    const prevMonthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const prevMonthName = prevMonthNames[parseInt(prevPeriodParts[1]) - 1];
+
+    // Update Plan button
+    const planAmount = data.prev_period_plan_sum;
+    if (planAmount !== null && planAmount !== undefined && parseFloat(planAmount) > 0) {
+        prevPlanBtn.innerHTML = `План ${prevMonthName}: ${formatAmount(planAmount)}₽`;
+        prevPlanBtn.disabled = false;
+        prevPlanBtn.className = 'btn btn-xs btn-outline btn-info';
+        prevPlanBtn.onclick = () => setPlanAmount(parseFloat(planAmount));
+    } else {
+        prevPlanBtn.innerHTML = `План ${prevMonthName}: --`;
+        prevPlanBtn.disabled = true;
+        prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevPlanBtn.onclick = null;
+    }
+
+    // Update Fact button
+    const factAmount = data.prev_period_fact_sum;
+    if (factAmount !== null && factAmount !== undefined && parseFloat(factAmount) > 0) {
+        prevFactBtn.innerHTML = `Факт ${prevMonthName}: ${formatAmount(factAmount)}₽`;
+        prevFactBtn.disabled = false;
+        prevFactBtn.className = 'btn btn-xs btn-outline btn-success';
+        prevFactBtn.onclick = () => setPlanAmount(parseFloat(factAmount));
+    } else {
+        prevFactBtn.innerHTML = `Факт ${prevMonthName}: --`;
+        prevFactBtn.disabled = true;
+        prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevFactBtn.onclick = null;
     }
 }
 
@@ -724,25 +1080,51 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
         recommendedAmountsController.abort();
     }
 
+    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
+    const fallbackDefaults = {
+        'fact-expense': [100, 500, 1000, 5000],
+        'fact-income': [10000, 20000, 50000, 100000],
+        'plan-expense': [100, 500, 1000, 5000],
+        'plan-income': [10000, 20000, 50000, 100000],
+    };
+
+    // Helper to apply fallback amounts
+    const applyFallback = (type) => {
+        const fallbackKey = `${recordType}-${type || 'expense'}`;
+        const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
+        updateQuickAmountButtons(formId, fallbackAmounts);
+    };
+
     // Debounce: wait 300ms after last call
     recommendedAmountsTimeout = setTimeout(async () => {
+        // Get form elements early to determine type for fallback
+        const form = document.getElementById(formId);
+        if (!form) {
+            console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
+            return;
+        }
+
+        // Get current type (income/expense)
+        const typeInput = form.querySelector('input[name="record_type"]:checked') ||
+                         form.querySelector('input[name="plan_type"]:checked');
+        const type = typeInput ? typeInput.value : 'expense';
+
+        // Check if offline - use fallback immediately without API call
+        if (!navigator.onLine) {
+            debugLog('[loadRecommendedAmounts] Offline - using fallback amounts');
+            applyFallback(type);
+            return;
+        }
+
         try {
             recommendedAmountsController = new AbortController();
 
-            // Get form elements
-            const form = document.getElementById(formId);
-            if (!form) {
-                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
-                return;
-            }
-
-            // Get current type (income/expense)
-            const typeInput = form.querySelector('input[name="record_type"]:checked') ||
-                             form.querySelector('input[name="plan_type"]:checked');
-            const type = typeInput ? typeInput.value : 'expense';
-
             // Get current category (from callback parameter or fallback to DOM)
             const articleId = category ? category.id : null;
+
+            // Get current financial center (ЦФО)
+            const fcSelect = form.querySelector('select[name="financial_center_id"]');
+            const financialCenterId = fcSelect ? fcSelect.value : null;
 
             // Build query params
             const params = new URLSearchParams({
@@ -752,6 +1134,10 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
 
             if (articleId && articleId !== '') {
                 params.append('article_id', articleId);
+            }
+
+            if (financialCenterId && financialCenterId !== '') {
+                params.append('financial_center_id', financialCenterId);
             }
 
             if (type) {
@@ -767,20 +1153,10 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
 
-                // Graceful fallback for 422 (validation error or no data)
-                if (response.status === 422) {
-                    console.warn(`[loadRecommendedAmounts] API validation error (using fallback):`, errorData);
-
-                    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
-                    const fallbackDefaults = {
-                        'fact-expense': [100, 500, 1000, 5000],
-                        'fact-income': [10000, 20000, 50000, 100000],
-                    };
-
-                    const fallbackKey = `${recordType}-${type || 'expense'}`;
-                    const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
-
-                    updateQuickAmountButtons(formId, fallbackAmounts);
+                // Graceful fallback for 422 (validation error or no data) or 503 (offline/service unavailable)
+                if (response.status === 422 || response.status === 503) {
+                    debugLog(`[loadRecommendedAmounts] API ${response.status} - using fallback amounts`);
+                    applyFallback(type);
                     return;
                 }
 
@@ -797,7 +1173,9 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
             if (error.name === 'AbortError') {
                 debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
             } else {
-                console.error('[loadRecommendedAmounts] Failed to load:', error);
+                // Network error (offline, DNS failure, etc.) - use fallback silently
+                debugLog('[loadRecommendedAmounts] Network error - using fallback amounts:', error.message);
+                applyFallback(type);
             }
         }
     }, 300); // 300ms debounce
@@ -922,7 +1300,7 @@ function setupPlanPeriodButtons() {
     }
 }
 
-// Установить обработчики для кнопок типа транзакции
+// Установить обработчики для кнопок типа факта
 function setupTransactionTypeButtons() {
     const typeButtons = document.querySelectorAll('.transaction-type-btn');
 
@@ -946,7 +1324,7 @@ function setupTransactionTypeButtons() {
             debugLog('Transaction type changed to:', this.dataset.type);
             loadTransactionCategories();
 
-            // Обновить рекомендуемые суммы для нового типа транзакции
+            // Обновить рекомендуемые суммы для нового типа факта
             loadRecommendedAmounts('form_modal_add_transaction', 'fact');
         });
     });
@@ -981,6 +1359,229 @@ function setupPlanTypeButtons() {
         });
     });
 }
+
+// === Pending Records Management ===
+
+// Load and display pending records from sync queue
+async function loadPendingRecords() {
+    const card = document.getElementById('pending-records-card');
+    const tbody = document.getElementById('pending-records-tbody');
+    const countBadge = document.getElementById('pending-count-badge');
+
+    if (!card || !tbody || !window.offlineManager) {
+        return;
+    }
+
+    try {
+        const pendingItems = await window.offlineManager.getPendingSyncItems();
+
+        if (pendingItems.length === 0) {
+            card.classList.add('hidden');
+            countBadge.textContent = '0';
+            return;
+        }
+
+        // Show the card
+        card.classList.remove('hidden');
+
+        // Generate rows - transfers generate two rows (debit + credit)
+        const rows = [];
+        let totalRecords = 0;
+
+        pendingItems.forEach(item => {
+            const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
+            const amount = item.data.amount ? parseFloat(item.data.amount).toFixed(2) : '—';
+            const statusBadge = getStatusBadge(item);
+            const description = item.data.description || '—';
+
+            // For transfers, create two rows (debit and credit)
+            if (item.entity === 'transfer') {
+                // Record type for transfer: fact or plan
+                const isPlanTransfer = item.data.record_type === 'plan';
+                const typeLabel = isPlanTransfer ? 'План' : 'Факт';
+
+                // Debit row (списание) - amount in blue
+                const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
+                const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
+                rows.push(`
+                    <tr>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
+                        <td class="text-info">Списание</td>
+                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
+                        <td class="text-info font-medium">${amount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `);
+
+                // Credit row (пополнение) - amount in orange
+                const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
+                const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
+                rows.push(`
+                    <tr>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
+                        <td class="text-warning">Пополнение</td>
+                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
+                        <td class="text-warning font-medium">${amount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `);
+                totalRecords += 2;
+            } else {
+                // Regular fact or plan - single row
+                const typeLabel = getRecordTypeLabel(item.entity);
+                const cfoName = item.data.financial_center_name ||
+                    (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
+                const categoryName = item.data.article_name ||
+                    (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
+
+                // Determine category type based on fact_type (expense/income for facts)
+                // expense = red, income = green, debit = blue, credit = orange
+                const factType = item.data.fact_type || item.data.article_type || '';
+                let categoryTypeLabel, colorClass;
+                switch (factType) {
+                    case 'expense':
+                        categoryTypeLabel = 'Расход';
+                        colorClass = 'text-error';
+                        break;
+                    case 'income':
+                        categoryTypeLabel = 'Доход';
+                        colorClass = 'text-success';
+                        break;
+                    case 'debit':
+                        categoryTypeLabel = 'Списание';
+                        colorClass = 'text-info';
+                        break;
+                    case 'credit':
+                        categoryTypeLabel = 'Пополнение';
+                        colorClass = 'text-warning';
+                        break;
+                    default:
+                        categoryTypeLabel = '—';
+                        colorClass = '';
+                }
+
+                rows.push(`
+                    <tr>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
+                        <td class="${colorClass}">${categoryTypeLabel}</td>
+                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
+                        <td class="${colorClass} font-medium">${amount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td>${statusBadge}</td>
+                    </tr>
+                `);
+                totalRecords += 1;
+            }
+        });
+
+        countBadge.textContent = totalRecords;
+        tbody.innerHTML = rows.join('');
+    } catch (error) {
+        console.error('[Pending Records] Error loading:', error);
+    }
+}
+
+// Get human-readable type label (without icons)
+function getRecordTypeLabel(entity) {
+    const labels = {
+        'fact': 'Факт',
+        'plan': 'План',
+        'transfer': 'Перевод'
+    };
+    return labels[entity] || entity || '—';
+}
+
+// Get status badge HTML
+function getStatusBadge(item) {
+    if (item.retryCount > 0) {
+        return `<span class="badge badge-warning badge-sm">Повтор ${item.retryCount}</span>`;
+    }
+    return '<span class="badge badge-info badge-sm">Ожидает</span>';
+}
+
+// Sync pending records manually
+async function syncPendingRecords() {
+    if (!window.offlineManager) {
+        showToast('Менеджер синхронизации недоступен', 'error');
+        return;
+    }
+
+    const isOnline = navigator.onLine && window.offlineManager.isOnline;
+    if (!isOnline) {
+        showToast('Нет подключения к серверу', 'warning');
+        return;
+    }
+
+    try {
+        showToast('Синхронизация...', 'info');
+        await window.offlineManager.syncQueue();
+        await loadPendingRecords();
+
+        // Reload recent transactions and metrics
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+            target: '#quick-stats',
+            swap: 'innerHTML'
+        });
+
+        showToast('Синхронизация завершена', 'success');
+    } catch (error) {
+        console.error('[Sync] Error:', error);
+        showToast('Ошибка синхронизации: ' + error.message, 'error');
+    }
+}
+
+// Update pending count badge (called from other modules)
+async function updatePendingCount() {
+    const countBadge = document.getElementById('pending-count-badge');
+
+    if (!countBadge || !window.offlineManager) {
+        return 0;
+    }
+
+    try {
+        const pendingItems = await window.offlineManager.getPendingSyncItems();
+        countBadge.textContent = pendingItems.length;
+
+        // Also update card visibility
+        const card = document.getElementById('pending-records-card');
+        if (card) {
+            if (pendingItems.length > 0) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        }
+
+        return pendingItems.length;
+    } catch (error) {
+        console.error('[Pending Count] Error:', error);
+        return 0;
+    }
+}
+
+// Initialize pending records on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for offlineManager to be ready
+    setTimeout(() => {
+        loadPendingRecords();
+    }, 500);
+
+    // Also listen for online/offline events
+    window.addEventListener('online', loadPendingRecords);
+    window.addEventListener('offline', loadPendingRecords);
+});
 </script>
 
 <!-- Include Transfer Modal -->

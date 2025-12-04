@@ -62,6 +62,33 @@
     opacity: 1;
 }
 
+/* CRITICAL: Hide placeholder in selected area when another item is selected */
+/* This fixes the bug where placeholder div remains visible after category selection */
+.choices-telegram .choices__list--single .choices__item[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with class="undefined undefined" (malformed Choices.js output) */
+/* Only hide if it has data-value="" (empty = placeholder) AND is not the only child */
+.choices-telegram .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with only "undefined" class (no choices__item) - must have empty data-value */
+.choices-telegram .choices__list--single > .undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices-telegram .choices__list--single > div.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder in dropdown list */
+.choices-telegram .choices__list--dropdown .choices__placeholder,
+.choices-telegram .choices__list--dropdown .choices__item[data-value=""] {
+    display: none !important;
+}
+
 /* Dropdown */
 .choices-telegram .choices__list--dropdown {
     background-color: var(--tg-theme-bg-color, #ffffff);

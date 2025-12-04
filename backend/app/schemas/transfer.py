@@ -2,8 +2,8 @@
 
 from decimal import Decimal
 from datetime import date
-from typing import Optional
-from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Literal
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class TransferCreate(BaseModel):
@@ -19,6 +19,10 @@ class TransferCreate(BaseModel):
         max_digits=15,
         decimal_places=2,
         description="Transfer amount (must be positive)"
+    )
+    record_type: Literal["fact", "plan"] = Field(
+        default="fact",
+        description="Record type: 'fact' for actual transfers, 'plan' for planned transfers"
     )
 
     # FROM (expense)
@@ -68,14 +72,17 @@ class TransferCreate(BaseModel):
                 )
         return v
 
-    @field_validator('transfer_date')
-    @classmethod
-    def validate_not_future(cls, v):
-        """Validate transfer date is not in the future."""
+    @model_validator(mode='after')
+    def validate_date_for_record_type(self):
+        """Validate transfer date based on record_type.
+
+        - fact: date cannot be in the future
+        - plan: date can be any date (including future)
+        """
         from datetime import date as dt_date
-        if v > dt_date.today():
-            raise ValueError("Transfer date cannot be in the future")
-        return v
+        if self.record_type == "fact" and self.transfer_date > dt_date.today():
+            raise ValueError("Transfer date cannot be in the future for record_type='fact'")
+        return self
 
 
 class TransferResponse(BaseModel):

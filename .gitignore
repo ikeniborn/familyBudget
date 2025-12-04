@@ -184,6 +184,9 @@ backups/
 # Minified files (build artifacts) - НЕ vendor!
 frontend/**/static/**/*.min.js
 frontend/**/static/**/*.min.css
+# Service Worker minified (generated during deploy)
+sw.min.js
+sw.min.js.gz
 
 # Vendor files (third-party libraries) - TRACKED в git
 # Минифицированные vendor файлы должны быть в git для доставки на сервер
@@ -229,6 +232,10 @@ certbot/
 # =============================================================================
 # Project-specific (Family Budget)
 # =============================================================================
+
+# Deployment state files (generated during deployment)
+.last_deployed_version
+.migration_checksums
 
 # Nginx generated configs (auto-generated from templates)
 nginx/conf.d/app.conf

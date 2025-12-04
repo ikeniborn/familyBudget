@@ -44,6 +44,16 @@ start_services() {
     info "Starting services in detached mode (background)..."
     local start_result=0
 
+    # Determine build flag based on DOCKER_REBUILD_NEEDED
+    # DOCKER_REBUILD_NEEDED is set by version.sh:process_version_bump()
+    local build_flag=""
+    if [[ "${DOCKER_REBUILD_NEEDED:-true}" == "true" ]]; then
+        build_flag="--build"
+        info "Docker images will be rebuilt (trigger files changed or first deploy)"
+    else
+        info "Docker images will NOT be rebuilt (no trigger files changed)"
+    fi
+
     # Check if PostgreSQL should be kept running (selective restart)
     if [[ "${POSTGRES_WAS_STOPPED:-true}" == "false" ]]; then
         info "Selective restart detected - PostgreSQL will keep running"
@@ -51,17 +61,17 @@ start_services() {
 
         # Step 1: Keep PostgreSQL running with --no-recreate
         info "Starting postgres with --no-recreate..."
-        compose_cmd up --build -d --no-recreate postgres >> "$LOG_FILE" 2>&1
+        compose_cmd up $build_flag -d --no-recreate postgres >> "$LOG_FILE" 2>&1
         start_result=$?
 
         if [[ $start_result -eq 0 ]]; then
             # Step 2: Recreate backend/bot/nginx (clears Python .pyc cache)
             info "Recreating backend/bot/nginx (fresh containers for cache invalidation)..."
             if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-                compose_cmd --profile full up --build -d backend bot nginx >> "$LOG_FILE" 2>&1
+                compose_cmd --profile full up $build_flag -d backend bot nginx >> "$LOG_FILE" 2>&1
                 start_result=$?
             else
-                compose_cmd up --build -d backend >> "$LOG_FILE" 2>&1
+                compose_cmd up $build_flag -d backend >> "$LOG_FILE" 2>&1
                 start_result=$?
             fi
         fi
@@ -70,10 +80,10 @@ start_services() {
         info "Full restart - all containers will be recreated"
 
         if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            compose_cmd --profile full up --build -d >> "$LOG_FILE" 2>&1
+            compose_cmd --profile full up $build_flag -d >> "$LOG_FILE" 2>&1
             start_result=$?
         else
-            compose_cmd up --build -d >> "$LOG_FILE" 2>&1
+            compose_cmd up $build_flag -d >> "$LOG_FILE" 2>&1
             start_result=$?
         fi
     fi

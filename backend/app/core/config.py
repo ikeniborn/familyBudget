@@ -44,6 +44,12 @@ class Settings(BaseSettings):
     # Use str | list[str] to prevent Pydantic Settings from auto-parsing as JSON
     CORS_ORIGINS: str | list[str] = Field(default="")
 
+    # VAPID Keys for Web Push Notifications
+    # Generate with: ./scripts/generate_vapid_keys.sh
+    VAPID_PUBLIC_KEY: str | None = None
+    VAPID_PRIVATE_KEY: str | None = None
+    VAPID_CONTACT_EMAIL: str = "admin@example.com"
+
     # SSL
     SSL_TYPE: str = "letsencrypt"  # SSL certificate type: none, letsencrypt, self-signed, existing
 

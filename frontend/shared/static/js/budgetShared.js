@@ -1315,6 +1315,68 @@ class ChoicesCategoryTree {
     static _pendingRequests = new Map();  // key: "type:showInactive" -> Promise
 
     /**
+     * Preload categories for offline use.
+     * Call this on page load to cache both expense and income categories.
+     * Categories will be available in offline mode after preloading.
+     *
+     * @param {Object} options - Preload options
+     * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
+     * @param {boolean} options.showInactive - Include archived categories (default: false)
+     * @returns {Promise<void>}
+     */
+    static async preloadCategories(options = {}) {
+        const apiBaseUrl = options.apiBaseUrl || '/api/v1';
+        const showInactive = options.showInactive || false;
+
+        const types = ['expense', 'income'];
+
+        // Preload both types in parallel
+        const preloadPromises = types.map(async (type) => {
+            const cacheKey = `${type}:${showInactive}`;
+
+            // Skip if already cached
+            if (ChoicesCategoryTree._cache.has(cacheKey)) {
+                debugLog(`[ChoicesCategoryTree] ${type} categories already cached, skipping preload`);
+                return;
+            }
+
+            // Skip if request already in flight
+            if (ChoicesCategoryTree._pendingRequests.has(cacheKey)) {
+                debugLog(`[ChoicesCategoryTree] ${type} categories request already in progress, waiting`);
+                return ChoicesCategoryTree._pendingRequests.get(cacheKey);
+            }
+
+            const url = `${apiBaseUrl}/articles?type=${type}&sort_by=usage_count&limit=1000&include_inactive=${showInactive}`;
+
+            try {
+                const response = await fetch(url, {
+                    credentials: 'same-origin',
+                });
+
+                if (!response.ok) {
+                    console.warn(`[ChoicesCategoryTree] Failed to preload ${type} categories: HTTP ${response.status}`);
+                    return;
+                }
+
+                const data = await response.json();
+                const categories = data.articles || [];
+
+                // Cache the result
+                ChoicesCategoryTree._cache.set(cacheKey, {
+                    data: categories,
+                    timestamp: Date.now()
+                });
+
+                debugLog(`[ChoicesCategoryTree] Preloaded ${categories.length} ${type} categories`);
+            } catch (error) {
+                console.warn(`[ChoicesCategoryTree] Network error preloading ${type} categories:`, error.message);
+            }
+        });
+
+        await Promise.all(preloadPromises);
+    }
+
+    /**
      * Initialize category tree selector.
      *
      * @param {string} selector - CSS selector for select element
@@ -1373,15 +1435,6 @@ class ChoicesCategoryTree {
 
             // Initialize Choices.js
             this.initChoices(displayCategories);
-
-            // Setup path display
-            this.setupPathDisplay();
-
-            // Restore selected value if exists
-            const selectedId = this.element.value;
-            if (selectedId) {
-                await this.updatePathDisplay(parseInt(selectedId));
-            }
         } catch (error) {
             console.error('[ChoicesCategoryTree] Initialization error:', error);
             this.showError('Ошибка загрузки категорий');
@@ -1434,7 +1487,7 @@ class ChoicesCategoryTree {
             if (!response.ok) {
                 // Graceful degradation for 401 Unauthorized (user not authenticated)
                 if (response.status === 401) {
-                    console.log('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
+                    debugLog('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
                     return [];  // Empty categories array
                 }
 
@@ -1452,6 +1505,20 @@ class ChoicesCategoryTree {
             });
 
             return categories;
+        }).catch(error => {
+            // Handle network errors (offline mode)
+            console.warn('[ChoicesCategoryTree] Network error loading categories (offline?):', error.message);
+
+            // Try to use stale cache if available (ignore TTL in offline mode)
+            const staleCache = ChoicesCategoryTree._cache.get(cacheKey);
+            if (staleCache && staleCache.data && staleCache.data.length > 0) {
+                debugLog('[ChoicesCategoryTree] Using stale cache for offline mode');
+                return staleCache.data;
+            }
+
+            // No cache available - return empty array to avoid breaking UI
+            console.warn('[ChoicesCategoryTree] No cached categories available for offline mode');
+            return [];
         }).finally(() => {
             // Remove from pending requests
             ChoicesCategoryTree._pendingRequests.delete(cacheKey);
@@ -1525,6 +1592,10 @@ class ChoicesCategoryTree {
      * @param {Array} categories - Categories to display
      */
     initChoices(categories) {
+        // Clear placeholder option from select element before Choices.js initialization
+        // This prevents placeholder from appearing in dropdown list
+        this.element.innerHTML = '';
+
         // Prepare choices data with parent chain
         const choices = categories.map(cat => {
             const parentChain = this.getParentChain(cat.id);
@@ -1547,6 +1618,8 @@ class ChoicesCategoryTree {
         this.choices = new Choices(this.element, {
             searchEnabled: true,
             searchPlaceholderValue: 'Поиск категории...',
+            placeholder: true,
+            placeholderValue: '— Выберите категорию —',
             noResultsText: 'Не найдено',
             noChoicesText: 'Нет доступных категорий',
             itemSelectText: '',
@@ -1631,30 +1704,6 @@ class ChoicesCategoryTree {
     }
 
     /**
-     * Setup path display element.
-     */
-    setupPathDisplay() {
-        // Find or create path display element
-        let pathDisplay = document.querySelector(`#${this.element.id}-path`);
-
-        if (!pathDisplay) {
-            // Create path display element
-            pathDisplay = document.createElement('div');
-            pathDisplay.id = `${this.element.id}-path`;
-            pathDisplay.className = 'category-path';
-            pathDisplay.style.cssText = 'margin-top: 8px; font-size: 12px; color: var(--tg-theme-hint-color, #999);';
-
-            // Insert after Choices container
-            const choicesContainer = this.element.closest('.choices');
-            if (choicesContainer && choicesContainer.parentNode) {
-                choicesContainer.parentNode.insertBefore(pathDisplay, choicesContainer.nextSibling);
-            }
-        }
-
-        this.pathDisplay = pathDisplay;
-    }
-
-    /**
      * Handle category change event.
      *
      * @param {Event} event - Change event
@@ -1663,77 +1712,14 @@ class ChoicesCategoryTree {
         const categoryId = parseInt(event.target.value);
 
         if (!categoryId) {
-            this.pathDisplay.textContent = '';
             return;
         }
-
-        // Update path display
-        await this.updatePathDisplay(categoryId);
 
         // Call user callback
         if (this.options.onCategoryChange) {
             const category = this.categoryMap.get(categoryId);
             this.options.onCategoryChange(category);
         }
-    }
-
-    /**
-     * Update path display for selected category.
-     *
-     * @param {number} categoryId - Selected category ID
-     */
-    async updatePathDisplay(categoryId) {
-        try {
-            const path = await this.getCategoryPath(categoryId);
-            const pathText = path.map(cat => cat.name).join(' › ');
-            this.pathDisplay.textContent = pathText;
-        } catch (error) {
-            console.error('[ChoicesCategoryTree] Error updating path display:', error);
-            this.pathDisplay.textContent = '';
-        }
-    }
-
-    /**
-     * Get full category path (ancestors).
-     * Uses Bearer token (WebApp) or cookie-based auth (web interface).
-     *
-     * @param {number} categoryId - Category ID
-     * @returns {Promise<Array>} Path array (root to category)
-     */
-    async getCategoryPath(categoryId) {
-        const url = `${this.options.apiBaseUrl}/articles/${categoryId}/ancestors?include_self=true`;
-
-        // Build headers conditionally
-        const headers = {};
-
-        // If auth instance provided, use Bearer token (Telegram WebApp)
-        if (this.auth && typeof this.auth.getToken === 'function') {
-            const token = this.auth.getToken();
-            if (!token) {
-                throw new Error('No authentication token available');
-            }
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        // Otherwise, rely on cookie-based auth (web interface)
-
-        const response = await fetch(url, {
-            headers: headers,
-            credentials: 'same-origin',  // Include cookies
-        });
-
-        if (!response.ok) {
-            // Graceful degradation for 401 Unauthorized (user not authenticated)
-            if (response.status === 401) {
-                console.log('[ChoicesCategoryTree] User not authenticated - ancestors not loaded');
-                return [];  // Empty path array
-            }
-
-            // For other errors, throw with detailed status
-            throw new Error(`Failed to load ancestors: HTTP ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        return data.articles || [];
     }
 
     /**
@@ -1765,13 +1751,6 @@ class ChoicesCategoryTree {
             this.element.removeAttribute('data-choice');
         }
 
-        if (this.pathDisplay) {
-            this.pathDisplay.textContent = '';
-            if (this.pathDisplay.parentNode) {
-                this.pathDisplay.parentNode.removeChild(this.pathDisplay);
-            }
-        }
-
         this.categories = [];
         this.categoryMap.clear();
         this.childrenMap.clear();
@@ -1792,47 +1771,53 @@ class ChoicesCategoryTree {
             this.element.value = '';
         }
 
-        // Clear path display
-        if (this.pathDisplay) {
-            this.pathDisplay.textContent = '';
-        }
+        try {
+            // Load new categories from API (with offline fallback)
+            await this.loadCategories();
 
-        // Load new categories from API
-        await this.loadCategories();
+            // Build hierarchy maps
+            this.buildHierarchyMaps();
 
-        // Build hierarchy maps
-        this.buildHierarchyMaps();
+            // Filter to leaf categories if needed
+            const displayCategories = this.options.showLeafOnly
+                ? this.getLeafCategories()
+                : this.categories;
 
-        // Filter to leaf categories if needed
-        const displayCategories = this.options.showLeafOnly
-            ? this.getLeafCategories()
-            : this.categories;
+            // Update Choices.js without full recreation
+            if (this.choices) {
+                // Clear existing choices
+                this.choices.clearStore();
 
-        // Update Choices.js without full recreation
-        if (this.choices) {
-            // Clear existing choices
-            this.choices.clearStore();
+                // Prepare new choices data with parent chain
+                const choices = displayCategories.map(cat => {
+                    const parentChain = this.getParentChain(cat.id);
+                    const parentText = parentChain.length > 0
+                        ? parentChain.map(p => p.name).join(' › ')
+                        : '';
 
-            // Prepare new choices data with parent chain
-            const choices = displayCategories.map(cat => {
-                const parentChain = this.getParentChain(cat.id);
-                const parentText = parentChain.length > 0
-                    ? parentChain.map(p => p.name).join(' › ')
-                    : '';
+                    return {
+                        value: cat.id,
+                        label: cat.name,
+                        customProperties: {
+                            usage_count: cat.usage_count || 0,
+                            parent_id: cat.parent_id,
+                            parent_text: parentText,
+                        }
+                    };
+                });
 
-                return {
-                    value: cat.id,
-                    label: cat.name,
-                    customProperties: {
-                        usage_count: cat.usage_count || 0,
-                        parent_id: cat.parent_id,
-                        parent_text: parentText,
-                    }
-                };
-            });
+                // Set new choices
+                this.choices.setChoices(choices, 'value', 'label', true);
 
-            // Set new choices
-            this.choices.setChoices(choices, 'value', 'label', true);
+                // Log warning if no categories available (likely offline without cache)
+                if (choices.length === 0) {
+                    console.warn(`[ChoicesCategoryTree] No ${newType} categories available - user may be offline without cached data`);
+                }
+            }
+        } catch (error) {
+            console.error('[ChoicesCategoryTree] Error updating type:', error);
+            // Don't show alert - just log the error
+            // The dropdown will remain with old choices or empty
         }
     }
 
@@ -1880,8 +1865,6 @@ class ChoicesCategoryTree {
                 const valueToSet = targetChoice.value;
 
                 this.choices.setChoiceByValue(valueToSet);
-
-                await this.updatePathDisplay(categoryId);
             } else {
                 console.warn('[ChoicesCategoryTree] Category not found in choices:', categoryId);
             }

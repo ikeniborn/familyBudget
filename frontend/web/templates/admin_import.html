@@ -4,8 +4,8 @@
 <div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold mb-2">📥 Импорт транзакций</h1>
-        <p class="text-base-content/70">Загрузите CSV файл из вашего банка, настройте маппинг колонок, обогатите транзакции и импортируйте в бюджет</p>
+        <h1 class="text-3xl font-bold mb-2">📥 Импорт фактов</h1>
+        <p class="text-base-content/70">Загрузите CSV файл из вашего банка, настройте маппинг колонок, обогатите факты и импортируйте в бюджет</p>
     </div>
 
     <!-- Progress Indicator -->
@@ -149,7 +149,7 @@
     <div class="card bg-base-100 shadow-lg" id="step-4-enrichment" style="display: none;">
         <div class="card-body">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="card-title text-2xl">📋 Шаг 4: Обогащение транзакций</h2>
+                <h2 class="card-title text-2xl">📋 Шаг 4: Обогащение фактов</h2>
                 <div id="staging-stats" class="stats shadow">
                     <div class="stat py-2 px-4">
                         <div class="stat-title text-xs">Всего</div>
@@ -645,8 +645,11 @@ async function uploadCSV(event) {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Upload failed');
+            const errorData = await response.json();
+            const errorMessage = typeof errorData.detail === 'string'
+                ? errorData.detail
+                : (errorData.detail?.msg || JSON.stringify(errorData.detail) || 'Upload failed');
+            throw new Error(errorMessage);
         }
 
         const result = await response.json();

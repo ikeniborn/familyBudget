@@ -796,8 +796,8 @@ curl -X GET "http://localhost:8000/api/v1/notifications?notification_type=budget
 | Поле | Тип | Описание |
 |------|-----|----------|
 | `transfer_id` | integer | Уникальный ID перевода (связывает 2 транзакции) |
-| `from_fact` | BudgetFact | Транзакция списания с источника |
-| `to_fact` | BudgetFact | Транзакция пополнения получателя |
+| `from_fact` | BudgetFact | Факт списания с источника |
+| `to_fact` | BudgetFact | Факт пополнения получателя |
 
 **Atomic Transaction Behavior:**
 - Обе транзакции создаются в одной database transaction

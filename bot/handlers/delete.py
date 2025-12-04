@@ -7,6 +7,10 @@ Allows users to delete a transaction by ID with confirmation.
 from decimal import Decimal
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+import warnings
+
+# Suppress PTBUserWarning for per_message=False with CallbackQueryHandler
+warnings.filterwarnings("ignore", message=".*per_message.*CallbackQueryHandler.*", category=UserWarning)
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 
 from bot.utils.api_client import get_api_client
@@ -51,9 +55,9 @@ async def delete_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ConversationHandler.END
 
     await update.message.reply_text(
-        "🗑️ **Удаление транзакции**\n\n"
-        "Введите ID транзакции для удаления:\n\n"
-        "_ID можно найти в /list или внизу сообщений о транзакциях_\n\n"
+        "🗑️ **Удаление факта**\n\n"
+        "Введите ID факта для удаления:\n\n"
+        "_ID можно найти в /list или внизу сообщений о фактах_\n\n"
         "Отправьте /cancel для отмены",
         parse_mode="Markdown"
     )
@@ -124,17 +128,17 @@ async def id_entered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         error_message = str(e)
         if "404" in error_message or "not found" in error_message.lower():
             await update.message.reply_text(
-                f"❌ Транзакция с ID {fact_id} не найдена.\n\n"
+                f"❌ Факт с ID {fact_id} не найден.\n\n"
                 f"Проверьте ID и попробуйте еще раз или отправьте /cancel"
             )
         elif "403" in error_message or "forbidden" in error_message.lower():
             await update.message.reply_text(
-                f"❌ У вас нет доступа к транзакции с ID {fact_id}.\n\n"
+                f"❌ У вас нет доступа к факту с ID {fact_id}.\n\n"
                 f"Попробуйте другой ID или отправьте /cancel"
             )
         else:
             await update.message.reply_text(
-                "❌ Произошла ошибка при загрузке транзакции.\n\n"
+                "❌ Произошла ошибка при загрузке факта.\n\n"
                 "Попробуйте позже или отправьте /cancel"
             )
 
@@ -176,7 +180,7 @@ def format_delete_confirmation(fact: dict, article: dict) -> str:
 
     return f"""🗑️ **Подтверждение удаления**
 
-Вы действительно хотите удалить эту транзакцию?
+Вы действительно хотите удалить этот факт?
 
 {type_emoji} **{type_text}**
 Категория: {article_name}
@@ -213,11 +217,11 @@ async def confirmation_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         fact_id = context.user_data.get("delete_fact_id")
 
         if not fact_id:
-            await query.edit_message_text("❌ Ошибка: ID транзакции не найден")
+            await query.edit_message_text("❌ Ошибка: ID факта не найден")
             return ConversationHandler.END
 
         # Show "deleting" message
-        await query.edit_message_text("⏳ Удаление транзакции...")
+        await query.edit_message_text("⏳ Удаление факта...")
 
         try:
             token = SessionManager.get_access_token(context)
@@ -227,9 +231,9 @@ async def confirmation_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             await api_client.delete_fact(token, fact_id)
 
             await query.edit_message_text(
-                f"✅ **Транзакция удалена!**\n\n"
-                f"ID транзакции: `{fact_id}`\n\n"
-                f"Используйте /list для просмотра оставшихся транзакций",
+                f"✅ **Факт удалён!**\n\n"
+                f"ID факта: `{fact_id}`\n\n"
+                f"Используйте /list для просмотра оставшихся фактов",
                 parse_mode="Markdown"
             )
 
@@ -240,7 +244,7 @@ async def confirmation_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         except Exception as e:
             logger.error(f"Error deleting fact {fact_id}: {e}", exc_info=True)
             await query.edit_message_text(
-                "❌ Произошла ошибка при удалении транзакции.\n\n"
+                "❌ Произошла ошибка при удалении факта.\n\n"
                 "Попробуйте позже"
             )
             return ConversationHandler.END

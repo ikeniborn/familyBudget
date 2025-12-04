@@ -4,6 +4,12 @@
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
 <link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+<!-- Choices.js for Transfer Modal -->
+<link rel="stylesheet" href="/static/css/vendor/choices.min.css">
+<link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
+<script src="/static/js/vendor/choices.min.js"></script>
+<!-- ECharts library for analytics charts -->
+<script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
 {% endblock %}
 
 {% block content %}
@@ -18,6 +24,9 @@
             <div class="flex flex-wrap gap-2">
                 <button class="btn btn-sm btn-info gap-1" onclick="modal_add_plan.showModal()" title="Добавить новый план">
                     ➕ Добавить план
+                </button>
+                <button class="btn btn-sm btn-warning gap-1" onclick="openPlanTransferModal()" title="Добавить перевод">
+                    🔄 Добавить перевод
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
@@ -175,6 +184,103 @@
         </div>
     </div>
 
+    <!-- Plan Analytics Section -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">📊 Аналитика планирования</h2>
+
+            <!-- Analytics Filters - Row 1 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                <!-- Planning Month Filter -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📅 Месяц планирования</span>
+                    </label>
+                    <div class="join h-12" id="analytics-month-buttons">
+                        <!-- Buttons populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- CFO Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">🏦 Финансовый центр</span>
+                    </label>
+                    <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="loadPlanAnalytics()">
+                        <option value="">Все ЦФО</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Article Type Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">💰 Тип категории</span>
+                    </label>
+                    <select id="analytics-article-type" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleTypeChange()">
+                        <option value="">Все типы</option>
+                        <option value="expense">Расходы</option>
+                        <option value="income">Доходы</option>
+                        <option value="debit">Списание</option>
+                        <option value="credit">Пополнение</option>
+                    </select>
+                </div>
+
+                <!-- Article Filter for Analytics -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📁 Категория</span>
+                    </label>
+                    <select id="analytics-article" class="select select-bordered h-12 w-full" onchange="onAnalyticsArticleChange()" title="Фильтр категорий для графика">
+                        <option value="">Все категории</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Расходы</div>
+                    <div class="stat-value text-error text-lg" id="analytics-expense">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Доходы</div>
+                    <div class="stat-value text-success text-lg" id="analytics-income">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Списание</div>
+                    <div class="stat-value text-warning text-lg" id="analytics-debit">0</div>
+                </div>
+                <div class="stat bg-base-200 rounded-box p-4">
+                    <div class="stat-title text-xs">Пополнение</div>
+                    <div class="stat-value text-info text-lg" id="analytics-credit">0</div>
+                </div>
+            </div>
+
+            <!-- Charts Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="analytics-charts-grid">
+                <!-- Comparison Chart: Types on X-axis, months as columns -->
+                <div class="bg-base-200 rounded-box p-4">
+                    <h3 class="font-semibold mb-2">📊 По типам операций</h3>
+                    <div id="chart-plan-comparison" style="height: 300px;"></div>
+                </div>
+
+                <!-- Categories Bar Chart -->
+                <div class="bg-base-200 rounded-box p-4">
+                    <h3 class="font-semibold mb-2">📁 По категориям</h3>
+                    <div id="chart-plan-categories" style="height: 300px;"></div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="analytics-empty-state" class="hidden text-center py-8 text-base-content/60">
+                <div class="text-4xl mb-2">📅</div>
+                <p>Нет данных для отображения. Добавьте плановые записи.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Facts Table -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
@@ -204,6 +310,9 @@
 <!-- Create Plan Modal -->
 {{ plan_modal('modal_add_plan') }}
 
+<!-- Transfer Modal -->
+{% include "components/modal_transfer.html" %}
+
 <!-- Edit Fact Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
@@ -227,7 +336,7 @@
                     <span class="label-text">📁 Категория*</span>
                 </label>
                 <select id="edit-article" name="article_id" required class="select select-bordered">
-                    <option value="">-- Выберите категорию --</option>
+                    <option value="" disabled hidden>-- Выберите категорию --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
@@ -354,6 +463,7 @@
 {% block extra_scripts %}
 <script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/transfer.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
 
 <script>
@@ -385,6 +495,42 @@ let filters = {
 // Debounce state for recommended amounts
 let recommendedAmountsTimeout = null;
 let recommendedAmountsController = null;
+
+/**
+ * Open transfer modal in plan mode
+ * Sets record_type to 'plan' and shows the modal
+ */
+function openPlanTransferModal() {
+    // Set transfer record type to plan
+    if (typeof setTransferRecordType === 'function') {
+        setTransferRecordType('plan');
+    }
+
+    // Update modal title to indicate plan transfer
+    const modalTitle = document.querySelector('#transfer_modal h3');
+    if (modalTitle) {
+        modalTitle.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            Плановый перевод
+        `;
+    }
+
+    // Show the modal
+    const modal = document.querySelector('#transfer_modal');
+    if (modal) {
+        // Set default date to first day of selected month
+        const selectedMonth = document.querySelector('input[name="month"]')?.value || new Date().toISOString().slice(0, 7);
+        const defaultDate = selectedMonth + '-01';
+        const dateInput = document.querySelector('#transfer_date');
+        if (dateInput && typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
+            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(defaultDate);
+        }
+
+        modal.showModal();
+    }
+}
 
 /**
  * Load recommended amounts from API and update quick amount buttons.
@@ -482,6 +628,177 @@ async function loadRecommendedAmounts(formId, recordType = 'plan', category = nu
             }
         }
     }, 300); // 300ms debounce
+}
+
+// ==================== Plan Hints (for modal_add_plan) ====================
+
+// Debounce state for plan hints
+let planHintsTimeout = null;
+let planHintsController = null;
+
+/**
+ * Load plan hints from API and update hint buttons.
+ * Shows previous month's plan and fact sums for selected category.
+ *
+ * @param {object|null} category - Selected category (from onCategoryChange callback)
+ */
+async function loadPlanHints(category = null) {
+    // Clear existing debounce timeout
+    if (planHintsTimeout) {
+        clearTimeout(planHintsTimeout);
+    }
+
+    // Cancel pending API call
+    if (planHintsController) {
+        planHintsController.abort();
+    }
+
+    // Get hint buttons
+    const prevPlanBtn = document.getElementById('hint-prev-plan');
+    const prevFactBtn = document.getElementById('hint-prev-fact');
+
+    if (!prevPlanBtn || !prevFactBtn) {
+        debugLog('[loadPlanHints] Hint buttons not found');
+        return;
+    }
+
+    // Show loading state
+    prevPlanBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    prevPlanBtn.disabled = true;
+    prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    prevFactBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    prevFactBtn.disabled = true;
+    prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    // Check if category is selected
+    const articleId = category ? category.id : null;
+    if (!articleId) {
+        // No category selected - show placeholder
+        prevPlanBtn.innerHTML = 'План пред. мес: --';
+        prevFactBtn.innerHTML = 'Факт пред. мес: --';
+        return;
+    }
+
+    // Debounce: wait 300ms after last call
+    planHintsTimeout = setTimeout(async () => {
+        try {
+            planHintsController = new AbortController();
+
+            // Get current planning period from hidden input
+            const periodInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
+            const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
+
+            // Get current type (income/expense)
+            const typeInput = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked');
+            const articleType = typeInput ? typeInput.value : 'expense';
+
+            // Get current financial center (ЦФО)
+            const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+            const financialCenterId = cfoSelect ? cfoSelect.value : null;
+
+            // Build query params
+            const params = new URLSearchParams({
+                period: period,
+                article_type: articleType,
+            });
+
+            if (articleId) {
+                params.append('article_id', articleId);
+            }
+
+            if (financialCenterId) {
+                params.append('financial_center_id', financialCenterId);
+            }
+
+            // Call API
+            const response = await fetch(`/api/v1/analytics/plan-hints?${params.toString()}`, {
+                signal: planHintsController.signal,
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.error(`[loadPlanHints] API error: ${response.status}`, errorData);
+
+                // Show error state
+                prevPlanBtn.innerHTML = 'План пред. мес: --';
+                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+                return;
+            }
+
+            const data = await response.json();
+
+            // Update hint buttons
+            updatePlanHintButtons(data);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                debugLog('[loadPlanHints] Request cancelled (debounce)');
+            } else {
+                console.error('[loadPlanHints] Failed to load:', error);
+
+                // Show error state
+                prevPlanBtn.innerHTML = 'План пред. мес: --';
+                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+            }
+        }
+    }, 300);
+}
+
+/**
+ * Update plan hint buttons with data from API.
+ *
+ * @param {object} data - Response from /api/v1/analytics/plan-hints
+ */
+function updatePlanHintButtons(data) {
+    const prevPlanBtn = document.getElementById('hint-prev-plan');
+    const prevFactBtn = document.getElementById('hint-prev-fact');
+
+    if (!prevPlanBtn || !prevFactBtn) return;
+
+    // Format amounts
+    const formatAmount = (amount) => {
+        if (amount === null || amount === undefined) return '--';
+        const num = parseFloat(amount);
+        if (num >= 1000) {
+            return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
+        }
+        return num.toFixed(0);
+    };
+
+    // Get previous period month name
+    const prevPeriodParts = data.prev_period.split('-');
+    const prevMonthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const prevMonthName = prevMonthNames[parseInt(prevPeriodParts[1]) - 1];
+
+    // Update Plan button
+    const planAmount = data.prev_period_plan_sum;
+    if (planAmount !== null && planAmount !== undefined && parseFloat(planAmount) > 0) {
+        prevPlanBtn.innerHTML = `План ${prevMonthName}: ${formatAmount(planAmount)}₽`;
+        prevPlanBtn.disabled = false;
+        prevPlanBtn.className = 'btn btn-xs btn-outline btn-info';
+        prevPlanBtn.onclick = () => setPlanAmount(parseFloat(planAmount));
+    } else {
+        prevPlanBtn.innerHTML = `План ${prevMonthName}: --`;
+        prevPlanBtn.disabled = true;
+        prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevPlanBtn.onclick = null;
+    }
+
+    // Update Fact button
+    const factAmount = data.prev_period_fact_sum;
+    if (factAmount !== null && factAmount !== undefined && parseFloat(factAmount) > 0) {
+        prevFactBtn.innerHTML = `Факт ${prevMonthName}: ${formatAmount(factAmount)}₽`;
+        prevFactBtn.disabled = false;
+        prevFactBtn.className = 'btn btn-xs btn-outline btn-success';
+        prevFactBtn.onclick = () => setPlanAmount(parseFloat(factAmount));
+    } else {
+        prevFactBtn.innerHTML = `Факт ${prevMonthName}: --`;
+        prevFactBtn.disabled = true;
+        prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevFactBtn.onclick = null;
+    }
 }
 
 // Collapse filters panel
@@ -695,8 +1012,8 @@ function initializeCreateModalCategories() {
             showLeafOnly: true,
             onCategoryChange: (category) => {
                 debugLog('Category changed in create modal:', category);
-                // Update recommended amounts based on selected category
-                loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+                // Update plan hints based on selected category
+                loadPlanHints(category);
             }
         });
 
@@ -873,6 +1190,12 @@ async function loadFinancialCenters() {
                 option.value = center.id;
                 option.textContent = center.name;
                 createSelect.appendChild(option);
+            });
+
+            // Add change listener to reload plan hints when ЦФО changes
+            createSelect.addEventListener('change', () => {
+                const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
+                loadPlanHints(selectedCategory);
             });
         }
 
@@ -1113,7 +1436,7 @@ function renderFactsTable(facts) {
         const articleName = fact.article_name || '—';
 
         html += `
-            <tr>
+            <tr data-plan-id="${fact.id}">
                 <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
                 <td><code class="badge badge-ghost">${fact.id}</code></td>
                 <td>${formattedDate}</td>
@@ -1237,7 +1560,7 @@ async function showEditModal(factId) {
     const editSelect = document.getElementById('edit-article');
     if (editSelect) {
         // Clear existing options
-        editSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
+        editSelect.innerHTML = '<option value="" disabled hidden>-- Выберите категорию --</option>';
 
         editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
             type: categoryType,
@@ -1365,7 +1688,7 @@ async function updateFact(event) {
 
         closeEditModal();
         await loadFacts();
-        showNotification('✅ Транзакция успешно обновлена!', 'success');
+        showNotification('✅ Факт успешно обновлен!', 'success');
     } catch (error) {
         console.error('Error updating fact:', error);
         const errorMessage = error?.message || String(error);
@@ -1417,7 +1740,7 @@ async function deleteFact(factId) {
         await loadFacts();
 
         // Non-blocking toast notification
-        showToast('Транзакция успешно удалена', 'success');
+        showToast('Факт успешно удален', 'success');
     } catch (error) {
         console.error('Error deleting fact:', error);
         const errorMessage = error?.message || String(error);
@@ -1645,14 +1968,15 @@ function setupCreatePlanTypeButtons() {
                         showLeafOnly: true,
                         onCategoryChange: (category) => {
                             debugLog('Category changed in create modal:', category);
-                            loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+                            loadPlanHints(category);
                         }
                     });
                 }
             }
 
-            // Обновить рекомендуемые суммы для нового типа плана
-            loadRecommendedAmounts('form_modal_add_plan', 'plan');
+            // Обновить подсказки для нового типа плана
+            const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
+            loadPlanHints(selectedCategory);
         });
     });
 }
@@ -1690,6 +2014,10 @@ function setupCreatePlanPeriodButtons() {
 
             // Установить значение в скрытое поле
             hiddenInput.value = `${this.dataset.year}-${this.dataset.month}`;
+
+            // Обновить подсказки для нового периода
+            const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
+            loadPlanHints(selectedCategory);
         });
     });
 }
@@ -1715,16 +2043,18 @@ async function createPlan(event) {
     };
 
     try {
-        const response = await fetch('/api/v1/facts', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(data)
-        });
+        // Use OfflineManager if available, otherwise fallback to direct fetch
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createPlan(data);
 
-        if (response.ok) {
-            showToast('План успешно создан!', 'success');
+            if (result._offline) {
+                showToast('План сохранён оффлайн (будет синхронизирован при подключении)', 'warning');
+                debugLog('[createPlan] Saved offline:', result);
+            } else {
+                showToast('План успешно создан!', 'success');
+                debugLog('[createPlan] Saved online:', result);
+            }
+
             create_modal.close();
             event.target.reset();
             await loadFacts(); // Перезагрузить список планов
@@ -1732,12 +2062,31 @@ async function createPlan(event) {
             // Переинициализировать кнопки периода
             setupCreatePlanPeriodButtons();
         } else {
-            const error = await response.json();
-            showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+            // Fallback to direct fetch if OfflineManager not available
+            const response = await fetch('/api/v1/facts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (response.ok) {
+                showToast('План успешно создан!', 'success');
+                create_modal.close();
+                event.target.reset();
+                await loadFacts(); // Перезагрузить список планов
+
+                // Переинициализировать кнопки периода
+                setupCreatePlanPeriodButtons();
+            } else {
+                const error = await response.json();
+                showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
+            }
         }
     } catch (error) {
         console.error('Error creating plan:', error);
-        showToast('Ошибка подключения к серверу', 'error');
+        showToast('Ошибка при создании плана: ' + error.message, 'error');
     }
 }
 
@@ -1764,5 +2113,522 @@ function showToast(message, type = 'info') {
         toast.remove();
     }, 3000);
 }
+
+// ==================== Plan Analytics ====================
+
+// Analytics state
+let analyticsComparisonChart = null;
+let analyticsCategoriesChart = null;
+let currentAnalyticsMonth = null;  // YYYY-MM format
+let analyticsData = null;
+let analyticsArticlesCache = [];  // Cache for article filter
+
+// Initialize analytics on page load
+document.addEventListener('DOMContentLoaded', function() {
+    initAnalyticsMonthButtons();
+    loadAnalyticsCFOFilter();
+    loadAnalyticsArticleFilter();
+    loadPlanAnalytics();
+});
+
+// Initialize month buttons for analytics
+function initAnalyticsMonthButtons() {
+    const container = document.getElementById('analytics-month-buttons');
+    if (!container) return;
+
+    const today = new Date();
+    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
+    // Create buttons for current month and next 2 months
+    for (let offset = 0; offset < 3; offset++) {
+        const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+
+        const btn = document.createElement('button');
+        btn.className = offset === 0 ? 'join-item btn btn-primary' : 'join-item btn btn-outline';
+        btn.style.height = '3rem';
+        btn.textContent = label;
+        btn.dataset.month = yearMonth;
+        btn.onclick = () => selectAnalyticsMonth(yearMonth, btn);
+
+        container.appendChild(btn);
+
+        // Set initial month
+        if (offset === 0) {
+            currentAnalyticsMonth = yearMonth;
+        }
+    }
+}
+
+// Select analytics month
+function selectAnalyticsMonth(month, clickedBtn) {
+    currentAnalyticsMonth = month;
+
+    // Update button styles
+    const buttons = document.querySelectorAll('#analytics-month-buttons button');
+    buttons.forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+    });
+    clickedBtn.classList.remove('btn-outline');
+    clickedBtn.classList.add('btn-primary');
+
+    // Reload analytics
+    loadPlanAnalytics();
+}
+
+// Load CFO filter options for analytics
+async function loadAnalyticsCFOFilter() {
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const centers = data.financial_centers || [];
+
+        const select = document.getElementById('analytics-cfo-filter');
+        if (!select) return;
+
+        centers.forEach(center => {
+            const option = document.createElement('option');
+            option.value = center.id;
+            option.textContent = center.name;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading CFO filter:', error);
+    }
+}
+
+// Load article filter options for analytics
+async function loadAnalyticsArticleFilter(articleType = null) {
+    try {
+        let url = '/api/v1/admin/articles?limit=1000&sort_by=usage_count';
+        if (articleType) {
+            url += `&type=${articleType}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const articles = Array.isArray(data) ? data : (data.articles || []);
+        analyticsArticlesCache = articles;
+
+        const select = document.getElementById('analytics-article');
+        if (!select) return;
+
+        // Save current selection
+        const currentValue = select.value;
+
+        // Clear and repopulate
+        select.innerHTML = '<option value="">Все категории</option>';
+
+        // Build tree and flatten (same as plan filter)
+        const tree = buildArticleTree(articles);
+        const flatNodes = flattenArticleTree(tree);
+
+        // Group by type while preserving hierarchical order
+        const groupedByType = { 'expense': [], 'income': [], 'debit': [], 'credit': [] };
+        flatNodes.forEach(node => {
+            if (groupedByType[node.type]) {
+                groupedByType[node.type].push(node);
+            }
+        });
+
+        // Flatten back in type order
+        const sortedNodes = [
+            ...groupedByType['expense'],
+            ...groupedByType['income'],
+            ...groupedByType['debit'],
+            ...groupedByType['credit']
+        ];
+
+        // Build options
+        sortedNodes.forEach(node => {
+            const option = document.createElement('option');
+            option.value = node.id;
+            const indent = '›  '.repeat(node.level);
+            const icon = node.isLeaf ? '▸' : '📂';
+            option.textContent = `${indent}${icon} ${node.name}`;
+            option.dataset.type = node.type;
+
+            // Color coding by article type
+            if (node.type === 'expense') {
+                option.style.color = 'rgb(239, 68, 68)'; // Красный
+            } else if (node.type === 'income') {
+                option.style.color = 'rgb(34, 197, 94)'; // Зелёный
+            } else if (node.type === 'debit') {
+                option.style.color = 'rgb(59, 130, 246)'; // Синий
+            } else if (node.type === 'credit') {
+                option.style.color = 'rgb(251, 146, 60)'; // Оранжевый
+            }
+
+            // Style parent categories
+            if (!node.isLeaf) {
+                option.style.fontWeight = 'bold';
+                option.style.opacity = '0.7';
+            }
+
+            select.appendChild(option);
+        });
+
+        // Restore selection if still valid
+        if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+            select.value = currentValue;
+        }
+    } catch (error) {
+        console.error('Error loading article filter:', error);
+    }
+}
+
+// Handle article type change in analytics
+function onAnalyticsArticleTypeChange() {
+    const typeSelect = document.getElementById('analytics-article-type');
+    const articleType = typeSelect?.value || null;
+
+    // Reload article filter with type filter
+    loadAnalyticsArticleFilter(articleType);
+
+    // Update categories chart with new filter
+    loadCategoriesChartData();
+}
+
+// Handle article filter change - updates only categories chart
+function onAnalyticsArticleChange() {
+    loadCategoriesChartData();
+}
+
+// Load data for categories chart only (with article type/category filters)
+async function loadCategoriesChartData() {
+    try {
+        let url = `/api/v1/analytics/plans/monthly-comparison?planning_month=${currentAnalyticsMonth}`;
+
+        const cfoFilter = document.getElementById('analytics-cfo-filter');
+        if (cfoFilter && cfoFilter.value) {
+            url += `&financial_center_id=${cfoFilter.value}`;
+        }
+
+        // Apply article type and category filters for categories chart
+        const typeFilter = document.getElementById('analytics-article-type');
+        if (typeFilter && typeFilter.value) {
+            url += `&article_type=${typeFilter.value}`;
+        }
+
+        const articleFilter = document.getElementById('analytics-article');
+        if (articleFilter && articleFilter.value) {
+            url += `&article_id=${articleFilter.value}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Update only categories chart
+        if (!analyticsCategoriesChart) {
+            initCategoriesChart();
+        }
+        updateCategoriesChart(data);
+
+    } catch (error) {
+        console.error('Error loading categories chart data:', error);
+    }
+}
+
+// Load plan analytics data (only depends on month and CFO, NOT on article type/category)
+async function loadPlanAnalytics() {
+    try {
+        // Build URL with filters (only month and CFO affect analytics)
+        let url = `/api/v1/analytics/plans/monthly-comparison?planning_month=${currentAnalyticsMonth}`;
+
+        const cfoFilter = document.getElementById('analytics-cfo-filter');
+        if (cfoFilter && cfoFilter.value) {
+            url += `&financial_center_id=${cfoFilter.value}`;
+        }
+
+        // Note: article_type and article_id are NOT included - analytics shows full picture
+
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        analyticsData = await response.json();
+
+        // Update summary cards
+        updateAnalyticsSummary(analyticsData);
+
+        // Check if we have any data
+        const hasData = analyticsData.current_month.total_records > 0 ||
+                       analyticsData.previous_month.total_records > 0;
+
+        const emptyState = document.getElementById('analytics-empty-state');
+        const chartsGrid = document.getElementById('analytics-charts-grid');
+
+        if (!hasData) {
+            emptyState?.classList.remove('hidden');
+            chartsGrid?.classList.add('hidden');
+        } else {
+            emptyState?.classList.add('hidden');
+            chartsGrid?.classList.remove('hidden');
+
+            // Initialize and update charts
+            initComparisonChart();
+            updateComparisonChart(analyticsData);
+
+            initCategoriesChart();
+            updateCategoriesChart(analyticsData);
+        }
+
+    } catch (error) {
+        console.error('Error loading plan analytics:', error);
+        showToast('Ошибка загрузки аналитики: ' + error.message, 'error');
+    }
+}
+
+// Update summary cards (by type)
+function updateAnalyticsSummary(data) {
+    const formatAmount = (amount) => {
+        return new Intl.NumberFormat('ru-RU', {
+            style: 'decimal',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount);
+    };
+
+    const byType = data.current_month.by_type || {};
+    document.getElementById('analytics-expense').textContent = formatAmount(byType.expense || 0);
+    document.getElementById('analytics-income').textContent = formatAmount(byType.income || 0);
+    document.getElementById('analytics-debit').textContent = formatAmount(byType.debit || 0);
+    document.getElementById('analytics-credit').textContent = formatAmount(byType.credit || 0);
+}
+
+// Initialize comparison bar chart
+function initComparisonChart() {
+    const chartDom = document.getElementById('chart-plan-comparison');
+    if (!chartDom) return;
+
+    if (analyticsComparisonChart) {
+        analyticsComparisonChart.dispose();
+    }
+
+    analyticsComparisonChart = echarts.init(chartDom);
+}
+
+// Update comparison chart - Types on X-axis, months as series
+function updateComparisonChart(data) {
+    if (!analyticsComparisonChart) return;
+
+    const typeLabels = {
+        expense: 'Расходы',
+        income: 'Доходы',
+        debit: 'Списание',
+        credit: 'Пополнение'
+    };
+
+    const typeColors = {
+        expense: '#ef4444',
+        income: '#22c55e',
+        debit: '#f59e0b',
+        credit: '#3b82f6'
+    };
+
+    const types = ['expense', 'income', 'debit', 'credit'];
+    const currentByType = data.current_month.by_type || {};
+    const previousByType = data.previous_month.by_type || {};
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function(params) {
+                let result = params[0].axisValue + '<br/>';
+                params.forEach(param => {
+                    const value = new Intl.NumberFormat('ru-RU').format(param.value);
+                    result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+                });
+                return result;
+            }
+        },
+        legend: {
+            data: [data.previous_month.month_name, data.current_month.month_name],
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '20%',
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            name: 'Тип операции',
+            nameLocation: 'center',
+            nameGap: 30,
+            nameTextStyle: { color: '#6b7280', fontSize: 12 },
+            data: types.map(t => typeLabels[t]),
+            axisLine: { lineStyle: { color: '#e5e7eb' } },
+            axisTick: { lineStyle: { color: '#e5e7eb' } },
+            axisLabel: { color: '#374151' }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                color: '#374151',
+                formatter: function(value) {
+                    if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+                    if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
+                    return value;
+                }
+            },
+            splitLine: {
+                show: true,
+                lineStyle: { color: '#e5e7eb', type: 'dashed' }
+            },
+            axisLine: { show: true, lineStyle: { color: '#e5e7eb' } }
+        },
+        series: [
+            {
+                name: data.previous_month.month_name,
+                type: 'bar',
+                data: types.map((t, i) => ({
+                    value: previousByType[t] || 0,
+                    itemStyle: { color: typeColors[t], opacity: 0.25 }
+                })),
+                barWidth: '30%'
+            },
+            {
+                name: data.current_month.month_name,
+                type: 'bar',
+                data: types.map((t, i) => ({
+                    value: currentByType[t] || 0,
+                    itemStyle: { color: typeColors[t] }
+                })),
+                barWidth: '30%'
+            }
+        ]
+    };
+
+    analyticsComparisonChart.setOption(option);
+}
+
+// Initialize categories bar chart
+function initCategoriesChart() {
+    const chartDom = document.getElementById('chart-plan-categories');
+    if (!chartDom) return;
+
+    if (analyticsCategoriesChart) {
+        analyticsCategoriesChart.dispose();
+    }
+
+    analyticsCategoriesChart = echarts.init(chartDom);
+}
+
+// Update categories bar chart - current vs previous month
+function updateCategoriesChart(data) {
+    if (!analyticsCategoriesChart) return;
+
+    const categories = data.categories_comparison || [];
+
+    if (categories.length === 0) {
+        analyticsCategoriesChart.setOption({
+            title: {
+                text: 'Нет данных',
+                subtext: 'Планы по категориям не найдены',
+                left: 'center',
+                top: 'center',
+                textStyle: { fontSize: 14, color: '#999' }
+            },
+            xAxis: { show: false },
+            yAxis: { show: false },
+            series: []
+        }, true);
+        return;
+    }
+
+    // Take top 10 categories
+    const topCategories = categories.slice(0, 10);
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            formatter: function(params) {
+                let result = params[0].axisValue + '<br/>';
+                params.forEach(param => {
+                    const value = new Intl.NumberFormat('ru-RU').format(param.value);
+                    result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+                });
+                return result;
+            }
+        },
+        legend: {
+            data: [data.previous_month.month_name, data.current_month.month_name],
+            bottom: 0
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: topCategories.map(c => c.category_name),
+            axisLabel: {
+                rotate: 30,
+                interval: 0,
+                fontSize: 10,
+                formatter: function(value) {
+                    return value.length > 12 ? value.substring(0, 12) + '...' : value;
+                }
+            }
+        },
+        yAxis: {
+            type: 'value',
+            axisLabel: {
+                formatter: function(value) {
+                    if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+                    if (value >= 1000) return (value / 1000).toFixed(0) + 'K';
+                    return value;
+                }
+            }
+        },
+        series: [
+            {
+                name: data.previous_month.month_name,
+                type: 'bar',
+                data: topCategories.map(c => c.previous),
+                itemStyle: { color: '#94a3b8' },
+                barWidth: '30%'
+            },
+            {
+                name: data.current_month.month_name,
+                type: 'bar',
+                data: topCategories.map(c => c.current),
+                itemStyle: { color: '#6366f1' },
+                barWidth: '30%'
+            }
+        ]
+    };
+
+    analyticsCategoriesChart.setOption(option, true);
+}
+
+// Handle window resize for charts
+window.addEventListener('resize', function() {
+    if (analyticsComparisonChart) {
+        analyticsComparisonChart.resize();
+    }
+    if (analyticsCategoriesChart) {
+        analyticsCategoriesChart.resize();
+    }
+});
 </script>
 {% endblock %}

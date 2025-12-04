@@ -219,7 +219,7 @@ CREATE INDEX idx_registry_analytics ON t_f_registry(user_id, period_id, article_
 -- Перевод 1000 руб из "Кошелек" в "Банк"
 -- Создаются 2 связанные транзакции:
 
--- Транзакция 1: Списание с кошелька
+-- Факт 1: Списание с кошелька
 INSERT INTO t_f_budget_fact (
     user_id, article_id, financial_center_id, amount,
     record_type, fact_date, transfer_id, description
@@ -228,7 +228,7 @@ INSERT INTO t_f_budget_fact (
     'fact', '2025-11-24', 100, 'Перевод в банк'
 );
 
--- Транзакция 2: Пополнение банка
+-- Факт 2: Пополнение банка
 INSERT INTO t_f_budget_fact (
     user_id, article_id, financial_center_id, amount,
     record_type, fact_date, transfer_id, description

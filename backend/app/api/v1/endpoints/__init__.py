@@ -11,10 +11,13 @@ This package contains all API endpoint routers organized by domain:
 - notifications: Notification history endpoints (broadcast support)
 - import_endpoints: Multi-bank CSV import endpoints (FR-080 Enhanced)
 - transfers: Transfer between financial centers endpoints
+- push: Push notification endpoints (PWA offline mode)
+- consent: User consent endpoints (GDPR compliance)
 """
 
 from backend.app.api.v1.endpoints.articles import router as articles_router
 from backend.app.api.v1.endpoints.auth import router as auth_router
+from backend.app.api.v1.endpoints.consent import router as consent_router
 from backend.app.api.v1.endpoints.cost_centers import router as cost_centers_router
 from backend.app.api.v1.endpoints.facts import router as facts_router
 from backend.app.api.v1.endpoints.financial_centers import (
@@ -24,12 +27,14 @@ from backend.app.api.v1.endpoints.import_endpoints import router as import_route
 from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
+from backend.app.api.v1.endpoints.push import router as push_router
 from backend.app.api.v1.endpoints.transfers import router as transfers_router
 from backend.app.api.v1.endpoints.users import router as users_router
 
 __all__ = [
     "auth_router",
     "articles_router",
+    "consent_router",
     "financial_centers_router",
     "cost_centers_router",
     "facts_router",
@@ -37,4 +42,5 @@ __all__ = [
     "notifications_router",
     "import_router",
     "transfers_router",
+    "push_router",
 ]

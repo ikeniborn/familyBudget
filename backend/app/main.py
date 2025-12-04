@@ -257,7 +257,8 @@ app.mount("/shared", StaticFiles(directory=str(FrontendPaths.SHARED)), name="sha
 templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
 
 # PWA endpoints (must be before web_router to avoid being caught by catch-all routes)
-@app.get("/sw.js", include_in_schema=False)
+# Support both GET and HEAD methods - browsers use HEAD to check for Service Worker updates
+@app.api_route("/sw.js", methods=["GET", "HEAD"], include_in_schema=False)
 async def service_worker():
     """Serve Service Worker for PWA"""
     from fastapi.responses import FileResponse
@@ -276,7 +277,7 @@ async def service_worker():
         }
     )
 
-@app.get("/manifest.json", include_in_schema=False)
+@app.api_route("/manifest.json", methods=["GET", "HEAD"], include_in_schema=False)
 async def pwa_manifest():
     """Serve PWA Manifest"""
     from fastapi.responses import FileResponse

@@ -661,7 +661,7 @@ async function submitForm() {
 
     // Handle response
     if (response.ok) {
-        showSuccess('Транзакция добавлена');
+        showSuccess('Факт добавлен');
         // Redirect to list
         window.location.href = '/webapp/index.html';
     }
@@ -840,7 +840,7 @@ async function createFact(e) {
     });
 
     if (response.ok) {
-        showToast('Транзакция создана', 'success');
+        showToast('Факт создан', 'success');
         await loadFacts();
     }
 }

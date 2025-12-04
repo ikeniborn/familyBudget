@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Добавить транзакцию - Семейный бюджет</title>
+    <title>Добавить факт - Семейный бюджет</title>
 
     <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -159,7 +159,7 @@
     <div class="container">
         <!-- Header -->
         <div class="page-header">
-            <div class="page-title">Добавить транзакцию</div>
+            <div class="page-title">Добавить факт</div>
         </div>
 
         <!-- Transaction Type Selector -->
@@ -484,7 +484,7 @@
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
                     const amount = parseFloat(button.dataset.amount);
-                    document.getElementById('amount').value = amount.toFixed(2);
+                    document.getElementById('amount').value = Math.round(amount);
                     formState.amount = amount;
                     app.ui.hapticLight();
                 });
@@ -737,7 +737,7 @@
                 console.log('Fact created:', result);
 
                 app.ui.hideLoading();
-                app.ui.showSuccess('Транзакция добавлена!', () => {
+                app.ui.showSuccess('Факт добавлен!', () => {
                     // Reset form for next entry
                     resetForm();
                     // Focus on amount input

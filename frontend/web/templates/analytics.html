@@ -176,7 +176,7 @@
             <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
                 <div class="card-body p-3">
                     <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта</h2>
-                    <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов транзакций"></div>
+                    <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов фактов"></div>
                 </div>
             </div>
         </div>
@@ -364,7 +364,7 @@ function updatePlanFactChart(data) {
         const emptyOption = createEmptyStateOption(
             '📊',
             'Нет данных',
-            'Добавьте транзакции или планы для просмотра графика'
+            'Добавьте факты или планы для просмотра графика'
         );
         planFactChart.setOption(emptyOption);
         return;
@@ -711,7 +711,7 @@ function updateTrendsChart(data) {
         const emptyOption = createEmptyStateOption(
             '📈',
             'Нет данных',
-            'Добавьте транзакции для просмотра динамики'
+            'Добавьте факты для просмотра динамики'
         );
         trendsChart.setOption(emptyOption);
         return;
@@ -916,7 +916,7 @@ function updatePieChart(data) {
         const emptyOption = createEmptyStateOption(
             '🥧',
             'Нет данных',
-            'Добавьте транзакции для просмотра распределения по категориям'
+            'Добавьте факты для просмотра распределения по категориям'
         );
         pieChart.setOption(emptyOption, true);  // notMerge: true - clear old data (v5.1.3 bugfix)
         return;
@@ -1383,7 +1383,7 @@ function updateWaterfallChart(data) {
         const emptyOption = createEmptyStateOption(
             '💧',
             'Нет данных',
-            'Добавьте транзакции для просмотра денежного потока'
+            'Добавьте факты для просмотра денежного потока'
         );
         waterfallChart.setOption(emptyOption);
         return;
@@ -1704,7 +1704,7 @@ function updateHeatmapChart(data) {
         const emptyOption = createEmptyStateOption(
             '🔥',
             'Нет данных',
-            'Добавьте транзакции для просмотра тепловой карты'
+            'Добавьте факты для просмотра тепловой карты'
         );
         heatmapChart.setOption(emptyOption);
         return;

@@ -68,7 +68,7 @@ describe('deleteFact()', () => {
     });
     expect(loadFacts).toHaveBeenCalled();
     expect(showNotification).toHaveBeenCalledWith(
-      '✅ Транзакция успешно удалена!',
+      '✅ Факт успешно удален!',
       'success'
     );
     expect(deletingFactIds.has(factId)).toBe(false); // Cleaned up

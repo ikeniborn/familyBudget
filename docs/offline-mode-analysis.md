@@ -383,7 +383,7 @@ class OfflineManager {
       };
 
       await this.addToQueue(queueItem);
-      ui.showMessage('Транзакция сохранена. Отправим при восстановлении сети.');
+      ui.showMessage('Факт сохранен. Отправим при восстановлении сети.');
 
       return { id: tempId, ...data, _offline: true };
     }
@@ -1140,7 +1140,7 @@ async resolveConflict(offlineItem, serverError) {
     await this.rollbackChange(offlineItem);
     await this.removeFromQueue(offlineItem.id);
 
-    ui.showWarning('Транзакция была удалена другим пользователем. Ваши изменения отменены.');
+    ui.showWarning('Факт был удален другим пользователем. Ваши изменения отменены.');
     return null;
   }
 
@@ -1612,7 +1612,7 @@ async sync() {
 ```javascript
 app.ui.showPopup({
   title: 'Конфликт изменений',
-  message: `Транзакция была изменена другим пользователем.\n\nВаша сумма: 500 ₽\nНа сервере: 600 ₽\n\nВыберите действие:`,
+  message: `Факт был изменен другим пользователем.\n\nВаша сумма: 500 ₽\nНа сервере: 600 ₽\n\nВыберите действие:`,
   buttons: [
     {
       type: 'default',

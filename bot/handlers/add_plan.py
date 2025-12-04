@@ -4,6 +4,10 @@
 Implements multi-step conversation flow for adding budget plans (future-dated records):
 1. Article selection (inline keyboard)
 2. Amount input (with validation)
+import warnings
+
+# Suppress PTBUserWarning for per_message=False with CallbackQueryHandler
+warnings.filterwarnings("ignore", message=".*per_message.*CallbackQueryHandler.*", category=UserWarning)
 3. Date input (allows future dates for planning)
 4. Description input (optional, can skip)
 5. Confirmation (summary + create plan)

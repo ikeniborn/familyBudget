@@ -9,6 +9,10 @@ Allows users to:
 
 from datetime import date
 from decimal import Decimal
+import warnings
+
+# Suppress PTBUserWarning for per_message=False with CallbackQueryHandler
+warnings.filterwarnings("ignore", message=".*per_message.*CallbackQueryHandler.*", category=UserWarning)
 from typing import Dict, List
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -259,7 +263,7 @@ async def fact_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         error_message = str(e)
         if "404" in error_message or "not found" in error_message.lower():
             await query.edit_message_text(
-                f"❌ Транзакция с ID {fact_id} не найдена."
+                f"❌ Факт с ID {fact_id} не найдена."
             )
         elif "403" in error_message or "forbidden" in error_message.lower():
             await query.edit_message_text(
@@ -498,8 +502,8 @@ async def delete_confirmed(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             await api_client.delete_fact(token, fact_id)
 
             await query.edit_message_text(
-                "✅ Транзакция успешно удалена!\n\n"
-                "Используйте /list для просмотра оставшихся транзакций"
+                "✅ Факт успешно удален!\n\n"
+                "Используйте /list для просмотра оставшихся фактов"
             )
 
             logger.info(f"User deleted fact {fact_id}")

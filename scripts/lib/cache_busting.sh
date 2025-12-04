@@ -20,7 +20,12 @@ update_cache_versions() {
     local version=$1
     local repo_dir="${2:-.}"
 
-    echo "🔄 Updating cache versions to: ${version}" >&2
+    # Use print_message if available (when sourced from deploy.sh), otherwise echo
+    if declare -f info &>/dev/null; then
+        info "Updating cache versions to: ${version}"
+    else
+        echo "🔄 Updating cache versions to: ${version}" >&2
+    fi
 
     # Список файлов для обновления
     local files=(
@@ -70,10 +75,10 @@ update_cache_versions() {
         # Поддерживает:
         # - .min.js / .min.css файлы (минифицированные)
         # - /webapp/, /web/, /static/, /shared/ paths
-        # - vendor/ subdirectories (включая третьесторонние библиотеки)
+        # - vendor/, offline/ и другие subdirectories
         perl -i.bak -pe "
-            s{(\\/webapp\\/static\\/js\\/(?:vendor\\/)?|\\/web\\/static\\/js\\/(?:vendor\\/)?|\\/static\\/js\\/(?:vendor\\/)?|\\/shared\\/static\\/js\\/)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
-            s{(\\/webapp\\/static\\/css\\/(?:vendor\\/)?|\\/web\\/static\\/css\\/(?:vendor\\/)?|\\/static\\/css\\/(?:vendor\\/)?|\\/shared\\/static\\/css\\/)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)?|\\/web\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)?|\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)?|\\/shared\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)?)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)?|\\/web\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)?|\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)?|\\/shared\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)?)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
         " "$file" 2>&1
 
         local perl_exit=$?
@@ -93,10 +98,18 @@ update_cache_versions() {
     done
 
     if [[ $updated_count -gt 0 ]]; then
-        echo "✅ Cache versions updated in ${updated_count} files" >&2
+        if declare -f success &>/dev/null; then
+            success "Cache versions updated in ${updated_count} files (v=${version})"
+        else
+            echo "✅ Cache versions updated in ${updated_count} files" >&2
+        fi
         return 0
     else
-        echo "❌ No files updated" >&2
+        if declare -f warning &>/dev/null; then
+            warning "No files updated with cache versions"
+        else
+            echo "❌ No files updated" >&2
+        fi
         return 1
     fi
 }

@@ -117,6 +117,8 @@ services:
       API_INTERNAL_KEY: ${API_INTERNAL_KEY:?API_INTERNAL_KEY is required}
 
       # Telegram
+      # Python warnings
+      PYTHONWARNINGS: "ignore::UserWarning:telegram.ext"
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
@@ -200,6 +202,8 @@ services:
         condition: service_healthy
     environment:
       # Telegram
+      # Python warnings
+      PYTHONWARNINGS: "ignore::UserWarning:telegram.ext"
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
@@ -249,6 +253,11 @@ services:
       - ./logs/nginx:/var/log/nginx
       # SSL certificates from host system (managed by scripts/ssl_certificate_manager.sh)
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Service Worker (minified + gzip pre-compressed for nginx gzip_static)
+      - ./sw.min.js:/usr/share/nginx/html/sw.js:ro
+      - ./sw.min.js.gz:/usr/share/nginx/html/sw.js.gz:ro
+      # PWA Manifest
+      - ./manifest.json:/usr/share/nginx/html/manifest.json:ro
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"

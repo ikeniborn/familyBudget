@@ -4,6 +4,10 @@
 Shows budget plan compared to actual spending/income for selected periods.
 Includes period selection via inline keyboard.
 """
+import warnings
+
+# Suppress PTBUserWarning for per_message=False with CallbackQueryHandler
+warnings.filterwarnings("ignore", message=".*per_message.*CallbackQueryHandler.*", category=UserWarning)
 
 from collections import defaultdict
 from datetime import date, timedelta

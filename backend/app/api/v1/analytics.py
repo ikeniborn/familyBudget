@@ -20,6 +20,7 @@ from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact as Fact
 from backend.app.schemas.analytics import (
+    PlanHintsResponse,
     RecommendedAmountsMetadata,
     RecommendedAmountsResponse,
 )
@@ -537,25 +538,25 @@ async def get_quick_stats_html(
         </div>
     </div>
 
-    <!-- Mobile version: 2x2 grid -->
+    <!-- Mobile version: 2x2 grid (font reduced by 4px for mobile) -->
     <div id="mobile-stats" class="grid grid-cols-2 gap-3">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="mb-0.5">
-                <span class="font-semibold text-[8px]">💰 Доходы</span>
+                <span class="font-semibold text-[4px]">💰 Доходы</span>
             </div>
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">План</div>
-                    <div class="font-semibold text-[8px]">{format_money(month_plan_income)}</div>
+                    <div class="text-[3px] opacity-60">План</div>
+                    <div class="font-semibold text-[4px]">{format_money(month_plan_income)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Факт</div>
-                    <div class="font-bold text-success text-[8px]">{format_money(month_income)}</div>
+                    <div class="text-[3px] opacity-60">Факт</div>
+                    <div class="font-bold text-success text-[4px]">{format_money(month_income)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Исп., %</div>
-                    <div class="font-bold {get_pct_color(plan_execution_income_pct)} text-[6px]">{format_pct(plan_execution_income_pct)}</div>
+                    <div class="text-[3px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_income_pct)} text-[3px]">{format_pct(plan_execution_income_pct)}</div>
                 </div>
             </div>
         </div>
@@ -563,20 +564,20 @@ async def get_quick_stats_html(
         <!-- Расходы -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="mb-0.5">
-                <span class="font-semibold text-[8px]">💸 Расходы</span>
+                <span class="font-semibold text-[4px]">💸 Расходы</span>
             </div>
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">План</div>
-                    <div class="font-semibold text-[8px]">{format_money(month_plan_expense)}</div>
+                    <div class="text-[3px] opacity-60">План</div>
+                    <div class="font-semibold text-[4px]">{format_money(month_plan_expense)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Факт</div>
-                    <div class="font-bold text-error text-[8px]">{format_money(month_expense)}</div>
+                    <div class="text-[3px] opacity-60">Факт</div>
+                    <div class="font-bold text-error text-[4px]">{format_money(month_expense)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Исп., %</div>
-                    <div class="font-bold {get_pct_color(plan_execution_expense_pct)} text-[6px]">{format_pct(plan_execution_expense_pct)}</div>
+                    <div class="text-[3px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_expense_pct)} text-[3px]">{format_pct(plan_execution_expense_pct)}</div>
                 </div>
             </div>
         </div>
@@ -584,20 +585,20 @@ async def get_quick_stats_html(
         <!-- Пополнение -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="mb-0.5">
-                <span class="font-semibold text-[8px]">➕ Пополнение</span>
+                <span class="font-semibold text-[4px]">➕ Пополнение</span>
             </div>
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">План</div>
-                    <div class="font-semibold text-[8px]">{format_money(month_plan_credit)}</div>
+                    <div class="text-[3px] opacity-60">План</div>
+                    <div class="font-semibold text-[4px]">{format_money(month_plan_credit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Факт</div>
-                    <div class="font-bold text-info text-[8px]">{format_money(month_credit)}</div>
+                    <div class="text-[3px] opacity-60">Факт</div>
+                    <div class="font-bold text-info text-[4px]">{format_money(month_credit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Исп., %</div>
-                    <div class="font-bold {get_pct_color(plan_execution_credit_pct)} text-[6px]">{format_pct(plan_execution_credit_pct)}</div>
+                    <div class="text-[3px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_credit_pct)} text-[3px]">{format_pct(plan_execution_credit_pct)}</div>
                 </div>
             </div>
         </div>
@@ -605,20 +606,20 @@ async def get_quick_stats_html(
         <!-- Списание -->
         <div class="bg-base-200 rounded-lg p-2 shadow">
             <div class="mb-0.5">
-                <span class="font-semibold text-[8px]">➖ Списание</span>
+                <span class="font-semibold text-[4px]">➖ Списание</span>
             </div>
             <div class="space-y-0.5">
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">План</div>
-                    <div class="font-semibold text-[8px]">{format_money(month_plan_debit)}</div>
+                    <div class="text-[3px] opacity-60">План</div>
+                    <div class="font-semibold text-[4px]">{format_money(month_plan_debit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Факт</div>
-                    <div class="font-bold text-warning text-[8px]">{format_money(month_debit)}</div>
+                    <div class="text-[3px] opacity-60">Факт</div>
+                    <div class="font-bold text-warning text-[4px]">{format_money(month_debit)}</div>
                 </div>
                 <div class="flex justify-between items-baseline">
-                    <div class="text-[6px] opacity-60">Исп., %</div>
-                    <div class="font-bold {get_pct_color(plan_execution_debit_pct)} text-[6px]">{format_pct(plan_execution_debit_pct)}</div>
+                    <div class="text-[3px] opacity-60">Исп., %</div>
+                    <div class="font-bold {get_pct_color(plan_execution_debit_pct)} text-[3px]">{format_pct(plan_execution_debit_pct)}</div>
                 </div>
             </div>
         </div>
@@ -1963,6 +1964,11 @@ async def get_recommended_amounts(
         pattern="^(month|quarter|year)$",
         description="Analysis period: 'month' (30d), 'quarter' (90d), 'year' (365d)"
     ),
+    financial_center_id: Optional[int] = Query(
+        None,
+        gt=0,
+        description="Optional financial center (ЦФО) filter for recommendations"
+    ),
 ):
     """
     Get recommended amounts for quick selection buttons in transaction forms.
@@ -2002,10 +2008,12 @@ async def get_recommended_amounts(
     }
 
     # Step 1: Try to get from cache (t_recommended_amounts)
+    # Priority: exact match (article_id + financial_center_id) > partial match > global
     cache_query = text("""
         SELECT amounts, metadata
         FROM t_recommended_amounts
         WHERE (article_id IS NOT DISTINCT FROM :article_id)
+          AND (financial_center_id IS NOT DISTINCT FROM :financial_center_id)
           AND (type IS NOT DISTINCT FROM :type)
           AND record_type = :record_type
           AND period = :period
@@ -2015,7 +2023,13 @@ async def get_recommended_amounts(
 
     result = await session.execute(
         cache_query,
-        {"article_id": article_id, "type": article_type, "record_type": record_type, "period": period}
+        {
+            "article_id": article_id,
+            "financial_center_id": financial_center_id,
+            "type": article_type,
+            "record_type": record_type,
+            "period": period
+        }
     )
     row = result.first()
 
@@ -2081,4 +2095,400 @@ async def get_recommended_amounts(
             article_id=article_id,
             article_name=article_name
         )
+    )
+
+
+# ==================== Plan Analytics Endpoints ====================
+
+
+@router.get("/plans/monthly-comparison")
+async def get_plans_monthly_comparison(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    planning_month: Optional[str] = Query(
+        None,
+        description="Planning month in YYYY-MM format (defaults to current month)",
+        regex=r"^\d{4}-(0[1-9]|1[0-2])$"
+    ),
+    financial_center_id: Optional[int] = Query(
+        None,
+        description="Filter by financial center ID (omit for all centers)"
+    ),
+    article_type: Optional[str] = Query(
+        None,
+        description="Filter by article type: expense, income, debit, credit"
+    ),
+    article_id: Optional[int] = Query(
+        None,
+        description="Filter by specific article/category ID"
+    )
+):
+    """
+    Get plan analytics with comparison between current and previous months.
+
+    Provides data for planning analytics:
+    - Totals by operation type (expense, income, debit, credit)
+    - Breakdown by categories with current vs previous month
+    - Month-over-month comparison
+
+    Used for plan.html analytics section with 2 charts:
+    1. Bar chart: Operation types with current vs previous month columns
+    2. Bar chart: Categories with current vs previous month columns
+
+    **Previous month data logic:**
+    - If selected month is current calendar month → previous month shows FACT data
+    - If selected month is a future month → previous month shows PLAN data
+
+    Args:
+        planning_month: Target month in YYYY-MM format (defaults to current month)
+        financial_center_id: Optional filter by ЦФО
+        article_type: Optional filter by article type
+        article_id: Optional filter by specific category
+
+    Returns:
+        JSON with by_type totals, categories_comparison, and month data
+    """
+    # Determine current planning month
+    if planning_month:
+        try:
+            year, month = map(int, planning_month.split("-"))
+            current_month_date = date(year, month, 1)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid planning_month format. Use YYYY-MM."
+            )
+    else:
+        today = date.today()
+        current_month_date = date(today.year, today.month, 1)
+
+    # Calculate previous month
+    if current_month_date.month == 1:
+        previous_month_date = date(current_month_date.year - 1, 12, 1)
+    else:
+        previous_month_date = date(current_month_date.year, current_month_date.month - 1, 1)
+
+    # Determine record_type for previous month based on selected month
+    # If selected month is current calendar month → previous shows fact data
+    # If selected month is future → previous shows plan data
+    today = date.today()
+    actual_current_month = date(today.year, today.month, 1)
+    is_current_or_past_month = current_month_date <= actual_current_month
+    previous_month_record_type = "fact" if is_current_or_past_month else "plan"
+
+    async def get_month_data(month_date: date, record_type: str = "plan") -> dict:
+        """Get data for a specific month with specified record_type."""
+        # Base conditions (without article filters for type totals)
+        base_conditions = [
+            Fact.user_id == current_user.id,
+            Fact.record_type == record_type,
+            func.date_trunc("month", Fact.fact_date) == month_date
+        ]
+
+        if financial_center_id is not None:
+            base_conditions.append(Fact.financial_center_id == financial_center_id)
+
+        # Query for totals by article type (always all 4 types, no article filter)
+        totals_stmt = (
+            select(
+                Article.type,
+                func.coalesce(func.sum(Fact.amount), 0).label("total")
+            )
+            .select_from(Fact)
+            .join(Article, Fact.article_id == Article.id)
+            .where(*base_conditions)
+            .group_by(Article.type)
+        )
+
+        totals_result = await session.execute(totals_stmt)
+        totals_by_type = {row.type: float(row.total) for row in totals_result.all()}
+
+        # Ensure all 4 types present
+        by_type = {
+            "expense": totals_by_type.get("expense", 0.0),
+            "income": totals_by_type.get("income", 0.0),
+            "debit": totals_by_type.get("debit", 0.0),
+            "credit": totals_by_type.get("credit", 0.0)
+        }
+
+        # Add article filters for category breakdown
+        category_conditions = list(base_conditions)
+        if article_type is not None:
+            category_conditions.append(Article.type == article_type)
+        if article_id is not None:
+            category_conditions.append(Fact.article_id == article_id)
+
+        # Query for breakdown by category
+        categories_stmt = (
+            select(
+                Article.id.label("category_id"),
+                Article.name.label("category_name"),
+                Article.type.label("category_type"),
+                func.coalesce(func.sum(Fact.amount), 0).label("amount")
+            )
+            .select_from(Fact)
+            .join(Article, Fact.article_id == Article.id)
+            .where(*category_conditions)
+            .group_by(Article.id, Article.name, Article.type)
+            .order_by(func.sum(Fact.amount).desc())
+        )
+
+        categories_result = await session.execute(categories_stmt)
+        by_category = [
+            {
+                "category_id": row.category_id,
+                "category_name": row.category_name,
+                "category_type": row.category_type,
+                "amount": float(row.amount)
+            }
+            for row in categories_result.all()
+        ]
+
+        # Count total records
+        count_stmt = (
+            select(func.count(Fact.id))
+            .select_from(Fact)
+            .join(Article, Fact.article_id == Article.id)
+            .where(*category_conditions)
+        )
+        count_result = await session.execute(count_stmt)
+        total_records = count_result.scalar_one()
+
+        # Generate month name with data type prefix for legend
+        base_month_name = get_russian_month_name(month_date.month, month_date.year)
+        data_type_label = "Факт" if record_type == "fact" else "План"
+
+        return {
+            "month": month_date.strftime("%Y-%m"),
+            "month_name": f"{data_type_label} {base_month_name}",
+            "record_type": record_type,
+            "by_type": by_type,
+            "total": sum(by_type.values()),
+            "total_records": total_records,
+            "by_category": by_category
+        }
+
+    # Get data for both months
+    # Current month always shows plan data
+    # Previous month shows fact data for current/past months, plan data for future months
+    current_data = await get_month_data(current_month_date, record_type="plan")
+    previous_data = await get_month_data(previous_month_date, record_type=previous_month_record_type)
+
+    # Merge categories from both months for comparison chart
+    all_categories = {}
+    for cat in current_data["by_category"]:
+        all_categories[cat["category_id"]] = {
+            "category_id": cat["category_id"],
+            "category_name": cat["category_name"],
+            "category_type": cat["category_type"],
+            "current": cat["amount"],
+            "previous": 0.0
+        }
+    for cat in previous_data["by_category"]:
+        if cat["category_id"] in all_categories:
+            all_categories[cat["category_id"]]["previous"] = cat["amount"]
+        else:
+            all_categories[cat["category_id"]] = {
+                "category_id": cat["category_id"],
+                "category_name": cat["category_name"],
+                "category_type": cat["category_type"],
+                "current": 0.0,
+                "previous": cat["amount"]
+            }
+
+    # Sort by max amount (current or previous)
+    categories_comparison = sorted(
+        all_categories.values(),
+        key=lambda x: max(x["current"], x["previous"]),
+        reverse=True
+    )
+
+    # Calculate comparison metrics for each type
+    def calc_change(current: float, previous: float) -> dict:
+        change = current - previous
+        if previous > 0:
+            change_percent = round((change / previous) * 100, 1)
+        elif current > 0:
+            change_percent = 100.0
+        else:
+            change_percent = 0.0
+        return {"change": change, "change_percent": change_percent}
+
+    comparison_by_type = {}
+    for op_type in ["expense", "income", "debit", "credit"]:
+        comp = calc_change(
+            current_data["by_type"][op_type],
+            previous_data["by_type"][op_type]
+        )
+        comparison_by_type[op_type] = comp
+
+    return {
+        "current_month": current_data,
+        "previous_month": previous_data,
+        "previous_month_data_type": previous_month_record_type,
+        "categories_comparison": categories_comparison,
+        "comparison_by_type": comparison_by_type,
+        "filters": {
+            "planning_month": current_month_date.strftime("%Y-%m"),
+            "financial_center_id": financial_center_id,
+            "article_type": article_type,
+            "article_id": article_id
+        }
+    }
+
+
+def get_russian_month_name(month: int, year: int) -> str:
+    """Get Russian month name with year."""
+    month_names = {
+        1: "Январь", 2: "Февраль", 3: "Март",
+        4: "Апрель", 5: "Май", 6: "Июнь",
+        7: "Июль", 8: "Август", 9: "Сентябрь",
+        10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
+    }
+    return f"{month_names.get(month, '')} {year}"
+
+
+# ==================== Plan Hints Endpoint ====================
+
+
+@router.get("/plan-hints", response_model=PlanHintsResponse)
+async def get_plan_hints(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    article_id: Optional[int] = Query(
+        None,
+        gt=0,
+        description="Category ID for which to get hints"
+    ),
+    period: str = Query(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Planning period in YYYY-MM format (e.g., '2025-11')"
+    ),
+    article_type: str = Query(
+        "expense",
+        pattern="^(income|expense)$",
+        description="Article type: 'income' or 'expense'"
+    ),
+    financial_center_id: Optional[int] = Query(
+        None,
+        gt=0,
+        description="Financial center ID to filter hints"
+    ),
+):
+    """
+    Get plan hints for the plan creation modal.
+
+    Returns sum of plans and facts from PREVIOUS month for the specified category.
+
+    Logic:
+        - If user selects "November 2025" as planning period
+        - Previous period = "October 2025"
+        - Returns: sum of plans for Oct 2025, sum of facts for Oct 2025
+
+    Args:
+        article_id: Category ID (optional, but recommended for meaningful results)
+        period: Selected planning month in YYYY-MM format
+        article_type: Type of operation ('expense' or 'income')
+
+    Returns:
+        PlanHintsResponse with prev_period_plan_sum and prev_period_fact_sum
+
+    Example:
+        GET /api/v1/analytics/plan-hints?article_id=45&period=2025-11&article_type=expense
+
+        Response:
+        {
+            "prev_period_plan_sum": 15000.00,
+            "prev_period_fact_sum": 12500.00,
+            "prev_period": "2025-10",
+            "article_id": 45,
+            "article_name": "Продукты",
+            "article_type": "expense"
+        }
+    """
+    # Parse the planning period
+    try:
+        year, month = map(int, period.split('-'))
+    except ValueError:
+        raise HTTPException(400, f"Invalid period format: {period}. Expected YYYY-MM")
+
+    # Calculate previous month
+    if month == 1:
+        prev_year = year - 1
+        prev_month = 12
+    else:
+        prev_year = year
+        prev_month = month - 1
+
+    prev_period_str = f"{prev_year}-{prev_month:02d}"
+    prev_start = date(prev_year, prev_month, 1)
+    _, last_day = cal_module.monthrange(prev_year, prev_month)
+    prev_end = date(prev_year, prev_month, last_day)
+
+    # Get article name if article_id provided
+    article_name = None
+    if article_id:
+        article_result = await session.execute(
+            select(Article.name).where(Article.id == article_id)
+        )
+        article_row = article_result.first()
+        if article_row:
+            article_name = article_row[0]
+
+    # Query previous month PLANS
+    plan_query = (
+        select(func.sum(Fact.amount).label("total"))
+        .select_from(Fact)
+        .join(Article, Fact.article_id == Article.id)
+        .where(
+            Fact.user_id == current_user.id,
+            Fact.fact_date >= prev_start,
+            Fact.fact_date <= prev_end,
+            Fact.record_type == "plan",
+            Article.type == article_type
+        )
+    )
+
+    if article_id:
+        plan_query = plan_query.where(Fact.article_id == article_id)
+
+    if financial_center_id:
+        plan_query = plan_query.where(Fact.financial_center_id == financial_center_id)
+
+    plan_result = await session.execute(plan_query)
+    plan_row = plan_result.first()
+    prev_plan_sum = Decimal(str(plan_row[0])) if plan_row and plan_row[0] else None
+
+    # Query previous month FACTS
+    fact_query = (
+        select(func.sum(Fact.amount).label("total"))
+        .select_from(Fact)
+        .join(Article, Fact.article_id == Article.id)
+        .where(
+            Fact.user_id == current_user.id,
+            Fact.fact_date >= prev_start,
+            Fact.fact_date <= prev_end,
+            Fact.record_type == "fact",
+            Article.type == article_type
+        )
+    )
+
+    if article_id:
+        fact_query = fact_query.where(Fact.article_id == article_id)
+
+    if financial_center_id:
+        fact_query = fact_query.where(Fact.financial_center_id == financial_center_id)
+
+    fact_result = await session.execute(fact_query)
+    fact_row = fact_result.first()
+    prev_fact_sum = Decimal(str(fact_row[0])) if fact_row and fact_row[0] else None
+
+    return PlanHintsResponse(
+        prev_period_plan_sum=prev_plan_sum,
+        prev_period_fact_sum=prev_fact_sum,
+        prev_period=prev_period_str,
+        article_id=article_id,
+        article_name=article_name,
+        article_type=article_type
     )
