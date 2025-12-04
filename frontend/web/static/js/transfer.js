@@ -723,9 +723,22 @@ async function handleTransferSubmit(event) {
                     showToast(successMsg, 'success');
                 }
 
-                // Trigger HTMX refresh if on a page with HTMX tables
+                // Update quick stats and recent transactions (only on index.html)
                 if (typeof htmx !== 'undefined') {
-                    htmx.trigger(document.body, 'refreshData');
+                    // Update recent-transactions only for fact transfers (not plan)
+                    if (transferRecordType === 'fact' && document.getElementById('recent-transactions')) {
+                        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                            target: '#recent-transactions',
+                            swap: 'innerHTML'
+                        });
+                    }
+                    // Update quick-stats for all transfer types
+                    if (document.getElementById('quick-stats')) {
+                        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                            target: '#quick-stats',
+                            swap: 'innerHTML'
+                        });
+                    }
                 }
             }
         } else {
@@ -751,9 +764,22 @@ async function handleTransferSubmit(event) {
                 showToast(successMsg, 'success');
             }
 
-            // Trigger HTMX refresh if on a page with HTMX tables
+            // Update quick stats and recent transactions (only on index.html)
             if (typeof htmx !== 'undefined') {
-                htmx.trigger(document.body, 'refreshData');
+                // Update recent-transactions only for fact transfers (not plan)
+                if (transferRecordType === 'fact' && document.getElementById('recent-transactions')) {
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
+                }
+                // Update quick-stats for all transfer types
+                if (document.getElementById('quick-stats')) {
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+                }
             }
         }
     } catch (error) {
