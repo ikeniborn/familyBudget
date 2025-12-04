@@ -362,10 +362,16 @@ async function syncBudgetData() {
 
     for (const item of queue) {
       try {
-        await syncItem(item);
-        results.synced++;
+        const syncResult = await syncItem(item);
+        // Only count as synced if item was actually processed (not skipped)
+        if (syncResult !== null) {
+          results.synced++;
+        }
       } catch (error) {
-        console.error(`[SW] Sync failed for item ${item.id} (${item.entity}):`, error.message);
+        // Silently handle "item not found" errors (race condition with main thread)
+        if (error.message && error.message.includes('not found')) {
+          continue;
+        }
 
         const retryCount = (item.retryCount || 0) + 1;
         try {
@@ -376,26 +382,33 @@ async function syncBudgetData() {
             await updateSyncQueueItem(item.id, { status: 'pending', error: error.message, retryCount });
           }
         } catch (e) {
-          // Item already removed
+          // Item already removed by main thread - ignore
         }
       }
     }
 
     // Show notification if synced items
     if (results.synced > 0) {
-      await self.registration.showNotification('Синхронизация завершена', {
-        body: `Синхронизировано записей: ${results.synced}`,
-        icon: '/static/icons/icon-192.png',
-        badge: '/static/icons/icon-192.png',
-        tag: 'sync-completed',
-        data: { type: 'sync_completed', count: results.synced }
-      });
+      try {
+        await self.registration.showNotification('Синхронизация завершена', {
+          body: `Синхронизировано записей: ${results.synced}`,
+          icon: '/static/icons/icon-192.png',
+          badge: '/static/icons/icon-192.png',
+          tag: 'sync-completed',
+          data: { type: 'sync_completed', count: results.synced }
+        });
+      } catch (e) {
+        // Notification permission denied - ignore
+      }
     }
 
     return results;
   } catch (error) {
-    console.error('[SW] Background sync failed:', error);
-    throw error;
+    // Only log real errors, not race condition errors
+    if (!error.message || !error.message.includes('not found')) {
+      console.error('[SW] Background sync failed:', error);
+    }
+    return results; // Return results instead of throwing
   }
 }
 
