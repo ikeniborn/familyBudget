@@ -49,23 +49,6 @@
                 <input type="hidden" name="transfer_plan_month" id="transfer_plan_month" />
             </div>
 
-            <!-- Amount -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Сумма *</span>
-                </label>
-                <input
-                    type="number"
-                    name="amount"
-                    id="transfer_amount"
-                    class="input input-bordered"
-                    placeholder="0"
-                    step="1"
-                    min="1"
-                    required
-                />
-            </div>
-
             <!-- FROM Section -->
             <div class="border border-error/20 rounded-lg p-3 bg-error/5">
                 <h4 class="font-semibold text-error text-sm mb-2">Откуда (списание)</h4>
@@ -100,6 +83,15 @@
                         <option value="" disabled hidden>Выберите категорию...</option>
                         <!-- Populated by ChoicesCategoryTree -->
                     </select>
+                    <!-- Plan Hints for FROM (expense) - shown only for plan transfers -->
+                    <div id="transfer-from-hints" class="grid grid-cols-2 gap-1 mt-1 hidden">
+                        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-plan" disabled>
+                            План: --
+                        </button>
+                        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-fact" disabled>
+                            Факт: --
+                        </button>
+                    </div>
                 </div>
 
                 <!-- From Cost Center (Optional) -->
@@ -152,6 +144,15 @@
                         <option value="" disabled hidden>Выберите категорию...</option>
                         <!-- Populated by ChoicesCategoryTree -->
                     </select>
+                    <!-- Plan Hints for TO (income) - shown only for plan transfers -->
+                    <div id="transfer-to-hints" class="grid grid-cols-2 gap-1 mt-1 hidden">
+                        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-plan" disabled>
+                            План: --
+                        </button>
+                        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-fact" disabled>
+                            Факт: --
+                        </button>
+                    </div>
                 </div>
 
                 <!-- To Cost Center (Optional) -->
@@ -182,6 +183,23 @@
                     placeholder="Комментарий"
                     rows="1"
                 ></textarea>
+            </div>
+
+            <!-- Amount (moved after description) -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Сумма *</span>
+                </label>
+                <input
+                    type="number"
+                    name="amount"
+                    id="transfer_amount"
+                    class="input input-bordered"
+                    placeholder="0"
+                    step="1"
+                    min="1"
+                    required
+                />
             </div>
 
             <!-- Actions -->

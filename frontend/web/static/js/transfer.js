@@ -11,6 +11,12 @@ let toCategoryTree = null;
 let transferRecordType = 'fact'; // Default to fact, can be 'plan' for planned transfers
 let allFinancialCenters = []; // Store all financial centers for filtering
 
+// Debounce state for transfer plan hints
+let transferHintsFromTimeout = null;
+let transferHintsFromController = null;
+let transferHintsToTimeout = null;
+let transferHintsToController = null;
+
 /**
  * Set transfer record type and update UI accordingly
  * @param {string} type - 'fact' or 'plan'
@@ -19,6 +25,29 @@ function setTransferRecordType(type) {
     if (type === 'fact' || type === 'plan') {
         transferRecordType = type;
         updateQuickDateButtonsVisibility();
+        updateTransferHintsVisibility();
+    }
+}
+
+/**
+ * Update visibility of hint containers based on transfer type
+ * Hints are only shown for plan transfers
+ */
+function updateTransferHintsVisibility() {
+    const fromHints = document.getElementById('transfer-from-hints');
+    const toHints = document.getElementById('transfer-to-hints');
+
+    if (transferRecordType === 'plan') {
+        // Show hint containers for plan transfers
+        if (fromHints) fromHints.classList.remove('hidden');
+        if (toHints) toHints.classList.remove('hidden');
+        // Load hints for currently selected categories
+        loadTransferPlanHints('from');
+        loadTransferPlanHints('to');
+    } else {
+        // Hide hint containers for fact transfers
+        if (fromHints) fromHints.classList.add('hidden');
+        if (toHints) toHints.classList.add('hidden');
     }
 }
 
@@ -90,6 +119,159 @@ function selectTransferPeriod(offset) {
             btn.classList.remove('btn-active');
         }
     });
+
+    // Reload hints when period changes (only for plan transfers)
+    if (transferRecordType === 'plan') {
+        loadTransferPlanHints('from');
+        loadTransferPlanHints('to');
+    }
+}
+
+/**
+ * Load plan hints for transfer modal (FROM or TO section)
+ * @param {string} direction - 'from' (expense) or 'to' (income)
+ */
+async function loadTransferPlanHints(direction) {
+    // Only load hints for plan transfers
+    if (transferRecordType !== 'plan') return;
+
+    const isFrom = direction === 'from';
+    const timeoutRef = isFrom ? 'transferHintsFromTimeout' : 'transferHintsToTimeout';
+    const controllerRef = isFrom ? 'transferHintsFromController' : 'transferHintsToController';
+    const categoryTree = isFrom ? fromCategoryTree : toCategoryTree;
+    const articleType = isFrom ? 'expense' : 'income';
+    const planBtnId = isFrom ? 'transfer-hint-from-plan' : 'transfer-hint-to-plan';
+    const factBtnId = isFrom ? 'transfer-hint-from-fact' : 'transfer-hint-to-fact';
+
+    // Clear existing timeout
+    if (window[timeoutRef]) clearTimeout(window[timeoutRef]);
+    if (window[controllerRef]) window[controllerRef].abort();
+
+    const planBtn = document.getElementById(planBtnId);
+    const factBtn = document.getElementById(factBtnId);
+
+    if (!planBtn || !factBtn) return;
+
+    // Show loading state
+    planBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    planBtn.disabled = true;
+    planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+    factBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    factBtn.disabled = true;
+    factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    // Get selected category
+    const selectedCategory = categoryTree ? categoryTree.getSelectedCategory() : null;
+    const articleId = selectedCategory ? selectedCategory.id : null;
+
+    if (!articleId) {
+        planBtn.innerHTML = 'План: --';
+        factBtn.innerHTML = 'Факт: --';
+        return;
+    }
+
+    window[timeoutRef] = setTimeout(async () => {
+        try {
+            window[controllerRef] = new AbortController();
+
+            // Get selected period
+            const periodInput = document.getElementById('transfer_plan_month');
+            const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
+
+            const params = new URLSearchParams({
+                period: period,
+                article_type: articleType
+            });
+            params.append('article_id', articleId);
+
+            const response = await fetch(`/api/v1/analytics/plan-hints?${params}`, {
+                signal: window[controllerRef].signal,
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                planBtn.innerHTML = 'План: --';
+                factBtn.innerHTML = 'Факт: --';
+                return;
+            }
+
+            const data = await response.json();
+            updateTransferHintButtons(direction, data);
+
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(`[loadTransferPlanHints] Failed for ${direction}:`, error);
+                planBtn.innerHTML = 'План: --';
+                factBtn.innerHTML = 'Факт: --';
+            }
+        }
+    }, 300);
+}
+
+/**
+ * Update transfer hint buttons with data from API
+ * @param {string} direction - 'from' or 'to'
+ * @param {object} data - API response data
+ */
+function updateTransferHintButtons(direction, data) {
+    const isFrom = direction === 'from';
+    const planBtnId = isFrom ? 'transfer-hint-from-plan' : 'transfer-hint-to-plan';
+    const factBtnId = isFrom ? 'transfer-hint-from-fact' : 'transfer-hint-to-fact';
+
+    const planBtn = document.getElementById(planBtnId);
+    const factBtn = document.getElementById(factBtnId);
+
+    if (!planBtn || !factBtn) return;
+
+    const formatAmount = (amount) => {
+        if (amount === null || amount === undefined) return '--';
+        const num = parseFloat(amount);
+        if (num >= 1000) return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
+        return num.toFixed(0);
+    };
+
+    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const prevMonth = monthNames[parseInt(data.prev_period.split('-')[1]) - 1];
+
+    // Plan button
+    const planAmt = data.prev_period_plan_sum;
+    if (planAmt && parseFloat(planAmt) > 0) {
+        planBtn.innerHTML = `План ${prevMonth}: ${formatAmount(planAmt)}₽`;
+        planBtn.disabled = false;
+        planBtn.className = 'btn btn-xs btn-outline btn-info';
+        planBtn.onclick = () => setTransferAmount(parseFloat(planAmt));
+    } else {
+        planBtn.innerHTML = `План ${prevMonth}: --`;
+        planBtn.disabled = true;
+        planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        planBtn.onclick = null;
+    }
+
+    // Fact button
+    const factAmt = data.prev_period_fact_sum;
+    if (factAmt && parseFloat(factAmt) > 0) {
+        factBtn.innerHTML = `Факт ${prevMonth}: ${formatAmount(factAmt)}₽`;
+        factBtn.disabled = false;
+        factBtn.className = 'btn btn-xs btn-outline btn-success';
+        factBtn.onclick = () => setTransferAmount(parseFloat(factAmt));
+    } else {
+        factBtn.innerHTML = `Факт ${prevMonth}: --`;
+        factBtn.disabled = true;
+        factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        factBtn.onclick = null;
+    }
+}
+
+/**
+ * Set transfer amount from hint button click
+ * @param {number} amount - Amount to set
+ */
+function setTransferAmount(amount) {
+    const amountInput = document.getElementById('transfer_amount');
+    if (amountInput) {
+        amountInput.value = amount;
+        amountInput.focus();
+    }
 }
 
 /**
@@ -113,7 +295,13 @@ function initTransferModal() {
         fromCategoryTree = new BudgetShared.ChoicesCategoryTree('#from_article', {
             type: 'debit',
             showLeafOnly: true,
-            searchEnabled: true
+            searchEnabled: true,
+            onCategoryChange: (category) => {
+                // Reload FROM hints when category changes (only for plan transfers)
+                if (transferRecordType === 'plan') {
+                    loadTransferPlanHints('from');
+                }
+            }
         });
     }
 
@@ -122,7 +310,13 @@ function initTransferModal() {
         toCategoryTree = new BudgetShared.ChoicesCategoryTree('#to_article', {
             type: 'credit',
             showLeafOnly: true,
-            searchEnabled: true
+            searchEnabled: true,
+            onCategoryChange: (category) => {
+                // Reload TO hints when category changes (only for plan transfers)
+                if (transferRecordType === 'plan') {
+                    loadTransferPlanHints('to');
+                }
+            }
         });
     }
 
