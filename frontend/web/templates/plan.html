@@ -2055,7 +2055,7 @@ async function createPlan(event) {
                 debugLog('[createPlan] Saved online:', result);
             }
 
-            create_modal.close();
+            modal_add_plan.close();
             event.target.reset();
             await loadFacts(); // Перезагрузить список планов
 
@@ -2073,7 +2073,7 @@ async function createPlan(event) {
 
             if (response.ok) {
                 showToast('План успешно создан!', 'success');
-                create_modal.close();
+                modal_add_plan.close();
                 event.target.reset();
                 await loadFacts(); // Перезагрузить список планов
 

@@ -740,6 +740,10 @@ async function handleTransferSubmit(event) {
                         });
                     }
                 }
+                // Update facts table if on facts/plan page
+                if (typeof loadFacts === 'function' && document.getElementById('facts-table-container')) {
+                    await loadFacts();
+                }
             }
         } else {
             // Fallback to direct fetch if OfflineManager not available
@@ -780,6 +784,10 @@ async function handleTransferSubmit(event) {
                         swap: 'innerHTML'
                     });
                 }
+            }
+            // Update facts table if on facts/plan page
+            if (typeof loadFacts === 'function' && document.getElementById('facts-table-container')) {
+                await loadFacts();
             }
         }
     } catch (error) {
