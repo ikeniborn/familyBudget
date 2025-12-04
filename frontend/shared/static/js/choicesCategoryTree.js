@@ -108,6 +108,7 @@ class ChoicesCategoryTree {
      * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
      * @param {boolean} options.showLeafOnly - Show only leaf categories (default: true)
      * @param {boolean} options.showInactive - Include archived categories (default: false)
+     * @param {boolean} options.showPath - Show category path below select (default: true)
      */
     constructor(selector, options = {}) {
         this.selector = selector;
@@ -128,6 +129,7 @@ class ChoicesCategoryTree {
             apiBaseUrl: options.apiBaseUrl || '/api/v1',
             showLeafOnly: options.showLeafOnly !== false,  // Default true
             showInactive: options.showInactive || false,  // Default false - hide archived categories
+            showPath: options.showPath !== false,  // Default true - show category path
         };
 
         this.choices = null;
@@ -157,13 +159,15 @@ class ChoicesCategoryTree {
             // Initialize Choices.js
             this.initChoices(displayCategories);
 
-            // Setup path display
-            this.setupPathDisplay();
+            // Setup path display (if enabled)
+            if (this.options.showPath) {
+                this.setupPathDisplay();
 
-            // Restore selected value if exists
-            const selectedId = this.element.value;
-            if (selectedId) {
-                await this.updatePathDisplay(parseInt(selectedId));
+                // Restore selected value if exists
+                const selectedId = this.element.value;
+                if (selectedId) {
+                    await this.updatePathDisplay(parseInt(selectedId));
+                }
             }
         } catch (error) {
             console.error('[ChoicesCategoryTree] Initialization error:', error);
@@ -466,12 +470,16 @@ class ChoicesCategoryTree {
         const categoryId = parseInt(event.target.value);
 
         if (!categoryId) {
-            this.pathDisplay.textContent = '';
+            if (this.pathDisplay) {
+                this.pathDisplay.textContent = '';
+            }
             return;
         }
 
-        // Update path display
-        await this.updatePathDisplay(categoryId);
+        // Update path display (if enabled)
+        if (this.options.showPath && this.pathDisplay) {
+            await this.updatePathDisplay(categoryId);
+        }
 
         // Call user callback
         if (this.options.onCategoryChange) {

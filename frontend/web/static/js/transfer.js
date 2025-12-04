@@ -113,7 +113,8 @@ function initTransferModal() {
         fromCategoryTree = new BudgetShared.ChoicesCategoryTree('#from_article', {
             type: 'debit',
             showLeafOnly: true,
-            searchEnabled: true
+            searchEnabled: true,
+            showPath: false
         });
     }
 
@@ -122,7 +123,8 @@ function initTransferModal() {
         toCategoryTree = new BudgetShared.ChoicesCategoryTree('#to_article', {
             type: 'credit',
             showLeafOnly: true,
-            searchEnabled: true
+            searchEnabled: true,
+            showPath: false
         });
     }
 
