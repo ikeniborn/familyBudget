@@ -1964,6 +1964,11 @@ async def get_recommended_amounts(
         pattern="^(month|quarter|year)$",
         description="Analysis period: 'month' (30d), 'quarter' (90d), 'year' (365d)"
     ),
+    financial_center_id: Optional[int] = Query(
+        None,
+        gt=0,
+        description="Optional financial center (ЦФО) filter for recommendations"
+    ),
 ):
     """
     Get recommended amounts for quick selection buttons in transaction forms.
@@ -2003,10 +2008,12 @@ async def get_recommended_amounts(
     }
 
     # Step 1: Try to get from cache (t_recommended_amounts)
+    # Priority: exact match (article_id + financial_center_id) > partial match > global
     cache_query = text("""
         SELECT amounts, metadata
         FROM t_recommended_amounts
         WHERE (article_id IS NOT DISTINCT FROM :article_id)
+          AND (financial_center_id IS NOT DISTINCT FROM :financial_center_id)
           AND (type IS NOT DISTINCT FROM :type)
           AND record_type = :record_type
           AND period = :period
@@ -2016,7 +2023,13 @@ async def get_recommended_amounts(
 
     result = await session.execute(
         cache_query,
-        {"article_id": article_id, "type": article_type, "record_type": record_type, "period": period}
+        {
+            "article_id": article_id,
+            "financial_center_id": financial_center_id,
+            "type": article_type,
+            "record_type": record_type,
+            "period": period
+        }
     )
     row = result.first()
 

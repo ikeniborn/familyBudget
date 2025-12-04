@@ -943,6 +943,10 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
             // Get current category (from callback parameter or fallback to DOM)
             const articleId = category ? category.id : null;
 
+            // Get current financial center (ЦФО)
+            const fcSelect = form.querySelector('select[name="financial_center_id"]');
+            const financialCenterId = fcSelect ? fcSelect.value : null;
+
             // Build query params
             const params = new URLSearchParams({
                 record_type: recordType,
@@ -951,6 +955,10 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
 
             if (articleId && articleId !== '') {
                 params.append('article_id', articleId);
+            }
+
+            if (financialCenterId && financialCenterId !== '') {
+                params.append('financial_center_id', financialCenterId);
             }
 
             if (type) {
