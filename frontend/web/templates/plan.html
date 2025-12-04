@@ -693,6 +693,10 @@ async function loadPlanHints(category = null) {
             const typeInput = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked');
             const articleType = typeInput ? typeInput.value : 'expense';
 
+            // Get current financial center (ЦФО)
+            const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+            const financialCenterId = cfoSelect ? cfoSelect.value : null;
+
             // Build query params
             const params = new URLSearchParams({
                 period: period,
@@ -701,6 +705,10 @@ async function loadPlanHints(category = null) {
 
             if (articleId) {
                 params.append('article_id', articleId);
+            }
+
+            if (financialCenterId) {
+                params.append('financial_center_id', financialCenterId);
             }
 
             // Call API
@@ -1182,6 +1190,12 @@ async function loadFinancialCenters() {
                 option.value = center.id;
                 option.textContent = center.name;
                 createSelect.appendChild(option);
+            });
+
+            // Add change listener to reload plan hints when ЦФО changes
+            createSelect.addEventListener('change', () => {
+                const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
+                loadPlanHints(selectedCategory);
             });
         }
 

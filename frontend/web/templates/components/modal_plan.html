@@ -44,24 +44,6 @@
                 </select>
             </div>
 
-            <!-- Amount with Plan Hints -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Сумма *</span>
-                </label>
-                <!-- Plan Hints Buttons (populated dynamically) -->
-                <div id="plan-hints-container" class="grid grid-cols-2 gap-1 mb-1">
-                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-plan" disabled>
-                        План пред. мес: --
-                    </button>
-                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-fact" disabled>
-                        Факт пред. мес: --
-                    </button>
-                </div>
-                <input type="number" name="amount" step="1" min="1" required
-                       class="input input-bordered" placeholder="0" />
-            </div>
-
             <!-- Центр финансовой ответственности (ЦФО) -->
             <div class="form-control">
                 <label class="label py-1">
@@ -80,6 +62,25 @@
                 <select name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не выбрано --</option>
                 </select>
+            </div>
+
+            <!-- Plan Hints (after ЦФО and МВЗ selection) -->
+            <div id="plan-hints-container" class="grid grid-cols-2 gap-1">
+                <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-plan" disabled>
+                    План пред. мес: --
+                </button>
+                <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-fact" disabled>
+                    Факт пред. мес: --
+                </button>
+            </div>
+
+            <!-- Сумма (after hints) -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Сумма *</span>
+                </label>
+                <input type="number" name="amount" step="1" min="1" required
+                       class="input input-bordered" placeholder="0" />
             </div>
 
             <!-- Описание -->

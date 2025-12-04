@@ -83,19 +83,10 @@
                         <option value="" disabled hidden>Выберите категорию...</option>
                         <!-- Populated by ChoicesCategoryTree -->
                     </select>
-                    <!-- Plan Hints for FROM (expense) - shown only for plan transfers -->
-                    <div id="transfer-from-hints" class="grid grid-cols-2 gap-1 mt-1 hidden">
-                        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-plan" disabled>
-                            План: --
-                        </button>
-                        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-fact" disabled>
-                            Факт: --
-                        </button>
-                    </div>
                 </div>
 
                 <!-- From Cost Center (Optional) -->
-                <div class="form-control">
+                <div class="form-control mb-2">
                     <label class="label py-0.5">
                         <span class="label-text text-xs">МВЗ</span>
                     </label>
@@ -107,6 +98,16 @@
                         <option value="">Не указано</option>
                         <!-- Populated dynamically by loadTransferData() -->
                     </select>
+                </div>
+
+                <!-- Plan Hints for FROM (expense) - AFTER МВЗ, shown only for plan transfers -->
+                <div id="transfer-from-hints" class="grid grid-cols-2 gap-1 hidden">
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-plan" disabled>
+                        План: --
+                    </button>
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-fact" disabled>
+                        Факт: --
+                    </button>
                 </div>
             </div>
 
@@ -144,19 +145,10 @@
                         <option value="" disabled hidden>Выберите категорию...</option>
                         <!-- Populated by ChoicesCategoryTree -->
                     </select>
-                    <!-- Plan Hints for TO (income) - shown only for plan transfers -->
-                    <div id="transfer-to-hints" class="grid grid-cols-2 gap-1 mt-1 hidden">
-                        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-plan" disabled>
-                            План: --
-                        </button>
-                        <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-fact" disabled>
-                            Факт: --
-                        </button>
-                    </div>
                 </div>
 
                 <!-- To Cost Center (Optional) -->
-                <div class="form-control">
+                <div class="form-control mb-2">
                     <label class="label py-0.5">
                         <span class="label-text text-xs">МВЗ</span>
                     </label>
@@ -168,6 +160,16 @@
                         <option value="">Не указано</option>
                         <!-- Populated dynamically by loadTransferData() -->
                     </select>
+                </div>
+
+                <!-- Plan Hints for TO (income) - AFTER МВЗ, shown only for plan transfers -->
+                <div id="transfer-to-hints" class="grid grid-cols-2 gap-1 hidden">
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-plan" disabled>
+                        План: --
+                    </button>
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-fact" disabled>
+                        Факт: --
+                    </button>
                 </div>
             </div>
 
@@ -185,7 +187,7 @@
                 ></textarea>
             </div>
 
-            <!-- Amount (moved after description) -->
+            <!-- Amount (after FROM/TO sections and description) -->
             <div class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Сумма *</span>

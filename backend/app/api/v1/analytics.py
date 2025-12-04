@@ -2357,6 +2357,11 @@ async def get_plan_hints(
         pattern="^(income|expense)$",
         description="Article type: 'income' or 'expense'"
     ),
+    financial_center_id: Optional[int] = Query(
+        None,
+        gt=0,
+        description="Financial center ID to filter hints"
+    ),
 ):
     """
     Get plan hints for the plan creation modal.
@@ -2435,6 +2440,9 @@ async def get_plan_hints(
     if article_id:
         plan_query = plan_query.where(Fact.article_id == article_id)
 
+    if financial_center_id:
+        plan_query = plan_query.where(Fact.financial_center_id == financial_center_id)
+
     plan_result = await session.execute(plan_query)
     plan_row = plan_result.first()
     prev_plan_sum = Decimal(str(plan_row[0])) if plan_row and plan_row[0] else None
@@ -2455,6 +2463,9 @@ async def get_plan_hints(
 
     if article_id:
         fact_query = fact_query.where(Fact.article_id == article_id)
+
+    if financial_center_id:
+        fact_query = fact_query.where(Fact.financial_center_id == financial_center_id)
 
     fact_result = await session.execute(fact_query)
     fact_row = fact_result.first()

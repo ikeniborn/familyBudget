@@ -178,11 +178,20 @@ async function loadTransferPlanHints(direction) {
             const periodInput = document.getElementById('transfer_plan_month');
             const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
 
+            // Get financial center ID for the direction
+            const fcSelectId = isFrom ? 'from_financial_center' : 'to_financial_center';
+            const fcSelect = document.getElementById(fcSelectId);
+            const financialCenterId = fcSelect ? fcSelect.value : null;
+
             const params = new URLSearchParams({
                 period: period,
                 article_type: articleType
             });
             params.append('article_id', articleId);
+
+            if (financialCenterId) {
+                params.append('financial_center_id', financialCenterId);
+            }
 
             const response = await fetch(`/api/v1/analytics/plan-hints?${params}`, {
                 signal: window[controllerRef].signal,
@@ -464,6 +473,7 @@ function populateFinancialCenterDropdowns() {
 /**
  * Setup CFO filtering event listeners
  * When one CFO is selected, remove it from the opposite dropdown
+ * Also triggers hint reload for plan transfers
  */
 function setupCFOFiltering() {
     const fromFCSelect = document.querySelector('#from_financial_center');
@@ -472,12 +482,20 @@ function setupCFOFiltering() {
     if (fromFCSelect) {
         fromFCSelect.addEventListener('change', () => {
             populateFinancialCenterDropdowns();
+            // Reload FROM hints when ЦФО changes (only for plan transfers)
+            if (transferRecordType === 'plan') {
+                loadTransferPlanHints('from');
+            }
         });
     }
 
     if (toFCSelect) {
         toFCSelect.addEventListener('change', () => {
             populateFinancialCenterDropdowns();
+            // Reload TO hints when ЦФО changes (only for plan transfers)
+            if (transferRecordType === 'plan') {
+                loadTransferPlanHints('to');
+            }
         });
     }
 }
