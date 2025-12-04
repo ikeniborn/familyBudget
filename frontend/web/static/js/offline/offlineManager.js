@@ -401,7 +401,8 @@ class OfflineManager {
     }
 
     async createPlanOnline(data) {
-        const response = await fetch('/api/v1/plans', {
+        // Plans are created via /api/v1/facts with record_type='plan'
+        const response = await fetch('/api/v1/facts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
@@ -582,9 +583,10 @@ class OfflineManager {
     }
 
     async syncCreate(item) {
-        const endpoint = item.entity === 'fact' ? '/api/v1/facts' :
+        // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+        const endpoint = item.entity === 'fact' || item.entity === 'plan' ? '/api/v1/facts' :
                          item.entity === 'transfer' ? '/api/v1/transfers' :
-                         '/api/v1/plans';
+                         '/api/v1/facts';
 
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -604,9 +606,10 @@ class OfflineManager {
 
     async syncUpdate(item) {
         const id = item.data.id;
-        const endpoint = item.entity === 'fact' ? `/api/v1/facts/${id}` :
+        // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+        const endpoint = item.entity === 'fact' || item.entity === 'plan' ? `/api/v1/facts/${id}` :
                          item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
-                         `/api/v1/plans/${id}`;
+                         `/api/v1/facts/${id}`;
 
         const response = await fetch(endpoint, {
             method: 'PUT',
@@ -626,9 +629,10 @@ class OfflineManager {
 
     async syncDelete(item) {
         const id = item.data.id;
-        const endpoint = item.entity === 'fact' ? `/api/v1/facts/${id}` :
+        // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+        const endpoint = item.entity === 'fact' || item.entity === 'plan' ? `/api/v1/facts/${id}` :
                          item.entity === 'transfer' ? `/api/v1/transfers/${id}` :
-                         `/api/v1/plans/${id}`;
+                         `/api/v1/facts/${id}`;
 
         const response = await fetch(endpoint, {
             method: 'DELETE',
