@@ -41,10 +41,31 @@ class OfflineManager {
         window.addEventListener('online', () => this.handleOnline());
         window.addEventListener('offline', () => this.handleOffline());
 
+        // Listen for sync completion messages from Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data && event.data.action === 'syncComplete') {
+                    this.handleSyncComplete(event.data);
+                }
+            });
+        }
+
         // Check initial network status
         if (this.isOnline) {
-            // Sync pending items on load
-            await this.sync();
+            // If Background Sync is supported, let SW handle sync
+            // This prevents race condition between main thread and SW
+            if (this.supportsBackgroundSync()) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.sync.register('sync-budget-data');
+                } catch (e) {
+                    // Fallback to main thread sync
+                    await this.sync();
+                }
+            } else {
+                // Safari or browsers without Background Sync
+                await this.sync();
+            }
         }
 
         // Setup periodic sync fallback для Safari
@@ -690,7 +711,21 @@ class OfflineManager {
         // Show notification (debounced to prevent spam)
         this._showToastDebounced('Соединение восстановлено', 'success');
 
-        // Trigger sync
+        // If Background Sync is supported, let Service Worker handle sync
+        // This prevents race condition between main thread and SW
+        if (this.supportsBackgroundSync()) {
+            // Just register sync - SW will handle it
+            try {
+                const registration = await navigator.serviceWorker.ready;
+                await registration.sync.register('sync-budget-data');
+            } catch (e) {
+                // Fall through to main thread sync if registration fails
+            }
+            // Return early - SW will handle sync
+            return { skipped: true, reason: 'background-sync' };
+        }
+
+        // Fallback: sync from main thread (Safari, or if SW registration failed)
         const results = await this.sync();
 
         // Show sync results (only if there were items to sync)
@@ -720,6 +755,29 @@ class OfflineManager {
         // Emit custom event for UI updates
         window.dispatchEvent(new CustomEvent('offline-status-change', {
             detail: { online: false }
+        }));
+    }
+
+    /**
+     * Handle sync completion message from Service Worker
+     * @param {Object} data - Sync completion data {synced, failed}
+     */
+    handleSyncComplete(data) {
+        const { synced, failed } = data;
+
+        // Show toast with sync results
+        if (synced > 0) {
+            this.lastToastTime = 0; // Reset debounce
+            this._showToastDebounced(`Синхронизировано: ${synced} записей`, 'success');
+        }
+
+        if (failed > 0) {
+            this._showToastDebounced(`Не удалось синхронизировать: ${failed} записей`, 'error');
+        }
+
+        // Emit custom event for UI updates (e.g., reload facts list)
+        window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+            detail: { synced, failed, source: 'service-worker' }
         }));
     }
 
