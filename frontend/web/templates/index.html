@@ -786,7 +786,8 @@ async function loadFinancialCenters() {
         if (planFcSelect) {
             planFcSelect.addEventListener('change', () => {
                 const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
-                loadPlanHints(selectedCategory);
+                // Use loadRecommendedAmounts for index.html (loadPlanHints is only in plan.html)
+                loadRecommendedAmounts('form_modal_add_plan', 'plan', selectedCategory);
             });
         }
     } catch (error) {
