@@ -48,21 +48,6 @@
                 </select>
             </div>
 
-            <!-- Quick Amount Buttons -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Сумма *</span>
-                </label>
-                <div class="grid grid-cols-4 gap-1 mb-1">
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(100)">100</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(500)">500</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(1000)">1000</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(5000)">5000</button>
-                </div>
-                <input type="number" name="amount" step="1" min="1" required
-                       class="input input-bordered" placeholder="0" />
-            </div>
-
             <!-- Центр финансовой ответственности (ЦФО) -->
             <div class="form-control">
                 <label class="label py-1">
@@ -81,6 +66,21 @@
                 <select name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не выбрано --</option>
                 </select>
+            </div>
+
+            <!-- Quick Amount Buttons (after ЦФО and МВЗ selection) -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Сумма *</span>
+                </label>
+                <div class="grid grid-cols-4 gap-1 mb-1">
+                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(100)">100</button>
+                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(500)">500</button>
+                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(1000)">1000</button>
+                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(5000)">5000</button>
+                </div>
+                <input type="number" name="amount" step="1" min="1" required
+                       class="input input-bordered" placeholder="0" />
             </div>
 
             <!-- Описание -->

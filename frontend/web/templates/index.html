@@ -772,6 +772,23 @@ async function loadFinancialCenters() {
                 select.appendChild(option);
             });
         });
+
+        // Add change listeners to reload recommended amounts when ЦФО changes
+        const transactionFcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+        if (transactionFcSelect) {
+            transactionFcSelect.addEventListener('change', () => {
+                const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
+                loadRecommendedAmounts('form_modal_add_transaction', 'fact', selectedCategory);
+            });
+        }
+
+        const planFcSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+        if (planFcSelect) {
+            planFcSelect.addEventListener('change', () => {
+                const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
+                loadPlanHints(selectedCategory);
+            });
+        }
     } catch (error) {
         console.error('Failed to load financial centers:', error);
         showToast('Ошибка при загрузке ЦФО', 'error');
