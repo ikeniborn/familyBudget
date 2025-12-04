@@ -259,8 +259,8 @@ async def list_facts(
     total_result = await session.execute(count_stmt)
     total = total_result.scalar_one()
 
-    # Apply pagination and ordering (newest first)
-    statement = statement.order_by(BudgetFact.fact_date.desc(), BudgetFact.id.desc())
+    # Apply pagination and ordering (newest by updated_at first, then by id as tiebreaker)
+    statement = statement.order_by(BudgetFact.updated_at.desc(), BudgetFact.id.desc())
     statement = statement.limit(limit).offset(offset)
 
     # Execute query

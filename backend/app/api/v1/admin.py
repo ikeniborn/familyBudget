@@ -1464,8 +1464,8 @@ async def get_all_facts(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date_to format. Use ISO format (YYYY-MM-DD)")
 
-    # Order and paginate
-    query = query.order_by(Fact.fact_date.desc(), Fact.id.desc()).limit(limit).offset(offset)
+    # Order and paginate (newest by updated_at first, then by id as tiebreaker)
+    query = query.order_by(Fact.updated_at.desc(), Fact.id.desc()).limit(limit).offset(offset)
 
     result = await session.execute(query)
     rows = result.all()
