@@ -44,16 +44,19 @@
                 </select>
             </div>
 
-            <!-- Quick Amount Buttons -->
+            <!-- Amount with Plan Hints -->
             <div class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Сумма *</span>
                 </label>
-                <div class="grid grid-cols-4 gap-1 mb-1">
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setPlanAmount(5000)">5000</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setPlanAmount(10000)">10000</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setPlanAmount(20000)">20000</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setPlanAmount(50000)">50000</button>
+                <!-- Plan Hints Buttons (populated dynamically) -->
+                <div id="plan-hints-container" class="grid grid-cols-2 gap-1 mb-1">
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-plan" disabled>
+                        План пред. мес: --
+                    </button>
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-fact" disabled>
+                        Факт пред. мес: --
+                    </button>
                 </div>
                 <input type="number" name="amount" step="1" min="1" required
                        class="input input-bordered" placeholder="0" />

@@ -20,6 +20,7 @@ from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact as Fact
 from backend.app.schemas.analytics import (
+    PlanHintsResponse,
     RecommendedAmountsMetadata,
     RecommendedAmountsResponse,
 )
@@ -2332,3 +2333,138 @@ def get_russian_month_name(month: int, year: int) -> str:
         10: "Октябрь", 11: "Ноябрь", 12: "Декабрь"
     }
     return f"{month_names.get(month, '')} {year}"
+
+
+# ==================== Plan Hints Endpoint ====================
+
+
+@router.get("/plan-hints", response_model=PlanHintsResponse)
+async def get_plan_hints(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    article_id: Optional[int] = Query(
+        None,
+        gt=0,
+        description="Category ID for which to get hints"
+    ),
+    period: str = Query(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Planning period in YYYY-MM format (e.g., '2025-11')"
+    ),
+    article_type: str = Query(
+        "expense",
+        pattern="^(income|expense)$",
+        description="Article type: 'income' or 'expense'"
+    ),
+):
+    """
+    Get plan hints for the plan creation modal.
+
+    Returns sum of plans and facts from PREVIOUS month for the specified category.
+
+    Logic:
+        - If user selects "November 2025" as planning period
+        - Previous period = "October 2025"
+        - Returns: sum of plans for Oct 2025, sum of facts for Oct 2025
+
+    Args:
+        article_id: Category ID (optional, but recommended for meaningful results)
+        period: Selected planning month in YYYY-MM format
+        article_type: Type of operation ('expense' or 'income')
+
+    Returns:
+        PlanHintsResponse with prev_period_plan_sum and prev_period_fact_sum
+
+    Example:
+        GET /api/v1/analytics/plan-hints?article_id=45&period=2025-11&article_type=expense
+
+        Response:
+        {
+            "prev_period_plan_sum": 15000.00,
+            "prev_period_fact_sum": 12500.00,
+            "prev_period": "2025-10",
+            "article_id": 45,
+            "article_name": "Продукты",
+            "article_type": "expense"
+        }
+    """
+    # Parse the planning period
+    try:
+        year, month = map(int, period.split('-'))
+    except ValueError:
+        raise HTTPException(400, f"Invalid period format: {period}. Expected YYYY-MM")
+
+    # Calculate previous month
+    if month == 1:
+        prev_year = year - 1
+        prev_month = 12
+    else:
+        prev_year = year
+        prev_month = month - 1
+
+    prev_period_str = f"{prev_year}-{prev_month:02d}"
+    prev_start = date(prev_year, prev_month, 1)
+    _, last_day = cal_module.monthrange(prev_year, prev_month)
+    prev_end = date(prev_year, prev_month, last_day)
+
+    # Get article name if article_id provided
+    article_name = None
+    if article_id:
+        article_result = await session.execute(
+            select(Article.name).where(Article.id == article_id)
+        )
+        article_row = article_result.first()
+        if article_row:
+            article_name = article_row[0]
+
+    # Query previous month PLANS
+    plan_query = (
+        select(func.sum(Fact.amount).label("total"))
+        .select_from(Fact)
+        .join(Article, Fact.article_id == Article.id)
+        .where(
+            Fact.user_id == current_user.id,
+            Fact.fact_date >= prev_start,
+            Fact.fact_date <= prev_end,
+            Fact.record_type == "plan",
+            Article.type == article_type
+        )
+    )
+
+    if article_id:
+        plan_query = plan_query.where(Fact.article_id == article_id)
+
+    plan_result = await session.execute(plan_query)
+    plan_row = plan_result.first()
+    prev_plan_sum = Decimal(str(plan_row[0])) if plan_row and plan_row[0] else None
+
+    # Query previous month FACTS
+    fact_query = (
+        select(func.sum(Fact.amount).label("total"))
+        .select_from(Fact)
+        .join(Article, Fact.article_id == Article.id)
+        .where(
+            Fact.user_id == current_user.id,
+            Fact.fact_date >= prev_start,
+            Fact.fact_date <= prev_end,
+            Fact.record_type == "fact",
+            Article.type == article_type
+        )
+    )
+
+    if article_id:
+        fact_query = fact_query.where(Fact.article_id == article_id)
+
+    fact_result = await session.execute(fact_query)
+    fact_row = fact_result.first()
+    prev_fact_sum = Decimal(str(fact_row[0])) if fact_row and fact_row[0] else None
+
+    return PlanHintsResponse(
+        prev_period_plan_sum=prev_plan_sum,
+        prev_period_fact_sum=prev_fact_sum,
+        prev_period=prev_period_str,
+        article_id=article_id,
+        article_name=article_name,
+        article_type=article_type
+    )
