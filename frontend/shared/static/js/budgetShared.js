@@ -1435,15 +1435,6 @@ class ChoicesCategoryTree {
 
             // Initialize Choices.js
             this.initChoices(displayCategories);
-
-            // Setup path display
-            this.setupPathDisplay();
-
-            // Restore selected value if exists
-            const selectedId = this.element.value;
-            if (selectedId) {
-                await this.updatePathDisplay(parseInt(selectedId));
-            }
         } catch (error) {
             console.error('[ChoicesCategoryTree] Initialization error:', error);
             this.showError('Ошибка загрузки категорий');
@@ -1713,30 +1704,6 @@ class ChoicesCategoryTree {
     }
 
     /**
-     * Setup path display element.
-     */
-    setupPathDisplay() {
-        // Find or create path display element
-        let pathDisplay = document.querySelector(`#${this.element.id}-path`);
-
-        if (!pathDisplay) {
-            // Create path display element
-            pathDisplay = document.createElement('div');
-            pathDisplay.id = `${this.element.id}-path`;
-            pathDisplay.className = 'category-path';
-            pathDisplay.style.cssText = 'margin-top: 8px; font-size: 12px; color: var(--tg-theme-hint-color, #999);';
-
-            // Insert after Choices container
-            const choicesContainer = this.element.closest('.choices');
-            if (choicesContainer && choicesContainer.parentNode) {
-                choicesContainer.parentNode.insertBefore(pathDisplay, choicesContainer.nextSibling);
-            }
-        }
-
-        this.pathDisplay = pathDisplay;
-    }
-
-    /**
      * Handle category change event.
      *
      * @param {Event} event - Change event
@@ -1745,77 +1712,14 @@ class ChoicesCategoryTree {
         const categoryId = parseInt(event.target.value);
 
         if (!categoryId) {
-            this.pathDisplay.textContent = '';
             return;
         }
-
-        // Update path display
-        await this.updatePathDisplay(categoryId);
 
         // Call user callback
         if (this.options.onCategoryChange) {
             const category = this.categoryMap.get(categoryId);
             this.options.onCategoryChange(category);
         }
-    }
-
-    /**
-     * Update path display for selected category.
-     *
-     * @param {number} categoryId - Selected category ID
-     */
-    async updatePathDisplay(categoryId) {
-        try {
-            const path = await this.getCategoryPath(categoryId);
-            const pathText = path.map(cat => cat.name).join(' › ');
-            this.pathDisplay.textContent = pathText;
-        } catch (error) {
-            console.error('[ChoicesCategoryTree] Error updating path display:', error);
-            this.pathDisplay.textContent = '';
-        }
-    }
-
-    /**
-     * Get full category path (ancestors).
-     * Uses Bearer token (WebApp) or cookie-based auth (web interface).
-     *
-     * @param {number} categoryId - Category ID
-     * @returns {Promise<Array>} Path array (root to category)
-     */
-    async getCategoryPath(categoryId) {
-        const url = `${this.options.apiBaseUrl}/articles/${categoryId}/ancestors?include_self=true`;
-
-        // Build headers conditionally
-        const headers = {};
-
-        // If auth instance provided, use Bearer token (Telegram WebApp)
-        if (this.auth && typeof this.auth.getToken === 'function') {
-            const token = this.auth.getToken();
-            if (!token) {
-                throw new Error('No authentication token available');
-            }
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        // Otherwise, rely on cookie-based auth (web interface)
-
-        const response = await fetch(url, {
-            headers: headers,
-            credentials: 'same-origin',  // Include cookies
-        });
-
-        if (!response.ok) {
-            // Graceful degradation for 401 Unauthorized (user not authenticated)
-            if (response.status === 401) {
-                debugLog('[ChoicesCategoryTree] User not authenticated - ancestors not loaded');
-                return [];  // Empty path array
-            }
-
-            // For other errors, throw with detailed status
-            throw new Error(`Failed to load ancestors: HTTP ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        return data.articles || [];
     }
 
     /**
@@ -1847,13 +1751,6 @@ class ChoicesCategoryTree {
             this.element.removeAttribute('data-choice');
         }
 
-        if (this.pathDisplay) {
-            this.pathDisplay.textContent = '';
-            if (this.pathDisplay.parentNode) {
-                this.pathDisplay.parentNode.removeChild(this.pathDisplay);
-            }
-        }
-
         this.categories = [];
         this.categoryMap.clear();
         this.childrenMap.clear();
@@ -1872,11 +1769,6 @@ class ChoicesCategoryTree {
         // Reset selection
         if (this.element) {
             this.element.value = '';
-        }
-
-        // Clear path display
-        if (this.pathDisplay) {
-            this.pathDisplay.textContent = '';
         }
 
         try {
@@ -1973,8 +1865,6 @@ class ChoicesCategoryTree {
                 const valueToSet = targetChoice.value;
 
                 this.choices.setChoiceByValue(valueToSet);
-
-                await this.updatePathDisplay(categoryId);
             } else {
                 console.warn('[ChoicesCategoryTree] Category not found in choices:', categoryId);
             }

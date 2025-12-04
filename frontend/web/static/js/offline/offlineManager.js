@@ -613,7 +613,6 @@ class OfflineManager {
             } catch (e) {
                 errorDetail = response.statusText || errorDetail;
             }
-            console.error(`[OfflineManager] Sync ${item.entity} failed:`, errorDetail);
             throw new Error(errorDetail);
         }
 

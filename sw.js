@@ -47,7 +47,7 @@ self.addEventListener('install', (event) => {
         return Promise.allSettled(
           STATIC_CACHE.map(url =>
             cache.add(url).catch(err => {
-              console.warn('[SW] Failed to cache:', url, err);
+              if (DEBUG) console.warn('[SW] Failed to cache:', url, err);
               return null;
             })
           )
@@ -346,7 +346,7 @@ async function updateSyncQueueItem(id, updates) {
  * Support: Chrome, Edge, Яндекс.Браузер (Safari не поддерживает)
  */
 self.addEventListener('sync', (event) => {
-  console.log('[SW] Background Sync triggered:', event.tag);
+  if (DEBUG) console.log('[SW] Background Sync triggered:', event.tag);
 
   if (event.tag === 'sync-budget-data') {
     event.waitUntil(syncBudgetData());
@@ -354,46 +354,32 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncBudgetData() {
-  console.log('[SW] Starting background sync...');
-
-  const results = {
-    synced: 0,
-    failed: 0
-  };
+  const results = { synced: 0, failed: 0 };
 
   try {
     const queue = await getSyncQueue('pending');
-    console.log(`[SW] Found ${queue.length} pending items`);
+    if (queue.length === 0) return results;
 
     for (const item of queue) {
       try {
         await syncItem(item);
         results.synced++;
       } catch (error) {
-        console.error(`[SW] Sync failed for item ${item.id}:`, error);
+        console.error(`[SW] Sync failed for item ${item.id} (${item.entity}):`, error.message);
 
         const retryCount = (item.retryCount || 0) + 1;
-
-        if (retryCount >= 3) {
-          // Max retries reached
-          await updateSyncQueueItem(item.id, {
-            status: 'failed',
-            error: error.message,
-            retryCount
-          });
-          results.failed++;
-        } else {
-          // Retry later
-          await updateSyncQueueItem(item.id, {
-            status: 'pending',
-            error: error.message,
-            retryCount
-          });
+        try {
+          if (retryCount >= 3) {
+            await updateSyncQueueItem(item.id, { status: 'failed', error: error.message, retryCount });
+            results.failed++;
+          } else {
+            await updateSyncQueueItem(item.id, { status: 'pending', error: error.message, retryCount });
+          }
+        } catch (e) {
+          // Item already removed
         }
       }
     }
-
-    console.log(`[SW] Background sync complete: ${results.synced} synced, ${results.failed} failed`);
 
     // Show notification if synced items
     if (results.synced > 0) {
@@ -414,13 +400,11 @@ async function syncBudgetData() {
 }
 
 async function syncItem(item) {
-  console.log(`[SW] Syncing item ${item.id} (${item.operation} ${item.entity})`);
-
   // Update status (ignore errors - item may have been removed by main thread)
   try {
     await updateSyncQueueItem(item.id, { status: 'syncing' });
   } catch (e) {
-    console.log(`[SW] Item ${item.id} already processed by main thread, skipping`);
+    // Item already processed by main thread, skip
     return null;
   }
 
@@ -444,10 +428,8 @@ async function syncItem(item) {
   try {
     await updateSyncQueueItem(item.id, { status: 'completed' });
   } catch (e) {
-    console.log(`[SW] Item ${item.id} status update skipped (already processed)`);
+    // Already processed
   }
-
-  console.log(`[SW] Item ${item.id} synced successfully`);
 
   return response;
 }
@@ -466,8 +448,6 @@ async function syncCreate(item) {
   delete cleanData.plan_date;
   delete cleanData.fact_type;
 
-  console.log(`[SW] Syncing ${item.entity} to ${endpoint}:`, cleanData);
-
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -483,7 +463,6 @@ async function syncCreate(item) {
     } catch (e) {
       errorDetail = response.statusText || errorDetail;
     }
-    console.error(`[SW] Sync ${item.entity} failed:`, errorDetail, 'Data:', cleanData);
     throw new Error(errorDetail);
   }
 
@@ -559,7 +538,7 @@ async function syncDelete(item) {
  * Support: Chrome, Edge, Safari 16.4+, Яндекс.Браузер
  */
 self.addEventListener('push', (event) => {
-  console.log('[SW] Push notification received');
+  if (DEBUG) console.log('[SW] Push notification received');
 
   const data = event.data ? event.data.json() : {};
 
@@ -583,7 +562,7 @@ self.addEventListener('push', (event) => {
  * Открывает приложение при клике на уведомление
  */
 self.addEventListener('notificationclick', (event) => {
-  console.log('[SW] Notification clicked:', event.notification.tag);
+  if (DEBUG) console.log('[SW] Notification clicked:', event.notification.tag);
 
   event.notification.close();
 
