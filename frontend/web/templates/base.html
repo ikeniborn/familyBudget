@@ -479,9 +479,25 @@
             }
         });
 
-        // Toast notification system (responsive, always on top)
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
+        // Toast notification system (responsive, always on top including modals)
+        function showToast(message, type = 'info', duration = 2000) {
+            // Check if a modal dialog is open (dialog[open] in top layer)
+            const openModal = document.querySelector('dialog[open]');
+            let container;
+
+            if (openModal) {
+                // Modal is open - create/get toast container inside modal
+                container = openModal.querySelector('.modal-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.className = 'modal-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
+                    openModal.appendChild(container);
+                }
+            } else {
+                // No modal open - use main toast container
+                container = document.getElementById('toast-container');
+            }
+
             if (!container) return;
 
             // Create toast element
@@ -490,10 +506,7 @@
                               type === 'error' ? 'alert-error' :
                               type === 'warning' ? 'alert-warning' : 'alert-info';
 
-            // Responsive toast:
-            // - Mobile: max 90% screen width
-            // - Desktop: max 400px width
-            // - Word wrap enabled, shadow for visibility
+            // Responsive toast with shadow for visibility
             toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
             toast.style.cssText = `
                 max-width: min(90vw, 400px);
@@ -510,7 +523,7 @@
             // Add to container
             container.appendChild(toast);
 
-            // Auto-dismiss after 2 seconds
+            // Auto-dismiss
             setTimeout(() => {
                 toast.style.transition = 'opacity 0.3s, transform 0.3s';
                 toast.style.opacity = '0';
@@ -519,8 +532,12 @@
                     if (toast.parentNode === container) {
                         container.removeChild(toast);
                     }
+                    // Clean up empty modal container
+                    if (container.classList.contains('modal-toast-container') && container.children.length === 0) {
+                        container.remove();
+                    }
                 }, 300);
-            }, 2000);
+            }, duration);
         }
 
         // Logout handler
