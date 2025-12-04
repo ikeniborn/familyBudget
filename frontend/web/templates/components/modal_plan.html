@@ -1,55 +1,33 @@
 {% macro plan_modal(modal_id='modal_add_plan') %}
 <dialog id="{{ modal_id }}" class="modal">
-    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">📝 Добавить план</h3>
+    <div class="modal-box w-full max-w-2xl p-4 max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-3">📝 Добавить план</h3>
 
-        <form id="form_{{ modal_id }}" class="space-y-2 sm:space-y-4">
+        <form id="form_{{ modal_id }}" class="space-y-2">
             <!-- Период (месяц) -->
             <div class="form-control">
-                <label class="label">
+                <label class="label py-1">
                     <span class="label-text font-semibold">Период планирования *</span>
                 </label>
                 <div class="grid grid-cols-3 gap-2">
-                    <button type="button" class="btn btn-outline period-btn btn-active" data-offset="0" id="plan_period_btn_1">Окт 2025</button>
-                    <button type="button" class="btn btn-outline period-btn" data-offset="1" id="plan_period_btn_2">Ноя 2025</button>
-                    <button type="button" class="btn btn-outline period-btn" data-offset="2" id="plan_period_btn_3">Дек 2025</button>
+                    <button type="button" class="btn btn-xs btn-outline period-btn btn-active" data-offset="0" id="plan_period_btn_1">Окт 2025</button>
+                    <button type="button" class="btn btn-xs btn-outline period-btn" data-offset="1" id="plan_period_btn_2">Ноя 2025</button>
+                    <button type="button" class="btn btn-xs btn-outline period-btn" data-offset="2" id="plan_period_btn_3">Дек 2025</button>
                 </div>
                 <input type="hidden" name="plan_month" required />
             </div>
 
-            <!-- Quick Amount Buttons -->
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">Быстрый выбор суммы</span>
-                </label>
-                <div class="grid grid-cols-4 gap-2">
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setPlanAmount(5000)">5000 ₽</button>
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setPlanAmount(10000)">10 000 ₽</button>
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setPlanAmount(20000)">20 000 ₽</button>
-                    <button type="button" class="btn btn-sm btn-outline" onclick="setPlanAmount(50000)">50 000 ₽</button>
-                </div>
-            </div>
-
-            <!-- Сумма -->
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">Плановая сумма</span>
-                </label>
-                <input type="number" name="amount" step="1" min="1" required
-                       class="input input-bordered" placeholder="0" />
-            </div>
-
             <!-- Тип операции -->
             <div class="form-control">
-                <label class="label">
+                <label class="label py-1">
                     <span class="label-text font-semibold">Тип операции *</span>
                 </label>
                 <div class="grid grid-cols-2 gap-2">
-                    <label class="btn btn-outline btn-error plan-type-btn btn-active" data-type="expense">
+                    <label class="btn btn-sm btn-outline btn-error plan-type-btn btn-active" data-type="expense">
                         <input type="radio" name="plan_type" value="expense" class="hidden" checked />
                         Расход
                     </label>
-                    <label class="btn btn-outline btn-success plan-type-btn" data-type="income">
+                    <label class="btn btn-sm btn-outline btn-success plan-type-btn" data-type="income">
                         <input type="radio" name="plan_type" value="income" class="hidden" />
                         Доход
                     </label>
@@ -58,48 +36,62 @@
 
             <!-- Категория -->
             <div class="form-control">
-                <label class="label">
+                <label class="label py-1">
                     <span class="label-text">Категория *</span>
                 </label>
-                <select name="article_id" required class="select select-bordered">
+                <select name="article_id" required class="select select-bordered select-sm">
                     <option value="" disabled hidden>-- Выберите категорию --</option>
                 </select>
-                <div id="plan-category-path-display" class="category-path-info" style="display: none;"></div>
+            </div>
+
+            <!-- Quick Amount Buttons -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Сумма *</span>
+                </label>
+                <div class="grid grid-cols-4 gap-1 mb-1">
+                    <button type="button" class="btn btn-xs btn-outline" onclick="setPlanAmount(5000)">5000</button>
+                    <button type="button" class="btn btn-xs btn-outline" onclick="setPlanAmount(10000)">10000</button>
+                    <button type="button" class="btn btn-xs btn-outline" onclick="setPlanAmount(20000)">20000</button>
+                    <button type="button" class="btn btn-xs btn-outline" onclick="setPlanAmount(50000)">50000</button>
+                </div>
+                <input type="number" name="amount" step="1" min="1" required
+                       class="input input-bordered input-sm" placeholder="0" />
             </div>
 
             <!-- Центр финансовой ответственности (ЦФО) -->
             <div class="form-control">
-                <label class="label">
-                    <span class="label-text">Центр финансовой ответственности (ЦФО) *</span>
+                <label class="label py-1">
+                    <span class="label-text">ЦФО *</span>
                 </label>
-                <select name="financial_center_id" required class="select select-bordered">
+                <select name="financial_center_id" required class="select select-bordered select-sm">
                     <option value="">-- Выберите ЦФО --</option>
                 </select>
             </div>
 
             <!-- Место возникновения затрат (МВЗ) -->
             <div class="form-control">
-                <label class="label">
-                    <span class="label-text">Место возникновения затрат (МВЗ)</span>
+                <label class="label py-1">
+                    <span class="label-text">МВЗ</span>
                 </label>
-                <select name="cost_center_id" class="select select-bordered">
+                <select name="cost_center_id" class="select select-bordered select-sm">
                     <option value="">-- Не выбрано --</option>
                 </select>
             </div>
 
             <!-- Описание -->
             <div class="form-control">
-                <label class="label">
-                    <span class="label-text">Описание (необязательно)</span>
+                <label class="label py-1">
+                    <span class="label-text">Описание</span>
                 </label>
-                <textarea name="description" class="textarea textarea-bordered"
-                          placeholder="Комментарий к плану" rows="2"></textarea>
+                <textarea name="description" class="textarea textarea-bordered textarea-sm"
+                          placeholder="Комментарий" rows="1"></textarea>
             </div>
 
-            <div class="modal-action">
-                <button type="button" onclick="{{ modal_id }}.close()" class="btn btn-ghost">Отмена</button>
-                <button type="submit" class="btn btn-info">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div class="modal-action mt-3">
+                <button type="button" onclick="{{ modal_id }}.close()" class="btn btn-sm btn-ghost">Отмена</button>
+                <button type="submit" class="btn btn-sm btn-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
                     Сохранить
