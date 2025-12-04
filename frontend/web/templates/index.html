@@ -711,8 +711,8 @@ async function loadPlanCategories() {
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     debugLog('Plan category changed:', category);
-                    // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_modal_add_plan', 'plan', category);
+                    // Update plan hints based on selected category
+                    loadPlanHints(category);
                 }
             });
         }
@@ -786,8 +786,7 @@ async function loadFinancialCenters() {
         if (planFcSelect) {
             planFcSelect.addEventListener('change', () => {
                 const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
-                // Use loadRecommendedAmounts for index.html (loadPlanHints is only in plan.html)
-                loadRecommendedAmounts('form_modal_add_plan', 'plan', selectedCategory);
+                loadPlanHints(selectedCategory);
             });
         }
     } catch (error) {
@@ -875,6 +874,185 @@ function setTransactionDate(daysOffset) {
         // Use DD.MM.YYYY format
         dateInput.value = BudgetShared.DateFormatter.formatForDisplay(date.toISOString().split('T')[0]);
         dateInput.focus();
+    }
+}
+
+// ============ Plan Hints Functions ============
+
+// Debounce tracking for plan hints API calls
+let planHintsTimeout = null;
+let planHintsController = null;
+
+/**
+ * Load plan hints from API and update hint buttons.
+ * Shows previous month's plan and fact sums for selected category.
+ *
+ * @param {object|null} category - Selected category (from onCategoryChange callback)
+ */
+async function loadPlanHints(category = null) {
+    // Clear existing debounce timeout
+    if (planHintsTimeout) {
+        clearTimeout(planHintsTimeout);
+    }
+
+    // Cancel pending API call
+    if (planHintsController) {
+        planHintsController.abort();
+    }
+
+    // Get hint buttons
+    const prevPlanBtn = document.getElementById('hint-prev-plan');
+    const prevFactBtn = document.getElementById('hint-prev-fact');
+
+    if (!prevPlanBtn || !prevFactBtn) {
+        debugLog('[loadPlanHints] Hint buttons not found');
+        return;
+    }
+
+    // Show loading state
+    prevPlanBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    prevPlanBtn.disabled = true;
+    prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    prevFactBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    prevFactBtn.disabled = true;
+    prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+
+    // Check if category is selected
+    const articleId = category ? category.id : null;
+    if (!articleId) {
+        // No category selected - show placeholder
+        prevPlanBtn.innerHTML = 'План пред. мес: --';
+        prevFactBtn.innerHTML = 'Факт пред. мес: --';
+        return;
+    }
+
+    // Check if offline - show placeholder immediately
+    if (!navigator.onLine) {
+        debugLog('[loadPlanHints] Offline - showing placeholder');
+        prevPlanBtn.innerHTML = 'План пред. мес: --';
+        prevFactBtn.innerHTML = 'Факт пред. мес: --';
+        return;
+    }
+
+    // Debounce: wait 300ms after last call
+    planHintsTimeout = setTimeout(async () => {
+        try {
+            planHintsController = new AbortController();
+
+            // Get current planning period from hidden input
+            const periodInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
+            const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
+
+            // Get current type (income/expense)
+            const typeInput = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked');
+            const articleType = typeInput ? typeInput.value : 'expense';
+
+            // Get current financial center (ЦФО)
+            const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
+            const financialCenterId = cfoSelect ? cfoSelect.value : null;
+
+            // Build query params
+            const params = new URLSearchParams({
+                period: period,
+                article_type: articleType,
+            });
+
+            if (articleId) {
+                params.append('article_id', articleId);
+            }
+
+            if (financialCenterId) {
+                params.append('financial_center_id', financialCenterId);
+            }
+
+            // Call API
+            const response = await fetch(`/api/v1/analytics/plan-hints?${params.toString()}`, {
+                signal: planHintsController.signal,
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                console.error(`[loadPlanHints] API error: ${response.status}`, errorData);
+
+                // Show error state
+                prevPlanBtn.innerHTML = 'План пред. мес: --';
+                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+                return;
+            }
+
+            const data = await response.json();
+
+            // Update hint buttons
+            updatePlanHintButtons(data);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                debugLog('[loadPlanHints] Request cancelled (debounce)');
+            } else {
+                console.error('[loadPlanHints] Failed to load:', error);
+
+                // Show error state
+                prevPlanBtn.innerHTML = 'План пред. мес: --';
+                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+            }
+        }
+    }, 300);
+}
+
+/**
+ * Update plan hint buttons with data from API.
+ *
+ * @param {object} data - Response from /api/v1/analytics/plan-hints
+ */
+function updatePlanHintButtons(data) {
+    const prevPlanBtn = document.getElementById('hint-prev-plan');
+    const prevFactBtn = document.getElementById('hint-prev-fact');
+
+    if (!prevPlanBtn || !prevFactBtn) return;
+
+    // Format amounts
+    const formatAmount = (amount) => {
+        if (amount === null || amount === undefined) return '--';
+        const num = parseFloat(amount);
+        if (num >= 1000) {
+            return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
+        }
+        return num.toFixed(0);
+    };
+
+    // Get previous period month name
+    const prevPeriodParts = data.prev_period.split('-');
+    const prevMonthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+    const prevMonthName = prevMonthNames[parseInt(prevPeriodParts[1]) - 1];
+
+    // Update Plan button
+    const planAmount = data.prev_period_plan_sum;
+    if (planAmount !== null && planAmount !== undefined && parseFloat(planAmount) > 0) {
+        prevPlanBtn.innerHTML = `План ${prevMonthName}: ${formatAmount(planAmount)}₽`;
+        prevPlanBtn.disabled = false;
+        prevPlanBtn.className = 'btn btn-xs btn-outline btn-info';
+        prevPlanBtn.onclick = () => setPlanAmount(parseFloat(planAmount));
+    } else {
+        prevPlanBtn.innerHTML = `План ${prevMonthName}: --`;
+        prevPlanBtn.disabled = true;
+        prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevPlanBtn.onclick = null;
+    }
+
+    // Update Fact button
+    const factAmount = data.prev_period_fact_sum;
+    if (factAmount !== null && factAmount !== undefined && parseFloat(factAmount) > 0) {
+        prevFactBtn.innerHTML = `Факт ${prevMonthName}: ${formatAmount(factAmount)}₽`;
+        prevFactBtn.disabled = false;
+        prevFactBtn.className = 'btn btn-xs btn-outline btn-success';
+        prevFactBtn.onclick = () => setPlanAmount(parseFloat(factAmount));
+    } else {
+        prevFactBtn.innerHTML = `Факт ${prevMonthName}: --`;
+        prevFactBtn.disabled = true;
+        prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
+        prevFactBtn.onclick = null;
     }
 }
 
