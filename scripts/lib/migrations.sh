@@ -11,44 +11,6 @@
 # ALEMBIC MIGRATIONS (NEW - v5.0.0+)
 # =============================================================================
 
-# Fix known migration revision ID issues
-# This handles cases where migration files were renamed but DB has old revision
-fix_known_migration_issues() {
-    local fixed=0
-
-    # Known fixes: old_revision -> new_revision
-    # Add new fixes here when migration files are renamed
-    declare -A REVISION_FIXES=(
-        ["g2b3c4d5e6f7"]="e2b3c4d5e6f7"  # fix_recommended_amounts_type_constraint renamed
-    )
-
-    # Get current revision from database
-    local current_revision
-    current_revision=$(compose_cmd exec -T postgres psql -U familybudget -d familybudget -t -c \
-        "SELECT version_num FROM alembic_version LIMIT 1;" 2>/dev/null | tr -d ' \n' || echo "")
-
-    if [[ -z "$current_revision" ]]; then
-        return 0  # No revision in DB, nothing to fix
-    fi
-
-    # Check if current revision needs fixing
-    for old_rev in "${!REVISION_FIXES[@]}"; do
-        local new_rev="${REVISION_FIXES[$old_rev]}"
-        if [[ "$current_revision" == "$old_rev" ]]; then
-            info "Fixing known migration revision issue: $old_rev → $new_rev"
-            if compose_cmd exec -T postgres psql -U familybudget -d familybudget -c \
-                "UPDATE alembic_version SET version_num = '$new_rev' WHERE version_num = '$old_rev';" >/dev/null 2>&1; then
-                success "Migration revision fixed: $old_rev → $new_rev"
-                ((fixed++))
-            else
-                warning "Failed to fix migration revision: $old_rev → $new_rev"
-            fi
-        fi
-    done
-
-    return 0
-}
-
 # Run Alembic database migrations
 # Uses Alembic for versioned migrations (replaces old schema/*.sql system)
 # This is the PRIMARY migration method for all deployments
@@ -60,9 +22,6 @@ run_alembic_migrations() {
         error "PostgreSQL service is not healthy, cannot run migrations"
         return 1
     fi
-
-    # Fix known migration revision ID issues before running migrations
-    fix_known_migration_issues
 
     # Handle manual reapply flag (--reapply-migration <revision>)
     if [[ "$REAPPLY_MIGRATION" == "true" && -n "$REAPPLY_MIGRATION_FILE" ]]; then
