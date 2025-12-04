@@ -57,13 +57,13 @@ class ChoicesCategoryTree {
 
             // Skip if already cached
             if (ChoicesCategoryTree._cache.has(cacheKey)) {
-                console.log(`[ChoicesCategoryTree] ${type} categories already cached, skipping preload`);
+                debugLog(`[ChoicesCategoryTree] ${type} categories already cached, skipping preload`);
                 return;
             }
 
             // Skip if request already in flight
             if (ChoicesCategoryTree._pendingRequests.has(cacheKey)) {
-                console.log(`[ChoicesCategoryTree] ${type} categories request already in progress, waiting`);
+                debugLog(`[ChoicesCategoryTree] ${type} categories request already in progress, waiting`);
                 return ChoicesCategoryTree._pendingRequests.get(cacheKey);
             }
 
@@ -88,7 +88,7 @@ class ChoicesCategoryTree {
                     timestamp: Date.now()
                 });
 
-                console.log(`[ChoicesCategoryTree] Preloaded ${categories.length} ${type} categories`);
+                debugLog(`[ChoicesCategoryTree] Preloaded ${categories.length} ${type} categories`);
             } catch (error) {
                 console.warn(`[ChoicesCategoryTree] Network error preloading ${type} categories:`, error.message);
             }
@@ -217,7 +217,7 @@ class ChoicesCategoryTree {
             if (!response.ok) {
                 // Graceful degradation for 401 Unauthorized (user not authenticated)
                 if (response.status === 401) {
-                    console.log('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
+                    debugLog('[ChoicesCategoryTree] User not authenticated - categories not loaded (this is expected for unauthenticated users)');
                     return [];  // Empty categories array
                 }
 
@@ -242,7 +242,7 @@ class ChoicesCategoryTree {
             // Try to use stale cache if available (ignore TTL in offline mode)
             const staleCache = ChoicesCategoryTree._cache.get(cacheKey);
             if (staleCache && staleCache.data && staleCache.data.length > 0) {
-                console.log('[ChoicesCategoryTree] Using stale cache for offline mode');
+                debugLog('[ChoicesCategoryTree] Using stale cache for offline mode');
                 return staleCache.data;
             }
 
@@ -527,7 +527,7 @@ class ChoicesCategoryTree {
         if (!response.ok) {
             // Graceful degradation for 401 Unauthorized (user not authenticated)
             if (response.status === 401) {
-                console.log('[ChoicesCategoryTree] User not authenticated - ancestors not loaded');
+                debugLog('[ChoicesCategoryTree] User not authenticated - ancestors not loaded');
                 return [];  // Empty path array
             }
 
