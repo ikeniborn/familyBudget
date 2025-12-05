@@ -25,15 +25,16 @@ class ReminderCreate(BaseModel):
 
     reminder_datetime: datetime = Field(
         ...,
-        description="When to send the reminder (UTC). Must be in the future.",
-        examples=["2025-12-10T09:00:00Z"]
+        description="When to send the reminder (naive, in SYSTEM_TIMEZONE). Must be in the future.",
+        examples=["2025-12-10T09:00:00"]
     )
 
     @field_validator('reminder_datetime')
     @classmethod
     def reminder_must_be_future(cls, v: datetime) -> datetime:
-        """Ensure reminder datetime is in the future."""
-        now = datetime.utcnow()
+        """Ensure reminder datetime is in the future (in SYSTEM_TIMEZONE)."""
+        from backend.app.utils.timezone import now_local
+        now = now_local().replace(tzinfo=None)  # Naive datetime in SYSTEM_TIMEZONE
         if v <= now:
             raise ValueError("Reminder datetime must be in the future")
         return v
@@ -41,7 +42,7 @@ class ReminderCreate(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
-                "reminder_datetime": "2025-12-10T09:00:00Z"
+                "reminder_datetime": "2025-12-10T09:00:00"
             }
         }
     }
@@ -57,15 +58,16 @@ class ReminderUpdate(BaseModel):
 
     reminder_datetime: datetime = Field(
         ...,
-        description="New reminder datetime (UTC). Must be in the future.",
-        examples=["2025-12-15T14:00:00Z"]
+        description="New reminder datetime (naive, in SYSTEM_TIMEZONE). Must be in the future.",
+        examples=["2025-12-15T14:00:00"]
     )
 
     @field_validator('reminder_datetime')
     @classmethod
     def reminder_must_be_future(cls, v: datetime) -> datetime:
-        """Ensure reminder datetime is in the future."""
-        now = datetime.utcnow()
+        """Ensure reminder datetime is in the future (in SYSTEM_TIMEZONE)."""
+        from backend.app.utils.timezone import now_local
+        now = now_local().replace(tzinfo=None)  # Naive datetime in SYSTEM_TIMEZONE
         if v <= now:
             raise ValueError("Reminder datetime must be in the future")
         return v
@@ -73,7 +75,7 @@ class ReminderUpdate(BaseModel):
     model_config = {
         "json_schema_extra": {
             "example": {
-                "reminder_datetime": "2025-12-15T14:00:00Z"
+                "reminder_datetime": "2025-12-15T14:00:00"
             }
         }
     }

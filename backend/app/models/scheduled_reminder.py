@@ -32,7 +32,7 @@ class ScheduledReminder(SQLModel, table=True):
     Attributes:
         id: Primary key
         fact_id: Reference to budget plan (unique, one-to-one)
-        reminder_datetime: When to send the reminder (UTC)
+        reminder_datetime: When to send the reminder (naive datetime in SYSTEM_TIMEZONE)
         status: Current status (pending/sent/failed/cancelled)
         sent_at: When reminder was actually sent
         telegram_sent: Whether Telegram notification was sent
@@ -63,7 +63,7 @@ class ScheduledReminder(SQLModel, table=True):
     reminder_datetime: datetime = Field(
         nullable=False,
         index=True,
-        description="When to send the reminder (UTC timezone)"
+        description="When to send the reminder (naive datetime in SYSTEM_TIMEZONE)"
     )
 
     status: str = Field(
@@ -115,7 +115,10 @@ class ScheduledReminder(SQLModel, table=True):
 
     def is_due(self) -> bool:
         """Check if reminder is due (datetime <= now and still pending)."""
-        return self.status == "pending" and self.reminder_datetime <= datetime.utcnow()
+        # Import here to avoid circular imports
+        from backend.app.utils.timezone import now_local
+        # reminder_datetime is stored in SYSTEM_TIMEZONE, compare with current SYSTEM_TIMEZONE
+        return self.status == "pending" and self.reminder_datetime <= now_local().replace(tzinfo=None)
 
     def is_pending(self) -> bool:
         """Check if reminder is still pending."""

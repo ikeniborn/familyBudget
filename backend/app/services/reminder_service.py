@@ -16,7 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.logging import get_logger
 from backend.app.db.session import get_session_context
-from backend.app.utils.timezone import now_utc, from_utc, format_datetime_local
+from backend.app.utils.timezone import now_utc, now_local
 from backend.app.models.scheduled_reminder import ScheduledReminder
 from backend.app.models.push_subscription import PushSubscription
 from backend.app.models.fact import BudgetFact
@@ -52,7 +52,7 @@ class ReminderService:
         Args:
             session: Database session
             fact_id: ID of the plan (BudgetFact with record_type='plan')
-            reminder_datetime: When to send the reminder (UTC)
+            reminder_datetime: When to send the reminder (naive datetime in SYSTEM_TIMEZONE)
             user_id: User ID (for validation)
 
         Returns:
@@ -107,7 +107,7 @@ class ReminderService:
         Args:
             session: Database session
             fact_id: ID of the plan
-            reminder_datetime: New reminder datetime (UTC)
+            reminder_datetime: New reminder datetime (naive datetime in SYSTEM_TIMEZONE)
             user_id: User ID (for validation)
 
         Returns:
@@ -229,14 +229,12 @@ class ReminderService:
         article = await session.get(Article, fact.article_id)
         article_name = article.name if article else None
 
-        # Format datetime using SYSTEM_TIMEZONE (no per-user timezone)
+        # Format datetime (already stored in SYSTEM_TIMEZONE, no conversion needed)
         return {
             "id": reminder.id,
             "fact_id": reminder.fact_id,
             "reminder_datetime": reminder.reminder_datetime,
-            "reminder_datetime_local": format_datetime_local(
-                reminder.reminder_datetime, None  # Uses SYSTEM_TIMEZONE
-            ) if reminder.reminder_datetime else None,
+            "reminder_datetime_local": reminder.reminder_datetime.strftime("%d.%m.%Y %H:%M") if reminder.reminder_datetime else None,
             "status": reminder.status,
             "sent_at": reminder.sent_at,
             "telegram_sent": reminder.telegram_sent,
@@ -271,8 +269,9 @@ class ReminderService:
             List of due reminders
         """
         # Use naive datetime for comparison with TIMESTAMP WITHOUT TIME ZONE column
-        # reminder_datetime is stored as naive UTC in the database
-        now = now_utc().replace(tzinfo=None)
+        # reminder_datetime is stored as naive datetime in SYSTEM_TIMEZONE
+        # (frontend sends local time, we compare with current SYSTEM_TIMEZONE time)
+        now = now_local().replace(tzinfo=None)
         statement = (
             select(ScheduledReminder)
             .where(
