@@ -2194,6 +2194,9 @@ async function createPlan(event) {
 
             modal_add_plan.close();
             event.target.reset();
+            // Reset reminder settings visibility (checkbox reset doesn't trigger onchange)
+            const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+            if (reminderSettings) reminderSettings.classList.add('hidden');
             await loadFacts(); // Перезагрузить список планов
 
             // Переинициализировать кнопки периода
@@ -2224,6 +2227,9 @@ async function createPlan(event) {
 
                 modal_add_plan.close();
                 event.target.reset();
+                // Reset reminder settings visibility (checkbox reset doesn't trigger onchange)
+                const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+                if (reminderSettings) reminderSettings.classList.add('hidden');
                 await loadFacts(); // Перезагрузить список планов
 
                 // Переинициализировать кнопки периода

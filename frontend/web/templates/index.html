@@ -586,6 +586,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Close modal and reset form first
                 modal_add_plan.close();
                 e.target.reset();
+                // Reset reminder settings visibility (checkbox reset doesn't trigger onchange)
+                const reminderSettings1 = document.getElementById('reminder-settings-modal_add_plan');
+                if (reminderSettings1) reminderSettings1.classList.add('hidden');
                 setupPlanPeriodButtons();
 
                 if (result._offline) {
@@ -635,6 +638,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     modal_add_plan.close();
                     e.target.reset();
+                    // Reset reminder settings visibility (checkbox reset doesn't trigger onchange)
+                    const reminderSettings2 = document.getElementById('reminder-settings-modal_add_plan');
+                    if (reminderSettings2) reminderSettings2.classList.add('hidden');
                     setupPlanPeriodButtons();
                     // Update recent records table (now includes plans)
                     htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {

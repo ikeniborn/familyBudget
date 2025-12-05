@@ -593,10 +593,15 @@ function setupQuickDateButtons() {
 
 /**
  * Open Transfer Modal
+ * Reloads financial centers data to ensure dropdowns are populated
  */
-function openTransferModal() {
+async function openTransferModal() {
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
+        // Ensure financial centers and cost centers are loaded
+        // (may not have completed on page load due to race condition)
+        await loadTransferData();
+
         // Set today as default date
         const today = BudgetShared.DateFormatter.today();
         document.querySelector('#transfer_date').value =
