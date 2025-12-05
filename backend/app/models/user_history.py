@@ -200,13 +200,6 @@ class UserHistory(SQLModel, table=True):
         description="Active status at time of change (snapshot)"
     )
 
-    # User preferences snapshot
-    timezone: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="User timezone at time of change (snapshot)"
-    )
-
     # 2FA status (for security audit - tracks when 2FA was enabled/disabled)
     # NOTE: two_factor_secret is NOT stored in history (security sensitive)
     two_factor_enabled: bool = Field(

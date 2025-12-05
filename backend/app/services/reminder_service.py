@@ -229,16 +229,13 @@ class ReminderService:
         article = await session.get(Article, fact.article_id)
         article_name = article.name if article else None
 
-        # Get user for timezone
-        user = await session.get(User, user_id)
-        user_timezone = user.timezone if user else None
-
+        # Format datetime using SYSTEM_TIMEZONE (no per-user timezone)
         return {
             "id": reminder.id,
             "fact_id": reminder.fact_id,
             "reminder_datetime": reminder.reminder_datetime,
             "reminder_datetime_local": format_datetime_local(
-                reminder.reminder_datetime, user_timezone
+                reminder.reminder_datetime, None  # Uses SYSTEM_TIMEZONE
             ) if reminder.reminder_datetime else None,
             "status": reminder.status,
             "sent_at": reminder.sent_at,

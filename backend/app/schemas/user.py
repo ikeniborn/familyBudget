@@ -146,14 +146,6 @@ class UserUpdate(BaseModel):
         examples=[True, False]
     )
 
-    timezone: Optional[str] = Field(
-        default=None,
-        max_length=50,
-        description="User timezone in IANA format (e.g., 'Europe/Moscow'). "
-        "NULL means use SYSTEM_TIMEZONE from config.",
-        examples=["Europe/Moscow", "UTC", None]
-    )
-
 
 class UserResponse(BaseModel):
     """
@@ -224,13 +216,6 @@ class UserResponse(BaseModel):
         examples=[True, False]
     )
 
-    timezone: Optional[str] = Field(
-        default=None,
-        description="User timezone in IANA format (e.g., 'Europe/Moscow'). "
-        "NULL means use SYSTEM_TIMEZONE from config.",
-        examples=["Europe/Moscow", "UTC", None]
-    )
-
     last_login_at: Optional[datetime] = Field(
         default=None,
         description="Timestamp of last successful login",
@@ -266,7 +251,6 @@ class UserResponse(BaseModel):
                 "photo_url": "/static/avatars/1.jpg",
                 "is_admin": False,
                 "is_active": True,
-                "timezone": "Europe/Moscow",
                 "last_login_at": "2025-11-14T10:30:00Z",
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z"
@@ -347,12 +331,6 @@ class UserHistoryResponse(BaseModel):
         examples=[True]
     )
 
-    timezone: Optional[str] = Field(
-        default=None,
-        description="User timezone at time of change (snapshot)",
-        examples=["Europe/Moscow", "UTC", None]
-    )
-
     last_login_at: Optional[datetime] = Field(
         default=None,
         description="Last login at time of change (snapshot)",
@@ -412,7 +390,6 @@ class UserHistoryResponse(BaseModel):
                 "photo_url": "/static/avatars/1.jpg",
                 "is_admin": False,
                 "is_active": True,
-                "timezone": "Europe/Moscow",
                 "last_login_at": "2025-11-14T10:30:00Z",
                 "valid_from": "2025-10-13T12:00:00Z",
                 "valid_to": "9999-12-31T23:59:59Z",
