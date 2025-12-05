@@ -1330,6 +1330,9 @@ main() {
         setup_backup_cron
         echo ""
 
+        install_systemd_service
+        echo ""
+
         # Configure firewall before SSL certificate setup
         configure_firewall_for_ssl
         echo ""

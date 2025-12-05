@@ -1,0 +1,31 @@
+[Unit]
+Description=Family Budget Application (Docker Compose)
+Documentation=https://github.com/ikeniborn/familyBudget
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/budget
+
+# Repair PostgreSQL directories before starting (prevents startup failures)
+ExecStartPre=/bin/bash -c 'source /opt/budget/scripts/lib/config.sh && source /opt/budget/scripts/lib/utils.sh && source /opt/budget/scripts/lib/postgres.sh && repair_postgres_directories_atomic'
+
+# Start all containers
+ExecStart=/usr/bin/docker compose up -d
+
+# Stop all containers gracefully
+ExecStop=/usr/bin/docker compose down
+
+# Restart policy
+Restart=on-failure
+RestartSec=10
+
+# Timeouts
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

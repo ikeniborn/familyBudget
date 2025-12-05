@@ -334,3 +334,55 @@ verify_all_services() {
         success "All services are healthy"
     fi
 }
+
+# Install systemd service for auto-restart on boot
+# This ensures containers start automatically after server reboot
+# and repairs PostgreSQL directories before startup
+install_systemd_service() {
+    step "Installing systemd service for auto-restart..."
+
+    local service_src="$DEPLOY_DIR/scripts/familybudget.service"
+    local service_dst="/etc/systemd/system/familybudget.service"
+
+    # Check if service file exists in deployment
+    if [[ ! -f "$service_src" ]]; then
+        warning "Systemd service file not found: $service_src"
+        warning "Containers will NOT auto-start after server reboot"
+        return 0
+    fi
+
+    # Check if already installed and up-to-date
+    if [[ -f "$service_dst" ]]; then
+        if diff -q "$service_src" "$service_dst" > /dev/null 2>&1; then
+            info "Systemd service already installed and up-to-date"
+            # Ensure it's enabled
+            if ! systemctl is-enabled familybudget.service > /dev/null 2>&1; then
+                systemctl enable familybudget.service >> "$LOG_FILE" 2>&1
+                success "Systemd service enabled"
+            fi
+            return 0
+        fi
+        info "Updating systemd service..."
+    fi
+
+    # Install service file
+    cp "$service_src" "$service_dst" || {
+        error "Failed to install systemd service"
+        return 1
+    }
+
+    # Reload systemd daemon
+    systemctl daemon-reload >> "$LOG_FILE" 2>&1 || {
+        error "Failed to reload systemd daemon"
+        return 1
+    }
+
+    # Enable service
+    systemctl enable familybudget.service >> "$LOG_FILE" 2>&1 || {
+        error "Failed to enable systemd service"
+        return 1
+    }
+
+    success "Systemd service installed and enabled"
+    info "Containers will auto-start after server reboot"
+}
