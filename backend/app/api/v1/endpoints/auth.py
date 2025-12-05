@@ -1356,7 +1356,7 @@ async def setup_2fa(
     await session.commit()
 
     # Generate QR code URI
-    qr_uri = get_totp_uri(secret, user.email, settings.APP_NAME or "Family Budget")
+    qr_uri = get_totp_uri(secret, user.email, "Family Budget")
 
     return TwoFactorSetupResponse(
         secret=secret,
