@@ -347,33 +347,32 @@ async def new_fact_info() -> dict:
 async def get_recent_facts_html(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    limit: Annotated[int, Query(ge=1, le=20)] = 5,
+    limit: Annotated[int, Query(ge=1, le=20)] = 10,
 ) -> str:
     """
-    Get recent budget facts (HTML formatted for dashboard).
+    Get recent budget records (HTML formatted for dashboard).
 
-    Returns the most recent transactions as an HTML table.
+    Returns the most recent transactions (facts and plans) as an HTML table.
     Uses DaisyUI table components for beautiful display.
 
     **User Isolation:**
-    - Regular users see only their own facts
-    - Admins see all facts
+    - Regular users see only their own records
+    - Admins see all records
 
     **Parameters:**
-    - limit: Maximum number of results (1-20, default: 5)
+    - limit: Maximum number of results (1-20, default: 10)
 
     **Returns:**
-    - HTML table with recent transactions
+    - HTML table with recent records (facts and plans)
     """
     try:
-        # Base query
+        # Base query - include both facts and plans
         statement = select(BudgetFact)
 
         # Shared family budget - NO user isolation filter
         # All authenticated users see all transactions
 
-        # Filter only actual transactions (exclude plans)
-        statement = statement.where(BudgetFact.record_type == "fact")
+        # No filter by record_type - show both facts and plans
 
         # Order by most recent (by creation time in DB, not transaction date)
         # This shows newest added transactions first, regardless of their fact_date
@@ -384,12 +383,12 @@ async def get_recent_facts_html(
         result = await session.execute(statement)
         facts = result.scalars().all()
 
-        # If no facts, return empty state message
+        # If no records, return empty state message
         if not facts:
             return """
             <div class="alert alert-info">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                <span>Факты не найдены. Добавьте первый факт!</span>
+                <span>Записи не найдены. Добавьте первую запись!</span>
             </div>
             """
 
@@ -417,12 +416,13 @@ async def get_recent_facts_html(
         def format_money(amount: Decimal) -> str:
             return f"{float(amount):,.2f}".replace(",", " ")
 
-        # Build HTML table
+        # Build HTML table with Type column as first column
         html = """
         <div class="overflow-x-auto">
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
+                        <th>Тип</th>
                         <th>Дата</th>
                         <th>ЦФО</th>
                         <th>Категория</th>
@@ -437,6 +437,12 @@ async def get_recent_facts_html(
             article = articles.get(fact.article_id)
             if not article:
                 continue
+
+            # Record type badge (Факт or План)
+            if fact.record_type == "plan":
+                record_type_badge = '<span class="badge badge-info badge-sm">План</span>'
+            else:
+                record_type_badge = '<span class="badge badge-success badge-sm">Факт</span>'
 
             # Format date
             fact_date_str = fact.fact_date.strftime("%d.%m.%Y")
@@ -468,6 +474,7 @@ async def get_recent_facts_html(
 
             html += f"""
                     <tr>
+                        <td>{record_type_badge}</td>
                         <td class="whitespace-nowrap">{fact_date_str}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
                         <td>{article_icon} {article.name}</td>
@@ -480,19 +487,16 @@ async def get_recent_facts_html(
                 </tbody>
             </table>
         </div>
-        <div class="mt-4 text-center">
-            <a href="/facts" class="link link-primary">Посмотреть все факты →</a>
-        </div>
         """
 
         return html
 
     except Exception as e:
-        logger.error(f"Error loading recent facts: {str(e)}", exc_info=True)
+        logger.error(f"Error loading recent records: {str(e)}", exc_info=True)
         return """
         <div class="alert alert-error">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-            <span>Ошибка загрузки фактов. Попробуйте обновить страницу.</span>
+            <span>Ошибка загрузки записей. Попробуйте обновить страницу.</span>
         </div>
         """
 

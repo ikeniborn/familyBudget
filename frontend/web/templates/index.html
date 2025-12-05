@@ -106,12 +106,12 @@
                 </div>
             </div>
 
-            <!-- Recent Transactions (hidden when offline) -->
+            <!-- Recent Records (hidden when offline) -->
             <div id="recent-transactions-card" class="card bg-base-100 shadow-xl">
                 <div class="card-body">
-                    <h2 class="card-title text-xl mb-4">📈 Последние факты</h2>
+                    <h2 class="card-title text-xl mb-4">📈 Последние записи</h2>
                     <div id="recent-transactions"
-                         hx-get="/api/v1/facts/recent-html?limit=5"
+                         hx-get="/api/v1/facts/recent-html?limit=10"
                          hx-trigger="load"
                          hx-swap="innerHTML"
                          class="min-h-[200px]">
@@ -361,8 +361,8 @@ document.addEventListener('DOMContentLoaded', function() {
         debugLog('[Network] online event fired');
         updateOfflineUI();
         loadPendingRecords();
-        // Перезагрузить последние факты при восстановлении сети
-        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+        // Перезагрузить последние записи при восстановлении сети
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
             target: '#recent-transactions',
             swap: 'innerHTML'
         });
@@ -473,7 +473,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadPendingRecords();
                 } else {
                     // Saved online - update UI
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                         target: '#recent-transactions',
                         swap: 'innerHTML'
                     });
@@ -501,7 +501,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.ok) {
                     const result = await response.json();
 
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                         target: '#recent-transactions',
                         swap: 'innerHTML'
                     });
@@ -590,6 +590,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update pending records table
                     loadPendingRecords();
                 } else {
+                    // Update recent records table (now includes plans)
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
                     htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
                         target: '#quick-stats',
                         swap: 'innerHTML'
@@ -617,6 +622,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     modal_add_plan.close();
                     e.target.reset();
                     setupPlanPeriodButtons();
+                    // Update recent records table (now includes plans)
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
                     htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
                         target: '#quick-stats',
                         swap: 'innerHTML'
@@ -1520,8 +1530,8 @@ async function syncPendingRecords() {
         await window.offlineManager.syncQueue();
         await loadPendingRecords();
 
-        // Reload recent transactions and metrics
-        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+        // Reload recent records and metrics
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
             target: '#recent-transactions',
             swap: 'innerHTML'
         });

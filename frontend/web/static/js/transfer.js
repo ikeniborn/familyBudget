@@ -723,11 +723,11 @@ async function handleTransferSubmit(event) {
                     showToast(successMsg, 'success');
                 }
 
-                // Update quick stats and recent transactions (only on index.html)
+                // Update quick stats and recent records (only on index.html)
                 if (typeof htmx !== 'undefined') {
-                    // Update recent-transactions only for fact transfers (not plan)
-                    if (transferRecordType === 'fact' && document.getElementById('recent-transactions')) {
-                        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                    // Update recent-transactions for all transfer types (now shows both facts and plans)
+                    if (document.getElementById('recent-transactions')) {
+                        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                             target: '#recent-transactions',
                             swap: 'innerHTML'
                         });
@@ -768,11 +768,11 @@ async function handleTransferSubmit(event) {
                 showToast(successMsg, 'success');
             }
 
-            // Update quick stats and recent transactions (only on index.html)
+            // Update quick stats and recent records (only on index.html)
             if (typeof htmx !== 'undefined') {
-                // Update recent-transactions only for fact transfers (not plan)
-                if (transferRecordType === 'fact' && document.getElementById('recent-transactions')) {
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                // Update recent-transactions for all transfer types (now shows both facts and plans)
+                if (document.getElementById('recent-transactions')) {
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                         target: '#recent-transactions',
                         swap: 'innerHTML'
                     });
