@@ -237,32 +237,22 @@ class NotificationService:
                 return  # Should not happen, but just in case
 
             difference = actual_total - plan_total
-            remaining = plan_total - actual_total
 
             message_parts = [
                 f"{status_emoji} *Бюджетное предупреждение*",
-                "",
-                f"Категория: *{article_name}*",
-                f"Статус: *{status_text}*",
-                "",
-                f"📊 *Статистика:*",
+                "---",
+                "ЦФО: Семья",
+                f"Категория: {article_name}",
+                f"Статус: {status_text}",
+                "---",
+                "*Статистика:*",
                 f"План: {format_amount(plan_total)} ₽",
                 f"Факт: {format_amount(actual_total)} ₽",
-                f"Использовано: *{percent_used:.0f}%*",
+                f"Использовано: {percent_used:.0f}%",
             ]
 
             if percent_used >= 100:
                 message_parts.append(f"Превышение: +{format_amount(abs(difference))} ₽")
-            else:
-                message_parts.append(f"Осталось: {format_amount(abs(remaining))} ₽")
-
-            message_parts.extend([
-                "",
-                "Рекомендация: Пересмотрите расходы по этой категории",
-                "",
-                "Используйте /summary для детального анализа",
-                "или /settings для настройки уведомлений",
-            ])
 
             message = "\n".join(message_parts)
 

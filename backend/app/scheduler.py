@@ -7,6 +7,11 @@ This module sets up APScheduler for running background jobs:
 - Notification jobs
 
 Uses AsyncIOScheduler for async compatibility with FastAPI.
+
+IMPORTANT: When running with multiple workers (uvicorn --workers N),
+each worker initializes its own scheduler. To prevent duplicate job
+execution, we use PostgreSQL advisory locks (pg_try_advisory_lock).
+Only one worker can acquire the lock and execute the job.
 """
 
 import logging
@@ -20,6 +25,48 @@ from backend.app.core.config import get_settings
 from backend.app.services.notification_service import NotificationService
 
 logger = get_logger(__name__)
+
+# Advisory lock IDs for scheduler jobs (unique per job)
+# Using hash of job name to generate unique lock IDs
+LOCK_ID_ARTICLE_STATS = 1001
+LOCK_ID_RECOMMENDED_AMOUNTS = 1002
+LOCK_ID_WEEKLY_REPORTS = 1003
+LOCK_ID_BUDGET_THRESHOLDS = 1004
+
+
+async def try_advisory_lock(session, lock_id: int) -> bool:
+    """
+    Try to acquire PostgreSQL advisory lock (non-blocking).
+
+    Advisory locks are session-level locks that prevent multiple workers
+    from executing the same job simultaneously.
+
+    Args:
+        session: Database session
+        lock_id: Unique lock identifier
+
+    Returns:
+        bool: True if lock acquired, False if another process holds it
+    """
+    result = await session.execute(
+        text("SELECT pg_try_advisory_lock(:lock_id)"),
+        {"lock_id": lock_id}
+    )
+    return result.scalar()
+
+
+async def release_advisory_lock(session, lock_id: int):
+    """
+    Release PostgreSQL advisory lock.
+
+    Args:
+        session: Database session
+        lock_id: Lock identifier to release
+    """
+    await session.execute(
+        text("SELECT pg_advisory_unlock(:lock_id)"),
+        {"lock_id": lock_id}
+    )
 
 # Global scheduler instance
 scheduler: AsyncIOScheduler | None = None
@@ -35,16 +82,31 @@ async def recalculate_article_usage_stats_job():
     3. Inserts updated statistics
 
     Schedule: Daily at 00:00
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
     """
     logger.info("[SCHEDULER] Starting article usage statistics recalculation job")
 
     try:
         async with get_session_context() as session:
-            # Call PostgreSQL function
-            await session.execute(text("SELECT recalculate_article_usage_stats()"))
-            await session.commit()
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_ARTICLE_STATS):
+                logger.info(
+                    "[SCHEDULER] Article stats job skipped - "
+                    "another worker is already executing"
+                )
+                return
 
-            logger.info("[SCHEDULER] Article usage statistics recalculated successfully")
+            try:
+                # Call PostgreSQL function
+                await session.execute(text("SELECT recalculate_article_usage_stats()"))
+                await session.commit()
+
+                logger.info("[SCHEDULER] Article usage statistics recalculated successfully")
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_ARTICLE_STATS)
     except Exception as e:
         logger.error(f"[SCHEDULER] Error recalculating article usage statistics: {e}", exc_info=True)
         raise
@@ -67,16 +129,31 @@ async def recalculate_recommended_amounts_job():
         - Minimum sample size: 20 transactions (fallback to defaults if below)
 
     Schedule: Daily at 02:00 UTC
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
     """
     logger.info("[SCHEDULER] Starting recommended amounts recalculation job")
 
     try:
         async with get_session_context() as session:
-            # Call PostgreSQL function (performs K-means clustering on historical data)
-            await session.execute(text("SELECT recalculate_recommended_amounts()"))
-            await session.commit()
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_RECOMMENDED_AMOUNTS):
+                logger.info(
+                    "[SCHEDULER] Recommended amounts job skipped - "
+                    "another worker is already executing"
+                )
+                return
 
-            logger.info("[SCHEDULER] Recommended amounts recalculated successfully")
+            try:
+                # Call PostgreSQL function (performs K-means clustering on historical data)
+                await session.execute(text("SELECT recalculate_recommended_amounts()"))
+                await session.commit()
+
+                logger.info("[SCHEDULER] Recommended amounts recalculated successfully")
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_RECOMMENDED_AMOUNTS)
     except Exception as e:
         logger.error(f"[SCHEDULER] Error recalculating recommended amounts: {e}", exc_info=True)
         raise
@@ -90,15 +167,31 @@ async def send_weekly_reports_job():
     Includes plan vs actual, expense/income breakdown, usage percentage.
 
     Schedule: Every Monday at 09:00 UTC
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
     """
     logger.info("[SCHEDULER] Starting weekly reports job")
 
     try:
-        settings = get_settings()
-        notification_service = NotificationService(settings)
-        sent_count = await notification_service.send_weekly_reports()
+        async with get_session_context() as session:
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_WEEKLY_REPORTS):
+                logger.info(
+                    "[SCHEDULER] Weekly reports job skipped - "
+                    "another worker is already executing"
+                )
+                return
 
-        logger.info(f"[SCHEDULER] Weekly reports job completed: {sent_count} reports sent")
+            try:
+                settings = get_settings()
+                notification_service = NotificationService(settings)
+                sent_count = await notification_service.send_weekly_reports()
+
+                logger.info(f"[SCHEDULER] Weekly reports job completed: {sent_count} reports sent")
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_WEEKLY_REPORTS)
     except Exception as e:
         logger.error(f"[SCHEDULER] Error in weekly reports job: {e}", exc_info=True)
         raise
@@ -112,18 +205,35 @@ async def check_budget_thresholds_job():
     Sends broadcast notification if threshold exceeded (default 90%).
 
     Schedule: Daily at 18:00 UTC
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
     """
     logger.info("[SCHEDULER] Starting budget threshold check job")
 
     try:
-        settings = get_settings()
-        notification_service = NotificationService(settings)
-        notifications_sent = await notification_service.check_all_budget_thresholds()
+        async with get_session_context() as session:
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_BUDGET_THRESHOLDS):
+                logger.info(
+                    "[SCHEDULER] Budget threshold job skipped - "
+                    "another worker is already executing"
+                )
+                return
 
-        logger.info(
-            f"[SCHEDULER] Budget threshold check completed: "
-            f"{notifications_sent} notifications sent"
-        )
+            try:
+                settings = get_settings()
+                notification_service = NotificationService(settings)
+                notifications_sent = await notification_service.check_all_budget_thresholds()
+
+                logger.info(
+                    f"[SCHEDULER] Budget threshold check completed: "
+                    f"{notifications_sent} notifications sent"
+                )
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_BUDGET_THRESHOLDS)
+
     except Exception as e:
         logger.error(f"[SCHEDULER] Error in budget threshold check job: {e}", exc_info=True)
         raise
