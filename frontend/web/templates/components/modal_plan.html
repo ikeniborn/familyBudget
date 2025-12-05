@@ -107,7 +107,36 @@
                         <span class="label-text">Дата и время напоминания</span>
                         <span class="label-text-alt text-base-content/50">UTC+3 (МСК)</span>
                     </label>
-                    <input type="datetime-local" name="reminder_datetime" class="input input-bordered input-sm" />
+                    <!-- Desktop-friendly datetime picker: date + time -->
+                    <div class="flex gap-2">
+                        <!-- Date input with CalendarWidget -->
+                        <input
+                            type="text"
+                            name="reminder_date"
+                            id="reminder_date_{{ modal_id }}"
+                            class="input input-bordered input-sm flex-1"
+                            placeholder="ДД.ММ.ГГГГ"
+                            autocomplete="off"
+                        />
+                        <!-- Time dropdowns -->
+                        <div class="flex items-center gap-1">
+                            <select name="reminder_hour" id="reminder_hour_{{ modal_id }}" class="select select-bordered select-sm w-16">
+                                <option value="">--</option>
+                                {% for h in range(24) %}
+                                <option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>
+                                {% endfor %}
+                            </select>
+                            <span class="text-lg font-bold">:</span>
+                            <select name="reminder_minute" id="reminder_minute_{{ modal_id }}" class="select select-bordered select-sm w-16">
+                                <option value="">--</option>
+                                {% for m in range(0, 60, 5) %}
+                                <option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Hidden field for combined datetime (populated by JS) -->
+                    <input type="hidden" name="reminder_datetime" id="reminder_datetime_{{ modal_id }}" />
                 </div>
                 <p class="text-xs text-base-content/70">
                     Уведомление придет в Telegram и как push в браузер
