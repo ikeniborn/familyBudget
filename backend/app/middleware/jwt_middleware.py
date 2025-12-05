@@ -58,6 +58,11 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/favicon.ico",  # Browser favicon
         "/manifest.json",  # PWA manifest (required for install prompt)
         "/sw.js",  # Service Worker (required for PWA caching)
+        # Email/2FA authentication pages (public)
+        "/register",  # Email registration page
+        "/login-email",  # Email login page
+        "/2fa-verify",  # 2FA code verification page
+        "/pending-activation",  # Pending admin activation page
     }
 
     # Public path prefixes (startswith check)
