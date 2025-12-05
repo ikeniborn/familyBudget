@@ -62,6 +62,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/register",  # Email registration page
         "/login-email",  # Email login page
         "/2fa-verify",  # 2FA code verification page
+        "/2fa-setup-login",  # First-time 2FA setup during email login
         "/pending-activation",  # Pending admin activation page
     }
 
