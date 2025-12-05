@@ -989,7 +989,6 @@ function exportPersonalData(format) {
 
     try {
         let url = `/api/v1/export/facts/${format}`;
-        console.log('Exporting data to:', url);
 
         // Open in new tab to trigger download
         const newWindow = window.open(url, '_blank');

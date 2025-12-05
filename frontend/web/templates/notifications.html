@@ -211,10 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mode: 'range',
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
-        triggerContainer: '#date-range-calendar-trigger',
-        onSelect: (startDate, endDate) => {
-            console.log('Выбран диапазон дат для фильтров notifications:', startDate, endDate);
-        }
+        triggerContainer: '#date-range-calendar-trigger'
     });
 
     loadNotifications();

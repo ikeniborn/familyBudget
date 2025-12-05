@@ -2149,8 +2149,6 @@ function updateCFOFilter() {
     // Update global state
     currentCFOId = selectedValue === 'all' ? null : parseInt(selectedValue);
 
-    console.log('CFO filter updated:', currentCFOId);
-
     // Reload all charts with new CFO filter (v5.1.3)
     if (planFactChart) loadPlanFactData(currentPeriod);
     if (pieChart) loadPieData(currentGlobalType, currentPeriod);
@@ -2196,8 +2194,6 @@ function initCategoryFilter() {
 function updateCategoryFilter(selectedArticles) {
     // Update global state
     currentCategoryIds = selectedArticles.map(a => a.id);
-
-    console.log('Category filter updated:', currentCategoryIds);
 
     // Reload affected charts (Plan-Fact, Pie, Heatmap) - v5.1.3
     if (planFactChart) loadPlanFactData(currentPeriod);
