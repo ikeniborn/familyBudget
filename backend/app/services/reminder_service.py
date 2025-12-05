@@ -273,7 +273,9 @@ class ReminderService:
         Returns:
             List of due reminders
         """
-        now = now_utc()
+        # Use naive datetime for comparison with TIMESTAMP WITHOUT TIME ZONE column
+        # reminder_datetime is stored as naive UTC in the database
+        now = now_utc().replace(tzinfo=None)
         statement = (
             select(ScheduledReminder)
             .where(
