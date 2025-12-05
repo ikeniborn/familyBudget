@@ -574,6 +574,10 @@ document.addEventListener('DOMContentLoaded', function() {
             description: formData.get('description') || null
         };
 
+        // Get reminder settings BEFORE form reset
+        const enableReminder = formData.get('enable_reminder') === 'on';
+        const reminderDatetime = formData.get('reminder_datetime');
+
         try {
             // Use OfflineManager for offline support
             if (window.offlineManager) {
@@ -601,7 +605,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
 
                     if (result && result.id) {
-                        showToast('План успешно сохранен!', 'success');
+                        // Create reminder if enabled
+                        if (enableReminder && reminderDatetime) {
+                            const reminder = await createReminder(result.id, reminderDatetime);
+                            if (reminder) {
+                                showToast('План с напоминанием успешно сохранен!', 'success');
+                            } else {
+                                showToast('План сохранен, но напоминание не создано', 'warning');
+                            }
+                        } else {
+                            showToast('План успешно сохранен!', 'success');
+                        }
                     } else {
                         showToast('План создан, но ID не получен', 'warning');
                     }
@@ -632,7 +646,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         swap: 'innerHTML'
                     });
 
-                    showToast('План успешно сохранен!', 'success');
+                    // Create reminder if enabled
+                    if (result && result.id && enableReminder && reminderDatetime) {
+                        const reminder = await createReminder(result.id, reminderDatetime);
+                        if (reminder) {
+                            showToast('План с напоминанием успешно сохранен!', 'success');
+                        } else {
+                            showToast('План сохранен, но напоминание не создано', 'warning');
+                        }
+                    } else {
+                        showToast('План успешно сохранен!', 'success');
+                    }
                 } else {
                     const error = await response.json();
                     showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать план'), 'error');
@@ -1587,6 +1611,83 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('online', loadPendingRecords);
     window.addEventListener('offline', loadPendingRecords);
 });
+
+// ============ Plan Reminder Functions ============
+
+/**
+ * Toggle reminder settings visibility in plan modal.
+ * @param {string} modalId - ID of the modal (e.g., 'modal_add_plan')
+ */
+function toggleReminderSettings(modalId) {
+    const checkbox = document.querySelector(`#form_${modalId} input[name="enable_reminder"]`);
+    const settingsDiv = document.getElementById(`reminder-settings-${modalId}`);
+
+    if (!checkbox || !settingsDiv) {
+        console.warn('[toggleReminderSettings] Elements not found for modal:', modalId);
+        return;
+    }
+
+    if (checkbox.checked) {
+        settingsDiv.classList.remove('hidden');
+
+        // Set default datetime to tomorrow at 10:00
+        const datetimeInput = settingsDiv.querySelector('input[name="reminder_datetime"]');
+        if (datetimeInput && !datetimeInput.value) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(10, 0, 0, 0);
+            datetimeInput.value = formatDatetimeForInput(tomorrow);
+        }
+    } else {
+        settingsDiv.classList.add('hidden');
+    }
+}
+
+/**
+ * Format Date object for datetime-local input.
+ * @param {Date} date - Date object
+ * @returns {string} Formatted string (YYYY-MM-DDTHH:MM)
+ */
+function formatDatetimeForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Create a reminder for a plan via API.
+ * @param {number} factId - Plan/fact ID
+ * @param {string} reminderDatetime - ISO datetime string
+ * @returns {Promise<object|null>} Created reminder or null on error
+ */
+async function createReminder(factId, reminderDatetime) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                reminder_datetime: reminderDatetime
+            })
+        });
+
+        if (response.ok) {
+            const reminder = await response.json();
+            debugLog('[createReminder] Reminder created:', reminder);
+            return reminder;
+        } else {
+            const error = await response.json();
+            console.error('[createReminder] API error:', error);
+            return null;
+        }
+    } catch (error) {
+        console.error('[createReminder] Network error:', error);
+        return null;
+    }
+}
 </script>
 
 <!-- Include Transfer Modal -->

@@ -23,6 +23,7 @@ from backend.app.db.session import get_session_context
 from backend.app.core.logging import get_logger
 from backend.app.core.config import get_settings
 from backend.app.services.notification_service import NotificationService
+from backend.app.services.reminder_service import ReminderService
 
 logger = get_logger(__name__)
 
@@ -32,6 +33,7 @@ LOCK_ID_ARTICLE_STATS = 1001
 LOCK_ID_RECOMMENDED_AMOUNTS = 1002
 LOCK_ID_WEEKLY_REPORTS = 1003
 LOCK_ID_BUDGET_THRESHOLDS = 1004
+LOCK_ID_PLAN_REMINDERS = 1005
 
 
 async def try_advisory_lock(session, lock_id: int) -> bool:
@@ -239,6 +241,70 @@ async def check_budget_thresholds_job():
         raise
 
 
+async def send_plan_reminders_job():
+    """
+    Job: Send due plan reminders via Telegram and Web Push.
+
+    Checks for reminders with status='pending' and reminder_datetime <= now.
+    Sends notifications via Telegram (if user has telegram_id) and
+    Web Push (if user has subscriptions).
+
+    Schedule: Every 5 minutes
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
+    """
+    logger.info("[SCHEDULER] Starting plan reminders job")
+
+    try:
+        async with get_session_context() as session:
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_PLAN_REMINDERS):
+                logger.info(
+                    "[SCHEDULER] Plan reminders job skipped - "
+                    "another worker is already executing"
+                )
+                return
+
+            try:
+                reminder_service = ReminderService()
+
+                # Get due reminders
+                due_reminders = await reminder_service.get_due_reminders(
+                    session=session,
+                    batch_size=100,
+                )
+
+                if not due_reminders:
+                    logger.debug("[SCHEDULER] No due plan reminders found")
+                    return
+
+                logger.info(f"[SCHEDULER] Found {len(due_reminders)} due plan reminders")
+
+                # Send each reminder
+                sent_count = 0
+                for reminder in due_reminders:
+                    telegram_sent, web_push_sent = await reminder_service.send_reminder(
+                        session=session,
+                        reminder=reminder,
+                    )
+                    if telegram_sent or web_push_sent:
+                        sent_count += 1
+
+                logger.info(
+                    f"[SCHEDULER] Plan reminders job completed: "
+                    f"{sent_count}/{len(due_reminders)} reminders sent successfully"
+                )
+
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_PLAN_REMINDERS)
+
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error in plan reminders job: {e}", exc_info=True)
+        raise
+
+
 def init_scheduler() -> AsyncIOScheduler:
     """
     Initialize and configure APScheduler.
@@ -305,6 +371,16 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info("[SCHEDULER] Registered job: check_budget_thresholds (daily at 18:00 UTC)")
+
+    # Job 5: Send plan reminders (every 5 minutes)
+    scheduler.add_job(
+        send_plan_reminders_job,
+        trigger=CronTrigger(minute="*/5"),
+        id="send_plan_reminders",
+        name="Send Plan Reminders (Telegram + Web Push)",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: send_plan_reminders (every 5 minutes)")
 
     return scheduler
 

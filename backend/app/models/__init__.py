@@ -21,6 +21,8 @@ Models:
     ImportColumnMapping: User column mappings per bank (SCD Type 1)
     ImportStaging: Temporary staging table for multi-bank CSV import
     UserConsent: GDPR consent records (append-only audit log)
+    PushSubscription: Web Push subscription for notifications
+    ScheduledReminder: Scheduled reminders for budget plans
 
 Design Patterns:
     - SCD Type 2: Slowly Changing Dimension Type 2 for tracking historical changes
@@ -49,7 +51,9 @@ from backend.app.models.import_column_mapping import ImportColumnMapping
 from backend.app.models.import_file_upload import ImportFileUpload
 from backend.app.models.import_staging import ImportStaging
 from backend.app.models.notification import Notification
+from backend.app.models.push_subscription import PushSubscription
 from backend.app.models.refresh_token import RefreshToken
+from backend.app.models.scheduled_reminder import ScheduledReminder
 from backend.app.models.two_factor_session import TwoFactorSession
 from backend.app.models.user import User
 from backend.app.models.user_consent import UserConsent
@@ -71,4 +75,6 @@ __all__ = [
     "ImportColumnMapping",
     "ImportStaging",
     "UserConsent",
+    "PushSubscription",
+    "ScheduledReminder",
 ]

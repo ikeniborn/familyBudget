@@ -25,6 +25,7 @@ from backend.app.services.hierarchy_service import (
 )
 from backend.app.services.import_executor import ImportExecutor
 from backend.app.services.jwt import create_access_token, decode_access_token
+from backend.app.services.reminder_service import ReminderService
 from backend.app.services.scd2_service import (
     create_new_version,
     get_current_version,
@@ -63,4 +64,6 @@ __all__ = [
     # Import service
     "TinkoffCSVParser",
     "ImportExecutor",
+    # Reminder service
+    "ReminderService",
 ]
