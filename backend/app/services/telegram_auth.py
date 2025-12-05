@@ -20,12 +20,17 @@ import hashlib
 import hmac
 import httpx
 import logging
+import time
 from typing import Dict, Optional
 
 from backend.app.core.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+
+# Auth date expiration in seconds (5 minutes - stricter than Web Apps 1 hour)
+# Prevents replay attacks using captured OAuth callback URLs
+AUTH_DATE_EXPIRATION = 300
 
 
 async def get_bot_username() -> Optional[str]:
@@ -306,6 +311,7 @@ def validate_telegram_auth(data: Dict[str, any]) -> bool:
     3. Compute secret_key = SHA256(bot_token)
     4. Compute HMAC-SHA256(secret_key, data_check_string)
     5. Compare computed hash with received hash (timing-attack safe)
+    6. Check auth_date expiration (< 5 minutes) to prevent replay attacks
 
     Args:
         data: Dictionary with Telegram OAuth data
@@ -335,6 +341,8 @@ def validate_telegram_auth(data: Dict[str, any]) -> bool:
         - All data must be strings for hash computation
         - Data check string format: "key=value\\nkey=value\\n..." (sorted by key)
         - Secret key is SHA256 hash of bot token (not token itself)
+        - auth_date is checked AFTER hash validation to prevent timing oracle attacks
+        - auth_date must be within AUTH_DATE_EXPIRATION (5 minutes) to prevent replay attacks
 
     Related:
         - RISK-002: Telegram OAuth Vulnerability
@@ -369,4 +377,25 @@ def validate_telegram_auth(data: Dict[str, any]) -> bool:
     # hmac.compare_digest prevents timing attacks by comparing all bytes
     is_valid = hmac.compare_digest(computed_hash, received_hash)
 
-    return is_valid
+    if not is_valid:
+        return False
+
+    # Step 6: Check auth_date expiration (< 5 minutes)
+    # ⚠️ SECURITY: Prevents replay attacks using captured OAuth callback URLs
+    # This check is AFTER hash validation to prevent timing attacks based on auth_date
+    try:
+        auth_date = int(data.get("auth_date", 0))
+        current_time = int(time.time())
+
+        if current_time - auth_date > AUTH_DATE_EXPIRATION:
+            logger.warning(
+                f"Telegram auth expired: auth_date={auth_date}, "
+                f"current_time={current_time}, "
+                f"age={current_time - auth_date}s (max={AUTH_DATE_EXPIRATION}s)"
+            )
+            return False
+    except (ValueError, TypeError):
+        logger.warning("Invalid auth_date format in Telegram auth data")
+        return False
+
+    return True

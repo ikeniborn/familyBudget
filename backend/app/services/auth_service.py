@@ -1,15 +1,18 @@
 """
-Authentication service for user management with SCD Type 2 pattern.
+Authentication service for user retrieval and email-based authentication.
 
-This module handles user creation and updates using Slowly Changing Dimension
-Type 2 pattern for historical tracking. When user data changes, a new version
-is created while preserving the old version for audit purposes.
+This module handles:
+    - User lookup by Telegram ID or email
+    - Email/password authentication
+    - Adding email to existing Telegram accounts
+    - Password management
 
-Pattern: SCD Type 2
-    - Multiple versions of the same user (telegram_id) can exist
-    - Only one version has is_current=True
-    - Old versions have valid_to set to the timestamp when they became invalid
-    - New versions have is_current=True and valid_to=9999-12-31
+NOTE: User profile updates are handled by user_service.py (Hybrid SCD1 + History SCD2).
+
+See: backend/app/services/user_service.py for:
+    - update_user_profile(): Update user profile (SCD1) + create history (SCD2)
+    - create_initial_history(): Create initial history record for new users
+    - get_user_history(): Get full change history
 """
 
 from datetime import datetime
@@ -20,6 +23,10 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import get_settings
 from backend.app.models.user import User
+from backend.app.services.password_service import (
+    hash_password,
+    verify_password_with_dummy,
+)
 
 
 async def get_user_by_telegram_id(
@@ -75,100 +82,214 @@ async def get_user_by_telegram_id(
     return existing_user
 
 
-async def update_user_profile(
+async def get_user_by_email(
     session: AsyncSession,
-    telegram_id: int,
-    first_name: Optional[str],
-    last_name: Optional[str],
-    username: Optional[str],
-    photo_url: Optional[str],
+    email: str,
 ) -> Optional[User]:
     """
-    Update user profile data with SCD Type 2 pattern.
+    Get existing user by email address.
 
-    ⚠️ IMPORTANT: This function creates a new version when user data changes.
-    Use this ONLY when Telegram user profile is updated (rare event).
+    Used for email-based authentication (login, password reset).
 
     Args:
         session: Async database session
-        telegram_id: Telegram user ID (business key)
-        first_name: User's first name
-        last_name: User's last name (optional)
-        username: Telegram username (optional)
-        photo_url: Local path to cached avatar (optional)
+        email: User's email address (case-insensitive)
 
     Returns:
-        Optional[User]: New version of user if updated, existing user if unchanged, None if not found
+        Optional[User]: User record if found, None otherwise
 
-    Notes:
-        - SCD Type 2 pattern: Creates new version when data changes
-        - Old versions preserved for audit
-        - Only updates profile data, not permissions
-        - photo_url changes trigger new version (includes avatar updates)
+    Example:
+        >>> user = await get_user_by_email(session, "user@example.com")
+        >>> if user is None:
+        ...     # User not found
     """
-    # Get existing user
-    existing_user = await get_user_by_telegram_id(session, telegram_id)
+    # Case-insensitive email lookup
+    statement = select(User).where(
+        User.email == email.lower()
+    )
+    result = await session.execute(statement)
+    return result.scalar_one_or_none()
 
-    if existing_user is None:
+
+async def authenticate_with_password(
+    session: AsyncSession,
+    email: str,
+    password: str,
+) -> Optional[User]:
+    """
+    Authenticate user with email and password.
+
+    This function is timing-safe - it always performs password hashing
+    even if the user doesn't exist (prevents timing-based enumeration).
+
+    Args:
+        session: Async database session
+        email: User's email address
+        password: Plain text password to verify
+
+    Returns:
+        Optional[User]: User if credentials are valid, None otherwise
+
+    Example:
+        >>> user = await authenticate_with_password(session, email, password)
+        >>> if user is None:
+        ...     raise HTTPException(401, "Invalid email or password")
+    """
+    user = await get_user_by_email(session, email)
+
+    # Use timing-safe verification (always performs hash operation)
+    password_hash = user.password_hash if user else None
+    is_valid = verify_password_with_dummy(password, password_hash)
+
+    if not is_valid:
         return None
 
-    # Check if user data changed
-    # Use getattr() for nullable fields to prevent AttributeError
-    data_changed = (
-        getattr(existing_user, 'username', None) != username
-        or existing_user.first_name != first_name
-        or getattr(existing_user, 'last_name', None) != last_name
-        or getattr(existing_user, 'photo_url', None) != photo_url
-    )
+    # Update last access timestamp
+    if user is not None:
+        user.updated_at = datetime.utcnow()
+        session.add(user)
+        await session.flush()
 
-    # If data unchanged, return existing user
-    if not data_changed:
-        return existing_user
+    return user
 
-    # If data changed, create new version (SCD2)
-    now = datetime.utcnow()
 
-    # CRITICAL FIX: Revoke all active refresh tokens for the old user version
-    # This prevents "zombie tokens" that reference an inactive user (is_current=FALSE)
-    # Forces re-authentication on all devices when user profile data changes
-    # Fixes: 500 error on repeated login with changed profile data
-    from backend.app.models.refresh_token import RefreshToken
+async def add_email_to_user(
+    session: AsyncSession,
+    user: User,
+    email: str,
+) -> bool:
+    """
+    Add email to an existing Telegram user account.
 
-    old_tokens_stmt = (
-        select(RefreshToken)
-        .where(RefreshToken.user_id == existing_user.id)
-        .where(RefreshToken.is_revoked == False)  # noqa: E712
-    )
-    old_tokens_result = await session.exec(old_tokens_stmt)
-    old_tokens = old_tokens_result.all()
+    Allows Telegram users to add email for alternative login method.
 
-    for token in old_tokens:
-        token.revoke()  # Sets is_revoked=True, revoked_at=now()
-        session.add(token)
+    Args:
+        session: Async database session
+        user: User to update
+        email: Email address to add
 
-    # Close old version
-    existing_user.is_current = False
-    existing_user.valid_to = now
-    existing_user.updated_at = now
-    session.add(existing_user)
+    Returns:
+        bool: True if email was added, False if email already in use
 
-    # Create new version (preserve is_admin status)
-    new_version = User(
-        telegram_id=telegram_id,
-        username=username,
-        first_name=first_name,
-        last_name=last_name,
-        photo_url=photo_url or existing_user.photo_url,
-        is_admin=existing_user.is_admin,
-        is_active=existing_user.is_active,
-        last_login_at=existing_user.last_login_at,
-        valid_from=now,
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
-        is_current=True,
-        created_at=existing_user.created_at,
-        updated_at=now,
-    )
-    session.add(new_version)
-    await session.flush()  # Get ID without committing transaction
+    Example:
+        >>> success = await add_email_to_user(session, user, "user@example.com")
+        >>> if not success:
+        ...     raise HTTPException(409, "Email already in use")
+    """
+    # Check if email already in use
+    existing = await get_user_by_email(session, email)
+    if existing is not None:
+        return False
 
-    return new_version
+    # Add email to user
+    user.email = email.lower()
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+
+    return True
+
+
+async def set_user_password(
+    session: AsyncSession,
+    user: User,
+    password: str,
+) -> None:
+    """
+    Set or update user's password.
+
+    Password is hashed using Argon2 before storage.
+
+    Args:
+        session: Async database session
+        user: User to update
+        password: Plain text password (will be hashed)
+
+    Example:
+        >>> await set_user_password(session, user, "new_secure_password")
+    """
+    user.password_hash = hash_password(password)
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+
+
+async def get_user_by_id(
+    session: AsyncSession,
+    user_id: int,
+) -> Optional[User]:
+    """
+    Get user by ID.
+
+    Args:
+        session: Async database session
+        user_id: User's primary key
+
+    Returns:
+        Optional[User]: User record if found, None otherwise
+    """
+    statement = select(User).where(User.id == user_id)
+    result = await session.execute(statement)
+    return result.scalar_one_or_none()
+
+
+async def link_telegram_to_user(
+    session: AsyncSession,
+    user: User,
+    telegram_id: int,
+    username: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    photo_url: Optional[str] = None,
+) -> bool:
+    """
+    Link Telegram account to an existing email user.
+
+    Allows email-only users to add Telegram for alternative login.
+
+    Args:
+        session: Async database session
+        user: User to update
+        telegram_id: Telegram user ID
+        username: Telegram username (optional)
+        first_name: First name from Telegram (optional)
+        last_name: Last name from Telegram (optional)
+        photo_url: Profile photo URL (optional)
+
+    Returns:
+        bool: True if linked, False if telegram_id already in use
+
+    Example:
+        >>> success = await link_telegram_to_user(session, user, telegram_id=123456)
+        >>> if not success:
+        ...     raise HTTPException(409, "Telegram account already linked to another user")
+    """
+    # Check if telegram_id already in use
+    existing = await get_user_by_telegram_id(session, telegram_id)
+    if existing is not None and existing.id != user.id:
+        return False
+
+    # Link Telegram to user
+    user.telegram_id = telegram_id
+    if username:
+        user.username = username
+    if first_name:
+        user.first_name = first_name
+    if last_name:
+        user.last_name = last_name
+    if photo_url:
+        user.photo_url = photo_url
+    user.updated_at = datetime.utcnow()
+
+    session.add(user)
+    await session.commit()
+
+    return True
+
+
+# =============================================================================
+# DEPRECATED NOTES
+# =============================================================================
+# The old update_user_profile() function has been removed.
+# Use backend.app.services.user_service.update_user_profile() instead.
+# See: backend/app/services/user_service.py for the correct implementation.

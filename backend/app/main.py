@@ -16,7 +16,9 @@ from backend.app.core.config import get_settings
 from backend.app.core.exceptions import APIException
 from backend.app.core.logging import setup_logging, get_logger
 from backend.app.db.session import close_db, init_db
-from backend.app.middleware import JWTAuthMiddleware
+from backend.app.middleware import JWTAuthMiddleware, limiter
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from backend.app.scheduler import start_scheduler, stop_scheduler
 from backend.app.middleware.csp_middleware import CSPMiddleware
 from backend.app.middleware.error_handler import (
@@ -157,6 +159,7 @@ tags_metadata = [
     },
 ]
 
+# Create FastAPI application
 app = FastAPI(
     title="Family Budget API",
     description="""
@@ -200,6 +203,11 @@ app = FastAPI(
     },
     openapi_tags=tags_metadata,
 )
+
+# Rate limiter setup (must be set before adding exception handler)
+# Attach limiter to app.state for use in endpoint decorators
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS middleware
 app.add_middleware(

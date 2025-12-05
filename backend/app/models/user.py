@@ -2,8 +2,15 @@
 User dimension table model with SCD Type 1 pattern.
 
 This module defines the User model that tracks user information from Telegram
-with in-place updates (NO versioning). Full change history is stored in
+or email with in-place updates (NO versioning). Full change history is stored in
 separate UserHistory table (SCD Type 2).
+
+Authentication Methods:
+    - Telegram OAuth (telegram_id required)
+    - Email + Password + 2FA (email required, 2FA mandatory)
+    - Both methods linked (telegram_id AND email)
+
+Constraint: At least one auth method must be set (telegram_id OR email IS NOT NULL)
 
 IMPORTANT: This is a breaking change from previous SCD Type 2 implementation.
 Migration required to convert existing data.
@@ -12,7 +19,7 @@ Migration required to convert existing data.
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, Column
+from sqlalchemy import BigInteger, CheckConstraint, Column, Index
 from sqlmodel import Field, SQLModel
 
 
@@ -30,57 +37,81 @@ class User(SQLModel, table=True):
     Table: t_d_user
     Pattern: SCD Type 1 (Slowly Changing Dimension Type 1)
 
-    Business Key: telegram_id (unique identifier from Telegram)
+    Authentication Methods:
+        1. Telegram OAuth only (telegram_id NOT NULL, email NULL)
+        2. Email + Password + 2FA only (telegram_id NULL, email NOT NULL)
+        3. Both linked (telegram_id NOT NULL, email NOT NULL)
+
+    Business Keys:
+        - telegram_id: Unique identifier from Telegram (nullable for email-only users)
+        - email: User email for email-based login (nullable for Telegram-only users)
 
     Architecture Notes:
         - Main table contains ONLY current user data (no historical versions)
         - History is stored in separate t_d_user_history table (SCD Type 2)
         - FK in fact tables (t_f_budget_fact.user_id) remain stable (NO updates needed)
         - Profile updates (username, photo_url, etc.) are in-place (UPDATE, not INSERT)
+        - Constraint: At least one auth method (telegram_id OR email) must be set
 
     Attributes:
         id: Surrogate primary key (stable - NEVER changes)
-        telegram_id: Unique identifier from Telegram (business key)
+        telegram_id: Unique identifier from Telegram (nullable for email-only users)
+        email: User email for email-based auth (nullable for Telegram-only users)
+        password_hash: Argon2 hashed password (nullable, required for email auth)
         username: Telegram username (optional, SCD1 - in-place update)
         first_name: User's first name (optional, SCD1 - in-place update)
         last_name: User's last name (optional, SCD1 - in-place update)
         photo_url: Local path to cached profile photo (optional, SCD1 - in-place update)
         is_admin: Admin flag for access control (SCD1 - in-place update)
         is_active: User activation status (SCD1 - in-place update)
+        two_factor_secret: TOTP secret for 2FA (encrypted, nullable)
+        two_factor_enabled: Whether 2FA is enabled (required for email login)
+        backup_codes: JSON array of hashed backup codes (nullable)
         last_login_at: Timestamp of last successful login (SCD1 - in-place update)
         created_at: Timestamp when user was first created (immutable)
         updated_at: Timestamp when user was last updated (auto-updated on changes)
 
-    Migration from SCD Type 2:
-        Old SCD2 fields REMOVED:
-        - valid_from: Replaced by UserHistory.valid_from
-        - valid_to: Replaced by UserHistory.valid_to
-        - is_current: Replaced by UserHistory.is_current
-
-        Migration Strategy (Phase 2):
-        1. Keep only is_current=True version in main table
-        2. Move ALL versions to UserHistory table
-        3. Remap FK in fact tables (old versioned id → new stable id)
-
     Examples:
-        # Create new user (first login)
+        # Create Telegram-only user (first login)
         >>> user = User(
         ...     telegram_id=123456789,
         ...     username="john_doe",
         ...     first_name="John",
-        ...     last_name="Doe",
         ...     is_admin=False,
         ...     is_active=False  # Requires admin activation
         ... )
 
-        # Update profile (in-place, NO new version created)
-        >>> user.username = "john_updated"
-        >>> user.updated_at = datetime.utcnow()
+        # Create email-only user (registration)
+        >>> user = User(
+        ...     email="john@example.com",
+        ...     password_hash="$argon2id$...",
+        ...     first_name="John",
+        ...     is_admin=False,
+        ...     is_active=False  # Requires admin activation
+        ... )
+
+        # Link Telegram to email account
+        >>> user.telegram_id = 123456789
         >>> await session.commit()
-        # UserService will also create history record in UserHistory table
     """
 
     __tablename__ = "t_d_user"
+
+    # Database constraints
+    __table_args__ = (
+        # At least one auth method must be set
+        CheckConstraint(
+            "telegram_id IS NOT NULL OR email IS NOT NULL",
+            name="chk_user_has_auth_method"
+        ),
+        # Partial unique index for email (only non-null values)
+        Index(
+            "ix_t_d_user_email_unique",
+            "email",
+            unique=True,
+            postgresql_where="email IS NOT NULL"
+        ),
+    )
 
     # Primary key (stable - NEVER changes)
     id: Optional[int] = Field(
@@ -89,13 +120,60 @@ class User(SQLModel, table=True):
         description="Surrogate primary key (stable - never changes on profile updates)"
     )
 
-    # Business key (unique identifier from Telegram)
-    telegram_id: int = Field(
-        sa_column=Column(BigInteger, nullable=False, index=True, unique=True),
-        description="Telegram user ID (business key, unique across all users, BIGINT for large IDs)"
+    # =========================================================================
+    # Authentication Fields (Business Keys)
+    # =========================================================================
+
+    # Telegram OAuth (nullable for email-only users)
+    telegram_id: Optional[int] = Field(
+        default=None,
+        sa_column=Column(BigInteger, nullable=True, index=True, unique=True),
+        description="Telegram user ID (business key, nullable for email-only users, BIGINT for large IDs)"
     )
 
+    # Email authentication (nullable for Telegram-only users)
+    email: Optional[str] = Field(
+        default=None,
+        max_length=320,  # RFC 5321 max email length
+        description="User email for email-based auth (unique via partial index, nullable for Telegram-only)"
+    )
+
+    # Password (Argon2 hash, required for email auth)
+    password_hash: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="Argon2 hashed password (required for email authentication)"
+    )
+
+    # =========================================================================
+    # Two-Factor Authentication (2FA) Fields
+    # =========================================================================
+
+    # TOTP secret (encrypted, required for email-based login)
+    two_factor_secret: Optional[str] = Field(
+        default=None,
+        max_length=64,  # base32 encoded secret (32 bytes = ~52 chars)
+        description="TOTP secret for 2FA (base32 encoded, required for email login)"
+    )
+
+    # 2FA enabled flag
+    two_factor_enabled: bool = Field(
+        default=False,
+        nullable=False,
+        description="Whether 2FA is enabled (required for email login)"
+    )
+
+    # Backup codes (JSON array of Argon2 hashed codes)
+    backup_codes: Optional[str] = Field(
+        default=None,
+        max_length=2000,  # JSON array of ~8 hashed codes
+        description="JSON array of Argon2 hashed backup codes (one-time use)"
+    )
+
+    # =========================================================================
     # Profile data (SCD Type 1 - in-place updates)
+    # =========================================================================
+
     username: Optional[str] = Field(
         default=None,
         max_length=255,
@@ -109,7 +187,7 @@ class User(SQLModel, table=True):
     last_name: Optional[str] = Field(
         default=None,
         max_length=255,
-        description="User's last name from Telegram (SCD1 - in-place update)"
+        description="User's last name (SCD1 - in-place update)"
     )
     photo_url: Optional[str] = Field(
         default=None,
@@ -117,7 +195,10 @@ class User(SQLModel, table=True):
         description="Local path to cached profile photo (SCD1 - in-place update)"
     )
 
+    # =========================================================================
     # Status flags (SCD Type 1 - in-place updates)
+    # =========================================================================
+
     is_admin: bool = Field(
         default=False,
         nullable=False,
@@ -130,7 +211,10 @@ class User(SQLModel, table=True):
         description="User activation status controlled by admin (SCD1 - in-place update)"
     )
 
+    # =========================================================================
     # Audit fields (SCD Type 1 - in-place updates)
+    # =========================================================================
+
     last_login_at: Optional[datetime] = Field(
         default=None,
         nullable=True,
@@ -154,6 +238,11 @@ class User(SQLModel, table=True):
     # - is_current: Moved to UserHistory table
     #
     # Full change history is now stored in separate UserHistory table (SCD Type 2)
+    #
+    # NOTE: Security-sensitive fields NOT stored in UserHistory:
+    # - password_hash: Never store in history (security)
+    # - two_factor_secret: Never store in history (security)
+    # - backup_codes: Never store in history (security)
 
     def __repr__(self) -> str:
         """String representation of User model."""

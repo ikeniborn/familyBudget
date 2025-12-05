@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки безопасности{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold mb-2">Настройки безопасности</h1>
+        <p class="opacity-70">Управление методами входа и двухфакторной аутентификацией</p>
+    </div>
+
+    <!-- Current Status -->
+    <div class="card bg-base-100 shadow-lg mb-6">
+        <div class="card-body">
+            <h2 class="card-title text-lg mb-4">Текущий статус</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="stat bg-base-200 rounded-lg p-3">
+                    <div class="stat-title text-xs">Telegram</div>
+                    <div class="stat-value text-lg">
+                        {% if user.telegram_id %}
+                            <span class="text-success">Подключен</span>
+                        {% else %}
+                            <span class="text-warning">Нет</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="stat bg-base-200 rounded-lg p-3">
+                    <div class="stat-title text-xs">Email</div>
+                    <div class="stat-value text-lg">
+                        {% if user.email %}
+                            <span class="text-success">Настроен</span>
+                        {% else %}
+                            <span class="text-warning">Нет</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="stat bg-base-200 rounded-lg p-3">
+                    <div class="stat-title text-xs">Пароль</div>
+                    <div class="stat-value text-lg" id="password-status">
+                        <span class="loading loading-spinner loading-sm"></span>
+                    </div>
+                </div>
+                <div class="stat bg-base-200 rounded-lg p-3">
+                    <div class="stat-title text-xs">2FA</div>
+                    <div class="stat-value text-lg">
+                        {% if user.two_factor_enabled %}
+                            <span class="text-success">Включена</span>
+                        {% else %}
+                            <span class="text-warning">Выкл</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Telegram Section -->
+    <div class="card bg-base-100 shadow-lg mb-6">
+        <div class="card-body">
+            <div class="flex items-center gap-3 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+                <h2 class="card-title text-lg">Telegram</h2>
+            </div>
+
+            {% if user.telegram_id %}
+                <div class="alert alert-success">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <div class="font-medium">Telegram подключен</div>
+                        <div class="text-sm opacity-70">ID: {{ user.telegram_id }}{% if user.username %} (@{{ user.username }}){% endif %}</div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>Telegram не подключен. Подключите для быстрого входа.</span>
+                </div>
+                <div class="mt-4">
+                    <a href="/api/v1/auth/telegram-login?link=true" class="btn btn-primary btn-sm gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                        </svg>
+                        Подключить Telegram
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Email Section -->
+    <div class="card bg-base-100 shadow-lg mb-6">
+        <div class="card-body">
+            <div class="flex items-center gap-3 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <h2 class="card-title text-lg">Email</h2>
+            </div>
+
+            {% if user.email %}
+                <div class="alert alert-success mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <div class="font-medium">Email настроен</div>
+                        <div class="text-sm opacity-70">{{ user.email }}</div>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Add Email Form -->
+                <form id="add-email-form" class="space-y-4" onsubmit="handleAddEmail(event)">
+                    <div class="form-control w-full">
+                        <label class="label">
+                            <span class="label-text">Email адрес</span>
+                        </label>
+                        <input type="email" name="email" id="add-email-input"
+                               class="input input-bordered w-full"
+                               placeholder="user@example.com"
+                               required autocomplete="email">
+                    </div>
+                    <div id="add-email-error" class="alert alert-error hidden text-sm">
+                        <span id="add-email-error-text"></span>
+                    </div>
+                    <button type="submit" id="add-email-btn" class="btn btn-primary btn-sm">
+                        <span id="add-email-btn-text">Добавить email</span>
+                        <span id="add-email-btn-loading" class="loading loading-spinner loading-sm hidden"></span>
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Password Section -->
+    <div class="card bg-base-100 shadow-lg mb-6">
+        <div class="card-body">
+            <div class="flex items-center gap-3 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                </svg>
+                <h2 class="card-title text-lg">Пароль</h2>
+            </div>
+
+            {% if not user.email %}
+                <div class="alert alert-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Сначала добавьте email для установки пароля</span>
+                </div>
+            {% else %}
+                <!-- Set Password Form -->
+                <form id="set-password-form" class="space-y-4" onsubmit="handleSetPassword(event)">
+                    <div class="form-control w-full">
+                        <label class="label">
+                            <span class="label-text">Новый пароль</span>
+                        </label>
+                        <input type="password" name="password" id="set-password-input"
+                               class="input input-bordered w-full"
+                               placeholder="Минимум 12 символов"
+                               required minlength="12" maxlength="128" autocomplete="new-password">
+                        <label class="label">
+                            <span class="label-text-alt text-xs opacity-70">Заглавные и строчные буквы, цифры и спецсимволы</span>
+                        </label>
+                    </div>
+                    <div class="form-control w-full">
+                        <label class="label">
+                            <span class="label-text">Подтверждение пароля</span>
+                        </label>
+                        <input type="password" name="password_confirm" id="set-password-confirm"
+                               class="input input-bordered w-full"
+                               placeholder="Повторите пароль"
+                               required minlength="12" maxlength="128" autocomplete="new-password">
+                    </div>
+                    <div id="set-password-error" class="alert alert-error hidden text-sm">
+                        <span id="set-password-error-text"></span>
+                    </div>
+                    <button type="submit" id="set-password-btn" class="btn btn-primary btn-sm">
+                        <span id="set-password-btn-text">Установить пароль</span>
+                        <span id="set-password-btn-loading" class="loading loading-spinner loading-sm hidden"></span>
+                    </button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 2FA Section -->
+    <div class="card bg-base-100 shadow-lg mb-6">
+        <div class="card-body">
+            <div class="flex items-center gap-3 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <h2 class="card-title text-lg">Двухфакторная аутентификация (2FA)</h2>
+            </div>
+
+            {% if user.two_factor_enabled %}
+                <div class="alert alert-success mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>2FA включена. Ваш аккаунт защищен.</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <a href="/2fa-setup?regenerate=true" class="btn btn-outline btn-sm">
+                        Перегенерировать backup коды
+                    </a>
+                    <button onclick="showDisable2FAModal()" class="btn btn-error btn-sm btn-outline">
+                        Отключить 2FA
+                    </button>
+                </div>
+            {% else %}
+                <div class="alert alert-warning mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                        <div class="font-medium">2FA не настроена</div>
+                        <div class="text-sm">Обязательна для входа по email</div>
+                    </div>
+                </div>
+                {% if user.email %}
+                    <a href="/2fa-setup" class="btn btn-primary btn-sm">
+                        Настроить 2FA
+                    </a>
+                {% else %}
+                    <div class="text-sm opacity-70">
+                        Сначала добавьте email и установите пароль
+                    </div>
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Info Section -->
+    <div class="alert alert-info">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div>
+            <div class="font-medium">Рекомендации по безопасности</div>
+            <ul class="text-sm mt-1 list-disc list-inside opacity-70">
+                <li>Подключите несколько методов входа (Telegram + Email)</li>
+                <li>Включите 2FA для защиты аккаунта</li>
+                <li>Сохраните backup коды в надежном месте</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Disable 2FA Modal -->
+<dialog id="disable-2fa-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg text-error">Отключить 2FA</h3>
+        <p class="py-4 text-sm opacity-70">
+            Это снизит безопасность аккаунта. Для отключения введите пароль и текущий код из приложения-аутентификатора.
+        </p>
+        <form id="disable-2fa-form" onsubmit="handleDisable2FA(event)">
+            <div class="form-control w-full mb-3">
+                <label class="label">
+                    <span class="label-text">Пароль</span>
+                </label>
+                <input type="password" name="password" id="disable-2fa-password"
+                       class="input input-bordered w-full" required>
+            </div>
+            <div class="form-control w-full mb-3">
+                <label class="label">
+                    <span class="label-text">Код 2FA</span>
+                </label>
+                <input type="text" name="code" id="disable-2fa-code"
+                       class="input input-bordered w-full font-mono"
+                       maxlength="6" pattern="[0-9]{6}" required
+                       placeholder="000000">
+            </div>
+            <div id="disable-2fa-error" class="alert alert-error hidden text-sm mb-3">
+                <span id="disable-2fa-error-text"></span>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn" onclick="document.getElementById('disable-2fa-modal').close()">Отмена</button>
+                <button type="submit" class="btn btn-error" id="disable-2fa-btn">
+                    <span id="disable-2fa-btn-text">Отключить</span>
+                    <span id="disable-2fa-btn-loading" class="loading loading-spinner loading-sm hidden"></span>
+                </button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<script>
+// Check if password is set
+document.addEventListener('DOMContentLoaded', async function() {
+    const passwordStatus = document.getElementById('password-status');
+    // We can't directly check if password is set from frontend
+    // Assume password is set if email is set (for now)
+    {% if user.email %}
+        passwordStatus.innerHTML = '<span class="text-success">Установлен</span>';
+    {% else %}
+        passwordStatus.innerHTML = '<span class="text-warning">Нет</span>';
+    {% endif %}
+});
+
+async function handleAddEmail(e) {
+    e.preventDefault();
+
+    const btn = document.getElementById('add-email-btn');
+    const btnText = document.getElementById('add-email-btn-text');
+    const btnLoading = document.getElementById('add-email-btn-loading');
+    const errorDiv = document.getElementById('add-email-error');
+    const errorText = document.getElementById('add-email-error-text');
+
+    const email = document.getElementById('add-email-input').value.trim();
+
+    errorDiv.classList.add('hidden');
+    btn.disabled = true;
+    btnText.classList.add('hidden');
+    btnLoading.classList.remove('hidden');
+
+    try {
+        const response = await fetch('/api/v1/auth/add-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ email: email })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Ошибка добавления email');
+
+        showToast('Email добавлен', 'success');
+        setTimeout(() => location.reload(), 1000);
+
+    } catch (error) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = error.message;
+    } finally {
+        btn.disabled = false;
+        btnText.classList.remove('hidden');
+        btnLoading.classList.add('hidden');
+    }
+}
+
+async function handleSetPassword(e) {
+    e.preventDefault();
+
+    const btn = document.getElementById('set-password-btn');
+    const btnText = document.getElementById('set-password-btn-text');
+    const btnLoading = document.getElementById('set-password-btn-loading');
+    const errorDiv = document.getElementById('set-password-error');
+    const errorText = document.getElementById('set-password-error-text');
+
+    const password = document.getElementById('set-password-input').value;
+    const passwordConfirm = document.getElementById('set-password-confirm').value;
+
+    if (password !== passwordConfirm) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = 'Пароли не совпадают';
+        return;
+    }
+
+    errorDiv.classList.add('hidden');
+    btn.disabled = true;
+    btnText.classList.add('hidden');
+    btnLoading.classList.remove('hidden');
+
+    try {
+        const response = await fetch('/api/v1/auth/set-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ password: password, password_confirm: passwordConfirm })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Ошибка установки пароля');
+
+        showToast('Пароль установлен', 'success');
+        setTimeout(() => location.reload(), 1000);
+
+    } catch (error) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = error.message;
+    } finally {
+        btn.disabled = false;
+        btnText.classList.remove('hidden');
+        btnLoading.classList.add('hidden');
+    }
+}
+
+function showDisable2FAModal() {
+    document.getElementById('disable-2fa-modal').showModal();
+}
+
+async function handleDisable2FA(e) {
+    e.preventDefault();
+
+    const btn = document.getElementById('disable-2fa-btn');
+    const btnText = document.getElementById('disable-2fa-btn-text');
+    const btnLoading = document.getElementById('disable-2fa-btn-loading');
+    const errorDiv = document.getElementById('disable-2fa-error');
+    const errorText = document.getElementById('disable-2fa-error-text');
+
+    const password = document.getElementById('disable-2fa-password').value;
+    const code = document.getElementById('disable-2fa-code').value;
+
+    errorDiv.classList.add('hidden');
+    btn.disabled = true;
+    btnText.classList.add('hidden');
+    btnLoading.classList.remove('hidden');
+
+    try {
+        const response = await fetch('/api/v1/auth/disable-2fa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ password: password, code: code })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Ошибка отключения 2FA');
+
+        showToast('2FA отключена', 'success');
+        document.getElementById('disable-2fa-modal').close();
+        setTimeout(() => location.reload(), 1000);
+
+    } catch (error) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = error.message;
+    } finally {
+        btn.disabled = false;
+        btnText.classList.remove('hidden');
+        btnLoading.classList.add('hidden');
+    }
+}
+</script>
+{% endblock %}

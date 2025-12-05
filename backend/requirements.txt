@@ -14,6 +14,10 @@ alembic==1.14.0
 # Authentication & Security
 python-jose[cryptography]==3.4.0
 python-multipart==0.0.20
+slowapi==0.1.9             # Rate limiting for API endpoints (brute-force protection)
+argon2-cffi==23.1.0        # Password hashing (Argon2 - winner of Password Hashing Competition)
+pyotp==2.9.0               # TOTP/2FA generation and verification (Google Authenticator compatible)
+email-validator==2.2.0     # Email validation for Pydantic EmailStr
 
 # Configuration
 pydantic-settings==2.7.0

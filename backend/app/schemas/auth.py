@@ -1,8 +1,10 @@
 """
-Authentication Pydantic schemas for Telegram OAuth and JWT.
+Authentication Pydantic schemas for Telegram OAuth, Email/Password and 2FA.
 
 This module defines request and response schemas for the authentication flow:
 - Telegram OAuth data validation
+- Email/password registration and login
+- Two-Factor Authentication (2FA) setup and verification
 - User response data
 - Authentication response with user data
 """
@@ -10,7 +12,7 @@ This module defines request and response schemas for the authentication flow:
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 class TelegramAuthData(BaseModel):
@@ -122,9 +124,15 @@ class UserResponse(BaseModel):
         description="User's database ID",
         examples=[1]
     )
-    telegram_id: int = Field(
-        description="User's Telegram ID",
-        examples=[123456789]
+    telegram_id: Optional[int] = Field(
+        default=None,
+        description="User's Telegram ID (nullable for email-only users)",
+        examples=[123456789, None]
+    )
+    email: Optional[str] = Field(
+        default=None,
+        description="User's email (nullable for Telegram-only users)",
+        examples=["user@example.com", None]
     )
     username: Optional[str] = Field(
         default=None,
@@ -154,6 +162,11 @@ class UserResponse(BaseModel):
     is_active: bool = Field(
         default=False,
         description="User activation status (controlled by admin)",
+        examples=[True, False]
+    )
+    two_factor_enabled: bool = Field(
+        default=False,
+        description="Whether 2FA is enabled for this user",
         examples=[True, False]
     )
 
@@ -241,3 +254,362 @@ class AuthResponse(BaseModel):
             }
         }
     }
+
+
+# =============================================================================
+# Email Registration & Login Schemas
+# =============================================================================
+
+
+class EmailRegisterRequest(BaseModel):
+    """
+    Request schema for email registration.
+
+    New users register with email/password and require admin activation.
+    2FA must be set up before first login.
+
+    Attributes:
+        email: User's email address
+        password: Password (min 12 chars, must include upper/lower/digit/special)
+        password_confirm: Password confirmation (must match password)
+        first_name: User's first name
+        last_name: User's last name (optional)
+    """
+
+    email: EmailStr = Field(
+        description="User's email address",
+        examples=["user@example.com"]
+    )
+    password: str = Field(
+        min_length=12,
+        max_length=128,
+        description="Password (min 12 chars, upper/lower/digit/special)",
+        examples=["MySecureP@ss123"]
+    )
+    password_confirm: str = Field(
+        min_length=12,
+        max_length=128,
+        description="Password confirmation (must match password)"
+    )
+    first_name: str = Field(
+        min_length=1,
+        max_length=255,
+        description="User's first name",
+        examples=["John"]
+    )
+    last_name: Optional[str] = Field(
+        default=None,
+        max_length=255,
+        description="User's last name (optional)",
+        examples=["Doe"]
+    )
+
+    @field_validator('password_confirm')
+    @classmethod
+    def passwords_match(cls, v: str, info) -> str:
+        """Validate that passwords match."""
+        if 'password' in info.data and v != info.data['password']:
+            raise ValueError('Passwords do not match')
+        return v
+
+
+class EmailLoginRequest(BaseModel):
+    """
+    Request schema for email login.
+
+    User must have:
+    1. Valid email + password
+    2. is_active = True (admin activated)
+    3. 2FA enabled (required for email login)
+
+    Returns session_token for 2FA verification step.
+
+    Attributes:
+        email: User's email address
+        password: User's password
+    """
+
+    email: EmailStr = Field(
+        description="User's email address",
+        examples=["user@example.com"]
+    )
+    password: str = Field(
+        min_length=1,
+        description="User's password"
+    )
+
+
+class EmailLoginResponse(BaseModel):
+    """
+    Response after successful password verification.
+
+    User must complete 2FA verification using session_token.
+
+    Attributes:
+        requires_2fa: Always True for email login
+        session_token: Token for 2FA verification (5-min TTL)
+        expires_in: Token expiration in seconds (300 = 5 min)
+    """
+
+    requires_2fa: bool = Field(
+        default=True,
+        description="2FA verification required"
+    )
+    session_token: str = Field(
+        description="Session token for 2FA verification (5-min TTL)"
+    )
+    expires_in: int = Field(
+        default=300,
+        description="Session token expiration in seconds"
+    )
+
+
+# =============================================================================
+# Two-Factor Authentication (2FA) Schemas
+# =============================================================================
+
+
+class TwoFactorVerifyRequest(BaseModel):
+    """
+    Request schema for 2FA code verification during login.
+
+    After password verification, user submits TOTP code or backup code.
+
+    Attributes:
+        session_token: Session token from /auth/login response
+        code: TOTP code (6 digits) or backup code (XXXX-XXXX)
+    """
+
+    session_token: str = Field(
+        description="Session token from /auth/login response"
+    )
+    code: str = Field(
+        min_length=6,
+        max_length=10,
+        description="TOTP code (6 digits) or backup code (XXXX-XXXX)",
+        examples=["123456", "A1B2-C3D4"]
+    )
+
+
+class TwoFactorSetupResponse(BaseModel):
+    """
+    Response from 2FA setup initiation.
+
+    Contains secret and QR URI for authenticator app setup.
+    User must verify with code before 2FA is activated.
+
+    Attributes:
+        secret: Base32 secret for manual entry
+        qr_uri: otpauth:// URI for QR code generation
+    """
+
+    secret: str = Field(
+        description="Base32 secret for manual entry into authenticator app"
+    )
+    qr_uri: str = Field(
+        description="otpauth:// URI for QR code generation"
+    )
+
+
+class TwoFactorVerifySetupRequest(BaseModel):
+    """
+    Request schema to confirm 2FA setup.
+
+    User must enter current TOTP code to verify authenticator is configured.
+
+    Attributes:
+        code: Current TOTP code from authenticator app (6 digits)
+    """
+
+    code: str = Field(
+        min_length=6,
+        max_length=6,
+        description="Current TOTP code from authenticator app",
+        examples=["123456"]
+    )
+
+    @field_validator('code')
+    @classmethod
+    def code_is_digits(cls, v: str) -> str:
+        """Validate that code contains only digits."""
+        if not v.isdigit():
+            raise ValueError('Code must contain only digits')
+        return v
+
+
+class TwoFactorSetupCompleteResponse(BaseModel):
+    """
+    Response after successful 2FA setup confirmation.
+
+    Contains backup codes that user should save securely.
+    Backup codes are shown ONLY ONCE.
+
+    Attributes:
+        backup_codes: List of 8 backup codes (format: XXXX-XXXX)
+        remaining_codes: Number of backup codes remaining (always 8 on setup)
+        message: Success message
+    """
+
+    backup_codes: list[str] = Field(
+        description="Backup codes (save these securely - shown only once!)"
+    )
+    remaining_codes: int = Field(
+        default=8,
+        description="Number of backup codes remaining"
+    )
+    message: str = Field(
+        default="2FA enabled successfully. Save your backup codes securely!",
+        description="Success message"
+    )
+
+
+class TwoFactorDisableRequest(BaseModel):
+    """
+    Request schema to disable 2FA.
+
+    Requires current password and TOTP code for security.
+
+    Attributes:
+        password: Current password for confirmation
+        code: Current TOTP code from authenticator app
+    """
+
+    password: str = Field(
+        min_length=1,
+        description="Current password for confirmation"
+    )
+    code: str = Field(
+        min_length=6,
+        max_length=6,
+        description="Current TOTP code from authenticator app",
+        examples=["123456"]
+    )
+
+
+class BackupCodesResponse(BaseModel):
+    """
+    Response with new backup codes.
+
+    Old backup codes are invalidated when new ones are generated.
+
+    Attributes:
+        backup_codes: List of 8 new backup codes
+        message: Success message
+    """
+
+    backup_codes: list[str] = Field(
+        description="New backup codes (old codes are now invalid)"
+    )
+    message: str = Field(
+        default="New backup codes generated. Old codes are now invalid.",
+        description="Success message"
+    )
+
+
+# =============================================================================
+# Email & Password Management Schemas
+# =============================================================================
+
+
+class AddEmailRequest(BaseModel):
+    """
+    Request schema to add email to existing Telegram account.
+
+    Attributes:
+        email: Email address to add
+    """
+
+    email: EmailStr = Field(
+        description="Email address to add",
+        examples=["user@example.com"]
+    )
+
+
+class SetPasswordRequest(BaseModel):
+    """
+    Request schema to set or change password.
+
+    Requires email to be set first.
+
+    Attributes:
+        password: New password (min 12 chars)
+        password_confirm: Password confirmation
+    """
+
+    password: str = Field(
+        min_length=12,
+        max_length=128,
+        description="New password (min 12 chars, upper/lower/digit/special)"
+    )
+    password_confirm: str = Field(
+        min_length=12,
+        max_length=128,
+        description="Password confirmation"
+    )
+
+    @field_validator('password_confirm')
+    @classmethod
+    def passwords_match(cls, v: str, info) -> str:
+        """Validate that passwords match."""
+        if 'password' in info.data and v != info.data['password']:
+            raise ValueError('Passwords do not match')
+        return v
+
+
+class LinkTelegramRequest(BaseModel):
+    """
+    Request schema to link Telegram to email account.
+
+    Contains Telegram OAuth data for verification.
+
+    Attributes:
+        id: Telegram user ID
+        first_name: First name from Telegram
+        last_name: Last name from Telegram (optional)
+        username: Telegram username (optional)
+        photo_url: Profile photo URL (optional)
+        auth_date: Authentication timestamp
+        hash: HMAC-SHA256 hash for validation
+    """
+
+    id: int = Field(description="Telegram user ID")
+    first_name: str = Field(description="First name from Telegram")
+    last_name: Optional[str] = Field(default=None, description="Last name")
+    username: Optional[str] = Field(default=None, description="Telegram username")
+    photo_url: Optional[str] = Field(default=None, description="Profile photo URL")
+    auth_date: int = Field(description="Authentication timestamp")
+    hash: str = Field(description="HMAC-SHA256 hash for validation")
+
+
+# =============================================================================
+# Generic Response Schemas
+# =============================================================================
+
+
+class MessageResponse(BaseModel):
+    """
+    Generic message response.
+
+    Attributes:
+        message: Success/status message
+    """
+
+    message: str = Field(description="Response message")
+
+
+class RegistrationSuccessResponse(BaseModel):
+    """
+    Response after successful email registration.
+
+    User is created but requires admin activation.
+
+    Attributes:
+        message: Success message indicating pending activation
+        user_id: Created user's ID
+    """
+
+    message: str = Field(
+        default="Registration successful. Your account is pending admin approval.",
+        description="Success message"
+    )
+    user_id: int = Field(description="Created user's ID")
