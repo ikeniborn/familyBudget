@@ -252,22 +252,44 @@ async function handleLogin(e) {
 
         const data = await response.json();
 
+        // Helper to get error message from detail (can be string or object)
+        const getDetailMessage = (detail) => {
+            if (typeof detail === 'string') return detail;
+            if (Array.isArray(detail)) return detail.map(d => d.msg || d).join(', ');
+            if (detail && detail.msg) return detail.msg;
+            return JSON.stringify(detail);
+        };
+
         if (!response.ok) {
+            const detailMsg = getDetailMessage(data.detail);
+
             // Handle specific error codes
             if (response.status === 403) {
-                if (data.detail && data.detail.includes('2FA')) {
-                    throw new Error('Для входа по email необходимо сначала настроить 2FA');
-                } else if (data.detail && data.detail.includes('activation')) {
+                if (detailMsg.includes('2FA')) {
+                    // Store email for 2FA setup and redirect
+                    sessionStorage.setItem('setup_2fa_email', email);
+                    showToast('Необходимо настроить 2FA для входа по email', 'warning');
+                    window.location.href = '/security';
+                    return;
+                } else if (detailMsg.includes('activation') || detailMsg.includes('pending')) {
                     throw new Error('Аккаунт ожидает активации администратором');
                 }
             }
-            throw new Error(data.detail || 'Неверный email или пароль');
+            throw new Error(detailMsg || 'Неверный email или пароль');
         }
 
-        // Success - redirect to 2FA verification
-        if (data.requires_2fa && data.session_token) {
+        // Success - check which 2FA flow to use
+        if (data.requires_2fa_setup && data.session_token) {
+            // User needs to set up 2FA first (first-time login without 2FA)
+            showToast('Настройте двухфакторную аутентификацию', 'info');
+            sessionStorage.setItem('2fa_session_token', data.session_token);
+            sessionStorage.setItem('2fa_expires_in', data.expires_in);
+            sessionStorage.setItem('2fa_totp_secret', data.totp_secret);
+            sessionStorage.setItem('2fa_totp_uri', data.totp_uri);
+            window.location.href = '/2fa-setup-login';
+        } else if (data.requires_2fa && data.session_token) {
+            // User has 2FA enabled - just need to verify code
             showToast('Введите код из приложения-аутентификатора', 'info');
-            // Store session token and redirect to 2FA page
             sessionStorage.setItem('2fa_session_token', data.session_token);
             sessionStorage.setItem('2fa_expires_in', data.expires_in);
             window.location.href = '/2fa-verify';

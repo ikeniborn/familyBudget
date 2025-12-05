@@ -415,6 +415,35 @@ async def two_factor_verify_page(
     )
 
 
+@web_router.get("/2fa-setup-login", response_class=HTMLResponse)
+async def two_factor_setup_login_page(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    """
+    2FA setup page for first-time login (public, requires session token).
+
+    Shows QR code and form to enter TOTP code during first login
+    for users who don't have 2FA enabled yet.
+    Session token and TOTP secret stored in sessionStorage by login page.
+    """
+    from backend.app.main import templates
+
+    # Redirect if already logged in
+    if current_user:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/", status_code=303)
+
+    return templates.TemplateResponse(
+        "2fa_setup_login.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Настройка 2FA"
+        }
+    )
+
+
 @web_router.get("/pending-activation", response_class=HTMLResponse)
 async def pending_activation_page(
     request: Request,

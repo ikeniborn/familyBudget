@@ -236,6 +236,11 @@ class AuthResponse(BaseModel):
         description="Token type for Authorization header",
         examples=["bearer"]
     )
+    backup_codes: Optional[list[str]] = Field(
+        default=None,
+        description="Backup codes for 2FA (only returned on first 2FA setup)",
+        examples=[["ABCD-1234", "EFGH-5678", "IJKL-9012"]]
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -343,24 +348,41 @@ class EmailLoginResponse(BaseModel):
     """
     Response after successful password verification.
 
-    User must complete 2FA verification using session_token.
+    Two scenarios:
+    1. requires_2fa=True: User has 2FA enabled, must verify with TOTP code
+    2. requires_2fa_setup=True: User needs to set up 2FA first
 
     Attributes:
-        requires_2fa: Always True for email login
-        session_token: Token for 2FA verification (5-min TTL)
+        requires_2fa: True if user has 2FA enabled and must verify
+        requires_2fa_setup: True if user needs to set up 2FA first
+        session_token: Token for 2FA verification/setup (5-min TTL)
         expires_in: Token expiration in seconds (300 = 5 min)
+        totp_secret: TOTP secret for QR code (only when requires_2fa_setup=True)
+        totp_uri: TOTP URI for authenticator app (only when requires_2fa_setup=True)
     """
 
     requires_2fa: bool = Field(
-        default=True,
-        description="2FA verification required"
+        default=False,
+        description="2FA verification required (user has 2FA enabled)"
+    )
+    requires_2fa_setup: bool = Field(
+        default=False,
+        description="2FA setup required (user doesn't have 2FA yet)"
     )
     session_token: str = Field(
-        description="Session token for 2FA verification (5-min TTL)"
+        description="Session token for 2FA verification/setup (5-min TTL)"
     )
     expires_in: int = Field(
         default=300,
         description="Session token expiration in seconds"
+    )
+    totp_secret: Optional[str] = Field(
+        default=None,
+        description="TOTP secret for manual entry (only for setup)"
+    )
+    totp_uri: Optional[str] = Field(
+        default=None,
+        description="TOTP URI for QR code (only for setup)"
     )
 
 
@@ -388,6 +410,33 @@ class TwoFactorVerifyRequest(BaseModel):
         max_length=10,
         description="TOTP code (6 digits) or backup code (XXXX-XXXX)",
         examples=["123456", "A1B2-C3D4"]
+    )
+
+
+class TwoFactorSetupAndVerifyRequest(BaseModel):
+    """
+    Request schema for initial 2FA setup during login.
+
+    Used when user doesn't have 2FA enabled yet.
+    Sets up 2FA and completes login in one step.
+
+    Attributes:
+        session_token: Session token from /auth/login response
+        totp_secret: TOTP secret from /auth/login response
+        code: TOTP code (6 digits) from authenticator app
+    """
+
+    session_token: str = Field(
+        description="Session token from /auth/login response"
+    )
+    totp_secret: str = Field(
+        description="TOTP secret from /auth/login response"
+    )
+    code: str = Field(
+        min_length=6,
+        max_length=6,
+        description="TOTP code (6 digits) from authenticator app",
+        examples=["123456"]
     )
 
 

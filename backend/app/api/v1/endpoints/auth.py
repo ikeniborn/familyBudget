@@ -38,6 +38,7 @@ from backend.app.schemas.auth import (
     EmailLoginRequest,
     EmailLoginResponse,
     TwoFactorVerifyRequest,
+    TwoFactorSetupAndVerifyRequest,
     TwoFactorSetupResponse,
     TwoFactorVerifySetupRequest,
     TwoFactorSetupCompleteResponse,
@@ -984,20 +985,34 @@ async def login_email(
             detail="Account pending activation. Please contact administrator."
         )
 
-    # Step 3: Check if 2FA is enabled (required for email login)
-    if not user.two_factor_enabled:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="2FA required. Please set up two-factor authentication first."
-        )
-
-    # Step 4: Create 2FA session (5-min TTL)
+    # Step 3: Create 2FA session (5-min TTL)
     session_token = await create_2fa_session(session, user.id)
 
+    # Step 4: Check if 2FA is enabled
+    if not user.two_factor_enabled:
+        # User needs to set up 2FA first - generate TOTP secret
+        totp_secret = generate_secret()
+        totp_uri = get_totp_uri(totp_secret, user.email)
+
+        # Store temporary secret in session for later verification
+        # We'll validate and save it when user completes setup
+        # For now, we pass it to the frontend (will be stored in the next step)
+
+        return EmailLoginResponse(
+            requires_2fa=False,
+            requires_2fa_setup=True,
+            session_token=session_token,
+            expires_in=300,
+            totp_secret=totp_secret,
+            totp_uri=totp_uri,
+        )
+
+    # User has 2FA enabled - requires verification
     return EmailLoginResponse(
         requires_2fa=True,
+        requires_2fa_setup=False,
         session_token=session_token,
-        expires_in=300,  # 5 minutes
+        expires_in=300,
     )
 
 
@@ -1130,7 +1145,147 @@ async def verify_2fa(
 
 
 # =============================================================================
-# Two-Factor Authentication (2FA) Setup Endpoints
+# Two-Factor Authentication (2FA) Initial Setup (during login)
+# =============================================================================
+
+
+@router.post(
+    "/setup-and-verify-2fa",
+    response_model=AuthResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Set up 2FA and complete login (first-time setup)",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Set up 2FA for the first time and complete login.
+
+    Used when user logs in with email/password but doesn't have 2FA enabled yet.
+
+    Process:
+    1. Validate session_token (from /auth/login)
+    2. Verify TOTP code matches provided secret
+    3. Save TOTP secret and enable 2FA for user
+    4. Generate backup codes
+    5. Consume session (single-use)
+    6. Generate JWT tokens and set cookies
+
+    Rate limited: 5 attempts per minute per IP.
+    """,
+)
+@limiter.limit("5/minute")
+async def setup_and_verify_2fa(
+    request: Request,
+    response: Response,
+    data: TwoFactorSetupAndVerifyRequest,
+    session: AsyncSession = Depends(get_session),
+) -> AuthResponse:
+    """Set up 2FA and complete login for first-time users."""
+    # Step 1: Verify session token
+    user_id = await verify_2fa_session(session, data.session_token)
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session. Please login again."
+        )
+
+    # Step 2: Load user
+    user = await get_user_by_id(session, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Step 3: Check if user already has 2FA enabled
+    if user.two_factor_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is already enabled. Use /verify-2fa instead."
+        )
+
+    # Step 4: Verify TOTP code with provided secret
+    code = data.code.strip()
+    if not code.isdigit() or len(code) != 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid code format. Must be 6 digits."
+        )
+
+    if not verify_totp(data.totp_secret, code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid 2FA code. Please try again."
+        )
+
+    # Step 5: Enable 2FA for user
+    user.two_factor_secret = data.totp_secret
+    user.two_factor_enabled = True
+
+    # Step 6: Generate backup codes
+    plain_codes, hashed_codes_json = generate_backup_codes()
+    user.backup_codes = hashed_codes_json
+    session.add(user)
+
+    # Step 7: Consume 2FA session
+    await consume_2fa_session(session, data.session_token)
+
+    # Step 8: Generate JWT tokens
+    access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id)
+    refresh_token, refresh_expires = create_refresh_token(user_id=user.id)
+    refresh_token_hash = hash_token(refresh_token)
+
+    # Step 9: Store refresh token in database
+    db_refresh_token = RefreshToken(
+        user_id=user.id,
+        token_hash=refresh_token_hash,
+        expires_at=refresh_expires,
+    )
+    session.add(db_refresh_token)
+    await session.commit()
+
+    # Step 10: Set JWT cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,  # 7 days
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,  # 30 days
+    )
+
+    # Step 11: Return user data with backup codes
+    user_response = UserResponse(
+        id=user.id,
+        telegram_id=user.telegram_id,
+        email=user.email,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        photo_url=user.photo_url,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        two_factor_enabled=user.two_factor_enabled,
+    )
+
+    return AuthResponse(
+        user=user_response,
+        message="2FA enabled successfully. Save your backup codes!",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        backup_codes=plain_codes,
+    )
+
+
+# =============================================================================
+# Two-Factor Authentication (2FA) Setup Endpoints (authenticated users)
 # =============================================================================
 
 
