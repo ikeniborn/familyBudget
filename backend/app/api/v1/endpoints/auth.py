@@ -1315,15 +1315,16 @@ async def setup_2fa(
 ) -> TwoFactorSetupResponse:
     """Start 2FA setup, returns secret and QR code URI."""
     # Get current user from request.state (set by JWT middleware)
-    if not hasattr(request.state, 'telegram_id'):
+    # Use user_id which is always set for both Telegram and email users
+    if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
 
-    # Load user (by telegram_id or need to add user_id to request.state)
-    telegram_id = request.state.telegram_id
-    user = await get_user_by_telegram_id(session, telegram_id)
+    # Load user by user_id (works for both Telegram and email-only users)
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
 
     if user is None:
         raise HTTPException(
@@ -1387,15 +1388,15 @@ async def verify_2fa_setup(
     session: AsyncSession = Depends(get_session),
 ) -> TwoFactorSetupCompleteResponse:
     """Complete 2FA setup, returns backup codes."""
-    # Get current user
-    if not hasattr(request.state, 'telegram_id'):
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
 
-    telegram_id = request.state.telegram_id
-    user = await get_user_by_telegram_id(session, telegram_id)
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
 
     if user is None:
         raise HTTPException(
@@ -1452,15 +1453,15 @@ async def disable_2fa(
     session: AsyncSession = Depends(get_session),
 ) -> MessageResponse:
     """Disable 2FA for current user."""
-    # Get current user
-    if not hasattr(request.state, 'telegram_id'):
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
 
-    telegram_id = request.state.telegram_id
-    user = await get_user_by_telegram_id(session, telegram_id)
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
 
     if user is None:
         raise HTTPException(
@@ -1511,15 +1512,15 @@ async def regenerate_backup_codes(
     session: AsyncSession = Depends(get_session),
 ) -> BackupCodesResponse:
     """Generate new backup codes, invalidating old ones."""
-    # Get current user
-    if not hasattr(request.state, 'telegram_id'):
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
 
-    telegram_id = request.state.telegram_id
-    user = await get_user_by_telegram_id(session, telegram_id)
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
 
     if user is None:
         raise HTTPException(
@@ -1569,15 +1570,15 @@ async def add_email_endpoint(
     session: AsyncSession = Depends(get_session),
 ) -> MessageResponse:
     """Add email to current user account."""
-    # Get current user
-    if not hasattr(request.state, 'telegram_id'):
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
 
-    telegram_id = request.state.telegram_id
-    user = await get_user_by_telegram_id(session, telegram_id)
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
 
     if user is None:
         raise HTTPException(
@@ -1616,15 +1617,15 @@ async def set_password_endpoint(
     session: AsyncSession = Depends(get_session),
 ) -> MessageResponse:
     """Set or change password for current user."""
-    # Get current user
-    if not hasattr(request.state, 'telegram_id'):
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
 
-    telegram_id = request.state.telegram_id
-    user = await get_user_by_telegram_id(session, telegram_id)
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
 
     if user is None:
         raise HTTPException(
@@ -1674,20 +1675,71 @@ async def link_telegram_endpoint(
     session: AsyncSession = Depends(get_session),
 ) -> MessageResponse:
     """Link Telegram to current user account."""
-    # Get current user (should be email-authenticated)
-    if not hasattr(request.state, 'telegram_id'):
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication required"
         )
 
-    # Note: For email users, we need to store user_id in request.state
-    # For now, this endpoint may need adjustment for email-only users
-    telegram_id = request.state.telegram_id
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
 
-    # For this endpoint, we actually need the user_id from JWT
-    # Let's use a different approach - decode from access_token cookie
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="This endpoint requires additional implementation for email users"
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Check if user already has Telegram linked
+    if user.telegram_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Telegram already linked to this account"
+        )
+
+    # Validate Telegram auth data
+    from backend.app.services.telegram_auth import validate_telegram_auth
+
+    auth_data = {
+        "id": data.id,
+        "first_name": data.first_name,
+        "last_name": data.last_name,
+        "username": data.username,
+        "photo_url": data.photo_url,
+        "auth_date": data.auth_date,
+        "hash": data.hash,
+    }
+
+    if not validate_telegram_auth(auth_data):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram authentication data"
+        )
+
+    # Check if this Telegram ID is already linked to another account
+    existing_user = await get_user_by_telegram_id(session, data.id)
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This Telegram account is already linked to another user"
+        )
+
+    # Link Telegram to user
+    success = await link_telegram_to_user(
+        session=session,
+        user=user,
+        telegram_id=data.id,
+        username=data.username,
+        first_name=data.first_name,
+        last_name=data.last_name,
+        photo_url=data.photo_url,
     )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to link Telegram account"
+        )
+
+    return MessageResponse(message="Telegram linked successfully")

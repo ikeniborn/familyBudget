@@ -29,18 +29,20 @@ async def get_current_user(
     """
     Get currently authenticated user from database.
 
-    Extracts telegram_id from request.state (set by JWT middleware in TASK-013)
-    and loads the current version of the user from the database using the stable business key.
+    Extracts user_id from request.state (set by JWT middleware in TASK-013)
+    and loads the current version of the user from the database.
+
+    Supports both Telegram users (with telegram_id) and email-only users (without telegram_id).
 
     Args:
-        request: HTTP request with telegram_id in state (from JWT middleware)
+        request: HTTP request with user_id in state (from JWT middleware)
         session: Async database session
 
     Returns:
-        User: Current user object (with is_current=True)
+        User: Current user object
 
     Raises:
-        HTTPException: 401 if telegram_id not in request.state (shouldn't happen if middleware works)
+        HTTPException: 401 if user_id not in request.state (shouldn't happen if middleware works)
         HTTPException: 404 if user not found in database (user deleted)
 
     Example:
@@ -54,26 +56,24 @@ async def get_current_user(
 
     Notes:
         - This dependency requires JWT middleware to be active (TASK-013)
-        - Uses telegram_id (business key) instead of id (surrogate key) for SCD Type 2 compatibility
-        - Only loads current version (WHERE is_current=True)
-        - User object includes all fields (id, telegram_id, username, is_admin, etc.)
+        - Uses user_id (primary key) to support both Telegram and email-only users
+        - User object includes all fields (id, telegram_id, email, username, is_admin, etc.)
     """
-    # Extract telegram_id from request state (set by JWT middleware)
-    telegram_id = getattr(request.state, "telegram_id", None)
+    # Extract user_id from request state (set by JWT middleware)
+    # user_id is always present for both Telegram and email-only users
+    user_id = getattr(request.state, "user_id", None)
 
-    if telegram_id is None:
+    if user_id is None:
         # This should never happen if JWT middleware is working correctly
         # But we check defensively
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required - Telegram ID not found in request state"
+            detail="Authentication required - User ID not found in request state"
         )
 
-    # Load user from database using telegram_id (business key, unique - SCD Type 1)
-    # NOTE: User is SCD Type 1 (no versioning), telegram_id is unique
-    statement = select(User).where(
-        User.telegram_id == telegram_id  # Use business key (unique identifier)
-    )
+    # Load user from database using user_id (primary key)
+    # This works for both Telegram users and email-only users
+    statement = select(User).where(User.id == user_id)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
 
@@ -149,8 +149,10 @@ async def get_current_user_optional(
     This is a non-blocking version of get_current_user for public pages that
     can optionally show user-specific content if authenticated.
 
+    Supports both Telegram users and email-only users.
+
     Args:
-        request: HTTP request with optional telegram_id in state
+        request: HTTP request with optional user_id in state
         session: Async database session
 
     Returns:
@@ -165,18 +167,17 @@ async def get_current_user_optional(
             return {"message": "Welcome, please log in"}
         ```
     """
-    # Extract telegram_id from request state (set by JWT middleware)
-    telegram_id = getattr(request.state, "telegram_id", None)
+    # Extract user_id from request state (set by JWT middleware)
+    # user_id is present for both Telegram and email-only users
+    user_id = getattr(request.state, "user_id", None)
 
-    if telegram_id is None:
+    if user_id is None:
         # No authentication - return None for public access
         return None
 
-    # Load user from database using telegram_id (business key, unique - SCD Type 1)
-    # NOTE: User is SCD Type 1 (no versioning), telegram_id is unique
-    statement = select(User).where(
-        User.telegram_id == telegram_id  # Use business key (unique identifier)
-    )
+    # Load user from database using user_id (primary key)
+    # This works for both Telegram users and email-only users
+    statement = select(User).where(User.id == user_id)
     result = await session.execute(statement)
     user = result.scalar_one_or_none()
 

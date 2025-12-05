@@ -21,7 +21,7 @@ from fastapi import Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.app.services.jwt import decode_access_token
+from backend.app.services.jwt import decode_access_token, decode_access_token_full
 
 # Login page URL for redirects
 LOGIN_URL = "/api/v1/auth/telegram-login"
@@ -99,20 +99,24 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         token = self._extract_token(request)
 
         if token is not None:
-            # Validate token and extract telegram_id (business key, stable across SCD Type 2)
-            telegram_id = decode_access_token(token)
+            # Validate token and extract both user_id and telegram_id
+            # user_id: database PK (always present for valid tokens)
+            # telegram_id: Telegram business key (None for email-only users)
+            user_id, telegram_id = decode_access_token_full(token)
 
-            if telegram_id is not None:
-                # Token is valid - inject telegram_id into request state
-                # This allows CurrentUserOptional to access authenticated user
-                # Using telegram_id (business key) instead of user_id (surrogate key) for SCD Type 2 compatibility
+            if user_id is not None:
+                # Token is valid - inject both values into request state
+                # user_id: Always set (for email-only users and Telegram users)
+                # telegram_id: Set only for Telegram users (None for email-only users)
+                request.state.user_id = user_id
                 request.state.telegram_id = telegram_id
 
         # Check if endpoint is public
         is_public = self._is_public_endpoint(request.url.path)
 
         # For protected endpoints, require valid authentication
-        if not is_public and not hasattr(request.state, 'telegram_id'):
+        # Now check for user_id (present for all valid tokens, both Telegram and email users)
+        if not is_public and not hasattr(request.state, 'user_id'):
             # No valid token for protected endpoint
             # Return appropriate response based on request type
             return self._create_auth_error_response(request)
