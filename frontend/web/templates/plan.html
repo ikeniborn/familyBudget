@@ -377,6 +377,7 @@
                 <div class="form-control">
                     <label class="label py-1">
                         <span class="label-text">Дата и время напоминания</span>
+                        <span class="label-text-alt text-base-content/50">UTC+3 (МСК)</span>
                     </label>
                     <input type="datetime-local" id="edit-reminder-datetime" name="reminder_datetime" class="input input-bordered input-sm w-full" />
                 </div>
@@ -500,6 +501,7 @@ let totalFacts = 0;
 let factsData = [];
 let selectedFactIds = new Set();
 let deletingFactIds = new Set(); // Track ongoing deletions to prevent race conditions
+let remindersMap = new Map(); // Map<factId, reminder> for reminder status display
 
 // Filter state
 let filters = {
@@ -1351,6 +1353,38 @@ function resetFilters() {
     loadFacts();
 }
 
+/**
+ * Load reminders for given fact IDs
+ * Populates remindersMap for rendering reminder status in table
+ */
+async function loadRemindersForFacts(factIds) {
+    remindersMap.clear();
+    if (!factIds || factIds.length === 0) return;
+
+    try {
+        // Load reminders in parallel for all fact IDs
+        const promises = factIds.map(factId =>
+            fetch(`/api/v1/reminders/${factId}`, { credentials: 'include' })
+                .then(response => {
+                    if (response.ok) return response.json();
+                    return null; // No reminder or error
+                })
+                .catch(() => null)
+        );
+
+        const results = await Promise.all(promises);
+
+        // Populate remindersMap with valid reminders
+        results.forEach((reminder, index) => {
+            if (reminder && reminder.id) {
+                remindersMap.set(factIds[index], reminder);
+            }
+        });
+    } catch (error) {
+        console.error('Error loading reminders:', error);
+    }
+}
+
 // Load facts from API
 async function loadFacts() {
     const container = document.getElementById('facts-table-container');
@@ -1389,6 +1423,9 @@ async function loadFacts() {
         const countData = await countResponse.json();
         totalFacts = countData.total;
 
+        // Load reminders for all facts
+        await loadRemindersForFacts(factsData.map(f => f.id));
+
         renderFactsTable(factsData);
         updateStats();
         updatePagination();
@@ -1426,6 +1463,7 @@ function renderFactsTable(facts) {
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>
+                        <th>🔔</th>
                         <th>👤 Пользователь</th>
                         <th>⚙️ Действия</th>
                     </tr>
@@ -1465,6 +1503,7 @@ function renderFactsTable(facts) {
                 <td><span class="${articleColorClass}">${articleName}</span></td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
+                <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">✓</span>' : ''}</td>
                 <td>${fact.user_name || '—'}</td>
                 <td>
                     <div class="flex gap-1">
