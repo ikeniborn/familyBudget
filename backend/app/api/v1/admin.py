@@ -566,6 +566,32 @@ async def update_user_role(
     if not updates:
         return user
 
+    # Validate telegram_id uniqueness if being changed
+    if "telegram_id" in updates and updates["telegram_id"] is not None:
+        new_telegram_id = updates["telegram_id"]
+        # Check if another user has this telegram_id
+        existing_query = select(User).where(
+            User.telegram_id == new_telegram_id,
+            User.id != user_id
+        )
+        existing_result = await session.execute(existing_query)
+        existing_user = existing_result.scalar_one_or_none()
+        if existing_user:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Telegram ID {new_telegram_id} is already used by another user"
+            )
+
+    # Validate that at least one auth method remains
+    # Calculate future state of telegram_id and email
+    future_telegram_id = updates.get("telegram_id", user.telegram_id) if "telegram_id" in updates else user.telegram_id
+    future_email = updates.get("email", user.email) if "email" in updates else user.email
+    if future_telegram_id is None and (future_email is None or future_email == ""):
+        raise HTTPException(
+            status_code=400,
+            detail="At least one auth method (Telegram ID or Email) must be set"
+        )
+
     # Prevent demoting the last admin
     if updates.get("is_admin") is False and user.is_admin:
         # Check if this is the last admin
@@ -717,6 +743,66 @@ async def deactivate_user(
     logger.info(
         f"User {user_id} deactivated by admin {current_admin.id} "
         f"(telegram_id={user.telegram_id}, username={user.username})"
+    )
+
+    return user
+
+
+@router.put("/users/{user_id}/reset-password", response_model=UserDetailResponse)
+async def reset_user_password(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Reset user's password (admin only).
+
+    **Admin Only:** Only admin users can reset passwords for other users.
+
+    This endpoint:
+    - Clears password_hash
+
+    User will need to set a new password before they can login via email.
+
+    Args:
+        user_id: User ID to reset password
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: Updated user with password cleared
+
+    Raises:
+        HTTPException: 404 if user not found
+    """
+    # Load user
+    statement = select(User).where(User.id == user_id)
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Check if password is set
+    if not user.password_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Password is not set for this user"
+        )
+
+    # Reset password
+    user.password_hash = None
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    logger.info(
+        f"Password reset for user {user_id} by admin {current_admin.id} "
+        f"(telegram_id={user.telegram_id}, email={user.email})"
     )
 
     return user

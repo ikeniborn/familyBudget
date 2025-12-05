@@ -103,6 +103,15 @@
 
             <div class="form-control">
                 <label class="label">
+                    <span class="label-text">📱 Telegram ID</span>
+                </label>
+                <input type="number" id="edit-telegram-id" name="telegram_id" placeholder="Telegram ID (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+                <label class="label">
+                    <span class="label-text-alt">Числовой ID пользователя в Telegram (оставьте пустым для email-only пользователя)</span>
+                </label>
+            </div>
+            <div class="form-control">
+                <label class="label">
                     <span class="label-text">📧 Email</span>
                 </label>
                 <input type="email" id="edit-email" name="email" maxlength="320" placeholder="user@example.com" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
@@ -346,6 +355,11 @@ function renderActions(user) {
         ? `<button class="btn btn-sm btn-outline btn-error gap-1" onclick="reset2fa(${user.id})" title="Сбросить 2FA">🔐 Сброс 2FA</button>`
         : '';
 
+    // Reset password button (only if password is set - email users)
+    const resetPasswordBtn = user.email
+        ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="resetPassword(${user.id})" title="Сбросить пароль">🔑 Сброс пароля</button>`
+        : '';
+
     return `
         <div class="flex gap-1 flex-wrap">
             ${editBtn}
@@ -353,6 +367,7 @@ function renderActions(user) {
             ${adminBtn}
             ${refreshBtn}
             ${reset2faBtn}
+            ${resetPasswordBtn}
         </div>
     `;
 }
@@ -497,6 +512,40 @@ async function reset2fa(userId) {
         showNotification('🔐 2FA сброшен! Пользователю нужно настроить его заново.', 'success');
     } catch (error) {
         console.error('Error resetting 2FA:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Reset password for user
+async function resetPassword(userId) {
+    const confirmed = await showConfirmDialog(
+        'Вы уверены, что хотите сбросить пароль для этого пользователя?\n\nПользователю придётся заново установить пароль через страницу настроек безопасности.',
+        '🔑 Сброс пароля'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/reset-password`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        showNotification('🔑 Пароль сброшен! Пользователю нужно установить его заново.', 'success');
+    } catch (error) {
+        console.error('Error resetting password:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
@@ -734,6 +783,7 @@ function showEditUserModal(userId) {
     if (!user) return;
 
     document.getElementById('edit-id').value = user.id;
+    document.getElementById('edit-telegram-id').value = user.telegram_id || '';
     document.getElementById('edit-email').value = user.email || '';
     document.getElementById('edit-username').value = user.username || '';
     document.getElementById('edit-first-name').value = user.first_name || '';
@@ -773,7 +823,19 @@ async function updateUser(event) {
     const formData = new FormData(event.target);
     const userId = formData.get('id');
 
+    // Parse telegram_id - can be empty string (to clear), a number, or null
+    const telegramIdValue = formData.get('telegram_id');
+    let telegram_id = null;
+    if (telegramIdValue && telegramIdValue.trim() !== '') {
+        telegram_id = parseInt(telegramIdValue);
+        if (isNaN(telegram_id) || telegram_id <= 0) {
+            showNotification('Telegram ID должен быть положительным числом', 'error');
+            return;
+        }
+    }
+
     const data = {
+        telegram_id: telegram_id,
         username: formData.get('username') || null,
         first_name: formData.get('first_name') || null,
         email: formData.get('email') || null,

@@ -82,6 +82,7 @@ class UserUpdate(BaseModel):
 
     Validation Rules:
         - All fields are optional (partial update)
+        - telegram_id: Telegram ID (can be set/cleared by admin)
         - email: Email for email-based auth
         - username, first_name, last_name, photo_url: Profile data
         - is_admin, is_active: Status flags
@@ -91,6 +92,12 @@ class UserUpdate(BaseModel):
         - Also creates history record in UserHistory table
         - All changes are logged with metadata (change_type, changed_fields)
     """
+
+    telegram_id: Optional[int] = Field(
+        default=None,
+        description="Telegram user ID (business key, nullable for email-only users)",
+        examples=[740775802]
+    )
 
     email: Optional[str] = Field(
         default=None,
