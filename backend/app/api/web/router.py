@@ -21,9 +21,14 @@ async def index(
     """
     Home page / dashboard.
 
-    Shows login prompt if unauthenticated, analytics dashboard if authenticated.
+    Redirects to /login-email if unauthenticated, shows dashboard if authenticated.
     """
+    from fastapi.responses import RedirectResponse
     from backend.app.main import templates
+
+    # Redirect unauthenticated users to login page
+    if not current_user:
+        return RedirectResponse(url="/login-email", status_code=303)
 
     return templates.TemplateResponse(
         "index.html",
