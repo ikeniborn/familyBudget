@@ -95,6 +95,21 @@
         <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать пользователя</h3>
         <form id="edit-form" onsubmit="updateUser(event)" class="space-y-2 sm:space-y-4">
             <input type="hidden" id="edit-id" name="id">
+
+            <!-- Info badges -->
+            <div id="edit-user-info" class="flex flex-wrap gap-2 mb-4">
+                <!-- Populated dynamically -->
+            </div>
+
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📧 Email</span>
+                </label>
+                <input type="email" id="edit-email" name="email" maxlength="320" placeholder="user@example.com" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+                <label class="label">
+                    <span class="label-text-alt">Email для входа по паролю</span>
+                </label>
+            </div>
             <div class="form-control">
                 <label class="label">
                     <span class="label-text">👤 Username</span>
@@ -230,10 +245,12 @@ function renderUsersTable(users) {
                 <thead>
                     <tr>
                         <th>📱 Telegram ID</th>
+                        <th>📧 Email</th>
                         <th>📷 Фото</th>
                         <th>👤 Username</th>
                         <th>📝 Имя</th>
                         <th>🔑 Роль</th>
+                        <th>🔐 2FA</th>
                         <th>✅ Статус</th>
                         <th>📅 Последний вход</th>
                         <th>📅 Создан</th>
@@ -244,10 +261,15 @@ function renderUsersTable(users) {
     `;
 
     users.forEach(user => {
-        const displayName = user.first_name || user.username || `User ${user.telegram_id}`;
+        const displayName = user.first_name || user.username || (user.telegram_id ? `User ${user.telegram_id}` : (user.email || 'N/A'));
         const roleLabel = user.is_admin
             ? '<span class="badge badge-warning gap-1">🔑 Админ</span>'
             : '<span class="badge badge-info gap-1">👤 Пользователь</span>';
+
+        // 2FA status badge
+        const twoFactorLabel = user.two_factor_enabled
+            ? '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Вкл</span>'
+            : '<span class="badge badge-ghost gap-1 whitespace-nowrap">—</span>';
 
         // User activation status badge
         const statusLabel = user.is_active
@@ -259,7 +281,7 @@ function renderUsersTable(users) {
         const lastLogin = user.last_login_at ? formatDate(user.last_login_at) : 'Никогда';
 
         // Avatar HTML
-        const initial = (user.first_name || user.username || 'U')[0].toUpperCase();
+        const initial = (user.first_name || user.username || user.email || 'U')[0].toUpperCase();
         const avatarHTML = user.photo_url
             ? `<div class="avatar">
                    <div class="w-8 h-8 rounded-full">
@@ -274,11 +296,13 @@ function renderUsersTable(users) {
 
         html += `
             <tr>
-                <td class="font-mono">${user.telegram_id}</td>
+                <td class="font-mono">${user.telegram_id || '—'}</td>
+                <td class="text-sm">${user.email || '—'}</td>
                 <td>${avatarHTML}</td>
                 <td>${user.username || '—'}</td>
                 <td class="font-medium">${displayName}</td>
                 <td><div class="flex flex-wrap gap-1">${roleLabel}</div></td>
+                <td><div class="flex flex-wrap gap-1">${twoFactorLabel}</div></td>
                 <td><div class="flex flex-wrap gap-1">${statusLabel}</div></td>
                 <td>${lastLogin}</td>
                 <td>${createdAt}</td>
@@ -307,13 +331,20 @@ function renderActions(user) {
         ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="toggleAdmin(${user.id}, false)">🔓 Снять админа</button>`
         : `<button class="btn btn-sm btn-primary gap-1" onclick="toggleAdmin(${user.id}, true)">🔑 Сделать админом</button>`;
 
-    // NEW: Activate/Deactivate button
+    // Activate/Deactivate button
     const activateBtn = user.is_active
         ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="deactivateUser(${user.id})" title="Деактивировать пользователя">⏸️ Деактивировать</button>`
         : `<button class="btn btn-sm btn-success gap-1" onclick="activateUser(${user.id})" title="Активировать пользователя">✅ Активировать</button>`;
 
-    // NEW: Refresh profile button
-    const refreshBtn = `<button class="btn btn-sm btn-outline btn-info gap-1" onclick="refreshUserProfile(${user.id})" title="Обновить данные из Telegram">🔄 Обновить</button>`;
+    // Refresh profile button (only for Telegram users)
+    const refreshBtn = user.telegram_id
+        ? `<button class="btn btn-sm btn-outline btn-info gap-1" onclick="refreshUserProfile(${user.id})" title="Обновить данные из Telegram">🔄 Обновить</button>`
+        : '';
+
+    // Reset 2FA button (only if 2FA is enabled)
+    const reset2faBtn = user.two_factor_enabled
+        ? `<button class="btn btn-sm btn-outline btn-error gap-1" onclick="reset2fa(${user.id})" title="Сбросить 2FA">🔐 Сброс 2FA</button>`
+        : '';
 
     return `
         <div class="flex gap-1 flex-wrap">
@@ -321,6 +352,7 @@ function renderActions(user) {
             ${activateBtn}
             ${adminBtn}
             ${refreshBtn}
+            ${reset2faBtn}
         </div>
     `;
 }
@@ -436,7 +468,41 @@ async function deactivateUser(userId) {
     }
 }
 
-// NEW: Refresh user profile from Telegram
+// Reset 2FA for user
+async function reset2fa(userId) {
+    const confirmed = await showConfirmDialog(
+        'Вы уверены, что хотите сбросить 2FA для этого пользователя?\n\nПользователю придётся заново настроить двухфакторную аутентификацию.',
+        '🔐 Сброс 2FA'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}/reset-2fa`, {
+            method: 'PUT',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Success - reload users
+        await loadUsers();
+        await loadStats();
+
+        showNotification('🔐 2FA сброшен! Пользователю нужно настроить его заново.', 'success');
+    } catch (error) {
+        console.error('Error resetting 2FA:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Refresh user profile from Telegram
 async function refreshUserProfile(userId) {
     const confirmed = await showConfirmDialog(
         'Обновить данные пользователя из Telegram?\n\nПользователь должен был запустить бота @ikenibornbudgetbot.',
@@ -668,9 +734,28 @@ function showEditUserModal(userId) {
     if (!user) return;
 
     document.getElementById('edit-id').value = user.id;
+    document.getElementById('edit-email').value = user.email || '';
     document.getElementById('edit-username').value = user.username || '';
     document.getElementById('edit-first-name').value = user.first_name || '';
     document.getElementById('edit-is-admin').checked = user.is_admin;
+
+    // Build info badges
+    let badges = [];
+    if (user.telegram_id) {
+        badges.push(`<span class="badge badge-primary gap-1">📱 Telegram: ${user.telegram_id}</span>`);
+    }
+    if (user.email) {
+        badges.push(`<span class="badge badge-secondary gap-1">📧 Email</span>`);
+    }
+    if (user.two_factor_enabled) {
+        badges.push(`<span class="badge badge-success gap-1">🔐 2FA</span>`);
+    }
+    if (user.is_active) {
+        badges.push(`<span class="badge badge-success gap-1">✅ Активен</span>`);
+    } else {
+        badges.push(`<span class="badge badge-warning gap-1">⏳ Ожидает</span>`);
+    }
+    document.getElementById('edit-user-info').innerHTML = badges.join('');
 
     document.getElementById('edit-modal').showModal();
 }
@@ -691,6 +776,7 @@ async function updateUser(event) {
     const data = {
         username: formData.get('username') || null,
         first_name: formData.get('first_name') || null,
+        email: formData.get('email') || null,
         is_admin: formData.get('is_admin') === 'on'
     };
 

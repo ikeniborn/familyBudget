@@ -82,6 +82,7 @@ class UserUpdate(BaseModel):
 
     Validation Rules:
         - All fields are optional (partial update)
+        - email: Email for email-based auth
         - username, first_name, last_name, photo_url: Profile data
         - is_admin, is_active: Status flags
 
@@ -90,6 +91,13 @@ class UserUpdate(BaseModel):
         - Also creates history record in UserHistory table
         - All changes are logged with metadata (change_type, changed_fields)
     """
+
+    email: Optional[str] = Field(
+        default=None,
+        max_length=320,
+        description="User email for email-based auth",
+        examples=["john@example.com"]
+    )
 
     username: Optional[str] = Field(
         default=None,
@@ -149,15 +157,28 @@ class UserResponse(BaseModel):
         examples=[1]
     )
 
-    telegram_id: int = Field(
-        description="User's Telegram ID (business key)",
-        examples=[123456789]
+    telegram_id: Optional[int] = Field(
+        default=None,
+        description="User's Telegram ID (business key, nullable for email-only users)",
+        examples=[123456789, None]
+    )
+
+    email: Optional[str] = Field(
+        default=None,
+        description="User email for email-based auth (nullable for Telegram-only users)",
+        examples=["john@example.com", None]
     )
 
     username: Optional[str] = Field(
         default=None,
         description="Telegram username",
         examples=["johndoe", None]
+    )
+
+    two_factor_enabled: bool = Field(
+        default=False,
+        description="Whether 2FA is enabled (required for email login)",
+        examples=[False, True]
     )
 
     first_name: Optional[str] = Field(
@@ -215,7 +236,9 @@ class UserResponse(BaseModel):
             "example": {
                 "id": 1,
                 "telegram_id": 123456789,
+                "email": "john@example.com",
                 "username": "johndoe",
+                "two_factor_enabled": True,
                 "first_name": "John",
                 "last_name": "Doe",
                 "photo_url": "/static/avatars/1.jpg",

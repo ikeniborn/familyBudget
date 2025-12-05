@@ -722,6 +722,70 @@ async def deactivate_user(
     return user
 
 
+@router.put("/users/{user_id}/reset-2fa", response_model=UserDetailResponse)
+async def reset_user_2fa(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Reset user's 2FA (admin only).
+
+    **Admin Only:** Only admin users can reset 2FA for other users.
+
+    This endpoint:
+    - Clears two_factor_secret
+    - Sets two_factor_enabled to False
+    - Clears backup_codes
+
+    User will need to set up 2FA again before they can login via email.
+
+    Args:
+        user_id: User ID to reset 2FA
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: Updated user with 2FA disabled
+
+    Raises:
+        HTTPException: 404 if user not found
+    """
+    # Load user
+    statement = select(User).where(User.id == user_id)
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Check if 2FA is enabled
+    if not user.two_factor_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="2FA is not enabled for this user"
+        )
+
+    # Reset 2FA
+    user.two_factor_secret = None
+    user.two_factor_enabled = False
+    user.backup_codes = None
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    logger.info(
+        f"2FA reset for user {user_id} by admin {current_admin.id} "
+        f"(telegram_id={user.telegram_id}, email={user.email})"
+    )
+
+    return user
+
+
 @router.put("/users/{user_id}/refresh-profile", response_model=UserDetailResponse)
 async def refresh_user_profile_from_telegram(
     user_id: int,
