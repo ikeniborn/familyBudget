@@ -79,8 +79,9 @@ class ReminderService:
             fact_id=fact_id,
             reminder_datetime=reminder_datetime,
             status="pending",
-            created_at=now_utc(),
-            updated_at=now_utc(),
+            # Use naive datetime for TIMESTAMP WITHOUT TIME ZONE columns
+            created_at=now_utc().replace(tzinfo=None),
+            updated_at=now_utc().replace(tzinfo=None),
         )
 
         session.add(reminder)
@@ -129,7 +130,8 @@ class ReminderService:
         # Update reminder
         reminder.reminder_datetime = reminder_datetime
         reminder.status = "pending"  # Reset status when updating
-        reminder.updated_at = now_utc()
+        # Use naive datetime for TIMESTAMP WITHOUT TIME ZONE columns
+        reminder.updated_at = now_utc().replace(tzinfo=None)
 
         await session.commit()
         await session.refresh(reminder)
@@ -530,8 +532,8 @@ class ReminderService:
                     },
                 )
 
-                # Update last_used_at
-                subscription.last_used_at = now_utc()
+                # Update last_used_at (use naive datetime for TIMESTAMP WITHOUT TIME ZONE)
+                subscription.last_used_at = now_utc().replace(tzinfo=None)
                 sent_count += 1
 
             except WebPushException as e:
