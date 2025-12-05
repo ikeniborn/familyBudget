@@ -56,6 +56,27 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # Timezone (IANA format, e.g., "Europe/Moscow", "UTC")
+    # System timezone for scheduler jobs and default for new users
+    SYSTEM_TIMEZONE: str = "UTC"
+
+    @field_validator("SYSTEM_TIMEZONE")
+    @classmethod
+    def validate_timezone(cls, v):
+        """
+        Validate IANA timezone name.
+
+        Raises:
+            ValueError: If timezone is not valid IANA timezone
+        """
+        from zoneinfo import available_timezones
+
+        if v not in available_timezones():
+            raise ValueError(
+                f"Invalid timezone: {v}. Use IANA format (e.g., Europe/Moscow, UTC)"
+            )
+        return v
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v):

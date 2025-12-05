@@ -320,9 +320,12 @@ def init_scheduler() -> AsyncIOScheduler:
 
     logger.info("[SCHEDULER] Initializing APScheduler")
 
+    # Get system timezone from settings
+    settings = get_settings()
+
     # Create AsyncIOScheduler (compatible with FastAPI async)
     scheduler = AsyncIOScheduler(
-        timezone="UTC",
+        timezone=settings.SYSTEM_TIMEZONE,
         job_defaults={
             "coalesce": True,  # Combine multiple missed runs into one
             "max_instances": 1,  # Only one instance of job at a time

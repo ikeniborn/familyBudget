@@ -212,6 +212,17 @@ class User(SQLModel, table=True):
     )
 
     # =========================================================================
+    # User preferences (SCD Type 1 - in-place updates)
+    # =========================================================================
+
+    timezone: Optional[str] = Field(
+        default=None,
+        max_length=50,
+        description="User timezone in IANA format (e.g., 'Europe/Moscow'). "
+        "NULL means use SYSTEM_TIMEZONE from config. (SCD1 - in-place update)"
+    )
+
+    # =========================================================================
     # Audit fields (SCD Type 1 - in-place updates)
     # =========================================================================
 

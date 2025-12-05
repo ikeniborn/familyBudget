@@ -21,6 +21,7 @@ from backend.app.models.notification import Notification
 from backend.app.models.user import User
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
+from backend.app.utils.timezone import now_local
 
 logger = get_logger(__name__)
 
@@ -172,8 +173,9 @@ class NotificationService:
 
         try:
             async with get_session_context() as session:
-                # Calculate previous week period
-                today = date.today()
+                # Calculate previous week period using SYSTEM_TIMEZONE
+                # (scheduler runs in SYSTEM_TIMEZONE, so use same for date calculations)
+                today = now_local().date()  # now_local(None) uses SYSTEM_TIMEZONE
                 days_since_monday = today.weekday()
                 last_monday = today - timedelta(days=days_since_monday + 7)
                 last_sunday = last_monday + timedelta(days=6)
@@ -282,8 +284,9 @@ class NotificationService:
 
         try:
             async with get_session_context() as session:
-                # Calculate current month period
-                today = date.today()
+                # Calculate current month period using SYSTEM_TIMEZONE
+                # (scheduler runs in SYSTEM_TIMEZONE, so use same for date calculations)
+                today = now_local().date()  # now_local(None) uses SYSTEM_TIMEZONE
                 month_start = date(today.year, today.month, 1)
 
                 if today.month == 12:

@@ -321,3 +321,81 @@ async def get_all_telegram_ids(
     telegram_ids = result.scalars().all()
 
     return [{"telegram_id": tid} for tid in telegram_ids]
+
+
+@router.get(
+    "/timezones",
+    response_model=list[dict],
+    responses=get_common_responses(),
+)
+async def list_timezones(
+    current_user: CurrentUser,
+) -> list[dict]:
+    """
+    Get list of common timezones for UI selector.
+
+    **Public:** Any authenticated user can access this endpoint.
+
+    **Returns:**
+    List of timezone objects with:
+    - name: IANA timezone name (e.g., "Europe/Moscow")
+    - offset: UTC offset (e.g., "UTC+03:00")
+    - display: Human-readable display string
+
+    **Example Response:**
+    ```json
+    [
+        {"name": "UTC", "offset": "UTC+00:00", "display": "(UTC+00:00) UTC"},
+        {"name": "Europe/Moscow", "offset": "UTC+03:00", "display": "(UTC+03:00) Europe/Moscow"}
+    ]
+    ```
+    """
+    from backend.app.utils.timezone import get_common_timezones
+    return get_common_timezones()
+
+
+@router.put(
+    "/me/timezone",
+    response_model=UserResponse,
+    responses=get_common_responses(),
+)
+async def update_my_timezone(
+    timezone: str,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> User:
+    """
+    Update current user's timezone.
+
+    **Public:** Any authenticated user can update their own timezone.
+
+    **Args:**
+    - timezone: IANA timezone name (e.g., "Europe/Moscow", "UTC")
+
+    **Validation:**
+    - Must be a valid IANA timezone name
+    - Invalid timezone will return 400 Bad Request
+
+    **Returns:**
+    - 200 OK: Updated user data
+    - 400 Bad Request: Invalid timezone
+    - 401 Unauthorized: Not authenticated
+    """
+    from backend.app.utils.timezone import is_valid_timezone
+
+    # Validate timezone
+    if not is_valid_timezone(timezone):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid timezone: {timezone}. Use IANA format (e.g., Europe/Moscow, UTC)"
+        )
+
+    # Update user timezone (SCD1 - in-place update)
+    current_user.timezone = timezone
+    current_user.updated_at = datetime.utcnow()
+
+    session.add(current_user)
+    await session.commit()
+    await session.refresh(current_user)
+
+    return current_user

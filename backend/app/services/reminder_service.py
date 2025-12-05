@@ -16,6 +16,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.logging import get_logger
 from backend.app.db.session import get_session_context
+from backend.app.utils.timezone import now_utc, from_utc, format_datetime_local
 from backend.app.models.scheduled_reminder import ScheduledReminder
 from backend.app.models.push_subscription import PushSubscription
 from backend.app.models.fact import BudgetFact
@@ -78,8 +79,8 @@ class ReminderService:
             fact_id=fact_id,
             reminder_datetime=reminder_datetime,
             status="pending",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=now_utc(),
+            updated_at=now_utc(),
         )
 
         session.add(reminder)
@@ -128,7 +129,7 @@ class ReminderService:
         # Update reminder
         reminder.reminder_datetime = reminder_datetime
         reminder.status = "pending"  # Reset status when updating
-        reminder.updated_at = datetime.utcnow()
+        reminder.updated_at = now_utc()
 
         await session.commit()
         await session.refresh(reminder)
@@ -228,10 +229,17 @@ class ReminderService:
         article = await session.get(Article, fact.article_id)
         article_name = article.name if article else None
 
+        # Get user for timezone
+        user = await session.get(User, user_id)
+        user_timezone = user.timezone if user else None
+
         return {
             "id": reminder.id,
             "fact_id": reminder.fact_id,
             "reminder_datetime": reminder.reminder_datetime,
+            "reminder_datetime_local": format_datetime_local(
+                reminder.reminder_datetime, user_timezone
+            ) if reminder.reminder_datetime else None,
             "status": reminder.status,
             "sent_at": reminder.sent_at,
             "telegram_sent": reminder.telegram_sent,
@@ -265,7 +273,7 @@ class ReminderService:
         Returns:
             List of due reminders
         """
-        now = datetime.utcnow()
+        now = now_utc()
         statement = (
             select(ScheduledReminder)
             .where(
@@ -525,7 +533,7 @@ class ReminderService:
                 )
 
                 # Update last_used_at
-                subscription.last_used_at = datetime.utcnow()
+                subscription.last_used_at = now_utc()
                 sent_count += 1
 
             except WebPushException as e:

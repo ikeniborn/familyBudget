@@ -137,6 +137,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       LOG_FORMAT: ${LOG_FORMAT:-json}
 
+      # Timezone (IANA format: Europe/Moscow, America/New_York, UTC)
+      TZ: ${SYSTEM_TIMEZONE:-UTC}
+      SYSTEM_TIMEZONE: ${SYSTEM_TIMEZONE:-UTC}
+
       # Performance
       WORKERS: ${WORKERS:-2}
       MAX_CONNECTIONS: ${MAX_CONNECTIONS:-100}
@@ -219,6 +223,9 @@ services:
 
       # Logging
       LOG_LEVEL: ${LOG_LEVEL:-info}
+
+      # Timezone (IANA format: Europe/Moscow, America/New_York, UTC)
+      TZ: ${SYSTEM_TIMEZONE:-UTC}
     volumes:
       - ./bot:/app/bot:ro
       - ./logs:/app/logs
