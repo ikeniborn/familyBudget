@@ -90,10 +90,12 @@ def upgrade() -> None:
     op.create_table(
         't_scheduled_reminder',
         sa.Column('id', sa.Integer(), primary_key=True, autoincrement=True),
+        # NOTE: No FK constraint on fact_id because t_f_budget_fact is partitioned
+        # (PK is (id, fact_date), not just id). Referential integrity is enforced
+        # at application level in ReminderService.
         sa.Column(
             'fact_id',
             sa.Integer(),
-            sa.ForeignKey('t_f_budget_fact.id', ondelete='CASCADE'),
             nullable=False,
             unique=True,  # One reminder per plan
             index=True

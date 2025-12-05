@@ -53,10 +53,11 @@ class ScheduledReminder(SQLModel, table=True):
 
     fact_id: int = Field(
         nullable=False,
-        foreign_key="t_f_budget_fact.id",
+        # NOTE: No FK constraint because t_f_budget_fact is partitioned
+        # (PK includes fact_date). Referential integrity at application level.
         index=True,
         unique=True,
-        description="Reference to budget plan (one-to-one, CASCADE delete)"
+        description="Reference to budget plan (one-to-one). No FK due to partitioned table."
     )
 
     reminder_datetime: datetime = Field(
