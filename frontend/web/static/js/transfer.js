@@ -171,6 +171,13 @@ async function loadTransferPlanHints(direction) {
     }
 
     window[timeoutRef] = setTimeout(async () => {
+        // Skip API call if offline
+        if (!navigator.onLine) {
+            planBtn.innerHTML = 'План: --';
+            factBtn.innerHTML = 'Факт: --';
+            return;
+        }
+
         try {
             window[controllerRef] = new AbortController();
 
@@ -208,8 +215,12 @@ async function loadTransferPlanHints(direction) {
             updateTransferHintButtons(direction, data);
 
         } catch (error) {
+            // Silently handle abort and network errors (offline mode)
             if (error.name !== 'AbortError') {
-                console.error(`[loadTransferPlanHints] Failed for ${direction}:`, error);
+                // Only log non-network errors
+                if (navigator.onLine && !error.message?.includes('Failed to fetch')) {
+                    console.error(`[loadTransferPlanHints] Failed for ${direction}:`, error);
+                }
                 planBtn.innerHTML = 'План: --';
                 factBtn.innerHTML = 'Факт: --';
             }

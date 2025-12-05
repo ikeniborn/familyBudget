@@ -21,6 +21,7 @@ from backend.app.models.push_subscription import PushSubscription
 from backend.app.models.fact import BudgetFact
 from backend.app.models.article import Article
 from backend.app.models.user import User
+from backend.app.models.financial_center import FinancialCenter
 
 logger = get_logger(__name__)
 
@@ -311,12 +312,19 @@ class ReminderService:
         article = await session.get(Article, fact.article_id)
         article_name = article.name if article else f"Категория #{fact.article_id}"
 
+        # Get financial center name
+        financial_center_name = None
+        if fact.financial_center_id:
+            fc = await session.get(FinancialCenter, fact.financial_center_id)
+            financial_center_name = fc.name if fc else None
+
         # Generate message
         message = self._generate_message(
             article_name=article_name,
             amount=float(fact.amount),
             fact_date=fact.fact_date,
             description=fact.description,
+            financial_center_name=financial_center_name,
         )
 
         # Send Telegram notification
@@ -358,6 +366,7 @@ class ReminderService:
         amount: float,
         fact_date: datetime,
         description: Optional[str] = None,
+        financial_center_name: Optional[str] = None,
     ) -> str:
         """
         Generate reminder message text.
@@ -367,6 +376,7 @@ class ReminderService:
             amount: Plan amount
             fact_date: Plan date
             description: Optional description
+            financial_center_name: Optional financial center (ЦФО) name
 
         Returns:
             Formatted message text
@@ -382,17 +392,17 @@ class ReminderService:
         parts = [
             "🔔 *Напоминание о запланированной операции*",
             "",
+        ]
+
+        # Add ЦФО if available
+        if financial_center_name:
+            parts.append(f"🏦 ЦФО: {financial_center_name}")
+
+        parts.extend([
             f"📁 Категория: {article_name}",
             f"💰 Сумма: {amount_str} ₽",
             f"📅 Дата: {date_str}",
-        ]
-
-        if description:
-            parts.append(f"📝 Описание: {description}")
-
-        parts.extend([
-            "",
-            "Не забудьте добавить фактическую запись!",
+            f"📝 Описание: {description or '—'}",
         ])
 
         return "\n".join(parts)
