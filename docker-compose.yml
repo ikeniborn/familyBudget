@@ -117,8 +117,6 @@ services:
       API_INTERNAL_KEY: ${API_INTERNAL_KEY:?API_INTERNAL_KEY is required}
 
       # Telegram
-      # Python warnings
-      PYTHONWARNINGS: "ignore::UserWarning:telegram.ext"
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
@@ -140,7 +138,7 @@ services:
       LOG_FORMAT: ${LOG_FORMAT:-json}
 
       # Performance
-      WORKERS: ${WORKERS:-4}
+      WORKERS: ${WORKERS:-2}
       MAX_CONNECTIONS: ${MAX_CONNECTIONS:-100}
 
       # S3 Backup (optional)
@@ -173,7 +171,7 @@ services:
       uvicorn backend.app.main:app
       --host 0.0.0.0
       --port 8000
-      --workers ${WORKERS:-4}
+      --workers ${WORKERS:-2}
       --log-level ${LOG_LEVEL:-info}
       --access-log
       --proxy-headers
