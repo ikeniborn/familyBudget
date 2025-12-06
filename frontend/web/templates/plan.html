@@ -2403,7 +2403,7 @@ function resetReminderFields(modalId) {
 
 /**
  * Get current time rounded to nearest 5 minutes.
- * @returns {{hour: string, minute: string}} Hour and minute as zero-padded strings
+ * @returns {Object} Hour and minute as zero-padded strings (hour: string, minute: string)
  */
 function getCurrentTimeRounded() {
     const now = new Date();
