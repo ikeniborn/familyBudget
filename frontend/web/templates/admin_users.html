@@ -1203,7 +1203,19 @@ async function confirmMergeUsers() {
 
         if (!response.ok) {
             const error = await response.json();
-            let errorMessage = error.detail || `Ошибка сервера: ${response.status}`;
+            // Handle different error formats (string, object, array)
+            let errorMessage;
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (Array.isArray(error.detail)) {
+                errorMessage = error.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('; ');
+            } else if (error.detail && typeof error.detail === 'object') {
+                errorMessage = error.detail.message || error.detail.msg || JSON.stringify(error.detail);
+            } else if (error.message) {
+                errorMessage = error.message;
+            } else {
+                errorMessage = `Ошибка сервера: ${response.status}`;
+            }
             throw new Error(errorMessage);
         }
 

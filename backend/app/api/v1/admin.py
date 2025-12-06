@@ -1147,19 +1147,45 @@ async def merge_users(
 
     now = datetime.utcnow()
     telegram_id_transferred = False
+    source_telegram_id = source_user.telegram_id
+
+    # Use raw SQL for atomic telegram_id transfer to avoid constraint violations
+    # The constraint chk_user_has_auth_method requires telegram_id OR email to be set
+    # We need to transfer telegram_id atomically: clear from source AND set on target in one transaction
+
+    from sqlmodel import update
 
     # 1. Transfer Telegram ID if source has it and target doesn't
-    if source_user.telegram_id is not None and target_user.telegram_id is None:
-        target_user.telegram_id = source_user.telegram_id
-        target_user.updated_at = now
+    if source_telegram_id is not None and target_user.telegram_id is None:
+        # First, clear from source (use raw SQL to avoid ORM autoflush issues)
+        # Set a placeholder to satisfy constraint temporarily if source has no email
+        if source_user.email is None:
+            # Source has only telegram_id - give it a placeholder email before clearing telegram_id
+            placeholder_email = f"merged_{source_user_id}@placeholder.local"
+            source_clear_stmt = (
+                update(User)
+                .where(User.id == source_user_id)
+                .values(telegram_id=None, email=placeholder_email, updated_at=now)
+            )
+        else:
+            # Source has email - can safely clear telegram_id
+            source_clear_stmt = (
+                update(User)
+                .where(User.id == source_user_id)
+                .values(telegram_id=None, updated_at=now)
+            )
+        await session.execute(source_clear_stmt)
+
+        # Then, set on target
+        target_set_stmt = (
+            update(User)
+            .where(User.id == target_user_id)
+            .values(telegram_id=source_telegram_id, updated_at=now)
+        )
+        await session.execute(target_set_stmt)
         telegram_id_transferred = True
 
-    # 2. Clear Telegram ID from source (to avoid unique constraint violation)
-    if source_user.telegram_id is not None:
-        source_user.telegram_id = None
-
-    # 3. Transfer all facts from source to target
-    from sqlmodel import update
+    # 2. Transfer all facts from source to target
     facts_update_stmt = (
         update(Fact)
         .where(Fact.user_id == source_user_id)
@@ -1168,7 +1194,7 @@ async def merge_users(
     facts_result = await session.execute(facts_update_stmt)
     facts_transferred = facts_result.rowcount
 
-    # 4. Transfer financial centers from source to target
+    # 3. Transfer financial centers from source to target
     fc_update_stmt = (
         update(FinancialCenter)
         .where(FinancialCenter.user_id == source_user_id)
@@ -1176,7 +1202,7 @@ async def merge_users(
     )
     await session.execute(fc_update_stmt)
 
-    # 5. Transfer cost centers from source to target
+    # 4. Transfer cost centers from source to target
     cc_update_stmt = (
         update(CostCenter)
         .where(CostCenter.user_id == source_user_id)
@@ -1184,14 +1210,15 @@ async def merge_users(
     )
     await session.execute(cc_update_stmt)
 
-    # 6. Mark source user as merged and deactivate
-    source_user.merged_into_user_id = target_user_id
-    source_user.is_active = False
-    source_user.updated_at = now
+    # 5. Mark source user as merged and deactivate (using raw SQL to avoid stale ORM state)
+    source_merge_stmt = (
+        update(User)
+        .where(User.id == source_user_id)
+        .values(merged_into_user_id=target_user_id, is_active=False, updated_at=now)
+    )
+    await session.execute(source_merge_stmt)
 
-    # 7. Commit all changes
-    session.add(source_user)
-    session.add(target_user)
+    # 6. Commit all changes
     await session.commit()
 
     logger.info(
