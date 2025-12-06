@@ -1384,6 +1384,7 @@ function resetFilters() {
 
 /**
  * Load reminders for given fact IDs
+ * Uses batch endpoint to get all user reminders, then filters by fact_id
  * Populates remindersMap for rendering reminder status in table
  */
 async function loadRemindersForFacts(factIds) {
@@ -1391,24 +1392,24 @@ async function loadRemindersForFacts(factIds) {
     if (!factIds || factIds.length === 0) return;
 
     try {
-        // Load reminders in parallel for all fact IDs
-        const promises = factIds.map(factId =>
-            fetch(`/api/v1/reminders/${factId}`, { credentials: 'include' })
-                .then(response => {
-                    if (response.ok) return response.json();
-                    return null; // No reminder or error
-                })
-                .catch(() => null)
-        );
+        // Use batch endpoint to get all pending reminders for user
+        const response = await fetch('/api/v1/reminders/?status=pending&limit=100', { credentials: 'include' });
+        if (!response.ok) {
+            console.warn('Failed to load reminders:', response.status);
+            return;
+        }
 
-        const results = await Promise.all(promises);
+        const data = await response.json();
+        const factIdSet = new Set(factIds);
 
-        // Populate remindersMap with valid reminders
-        results.forEach((reminder, index) => {
-            if (reminder && reminder.id) {
-                remindersMap.set(factIds[index], reminder);
-            }
-        });
+        // Populate remindersMap with reminders that match current page facts
+        if (data.items && Array.isArray(data.items)) {
+            data.items.forEach(reminder => {
+                if (reminder && reminder.fact_id && factIdSet.has(reminder.fact_id)) {
+                    remindersMap.set(reminder.fact_id, reminder);
+                }
+            });
+        }
     } catch (error) {
         console.error('Error loading reminders:', error);
     }
