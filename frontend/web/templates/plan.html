@@ -1741,8 +1741,8 @@ async function showEditModal(factId) {
         reminderStatusBadge.textContent = '';
     }
 
-    // Fetch existing reminder
-    const reminder = await getReminder(factId);
+    // Check existing reminder from pre-loaded map (no extra fetch needed)
+    const reminder = remindersMap.get(factId);
     if (reminder) {
         if (reminderCheckbox) reminderCheckbox.checked = true;
         // Populate separate date/hour/minute fields
@@ -1813,8 +1813,8 @@ async function updateFact(event) {
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
 
-        // Handle reminder update
-        const existingReminder = await getReminder(factId);
+        // Handle reminder update (use pre-loaded map instead of fetching)
+        const existingReminder = remindersMap.get(parseInt(factId));
 
         if (enableReminder && reminderDatetime) {
             // Create or update reminder
