@@ -88,6 +88,7 @@ async def list_staging_records(
             description=record.description,
             csv_metadata=record.csv_metadata,
             budget_description=record.budget_description,
+            user_comment=record.user_comment,
             article_id=record.article_id,
             financial_center_id=record.financial_center_id,
             cost_center_id=record.cost_center_id,
@@ -154,6 +155,8 @@ async def update_staging_record(
         record.cost_center_id = update_data.cost_center_id
     if update_data.budget_description is not None:
         record.budget_description = update_data.budget_description
+    if update_data.user_comment is not None:
+        record.user_comment = update_data.user_comment
 
     session.add(record)
     await session.commit()
@@ -458,6 +461,13 @@ async def execute_import(
                 f"Invalid amount format '{record.amount_string}' in record {record.id}"
             )
 
+        # Build final description: budget_description or description + user_comment (via period)
+        base_description = record.budget_description or record.description or ""
+        if record.user_comment:
+            final_description = f"{base_description}. {record.user_comment}" if base_description else record.user_comment
+        else:
+            final_description = base_description or None
+
         # Create BudgetFact
         fact = BudgetFact(
             user_id=record.user_id,
@@ -466,7 +476,7 @@ async def execute_import(
             cost_center_id=record.cost_center_id,
             amount=amount,
             fact_date=record.fact_date,
-            description=record.budget_description or record.description,
+            description=final_description,
             record_type="fact",
             created_at=now,
             updated_at=now

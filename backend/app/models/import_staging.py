@@ -110,6 +110,12 @@ class ImportStaging(SQLModel, table=True):
         description="Custom budget description (overrides tinkoff_description in final import)"
     )
 
+    user_comment: Optional[str] = Field(
+        default=None,
+        sa_type=Text,
+        description="User comment added during enrichment (concatenated with description on import)"
+    )
+
     article_id: Optional[int] = Field(
         default=None,
         foreign_key="t_d_article.id",

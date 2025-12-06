@@ -211,7 +211,7 @@
 
                     <div class="form-control w-48">
                         <label class="label py-0">
-                            <span class="label-text text-xs">ЦЗ</span>
+                            <span class="label-text text-xs">МВЗ</span>
                         </label>
                         <select id="bulk-cc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
                             <option value="">-- Не выбрано --</option>
@@ -220,6 +220,12 @@
 
                     <button class="btn btn-primary btn-sm" onclick="applyBulkUpdate()">
                         Применить к выбранным
+                    </button>
+
+                    <div class="divider divider-horizontal"></div>
+
+                    <button class="btn btn-error btn-sm btn-outline" onclick="deleteSelectedRecords()">
+                        🗑️ Удалить выбранные
                     </button>
                 </div>
             </div>
@@ -233,9 +239,10 @@
                             <th>Дата</th>
                             <th>Сумма</th>
                             <th>Описание</th>
+                            <th>Комментарий</th>
                             <th>Категория</th>
                             <th>ЦФО</th>
-                            <th>ЦЗ</th>
+                            <th>МВЗ</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -1029,6 +1036,17 @@ function createStagingRow(record, index) {
     descCell.textContent = record.description || '';
     descCell.className = 'max-w-xs truncate';
 
+    // Comment (editable)
+    const commentCell = document.createElement('td');
+    const commentInput = document.createElement('input');
+    commentInput.type = 'text';
+    commentInput.className = 'input input-bordered input-sm w-full';
+    commentInput.id = `comment-${record.id}`;
+    commentInput.value = record.user_comment || '';
+    commentInput.placeholder = 'Комментарий...';
+    commentInput.onblur = () => updateStagingComment(record.id, commentInput.value);
+    commentCell.appendChild(commentInput);
+
     // Article
     const articleCell = document.createElement('td');
     const articleSelect = createArticleSelect(record);
@@ -1056,6 +1074,7 @@ function createStagingRow(record, index) {
     row.appendChild(dateCell);
     row.appendChild(amountCell);
     row.appendChild(descCell);
+    row.appendChild(commentCell);
     row.appendChild(articleCell);
     row.appendChild(fcCell);
     row.appendChild(ccCell);
@@ -1403,6 +1422,68 @@ async function deleteStagingRecord(stagingId) {
     } catch (error) {
         console.error('Delete error:', error);
         showNotification(`Ошибка удаления: ${error.message}`, 'error');
+    }
+}
+
+async function deleteSelectedRecords() {
+    const selectedIds = getSelectedIds();
+    if (selectedIds.length === 0) {
+        showNotification('Выберите записи для удаления', 'error');
+        return;
+    }
+
+    const confirmed = await showConfirmDialog(
+        `Удалить ${selectedIds.length} выбранных записей?`,
+        'Подтверждение удаления'
+    );
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ staging_ids: selectedIds })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Bulk delete failed');
+        }
+
+        const result = await response.json();
+        showNotification(result.message || `Удалено ${selectedIds.length} записей`, 'success');
+        await loadStagingTable();
+
+    } catch (error) {
+        console.error('Bulk delete error:', error);
+        showNotification(`Ошибка удаления: ${error.message}`, 'error');
+    }
+}
+
+async function updateStagingComment(stagingId, comment) {
+    try {
+        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_comment: comment })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Update failed');
+        }
+
+        // Update local record
+        const recordIndex = stagingRecords.findIndex(r => r.id === stagingId);
+        if (recordIndex >= 0) {
+            stagingRecords[recordIndex].user_comment = comment;
+        }
+
+    } catch (error) {
+        console.error('Update comment error:', error);
+        showNotification(`Ошибка сохранения комментария: ${error.message}`, 'error');
     }
 }
 

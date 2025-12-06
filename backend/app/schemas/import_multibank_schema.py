@@ -183,6 +183,7 @@ class StagingRecordResponse(BaseModel):
     description: Optional[str]
     csv_metadata: Optional[dict]
     budget_description: Optional[str]
+    user_comment: Optional[str] = None
     article_id: Optional[int]
     financial_center_id: Optional[int]
     cost_center_id: Optional[int]
@@ -204,6 +205,7 @@ class StagingUpdateRequest(BaseModel):
     financial_center_id: Optional[int] = None
     cost_center_id: Optional[int] = None
     budget_description: Optional[str] = None
+    user_comment: Optional[str] = None
 
 
 class BulkUpdateRequest(BaseModel):
