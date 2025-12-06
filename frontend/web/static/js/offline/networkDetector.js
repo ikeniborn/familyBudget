@@ -174,7 +174,7 @@ class SmartNetworkDetector {
             const timeoutId = setTimeout(() => controller.abort(), this.heartbeatTimeout);
 
             const response = await fetch(this.heartbeatUrl, {
-                method: 'HEAD',
+                method: 'GET',
                 cache: 'no-store',
                 credentials: 'include',
                 signal: controller.signal
