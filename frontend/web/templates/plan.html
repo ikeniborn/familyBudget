@@ -22,7 +22,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-info gap-1" onclick="modal_add_plan.showModal()" title="Добавить новый план">
+                <button class="btn btn-sm btn-info gap-1" onclick="openAddPlanModal()" title="Добавить новый план">
                     ➕ Добавить план
                 </button>
                 <button class="btn btn-sm btn-warning gap-1" onclick="openPlanTransferModal()" title="Добавить перевод">
@@ -917,7 +917,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Retry initialization when opening create modal (if not initialized in loadArticles)
-    const createModalButton = document.querySelector('button[onclick="modal_add_plan.showModal()"]');
+    const createModalButton = document.querySelector('button[onclick="openAddPlanModal()"]');
     if (createModalButton) {
         createModalButton.addEventListener('click', function() {
             // Retry initialization if categories failed to load initially
@@ -2401,6 +2401,74 @@ function resetReminderFields(modalId) {
     if (hiddenInput) hiddenInput.value = '';
 }
 
+/**
+ * Get current time rounded to nearest 5 minutes.
+ * @returns {{hour: string, minute: string}} Hour and minute as zero-padded strings
+ */
+function getCurrentTimeRounded() {
+    const now = new Date();
+    const hour = now.getHours();
+    const minutes = now.getMinutes();
+    const roundedMinutes = Math.round(minutes / 5) * 5;
+
+    // Handle overflow (55 rounds to 60)
+    if (roundedMinutes === 60) {
+        return {
+            hour: String((hour + 1) % 24).padStart(2, '0'),
+            minute: '00'
+        };
+    }
+    return {
+        hour: String(hour).padStart(2, '0'),
+        minute: String(roundedMinutes).padStart(2, '0')
+    };
+}
+
+/**
+ * Pre-fill reminder date/time with default values (tomorrow + current time).
+ * @param {string} modalId - ID of the modal
+ */
+function prefillReminderDateTime(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+
+    // Set date to tomorrow
+    if (dateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const day = String(tomorrow.getDate()).padStart(2, '0');
+        const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const year = tomorrow.getFullYear();
+        dateInput.value = `${day}.${month}.${year}`;
+    }
+
+    // Set time to current time (rounded to 5 min)
+    const time = getCurrentTimeRounded();
+    if (hourSelect) {
+        hourSelect.value = time.hour;
+    }
+    if (minuteSelect) {
+        minuteSelect.value = time.minute;
+    }
+}
+
+/**
+ * Open Add Plan modal with pre-filled reminder date/time.
+ */
+function openAddPlanModal() {
+    const modalId = 'modal_add_plan';
+
+    // Pre-fill reminder date and time before opening
+    prefillReminderDateTime(modalId);
+
+    // Open the modal
+    const modal = document.getElementById(modalId);
+    if (modal && modal.showModal) {
+        modal.showModal();
+    }
+}
+
 // Toggle reminder settings visibility (for create modal)
 function toggleReminderSettings(modalId) {
     const checkbox = document.querySelector(`#${modalId} input[name="enable_reminder"]`);
@@ -2411,6 +2479,8 @@ function toggleReminderSettings(modalId) {
             settingsDiv.classList.remove('hidden');
             // Initialize CalendarWidget when shown
             initReminderCalendarWidget(modalId);
+            // Update hidden field with current values (already pre-filled on modal open)
+            updateReminderDatetime(modalId);
         } else {
             settingsDiv.classList.add('hidden');
         }

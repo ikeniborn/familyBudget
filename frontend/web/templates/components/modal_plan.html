@@ -106,8 +106,8 @@
                     <label class="label py-1">
                         <span class="label-text">Дата и время напоминания</span>
                     </label>
-                    <!-- Desktop-friendly datetime picker: date + time -->
-                    <div class="flex gap-2">
+                    <!-- Responsive datetime picker: stacked on mobile, inline on desktop -->
+                    <div class="flex flex-col sm:flex-row gap-2">
                         <!-- Date input with CalendarWidget -->
                         <input
                             type="text"
@@ -117,8 +117,8 @@
                             placeholder="ДД.ММ.ГГГГ"
                             autocomplete="off"
                         />
-                        <!-- Time dropdowns -->
-                        <div class="flex items-center gap-1">
+                        <!-- Time dropdowns - on separate row for mobile -->
+                        <div class="flex items-center gap-1 justify-center sm:justify-start">
                             <select name="reminder_hour" id="reminder_hour_{{ modal_id }}" class="select select-bordered w-20 h-12">
                                 <option value="">--</option>
                                 {% for h in range(24) %}

@@ -70,7 +70,7 @@
                                 Планы
                             </h3>
                             <div class="flex flex-col gap-2">
-                                <button onclick="modal_add_plan.showModal()" class="btn btn-sm btn-outline btn-info justify-start gap-2">
+                                <button onclick="openAddPlanModal()" class="btn btn-sm btn-outline btn-info justify-start gap-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                                     </svg>
@@ -1644,6 +1644,74 @@ document.addEventListener('DOMContentLoaded', function() {
 let reminderCalendarWidget = null;
 
 /**
+ * Get current time rounded to nearest 5 minutes.
+ * @returns {{hour: string, minute: string}} Hour and minute as zero-padded strings
+ */
+function getCurrentTimeRounded() {
+    const now = new Date();
+    const hour = now.getHours();
+    const minutes = now.getMinutes();
+    const roundedMinutes = Math.round(minutes / 5) * 5;
+
+    // Handle overflow (55 rounds to 60)
+    if (roundedMinutes === 60) {
+        return {
+            hour: String((hour + 1) % 24).padStart(2, '0'),
+            minute: '00'
+        };
+    }
+    return {
+        hour: String(hour).padStart(2, '0'),
+        minute: String(roundedMinutes).padStart(2, '0')
+    };
+}
+
+/**
+ * Pre-fill reminder date/time with default values (tomorrow + current time).
+ * @param {string} modalId - ID of the modal
+ */
+function prefillReminderDateTime(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+
+    // Set date to tomorrow
+    if (dateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const day = String(tomorrow.getDate()).padStart(2, '0');
+        const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const year = tomorrow.getFullYear();
+        dateInput.value = `${day}.${month}.${year}`;
+    }
+
+    // Set time to current time (rounded to 5 min)
+    const time = getCurrentTimeRounded();
+    if (hourSelect) {
+        hourSelect.value = time.hour;
+    }
+    if (minuteSelect) {
+        minuteSelect.value = time.minute;
+    }
+}
+
+/**
+ * Open Add Plan modal with pre-filled reminder date/time.
+ */
+function openAddPlanModal() {
+    const modalId = 'modal_add_plan';
+
+    // Pre-fill reminder date and time before opening
+    prefillReminderDateTime(modalId);
+
+    // Open the modal
+    const modal = document.getElementById(modalId);
+    if (modal && modal.showModal) {
+        modal.showModal();
+    }
+}
+
+/**
  * Toggle reminder settings visibility in plan modal.
  * @param {string} modalId - ID of the modal (e.g., 'modal_add_plan')
  */
@@ -1662,26 +1730,7 @@ function toggleReminderSettings(modalId) {
         // Initialize CalendarWidget for reminder date
         initReminderCalendarWidget(modalId);
 
-        // Set default date/time to tomorrow at 10:00 if empty
-        const dateInput = document.getElementById(`reminder_date_${modalId}`);
-        const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
-        const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
-
-        if (dateInput && !dateInput.value) {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const day = String(tomorrow.getDate()).padStart(2, '0');
-            const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
-            const year = tomorrow.getFullYear();
-            dateInput.value = `${day}.${month}.${year}`;
-        }
-        if (hourSelect && !hourSelect.value) {
-            hourSelect.value = '10';
-        }
-        if (minuteSelect && !minuteSelect.value) {
-            minuteSelect.value = '00';
-        }
-        // Update hidden field
+        // Update hidden field with current values (already pre-filled on modal open)
         updateReminderDatetime(modalId);
     } else {
         settingsDiv.classList.add('hidden');
