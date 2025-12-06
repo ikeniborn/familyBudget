@@ -31,8 +31,10 @@ class SmartNetworkDetector {
         this.lastCheck = 0;
 
         // Network Information API thresholds
+        // Note: RTT threshold increased from 1000ms to 2500ms to reduce
+        // false positives on mobile networks, VPN, and slower connections
         this.slowConnectionTypes = ['slow-2g', '2g'];
-        this.degradedRtt = options.degradedRtt || 1000; // RTT > 1000ms = degraded
+        this.degradedRtt = options.degradedRtt || 2500; // RTT > 2500ms = degraded
 
         // Callbacks
         this.onStatusChange = options.onStatusChange || null;
@@ -172,7 +174,7 @@ class SmartNetworkDetector {
             const timeoutId = setTimeout(() => controller.abort(), this.heartbeatTimeout);
 
             const response = await fetch(this.heartbeatUrl, {
-                method: 'HEAD',
+                method: 'GET',
                 cache: 'no-store',
                 credentials: 'include',
                 signal: controller.signal

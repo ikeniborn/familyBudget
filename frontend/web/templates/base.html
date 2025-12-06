@@ -199,7 +199,8 @@
                 <div id="user-dropdown" class="dropdown dropdown-end hidden lg:flex">
                     <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
                         <!-- Avatar -->
-                        {% if user.photo_url %}
+                        {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
+                        {% if user.photo_url and (user.photo_url.startswith('http://') or user.photo_url.startswith('https://')) %}
                             <div class="avatar">
                                 <div class="w-8 h-8 rounded-full">
                                     <img src="{{ user.photo_url }}"
@@ -304,7 +305,8 @@
                         <!-- User info with avatar -->
                         <li class="menu-title">
                             <div class="flex items-center gap-2 px-2 py-2">
-                                {% if user.photo_url %}
+                                {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
+                                {% if user.photo_url and (user.photo_url.startswith('http://') or user.photo_url.startswith('https://')) %}
                                     <div class="avatar">
                                         <div class="w-10 h-10 rounded-full">
                                             <img src="{{ user.photo_url }}"
@@ -570,6 +572,23 @@
                     }
                 }, 300);
             }, duration);
+        }
+
+        // Submit button loading state management (prevents double submit)
+        function setSubmitLoading(form, isLoading) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (!submitBtn) return;
+
+            if (isLoading) {
+                submitBtn.disabled = true;
+                submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Сохранение...';
+            } else {
+                submitBtn.disabled = false;
+                if (submitBtn.dataset.originalHtml) {
+                    submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+                }
+            }
         }
 
         // Logout handler

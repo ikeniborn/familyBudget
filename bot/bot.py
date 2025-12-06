@@ -138,9 +138,16 @@ class BotApplication:
         """
         logger.error(f"Exception while handling an update: {context.error}", exc_info=context.error)
 
-        # Log update details for debugging
+        # Log sanitized update details for debugging (exclude PII/sensitive data)
         if update:
-            logger.error(f"Update: {update}")
+            # Only log non-sensitive identifiers, not full message content or user data
+            sanitized_info = {
+                "update_id": update.update_id,
+                "chat_id": update.effective_chat.id if update.effective_chat else None,
+                "user_id": update.effective_user.id if update.effective_user else None,
+                "message_type": type(update.effective_message).__name__ if update.effective_message else None,
+            }
+            logger.error(f"Update context: {sanitized_info}")
 
     async def setup_menu_button(self):
         """

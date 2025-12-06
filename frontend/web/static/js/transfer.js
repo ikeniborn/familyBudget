@@ -708,11 +708,8 @@ async function handleTransferSubmit(event) {
     }
 
     // 3. Submit to backend (with offline fallback)
+    setSubmitLoading(event.target, true);
     try {
-        // Close modal first (before showing toast)
-        document.querySelector('#transfer_modal').close();
-        event.target.reset();
-
         // Use OfflineManager for offline support
         if (window.offlineManager) {
             const result = await window.offlineManager.createTransfer(data);
@@ -730,6 +727,10 @@ async function handleTransferSubmit(event) {
                 if (typeof loadPendingRecords === 'function') {
                     await loadPendingRecords();
                 }
+
+                // Close modal after successful offline save
+                document.querySelector('#transfer_modal').close();
+                event.target.reset();
             } else {
                 // Saved online
                 const successMsg = transferRecordType === 'plan'
@@ -760,6 +761,10 @@ async function handleTransferSubmit(event) {
                 if (typeof loadFacts === 'function' && document.getElementById('facts-table-container')) {
                     await loadFacts();
                 }
+
+                // Close modal after successful online save
+                document.querySelector('#transfer_modal').close();
+                event.target.reset();
             }
         } else {
             // Fallback to direct fetch if OfflineManager not available
@@ -805,6 +810,10 @@ async function handleTransferSubmit(event) {
             if (typeof loadFacts === 'function' && document.getElementById('facts-table-container')) {
                 await loadFacts();
             }
+
+            // Close modal after successful fallback save
+            document.querySelector('#transfer_modal').close();
+            event.target.reset();
         }
     } catch (error) {
         const errorPrefix = transferRecordType === 'plan'
@@ -815,6 +824,8 @@ async function handleTransferSubmit(event) {
         } else {
             alert('Ошибка: ' + error.message);
         }
+    } finally {
+        setSubmitLoading(event.target, false);
     }
 }
 

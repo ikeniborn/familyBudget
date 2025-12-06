@@ -2177,6 +2177,7 @@ function setupCreatePlanPeriodButtons() {
 // Создать новый план
 async function createPlan(event) {
     event.preventDefault();
+    setSubmitLoading(event.target, true);
 
     const formData = new FormData(event.target);
 
@@ -2273,6 +2274,8 @@ async function createPlan(event) {
     } catch (error) {
         console.error('Error creating plan:', error);
         showToast('Ошибка при создании плана: ' + error.message, 'error');
+    } finally {
+        setSubmitLoading(event.target, false);
     }
 }
 
