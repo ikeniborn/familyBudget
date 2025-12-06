@@ -121,6 +121,17 @@ start_services() {
             warning "Services started but some containers are unhealthy. Check logs above."
         else
             success "Services started successfully"
+
+            # Save Docker build checksums ONLY after successful start with rebuild
+            # This ensures next deploy will correctly detect if trigger files changed
+            if [[ "$build_flag" == "--build" ]]; then
+                info "Saving Docker build checksums for future rebuild detection..."
+                if save_docker_build_checksums "$SCRIPT_DIR"; then
+                    success "Docker build checksums saved"
+                else
+                    warning "Failed to save Docker build checksums"
+                fi
+            fi
         fi
     else
         error "Failed to start services. Check $LOG_FILE for details."
