@@ -34,6 +34,8 @@ from backend.app.schemas.user import (
     UserUpdate,
     TelegramUserInfo,
     UserHistoryListResponse,
+    UserMergeRequest,
+    UserMergeResponse,
 )
 from backend.app.services.telegram_auth import (
     validate_telegram_user,
@@ -1065,6 +1067,146 @@ async def refresh_user_profile_from_telegram(
     )
 
     return updated_user
+
+
+@router.post("/users/merge", response_model=UserMergeResponse)
+async def merge_users(
+    merge_data: UserMergeRequest,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> UserMergeResponse:
+    """
+    Merge two user accounts (admin only).
+
+    Merges source user into target user:
+    - All facts from source are transferred to target
+    - Telegram ID is transferred from source to target (if applicable)
+    - Source user is deactivated and marked with merged_into_user_id
+    - Historical data is preserved (facts remain attributed to source in history)
+
+    Use case: When a user has registered twice (e.g., with different Telegram ID)
+    and admin needs to consolidate their data.
+
+    Args:
+        merge_data: Source and target user IDs
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserMergeResponse: Summary of merge operation
+
+    Raises:
+        HTTPException: 404 if source or target user not found
+        HTTPException: 400 if merge is invalid (same user, already merged, etc.)
+    """
+    source_user_id = merge_data.source_user_id
+    target_user_id = merge_data.target_user_id
+
+    # Validate: Cannot merge user into themselves
+    if source_user_id == target_user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя объединить пользователя с самим собой"
+        )
+
+    # Load source user
+    source_query = select(User).where(User.id == source_user_id)
+    source_result = await session.execute(source_query)
+    source_user = source_result.scalar_one_or_none()
+
+    if not source_user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Исходный пользователь с ID {source_user_id} не найден"
+        )
+
+    # Check if source user is already merged
+    if source_user.merged_into_user_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Исходный аккаунт уже объединен с пользователем ID {source_user.merged_into_user_id}"
+        )
+
+    # Load target user
+    target_query = select(User).where(User.id == target_user_id)
+    target_result = await session.execute(target_query)
+    target_user = target_result.scalar_one_or_none()
+
+    if not target_user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Целевой пользователь с ID {target_user_id} не найден"
+        )
+
+    # Check if target user is already merged (cannot merge into merged account)
+    if target_user.merged_into_user_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Целевой аккаунт уже объединен с другим пользователем"
+        )
+
+    now = datetime.utcnow()
+    telegram_id_transferred = False
+
+    # 1. Transfer Telegram ID if source has it and target doesn't
+    if source_user.telegram_id is not None and target_user.telegram_id is None:
+        target_user.telegram_id = source_user.telegram_id
+        target_user.updated_at = now
+        telegram_id_transferred = True
+
+    # 2. Clear Telegram ID from source (to avoid unique constraint violation)
+    if source_user.telegram_id is not None:
+        source_user.telegram_id = None
+
+    # 3. Transfer all facts from source to target
+    from sqlmodel import update
+    facts_update_stmt = (
+        update(Fact)
+        .where(Fact.user_id == source_user_id)
+        .values(user_id=target_user_id, updated_at=now)
+    )
+    facts_result = await session.execute(facts_update_stmt)
+    facts_transferred = facts_result.rowcount
+
+    # 4. Transfer financial centers from source to target
+    fc_update_stmt = (
+        update(FinancialCenter)
+        .where(FinancialCenter.user_id == source_user_id)
+        .values(user_id=target_user_id, updated_at=now)
+    )
+    await session.execute(fc_update_stmt)
+
+    # 5. Transfer cost centers from source to target
+    cc_update_stmt = (
+        update(CostCenter)
+        .where(CostCenter.user_id == source_user_id)
+        .values(user_id=target_user_id, updated_at=now)
+    )
+    await session.execute(cc_update_stmt)
+
+    # 6. Mark source user as merged and deactivate
+    source_user.merged_into_user_id = target_user_id
+    source_user.is_active = False
+    source_user.updated_at = now
+
+    # 7. Commit all changes
+    session.add(source_user)
+    session.add(target_user)
+    await session.commit()
+
+    logger.info(
+        f"Users merged: {source_user_id} -> {target_user_id} "
+        f"(facts: {facts_transferred}, telegram_id_transferred: {telegram_id_transferred}) "
+        f"by admin {current_admin.id}"
+    )
+
+    return UserMergeResponse(
+        message="Аккаунты успешно объединены",
+        source_user_id=source_user_id,
+        target_user_id=target_user_id,
+        facts_transferred=facts_transferred,
+        telegram_id_transferred=telegram_id_transferred,
+    )
 
 
 @router.get("/articles", response_model=List[ArticleResponse])

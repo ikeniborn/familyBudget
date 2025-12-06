@@ -288,6 +288,68 @@
         <button onclick="confirmModalResolve(false)">close</button>
     </form>
 </dialog>
+
+<!-- Merge Users Modal -->
+<dialog id="merge-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6">
+        <h3 class="font-bold text-lg mb-4">🔗 Объединение аккаунтов</h3>
+
+        <div class="alert alert-warning mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+                <h4 class="font-bold">Внимание!</h4>
+                <p class="text-sm">Telegram ID <span id="merge-telegram-id" class="font-mono font-bold"></span> уже привязан к другому пользователю.</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <!-- Source User (will be deactivated) -->
+            <div class="card bg-base-200 shadow">
+                <div class="card-body p-4">
+                    <h4 class="card-title text-sm text-error">📤 Исходный аккаунт (будет деактивирован)</h4>
+                    <div id="merge-source-info" class="space-y-1 text-sm">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Target User (will receive telegram_id) -->
+            <div class="card bg-base-200 shadow">
+                <div class="card-body p-4">
+                    <h4 class="card-title text-sm text-success">📥 Целевой аккаунт (получит Telegram ID)</h4>
+                    <div id="merge-target-info" class="space-y-1 text-sm">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="alert alert-info mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <div class="text-sm">
+                <p><strong>Что произойдет при объединении:</strong></p>
+                <ul class="list-disc list-inside mt-1">
+                    <li>Все транзакции исходного аккаунта будут перенесены на целевой</li>
+                    <li>Telegram ID будет отвязан от исходного аккаунта</li>
+                    <li>Исходный аккаунт будет деактивирован</li>
+                    <li>В исходном аккаунте будет сохранена ссылка на целевой</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="closeMergeModal()">❌ Отмена</button>
+            <button type="button" class="btn btn-warning" onclick="confirmMergeUsers()">🔗 Объединить аккаунты</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="closeMergeModal()">close</button>
+    </form>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -406,10 +468,20 @@ function renderUsersTable(users) {
             ? '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Вкл</span>'
             : '<span class="badge badge-ghost gap-1 whitespace-nowrap">—</span>';
 
-        // User activation status badge
-        const statusLabel = user.is_active
-            ? '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Активен</span>'
-            : '<span class="badge badge-warning gap-1 whitespace-nowrap">⏳ Ожидает</span>';
+        // User activation status badge (with merged info)
+        let statusLabel;
+        if (user.merged_into_user_id) {
+            // Find target user name
+            const targetUser = usersData.find(u => u.id === user.merged_into_user_id);
+            const targetName = targetUser
+                ? (targetUser.first_name || targetUser.username || `ID ${targetUser.id}`)
+                : `ID ${user.merged_into_user_id}`;
+            statusLabel = `<span class="badge badge-error gap-1 whitespace-nowrap" title="Объединён с: ${targetName}">🔗 Объединён → ${targetName}</span>`;
+        } else if (user.is_active) {
+            statusLabel = '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Активен</span>';
+        } else {
+            statusLabel = '<span class="badge badge-warning gap-1 whitespace-nowrap">⏳ Ожидает</span>';
+        }
 
         // Format dates (User is SCD Type 1 - created_at only, no versioning)
         const createdAt = user.created_at ? formatDate(user.created_at) : '—';
@@ -981,12 +1053,15 @@ function closeEditModal() {
     document.getElementById('edit-form').reset();
 }
 
+// State for merge operation
+let pendingMerge = null;
+
 // Update user
 async function updateUser(event) {
     event.preventDefault();
 
     const formData = new FormData(event.target);
-    const userId = formData.get('id');
+    const userId = parseInt(formData.get('id'));
 
     // Parse telegram_id - can be empty string (to clear), a number, or null
     const telegramIdValue = formData.get('telegram_id');
@@ -1018,16 +1093,35 @@ async function updateUser(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            // Handle Pydantic validation errors (array of errors)
+
+            // Check for telegram_id conflict (409)
+            if (response.status === 409 && telegram_id) {
+                // Find the source user (who currently has this telegram_id)
+                const sourceUser = usersData.find(u => u.telegram_id === telegram_id);
+                const targetUser = usersData.find(u => u.id === userId);
+
+                if (sourceUser && targetUser) {
+                    // Show merge modal
+                    showMergeModal(sourceUser, targetUser, telegram_id);
+                    return;
+                }
+            }
+
+            // Handle other errors
             let errorMessage = '';
             if (Array.isArray(error.detail)) {
                 errorMessage = error.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('; ');
             } else if (typeof error.detail === 'string') {
-                errorMessage = error.detail;
+                // Make user-friendly messages
+                if (error.detail.includes('already used by another user')) {
+                    errorMessage = `Этот Telegram ID уже привязан к другому пользователю`;
+                } else {
+                    errorMessage = error.detail;
+                }
             } else if (error.detail) {
                 errorMessage = JSON.stringify(error.detail);
             } else {
-                errorMessage = `HTTP error! status: ${response.status}`;
+                errorMessage = `Ошибка сервера: ${response.status}`;
             }
             throw new Error(errorMessage);
         }
@@ -1040,6 +1134,93 @@ async function updateUser(event) {
         console.error('Error updating user:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Show merge users modal
+function showMergeModal(sourceUser, targetUser, telegramId) {
+    pendingMerge = {
+        sourceUserId: sourceUser.id,
+        targetUserId: targetUser.id,
+        telegramId: telegramId
+    };
+
+    // Populate telegram ID
+    document.getElementById('merge-telegram-id').textContent = telegramId;
+
+    // Populate source user info (will be deactivated)
+    const sourceInfo = document.getElementById('merge-source-info');
+    sourceInfo.innerHTML = `
+        <p><strong>ID:</strong> ${sourceUser.id}</p>
+        <p><strong>Telegram ID:</strong> ${sourceUser.telegram_id || '—'}</p>
+        <p><strong>Email:</strong> ${sourceUser.email || '—'}</p>
+        <p><strong>Username:</strong> ${sourceUser.username || '—'}</p>
+        <p><strong>Имя:</strong> ${sourceUser.first_name || '—'} ${sourceUser.last_name || ''}</p>
+        <p><strong>Статус:</strong> ${sourceUser.is_active ? '✅ Активен' : '⏳ Неактивен'}</p>
+    `;
+
+    // Populate target user info (will receive telegram_id)
+    const targetInfo = document.getElementById('merge-target-info');
+    targetInfo.innerHTML = `
+        <p><strong>ID:</strong> ${targetUser.id}</p>
+        <p><strong>Telegram ID:</strong> ${targetUser.telegram_id || '—'} → <strong class="text-success">${telegramId}</strong></p>
+        <p><strong>Email:</strong> ${targetUser.email || '—'}</p>
+        <p><strong>Username:</strong> ${targetUser.username || '—'}</p>
+        <p><strong>Имя:</strong> ${targetUser.first_name || '—'} ${targetUser.last_name || ''}</p>
+        <p><strong>Статус:</strong> ${targetUser.is_active ? '✅ Активен' : '⏳ Неактивен'}</p>
+    `;
+
+    // Close edit modal and open merge modal
+    closeEditModal();
+    document.getElementById('merge-modal').showModal();
+}
+
+// Close merge modal
+function closeMergeModal() {
+    document.getElementById('merge-modal').close();
+    pendingMerge = null;
+}
+
+// Confirm and execute merge
+async function confirmMergeUsers() {
+    if (!pendingMerge) {
+        showNotification('Ошибка: нет данных для объединения', 'error');
+        return;
+    }
+
+    const { sourceUserId, targetUserId, telegramId } = pendingMerge;
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/merge`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                source_user_id: sourceUserId,
+                target_user_id: targetUserId
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            let errorMessage = error.detail || `Ошибка сервера: ${response.status}`;
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+
+        closeMergeModal();
+        await loadUsers();
+        await loadStats();
+
+        showNotification(
+            `Аккаунты объединены! Перенесено транзакций: ${result.facts_transferred || 0}`,
+            'success'
+        );
+    } catch (error) {
+        console.error('Error merging users:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`Ошибка объединения: ${errorMessage}`, 'error');
     }
 }
 
@@ -1075,6 +1256,7 @@ function showNotification(message, type) {
         toastContainer = document.createElement('div');
         toastContainer.id = 'toast-container';
         toastContainer.className = 'toast toast-top toast-end';
+        toastContainer.style.zIndex = '9999';  // Higher than modal (1000)
         document.body.appendChild(toastContainer);
     }
 

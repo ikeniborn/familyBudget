@@ -212,6 +212,17 @@ class User(SQLModel, table=True):
     )
 
     # =========================================================================
+    # Account Merge Support
+    # =========================================================================
+
+    merged_into_user_id: Optional[int] = Field(
+        default=None,
+        nullable=True,
+        index=True,
+        description="Reference to target user when this account was merged into another. NULL means not merged."
+    )
+
+    # =========================================================================
     # Audit fields (SCD Type 1 - in-place updates)
     # =========================================================================
 

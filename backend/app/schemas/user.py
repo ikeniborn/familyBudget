@@ -234,6 +234,12 @@ class UserResponse(BaseModel):
         examples=[True, False]
     )
 
+    merged_into_user_id: Optional[int] = Field(
+        default=None,
+        description="Target user ID if this account was merged into another",
+        examples=[None, 2]
+    )
+
     last_login_at: Optional[datetime] = Field(
         default=None,
         description="Timestamp of last successful login",
@@ -504,4 +510,63 @@ class TelegramUserInfo(BaseModel):
         default=False,
         description="True if user already exists in database",
         examples=[False, True]
+    )
+
+
+class UserMergeRequest(BaseModel):
+    """
+    Schema for user merge request (admin only).
+
+    Merges source user into target user:
+    - All facts from source are transferred to target
+    - Telegram ID is transferred from source to target (if target doesn't have one)
+    - Source user is deactivated and marked with merged_into_user_id
+    - All data is preserved for analytics (historical facts remain attributed to original user)
+
+    Attributes:
+        source_user_id: User ID to merge FROM (will be deactivated)
+        target_user_id: User ID to merge INTO (will receive facts and telegram_id)
+    """
+
+    source_user_id: int = Field(
+        description="User ID to merge FROM (will be deactivated)",
+        examples=[1]
+    )
+
+    target_user_id: int = Field(
+        description="User ID to merge INTO (will receive facts and telegram_id)",
+        examples=[2]
+    )
+
+
+class UserMergeResponse(BaseModel):
+    """
+    Schema for user merge response.
+
+    Contains summary of merge operation results.
+    """
+
+    message: str = Field(
+        description="Success message",
+        examples=["Users merged successfully"]
+    )
+
+    source_user_id: int = Field(
+        description="Source user ID (deactivated)",
+        examples=[1]
+    )
+
+    target_user_id: int = Field(
+        description="Target user ID (received data)",
+        examples=[2]
+    )
+
+    facts_transferred: int = Field(
+        description="Number of facts transferred from source to target",
+        examples=[15]
+    )
+
+    telegram_id_transferred: bool = Field(
+        description="Whether Telegram ID was transferred",
+        examples=[True]
     )
