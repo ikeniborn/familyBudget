@@ -793,17 +793,34 @@
 
         // Network status handlers (UI only, toast handled by OfflineManager)
         window.addEventListener('online', () => {
-            debugLog('[Offline] Network online');
+            debugLog('[Offline] Browser online event');
             // Update all UI elements (badge, menus, dropdowns)
             updateOfflineUI();
             // Note: Toast is handled by OfflineManager.handleOnline() with debounce
         });
 
         window.addEventListener('offline', () => {
-            debugLog('[Offline] Network offline');
+            debugLog('[Offline] Browser offline event');
             // Update all UI elements (badge, menus, dropdowns)
             updateOfflineUI();
             // Note: Toast is handled by OfflineManager.handleOffline() with debounce
+        });
+
+        // Listen for SmartNetworkDetector status changes (backend availability)
+        // This catches cases where navigator.onLine is true but backend is unreachable
+        window.addEventListener('offline-status-change', (event) => {
+            const { online, status } = event.detail || {};
+            debugLog('[Offline] SmartNetworkDetector status change:', status, 'online:', online);
+            // Update UI based on actual backend availability
+            updateOfflineUI();
+        });
+
+        // Also listen for network-status-change (from SmartNetworkDetector directly)
+        window.addEventListener('network-status-change', (event) => {
+            const { status, previousStatus } = event.detail || {};
+            debugLog('[Offline] Network status change:', previousStatus, '→', status);
+            // Update UI based on actual backend availability
+            updateOfflineUI();
         });
 
         // Update pending count
@@ -827,8 +844,21 @@
         }
 
         // Update offline UI
+        // Considers both navigator.onLine AND SmartNetworkDetector status
+        // Backend may be unreachable even if navigator.onLine is true
         function updateOfflineUI() {
-            const isOnline = navigator.onLine;
+            // Primary check: navigator.onLine (browser connectivity)
+            let isOnline = navigator.onLine;
+
+            // Secondary check: SmartNetworkDetector status (actual backend availability)
+            // If SmartNetworkDetector reports 'offline', override navigator.onLine
+            if (window.offlineManager && window.offlineManager.networkDetector) {
+                const networkStatus = window.offlineManager.networkDetector.getStatus();
+                if (networkStatus === 'offline') {
+                    isOnline = false;
+                    debugLog('[Offline] Backend unreachable, switching to offline mode');
+                }
+            }
 
             // Update offline badge
             const offlineBadge = document.getElementById('offline-icon');
