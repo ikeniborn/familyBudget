@@ -5,8 +5,8 @@
 {% block content %}
 <div class="space-y-6">
     {% if user %}
-        <!-- Welcome Section -->
-        <div class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box">
+        <!-- Welcome Section (auto-hides after 10 seconds) -->
+        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500">
             <div class="hero-content text-center py-6">
                 <div class="max-w-md">
                     <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
@@ -296,6 +296,20 @@ function openAddTransactionModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-hide Welcome Section after 10 seconds
+    const welcomeSection = document.getElementById('welcome-section');
+    if (welcomeSection) {
+        setTimeout(() => {
+            welcomeSection.style.opacity = '0';
+            welcomeSection.style.maxHeight = '0';
+            welcomeSection.style.overflow = 'hidden';
+            welcomeSection.style.padding = '0';
+            welcomeSection.style.margin = '0';
+            // Remove from DOM after animation
+            setTimeout(() => welcomeSection.remove(), 500);
+        }, 10000); // 10 seconds
+    }
+
     // Проверка реального статуса сети через пинг сервера
     async function checkServerConnection() {
         try {
