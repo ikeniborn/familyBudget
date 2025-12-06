@@ -220,52 +220,104 @@ update_all_version_files() {
 # REBUILD DETECTION FUNCTIONS
 # =============================================================================
 
+# File to store checksums of trigger files used in last successful Docker build
+# This prevents the bug where:
+#   1. Sync copies new files to /opt/budget
+#   2. Build fails or is skipped
+#   3. Next deploy compares repo vs deploy (now identical) → "no rebuild needed"
+#   4. But Docker image still has OLD dependencies!
+DOCKER_BUILD_CHECKSUMS_FILE="${DEPLOY_DIR}/.docker_build_checksums"
+
+# Calculate checksums for all rebuild trigger files
+# Args: repo_dir
+# Returns: sorted list of "checksum filename" pairs
+calculate_trigger_checksums() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local checksums=""
+
+    for trigger_file in "${REBUILD_TRIGGER_FILES[@]}"; do
+        local full_path="${repo_dir}/${trigger_file}"
+        if [[ -f "$full_path" ]]; then
+            local checksum
+            checksum=$(md5sum "$full_path" 2>/dev/null | cut -d' ' -f1)
+            checksums+="${checksum}  ${trigger_file}"$'\n'
+        fi
+    done
+
+    echo "$checksums" | sort
+}
+
+# Save checksums after successful Docker build
+# Call this AFTER Docker images are successfully built
+save_docker_build_checksums() {
+    local repo_dir="${1:-$SCRIPT_DIR}"
+    local checksums
+
+    checksums=$(calculate_trigger_checksums "$repo_dir")
+
+    if [[ -z "$checksums" ]]; then
+        warning "No trigger files found to save checksums"
+        return 1
+    fi
+
+    echo "$checksums" > "$DOCKER_BUILD_CHECKSUMS_FILE"
+    info "Saved Docker build checksums for $(echo "$checksums" | grep -c .) trigger files"
+    return 0
+}
+
+# Load checksums from last successful build
+load_docker_build_checksums() {
+    if [[ -f "$DOCKER_BUILD_CHECKSUMS_FILE" ]]; then
+        cat "$DOCKER_BUILD_CHECKSUMS_FILE"
+    else
+        echo ""  # No previous build checksums
+    fi
+}
+
 # Check if Docker images need to be rebuilt
+# Compares current trigger files against checksums from LAST SUCCESSFUL BUILD
+# (not against deploy directory, which may have been synced without rebuild)
 # Args: repo_dir
 # Returns: 0 if rebuild needed, 1 if not needed
 needs_docker_rebuild() {
     local repo_dir="${1:-$SCRIPT_DIR}"
 
-    # If no previous deployment, always rebuild
-    if [[ ! -f "$DEPLOY_DIR/.last_deployed_version" ]]; then
-        info "First deployment - Docker rebuild required"
+    # If no previous build checksums, always rebuild
+    if [[ ! -f "$DOCKER_BUILD_CHECKSUMS_FILE" ]]; then
+        info "No previous Docker build checksums found - rebuild required"
         return 0
     fi
 
-    # Get list of changed files since last deployment
-    local last_version
-    last_version=$(cat "$DEPLOY_DIR/.last_deployed_version" 2>/dev/null || echo "")
+    # Load previous build checksums
+    local previous_checksums
+    previous_checksums=$(load_docker_build_checksums)
 
-    if [[ -z "$last_version" ]]; then
-        info "No previous version found - Docker rebuild required"
+    if [[ -z "$previous_checksums" ]]; then
+        info "Empty Docker build checksums - rebuild required"
         return 0
     fi
 
-    # Check if any rebuild trigger files changed
-    for trigger_file in "${REBUILD_TRIGGER_FILES[@]}"; do
-        local full_path="${repo_dir}/${trigger_file}"
-        local deploy_path="${DEPLOY_DIR}/${trigger_file}"
+    # Calculate current checksums
+    local current_checksums
+    current_checksums=$(calculate_trigger_checksums "$repo_dir")
 
-        if [[ -f "$full_path" ]]; then
-            # Compare with deployed version
-            if [[ ! -f "$deploy_path" ]]; then
-                info "New file detected: $trigger_file - Docker rebuild required"
-                return 0
-            fi
+    # Compare checksums
+    if [[ "$previous_checksums" != "$current_checksums" ]]; then
+        # Find which files changed
+        local changed_files
+        changed_files=$(diff <(echo "$previous_checksums") <(echo "$current_checksums") 2>/dev/null | grep "^[<>]" | sed 's/^[<>] //' | awk '{print $2}' | sort -u)
 
-            # Compare checksums
-            local repo_checksum deploy_checksum
-            repo_checksum=$(md5sum "$full_path" 2>/dev/null | cut -d' ' -f1)
-            deploy_checksum=$(md5sum "$deploy_path" 2>/dev/null | cut -d' ' -f1)
-
-            if [[ "$repo_checksum" != "$deploy_checksum" ]]; then
-                info "Changed: $trigger_file - Docker rebuild required"
-                return 0
-            fi
+        if [[ -n "$changed_files" ]]; then
+            info "Trigger files changed since last build:"
+            echo "$changed_files" | while read -r file; do
+                info "  - $file"
+            done
         fi
-    done
+        info "Docker rebuild required"
+        return 0
+    fi
 
-    info "No rebuild trigger files changed - Docker rebuild not required"
+    info "No rebuild trigger files changed since last successful build"
     return 1
 }
 

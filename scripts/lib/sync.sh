@@ -230,6 +230,7 @@ check_code_changes() {
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
+        --exclude='.docker_build_checksums' \
         "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | wc -l)
 
     if [[ $changes -gt 0 ]]; then
@@ -271,6 +272,7 @@ sync_mirror() {
     rsync -avnc \
         --filter='protect .npm-isolated/' \
         --filter='protect .migration_checksums' \
+        --filter='protect .docker_build_checksums' \
         --exclude='.env' \
         --exclude='node_modules/' \
         --exclude='data/' \
@@ -282,6 +284,7 @@ sync_mirror() {
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
+        --exclude='.docker_build_checksums' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -306,9 +309,11 @@ sync_mirror() {
     # Protected files live ONLY in production (/opt/budget), NOT in repository:
     #   - .npm-isolated/ (233 npm packages for build)
     #   - .migration_checksums (MD5 checksums for migration change detection)
+    #   - .docker_build_checksums (MD5 checksums for Docker rebuild detection)
     if rsync -avc --delete \
         --filter='protect .npm-isolated/' \
         --filter='protect .migration_checksums' \
+        --filter='protect .docker_build_checksums' \
         --exclude='.env' \
         --exclude='node_modules/' \
         --exclude='data/' \
@@ -320,6 +325,7 @@ sync_mirror() {
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
+        --exclude='.docker_build_checksums' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -387,6 +393,7 @@ sync_update() {
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
+        --exclude='.docker_build_checksums' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -418,6 +425,7 @@ sync_update() {
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
+        --exclude='.docker_build_checksums' \
         --exclude='docs/' \
         --exclude='setup.sh' \
         --exclude='install.sh' \
@@ -453,6 +461,7 @@ sync_update() {
         ! -path "./__pycache__/*" \
         ! -path "./.npm-isolated/*" \
         ! -name ".migration_checksums" \
+        ! -name ".docker_build_checksums" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
         ! -name "install.sh" \
@@ -480,6 +489,7 @@ sync_update() {
         ! -path "./__pycache__/*" \
         ! -path "./.npm-isolated/*" \
         ! -name ".migration_checksums" \
+        ! -name ".docker_build_checksums" \
         ! -path "./docs/*" \
         ! -name "setup.sh" \
         ! -name "install.sh" \
@@ -541,6 +551,7 @@ sync_clean() {
     warning "  - .env file"
     warning "  - .npm-isolated/ (production npm environment)"
     warning "  - .migration_checksums (migration change detection)"
+    warning "  - .docker_build_checksums (Docker rebuild detection)"
     warning "  - logs/ and data/ directories (contents cleared)"
     warning "  - Current deploy.log (for troubleshooting)"
     echo ""
@@ -640,6 +651,7 @@ sync_clean() {
         --exclude='*.pyc' \
         --exclude='.npm-isolated/' \
         --exclude='.migration_checksums' \
+        --exclude='.docker_build_checksums' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
 
         # Ensure logs/, data/, and backups/ directories exist
@@ -714,7 +726,7 @@ sync_code_to_deploy() {
             echo "Select sync mode:"
             echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
             echo "      Removes files from /opt/budget not in repository"
-            echo "      Protected: .env, .npm-isolated/, .migration_checksums, backups/, data/, logs/"
+            echo "      Protected: .env, .npm-isolated/, .migration_checksums, .docker_build_checksums, backups/, data/, logs/"
             echo ""
             echo "  [2] Update only (rsync)"
             echo "      Updates existing + adds new files"
@@ -723,7 +735,7 @@ sync_code_to_deploy() {
             echo "  [3] Clean + copy (DANGEROUS!)"
             echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
             echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-            echo "      Protected: .env, .npm-isolated/, .migration_checksums, logs/ and data/ directories (contents cleared)"
+            echo "      Protected: .env, .npm-isolated/, .migration_checksums, .docker_build_checksums, logs/ and data/ directories (contents cleared)"
             echo ""
             echo "  [4] Skip synchronization"
             echo "      Deploy without updating code"
@@ -763,6 +775,7 @@ sync_code_to_deploy() {
     # Production-only files live in /opt/budget (NOT synchronized from repository):
     #   1. .npm-isolated/ - npm packages (233 packages, ~100-200MB)
     #   2. .migration_checksums - MD5 checksums for migration change detection
+    #   3. .docker_build_checksums - MD5 checksums for Docker rebuild detection
     #
     # These are excluded in all rsync commands above. This provides:
     #   - Faster deploys (~100-200MB not copied)
