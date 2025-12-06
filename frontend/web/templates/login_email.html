@@ -252,30 +252,68 @@ async function handleLogin(e) {
 
         const data = await response.json();
 
-        // Helper to get error message from detail (can be string or object)
-        const getDetailMessage = (detail) => {
-            if (typeof detail === 'string') return detail;
-            if (Array.isArray(detail)) return detail.map(d => d.msg || d).join(', ');
-            if (detail && detail.msg) return detail.msg;
-            return JSON.stringify(detail);
+        // Перевод технических сообщений на понятный русский
+        const errorTranslations = {
+            'Invalid email or password': 'Неверный email или пароль',
+            'Account pending activation. Please contact administrator.': 'Аккаунт ожидает активации. Обратитесь к администратору.',
+            'Too many login attempts': 'Слишком много попыток входа. Подождите немного.',
+            'Account is disabled': 'Аккаунт отключён. Обратитесь к администратору.',
+            'Email not verified': 'Email не подтверждён. Проверьте почту.',
+            '2FA required': 'Требуется двухфакторная аутентификация'
+        };
+
+        // Получение понятного сообщения об ошибке
+        const getErrorMessage = (data, statusCode) => {
+            let message = null;
+
+            // Проверяем разные форматы ответа API
+            if (data.detail) {
+                if (typeof data.detail === 'string') {
+                    message = data.detail;
+                } else if (data.detail.message) {
+                    message = data.detail.message;
+                } else if (Array.isArray(data.detail)) {
+                    message = data.detail.map(d => d.msg || d).join(', ');
+                }
+            } else if (data.message) {
+                message = data.message;
+            }
+
+            // Перевод на русский если есть
+            if (message && errorTranslations[message]) {
+                return errorTranslations[message];
+            }
+
+            // Дефолтные сообщения по статус коду
+            if (!message) {
+                switch (statusCode) {
+                    case 401: return 'Неверный email или пароль';
+                    case 403: return 'Доступ запрещён';
+                    case 429: return 'Слишком много попыток. Попробуйте позже';
+                    case 500: return 'Ошибка сервера. Попробуйте позже';
+                    default: return 'Произошла ошибка. Попробуйте позже';
+                }
+            }
+
+            return message;
         };
 
         if (!response.ok) {
-            const detailMsg = getDetailMessage(data.detail);
+            const errorMessage = getErrorMessage(data, response.status);
 
             // Handle specific error codes
             if (response.status === 403) {
-                if (detailMsg.includes('2FA')) {
-                    // Store email for 2FA setup and redirect
+                const rawMessage = data.detail?.message || data.detail || '';
+                if (rawMessage.includes('2FA')) {
                     sessionStorage.setItem('setup_2fa_email', email);
                     showToast('Необходимо настроить 2FA для входа по email', 'warning');
                     window.location.href = '/security';
                     return;
-                } else if (detailMsg.includes('activation') || detailMsg.includes('pending')) {
+                } else if (rawMessage.includes('activation') || rawMessage.includes('pending')) {
                     throw new Error('Аккаунт ожидает активации администратором');
                 }
             }
-            throw new Error(detailMsg || 'Неверный email или пароль');
+            throw new Error(errorMessage);
         }
 
         // Success - check which 2FA flow to use
