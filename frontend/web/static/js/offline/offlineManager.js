@@ -9,14 +9,14 @@
  * - Fallback для Safari (polling)
  * - Conflict resolution
  * - Retry logic для failed syncs
+ * - SmartNetworkDetector для надежного определения состояния сети
  *
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 class OfflineManager {
     constructor() {
         this.db = new IndexedDBManager();
-        this.isOnline = navigator.onLine;
         this.syncInProgress = false;
         this.retryDelay = 5000; // 5 seconds
         this.maxRetries = 3;
@@ -24,8 +24,32 @@ class OfflineManager {
         this.lastToastTime = 0;
         this.toastDebounceMs = 3000; // Prevent toast spam
 
+        // SmartNetworkDetector для надежного определения состояния сети
+        this.networkDetector = null;
+
         // Note: Don't auto-init in constructor - let base.html call init() explicitly
         // This prevents double initialization
+    }
+
+    /**
+     * Проверка онлайн статуса через SmartNetworkDetector
+     */
+    get isOnline() {
+        if (this.networkDetector) {
+            return this.networkDetector.isOnline();
+        }
+        return navigator.onLine;
+    }
+
+    /**
+     * Получить детальный статус сети
+     * @returns {'online'|'offline'|'degraded'}
+     */
+    getNetworkStatus() {
+        if (this.networkDetector) {
+            return this.networkDetector.getStatus();
+        }
+        return navigator.onLine ? 'online' : 'offline';
     }
 
     async init() {
@@ -37,9 +61,24 @@ class OfflineManager {
         // Initialize IndexedDB
         await this.db.init();
 
-        // Setup network listeners (only once)
-        window.addEventListener('online', () => this.handleOnline());
-        window.addEventListener('offline', () => this.handleOffline());
+        // Initialize SmartNetworkDetector
+        if (typeof SmartNetworkDetector !== 'undefined') {
+            this.networkDetector = new SmartNetworkDetector({
+                heartbeatUrl: '/health',
+                heartbeatInterval: 30000,  // 30 сек
+                heartbeatTimeout: 5000,    // 5 сек timeout
+                maxFailures: 2,            // 2 ошибки подряд → offline
+                minCheckInterval: 5000,    // Не проверять чаще 5 сек
+                onStatusChange: (newStatus, oldStatus) => {
+                    this._handleNetworkStatusChange(newStatus, oldStatus);
+                }
+            });
+        } else {
+            // Fallback: старый способ через navigator.onLine
+            console.warn('[OfflineManager] SmartNetworkDetector not available, using fallback');
+            window.addEventListener('online', () => this.handleOnline());
+            window.addEventListener('offline', () => this.handleOffline());
+        }
 
         // Listen for sync completion messages from Service Worker
         if ('serviceWorker' in navigator) {
@@ -77,6 +116,54 @@ class OfflineManager {
         setInterval(() => this.db.clearExpiredCache(), 60000); // Every minute
 
         this.isInitialized = true;
+    }
+
+    /**
+     * Обработчик изменения статуса сети от SmartNetworkDetector
+     * @param {'online'|'offline'|'degraded'} newStatus
+     * @param {'online'|'offline'|'degraded'} oldStatus
+     */
+    async _handleNetworkStatusChange(newStatus, oldStatus) {
+        console.log(`[OfflineManager] Network status: ${oldStatus} → ${newStatus}`);
+
+        if (newStatus === 'offline') {
+            // Переход в offline
+            this._showToastDebounced('Работаем оффлайн', 'warning');
+            window.dispatchEvent(new CustomEvent('offline-status-change', {
+                detail: { online: false, status: newStatus }
+            }));
+        } else if (oldStatus === 'offline' && (newStatus === 'online' || newStatus === 'degraded')) {
+            // Восстановление соединения
+            this._showToastDebounced('Соединение восстановлено', 'success');
+
+            // Запустить синхронизацию
+            if (this.supportsBackgroundSync()) {
+                try {
+                    const registration = await navigator.serviceWorker.ready;
+                    await registration.sync.register('sync-budget-data');
+                } catch (e) {
+                    await this.sync();
+                }
+            } else {
+                const results = await this.sync();
+                if (results.synced > 0) {
+                    this.lastToastTime = 0;
+                    this._showToastDebounced(`Синхронизировано: ${results.synced} записей`, 'success');
+                }
+            }
+
+            window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+                detail: { status: newStatus }
+            }));
+        } else if (newStatus === 'degraded' && oldStatus === 'online') {
+            // Соединение ухудшилось
+            this._showToastDebounced('Медленное соединение', 'warning');
+        }
+
+        // Обновить UI индикаторы
+        window.dispatchEvent(new CustomEvent('offline-status-change', {
+            detail: { online: newStatus !== 'offline', status: newStatus }
+        }));
     }
 
     /**
@@ -143,27 +230,40 @@ class OfflineManager {
     }
 
     async createFactOnline(data) {
-        const response = await fetch('/api/v1/facts', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-            credentials: 'include'
-        });
+        try {
+            const response = await fetch('/api/v1/facts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+                credentials: 'include'
+            });
 
-        if (!response.ok) {
-            // Try to parse error response, with fallback
-            let errorMessage = 'Failed to create fact';
-            try {
-                const error = await response.json();
-                // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
-                errorMessage = error.detail || error.message || errorMessage;
-            } catch (parseError) {
-                // Ignore parse errors
+            if (!response.ok) {
+                // Try to parse error response, with fallback
+                let errorMessage = 'Failed to create fact';
+                try {
+                    const error = await response.json();
+                    // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+                    errorMessage = error.detail || error.message || errorMessage;
+                } catch (parseError) {
+                    // Ignore parse errors
+                }
+                throw new Error(errorMessage);
             }
-            throw new Error(errorMessage);
-        }
 
-        return await response.json();
+            // Уведомить networkDetector об успешном запросе
+            if (this.networkDetector) {
+                this.networkDetector.onRequestSuccess();
+            }
+
+            return await response.json();
+        } catch (error) {
+            // Уведомить networkDetector об ошибке
+            if (this.networkDetector) {
+                this.networkDetector.onRequestFailure();
+            }
+            throw error;
+        }
     }
 
     async createFactOffline(data) {
@@ -229,20 +329,33 @@ class OfflineManager {
     }
 
     async updateFactOnline(id, data) {
-        const response = await fetch(`/api/v1/facts/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-            credentials: 'include'
-        });
+        try {
+            const response = await fetch(`/api/v1/facts/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+                credentials: 'include'
+            });
 
-        if (!response.ok) {
-            const error = await response.json();
-            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
-            throw new Error(error.detail || error.message || 'Failed to update fact');
+            if (!response.ok) {
+                const error = await response.json();
+                // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+                throw new Error(error.detail || error.message || 'Failed to update fact');
+            }
+
+            // Уведомить networkDetector об успешном запросе
+            if (this.networkDetector) {
+                this.networkDetector.onRequestSuccess();
+            }
+
+            return await response.json();
+        } catch (error) {
+            // Уведомить networkDetector об ошибке
+            if (this.networkDetector) {
+                this.networkDetector.onRequestFailure();
+            }
+            throw error;
         }
-
-        return await response.json();
     }
 
     async updateFactOffline(id, data) {
@@ -303,18 +416,31 @@ class OfflineManager {
     }
 
     async deleteFactOnline(id) {
-        const response = await fetch(`/api/v1/facts/${id}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
+        try {
+            const response = await fetch(`/api/v1/facts/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
 
-        if (!response.ok) {
-            const error = await response.json();
-            // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
-            throw new Error(error.detail || error.message || 'Failed to delete fact');
+            if (!response.ok) {
+                const error = await response.json();
+                // SW returns {error: 'Offline', message: '...'}, API returns {detail: '...'}
+                throw new Error(error.detail || error.message || 'Failed to delete fact');
+            }
+
+            // Уведомить networkDetector об успешном запросе
+            if (this.networkDetector) {
+                this.networkDetector.onRequestSuccess();
+            }
+
+            return await response.json();
+        } catch (error) {
+            // Уведомить networkDetector об ошибке
+            if (this.networkDetector) {
+                this.networkDetector.onRequestFailure();
+            }
+            throw error;
         }
-
-        return await response.json();
     }
 
     async deleteFactOffline(id) {
