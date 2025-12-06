@@ -24,9 +24,17 @@
                 <label class="label">
                     <span class="label-text">Выберите банк</span>
                 </label>
-                <select id="bank-selector" class="select select-bordered w-full max-w-xs" onchange="onBankSelected()">
-                    <option value="">-- Выберите банк --</option>
-                </select>
+                <div class="flex gap-2 items-center">
+                    <select id="bank-selector" class="select select-bordered w-full max-w-xs" onchange="onBankSelected()">
+                        <option value="">-- Выберите банк --</option>
+                    </select>
+                    <button type="button" class="btn btn-outline btn-sm gap-1" onclick="showCreateBankModal()" title="Добавить новый банк">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                        </svg>
+                        Добавить
+                    </button>
+                </div>
             </div>
             <!-- Dynamic action buttons and info (shown after bank selection) -->
             <div id="bank-selection-result" class="mt-4" style="display: none;">
@@ -282,6 +290,40 @@
     </div>
 </div>
 
+<!-- Create Bank Modal -->
+<dialog id="create-bank-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">Добавить новый банк</h3>
+        <form id="create-bank-form" onsubmit="createBank(event)">
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text">Код банка (уникальный)</span>
+                </label>
+                <input type="text" id="new-bank-code" class="input input-bordered"
+                       placeholder="Например: my_bank" required minlength="2" maxlength="50"
+                       pattern="[a-zA-Z0-9_]+" title="Только латинские буквы, цифры и подчеркивание" />
+                <label class="label">
+                    <span class="label-text-alt">Латинские буквы, цифры, подчеркивание. Будет преобразован в нижний регистр.</span>
+                </label>
+            </div>
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text">Название банка</span>
+                </label>
+                <input type="text" id="new-bank-name" class="input input-bordered"
+                       placeholder="Например: Мой Банк" required minlength="2" maxlength="255" />
+            </div>
+            <div class="modal-action">
+                <button type="submit" class="btn btn-primary">Создать</button>
+                <button type="button" class="btn" onclick="closeCreateBankModal()">Отмена</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="closeCreateBankModal()">закрыть</button>
+    </form>
+</dialog>
+
 <!-- Custom Confirm Dialog Modal -->
 <dialog id="confirm-dialog" class="modal">
     <div class="modal-box">
@@ -367,6 +409,11 @@ async function loadBanks() {
         const banks = await response.json();
         const selector = document.getElementById('bank-selector');
 
+        // Clear existing options except the first placeholder
+        while (selector.options.length > 1) {
+            selector.remove(1);
+        }
+
         banks.forEach(bank => {
             const option = document.createElement('option');
             option.value = bank.id;
@@ -376,6 +423,55 @@ async function loadBanks() {
     } catch (error) {
         console.error('Error loading banks:', error);
         showNotification('Ошибка загрузки списка банков', 'error');
+    }
+}
+
+// ========== Create Bank Modal ==========
+function showCreateBankModal() {
+    document.getElementById('create-bank-form').reset();
+    document.getElementById('create-bank-modal').showModal();
+}
+
+function closeCreateBankModal() {
+    document.getElementById('create-bank-modal').close();
+}
+
+async function createBank(event) {
+    event.preventDefault();
+
+    const code = document.getElementById('new-bank-code').value.trim();
+    const name = document.getElementById('new-bank-name').value.trim();
+
+    if (!code || !name) {
+        showNotification('Заполните все поля', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/import/banks', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, name })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Не удалось создать банк');
+        }
+
+        const newBank = await response.json();
+        showNotification(`Банк "${newBank.name}" успешно создан`, 'success');
+        closeCreateBankModal();
+
+        // Reload banks and select the new one
+        await loadBanks();
+        document.getElementById('bank-selector').value = newBank.id;
+        await onBankSelected();
+
+    } catch (error) {
+        console.error('Error creating bank:', error);
+        showNotification(`Ошибка: ${error.message}`, 'error');
     }
 }
 

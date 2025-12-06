@@ -8,6 +8,32 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 
+class CreateBankRequest(BaseModel):
+    """
+    Request schema for creating new bank provider.
+
+    Used in POST /api/v1/import/banks endpoint.
+    Any authenticated user can create a bank.
+
+    Examples:
+        >>> request = CreateBankRequest(
+        ...     code="my_bank",
+        ...     name="Мой Банк"
+        ... )
+    """
+
+    code: str = Field(
+        min_length=2,
+        max_length=50,
+        description="Unique bank code (lowercase, no spaces). E.g., 'my_bank'"
+    )
+    name: str = Field(
+        min_length=2,
+        max_length=255,
+        description="Bank display name. E.g., 'Мой Банк'"
+    )
+
+
 class BankProviderResponse(BaseModel):
     """
     Response schema for bank provider.
