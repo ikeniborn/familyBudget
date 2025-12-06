@@ -78,6 +78,67 @@ class UserStatsResponse(BaseModel):
 # Users Management Endpoints
 # ============================================================================
 
+# ============================================================================
+# System Settings Endpoints
+# ============================================================================
+
+
+class SystemTimezoneResponse(BaseModel):
+    """System timezone response."""
+    current_timezone: str
+    current_offset: str
+    current_display: str
+    server_time: str
+    common_timezones: list[dict]
+
+
+@router.get("/settings/timezone", response_model=SystemTimezoneResponse)
+async def get_system_timezone(
+    current_admin: CurrentAdmin,
+) -> SystemTimezoneResponse:
+    """
+    Get current system timezone settings (admin only).
+
+    Returns:
+    - current_timezone: IANA timezone name (e.g., "Europe/Moscow")
+    - current_offset: UTC offset (e.g., "UTC+03:00")
+    - current_display: Human-readable format
+    - server_time: Current server time in system timezone
+    - common_timezones: List of available timezones for reference
+
+    Note: To change SYSTEM_TIMEZONE, update .env file and restart the application.
+    """
+    from datetime import timezone as tz
+    from zoneinfo import ZoneInfo
+    from backend.app.core.config import get_settings
+    from backend.app.utils.timezone import get_common_timezones, now_local
+
+    settings = get_settings()
+    tz_name = settings.SYSTEM_TIMEZONE
+
+    # Get current offset
+    now = datetime.now(tz.utc)
+    try:
+        local_tz = ZoneInfo(tz_name)
+        local_time = now.astimezone(local_tz)
+        offset = local_time.strftime("%z")
+        offset_formatted = f"UTC{offset[:3]}:{offset[3:]}"
+        display = f"({offset_formatted}) {tz_name}"
+        server_time = local_time.strftime("%d.%m.%Y %H:%M:%S")
+    except Exception:
+        offset_formatted = "UTC+00:00"
+        display = f"(UTC+00:00) {tz_name}"
+        server_time = now.strftime("%d.%m.%Y %H:%M:%S")
+
+    return SystemTimezoneResponse(
+        current_timezone=tz_name,
+        current_offset=offset_formatted,
+        current_display=display,
+        server_time=server_time,
+        common_timezones=get_common_timezones(),
+    )
+
+
 @router.get("/users", response_model=UserListResponse)
 async def get_all_users(
     current_admin: CurrentAdmin,

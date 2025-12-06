@@ -391,14 +391,14 @@
                         />
                         <!-- Time dropdowns -->
                         <div class="flex items-center gap-1">
-                            <select name="edit_reminder_hour" id="edit-reminder-hour" class="select select-bordered w-16 h-12">
+                            <select name="edit_reminder_hour" id="edit-reminder-hour" class="select select-bordered w-20 h-12">
                                 <option value="">--</option>
                                 {% for h in range(24) %}
                                 <option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>
                                 {% endfor %}
                             </select>
                             <span class="text-lg font-bold">:</span>
-                            <select name="edit_reminder_minute" id="edit-reminder-minute" class="select select-bordered w-16 h-12">
+                            <select name="edit_reminder_minute" id="edit-reminder-minute" class="select select-bordered w-20 h-12">
                                 <option value="">--</option>
                                 {% for m in range(0, 60, 5) %}
                                 <option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>

@@ -8,6 +8,26 @@
         <p class="text-base-content/70">Информация о состоянии и производительности системы в реальном времени</p>
     </div>
 
+    <!-- System Timezone -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">🌍 Системный часовой пояс</h2>
+                <button class="btn btn-sm btn-ghost" onclick="refreshTimezone()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                </button>
+            </div>
+
+            <div id="timezone-container">
+                <div class="flex items-center justify-center py-4">
+                    <span class="loading loading-spinner loading-md text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Status Overview -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
@@ -107,9 +127,102 @@ const REFRESH_INTERVAL = 5000; // 5 seconds
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    loadTimezoneData();
     loadMonitoringData();
     startAutoRefresh();
 });
+
+// ============================================================
+// Timezone Management
+// ============================================================
+
+// Load timezone data
+async function loadTimezoneData() {
+    try {
+        const response = await fetch('/api/v1/admin/settings/timezone', {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderTimezoneData(data);
+    } catch (error) {
+        console.error('Error loading timezone data:', error);
+        document.getElementById('timezone-container').innerHTML = `
+            <div class="alert alert-error">
+                <span>❌ Не удалось загрузить настройки часового пояса</span>
+            </div>
+        `;
+    }
+}
+
+// Render timezone data
+function renderTimezoneData(data) {
+    const container = document.getElementById('timezone-container');
+
+    container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="stats stats-vertical shadow">
+                <div class="stat">
+                    <div class="stat-figure text-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="stat-title">Текущий часовой пояс</div>
+                    <div class="stat-value text-primary text-xl">${data.current_timezone}</div>
+                    <div class="stat-desc">${data.current_offset}</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-figure text-secondary">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="stat-title">Серверное время</div>
+                    <div class="stat-value text-secondary text-lg">${data.server_time}</div>
+                </div>
+            </div>
+
+            <div class="bg-base-200 rounded-lg p-4">
+                <h3 class="font-semibold mb-3">📋 Доступные часовые пояса</h3>
+                <div class="max-h-48 overflow-y-auto">
+                    <table class="table table-xs">
+                        <thead>
+                            <tr>
+                                <th>Зона</th>
+                                <th>Смещение</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.common_timezones.map(tz => `
+                                <tr class="${tz.name === data.current_timezone ? 'bg-primary/20 font-semibold' : ''}">
+                                    <td>${tz.name}</td>
+                                    <td>${tz.offset}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 text-xs text-base-content/60">
+                    <p>💡 Для изменения часового пояса:</p>
+                    <ol class="list-decimal list-inside mt-1">
+                        <li>Измените <code class="bg-base-300 px-1 rounded">SYSTEM_TIMEZONE</code> в файле <code class="bg-base-300 px-1 rounded">.env</code></li>
+                        <li>Перезапустите приложение: <code class="bg-base-300 px-1 rounded">deploy.sh</code></li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Refresh timezone data
+function refreshTimezone() {
+    loadTimezoneData();
+}
 
 // Start auto-refresh
 function startAutoRefresh() {

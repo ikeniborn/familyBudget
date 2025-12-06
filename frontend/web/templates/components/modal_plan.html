@@ -119,14 +119,14 @@
                         />
                         <!-- Time dropdowns -->
                         <div class="flex items-center gap-1">
-                            <select name="reminder_hour" id="reminder_hour_{{ modal_id }}" class="select select-bordered w-16 h-12">
+                            <select name="reminder_hour" id="reminder_hour_{{ modal_id }}" class="select select-bordered w-20 h-12">
                                 <option value="">--</option>
                                 {% for h in range(24) %}
                                 <option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>
                                 {% endfor %}
                             </select>
                             <span class="text-lg font-bold">:</span>
-                            <select name="reminder_minute" id="reminder_minute_{{ modal_id }}" class="select select-bordered w-16 h-12">
+                            <select name="reminder_minute" id="reminder_minute_{{ modal_id }}" class="select select-bordered w-20 h-12">
                                 <option value="">--</option>
                                 {% for m in range(0, 60, 5) %}
                                 <option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>
