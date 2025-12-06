@@ -1369,6 +1369,9 @@ async def update_article(
             "user_name": None
         }
 
+    # Store original type BEFORE update (for cascade detection)
+    original_type = article.type
+
     # Use SCD Type 1 + History (in-place update with history tracking)
     updated_article = await update_article_scd1(
         session=session,
@@ -1379,8 +1382,8 @@ async def update_article(
     )
 
     # CASCADE: If type was changed, recursively update all children
-    if "type" in updates and updates["type"] != article.type:
-        # Get all descendants
+    if "type" in updates and updates["type"] != original_type:
+        # Get all descendants and update without intermediate commits
         async def cascade_update_type(parent_article_id: int, new_type: str):
             """Recursively update type for all children of given article."""
             # Get all immediate children
@@ -1391,9 +1394,12 @@ async def update_article(
             children_list = children_result.scalars().all()
 
             for child in children_list:
+                # Store child's original type before potential update
+                child_original_type = child.type
+
                 # Only update if child has different type
-                if child.type != new_type:
-                    # Update child type using SCD Type 1
+                if child_original_type != new_type:
+                    # Update child type using SCD Type 1 (no auto commit - we'll commit once at the end)
                     child_updates = {"type": new_type}
                     await update_article_scd1(
                         session=session,
@@ -1401,10 +1407,11 @@ async def update_article(
                         updates=child_updates,
                         changed_by_user_id=current_admin.id,
                         change_type="CASCADE_TYPE_UPDATE",
+                        auto_commit=False,  # Don't commit yet - avoid session state issues
                     )
 
                     logger.info(
-                        f"CASCADE: Updated child type: {child.name} ({child.type} → {new_type})"
+                        f"CASCADE: Updated child type: {child.name} ({child_original_type} → {new_type})"
                     )
 
                     # Recursively update this child's children
@@ -1412,6 +1419,10 @@ async def update_article(
 
         # Start cascade from the updated article
         await cascade_update_type(updated_article.id, updated_article.type)
+
+        # Single commit for all cascade updates
+        await session.commit()
+        await session.refresh(updated_article)
 
     # TRIGGER: Recalculate article usage statistics after category update
     # This ensures usage_count is up-to-date for category selection UI sorting
