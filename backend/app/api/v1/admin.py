@@ -1253,31 +1253,38 @@ async def update_article(
         raise HTTPException(status_code=404, detail="Article not found")
 
     # Prepare update data
+    # Note: We need to handle parent_id specially - it can be explicitly set to null (move to root)
+    # Frontend always sends parent_id (either a valid ID or null for root level)
     updates = {}
     if update_data.name is not None:
         updates["name"] = update_data.name
     if update_data.type is not None:
         updates["type"] = update_data.type
-    if update_data.parent_id is not None:
-        updates["parent_id"] = update_data.parent_id
+    # Always include parent_id - null means "move to root", not "don't change"
+    # Frontend always sends parent_id in the request body
+    updates["parent_id"] = update_data.parent_id
     if update_data.is_active is not None:
         updates["is_active"] = update_data.is_active
 
     # Validate parent_id if changing
     if "parent_id" in updates and updates["parent_id"] != article.parent_id:
-        # Check parent exists
-        parent_query = select(Article).where(
-            Article.id == updates["parent_id"],
-        )
-        parent_result = await session.execute(parent_query)
-        parent = parent_result.scalar_one_or_none()
+        new_parent_id = updates["parent_id"]
 
-        if not parent:
-            raise HTTPException(status_code=400, detail="Parent article not found")
+        # parent_id = null means "move to root" - this is valid, skip validation
+        if new_parent_id is not None:
+            # Check parent exists
+            parent_query = select(Article).where(
+                Article.id == new_parent_id,
+            )
+            parent_result = await session.execute(parent_query)
+            parent = parent_result.scalar_one_or_none()
 
-        # Cannot set self as parent
-        if updates["parent_id"] == article_id:
-            raise HTTPException(status_code=400, detail="Cannot set article as its own parent")
+            if not parent:
+                raise HTTPException(status_code=400, detail="Parent article not found")
+
+            # Cannot set self as parent
+            if new_parent_id == article_id:
+                raise HTTPException(status_code=400, detail="Cannot set article as its own parent")
 
     # Validate type change if changing
     if "type" in updates and updates["type"] != article.type:

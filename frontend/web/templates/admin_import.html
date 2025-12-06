@@ -146,7 +146,7 @@
     </div>
 
     <!-- Step 4: Enrichment (Staging Table) -->
-    <div class="card bg-base-100 shadow-lg" id="step-4-enrichment" style="display: none;">
+    <div class="card bg-base-100 shadow-lg lg:w-[95vw] lg:max-w-none lg:-mx-[calc((95vw-100%)/2)]" id="step-4-enrichment" style="display: none;">
         <div class="card-body">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="card-title text-2xl">📋 Шаг 4: Обогащение фактов</h2>
@@ -239,6 +239,9 @@
                             <th>Дата</th>
                             <th>Сумма</th>
                             <th>Описание</th>
+                            <th class="text-xs text-base-content/60">Категория (CSV)</th>
+                            <th class="text-xs text-base-content/60">MCC</th>
+                            <th class="text-xs text-base-content/60">Карта</th>
                             <th>Комментарий</th>
                             <th>Категория</th>
                             <th>ЦФО</th>
@@ -1036,6 +1039,22 @@ function createStagingRow(record, index) {
     descCell.textContent = record.description || '';
     descCell.className = 'max-w-xs truncate';
 
+    // CSV Metadata: Category
+    const csvCategoryCell = document.createElement('td');
+    csvCategoryCell.className = 'text-xs text-base-content/70 max-w-[150px] truncate';
+    csvCategoryCell.textContent = record.csv_metadata?.category || '';
+    csvCategoryCell.title = record.csv_metadata?.category || '';
+
+    // CSV Metadata: MCC
+    const csvMccCell = document.createElement('td');
+    csvMccCell.className = 'text-xs text-base-content/70';
+    csvMccCell.textContent = record.csv_metadata?.mcc || '';
+
+    // CSV Metadata: Card
+    const csvCardCell = document.createElement('td');
+    csvCardCell.className = 'text-xs text-base-content/70';
+    csvCardCell.textContent = record.csv_metadata?.card || '';
+
     // Comment (editable)
     const commentCell = document.createElement('td');
     const commentInput = document.createElement('input');
@@ -1074,6 +1093,9 @@ function createStagingRow(record, index) {
     row.appendChild(dateCell);
     row.appendChild(amountCell);
     row.appendChild(descCell);
+    row.appendChild(csvCategoryCell);
+    row.appendChild(csvMccCell);
+    row.appendChild(csvCardCell);
     row.appendChild(commentCell);
     row.appendChild(articleCell);
     row.appendChild(fcCell);
