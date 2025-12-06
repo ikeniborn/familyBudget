@@ -289,8 +289,10 @@ add_user_to_docker_group() {
     chmod -R 755 "$docker_dir" 2>/dev/null || true
 
     # Fix Docker socket permissions
+    # SECURITY: Use 660 (not 666) - only owner and docker group can access
+    # 666 would allow any process to access Docker daemon
     if [[ -S /var/run/docker.sock ]]; then
-        chmod 666 /var/run/docker.sock 2>/dev/null || true
+        chmod 660 /var/run/docker.sock 2>/dev/null || true
     fi
 
     # Clean up any problematic buildx cache

@@ -33,51 +33,37 @@ async def send_weekly_reports(bot: Bot, user_telegram_ids: List[int] = None):
 
     Note:
         This function is called by APScheduler weekly (Sunday 20:00).
+
+    Status:
+        NOT IMPLEMENTED - Weekly reports require persistent token storage
+        or service account authentication, which is not yet available.
+        This job logs a debug message and exits without sending reports.
     """
-    logger.info("Starting weekly report job")
-
-    # Calculate date range (last 7 days)
-    today = date.today()
-    week_ago = today - timedelta(days=7)
-
-    logger.info(f"Report period: {week_ago} to {today}")
-
-    # If no user list provided, we need to get it from somewhere
-    # For now, this will be passed by the scheduler
-    if not user_telegram_ids:
-        logger.warning("No user telegram IDs provided, skipping weekly reports")
-        return
-
-    # Create API client for fetching data
-    api_client = APIClient()
-
-    success_count = 0
-    error_count = 0
-
-    for telegram_id in user_telegram_ids:
-        try:
-            # For weekly reports, we need user's access token
-            # This is a limitation - we can only send reports to users
-            # who have active sessions
-            # TODO: Consider storing tokens persistently or using service account
-
-            logger.info(f"Skipping user {telegram_id} - token management not implemented")
-            # Placeholder for actual implementation
-            continue
-
-            # The actual implementation would be:
-            # 1. Get user's token (from persistent storage)
-            # 2. Fetch week's data
-            # 3. Generate report
-            # 4. Send via Telegram
-
-        except Exception as e:
-            logger.error(f"Error sending weekly report to user {telegram_id}: {e}")
-            error_count += 1
-
-    logger.info(
-        f"Weekly report job completed: {success_count} sent, {error_count} errors"
+    # FEATURE NOT IMPLEMENTED: Weekly reports require persistent token management
+    # See: https://github.com/your-repo/issues/XXX for tracking
+    logger.debug(
+        "Weekly report job skipped - feature not implemented. "
+        "Requires persistent token storage or service account authentication."
     )
+    return
+
+    # The implementation below is preserved for future development reference
+    # but is currently unreachable due to the early return above.
+    #
+    # logger.info("Starting weekly report job")
+    #
+    # # Calculate date range (last 7 days)
+    # today = date.today()
+    # week_ago = today - timedelta(days=7)
+    #
+    # logger.info(f"Report period: {week_ago} to {today}")
+    #
+    # # Implementation would need:
+    # # 1. Persistent token storage or service account
+    # # 2. Get user's token from persistent storage
+    # # 3. Fetch week's data via API
+    # # 4. Generate report using generate_weekly_report()
+    # # 5. Send via Telegram bot.send_message()
 
 
 async def generate_weekly_report(

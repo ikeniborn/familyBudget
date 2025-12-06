@@ -11,7 +11,7 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import text, update as sa_update
+from sqlalchemy import text
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 

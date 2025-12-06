@@ -939,7 +939,9 @@ main() {
     # Fix permissions before build (prevent EACCES errors)
     # IMPORTANT: Build process needs write access to frontend/ directory
     print_message info "Ensuring correct permissions for build..."
-    sudo chown -R ikeniborn:ikeniborn /opt/budget/frontend /opt/budget/.npm-isolated 2>/dev/null || true
+    # Use SUDO_USER if available (when running with sudo), otherwise current user
+    local build_user="${SUDO_USER:-$(whoami)}"
+    sudo chown -R "${build_user}:${build_user}" /opt/budget/frontend /opt/budget/.npm-isolated 2>/dev/null || true
 
     # Clean up ALL npm-related processes before build (prevent zombie process buildup)
     # ARCHITECTURE IMPROVEMENT (2025-11-08):
@@ -949,23 +951,25 @@ main() {
     echo ""
     print_message info "Cleaning up npm processes before build..."
 
-    # Kill ALL npm-related processes (aggressive cleanup, suppress "Killed" messages)
-    sudo pkill -9 -f "npm" 2>&1 | grep -v "Killed" || true
-    sudo pkill -9 -f "terser" 2>&1 | grep -v "Killed" || true
-    sudo pkill -9 -f "postcss" 2>&1 | grep -v "Killed" || true
-    sudo pkill -9 -f "tailwindcss" 2>&1 | grep -v "Killed" || true
+    # Kill npm-related processes from /opt/budget only (more targeted, avoids killing unrelated processes)
+    # SECURITY: Use specific path patterns to avoid affecting other npm processes
+    sudo pkill -9 -f "/opt/budget.*npm" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "/opt/budget.*terser" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "/opt/budget.*postcss" 2>&1 | grep -v "Killed" || true
+    sudo pkill -9 -f "/opt/budget.*tailwindcss" 2>&1 | grep -v "Killed" || true
     sleep 2  # Give processes time to fully terminate
 
-    # Verify cleanup
-    local remaining=$(ps aux | grep -E "(npm|terser|postcss|tailwindcss)" | grep -v grep | wc -l)
+    # Verify cleanup (only check /opt/budget processes)
+    local remaining=$(ps aux | grep -E "/opt/budget.*(npm|terser|postcss|tailwindcss)" | grep -v grep | wc -l)
     if [[ $remaining -eq 0 ]]; then
-        print_message success "All npm processes cleaned up (0 remaining)"
+        print_message success "Build processes cleaned up (0 remaining)"
         echo ""
     else
-        print_message warning "Some processes still running ($remaining), attempting force cleanup..."
-        sudo pkill -9 -f "node" 2>&1 | grep -v "Killed" || true  # Nuclear option
+        print_message warning "Some processes still running ($remaining), attempting targeted cleanup..."
+        # Only kill node processes from /opt/budget
+        sudo pkill -9 -f "/opt/budget.*node" 2>&1 | grep -v "Killed" || true
         sleep 1
-        print_message success "Force cleanup completed"
+        print_message success "Targeted cleanup completed"
         echo ""
     fi
 
