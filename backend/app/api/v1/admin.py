@@ -1142,8 +1142,22 @@ async def create_article(
         ArticleResponse: Created article
 
     Raises:
-        HTTPException: 400 if parent_id invalid or type mismatch
+        HTTPException: 400 if parent_id invalid, type mismatch, or duplicate name+type
     """
+    # Check for duplicate (name + type) - same name with same type is not allowed
+    duplicate_query = select(Article).where(
+        Article.name == create_data.name,
+        Article.type == create_data.type,
+    )
+    duplicate_result = await session.execute(duplicate_query)
+    duplicate = duplicate_result.scalar_one_or_none()
+
+    if duplicate:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Категория с именем '{create_data.name}' и типом '{create_data.type}' уже существует"
+        )
+
     # Validate parent_id if provided
     if create_data.parent_id is not None:
         parent_query = select(Article).where(
