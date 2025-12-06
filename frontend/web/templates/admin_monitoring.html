@@ -8,6 +8,21 @@
         <p class="text-base-content/70">Информация о состоянии и производительности системы в реальном времени</p>
     </div>
 
+    <!-- System Timezone -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">🌍 Системный часовой пояс</h2>
+            </div>
+
+            <div id="timezone-container">
+                <div class="flex items-center justify-center py-4">
+                    <span class="loading loading-spinner loading-md text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Status Overview -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
@@ -107,9 +122,66 @@ const REFRESH_INTERVAL = 5000; // 5 seconds
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    loadTimezoneData();
     loadMonitoringData();
     startAutoRefresh();
 });
+
+// ============================================================
+// Timezone Management
+// ============================================================
+
+// Load timezone data
+async function loadTimezoneData() {
+    try {
+        const response = await fetch('/api/v1/admin/settings/timezone', {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        renderTimezoneData(data);
+    } catch (error) {
+        console.error('Error loading timezone data:', error);
+        document.getElementById('timezone-container').innerHTML = `
+            <div class="alert alert-error">
+                <span>❌ Не удалось загрузить настройки часового пояса</span>
+            </div>
+        `;
+    }
+}
+
+// Render timezone data
+function renderTimezoneData(data) {
+    const container = document.getElementById('timezone-container');
+
+    container.innerHTML = `
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🌍</span>
+                <div>
+                    <div class="font-bold text-primary">${data.current_timezone}</div>
+                    <div class="text-xs text-base-content/60">${data.current_offset}</div>
+                </div>
+            </div>
+            <div class="divider divider-horizontal m-0 hidden sm:flex"></div>
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">🕐</span>
+                <div>
+                    <div class="font-bold text-secondary">${data.server_time}</div>
+                    <div class="text-xs text-base-content/60">Серверное время</div>
+                </div>
+            </div>
+            <div class="divider divider-horizontal m-0 hidden sm:flex"></div>
+            <div class="text-xs text-base-content/60">
+                💡 Изменить: <code class="bg-base-300 px-1 rounded">SYSTEM_TIMEZONE</code> в <code class="bg-base-300 px-1 rounded">.env</code> → <code class="bg-base-300 px-1 rounded">deploy.sh</code>
+            </div>
+        </div>
+    `;
+}
 
 // Start auto-refresh
 function startAutoRefresh() {

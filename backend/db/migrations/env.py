@@ -19,11 +19,13 @@ if str(app_root) not in sys.path:
 
 # Import all SQLModel models to ensure metadata is populated
 from backend.app.models.user import User
+from backend.app.models.user_history import UserHistory
 from backend.app.models.article import Article
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.hierarchy import ArticleHierarchy
+from backend.app.models.two_factor_session import TwoFactorSession
 
 # Import metadata from SQLModel
 from sqlmodel import SQLModel

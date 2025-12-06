@@ -21,6 +21,7 @@ from backend.app.api.v1.endpoints import (
     import_router,
     notifications_router,
     push_router,
+    reminders_router,
     transfers_router,
     users_router,
 )
@@ -82,3 +83,6 @@ api_router.include_router(push_router)
 
 # User Consent endpoints (GDPR Compliance) ✅
 api_router.include_router(consent_router)
+
+# Scheduled Reminders endpoints (Plan Reminders Feature) ✅
+api_router.include_router(reminders_router)

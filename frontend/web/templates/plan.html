@@ -22,7 +22,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-info gap-1" onclick="modal_add_plan.showModal()" title="Добавить новый план">
+                <button class="btn btn-sm btn-info gap-1" onclick="openAddPlanModal()" title="Добавить новый план">
                     ➕ Добавить план
                 </button>
                 <button class="btn btn-sm btn-warning gap-1" onclick="openPlanTransferModal()" title="Добавить перевод">
@@ -364,6 +364,55 @@
                 </label>
                 <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
             </div>
+            <!-- Напоминание (редактирование) -->
+            <div class="form-control">
+                <label class="label py-1 cursor-pointer justify-start gap-2">
+                    <input type="checkbox" id="edit-enable-reminder" name="enable_reminder" class="checkbox checkbox-sm checkbox-primary"
+                           onchange="toggleEditReminderSettings()" />
+                    <span class="label-text">Напоминание</span>
+                    <span id="edit-reminder-status" class="badge badge-sm badge-ghost hidden"></span>
+                </label>
+            </div>
+            <div id="edit-reminder-settings" class="hidden space-y-2">
+                <div class="form-control">
+                    <label class="label py-1">
+                        <span class="label-text">Дата и время напоминания</span>
+                    </label>
+                    <!-- Desktop-friendly datetime picker: date + time -->
+                    <div class="flex gap-2">
+                        <!-- Date input with CalendarWidget -->
+                        <input
+                            type="text"
+                            name="edit_reminder_date"
+                            id="edit-reminder-date"
+                            class="input input-bordered flex-1 h-12"
+                            placeholder="ДД.ММ.ГГГГ"
+                            autocomplete="off"
+                        />
+                        <!-- Time dropdowns -->
+                        <div class="flex items-center gap-1">
+                            <select name="edit_reminder_hour" id="edit-reminder-hour" class="select select-bordered w-20 h-12">
+                                <option value="">--</option>
+                                {% for h in range(24) %}
+                                <option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>
+                                {% endfor %}
+                            </select>
+                            <span class="text-lg font-bold">:</span>
+                            <select name="edit_reminder_minute" id="edit-reminder-minute" class="select select-bordered w-20 h-12">
+                                <option value="">--</option>
+                                {% for m in range(0, 60, 5) %}
+                                <option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Hidden field for combined datetime -->
+                    <input type="hidden" name="reminder_datetime" id="edit-reminder-datetime" />
+                </div>
+                <p class="text-xs text-base-content/70">
+                    Уведомление придет в Telegram и как push в браузер
+                </p>
+            </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-primary">💾 Сохранить</button>
@@ -480,6 +529,7 @@ let totalFacts = 0;
 let factsData = [];
 let selectedFactIds = new Set();
 let deletingFactIds = new Set(); // Track ongoing deletions to prevent race conditions
+let remindersMap = new Map(); // Map<factId, reminder> for reminder status display
 
 // Filter state
 let filters = {
@@ -867,7 +917,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Retry initialization when opening create modal (if not initialized in loadArticles)
-    const createModalButton = document.querySelector('button[onclick="modal_add_plan.showModal()"]');
+    const createModalButton = document.querySelector('button[onclick="openAddPlanModal()"]');
     if (createModalButton) {
         createModalButton.addEventListener('click', function() {
             // Retry initialization if categories failed to load initially
@@ -1331,6 +1381,39 @@ function resetFilters() {
     loadFacts();
 }
 
+/**
+ * Load reminders for given fact IDs
+ * Uses batch endpoint to get all user reminders, then filters by fact_id
+ * Populates remindersMap for rendering reminder status in table
+ */
+async function loadRemindersForFacts(factIds) {
+    remindersMap.clear();
+    if (!factIds || factIds.length === 0) return;
+
+    try {
+        // Use batch endpoint to get all pending reminders for user
+        const response = await fetch('/api/v1/reminders/?status=pending&limit=100', { credentials: 'include' });
+        if (!response.ok) {
+            console.warn('Failed to load reminders:', response.status);
+            return;
+        }
+
+        const data = await response.json();
+        const factIdSet = new Set(factIds);
+
+        // Populate remindersMap with reminders that match current page facts
+        if (data.items && Array.isArray(data.items)) {
+            data.items.forEach(reminder => {
+                if (reminder && reminder.fact_id && factIdSet.has(reminder.fact_id)) {
+                    remindersMap.set(reminder.fact_id, reminder);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading reminders:', error);
+    }
+}
+
 // Load facts from API
 async function loadFacts() {
     const container = document.getElementById('facts-table-container');
@@ -1369,6 +1452,9 @@ async function loadFacts() {
         const countData = await countResponse.json();
         totalFacts = countData.total;
 
+        // Load reminders for all facts
+        await loadRemindersForFacts(factsData.map(f => f.id));
+
         renderFactsTable(factsData);
         updateStats();
         updatePagination();
@@ -1406,6 +1492,7 @@ function renderFactsTable(facts) {
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>
+                        <th>🔔</th>
                         <th>👤 Пользователь</th>
                         <th>⚙️ Действия</th>
                     </tr>
@@ -1445,6 +1532,7 @@ function renderFactsTable(facts) {
                 <td><span class="${articleColorClass}">${articleName}</span></td>
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
+                <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">✓</span>' : ''}</td>
                 <td>${fact.user_name || '—'}</td>
                 <td>
                     <div class="flex gap-1">
@@ -1637,6 +1725,40 @@ async function showEditModal(factId) {
         });
     }
 
+    // Load reminder data for edit modal
+    const reminderCheckbox = document.getElementById('edit-enable-reminder');
+    const reminderSettingsDiv = document.getElementById('edit-reminder-settings');
+    const reminderStatusBadge = document.getElementById('edit-reminder-status');
+
+    // Reset reminder fields
+    if (reminderCheckbox) reminderCheckbox.checked = false;
+    resetEditReminderFields();
+    if (reminderSettingsDiv) reminderSettingsDiv.classList.add('hidden');
+    if (reminderStatusBadge) {
+        reminderStatusBadge.classList.add('hidden');
+        reminderStatusBadge.className = 'badge badge-sm badge-ghost hidden';
+        reminderStatusBadge.textContent = '';
+    }
+
+    // Check existing reminder from pre-loaded map (no extra fetch needed)
+    const reminder = remindersMap.get(factId);
+    if (reminder) {
+        if (reminderCheckbox) reminderCheckbox.checked = true;
+        // Populate separate date/hour/minute fields
+        populateEditReminderFields(reminder.reminder_datetime);
+        if (reminderSettingsDiv) reminderSettingsDiv.classList.remove('hidden');
+        // Initialize CalendarWidget for edit reminder date
+        initEditReminderCalendarWidget();
+
+        // Show status badge
+        if (reminderStatusBadge && reminder.status) {
+            const badge = getReminderStatusBadge(reminder.status);
+            reminderStatusBadge.textContent = badge.text;
+            reminderStatusBadge.className = `badge badge-sm ${badge.class}`;
+            reminderStatusBadge.classList.remove('hidden');
+        }
+    }
+
     document.getElementById('edit-modal').showModal();
 }
 
@@ -1674,6 +1796,10 @@ async function updateFact(event) {
         data.cost_center_id = parseInt(costCenterId);
     }
 
+    // Get reminder settings from edit form
+    const enableReminder = formData.get('enable_reminder') === 'on';
+    const reminderDatetime = formData.get('reminder_datetime');
+
     try {
         const response = await fetch(`/api/v1/admin/facts/${factId}`, {
             method: 'PUT',
@@ -1684,6 +1810,32 @@ async function updateFact(event) {
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        // Handle reminder update (use pre-loaded map instead of fetching)
+        const existingReminder = remindersMap.get(parseInt(factId));
+
+        if (enableReminder && reminderDatetime) {
+            // Create or update reminder
+            if (existingReminder) {
+                // Update existing reminder
+                const updated = await updateReminder(factId, reminderDatetime);
+                if (!updated) {
+                    showNotification('⚠️ Предупреждение: не удалось обновить напоминание', 'warning');
+                }
+            } else {
+                // Create new reminder
+                const created = await createReminder(factId, reminderDatetime);
+                if (!created) {
+                    showNotification('⚠️ Предупреждение: не удалось создать напоминание', 'warning');
+                }
+            }
+        } else if (!enableReminder && existingReminder) {
+            // Delete reminder if checkbox is unchecked
+            const deleted = await deleteReminder(factId);
+            if (!deleted) {
+                showNotification('⚠️ Предупреждение: не удалось удалить напоминание', 'warning');
+            }
         }
 
         closeEditModal();
@@ -2025,6 +2177,7 @@ function setupCreatePlanPeriodButtons() {
 // Создать новый план
 async function createPlan(event) {
     event.preventDefault();
+    setSubmitLoading(event.target, true);
 
     const formData = new FormData(event.target);
 
@@ -2042,6 +2195,10 @@ async function createPlan(event) {
         description: formData.get('description') || null
     };
 
+    // Get reminder settings
+    const enableReminder = formData.get('enable_reminder') === 'on';
+    const reminderDatetime = formData.get('reminder_datetime');
+
     try {
         // Use OfflineManager if available, otherwise fallback to direct fetch
         if (window.offlineManager) {
@@ -2053,10 +2210,24 @@ async function createPlan(event) {
             } else {
                 showToast('План успешно создан!', 'success');
                 debugLog('[createPlan] Saved online:', result);
+
+                // Create reminder if enabled (only for online plans)
+                if (enableReminder && reminderDatetime && result.id) {
+                    const reminderCreated = await createReminder(result.id, reminderDatetime);
+                    if (reminderCreated) {
+                        showToast('Напоминание установлено', 'success');
+                    } else {
+                        showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
+                    }
+                }
             }
 
-            create_modal.close();
+            modal_add_plan.close();
             event.target.reset();
+            // Reset reminder settings visibility and fields
+            const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+            if (reminderSettings) reminderSettings.classList.add('hidden');
+            resetReminderFields('modal_add_plan');
             await loadFacts(); // Перезагрузить список планов
 
             // Переинициализировать кнопки периода
@@ -2072,9 +2243,25 @@ async function createPlan(event) {
             });
 
             if (response.ok) {
+                const createdPlan = await response.json();
                 showToast('План успешно создан!', 'success');
-                create_modal.close();
+
+                // Create reminder if enabled
+                if (enableReminder && reminderDatetime && createdPlan.id) {
+                    const reminderCreated = await createReminder(createdPlan.id, reminderDatetime);
+                    if (reminderCreated) {
+                        showToast('Напоминание установлено', 'success');
+                    } else {
+                        showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
+                    }
+                }
+
+                modal_add_plan.close();
                 event.target.reset();
+                // Reset reminder settings visibility and fields
+                const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+                if (reminderSettings) reminderSettings.classList.add('hidden');
+                resetReminderFields('modal_add_plan');
                 await loadFacts(); // Перезагрузить список планов
 
                 // Переинициализировать кнопки периода
@@ -2087,6 +2274,8 @@ async function createPlan(event) {
     } catch (error) {
         console.error('Error creating plan:', error);
         showToast('Ошибка при создании плана: ' + error.message, 'error');
+    } finally {
+        setSubmitLoading(event.target, false);
     }
 }
 
@@ -2096,6 +2285,443 @@ function setPlanAmount(amount) {
     if (amountInput) {
         amountInput.value = amount;
     }
+}
+
+// ====================================
+// Reminder Functions
+// ====================================
+
+// CalendarWidget instance for reminder date (create modal)
+let reminderCalendarWidget = null;
+
+// Initialize reminder date CalendarWidget for create modal
+function initReminderCalendarWidget(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    if (!dateInput) return;
+
+    // Destroy existing widget if any
+    if (reminderCalendarWidget) {
+        reminderCalendarWidget.destroy();
+        reminderCalendarWidget = null;
+    }
+
+    // Create new CalendarWidget
+    if (typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+        reminderCalendarWidget = new BudgetShared.CalendarWidget({
+            inputElement: dateInput,
+            mode: 'single',
+            minDate: new Date(), // Only future dates
+            onSelect: (date) => {
+                updateReminderDatetime(modalId);
+            }
+        });
+    }
+
+    // Add event listeners to update combined datetime
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+
+    if (hourSelect) {
+        hourSelect.addEventListener('change', () => updateReminderDatetime(modalId));
+    }
+    if (minuteSelect) {
+        minuteSelect.addEventListener('change', () => updateReminderDatetime(modalId));
+    }
+}
+
+// Update hidden reminder_datetime field from separate date/hour/minute
+function updateReminderDatetime(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+    const hiddenInput = document.getElementById(`reminder_datetime_${modalId}`);
+
+    if (!dateInput || !hourSelect || !minuteSelect || !hiddenInput) return;
+
+    const dateValue = dateInput.value; // DD.MM.YYYY
+    const hourValue = hourSelect.value; // HH
+    const minuteValue = minuteSelect.value; // MM
+
+    if (dateValue && hourValue && minuteValue) {
+        // Parse DD.MM.YYYY to ISO date
+        const isoDate = BudgetShared.DateFormatter.formatForAPI(dateValue); // YYYY-MM-DD
+        if (isoDate) {
+            // Combine into YYYY-MM-DDTHH:mm format
+            hiddenInput.value = `${isoDate}T${hourValue}:${minuteValue}`;
+        }
+    } else {
+        hiddenInput.value = '';
+    }
+}
+
+// Parse ISO datetime to separate date/hour/minute and populate fields
+function populateReminderFields(modalId, isoDatetime) {
+    if (!isoDatetime) return;
+
+    const date = new Date(isoDatetime);
+    if (isNaN(date.getTime())) return;
+
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+
+    if (dateInput) {
+        // Format as DD.MM.YYYY
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        dateInput.value = `${day}.${month}.${year}`;
+    }
+
+    if (hourSelect) {
+        hourSelect.value = String(date.getHours()).padStart(2, '0');
+    }
+
+    if (minuteSelect) {
+        // Round to nearest 5 minutes
+        const minutes = date.getMinutes();
+        const roundedMinutes = Math.round(minutes / 5) * 5;
+        minuteSelect.value = String(roundedMinutes % 60).padStart(2, '0');
+    }
+
+    // Update hidden field
+    updateReminderDatetime(modalId);
+}
+
+// Reset reminder fields to empty
+function resetReminderFields(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+    const hiddenInput = document.getElementById(`reminder_datetime_${modalId}`);
+
+    if (dateInput) dateInput.value = '';
+    if (hourSelect) hourSelect.value = '';
+    if (minuteSelect) minuteSelect.value = '';
+    if (hiddenInput) hiddenInput.value = '';
+}
+
+/**
+ * Get current time rounded to nearest 5 minutes.
+ * @returns {Object} Hour and minute as zero-padded strings (hour: string, minute: string)
+ */
+function getCurrentTimeRounded() {
+    const now = new Date();
+    const hour = now.getHours();
+    const minutes = now.getMinutes();
+    const roundedMinutes = Math.round(minutes / 5) * 5;
+
+    // Handle overflow (55 rounds to 60)
+    if (roundedMinutes === 60) {
+        return {
+            hour: String((hour + 1) % 24).padStart(2, '0'),
+            minute: '00'
+        };
+    }
+    return {
+        hour: String(hour).padStart(2, '0'),
+        minute: String(roundedMinutes).padStart(2, '0')
+    };
+}
+
+/**
+ * Pre-fill reminder date/time with default values (tomorrow + current time).
+ * @param {string} modalId - ID of the modal
+ */
+function prefillReminderDateTime(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+
+    // Set date to tomorrow
+    if (dateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const day = String(tomorrow.getDate()).padStart(2, '0');
+        const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const year = tomorrow.getFullYear();
+        dateInput.value = `${day}.${month}.${year}`;
+    }
+
+    // Set time to current time (rounded to 5 min)
+    const time = getCurrentTimeRounded();
+    if (hourSelect) {
+        hourSelect.value = time.hour;
+    }
+    if (minuteSelect) {
+        minuteSelect.value = time.minute;
+    }
+}
+
+/**
+ * Open Add Plan modal with pre-filled reminder date/time.
+ */
+function openAddPlanModal() {
+    const modalId = 'modal_add_plan';
+
+    // Pre-fill reminder date and time before opening
+    prefillReminderDateTime(modalId);
+
+    // Open the modal
+    const modal = document.getElementById(modalId);
+    if (modal && modal.showModal) {
+        modal.showModal();
+    }
+}
+
+// Toggle reminder settings visibility (for create modal)
+function toggleReminderSettings(modalId) {
+    const checkbox = document.querySelector(`#${modalId} input[name="enable_reminder"]`);
+    const settingsDiv = document.getElementById(`reminder-settings-${modalId}`);
+
+    if (checkbox && settingsDiv) {
+        if (checkbox.checked) {
+            settingsDiv.classList.remove('hidden');
+            // Initialize CalendarWidget when shown
+            initReminderCalendarWidget(modalId);
+            // Update hidden field with current values (already pre-filled on modal open)
+            updateReminderDatetime(modalId);
+        } else {
+            settingsDiv.classList.add('hidden');
+        }
+    }
+}
+
+// Toggle reminder settings visibility (for edit modal)
+function toggleEditReminderSettings() {
+    const checkbox = document.getElementById('edit-enable-reminder');
+    const settingsDiv = document.getElementById('edit-reminder-settings');
+
+    if (checkbox && settingsDiv) {
+        if (checkbox.checked) {
+            settingsDiv.classList.remove('hidden');
+            // Initialize CalendarWidget when shown
+            initEditReminderCalendarWidget();
+        } else {
+            settingsDiv.classList.add('hidden');
+        }
+    }
+}
+
+// CalendarWidget instance for edit reminder date
+let editReminderCalendarWidget = null;
+
+// Initialize CalendarWidget for edit modal reminder date
+function initEditReminderCalendarWidget() {
+    const dateInput = document.getElementById('edit-reminder-date');
+    if (!dateInput) return;
+
+    // Destroy existing widget if any
+    if (editReminderCalendarWidget) {
+        editReminderCalendarWidget.destroy();
+        editReminderCalendarWidget = null;
+    }
+
+    // Create new CalendarWidget
+    if (typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+        editReminderCalendarWidget = new BudgetShared.CalendarWidget({
+            inputElement: dateInput,
+            mode: 'single',
+            minDate: new Date(), // Only future dates
+            onSelect: (date) => {
+                updateEditReminderDatetime();
+            }
+        });
+    }
+
+    // Add event listeners to update combined datetime
+    const hourSelect = document.getElementById('edit-reminder-hour');
+    const minuteSelect = document.getElementById('edit-reminder-minute');
+
+    if (hourSelect) {
+        hourSelect.addEventListener('change', updateEditReminderDatetime);
+    }
+    if (minuteSelect) {
+        minuteSelect.addEventListener('change', updateEditReminderDatetime);
+    }
+}
+
+// Update hidden edit reminder_datetime field from separate fields
+function updateEditReminderDatetime() {
+    const dateInput = document.getElementById('edit-reminder-date');
+    const hourSelect = document.getElementById('edit-reminder-hour');
+    const minuteSelect = document.getElementById('edit-reminder-minute');
+    const hiddenInput = document.getElementById('edit-reminder-datetime');
+
+    if (!dateInput || !hourSelect || !minuteSelect || !hiddenInput) return;
+
+    const dateValue = dateInput.value; // DD.MM.YYYY
+    const hourValue = hourSelect.value; // HH
+    const minuteValue = minuteSelect.value; // MM
+
+    if (dateValue && hourValue && minuteValue) {
+        // Parse DD.MM.YYYY to ISO date
+        const isoDate = BudgetShared.DateFormatter.formatForAPI(dateValue); // YYYY-MM-DD
+        if (isoDate) {
+            // Combine into YYYY-MM-DDTHH:mm format
+            hiddenInput.value = `${isoDate}T${hourValue}:${minuteValue}`;
+        }
+    } else {
+        hiddenInput.value = '';
+    }
+}
+
+// Populate edit reminder fields from ISO datetime
+function populateEditReminderFields(isoDatetime) {
+    if (!isoDatetime) return;
+
+    const date = new Date(isoDatetime);
+    if (isNaN(date.getTime())) return;
+
+    const dateInput = document.getElementById('edit-reminder-date');
+    const hourSelect = document.getElementById('edit-reminder-hour');
+    const minuteSelect = document.getElementById('edit-reminder-minute');
+
+    if (dateInput) {
+        // Format as DD.MM.YYYY
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        dateInput.value = `${day}.${month}.${year}`;
+    }
+
+    if (hourSelect) {
+        hourSelect.value = String(date.getHours()).padStart(2, '0');
+    }
+
+    if (minuteSelect) {
+        // Round to nearest 5 minutes
+        const minutes = date.getMinutes();
+        const roundedMinutes = Math.round(minutes / 5) * 5;
+        minuteSelect.value = String(roundedMinutes % 60).padStart(2, '0');
+    }
+
+    // Update hidden field
+    updateEditReminderDatetime();
+}
+
+// Reset edit reminder fields
+function resetEditReminderFields() {
+    const dateInput = document.getElementById('edit-reminder-date');
+    const hourSelect = document.getElementById('edit-reminder-hour');
+    const minuteSelect = document.getElementById('edit-reminder-minute');
+    const hiddenInput = document.getElementById('edit-reminder-datetime');
+
+    if (dateInput) dateInput.value = '';
+    if (hourSelect) hourSelect.value = '';
+    if (minuteSelect) minuteSelect.value = '';
+    if (hiddenInput) hiddenInput.value = '';
+}
+
+// Create reminder for a plan
+async function createReminder(factId, reminderDatetime) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reminder_datetime: reminderDatetime })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Failed to create reminder:', error);
+            return false;
+        }
+
+        debugLog('[Reminder] Created reminder for plan:', factId);
+        return true;
+    } catch (error) {
+        console.error('Error creating reminder:', error);
+        return false;
+    }
+}
+
+// Get reminder for a plan
+async function getReminder(factId) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`);
+
+        if (response.status === 404) {
+            return null; // No reminder exists
+        }
+
+        if (!response.ok) {
+            console.error('Failed to get reminder, status:', response.status);
+            return null;
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error getting reminder:', error);
+        return null;
+    }
+}
+
+// Update reminder for a plan
+async function updateReminder(factId, reminderDatetime) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reminder_datetime: reminderDatetime })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Failed to update reminder:', error);
+            return false;
+        }
+
+        debugLog('[Reminder] Updated reminder for plan:', factId);
+        return true;
+    } catch (error) {
+        console.error('Error updating reminder:', error);
+        return false;
+    }
+}
+
+// Delete reminder for a plan
+async function deleteReminder(factId) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.status === 404) {
+            return true; // Already deleted or doesn't exist
+        }
+
+        if (!response.ok) {
+            console.error('Failed to delete reminder, status:', response.status);
+            return false;
+        }
+
+        debugLog('[Reminder] Deleted reminder for plan:', factId);
+        return true;
+    } catch (error) {
+        console.error('Error deleting reminder:', error);
+        return false;
+    }
+}
+
+// Format datetime for display in input
+function formatDatetimeForInput(isoString) {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    // Format: YYYY-MM-DDTHH:mm (required format for datetime-local)
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// Get status badge text and class
+function getReminderStatusBadge(status) {
+    const statusMap = {
+        'pending': { text: 'Ожидает', class: 'badge-info' },
+        'sent': { text: 'Отправлено', class: 'badge-success' },
+        'failed': { text: 'Ошибка', class: 'badge-error' },
+        'cancelled': { text: 'Отменено', class: 'badge-ghost' }
+    };
+    return statusMap[status] || { text: status, class: 'badge-ghost' };
 }
 
 // Toast notification helper
@@ -2467,10 +3093,6 @@ function updateComparisonChart(data) {
         },
         xAxis: {
             type: 'category',
-            name: 'Тип операции',
-            nameLocation: 'center',
-            nameGap: 30,
-            nameTextStyle: { color: '#6b7280', fontSize: 12 },
             data: types.map(t => typeLabels[t]),
             axisLine: { lineStyle: { color: '#e5e7eb' } },
             axisTick: { lineStyle: { color: '#e5e7eb' } },

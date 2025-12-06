@@ -36,6 +36,7 @@
                         <option value="budget_threshold">Порог бюджета (90%)</option>
                         <option value="budget_exceeded">Превышение бюджета</option>
                         <option value="weekly_report">Еженедельный отчет</option>
+                        <option value="plan_reminder">Напоминания о планах</option>
                     </select>
                 </div>
                 <div class="form-control">
@@ -97,6 +98,17 @@
             <div class="stat-title">Превышения бюджета</div>
             <div class="stat-value text-error" id="stat-exceeded">0</div>
             <div class="stat-desc">Бюджет израсходован</div>
+        </div>
+
+        <div class="stat">
+            <div class="stat-figure text-info">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Напоминания</div>
+            <div class="stat-value text-info" id="stat-reminders">0</div>
+            <div class="stat-desc">Отправлено уведомлений</div>
         </div>
     </div>
 
@@ -199,10 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
         mode: 'range',
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
-        triggerContainer: '#date-range-calendar-trigger',
-        onSelect: (startDate, endDate) => {
-            console.log('Выбран диапазон дат для фильтров notifications:', startDate, endDate);
-        }
+        triggerContainer: '#date-range-calendar-trigger'
     });
 
     loadNotifications();
@@ -290,9 +299,11 @@ async function updateStats() {
     // For now, use client-side count from current page (approximation)
     const thresholdCount = currentNotifications.filter(n => n.notification_type === 'budget_threshold').length;
     const exceededCount = currentNotifications.filter(n => n.notification_type === 'budget_exceeded').length;
+    const reminderCount = currentNotifications.filter(n => n.notification_type === 'plan_reminder').length;
 
     document.getElementById('stat-threshold').textContent = thresholdCount;
     document.getElementById('stat-exceeded').textContent = exceededCount;
+    document.getElementById('stat-reminders').textContent = reminderCount;
 }
 
 // Render notifications table
@@ -352,17 +363,56 @@ function createNotificationRow(notification) {
         minute: '2-digit'
     });
 
+    // Handle plan_reminder type separately (different data structure)
+    if (notification.notification_type === 'plan_reminder') {
+        const categoryName = notification.article_name || `Категория #${notification.article_id || '—'}`;
+        const amount = notification.amount
+            ? parseFloat(notification.amount).toLocaleString('ru-RU', {minimumFractionDigits: 2}) + ' ₽'
+            : '—';
+        const reminderDate = notification.reminder_datetime
+            ? new Date(notification.reminder_datetime).toLocaleDateString('ru-RU')
+            : '—';
+        const description = notification.description || '—';
+
+        tr.innerHTML = `
+            <td class="whitespace-nowrap">${formattedDate}</td>
+            <td>Напоминание</td>
+            <td>${categoryName}</td>
+            <td class="whitespace-nowrap">${reminderDate}</td>
+            <td class="text-right">${amount}</td>
+            <td class="text-right">—</td>
+            <td class="text-right">—</td>
+            <td><span class="badge badge-info badge-sm">🔔 Напомнили</span></td>
+        `;
+        return tr;
+    }
+
+    // Standard notification types (budget_threshold, budget_exceeded, weekly_report)
+
     // Format period
-    const periodStart = new Date(notification.period_start).toLocaleDateString('ru-RU');
-    const periodEnd = new Date(notification.period_end).toLocaleDateString('ru-RU');
-    const period = `${periodStart} - ${periodEnd}`;
+    const periodStart = notification.period_start
+        ? new Date(notification.period_start).toLocaleDateString('ru-RU')
+        : '—';
+    const periodEnd = notification.period_end
+        ? new Date(notification.period_end).toLocaleDateString('ru-RU')
+        : '—';
+    const period = notification.period_start ? `${periodStart} - ${periodEnd}` : '—';
 
     // Format amounts
-    const planAmount = parseFloat(notification.plan_amount).toLocaleString('ru-RU', {minimumFractionDigits: 2});
-    const actualAmount = parseFloat(notification.actual_amount).toLocaleString('ru-RU', {minimumFractionDigits: 2});
+    const planAmount = notification.plan_amount
+        ? parseFloat(notification.plan_amount).toLocaleString('ru-RU', {minimumFractionDigits: 2})
+        : '—';
+    const actualAmount = notification.actual_amount
+        ? parseFloat(notification.actual_amount).toLocaleString('ru-RU', {minimumFractionDigits: 2})
+        : '—';
 
     // Calculate percentage
-    const percentage = (parseFloat(notification.actual_amount) / parseFloat(notification.plan_amount) * 100).toFixed(0);
+    const percentage = (notification.plan_amount && notification.actual_amount)
+        ? (parseFloat(notification.actual_amount) / parseFloat(notification.plan_amount) * 100).toFixed(0)
+        : '—';
+
+    // Category name (prefer article_name if available)
+    const categoryName = notification.article_name || `Article #${notification.article_id}`;
 
     // Determine status
     let statusBadge = '';
@@ -384,6 +434,8 @@ function createNotificationRow(notification) {
         typeDisplay = 'Порог 90%';
     } else if (notification.notification_type === 'budget_exceeded') {
         typeDisplay = 'Превышение';
+    } else if (notification.notification_type === 'weekly_report') {
+        typeDisplay = 'Еженедельный';
     } else {
         typeDisplay = notification.notification_type;
     }
@@ -391,7 +443,7 @@ function createNotificationRow(notification) {
     tr.innerHTML = `
         <td class="whitespace-nowrap">${formattedDate}</td>
         <td>${typeDisplay}</td>
-        <td>Article #${notification.article_id}</td>
+        <td>${categoryName}</td>
         <td class="whitespace-nowrap">${period}</td>
         <td class="text-right">${planAmount} ₽</td>
         <td class="text-right">${actualAmount} ₽</td>

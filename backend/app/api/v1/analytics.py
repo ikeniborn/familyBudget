@@ -2179,8 +2179,8 @@ async def get_plans_monthly_comparison(
     async def get_month_data(month_date: date, record_type: str = "plan") -> dict:
         """Get data for a specific month with specified record_type."""
         # Base conditions (without article filters for type totals)
+        # Shared family budget - NO user_id filter (consistent with quick-stats-html)
         base_conditions = [
-            Fact.user_id == current_user.id,
             Fact.record_type == record_type,
             func.date_trunc("month", Fact.fact_date) == month_date
         ]

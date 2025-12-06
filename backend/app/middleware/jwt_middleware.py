@@ -9,16 +9,22 @@ Security Features:
     - Validates token signature and expiration
     - Injects user_id into request.state for downstream use
     - Whitelists public endpoints (/health, /api/v1/auth/*)
-    - Returns 401 Unauthorized for invalid/missing tokens on protected endpoints
+    - Smart 401 handling based on request type:
+      - Browser (Accept: text/html) → HTTP 303 redirect to login
+      - HTMX (HX-Request: true) → 401 + HX-Redirect header
+      - API (Accept: application/json) → JSON 401 response
 """
 
 from typing import Callable
 
 from fastapi import Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from backend.app.services.jwt import decode_access_token
+from backend.app.services.jwt import decode_access_token, decode_access_token_full
+
+# Login page URL for redirects
+LOGIN_URL = "/api/v1/auth/telegram-login"
 
 
 class JWTAuthMiddleware(BaseHTTPMiddleware):
@@ -52,6 +58,12 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/favicon.ico",  # Browser favicon
         "/manifest.json",  # PWA manifest (required for install prompt)
         "/sw.js",  # Service Worker (required for PWA caching)
+        # Email/2FA authentication pages (public)
+        "/register",  # Email registration page
+        "/login-email",  # Email login page
+        "/2fa-verify",  # 2FA code verification page
+        "/2fa-setup-login",  # First-time 2FA setup during email login
+        "/pending-activation",  # Pending admin activation page
     }
 
     # Public path prefixes (startswith check)
@@ -88,21 +100,105 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         token = self._extract_token(request)
 
         if token is not None:
-            # Validate token and extract telegram_id (business key, stable across SCD Type 2)
-            telegram_id = decode_access_token(token)
+            # Validate token and extract both user_id and telegram_id
+            # user_id: database PK (always present for valid tokens)
+            # telegram_id: Telegram business key (None for email-only users)
+            user_id, telegram_id = decode_access_token_full(token)
 
-            if telegram_id is not None:
-                # Token is valid - inject telegram_id into request state
-                # This allows CurrentUserOptional to access authenticated user
-                # Using telegram_id (business key) instead of user_id (surrogate key) for SCD Type 2 compatibility
+            if user_id is not None:
+                # Token is valid - inject both values into request state
+                # user_id: Always set (for email-only users and Telegram users)
+                # telegram_id: Set only for Telegram users (None for email-only users)
+                request.state.user_id = user_id
                 request.state.telegram_id = telegram_id
 
         # Check if endpoint is public
         is_public = self._is_public_endpoint(request.url.path)
 
         # For protected endpoints, require valid authentication
-        if not is_public and not hasattr(request.state, 'telegram_id'):
+        # Now check for user_id (present for all valid tokens, both Telegram and email users)
+        if not is_public and not hasattr(request.state, 'user_id'):
             # No valid token for protected endpoint
+            # Return appropriate response based on request type
+            return self._create_auth_error_response(request)
+
+        # Continue to next middleware/endpoint
+        # For public endpoints: may or may not have telegram_id set
+        # For protected endpoints: guaranteed to have telegram_id set
+        return await call_next(request)
+
+    def _is_browser_request(self, request: Request) -> bool:
+        """
+        Check if request is from a browser expecting HTML.
+
+        Args:
+            request: HTTP request
+
+        Returns:
+            bool: True if browser request (Accept: text/html)
+        """
+        accept = request.headers.get("Accept", "")
+        return "text/html" in accept
+
+    def _is_htmx_request(self, request: Request) -> bool:
+        """
+        Check if request is from HTMX.
+
+        Args:
+            request: HTTP request
+
+        Returns:
+            bool: True if HTMX request (HX-Request: true)
+        """
+        return request.headers.get("HX-Request") == "true"
+
+    def _is_api_request(self, request: Request) -> bool:
+        """
+        Check if request is an API request expecting JSON.
+
+        Args:
+            request: HTTP request
+
+        Returns:
+            bool: True if API request (Accept: application/json or Authorization header)
+        """
+        accept = request.headers.get("Accept", "")
+        has_auth_header = request.headers.get("Authorization") is not None
+        return "application/json" in accept or has_auth_header
+
+    def _create_auth_error_response(self, request: Request) -> Response:
+        """
+        Create appropriate 401 response based on request type.
+
+        Response Types:
+            - Browser (Accept: text/html) → HTTP 303 redirect to login
+            - HTMX (HX-Request: true) → 401 + HX-Redirect header (HTMX will redirect)
+            - API (Accept: application/json) → JSON 401 response
+
+        Args:
+            request: HTTP request
+
+        Returns:
+            Response: Appropriate auth error response
+        """
+        # Priority: HTMX > API > Browser
+        # HTMX requests may also have text/html in Accept header
+
+        if self._is_htmx_request(request):
+            # HTMX request - return 401 with HX-Redirect header
+            # HTMX will automatically redirect to the specified URL
+            return Response(
+                content="Authentication required",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                headers={
+                    "HX-Redirect": LOGIN_URL,
+                    "HX-Reswap": "none",  # Don't swap content
+                },
+                media_type="text/plain"
+            )
+
+        if self._is_api_request(request):
+            # API request - return JSON 401
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={
@@ -110,10 +206,21 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
                 }
             )
 
-        # Continue to next middleware/endpoint
-        # For public endpoints: may or may not have telegram_id set
-        # For protected endpoints: guaranteed to have telegram_id set
-        return await call_next(request)
+        if self._is_browser_request(request):
+            # Browser request - HTTP 303 redirect to login page
+            # 303 See Other is preferred for POST→GET redirect pattern
+            return RedirectResponse(
+                url=LOGIN_URL,
+                status_code=status.HTTP_303_SEE_OTHER
+            )
+
+        # Default fallback - JSON 401 (unknown client type)
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={
+                "detail": "Authentication required - No token provided or token invalid"
+            }
+        )
 
     def _is_public_endpoint(self, path: str) -> bool:
         """

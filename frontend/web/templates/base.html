@@ -115,6 +115,7 @@
 
     <!-- Offline Mode Scripts -->
     <script src="/static/js/offline/idb.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/offline/networkDetector.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/offlineManager.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/conflictResolver.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/pushManager.min.js?v=PLACEHOLDER"></script>
@@ -137,10 +138,10 @@
         <div id="navbar-center-menu" class="navbar-center hidden lg:flex">
             <ul class="menu menu-horizontal px-1" role="menubar">
                 {% if user %}
-                <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">Главная</a></li>
-                <li><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Аналитика</a></li>
-                <li><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">Факт</a></li>
-                <li><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">План</a></li>
+                <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>
+                <li><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
+                <li><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
+                <li><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
                 <li><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}" aria-current="{% if '/notifications' in request.url.path %}page{% endif %}">🔔 Уведомления</a></li>
                 <li><a href="/import" class="{% if '/import' in request.url.path %}active{% endif %}" aria-current="{% if '/import' in request.url.path %}page{% endif %}">📥 Импорт</a></li>
                 {% endif %}
@@ -198,7 +199,8 @@
                 <div id="user-dropdown" class="dropdown dropdown-end hidden lg:flex">
                     <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
                         <!-- Avatar -->
-                        {% if user.photo_url %}
+                        {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
+                        {% if user.photo_url and (user.photo_url.startswith('http://') or user.photo_url.startswith('https://')) %}
                             <div class="avatar">
                                 <div class="w-8 h-8 rounded-full">
                                     <img src="{{ user.photo_url }}"
@@ -241,9 +243,21 @@
                         </li>
                         <li>
                             <div class="flex flex-col gap-1 py-2 cursor-default hover:bg-transparent">
-                                <span class="text-xs opacity-60">Telegram ID</span>
-                                <span class="font-mono text-xs break-all">{{ user.telegram_id }}</span>
+                                <span class="text-xs opacity-60">{% if user.telegram_id %}Telegram ID{% elif user.email %}Email{% else %}ID{% endif %}</span>
+                                <span class="font-mono text-xs break-all">{{ user.telegram_id or user.email or user.id }}</span>
                             </div>
+                        </li>
+                        <div class="divider my-1"></div>
+                        <li>
+                            <a href="/security" class="gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                                <span class="text-sm">Безопасность</span>
+                                {% if user.two_factor_enabled %}
+                                    <span class="badge badge-success badge-xs">2FA</span>
+                                {% endif %}
+                            </a>
                         </li>
                         <div class="divider my-1"></div>
                         <li>
@@ -257,7 +271,25 @@
                     </ul>
                 </div>
             {% else %}
-                <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm text-xs sm:text-sm px-3 sm:px-4">Вход</a>
+                <!-- Auth buttons for guests -->
+                <div class="flex gap-1 sm:gap-2">
+                    <a href="/register" class="btn btn-outline btn-sm px-2 sm:px-3" title="Регистрация">
+                        <!-- Icon only on mobile -->
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        <!-- Text on desktop -->
+                        <span class="hidden sm:inline text-xs sm:text-sm">Регистрация</span>
+                    </a>
+                    <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-sm px-2 sm:px-3" title="Вход">
+                        <!-- Icon only on mobile -->
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        <!-- Text on desktop -->
+                        <span class="hidden sm:inline text-xs sm:text-sm">Вход</span>
+                    </a>
+                </div>
             {% endif %}
 
             <!-- Mobile Menu (with JS toggle for iOS PWA compatibility) -->
@@ -273,7 +305,8 @@
                         <!-- User info with avatar -->
                         <li class="menu-title">
                             <div class="flex items-center gap-2 px-2 py-2">
-                                {% if user.photo_url %}
+                                {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
+                                {% if user.photo_url and (user.photo_url.startswith('http://') or user.photo_url.startswith('https://')) %}
                                     <div class="avatar">
                                         <div class="w-10 h-10 rounded-full">
                                             <img src="{{ user.photo_url }}"
@@ -306,12 +339,13 @@
                         <div class="divider my-1"></div>
                     {% endif %}
                     {% if user %}
-                    <li><a href="/">Главная</a></li>
-                    <li><a href="/analytics">Аналитика</a></li>
-                    <li><a href="/facts">Факт</a></li>
-                    <li><a href="/plan">План</a></li>
+                    <li><a href="/">🏠 Главная</a></li>
+                    <li><a href="/analytics">📊 Аналитика</a></li>
+                    <li><a href="/facts">💸 Факт</a></li>
+                    <li><a href="/plan">📋 План</a></li>
                     <li><a href="/notifications">🔔 Уведомления</a></li>
                     <li><a href="/import">📥 Импорт</a></li>
+                    <li><a href="/security">🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
                     {% endif %}
 
                     {% if user and user.is_admin %}
@@ -538,6 +572,23 @@
                     }
                 }, 300);
             }, duration);
+        }
+
+        // Submit button loading state management (prevents double submit)
+        function setSubmitLoading(form, isLoading) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (!submitBtn) return;
+
+            if (isLoading) {
+                submitBtn.disabled = true;
+                submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Сохранение...';
+            } else {
+                submitBtn.disabled = false;
+                if (submitBtn.dataset.originalHtml) {
+                    submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+                }
+            }
         }
 
         // Logout handler

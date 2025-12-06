@@ -5,8 +5,8 @@
 {% block content %}
 <div class="space-y-6">
     {% if user %}
-        <!-- Welcome Section -->
-        <div class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box">
+        <!-- Welcome Section (auto-hides after 10 seconds) -->
+        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500">
             <div class="hero-content text-center py-6">
                 <div class="max-w-md">
                     <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
@@ -70,7 +70,7 @@
                                 Планы
                             </h3>
                             <div class="flex flex-col gap-2">
-                                <button onclick="modal_add_plan.showModal()" class="btn btn-sm btn-outline btn-info justify-start gap-2">
+                                <button onclick="openAddPlanModal()" class="btn btn-sm btn-outline btn-info justify-start gap-2">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                                     </svg>
@@ -106,12 +106,12 @@
                 </div>
             </div>
 
-            <!-- Recent Transactions (hidden when offline) -->
+            <!-- Recent Records (hidden when offline) -->
             <div id="recent-transactions-card" class="card bg-base-100 shadow-xl">
                 <div class="card-body">
-                    <h2 class="card-title text-xl mb-4">📈 Последние факты</h2>
+                    <h2 class="card-title text-xl mb-4">📈 Последние записи</h2>
                     <div id="recent-transactions"
-                         hx-get="/api/v1/facts/recent-html?limit=5"
+                         hx-get="/api/v1/facts/recent-html?limit=10"
                          hx-trigger="load"
                          hx-swap="innerHTML"
                          class="min-h-[200px]">
@@ -174,16 +174,11 @@
                     </p>
 
                     <a href="/api/v1/auth/telegram-login" class="btn btn-primary btn-lg gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.14.18-.357.295-.6.295-.002 0-.003 0-.005 0l.213-3.053 5.56-5.023c.242-.213-.054-.334-.373-.121l-6.869 4.326-2.96-.924c-.64-.203-.654-.64.135-.954l11.566-4.458c.538-.196 1.006.128.832.941z"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                         </svg>
-                        Войти через Telegram
+                        Вход
                     </a>
-
-                    <div class="mt-6 text-sm opacity-70">
-                        <p>Безопасная аутентификация через Telegram OAuth</p>
-                        <p class="mt-1">с валидацией HMAC-SHA256</p>
-                    </div>
                 </div>
             </div>
         </div>
@@ -301,6 +296,20 @@ function openAddTransactionModal() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Auto-hide Welcome Section after 10 seconds
+    const welcomeSection = document.getElementById('welcome-section');
+    if (welcomeSection) {
+        setTimeout(() => {
+            welcomeSection.style.opacity = '0';
+            welcomeSection.style.maxHeight = '0';
+            welcomeSection.style.overflow = 'hidden';
+            welcomeSection.style.padding = '0';
+            welcomeSection.style.margin = '0';
+            // Remove from DOM after animation
+            setTimeout(() => welcomeSection.remove(), 500);
+        }, 10000); // 10 seconds
+    }
+
     // Проверка реального статуса сети через пинг сервера
     async function checkServerConnection() {
         try {
@@ -366,8 +375,8 @@ document.addEventListener('DOMContentLoaded', function() {
         debugLog('[Network] online event fired');
         updateOfflineUI();
         loadPendingRecords();
-        // Перезагрузить последние факты при восстановлении сети
-        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+        // Перезагрузить последние записи при восстановлении сети
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
             target: '#recent-transactions',
             swap: 'innerHTML'
         });
@@ -419,6 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обработчик отправки формы факта (с поддержкой offline режима)
     document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
         e.preventDefault();
+        setSubmitLoading(e.target, true);
 
         const formData = new FormData(e.target);
 
@@ -478,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     loadPendingRecords();
                 } else {
                     // Saved online - update UI
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                         target: '#recent-transactions',
                         swap: 'innerHTML'
                     });
@@ -506,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (response.ok) {
                     const result = await response.json();
 
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                         target: '#recent-transactions',
                         swap: 'innerHTML'
                     });
@@ -532,12 +542,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error creating transaction:', error);
             showToast('Ошибка при создании факта: ' + error.message, 'error');
+        } finally {
+            setSubmitLoading(e.target, false);
         }
     });
 
     // Обработчик отправки формы плана (с поддержкой offline режима)
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
+        setSubmitLoading(e.target, true);
 
         const formData = new FormData(e.target);
 
@@ -579,6 +592,10 @@ document.addEventListener('DOMContentLoaded', function() {
             description: formData.get('description') || null
         };
 
+        // Get reminder settings BEFORE form reset
+        const enableReminder = formData.get('enable_reminder') === 'on';
+        const reminderDatetime = formData.get('reminder_datetime');
+
         try {
             // Use OfflineManager for offline support
             if (window.offlineManager) {
@@ -587,6 +604,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Close modal and reset form first
                 modal_add_plan.close();
                 e.target.reset();
+                // Reset reminder settings visibility (checkbox reset doesn't trigger onchange)
+                const reminderSettings1 = document.getElementById('reminder-settings-modal_add_plan');
+                if (reminderSettings1) reminderSettings1.classList.add('hidden');
                 setupPlanPeriodButtons();
 
                 if (result._offline) {
@@ -595,13 +615,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update pending records table
                     loadPendingRecords();
                 } else {
+                    // Update recent records table (now includes plans)
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
                     htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
                         target: '#quick-stats',
                         swap: 'innerHTML'
                     });
 
                     if (result && result.id) {
-                        showToast('План успешно сохранен!', 'success');
+                        // Create reminder if enabled
+                        if (enableReminder && reminderDatetime) {
+                            const reminder = await createReminder(result.id, reminderDatetime);
+                            if (reminder) {
+                                showToast('План с напоминанием успешно сохранен!', 'success');
+                            } else {
+                                showToast('План сохранен, но напоминание не создано', 'warning');
+                            }
+                        } else {
+                            showToast('План успешно сохранен!', 'success');
+                        }
                     } else {
                         showToast('План создан, но ID не получен', 'warning');
                     }
@@ -621,13 +656,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     modal_add_plan.close();
                     e.target.reset();
+                    // Reset reminder settings visibility (checkbox reset doesn't trigger onchange)
+                    const reminderSettings2 = document.getElementById('reminder-settings-modal_add_plan');
+                    if (reminderSettings2) reminderSettings2.classList.add('hidden');
                     setupPlanPeriodButtons();
+                    // Update recent records table (now includes plans)
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
                     htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
                         target: '#quick-stats',
                         swap: 'innerHTML'
                     });
 
-                    showToast('План успешно сохранен!', 'success');
+                    // Create reminder if enabled
+                    if (result && result.id && enableReminder && reminderDatetime) {
+                        const reminder = await createReminder(result.id, reminderDatetime);
+                        if (reminder) {
+                            showToast('План с напоминанием успешно сохранен!', 'success');
+                        } else {
+                            showToast('План сохранен, но напоминание не создано', 'warning');
+                        }
+                    } else {
+                        showToast('План успешно сохранен!', 'success');
+                    }
                 } else {
                     const error = await response.json();
                     showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать план'), 'error');
@@ -636,6 +689,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error creating plan:', error);
             showToast('Ошибка при создании плана: ' + error.message, 'error');
+        } finally {
+            setSubmitLoading(e.target, false);
         }
     });
 });
@@ -1525,8 +1580,8 @@ async function syncPendingRecords() {
         await window.offlineManager.syncQueue();
         await loadPendingRecords();
 
-        // Reload recent transactions and metrics
-        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=5', {
+        // Reload recent records and metrics
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
             target: '#recent-transactions',
             swap: 'innerHTML'
         });
@@ -1582,6 +1637,233 @@ document.addEventListener('DOMContentLoaded', function() {
     window.addEventListener('online', loadPendingRecords);
     window.addEventListener('offline', loadPendingRecords);
 });
+
+// ============ Plan Reminder Functions ============
+
+// CalendarWidget instance for reminder date
+let reminderCalendarWidget = null;
+
+/**
+ * Get current time rounded to nearest 5 minutes.
+ * @returns {Object} Hour and minute as zero-padded strings (hour: string, minute: string)
+ */
+function getCurrentTimeRounded() {
+    const now = new Date();
+    const hour = now.getHours();
+    const minutes = now.getMinutes();
+    const roundedMinutes = Math.round(minutes / 5) * 5;
+
+    // Handle overflow (55 rounds to 60)
+    if (roundedMinutes === 60) {
+        return {
+            hour: String((hour + 1) % 24).padStart(2, '0'),
+            minute: '00'
+        };
+    }
+    return {
+        hour: String(hour).padStart(2, '0'),
+        minute: String(roundedMinutes).padStart(2, '0')
+    };
+}
+
+/**
+ * Pre-fill reminder date/time with default values (tomorrow + current time).
+ * @param {string} modalId - ID of the modal
+ */
+function prefillReminderDateTime(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+
+    // Set date to tomorrow
+    if (dateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const day = String(tomorrow.getDate()).padStart(2, '0');
+        const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+        const year = tomorrow.getFullYear();
+        dateInput.value = `${day}.${month}.${year}`;
+    }
+
+    // Set time to current time (rounded to 5 min)
+    const time = getCurrentTimeRounded();
+    if (hourSelect) {
+        hourSelect.value = time.hour;
+    }
+    if (minuteSelect) {
+        minuteSelect.value = time.minute;
+    }
+}
+
+/**
+ * Open Add Plan modal with pre-filled reminder date/time.
+ */
+function openAddPlanModal() {
+    const modalId = 'modal_add_plan';
+
+    // Pre-fill reminder date and time before opening
+    prefillReminderDateTime(modalId);
+
+    // Open the modal
+    const modal = document.getElementById(modalId);
+    if (modal && modal.showModal) {
+        modal.showModal();
+    }
+}
+
+/**
+ * Toggle reminder settings visibility in plan modal.
+ * @param {string} modalId - ID of the modal (e.g., 'modal_add_plan')
+ */
+function toggleReminderSettings(modalId) {
+    const checkbox = document.querySelector(`#form_${modalId} input[name="enable_reminder"]`);
+    const settingsDiv = document.getElementById(`reminder-settings-${modalId}`);
+
+    if (!checkbox || !settingsDiv) {
+        console.warn('[toggleReminderSettings] Elements not found for modal:', modalId);
+        return;
+    }
+
+    if (checkbox.checked) {
+        settingsDiv.classList.remove('hidden');
+
+        // Initialize CalendarWidget for reminder date
+        initReminderCalendarWidget(modalId);
+
+        // Update hidden field with current values (already pre-filled on modal open)
+        updateReminderDatetime(modalId);
+    } else {
+        settingsDiv.classList.add('hidden');
+    }
+}
+
+/**
+ * Initialize CalendarWidget for reminder date field.
+ * @param {string} modalId - ID of the modal
+ */
+function initReminderCalendarWidget(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    if (!dateInput) return;
+
+    // Destroy existing widget if any
+    if (reminderCalendarWidget) {
+        reminderCalendarWidget.destroy();
+        reminderCalendarWidget = null;
+    }
+
+    // Create new CalendarWidget
+    if (typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+        reminderCalendarWidget = new BudgetShared.CalendarWidget({
+            inputElement: dateInput,
+            mode: 'single',
+            minDate: new Date(), // Only future dates
+            onSelect: (date) => {
+                updateReminderDatetime(modalId);
+            }
+        });
+    }
+
+    // Add event listeners to update combined datetime
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+
+    if (hourSelect) {
+        hourSelect.addEventListener('change', () => updateReminderDatetime(modalId));
+    }
+    if (minuteSelect) {
+        minuteSelect.addEventListener('change', () => updateReminderDatetime(modalId));
+    }
+}
+
+/**
+ * Update hidden reminder_datetime field from separate date/hour/minute.
+ * @param {string} modalId - ID of the modal
+ */
+function updateReminderDatetime(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+    const hiddenInput = document.getElementById(`reminder_datetime_${modalId}`);
+
+    if (!dateInput || !hourSelect || !minuteSelect || !hiddenInput) return;
+
+    const dateValue = dateInput.value; // DD.MM.YYYY
+    const hourValue = hourSelect.value; // HH
+    const minuteValue = minuteSelect.value; // MM
+
+    if (dateValue && hourValue && minuteValue) {
+        // Parse DD.MM.YYYY to ISO date
+        const isoDate = BudgetShared.DateFormatter.formatForAPI(dateValue); // YYYY-MM-DD
+        if (isoDate) {
+            // Combine into YYYY-MM-DDTHH:mm format
+            hiddenInput.value = `${isoDate}T${hourValue}:${minuteValue}`;
+        }
+    } else {
+        hiddenInput.value = '';
+    }
+}
+
+/**
+ * Reset reminder fields to empty.
+ * @param {string} modalId - ID of the modal
+ */
+function resetReminderFields(modalId) {
+    const dateInput = document.getElementById(`reminder_date_${modalId}`);
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+    const hiddenInput = document.getElementById(`reminder_datetime_${modalId}`);
+
+    if (dateInput) dateInput.value = '';
+    if (hourSelect) hourSelect.value = '';
+    if (minuteSelect) minuteSelect.value = '';
+    if (hiddenInput) hiddenInput.value = '';
+}
+
+/**
+ * Format Date object for datetime-local input.
+ * @param {Date} date - Date object
+ * @returns {string} Formatted string (YYYY-MM-DDTHH:MM)
+ */
+function formatDatetimeForInput(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Create a reminder for a plan via API.
+ * @param {number} factId - Plan/fact ID
+ * @param {string} reminderDatetime - ISO datetime string
+ * @returns {Promise<object|null>} Created reminder or null on error
+ */
+async function createReminder(factId, reminderDatetime) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                reminder_datetime: reminderDatetime
+            })
+        });
+
+        if (response.ok) {
+            const reminder = await response.json();
+            debugLog('[createReminder] Reminder created:', reminder);
+            return reminder;
+        } else {
+            const error = await response.json();
+            console.error('[createReminder] API error:', error);
+            return null;
+        }
+    } catch (error) {
+        console.error('[createReminder] Network error:', error);
+        return null;
+    }
+}
 </script>
 
 <!-- Include Transfer Modal -->

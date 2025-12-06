@@ -11,15 +11,18 @@ Browser Support:
 
 import json
 import logging
+from datetime import datetime
 from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 
 from backend.app.core.auth import get_current_user
 from backend.app.core.config import get_settings
 from backend.app.db.session import get_session
 from backend.app.models.user import User
+from backend.app.models.push_subscription import PushSubscription
 from backend.app.schemas.push import (
     PushSubscriptionCreate,
     PushSubscriptionResponse,
@@ -117,20 +120,45 @@ async def subscribe_to_push(
         )
 
     try:
-        # TODO: Store subscription in database
-        # For now, just log it
-        logger.info(
-            f"[Push] User {current_user.id} subscribed to push notifications: "
-            f"{subscription_data.subscription.endpoint[:50]}..."
-        )
+        endpoint = subscription_data.subscription.endpoint
+        p256dh_key = subscription_data.subscription.keys.p256dh
+        auth_key = subscription_data.subscription.keys.auth
+        user_agent = subscription_data.user_agent
 
-        # In production, store subscription in database:
-        # - user_id
-        # - endpoint
-        # - p256dh key
-        # - auth key
-        # - user_agent
-        # - created_at
+        # Check if subscription already exists (by endpoint)
+        statement = select(PushSubscription).where(
+            PushSubscription.endpoint == endpoint
+        )
+        result = await session.execute(statement)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            # Update existing subscription (might be different user or updated keys)
+            existing.user_id = current_user.id
+            existing.p256dh_key = p256dh_key
+            existing.auth_key = auth_key
+            existing.user_agent = user_agent
+            logger.info(
+                f"[Push] Updated existing subscription for user {current_user.id}: "
+                f"{endpoint[:50]}..."
+            )
+        else:
+            # Create new subscription
+            new_subscription = PushSubscription(
+                user_id=current_user.id,
+                endpoint=endpoint,
+                p256dh_key=p256dh_key,
+                auth_key=auth_key,
+                user_agent=user_agent,
+                created_at=datetime.utcnow(),
+            )
+            session.add(new_subscription)
+            logger.info(
+                f"[Push] User {current_user.id} subscribed to push notifications: "
+                f"{endpoint[:50]}..."
+            )
+
+        await session.commit()
 
         return {"status": "subscribed"}
 
@@ -162,10 +190,26 @@ async def unsubscribe_from_push(
         Status message
     """
     try:
-        # TODO: Remove subscription from database
-        logger.info(
-            f"[Push] User {current_user.id} unsubscribed from push notifications"
+        endpoint = subscription_data.subscription.endpoint
+
+        # Find and delete subscription by endpoint
+        statement = select(PushSubscription).where(
+            PushSubscription.endpoint == endpoint
         )
+        result = await session.execute(statement)
+        subscription = result.scalar_one_or_none()
+
+        if subscription:
+            await session.delete(subscription)
+            await session.commit()
+            logger.info(
+                f"[Push] User {current_user.id} unsubscribed from push notifications: "
+                f"{endpoint[:50]}..."
+            )
+        else:
+            logger.debug(
+                f"[Push] Subscription not found for unsubscribe: {endpoint[:50]}..."
+            )
 
         return {"status": "unsubscribed"}
 

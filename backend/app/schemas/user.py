@@ -13,7 +13,7 @@ BREAKING CHANGES:
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class UserCreate(BaseModel):
@@ -24,7 +24,9 @@ class UserCreate(BaseModel):
     Useful for pre-registering users or testing purposes.
 
     Validation Rules:
-        - telegram_id: Required, positive integer
+        - At least one of telegram_id or email must be provided
+        - telegram_id: Optional positive integer
+        - email: Optional valid email
         - username, first_name, last_name: Optional strings
         - is_admin, is_active: Optional booleans
 
@@ -33,11 +35,18 @@ class UserCreate(BaseModel):
         - Also creates initial history record in t_d_user_history
     """
 
-    telegram_id: int = Field(
-        ...,
+    telegram_id: Optional[int] = Field(
+        default=None,
         gt=0,
-        description="User's Telegram ID (must be unique)",
-        examples=[123456789]
+        description="User's Telegram ID (must be unique, optional if email provided)",
+        examples=[123456789, None]
+    )
+
+    email: Optional[str] = Field(
+        default=None,
+        max_length=320,
+        description="User's email for email-based auth (optional if telegram_id provided)",
+        examples=["user@example.com", None]
     )
 
     username: Optional[str] = Field(
@@ -73,6 +82,15 @@ class UserCreate(BaseModel):
         examples=[False, True]
     )
 
+    @model_validator(mode='after')
+    def validate_auth_method(self) -> 'UserCreate':
+        """Ensure at least one auth method (telegram_id or email) is provided."""
+        if self.telegram_id is None and (self.email is None or self.email.strip() == ''):
+            raise ValueError(
+                'At least one auth method must be provided: telegram_id or email'
+            )
+        return self
+
 
 class UserUpdate(BaseModel):
     """
@@ -82,6 +100,8 @@ class UserUpdate(BaseModel):
 
     Validation Rules:
         - All fields are optional (partial update)
+        - telegram_id: Telegram ID (can be set/cleared by admin)
+        - email: Email for email-based auth
         - username, first_name, last_name, photo_url: Profile data
         - is_admin, is_active: Status flags
 
@@ -90,6 +110,19 @@ class UserUpdate(BaseModel):
         - Also creates history record in UserHistory table
         - All changes are logged with metadata (change_type, changed_fields)
     """
+
+    telegram_id: Optional[int] = Field(
+        default=None,
+        description="Telegram user ID (business key, nullable for email-only users)",
+        examples=[740775802]
+    )
+
+    email: Optional[str] = Field(
+        default=None,
+        max_length=320,
+        description="User email for email-based auth",
+        examples=["john@example.com"]
+    )
 
     username: Optional[str] = Field(
         default=None,
@@ -149,15 +182,28 @@ class UserResponse(BaseModel):
         examples=[1]
     )
 
-    telegram_id: int = Field(
-        description="User's Telegram ID (business key)",
-        examples=[123456789]
+    telegram_id: Optional[int] = Field(
+        default=None,
+        description="User's Telegram ID (business key, nullable for email-only users)",
+        examples=[123456789, None]
+    )
+
+    email: Optional[str] = Field(
+        default=None,
+        description="User email for email-based auth (nullable for Telegram-only users)",
+        examples=["john@example.com", None]
     )
 
     username: Optional[str] = Field(
         default=None,
         description="Telegram username",
         examples=["johndoe", None]
+    )
+
+    two_factor_enabled: bool = Field(
+        default=False,
+        description="Whether 2FA is enabled (required for email login)",
+        examples=[False, True]
     )
 
     first_name: Optional[str] = Field(
@@ -215,7 +261,9 @@ class UserResponse(BaseModel):
             "example": {
                 "id": 1,
                 "telegram_id": 123456789,
+                "email": "john@example.com",
                 "username": "johndoe",
+                "two_factor_enabled": True,
                 "first_name": "John",
                 "last_name": "Doe",
                 "photo_url": "/static/avatars/1.jpg",

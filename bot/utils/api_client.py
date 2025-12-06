@@ -70,7 +70,9 @@ class APIClient:
             if params:
                 kwargs["params"] = params
             if token:
-                kwargs["cookies"] = {"access_token": token}
+                # SECURITY: Use Authorization header instead of cookies
+                # This prevents token from being logged in access logs
+                kwargs["headers"] = {"Authorization": f"Bearer {token}"}
 
             response = await self.client.get(endpoint, **kwargs)
             response.raise_for_status()
@@ -155,7 +157,7 @@ class APIClient:
             response = await self.client.get(
                 "/facts",
                 params=params,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -203,7 +205,7 @@ class APIClient:
             response = await self.client.get(
                 "/facts",
                 params=params,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -247,7 +249,7 @@ class APIClient:
             response = await self.client.get(
                 "/facts/summary",
                 params=params,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -308,7 +310,7 @@ class APIClient:
             response = await self.client.post(
                 "/facts",
                 json=fact_data,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -353,7 +355,7 @@ class APIClient:
             response = await self.client.get(
                 "/articles",
                 params=params,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -393,7 +395,7 @@ class APIClient:
             response = await self.client.get(
                 "/articles",
                 params=params,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -428,7 +430,7 @@ class APIClient:
         try:
             response = await self.client.get(
                 f"/articles/{article_id}",
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -463,7 +465,7 @@ class APIClient:
         try:
             response = await self.client.get(
                 f"/facts/{fact_id}",
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -501,7 +503,7 @@ class APIClient:
             response = await self.client.put(
                 f"/facts/{fact_id}",
                 json=update_data,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -534,7 +536,7 @@ class APIClient:
         try:
             response = await self.client.delete(
                 f"/facts/{fact_id}",
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -577,7 +579,7 @@ class APIClient:
             response = await self.client.get(
                 "/financial-centers",
                 params=params,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 
@@ -620,7 +622,7 @@ class APIClient:
             response = await self.client.get(
                 "/cost-centers",
                 params=params,
-                cookies={"access_token": token}
+                headers={"Authorization": f"Bearer {token}"}
             )
             response.raise_for_status()
 

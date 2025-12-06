@@ -1745,6 +1745,7 @@ function setupEditCategoryTypeButtons() {
 // Создать новый факт
 async function createFact(event) {
     event.preventDefault();
+    setSubmitLoading(event.target, true);
 
     const formData = new FormData(event.target);
     const data = {
@@ -1820,6 +1821,8 @@ async function createFact(event) {
     } catch (error) {
         console.error('Error creating fact:', error);
         showToast('Ошибка при создании факта: ' + error.message, 'error');
+    } finally {
+        setSubmitLoading(event.target, false);
     }
 }
 

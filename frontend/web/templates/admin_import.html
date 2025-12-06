@@ -593,7 +593,6 @@ async function loadSavedMapping(bankId) {
             const data = await response.json();
             savedMappingId = data.mapping_id;
             currentMapping = data.mapping;
-            console.log('Loaded saved mapping:', currentMapping);
 
             // Enable Apply Mapping button if mapping exists
             updateApplyMappingButtonState();
@@ -603,7 +602,6 @@ async function loadSavedMapping(bankId) {
             const errorData = await response.json();
             if (errorData.detail && errorData.detail.default_mapping) {
                 currentMapping = errorData.detail.default_mapping;
-                console.log('Using default mapping:', currentMapping);
             }
 
             // Disable Apply Mapping button since no saved mapping
@@ -746,9 +744,6 @@ async function analyzeFile(fileId) {
         const data = await response.json();
         csvHeaders = data.headers;
         csvSampleRows = data.sample_rows;
-
-        console.log('CSV headers:', csvHeaders);
-        console.log('Sample rows:', csvSampleRows);
 
         // Don't show mapping step automatically - wait for user to click button
 

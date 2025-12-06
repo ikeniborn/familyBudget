@@ -261,22 +261,6 @@ docker compose logs postgres
 
 ---
 
-## Обновление приложения
-
-```bash
-# В репозитории (~/Documents/Project/familyBudget)
-cd ~/Documents/Project/familyBudget
-git pull
-
-# Обновить код в /opt/budget
-./setup.sh  # Выберет опцию обновления
-
-# Деплой с пересборкой (из репозитория)
-./deploy.sh --build
-```
-
----
-
 ## Структура директорий
 
 ### Репозиторий (исходный код)
@@ -643,15 +627,24 @@ TODO: Настроить cron для автоматических бэкапов
 
 ## Дополнительная информация
 
-- **Полная документация:** [docs/README.md](docs/README.md)
-- **API документация:** [docs/api/API_DOCUMENTATION.md](docs/api/API_DOCUMENTATION.md)
-- **PRD (требования):** [docs/prd/README.md](docs/prd/README.md)
+### PRD документация
+- **Индекс PRD:** [docs/prd/README.md](docs/prd/README.md)
 - **Архитектура:** [docs/prd/03-system-architecture.md](docs/prd/03-system-architecture.md)
+- **API спецификация:** [docs/prd/07-api-specification.md](docs/prd/07-api-specification.md)
+- **UI дизайн:** [docs/prd/08-ui-design.md](docs/prd/08-ui-design.md)
+
+### Руководства
+- **Импорт из Tinkoff:** [docs/guides/TINKOFF_IMPORT.md](docs/guides/TINKOFF_IMPORT.md)
+- **Troubleshooting импорта:** [docs/guides/TROUBLESHOOTING_IMPORT.md](docs/guides/TROUBLESHOOTING_IMPORT.md)
+
+### Аудиты и анализ
+- **Security audit:** [docs/audits/security-audit-report.md](docs/audits/security-audit-report.md)
+- **Offline mode:** [docs/audits/offline-mode-analysis.md](docs/audits/offline-mode-analysis.md)
 
 ---
 
 ## Версия
 
-- **Приложение:** v5.1.0
-- **Документация:** v1.0.0
-- **Дата обновления:** 2025-10-16
+- **Приложение:** v5.1.x
+- **Документация:** v2.0.0
+- **Дата обновления:** 2025-12-06

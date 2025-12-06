@@ -171,6 +171,13 @@ async function loadTransferPlanHints(direction) {
     }
 
     window[timeoutRef] = setTimeout(async () => {
+        // Skip API call if offline
+        if (!navigator.onLine) {
+            planBtn.innerHTML = 'План: --';
+            factBtn.innerHTML = 'Факт: --';
+            return;
+        }
+
         try {
             window[controllerRef] = new AbortController();
 
@@ -208,8 +215,12 @@ async function loadTransferPlanHints(direction) {
             updateTransferHintButtons(direction, data);
 
         } catch (error) {
+            // Silently handle abort and network errors (offline mode)
             if (error.name !== 'AbortError') {
-                console.error(`[loadTransferPlanHints] Failed for ${direction}:`, error);
+                // Only log non-network errors
+                if (navigator.onLine && !error.message?.includes('Failed to fetch')) {
+                    console.error(`[loadTransferPlanHints] Failed for ${direction}:`, error);
+                }
                 planBtn.innerHTML = 'План: --';
                 factBtn.innerHTML = 'Факт: --';
             }
@@ -582,10 +593,15 @@ function setupQuickDateButtons() {
 
 /**
  * Open Transfer Modal
+ * Reloads financial centers data to ensure dropdowns are populated
  */
-function openTransferModal() {
+async function openTransferModal() {
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
+        // Ensure financial centers and cost centers are loaded
+        // (may not have completed on page load due to race condition)
+        await loadTransferData();
+
         // Set today as default date
         const today = BudgetShared.DateFormatter.today();
         document.querySelector('#transfer_date').value =
@@ -692,11 +708,8 @@ async function handleTransferSubmit(event) {
     }
 
     // 3. Submit to backend (with offline fallback)
+    setSubmitLoading(event.target, true);
     try {
-        // Close modal first (before showing toast)
-        document.querySelector('#transfer_modal').close();
-        event.target.reset();
-
         // Use OfflineManager for offline support
         if (window.offlineManager) {
             const result = await window.offlineManager.createTransfer(data);
@@ -714,6 +727,10 @@ async function handleTransferSubmit(event) {
                 if (typeof loadPendingRecords === 'function') {
                     await loadPendingRecords();
                 }
+
+                // Close modal after successful offline save
+                document.querySelector('#transfer_modal').close();
+                event.target.reset();
             } else {
                 // Saved online
                 const successMsg = transferRecordType === 'plan'
@@ -723,10 +740,31 @@ async function handleTransferSubmit(event) {
                     showToast(successMsg, 'success');
                 }
 
-                // Trigger HTMX refresh if on a page with HTMX tables
+                // Update quick stats and recent records (only on index.html)
                 if (typeof htmx !== 'undefined') {
-                    htmx.trigger(document.body, 'refreshData');
+                    // Update recent-transactions for all transfer types (now shows both facts and plans)
+                    if (document.getElementById('recent-transactions')) {
+                        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                            target: '#recent-transactions',
+                            swap: 'innerHTML'
+                        });
+                    }
+                    // Update quick-stats for all transfer types
+                    if (document.getElementById('quick-stats')) {
+                        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                            target: '#quick-stats',
+                            swap: 'innerHTML'
+                        });
+                    }
                 }
+                // Update facts table if on facts/plan page
+                if (typeof loadFacts === 'function' && document.getElementById('facts-table-container')) {
+                    await loadFacts();
+                }
+
+                // Close modal after successful online save
+                document.querySelector('#transfer_modal').close();
+                event.target.reset();
             }
         } else {
             // Fallback to direct fetch if OfflineManager not available
@@ -751,10 +789,31 @@ async function handleTransferSubmit(event) {
                 showToast(successMsg, 'success');
             }
 
-            // Trigger HTMX refresh if on a page with HTMX tables
+            // Update quick stats and recent records (only on index.html)
             if (typeof htmx !== 'undefined') {
-                htmx.trigger(document.body, 'refreshData');
+                // Update recent-transactions for all transfer types (now shows both facts and plans)
+                if (document.getElementById('recent-transactions')) {
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
+                }
+                // Update quick-stats for all transfer types
+                if (document.getElementById('quick-stats')) {
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+                }
             }
+            // Update facts table if on facts/plan page
+            if (typeof loadFacts === 'function' && document.getElementById('facts-table-container')) {
+                await loadFacts();
+            }
+
+            // Close modal after successful fallback save
+            document.querySelector('#transfer_modal').close();
+            event.target.reset();
         }
     } catch (error) {
         const errorPrefix = transferRecordType === 'plan'
@@ -765,6 +824,8 @@ async function handleTransferSubmit(event) {
         } else {
             alert('Ошибка: ' + error.message);
         }
+    } finally {
+        setSubmitLoading(event.target, false);
     }
 }
 

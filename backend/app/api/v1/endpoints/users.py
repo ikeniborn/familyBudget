@@ -321,3 +321,34 @@ async def get_all_telegram_ids(
     telegram_ids = result.scalars().all()
 
     return [{"telegram_id": tid} for tid in telegram_ids]
+
+
+@router.get(
+    "/timezones",
+    response_model=list[dict],
+    responses=get_common_responses(),
+)
+async def list_timezones(
+    current_user: CurrentUser,
+) -> list[dict]:
+    """
+    Get list of common timezones for UI selector.
+
+    **Public:** Any authenticated user can access this endpoint.
+
+    **Returns:**
+    List of timezone objects with:
+    - name: IANA timezone name (e.g., "Europe/Moscow")
+    - offset: UTC offset (e.g., "UTC+03:00")
+    - display: Human-readable display string
+
+    **Example Response:**
+    ```json
+    [
+        {"name": "UTC", "offset": "UTC+00:00", "display": "(UTC+00:00) UTC"},
+        {"name": "Europe/Moscow", "offset": "UTC+03:00", "display": "(UTC+03:00) Europe/Moscow"}
+    ]
+    ```
+    """
+    from backend.app.utils.timezone import get_common_timezones
+    return get_common_timezones()

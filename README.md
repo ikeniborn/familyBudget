@@ -1,0 +1,157 @@
+# Family Budget
+
+Система управления семейным бюджетом с Telegram ботом и веб-интерфейсом.
+
+## О проекте
+
+**FamilyBudget** — production-ready приложение для планирования и учёта семейных расходов. Предназначено для семей из 2-5 человек.
+
+Решает проблемы:
+- Сложность отслеживания расходов в реальном времени
+- Отсутствие контроля над бюджетом
+- Потеря времени на ручную консолидацию данных
+
+## Возможности
+
+### Telegram Bot
+- 8 команд для быстрого ввода транзакций
+- Inline-клавиатуры для выбора категорий
+- Еженедельные отчёты (каждое воскресенье)
+- Уведомления при превышении бюджета (90%+)
+
+### Telegram Web Apps (Menu Button)
+- 8 интерактивных форм через Menu Button
+- Главное меню с быстрой статистикой
+- Добавление транзакций и планов
+- История операций с фильтрами
+- Расширенный поиск с CSV экспортом
+
+### Веб-интерфейс
+- Dashboard с ключевыми метриками
+- Интерактивные графики (ECharts)
+- План-факт анализ
+- Управление справочниками
+
+### Аналитика
+- 3 типа графиков: план-факт, динамика, структура
+- Waterfall и Heatmap визуализации
+- Сравнение периодов
+- Экспорт данных
+
+## Статус проекта
+
+| Метрика | Значение |
+|---------|----------|
+| Версия | v5.1.x |
+| API endpoints | 43 |
+| Тесты | 373 (unit + integration + e2e) |
+| Фазы | Phase 1-3 завершены |
+
+## Quick Start
+
+Подробное руководство по установке: [START.md](START.md)
+
+```bash
+# 1. Клонировать репозиторий
+git clone https://github.com/yourusername/familyBudget.git ~/familyBudget
+cd ~/familyBudget
+
+# 2. Установить зависимости
+sudo ./install.sh
+
+# 3. Настроить окружение
+./setup.sh
+
+# 4. Запустить приложение
+./deploy.sh --profile full
+```
+
+Требования:
+- Ubuntu 20.04+ или Debian 11+
+- Docker + Docker Compose
+- Telegram Bot Token (от @BotFather)
+
+## Использование
+
+### Telegram Bot
+
+1. Найдите бота в Telegram
+2. Отправьте `/start` для регистрации
+3. Используйте команды:
+   - `/add` — добавить расход
+   - `/addplan` — добавить план
+   - `/summary` — просмотр итогов
+   - `/stats` — статистика
+4. Нажмите **Menu Button** (кнопка меню) для доступа к Web Apps
+
+### Веб-интерфейс
+
+- **Dashboard** — главная страница с метриками
+- **Аналитика** — графики и отчёты
+- **Транзакции** — список всех операций
+- **Администрирование** — управление справочниками
+
+## Документация
+
+| Документ | Описание |
+|----------|----------|
+| [START.md](START.md) | Руководство по установке для администраторов |
+| [docs/prd/](docs/prd/) | Техническая документация (PRD) |
+| [CLAUDE.md](CLAUDE.md) | Инструкции для разработчиков |
+| `/docs` (Swagger) | API документация (после запуска) |
+
+### PRD документация
+
+- [Обзор проекта](docs/prd/01-executive-summary.md)
+- [Архитектура](docs/prd/03-system-architecture.md)
+- [API спецификация](docs/prd/07-api-specification.md)
+- [UI дизайн](docs/prd/08-ui-design.md)
+- [База данных](docs/prd/06-database-design.md)
+
+## Технологии
+
+| Компонент | Технология |
+|-----------|------------|
+| Backend | FastAPI 0.121.2, SQLModel, asyncpg |
+| Database | PostgreSQL 16 |
+| Bot | python-telegram-bot 21.10 |
+| Frontend | HTMX, Jinja2, Tailwind CSS, DaisyUI |
+| Web Apps | Telegram Web Apps SDK, Vanilla JS |
+| Charts | ECharts 5.5 |
+| Deployment | Docker Compose, Nginx, Let's Encrypt |
+
+## Архитектура
+
+```
+familyBudget/
+├── backend/          # FastAPI приложение
+├── bot/              # Telegram бот
+├── frontend/
+│   ├── web/          # Веб-интерфейс (HTMX)
+│   └── webapp/       # Telegram Web Apps
+├── docs/             # Документация
+├── scripts/          # Деплой и утилиты
+└── docker-compose.yml
+```
+
+## Особенности реализации
+
+- **SCD Type 2** — полная история изменений справочников
+- **Closure Table** — эффективные иерархические запросы
+- **JWT в httpOnly cookies** — безопасная аутентификация
+- **Telegram OAuth** — вход через Telegram
+- **Автоматические бэкапы** — локально + S3
+
+## Поддержка
+
+- **Проблемы с установкой**: см. [START.md#troubleshooting](START.md#troubleshooting)
+- **Техническая документация**: см. [docs/prd/](docs/prd/)
+- **Импорт из Tinkoff**: см. [docs/guides/TINKOFF_IMPORT.md](docs/guides/TINKOFF_IMPORT.md)
+
+## Лицензия
+
+MIT License
+
+---
+
+**Версия документации:** 2.0.0 | **Дата обновления:** 2025-12-06

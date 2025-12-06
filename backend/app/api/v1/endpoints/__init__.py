@@ -28,6 +28,7 @@ from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
 from backend.app.api.v1.endpoints.push import router as push_router
+from backend.app.api.v1.endpoints.reminders import router as reminders_router
 from backend.app.api.v1.endpoints.transfers import router as transfers_router
 from backend.app.api.v1.endpoints.users import router as users_router
 
@@ -43,4 +44,5 @@ __all__ = [
     "import_router",
     "transfers_router",
     "push_router",
+    "reminders_router",
 ]

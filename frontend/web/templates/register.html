@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Регистрация в Семейный бюджет</h1>
+            <p class="subtitle">Создайте аккаунт для управления семейным бюджетом.</p>
+        </div>
+
+        <div class="login-card">
+            <div class="login-icon">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H6C4.93913 15 3.92172 15.4214 3.17157 16.1716C2.42143 16.9217 2 17.9391 2 19V21" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="9" cy="7" r="4" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M19 8V14M16 11H22" stroke="#4CAF50" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+
+            <h2>Создать аккаунт</h2>
+            <p class="login-description">
+                Введите ваши данные для регистрации. После регистрации потребуется активация администратором.
+            </p>
+
+            <!-- Registration Form -->
+            <form id="register-form" class="space-y-4" onsubmit="handleRegister(event)">
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text">Email *</span>
+                    </label>
+                    <input type="email" name="email" id="email"
+                           class="input input-bordered w-full"
+                           placeholder="user@example.com"
+                           required autocomplete="email">
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text">Имя *</span>
+                    </label>
+                    <input type="text" name="first_name" id="first_name"
+                           class="input input-bordered w-full"
+                           placeholder="Иван"
+                           required minlength="1" maxlength="255" autocomplete="given-name">
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text">Фамилия</span>
+                    </label>
+                    <input type="text" name="last_name" id="last_name"
+                           class="input input-bordered w-full"
+                           placeholder="Иванов"
+                           maxlength="255" autocomplete="family-name">
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text">Пароль *</span>
+                    </label>
+                    <input type="password" name="password" id="password"
+                           class="input input-bordered w-full"
+                           placeholder="Минимум 12 символов"
+                           required minlength="12" maxlength="128" autocomplete="new-password">
+                    <label class="label">
+                        <span class="label-text-alt text-xs opacity-70">
+                            Минимум 12 символов, заглавные и строчные буквы, цифры и спецсимволы
+                        </span>
+                    </label>
+                </div>
+
+                <div class="form-control w-full">
+                    <label class="label">
+                        <span class="label-text">Подтверждение пароля *</span>
+                    </label>
+                    <input type="password" name="password_confirm" id="password_confirm"
+                           class="input input-bordered w-full"
+                           placeholder="Повторите пароль"
+                           required minlength="12" maxlength="128" autocomplete="new-password">
+                </div>
+
+                <!-- Error message container -->
+                <div id="register-error" class="alert alert-error hidden">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="register-error-text"></span>
+                </div>
+
+                <button type="submit" id="register-btn" class="btn btn-primary w-full">
+                    <span id="register-btn-text">Зарегистрироваться</span>
+                    <span id="register-btn-loading" class="loading loading-spinner hidden"></span>
+                </button>
+            </form>
+
+            <div class="divider">ИЛИ</div>
+
+            <!-- Alternative login options -->
+            <div class="space-y-3">
+                <a href="/api/v1/auth/telegram-login" class="btn btn-outline w-full gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                    </svg>
+                    Войти через Telegram
+                </a>
+
+                <a href="/login-email" class="btn btn-ghost w-full">
+                    Уже есть аккаунт? Войти
+                </a>
+            </div>
+
+            <div class="login-help">
+                <p class="text-xs opacity-70 mt-4">
+                    Регистрируясь, вы соглашаетесь с
+                    <a href="/privacy-policy" class="link" target="_blank">политикой конфиденциальности</a>.
+                </p>
+            </div>
+        </div>
+
+        <div class="login-security">
+            <h3>Безопасность регистрации</h3>
+            <div class="security-grid">
+                <div class="security-item">
+                    <strong>🔐 Argon2 хеширование</strong>
+                    <p>Ваш пароль надежно зашифрован</p>
+                </div>
+                <div class="security-item">
+                    <strong>🛡️ Обязательная 2FA</strong>
+                    <p>Двухфакторная аутентификация для входа по email</p>
+                </div>
+                <div class="security-item">
+                    <strong>👤 Модерация</strong>
+                    <p>Аккаунты активируются администратором</p>
+                </div>
+                <div class="security-item">
+                    <strong>🔒 Защита данных</strong>
+                    <p>Все данные передаются по HTTPS</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-page {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.login-container {
+    max-width: 500px;
+    width: 100%;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+    color: var(--fallback-bc,oklch(var(--bc)/1));
+}
+
+.login-header .subtitle {
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
+.login-card {
+    background: var(--fallback-b1,oklch(var(--b1)/1));
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-icon {
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: center;
+}
+
+.login-card h2 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-description {
+    opacity: 0.7;
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+}
+
+.login-help a {
+    color: var(--fallback-p,oklch(var(--p)/1));
+}
+
+.login-security {
+    background: var(--fallback-b2,oklch(var(--b2)/1));
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.login-security h3 {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.security-item {
+    text-align: center;
+}
+
+.security-item strong {
+    display: block;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+}
+
+.security-item p {
+    font-size: 0.8rem;
+    opacity: 0.6;
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .login-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .login-card {
+        padding: 1.5rem;
+    }
+
+    .security-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<script>
+async function handleRegister(e) {
+    e.preventDefault();
+
+    const form = document.getElementById('register-form');
+    const btn = document.getElementById('register-btn');
+    const btnText = document.getElementById('register-btn-text');
+    const btnLoading = document.getElementById('register-btn-loading');
+    const errorDiv = document.getElementById('register-error');
+    const errorText = document.getElementById('register-error-text');
+
+    // Get form data
+    const email = document.getElementById('email').value.trim();
+    const firstName = document.getElementById('first_name').value.trim();
+    const lastName = document.getElementById('last_name').value.trim();
+    const password = document.getElementById('password').value;
+    const passwordConfirm = document.getElementById('password_confirm').value;
+
+    // Client-side validation
+    if (password !== passwordConfirm) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = 'Пароли не совпадают';
+        return;
+    }
+
+    if (password.length < 12) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = 'Пароль должен быть минимум 12 символов';
+        return;
+    }
+
+    // Hide error, show loading
+    errorDiv.classList.add('hidden');
+    btn.disabled = true;
+    btnText.classList.add('hidden');
+    btnLoading.classList.remove('hidden');
+
+    try {
+        const response = await fetch('/api/v1/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                email: email,
+                password: password,
+                password_confirm: passwordConfirm,
+                first_name: firstName,
+                last_name: lastName || null
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || 'Ошибка регистрации');
+        }
+
+        // Success - redirect to pending activation page
+        showToast('Регистрация успешна! Ожидайте активации.', 'success');
+        setTimeout(() => {
+            window.location.href = '/pending-activation';
+        }, 1500);
+
+    } catch (error) {
+        console.error('Registration error:', error);
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = error.message;
+    } finally {
+        btn.disabled = false;
+        btnText.classList.remove('hidden');
+        btnLoading.classList.add('hidden');
+    }
+}
+</script>
+{% endblock %}

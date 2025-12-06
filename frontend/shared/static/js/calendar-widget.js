@@ -214,7 +214,12 @@ class CalendarWidget {
     const parent = targetInput.parentElement;
     if (!parent.classList.contains('relative')) {
       const wrapper = document.createElement('div');
-      wrapper.className = 'relative';
+      wrapper.className = 'relative flex-1';
+      // Transfer flex-1 from input to wrapper if present
+      if (targetInput.classList.contains('flex-1')) {
+        targetInput.classList.remove('flex-1');
+        targetInput.classList.add('w-full');
+      }
       parent.insertBefore(wrapper, targetInput);
       wrapper.appendChild(targetInput);
       wrapper.appendChild(button);

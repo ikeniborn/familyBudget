@@ -25,13 +25,63 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import get_settings
+from backend.app.middleware.rate_limiter import limiter
 from backend.app.core.dependencies import get_session
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
-from backend.app.schemas.auth import AuthResponse, TelegramAuthData, UserResponse
-from backend.app.services.auth_service import get_user_by_telegram_id, update_user_profile
+from backend.app.schemas.auth import (
+    AuthResponse,
+    TelegramAuthData,
+    UserResponse,
+    EmailRegisterRequest,
+    EmailLoginRequest,
+    EmailLoginResponse,
+    TwoFactorVerifyRequest,
+    TwoFactorSetupAndVerifyRequest,
+    TwoFactorSetupResponse,
+    TwoFactorVerifySetupRequest,
+    TwoFactorSetupCompleteResponse,
+    TwoFactorDisableRequest,
+    BackupCodesResponse,
+    AddEmailRequest,
+    SetPasswordRequest,
+    LinkTelegramRequest,
+    MessageResponse,
+    RegistrationSuccessResponse,
+)
+from backend.app.services.auth_service import (
+    get_user_by_telegram_id,
+    get_user_by_email,
+    get_user_by_id,
+    authenticate_with_password,
+    add_email_to_user,
+    set_user_password,
+    link_telegram_to_user,
+)
 from backend.app.services.avatar_service import download_user_avatar
+from backend.app.services.password_service import (
+    hash_password,
+    validate_password_strength,
+    verify_password,
+)
+from backend.app.services.totp_service import (
+    generate_secret,
+    get_totp_uri,
+    verify_totp,
+    generate_backup_codes,
+    verify_backup_code,
+    get_remaining_backup_codes_count,
+)
+from backend.app.services.two_factor_session_service import (
+    create_session as create_2fa_session,
+    verify_session as verify_2fa_session,
+    consume_session as consume_2fa_session,
+)
+from backend.app.services.user_service import (
+    update_user_profile,
+    create_initial_history,
+)
 from backend.app.services.jwt import (
     create_access_token,
     create_refresh_token,
@@ -139,12 +189,14 @@ async def telegram_login_page(request: Request) -> HTMLResponse:
     - Prevents authentication bypass (RISK-002)
     - Sets httpOnly cookies (XSS protection)
     - SameSite=Lax (CSRF protection)
+    - Rate limited: 10 requests per minute (OAuth abuse prevention)
 
     Related:
     - GET /auth/telegram-login - Login page with widget
     - POST /auth/telegram - Direct API authentication
     """,
 )
+@limiter.limit("10/minute")
 async def telegram_callback(
     request: Request,
     response: Response,
@@ -204,12 +256,10 @@ async def telegram_callback(
 
     # Step 3.1: Auto-create new user if not exists (PRD FR-030 compliance)
     if user is None:
-        from datetime import datetime
-
         # Check if this is the admin user
         is_admin_user = (telegram_id == settings.ADMIN_TELEGRAM_ID)
 
-        # Create new user
+        # Create new user (SCD Type 1 - no versioning fields)
         # Admin is auto-activated (is_admin=True, is_active=True)
         # Regular users are inactive by default (admin must activate)
         user = User(
@@ -219,13 +269,14 @@ async def telegram_callback(
             last_name=query_params.get("last_name"),
             is_admin=is_admin_user,
             is_active=is_admin_user,  # Admin auto-activated, others inactive
-            valid_from=datetime.utcnow(),
-            valid_to=datetime(9999, 12, 31, 23, 59, 59),
-            is_current=True,
         )
         session.add(user)
         await session.commit()
         await session.refresh(user)
+
+        # Create initial UserHistory record (SCD Type 2)
+        from backend.app.services.user_service import create_initial_history
+        await create_initial_history(session=session, user=user, change_type="CREATE")
 
     # Step 3.2: Check if user is active (admin auto-activated, others require activation)
     if not user.is_active:
@@ -351,6 +402,7 @@ async def telegram_callback(
     - Refresh token hashed before database storage (SHA-256)
     - httpOnly cookies (XSS protection)
     - SameSite=Lax (CSRF protection)
+    - Rate limited: 10 requests per minute (OAuth abuse prevention)
 
     Related:
     - RISK-002: Telegram OAuth vulnerability
@@ -358,7 +410,9 @@ async def telegram_callback(
     - TASK-020: JWT Refresh Token Mechanism
     """,
 )
+@limiter.limit("10/minute")
 async def telegram_login(
+    request: Request,  # Required for rate limiting
     auth_data: TelegramAuthData,
     response: Response,
     session: AsyncSession = Depends(get_session),
@@ -814,3 +868,878 @@ async def logout(
     response.delete_cookie(key="refresh_token")
 
     return {"message": "Logout successful"}
+
+
+# =============================================================================
+# Email Registration & Login Endpoints
+# =============================================================================
+
+
+@router.post(
+    "/register",
+    response_model=RegistrationSuccessResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register new user with email",
+    responses=get_common_responses(include_401=False),
+    description="""
+    Register a new user with email and password.
+
+    Process:
+    1. Validate email format and password strength
+    2. Check if email is already in use
+    3. Create user with is_active=False (requires admin activation)
+    4. Create initial history record
+
+    After registration:
+    - User must wait for admin to activate their account
+    - User must set up 2FA before first login
+
+    Rate limited: 3 registrations per hour per IP.
+    """,
+)
+@limiter.limit("3/hour")
+async def register_email(
+    request: Request,
+    data: EmailRegisterRequest,
+    session: AsyncSession = Depends(get_session),
+) -> RegistrationSuccessResponse:
+    """Register new user with email/password."""
+    # Step 1: Check if email already in use
+    existing_user = await get_user_by_email(session, data.email)
+    if existing_user:
+        # Generic error to prevent email enumeration
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Registration failed. Please try again or contact support."
+        )
+
+    # Step 2: Validate password strength
+    is_strong, error_message = validate_password_strength(data.password)
+    if not is_strong:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message
+        )
+
+    # Step 3: Create user (email-only, requires admin activation)
+    user = User(
+        email=data.email.lower(),
+        password_hash=hash_password(data.password),
+        first_name=data.first_name,
+        last_name=data.last_name,
+        is_admin=False,
+        is_active=False,  # Requires admin activation
+        two_factor_enabled=False,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    # Step 4: Create initial history record
+    await create_initial_history(session=session, user=user, change_type="CREATE")
+
+    return RegistrationSuccessResponse(user_id=user.id)
+
+
+@router.post(
+    "/login",
+    response_model=EmailLoginResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Login with email and password",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Login with email and password.
+
+    Process:
+    1. Validate email and password
+    2. Check if user is active (admin activated)
+    3. Check if 2FA is enabled (required for email login)
+    4. Create 2FA session (5-min TTL)
+    5. Return session_token for 2FA verification
+
+    Next step: POST /auth/verify-2fa with session_token and TOTP code.
+
+    Rate limited: 5 attempts per minute per IP.
+    """,
+)
+@limiter.limit("5/minute")
+async def login_email(
+    request: Request,
+    data: EmailLoginRequest,
+    session: AsyncSession = Depends(get_session),
+) -> EmailLoginResponse:
+    """Login with email/password, returns 2FA session token."""
+    # Step 1: Authenticate with email/password (timing-safe)
+    user = await authenticate_with_password(session, data.email, data.password)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+
+    # Step 2: Check if user is active
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account pending activation. Please contact administrator."
+        )
+
+    # Step 3: Create 2FA session (5-min TTL)
+    session_token = await create_2fa_session(session, user.id)
+
+    # Step 4: Check if 2FA is enabled
+    if not user.two_factor_enabled:
+        # User needs to set up 2FA first - generate TOTP secret
+        totp_secret = generate_secret()
+        totp_uri = get_totp_uri(totp_secret, user.email)
+
+        # Store temporary secret in session for later verification
+        # We'll validate and save it when user completes setup
+        # For now, we pass it to the frontend (will be stored in the next step)
+
+        return EmailLoginResponse(
+            requires_2fa=False,
+            requires_2fa_setup=True,
+            session_token=session_token,
+            expires_in=300,
+            totp_secret=totp_secret,
+            totp_uri=totp_uri,
+        )
+
+    # User has 2FA enabled - requires verification
+    return EmailLoginResponse(
+        requires_2fa=True,
+        requires_2fa_setup=False,
+        session_token=session_token,
+        expires_in=300,
+    )
+
+
+@router.post(
+    "/verify-2fa",
+    response_model=AuthResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Verify 2FA code and complete login",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Verify TOTP code and complete email login.
+
+    Process:
+    1. Validate session_token (from /auth/login)
+    2. Verify TOTP code or backup code
+    3. Mark session as consumed (single-use)
+    4. Generate JWT access and refresh tokens
+    5. Set tokens in httpOnly cookies
+
+    Accepts:
+    - TOTP code: 6 digits from authenticator app
+    - Backup code: XXXX-XXXX format (one-time use)
+
+    Rate limited: 5 attempts per minute per IP.
+    """,
+)
+@limiter.limit("5/minute")
+async def verify_2fa(
+    request: Request,
+    response: Response,
+    data: TwoFactorVerifyRequest,
+    session: AsyncSession = Depends(get_session),
+) -> AuthResponse:
+    """Verify 2FA code and complete login."""
+    # Step 1: Verify session token
+    user_id = await verify_2fa_session(session, data.session_token)
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session. Please login again."
+        )
+
+    # Step 2: Load user
+    user = await get_user_by_id(session, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Step 3: Verify TOTP or backup code
+    code = data.code.strip()
+    is_valid = False
+
+    # Try TOTP code first (6 digits)
+    if code.isdigit() and len(code) == 6:
+        if user.two_factor_secret:
+            is_valid = verify_totp(user.two_factor_secret, code)
+    else:
+        # Try backup code
+        if user.backup_codes:
+            is_valid, new_backup_codes = verify_backup_code(code, user.backup_codes)
+            if is_valid:
+                # Update backup codes (remove used one)
+                user.backup_codes = new_backup_codes
+                session.add(user)
+
+    if not is_valid:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid 2FA code"
+        )
+
+    # Step 4: Consume 2FA session (single-use)
+    await consume_2fa_session(session, data.session_token)
+
+    # Step 5: Generate JWT tokens
+    access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id)
+    refresh_token, refresh_expires = create_refresh_token(user_id=user.id)
+    refresh_token_hash = hash_token(refresh_token)
+
+    # Step 6: Store refresh token in database
+    db_refresh_token = RefreshToken(
+        user_id=user.id,
+        token_hash=refresh_token_hash,
+        expires_at=refresh_expires,
+    )
+    session.add(db_refresh_token)
+    await session.commit()
+
+    # Step 7: Set JWT cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,  # 7 days
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,  # 30 days
+    )
+
+    # Step 8: Return user data
+    user_response = UserResponse(
+        id=user.id,
+        telegram_id=user.telegram_id,
+        email=user.email,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        photo_url=user.photo_url,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        two_factor_enabled=user.two_factor_enabled,
+    )
+
+    return AuthResponse(
+        user=user_response,
+        message="Authentication successful",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+    )
+
+
+# =============================================================================
+# Two-Factor Authentication (2FA) Initial Setup (during login)
+# =============================================================================
+
+
+@router.post(
+    "/setup-and-verify-2fa",
+    response_model=AuthResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Set up 2FA and complete login (first-time setup)",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Set up 2FA for the first time and complete login.
+
+    Used when user logs in with email/password but doesn't have 2FA enabled yet.
+
+    Process:
+    1. Validate session_token (from /auth/login)
+    2. Verify TOTP code matches provided secret
+    3. Save TOTP secret and enable 2FA for user
+    4. Generate backup codes
+    5. Consume session (single-use)
+    6. Generate JWT tokens and set cookies
+
+    Rate limited: 5 attempts per minute per IP.
+    """,
+)
+@limiter.limit("5/minute")
+async def setup_and_verify_2fa(
+    request: Request,
+    response: Response,
+    data: TwoFactorSetupAndVerifyRequest,
+    session: AsyncSession = Depends(get_session),
+) -> AuthResponse:
+    """Set up 2FA and complete login for first-time users."""
+    # Step 1: Verify session token
+    user_id = await verify_2fa_session(session, data.session_token)
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session. Please login again."
+        )
+
+    # Step 2: Load user
+    user = await get_user_by_id(session, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Step 3: Check if user already has 2FA enabled
+    if user.two_factor_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is already enabled. Use /verify-2fa instead."
+        )
+
+    # Step 4: Verify TOTP code with provided secret
+    code = data.code.strip()
+    if not code.isdigit() or len(code) != 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid code format. Must be 6 digits."
+        )
+
+    if not verify_totp(data.totp_secret, code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid 2FA code. Please try again."
+        )
+
+    # Step 5: Enable 2FA for user
+    user.two_factor_secret = data.totp_secret
+    user.two_factor_enabled = True
+
+    # Step 6: Generate backup codes
+    plain_codes, hashed_codes_json = generate_backup_codes()
+    user.backup_codes = hashed_codes_json
+    session.add(user)
+
+    # Step 7: Consume 2FA session
+    await consume_2fa_session(session, data.session_token)
+
+    # Step 8: Generate JWT tokens
+    access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id)
+    refresh_token, refresh_expires = create_refresh_token(user_id=user.id)
+    refresh_token_hash = hash_token(refresh_token)
+
+    # Step 9: Store refresh token in database
+    db_refresh_token = RefreshToken(
+        user_id=user.id,
+        token_hash=refresh_token_hash,
+        expires_at=refresh_expires,
+    )
+    session.add(db_refresh_token)
+    await session.commit()
+
+    # Step 10: Set JWT cookies
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 7,  # 7 days
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30,  # 30 days
+    )
+
+    # Step 11: Return user data with backup codes
+    user_response = UserResponse(
+        id=user.id,
+        telegram_id=user.telegram_id,
+        email=user.email,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        photo_url=user.photo_url,
+        is_admin=user.is_admin,
+        is_active=user.is_active,
+        two_factor_enabled=user.two_factor_enabled,
+    )
+
+    return AuthResponse(
+        user=user_response,
+        message="2FA enabled successfully. Save your backup codes!",
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        backup_codes=plain_codes,
+    )
+
+
+# =============================================================================
+# Two-Factor Authentication (2FA) Setup Endpoints (authenticated users)
+# =============================================================================
+
+
+@router.post(
+    "/setup-2fa",
+    response_model=TwoFactorSetupResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Start 2FA setup",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Start 2FA setup process.
+
+    Process:
+    1. Generate TOTP secret
+    2. Generate QR code URI
+    3. Store secret temporarily (not activated yet)
+    4. Return secret and QR URI
+
+    Next step: POST /auth/verify-2fa-setup with code from authenticator.
+
+    Requires: Authenticated user (via JWT cookie).
+    """,
+)
+async def setup_2fa(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> TwoFactorSetupResponse:
+    """Start 2FA setup, returns secret and QR code URI."""
+    # Get current user from request.state (set by JWT middleware)
+    # Use user_id which is always set for both Telegram and email users
+    if not hasattr(request.state, 'user_id'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
+    # Load user by user_id (works for both Telegram and email-only users)
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Check if user has email set (required for 2FA)
+    if not user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email required. Please add email before setting up 2FA."
+        )
+
+    # Check if user has password set (required for 2FA)
+    if not user.password_hash:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password required. Please set password before setting up 2FA."
+        )
+
+    # Generate new TOTP secret
+    secret = generate_secret()
+
+    # Store secret temporarily (will be activated after verification)
+    user.two_factor_secret = secret
+    user.two_factor_enabled = False  # Not activated yet
+    session.add(user)
+    await session.commit()
+
+    # Generate QR code URI
+    qr_uri = get_totp_uri(secret, user.email, "Family Budget")
+
+    return TwoFactorSetupResponse(
+        secret=secret,
+        qr_uri=qr_uri,
+    )
+
+
+@router.post(
+    "/verify-2fa-setup",
+    response_model=TwoFactorSetupCompleteResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Complete 2FA setup",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Complete 2FA setup by verifying TOTP code.
+
+    Process:
+    1. Verify TOTP code from authenticator
+    2. Activate 2FA for user
+    3. Generate backup codes
+    4. Return backup codes (show only once!)
+
+    Requires: Authenticated user + 2FA secret already set.
+    """,
+)
+async def verify_2fa_setup(
+    request: Request,
+    data: TwoFactorVerifySetupRequest,
+    session: AsyncSession = Depends(get_session),
+) -> TwoFactorSetupCompleteResponse:
+    """Complete 2FA setup, returns backup codes."""
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Check if 2FA secret is set
+    if not user.two_factor_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA not initiated. Please call /auth/setup-2fa first."
+        )
+
+    # Verify TOTP code
+    if not verify_totp(user.two_factor_secret, data.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid code. Please check your authenticator app."
+        )
+
+    # Generate backup codes
+    plain_codes, hashed_codes_json = generate_backup_codes()
+
+    # Activate 2FA
+    user.two_factor_enabled = True
+    user.backup_codes = hashed_codes_json
+    session.add(user)
+    await session.commit()
+
+    return TwoFactorSetupCompleteResponse(
+        backup_codes=plain_codes,
+        remaining_codes=len(plain_codes),
+    )
+
+
+@router.post(
+    "/disable-2fa",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Disable 2FA",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Disable two-factor authentication.
+
+    Requires current password and TOTP code for security.
+
+    WARNING: This reduces account security.
+    """,
+)
+async def disable_2fa(
+    request: Request,
+    data: TwoFactorDisableRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MessageResponse:
+    """Disable 2FA for current user."""
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Verify password
+    if not user.password_hash or not verify_password(data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid password"
+        )
+
+    # Verify TOTP code
+    if not user.two_factor_secret or not verify_totp(user.two_factor_secret, data.code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid 2FA code"
+        )
+
+    # Disable 2FA
+    user.two_factor_enabled = False
+    user.two_factor_secret = None
+    user.backup_codes = None
+    session.add(user)
+    await session.commit()
+
+    return MessageResponse(message="2FA disabled successfully")
+
+
+@router.post(
+    "/backup-codes",
+    response_model=BackupCodesResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Generate new backup codes",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Generate new backup codes.
+
+    Old backup codes are invalidated when new ones are generated.
+
+    Requires: Authenticated user with 2FA enabled.
+    """,
+)
+async def regenerate_backup_codes(
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+) -> BackupCodesResponse:
+    """Generate new backup codes, invalidating old ones."""
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    if not user.two_factor_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA not enabled"
+        )
+
+    # Generate new backup codes
+    plain_codes, hashed_codes_json = generate_backup_codes()
+
+    # Save to database (old codes are replaced)
+    user.backup_codes = hashed_codes_json
+    session.add(user)
+    await session.commit()
+
+    return BackupCodesResponse(backup_codes=plain_codes)
+
+
+# =============================================================================
+# Email & Password Management Endpoints
+# =============================================================================
+
+
+@router.post(
+    "/add-email",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Add email to Telegram account",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Add email to existing Telegram account.
+
+    Allows Telegram users to add email for alternative login method.
+
+    Requires: Authenticated user (via Telegram).
+    """,
+)
+async def add_email_endpoint(
+    request: Request,
+    data: AddEmailRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MessageResponse:
+    """Add email to current user account."""
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Add email
+    success = await add_email_to_user(session, user, data.email)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already in use by another account"
+        )
+
+    return MessageResponse(message="Email added successfully")
+
+
+@router.post(
+    "/set-password",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Set or change password",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Set or change password.
+
+    Requires email to be set first.
+
+    Requires: Authenticated user.
+    """,
+)
+async def set_password_endpoint(
+    request: Request,
+    data: SetPasswordRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MessageResponse:
+    """Set or change password for current user."""
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Check if email is set
+    if not user.email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email required. Please add email first."
+        )
+
+    # Validate password strength
+    is_strong, error_message = validate_password_strength(data.password)
+    if not is_strong:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error_message
+        )
+
+    # Set password
+    await set_user_password(session, user, data.password)
+
+    return MessageResponse(message="Password set successfully")
+
+
+@router.post(
+    "/link-telegram",
+    response_model=MessageResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Link Telegram to email account",
+    responses=get_common_responses(include_401=True),
+    description="""
+    Link Telegram account to existing email user.
+
+    Validates Telegram OAuth data and links to current user.
+
+    Requires: Authenticated user (via email).
+    """,
+)
+@limiter.limit("10/minute")
+async def link_telegram_endpoint(
+    request: Request,
+    data: LinkTelegramRequest,
+    session: AsyncSession = Depends(get_session),
+) -> MessageResponse:
+    """Link Telegram to current user account."""
+    # Get current user by user_id (works for both Telegram and email-only users)
+    if not hasattr(request.state, 'user_id'):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required"
+        )
+
+    user_id = request.state.user_id
+    user = await get_user_by_id(session, user_id)
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    # Check if user already has Telegram linked
+    if user.telegram_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Telegram already linked to this account"
+        )
+
+    # Validate Telegram auth data
+    from backend.app.services.telegram_auth import validate_telegram_auth
+
+    auth_data = {
+        "id": data.id,
+        "first_name": data.first_name,
+        "last_name": data.last_name,
+        "username": data.username,
+        "photo_url": data.photo_url,
+        "auth_date": data.auth_date,
+        "hash": data.hash,
+    }
+
+    if not validate_telegram_auth(auth_data):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid Telegram authentication data"
+        )
+
+    # Check if this Telegram ID is already linked to another account
+    existing_user = await get_user_by_telegram_id(session, data.id)
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This Telegram account is already linked to another user"
+        )
+
+    # Link Telegram to user
+    success = await link_telegram_to_user(
+        session=session,
+        user=user,
+        telegram_id=data.id,
+        username=data.username,
+        first_name=data.first_name,
+        last_name=data.last_name,
+        photo_url=data.photo_url,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to link Telegram account"
+        )
+
+    return MessageResponse(message="Telegram linked successfully")

@@ -11,7 +11,7 @@ from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import text, update as sa_update
+from sqlalchemy import text
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -77,6 +77,67 @@ class UserStatsResponse(BaseModel):
 # ============================================================================
 # Users Management Endpoints
 # ============================================================================
+
+# ============================================================================
+# System Settings Endpoints
+# ============================================================================
+
+
+class SystemTimezoneResponse(BaseModel):
+    """System timezone response."""
+    current_timezone: str
+    current_offset: str
+    current_display: str
+    server_time: str
+    common_timezones: list[dict]
+
+
+@router.get("/settings/timezone", response_model=SystemTimezoneResponse)
+async def get_system_timezone(
+    current_admin: CurrentAdmin,
+) -> SystemTimezoneResponse:
+    """
+    Get current system timezone settings (admin only).
+
+    Returns:
+    - current_timezone: IANA timezone name (e.g., "Europe/Moscow")
+    - current_offset: UTC offset (e.g., "UTC+03:00")
+    - current_display: Human-readable format
+    - server_time: Current server time in system timezone
+    - common_timezones: List of available timezones for reference
+
+    Note: To change SYSTEM_TIMEZONE, update .env file and restart the application.
+    """
+    from datetime import timezone as tz
+    from zoneinfo import ZoneInfo
+    from backend.app.core.config import get_settings
+    from backend.app.utils.timezone import get_common_timezones, now_local
+
+    settings = get_settings()
+    tz_name = settings.SYSTEM_TIMEZONE
+
+    # Get current offset
+    now = datetime.now(tz.utc)
+    try:
+        local_tz = ZoneInfo(tz_name)
+        local_time = now.astimezone(local_tz)
+        offset = local_time.strftime("%z")
+        offset_formatted = f"UTC{offset[:3]}:{offset[3:]}"
+        display = f"({offset_formatted}) {tz_name}"
+        server_time = local_time.strftime("%d.%m.%Y %H:%M:%S")
+    except Exception:
+        offset_formatted = "UTC+00:00"
+        display = f"(UTC+00:00) {tz_name}"
+        server_time = now.strftime("%d.%m.%Y %H:%M:%S")
+
+    return SystemTimezoneResponse(
+        current_timezone=tz_name,
+        current_offset=offset_formatted,
+        current_display=display,
+        server_time=server_time,
+        common_timezones=get_common_timezones(),
+    )
+
 
 @router.get("/users", response_model=UserListResponse)
 async def get_all_users(
@@ -451,55 +512,80 @@ async def create_user(
     """
     Create new user (admin only).
 
-    Creates a new user record with SCD Type 2 fields.
-    Validates telegram_id uniqueness in database.
+    Creates a new user record with SCD Type 1 fields.
+    Validates telegram_id and/or email uniqueness in database.
 
-    **SCD Type 2 Behavior:**
-    - Creates initial version with is_current=True
-    - valid_from=now(), valid_to=9999-12-31
+    **Supports two auth methods:**
+    - Telegram ID only (for Telegram OAuth users)
+    - Email only (for email/password auth users)
+    - Both (user can login via either method)
+
+    **SCD Type 1 Behavior:**
+    - Creates record in main User table
+    - Creates initial history record in UserHistory table
 
     Args:
-        user_data: User creation data (telegram_id, username, etc.)
+        user_data: User creation data (telegram_id and/or email, username, etc.)
         current_admin: Current admin user (from dependency)
         session: Database session
 
     Returns:
-        UserDetailResponse: Created user record with SCD Type 2 fields
+        UserDetailResponse: Created user record
 
     Raises:
-        HTTPException: 409 if telegram_id already exists (duplicate)
+        HTTPException: 409 if telegram_id or email already exists (duplicate)
+        HTTPException: 400 if neither telegram_id nor email provided
 
     Example:
         POST /api/v1/admin/users
         Body: {
-            "telegram_id": 123456789,
+            "telegram_id": 123456789,  // optional if email provided
+            "email": "user@example.com",  // optional if telegram_id provided
             "username": "johndoe",
             "first_name": "John",
             "is_admin": false
         }
     """
-    # Check if user with this telegram_id already exists
-    statement = select(User).where(User.telegram_id == user_data.telegram_id)
-    result = await session.execute(statement)
-    existing_user = result.scalar_one_or_none()
+    # Check if user with this telegram_id already exists (if provided)
+    if user_data.telegram_id is not None:
+        statement = select(User).where(User.telegram_id == user_data.telegram_id)
+        result = await session.execute(statement)
+        existing_user = result.scalar_one_or_none()
 
-    if existing_user:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"User with telegram_id={user_data.telegram_id} "
-                "already exists"
+        if existing_user:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"User with telegram_id={user_data.telegram_id} "
+                    "already exists"
+                )
             )
-        )
+
+    # Check if user with this email already exists (if provided)
+    if user_data.email is not None and user_data.email.strip() != '':
+        email_statement = select(User).where(User.email == user_data.email)
+        email_result = await session.execute(email_statement)
+        existing_email_user = email_result.scalar_one_or_none()
+
+        if existing_email_user:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"User with email={user_data.email} "
+                    "already exists"
+                )
+            )
 
     # Create new user (SCD Type 1 - main table only)
     now = datetime.utcnow()
     new_user = User(
         telegram_id=user_data.telegram_id,
+        email=user_data.email if user_data.email and user_data.email.strip() else None,
         username=user_data.username,
         first_name=user_data.first_name,
+        last_name=user_data.last_name,
         is_admin=user_data.is_admin,
-        is_active=False,  # NEW: Requires admin activation
+        is_active=user_data.is_active,  # Admin can activate immediately
         created_at=now,
         updated_at=now,
     )
@@ -565,6 +651,32 @@ async def update_user_role(
     # If no updates provided, return existing user
     if not updates:
         return user
+
+    # Validate telegram_id uniqueness if being changed
+    if "telegram_id" in updates and updates["telegram_id"] is not None:
+        new_telegram_id = updates["telegram_id"]
+        # Check if another user has this telegram_id
+        existing_query = select(User).where(
+            User.telegram_id == new_telegram_id,
+            User.id != user_id
+        )
+        existing_result = await session.execute(existing_query)
+        existing_user = existing_result.scalar_one_or_none()
+        if existing_user:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Telegram ID {new_telegram_id} is already used by another user"
+            )
+
+    # Validate that at least one auth method remains
+    # Calculate future state of telegram_id and email
+    future_telegram_id = updates.get("telegram_id", user.telegram_id) if "telegram_id" in updates else user.telegram_id
+    future_email = updates.get("email", user.email) if "email" in updates else user.email
+    if future_telegram_id is None and (future_email is None or future_email == ""):
+        raise HTTPException(
+            status_code=400,
+            detail="At least one auth method (Telegram ID or Email) must be set"
+        )
 
     # Prevent demoting the last admin
     if updates.get("is_admin") is False and user.is_admin:
@@ -717,6 +829,130 @@ async def deactivate_user(
     logger.info(
         f"User {user_id} deactivated by admin {current_admin.id} "
         f"(telegram_id={user.telegram_id}, username={user.username})"
+    )
+
+    return user
+
+
+@router.put("/users/{user_id}/reset-password", response_model=UserDetailResponse)
+async def reset_user_password(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Reset user's password (admin only).
+
+    **Admin Only:** Only admin users can reset passwords for other users.
+
+    This endpoint:
+    - Clears password_hash
+
+    User will need to set a new password before they can login via email.
+
+    Args:
+        user_id: User ID to reset password
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: Updated user with password cleared
+
+    Raises:
+        HTTPException: 404 if user not found
+    """
+    # Load user
+    statement = select(User).where(User.id == user_id)
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Check if password is set
+    if not user.password_hash:
+        raise HTTPException(
+            status_code=400,
+            detail="Password is not set for this user"
+        )
+
+    # Reset password
+    user.password_hash = None
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    logger.info(
+        f"Password reset for user {user_id} by admin {current_admin.id} "
+        f"(telegram_id={user.telegram_id}, email={user.email})"
+    )
+
+    return user
+
+
+@router.put("/users/{user_id}/reset-2fa", response_model=UserDetailResponse)
+async def reset_user_2fa(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> User:
+    """
+    Reset user's 2FA (admin only).
+
+    **Admin Only:** Only admin users can reset 2FA for other users.
+
+    This endpoint:
+    - Clears two_factor_secret
+    - Sets two_factor_enabled to False
+    - Clears backup_codes
+
+    User will need to set up 2FA again before they can login via email.
+
+    Args:
+        user_id: User ID to reset 2FA
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserDetailResponse: Updated user with 2FA disabled
+
+    Raises:
+        HTTPException: 404 if user not found
+    """
+    # Load user
+    statement = select(User).where(User.id == user_id)
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"User with id={user_id} not found"
+        )
+
+    # Check if 2FA is enabled
+    if not user.two_factor_enabled:
+        raise HTTPException(
+            status_code=400,
+            detail="2FA is not enabled for this user"
+        )
+
+    # Reset 2FA
+    user.two_factor_secret = None
+    user.two_factor_enabled = False
+    user.backup_codes = None
+    user.updated_at = datetime.utcnow()
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    logger.info(
+        f"2FA reset for user {user_id} by admin {current_admin.id} "
+        f"(telegram_id={user.telegram_id}, email={user.email})"
     )
 
     return user
@@ -1464,8 +1700,8 @@ async def get_all_facts(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date_to format. Use ISO format (YYYY-MM-DD)")
 
-    # Order and paginate
-    query = query.order_by(Fact.fact_date.desc(), Fact.id.desc()).limit(limit).offset(offset)
+    # Order and paginate (newest by updated_at first, then by id as tiebreaker)
+    query = query.order_by(Fact.updated_at.desc(), Fact.id.desc()).limit(limit).offset(offset)
 
     result = await session.execute(query)
     rows = result.all()

@@ -6,6 +6,14 @@ for User table with temporal validity (valid_from, valid_to).
 
 All changes to User table are logged here with metadata about what changed,
 when, and who made the change.
+
+SECURITY NOTE:
+    The following fields are NEVER stored in history (security sensitive):
+    - password_hash: Never store password hashes in history
+    - two_factor_secret: TOTP secrets must not be logged
+    - backup_codes: Backup codes must not be logged
+
+    Only non-sensitive fields are tracked for audit purposes.
 """
 
 from datetime import datetime, timezone
@@ -48,18 +56,20 @@ class UserHistory(SQLModel, table=True):
     Attributes:
         history_id: Surrogate primary key for history records
         user_id: Foreign key to t_d_user.id (stable PK)
-        telegram_id: Business key (copied from User for denormalization)
+        telegram_id: Business key (nullable for email-only users)
+        email: Email for email-based auth (nullable for Telegram-only users)
         username: Profile snapshot at time of change (optional)
         first_name: Profile snapshot at time of change (optional)
         last_name: Profile snapshot at time of change (optional)
         photo_url: Profile snapshot at time of change (optional)
         is_admin: Status snapshot at time of change
         is_active: Status snapshot at time of change
+        two_factor_enabled: 2FA status at time of change (for security audit)
         last_login_at: Audit snapshot at time of change (optional)
         valid_from: Start of validity period (when change occurred)
         valid_to: End of validity period (9999-12-31 for current version)
         is_current: True for current version (matches User table)
-        change_type: Type of change (CREATE/UPDATE/ROLE_CHANGE/LOGIN)
+        change_type: Type of change (CREATE/UPDATE/ROLE_CHANGE/LOGIN/2FA_ENABLE/2FA_DISABLE)
         changed_fields: Array of changed field names (e.g., ['username', 'photo_url'])
         changed_by_user_id: Who made the change (NULL for automatic)
         created_at: When history record was created
@@ -135,13 +145,27 @@ class UserHistory(SQLModel, table=True):
         description="Foreign key to t_d_user.id (stable - does NOT change on updates)"
     )
 
-    # Business key (copied from User for denormalization)
-    telegram_id: int = Field(
-        sa_column=Column(BigInteger, nullable=False, index=True),
-        description="Telegram user ID (business key, denormalized for fast search, BIGINT for large IDs)"
+    # =========================================================================
+    # Authentication Fields (Business Keys - nullable since either can be auth method)
+    # =========================================================================
+
+    # Telegram OAuth (nullable for email-only users)
+    telegram_id: Optional[int] = Field(
+        sa_column=Column(BigInteger, nullable=True, index=True),
+        default=None,
+        description="Telegram user ID (business key, nullable for email-only users, BIGINT for large IDs)"
     )
 
+    # Email authentication (nullable for Telegram-only users)
+    email: Optional[str] = Field(
+        default=None,
+        max_length=320,  # RFC 5321 max email length
+        description="User email for email-based auth (nullable for Telegram-only users)"
+    )
+
+    # =========================================================================
     # Profile data snapshot (at the time of change)
+    # =========================================================================
     username: Optional[str] = Field(
         default=None,
         max_length=255,
@@ -163,7 +187,10 @@ class UserHistory(SQLModel, table=True):
         description="Photo URL at time of change (snapshot)"
     )
 
+    # =========================================================================
     # Status flags snapshot
+    # =========================================================================
+
     is_admin: bool = Field(
         nullable=False,
         description="Admin flag at time of change (snapshot)"
@@ -172,6 +199,15 @@ class UserHistory(SQLModel, table=True):
         nullable=False,
         description="Active status at time of change (snapshot)"
     )
+
+    # 2FA status (for security audit - tracks when 2FA was enabled/disabled)
+    # NOTE: two_factor_secret is NOT stored in history (security sensitive)
+    two_factor_enabled: bool = Field(
+        default=False,
+        nullable=False,
+        description="2FA enabled status at time of change (for security audit)"
+    )
+
     last_login_at: Optional[datetime] = Field(
         default=None,
         nullable=True,

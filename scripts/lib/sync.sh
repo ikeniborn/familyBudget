@@ -24,6 +24,49 @@
 # CODE SYNCHRONIZATION FUNCTIONS
 # =============================================================================
 
+# Validate repository path for security
+# Prevents path traversal and other malicious paths
+# Args:
+#   $1 - Path to validate
+# Returns:
+#   0 - Valid path
+#   1 - Invalid path
+validate_repo_path() {
+    local path="$1"
+
+    # SECURITY: Check for path traversal attempts
+    if [[ "$path" == *".."* ]]; then
+        error "Path traversal detected: path contains '..'"
+        return 1
+    fi
+
+    # SECURITY: Path must be absolute
+    if [[ "$path" != /* ]]; then
+        error "Path must be absolute (start with /)"
+        return 1
+    fi
+
+    # SECURITY: Disallow dangerous paths
+    case "$path" in
+        /|/bin|/sbin|/usr|/etc|/var|/tmp|/dev|/proc|/sys|/root)
+            error "Cannot use system directory as repository: $path"
+            return 1
+            ;;
+        /bin/*|/sbin/*|/usr/*|/etc/*|/dev/*|/proc/*|/sys/*)
+            error "Cannot use system directory as repository: $path"
+            return 1
+            ;;
+    esac
+
+    # Path must exist and be a directory
+    if [[ ! -d "$path" ]]; then
+        error "Path does not exist or is not a directory: $path"
+        return 1
+    fi
+
+    return 0
+}
+
 # Detect repository directory
 detect_repository_dir() {
     local detected_dir=""
@@ -97,6 +140,10 @@ detect_repository_dir() {
                 ;;
             2)
                 read -p "Enter repository path: " repo_path
+                # SECURITY: Validate path before using
+                if ! validate_repo_path "$repo_path"; then
+                    exit 1
+                fi
                 if [[ -d "$repo_path/.git" && -f "$repo_path/docker-compose.yml" ]]; then
                     detected_dir="$repo_path"
                     info "Using repository: $detected_dir" >&2
@@ -136,6 +183,10 @@ detect_repository_dir() {
     case $choice in
         1)
             read -p "Enter repository path: " repo_path
+            # SECURITY: Validate path before using
+            if ! validate_repo_path "$repo_path"; then
+                exit 1
+            fi
             if [[ -d "$repo_path/.git" && -f "$repo_path/docker-compose.yml" ]]; then
                 detected_dir="$repo_path"
                 info "Using repository: $detected_dir" >&2

@@ -92,6 +92,56 @@
                           placeholder="Комментарий" rows="1"></textarea>
             </div>
 
+            <!-- Напоминание -->
+            <div class="form-control">
+                <label class="label py-1 cursor-pointer justify-start gap-2">
+                    <input type="checkbox" name="enable_reminder" class="checkbox checkbox-sm checkbox-primary"
+                           onchange="toggleReminderSettings('{{ modal_id }}')" />
+                    <span class="label-text">Установить напоминание</span>
+                </label>
+            </div>
+
+            <div id="reminder-settings-{{ modal_id }}" class="hidden space-y-2">
+                <div class="form-control">
+                    <label class="label py-1">
+                        <span class="label-text">Дата и время напоминания</span>
+                    </label>
+                    <!-- Responsive datetime picker: stacked on mobile, inline on desktop -->
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <!-- Date input with CalendarWidget -->
+                        <input
+                            type="text"
+                            name="reminder_date"
+                            id="reminder_date_{{ modal_id }}"
+                            class="input input-bordered flex-1 h-12"
+                            placeholder="ДД.ММ.ГГГГ"
+                            autocomplete="off"
+                        />
+                        <!-- Time dropdowns - on separate row for mobile -->
+                        <div class="flex items-center gap-1 justify-start">
+                            <select name="reminder_hour" id="reminder_hour_{{ modal_id }}" class="select select-bordered w-20 h-12">
+                                <option value="">--</option>
+                                {% for h in range(24) %}
+                                <option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>
+                                {% endfor %}
+                            </select>
+                            <span class="text-lg font-bold">:</span>
+                            <select name="reminder_minute" id="reminder_minute_{{ modal_id }}" class="select select-bordered w-20 h-12">
+                                <option value="">--</option>
+                                {% for m in range(0, 60, 5) %}
+                                <option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Hidden field for combined datetime (populated by JS) -->
+                    <input type="hidden" name="reminder_datetime" id="reminder_datetime_{{ modal_id }}" />
+                </div>
+                <p class="text-xs text-base-content/70">
+                    Уведомление придет в Telegram и как push в браузер
+                </p>
+            </div>
+
             <div class="modal-action mt-3">
                 <button type="button" onclick="{{ modal_id }}.close()" class="btn btn-sm btn-ghost">Отмена</button>
                 <button type="submit" class="btn btn-sm btn-info">

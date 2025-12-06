@@ -21,9 +21,14 @@ async def index(
     """
     Home page / dashboard.
 
-    Shows login prompt if unauthenticated, analytics dashboard if authenticated.
+    Redirects to /login-email if unauthenticated, shows dashboard if authenticated.
     """
+    from fastapi.responses import RedirectResponse
     from backend.app.main import templates
+
+    # Redirect unauthenticated users to login page
+    if not current_user:
+        return RedirectResponse(url="/login-email", status_code=303)
 
     return templates.TemplateResponse(
         "index.html",
@@ -317,5 +322,199 @@ async def import_page(
             "request": request,
             "user": current_user,
             "page_title": "Импорт Tinkoff"
+        }
+    )
+
+
+# =============================================================================
+# Authentication Web Pages (Public and Authenticated)
+# =============================================================================
+
+
+@web_router.get("/register", response_class=HTMLResponse)
+async def register_page(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    """
+    Email registration page (public).
+
+    Provides form for new users to register with email/password.
+    After registration, account requires admin activation.
+    """
+    from backend.app.main import templates
+
+    # Redirect if already logged in
+    if current_user:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/", status_code=303)
+
+    return templates.TemplateResponse(
+        "register.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Регистрация"
+        }
+    )
+
+
+@web_router.get("/login-email", response_class=HTMLResponse)
+async def login_email_page(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    """
+    Email login page (public).
+
+    Provides form for users to login with email/password.
+    After successful password verification, redirects to 2FA page.
+    """
+    from backend.app.main import templates
+
+    # Redirect if already logged in
+    if current_user:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/", status_code=303)
+
+    return templates.TemplateResponse(
+        "login_email.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Вход по Email"
+        }
+    )
+
+
+@web_router.get("/2fa-verify", response_class=HTMLResponse)
+async def two_factor_verify_page(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    """
+    2FA verification page (public, requires session token).
+
+    Shows form to enter TOTP code or backup code.
+    Session token should be stored in sessionStorage by login page.
+    """
+    from backend.app.main import templates
+
+    # Redirect if already logged in
+    if current_user:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/", status_code=303)
+
+    return templates.TemplateResponse(
+        "2fa_verify.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Проверка 2FA"
+        }
+    )
+
+
+@web_router.get("/2fa-setup-login", response_class=HTMLResponse)
+async def two_factor_setup_login_page(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    """
+    2FA setup page for first-time login (public, requires session token).
+
+    Shows QR code and form to enter TOTP code during first login
+    for users who don't have 2FA enabled yet.
+    Session token and TOTP secret stored in sessionStorage by login page.
+    """
+    from backend.app.main import templates
+
+    # Redirect if already logged in
+    if current_user:
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/", status_code=303)
+
+    return templates.TemplateResponse(
+        "2fa_setup_login.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Настройка 2FA"
+        }
+    )
+
+
+@web_router.get("/pending-activation", response_class=HTMLResponse)
+async def pending_activation_page(
+    request: Request,
+    current_user: CurrentUserOptional = None
+):
+    """
+    Pending activation page (public).
+
+    Shows information for users who registered but are waiting
+    for admin approval.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "pending_activation.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Ожидание активации"
+        }
+    )
+
+
+@web_router.get("/security", response_class=HTMLResponse)
+async def security_settings_page(
+    request: Request,
+    current_user: CurrentUser
+):
+    """
+    Security settings page (authenticated).
+
+    Provides interface for managing security settings:
+    - Add email to Telegram account
+    - Set/change password
+    - Enable/disable 2FA
+    - Link Telegram to email account
+    - View backup codes
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "security_settings.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Настройки безопасности"
+        }
+    )
+
+
+@web_router.get("/2fa-setup", response_class=HTMLResponse)
+async def two_factor_setup_page(
+    request: Request,
+    current_user: CurrentUser
+):
+    """
+    2FA setup page (authenticated).
+
+    Provides interface for setting up two-factor authentication:
+    - Display QR code for authenticator app
+    - Manual secret entry option
+    - Code verification
+    - Backup codes display
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "2fa_setup.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Настройка 2FA"
         }
     )

@@ -705,7 +705,7 @@ collect_configuration() {
     prompt "Environment (development/staging/production)" "APP_ENV" "production"
     # Domain will be set based on deployment profile (localhost for basic, prompted for full)
     prompt "Backend port" "BACKEND_PORT" "8000"
-    prompt "Number of Uvicorn workers" "WORKERS" "4"
+    prompt "Number of Uvicorn workers" "WORKERS" "2"
     prompt "Log level (debug/info/warning/error)" "LOG_LEVEL" "info"
 
     success "Configuration collected"

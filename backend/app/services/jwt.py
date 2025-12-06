@@ -131,6 +131,49 @@ def decode_access_token(token: str) -> Optional[int]:
         return None
 
 
+def decode_access_token_full(token: str) -> tuple[Optional[int], Optional[int]]:
+    """
+    Decode JWT access token and return both user_id and telegram_id.
+
+    This function is used when both values are needed, such as in middleware
+    where we need to support both Telegram users (telegram_id) and email-only
+    users (user_id without telegram_id).
+
+    Args:
+        token: JWT token string to decode
+
+    Returns:
+        tuple[Optional[int], Optional[int]]: (user_id, telegram_id)
+            - user_id: Always present for valid tokens
+            - telegram_id: Present for Telegram users, None for email-only users
+
+    Example:
+        >>> user_id, telegram_id = decode_access_token_full("eyJhbGciOiJIUzI1NiIs...")
+        >>> if user_id:
+        ...     print(f"User ID: {user_id}, Telegram ID: {telegram_id}")
+        ... else:
+        ...     print("Invalid or expired token")
+
+    Notes:
+        - Returns (None, None) for invalid/expired tokens
+        - user_id is the database primary key (always set)
+        - telegram_id is the Telegram business key (None for email-only users)
+    """
+    try:
+        # Decode JWT and verify signature
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+        # Extract both claims
+        user_id: Optional[int] = payload.get("user_id")
+        telegram_id: Optional[int] = payload.get("telegram_id")
+
+        return user_id, telegram_id
+
+    except JWTError:
+        # Token is invalid, expired, or malformed
+        return None, None
+
+
 def create_refresh_token(user_id: int) -> tuple[str, datetime]:
     """
     Create JWT refresh token for authenticated user.
