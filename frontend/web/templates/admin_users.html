@@ -46,54 +46,118 @@
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
         <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Добавить нового пользователя</h3>
-        <form id="create-form" onsubmit="createUser(event)" class="space-y-2 sm:space-y-4">
+        <form id="create-form" onsubmit="createUser(event)" class="space-y-4">
             <!-- Auth method hint -->
             <div class="alert alert-info text-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <span>Укажите Telegram ID и/или Email. Необходим хотя бы один способ авторизации.</span>
             </div>
 
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📱 Telegram ID</span>
-                </label>
-                <div class="flex gap-2">
-                    <input type="number" id="create-telegram-id" name="telegram_id" placeholder="Введите Telegram ID (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200 flex-1" />
-                    <button type="button" class="btn btn-outline btn-primary" onclick="checkTelegramId()">🔍 Проверить</button>
+            <!-- Telegram Section -->
+            <div class="collapse collapse-open bg-base-200 rounded-lg">
+                <input type="checkbox" checked />
+                <div class="collapse-title text-md font-medium flex items-center gap-2">
+                    📱 Telegram авторизация
+                    <span class="badge badge-ghost badge-sm">условно обязательно</span>
                 </div>
-                <label class="label">
-                    <span class="label-text-alt" id="telegram-id-hint">Числовой ID пользователя в Telegram</span>
-                </label>
-                <div id="telegram-id-error" class="text-error text-sm mt-1 hidden"></div>
+                <div class="collapse-content space-y-3">
+                    <div class="form-control">
+                        <label class="label py-1">
+                            <span class="label-text">Telegram ID</span>
+                            <span class="label-text-alt text-warning">*если нет Email</span>
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="number" id="create-telegram-id" name="telegram_id" placeholder="Числовой ID (например: 123456789)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200 flex-1" />
+                            <button type="button" class="btn btn-outline btn-primary btn-sm" onclick="checkTelegramId()">🔍 Проверить</button>
+                        </div>
+                        <label class="label py-0">
+                            <span class="label-text-alt" id="telegram-id-hint">Числовой ID можно узнать через @userinfobot</span>
+                        </label>
+                        <div id="telegram-id-error" class="text-error text-sm mt-1 hidden"></div>
+                    </div>
+                    <div class="form-control">
+                        <label class="label py-1">
+                            <span class="label-text">Username</span>
+                        </label>
+                        <input type="text" id="create-username" name="username" maxlength="255" placeholder="@username (заполняется автоматически при проверке)" class="input input-bordered input-sm rounded-lg" />
+                    </div>
+                </div>
             </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📧 Email</span>
-                </label>
-                <input type="email" id="create-email" name="email" maxlength="320" placeholder="user@example.com (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
-                <label class="label">
-                    <span class="label-text-alt">Email для входа по паролю</span>
-                </label>
+
+            <!-- Email Section -->
+            <div class="collapse collapse-open bg-base-200 rounded-lg">
+                <input type="checkbox" checked />
+                <div class="collapse-title text-md font-medium flex items-center gap-2">
+                    📧 Email авторизация
+                    <span class="badge badge-ghost badge-sm">условно обязательно</span>
+                </div>
+                <div class="collapse-content space-y-3">
+                    <div class="form-control">
+                        <label class="label py-1">
+                            <span class="label-text">Email</span>
+                            <span class="label-text-alt text-warning">*если нет Telegram ID</span>
+                        </label>
+                        <input type="email" id="create-email" name="email" maxlength="320" placeholder="user@example.com" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+                        <label class="label py-0">
+                            <span class="label-text-alt">Пользователь сможет входить по Email + пароль + 2FA</span>
+                        </label>
+                    </div>
+                </div>
             </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">👤 Username</span>
-                </label>
-                <input type="text" id="create-username" name="username" maxlength="255" placeholder="@username (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+
+            <!-- General Info Section -->
+            <div class="collapse collapse-open bg-base-200 rounded-lg">
+                <input type="checkbox" checked />
+                <div class="collapse-title text-md font-medium flex items-center gap-2">
+                    👤 Общая информация
+                </div>
+                <div class="collapse-content space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="form-control">
+                            <label class="label py-1">
+                                <span class="label-text">Имя</span>
+                            </label>
+                            <input type="text" id="create-first-name" name="first_name" maxlength="255" placeholder="Иван" class="input input-bordered input-sm rounded-lg" />
+                        </div>
+                        <div class="form-control">
+                            <label class="label py-1">
+                                <span class="label-text">Фамилия</span>
+                            </label>
+                            <input type="text" id="create-last-name" name="last_name" maxlength="255" placeholder="Иванов" class="input input-bordered input-sm rounded-lg" />
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text font-medium">📝 Имя</span>
-                </label>
-                <input type="text" id="create-first-name" name="first_name" maxlength="255" placeholder="Введите имя" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+
+            <!-- Permissions Section -->
+            <div class="collapse collapse-open bg-base-200 rounded-lg">
+                <input type="checkbox" checked />
+                <div class="collapse-title text-md font-medium flex items-center gap-2">
+                    🔐 Права доступа
+                </div>
+                <div class="collapse-content space-y-2">
+                    <div class="form-control">
+                        <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input type="checkbox" id="create-is-active" name="is_active" class="checkbox checkbox-sm checkbox-success" />
+                            <div>
+                                <span class="label-text">✅ Сразу активировать</span>
+                                <p class="text-xs text-base-content/60">Пользователь сможет войти в систему без дополнительной активации</p>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="form-control">
+                        <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input type="checkbox" id="create-is-admin" name="is_admin" class="checkbox checkbox-sm checkbox-warning" />
+                            <div>
+                                <span class="label-text">🔑 Администратор</span>
+                                <p class="text-xs text-base-content/60">Полный доступ к управлению пользователями и настройками</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
             </div>
-            <div class="form-control">
-                <label class="label cursor-pointer justify-start gap-3">
-                    <input type="checkbox" id="create-is-admin" name="is_admin" class="checkbox" />
-                    <span class="label-text">🔑 Администратор</span>
-                </label>
-            </div>
-            <div class="modal-action">
+
+            <div class="modal-action pt-2">
                 <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-primary">✅ Создать</button>
             </div>
@@ -108,51 +172,98 @@
 <dialog id="edit-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
         <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать пользователя</h3>
-        <form id="edit-form" onsubmit="updateUser(event)" class="space-y-2 sm:space-y-4">
+        <form id="edit-form" onsubmit="updateUser(event)" class="space-y-4">
             <input type="hidden" id="edit-id" name="id">
 
             <!-- Info badges -->
-            <div id="edit-user-info" class="flex flex-wrap gap-2 mb-4">
+            <div id="edit-user-info" class="flex flex-wrap gap-2 mb-2">
                 <!-- Populated dynamically -->
             </div>
 
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📱 Telegram ID</span>
-                </label>
-                <input type="number" id="edit-telegram-id" name="telegram_id" placeholder="Telegram ID (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
-                <label class="label">
-                    <span class="label-text-alt">Числовой ID пользователя в Telegram (оставьте пустым для email-only пользователя)</span>
-                </label>
+            <!-- Telegram Section -->
+            <div class="collapse collapse-open bg-base-200 rounded-lg">
+                <input type="checkbox" checked />
+                <div class="collapse-title text-md font-medium flex items-center gap-2">
+                    📱 Telegram
+                </div>
+                <div class="collapse-content space-y-3">
+                    <div class="form-control">
+                        <label class="label py-1">
+                            <span class="label-text">Telegram ID</span>
+                            <span class="label-text-alt text-warning">*если нет Email</span>
+                        </label>
+                        <input type="number" id="edit-telegram-id" name="telegram_id" placeholder="Числовой ID (оставьте пустым для email-only)" class="input input-bordered input-sm rounded-lg" />
+                    </div>
+                    <div class="form-control">
+                        <label class="label py-1">
+                            <span class="label-text">Username</span>
+                        </label>
+                        <input type="text" id="edit-username" name="username" maxlength="255" placeholder="@username" class="input input-bordered input-sm rounded-lg" />
+                    </div>
+                </div>
             </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📧 Email</span>
-                </label>
-                <input type="email" id="edit-email" name="email" maxlength="320" placeholder="user@example.com" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
-                <label class="label">
-                    <span class="label-text-alt">Email для входа по паролю</span>
-                </label>
+
+            <!-- Email Section -->
+            <div class="collapse collapse-open bg-base-200 rounded-lg">
+                <input type="checkbox" checked />
+                <div class="collapse-title text-md font-medium flex items-center gap-2">
+                    📧 Email
+                </div>
+                <div class="collapse-content">
+                    <div class="form-control">
+                        <label class="label py-1">
+                            <span class="label-text">Email</span>
+                            <span class="label-text-alt text-warning">*если нет Telegram ID</span>
+                        </label>
+                        <input type="email" id="edit-email" name="email" maxlength="320" placeholder="user@example.com" class="input input-bordered input-sm rounded-lg" />
+                    </div>
+                </div>
             </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">👤 Username</span>
-                </label>
-                <input type="text" id="edit-username" name="username" maxlength="255" placeholder="@username (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+
+            <!-- General Info Section -->
+            <div class="collapse collapse-open bg-base-200 rounded-lg">
+                <input type="checkbox" checked />
+                <div class="collapse-title text-md font-medium flex items-center gap-2">
+                    👤 Общая информация
+                </div>
+                <div class="collapse-content">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="form-control">
+                            <label class="label py-1">
+                                <span class="label-text">Имя</span>
+                            </label>
+                            <input type="text" id="edit-first-name" name="first_name" maxlength="255" placeholder="Иван" class="input input-bordered input-sm rounded-lg" />
+                        </div>
+                        <div class="form-control">
+                            <label class="label py-1">
+                                <span class="label-text">Фамилия</span>
+                            </label>
+                            <input type="text" id="edit-last-name" name="last_name" maxlength="255" placeholder="Иванов" class="input input-bordered input-sm rounded-lg" />
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text font-medium">📝 Имя</span>
-                </label>
-                <input type="text" id="edit-first-name" name="first_name" maxlength="255" placeholder="Введите имя" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+
+            <!-- Permissions Section -->
+            <div class="collapse collapse-open bg-base-200 rounded-lg">
+                <input type="checkbox" checked />
+                <div class="collapse-title text-md font-medium flex items-center gap-2">
+                    🔐 Права доступа
+                </div>
+                <div class="collapse-content">
+                    <div class="form-control">
+                        <label class="label cursor-pointer justify-start gap-3 py-1">
+                            <input type="checkbox" id="edit-is-admin" name="is_admin" class="checkbox checkbox-sm checkbox-warning" />
+                            <div>
+                                <span class="label-text">🔑 Администратор</span>
+                                <p class="text-xs text-base-content/60">Полный доступ к управлению системой</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
             </div>
-            <div class="form-control">
-                <label class="label cursor-pointer justify-start gap-3">
-                    <input type="checkbox" id="edit-is-admin" name="is_admin" class="checkbox" />
-                    <span class="label-text">🔑 Администратор</span>
-                </label>
-            </div>
-            <div class="modal-action">
+
+            <div class="modal-action pt-2">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-primary">💾 Сохранить</button>
             </div>
@@ -612,8 +723,13 @@ function closeCreateModal() {
     // Reset validation state
     const input = document.getElementById('create-telegram-id');
     const errorDiv = document.getElementById('telegram-id-error');
-    input.classList.remove('input-error');
-    errorDiv.classList.add('hidden');
+    if (input) input.classList.remove('input-error');
+    if (errorDiv) errorDiv.classList.add('hidden');
+    // Reset all checkboxes to default unchecked state
+    const isActiveCheckbox = document.getElementById('create-is-active');
+    const isAdminCheckbox = document.getElementById('create-is-admin');
+    if (isActiveCheckbox) isActiveCheckbox.checked = false;
+    if (isAdminCheckbox) isAdminCheckbox.checked = false;
 }
 
 // Check Telegram ID (on-demand validation)
@@ -694,7 +810,9 @@ async function createUser(event) {
         email: hasEmail ? emailValue.trim() : null,
         username: formData.get('username') || null,
         first_name: formData.get('first_name') || null,
-        is_admin: formData.get('is_admin') === 'on'
+        last_name: formData.get('last_name') || null,
+        is_admin: formData.get('is_admin') === 'on',
+        is_active: formData.get('is_active') === 'on'
     };
 
     try {
@@ -709,7 +827,18 @@ async function createUser(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            // Handle Pydantic validation errors (array of errors)
+            let errorMessage = '';
+            if (Array.isArray(error.detail)) {
+                errorMessage = error.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('; ');
+            } else if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail) {
+                errorMessage = JSON.stringify(error.detail);
+            } else {
+                errorMessage = `HTTP error! status: ${response.status}`;
+            }
+            throw new Error(errorMessage);
         }
 
         // Success
@@ -821,12 +950,14 @@ function showEditUserModal(userId) {
     document.getElementById('edit-email').value = user.email || '';
     document.getElementById('edit-username').value = user.username || '';
     document.getElementById('edit-first-name').value = user.first_name || '';
+    document.getElementById('edit-last-name').value = user.last_name || '';
     document.getElementById('edit-is-admin').checked = user.is_admin;
 
     // Build info badges
     let badges = [];
+    badges.push(`<span class="badge badge-neutral gap-1">ID: ${user.id}</span>`);
     if (user.telegram_id) {
-        badges.push(`<span class="badge badge-primary gap-1">📱 Telegram: ${user.telegram_id}</span>`);
+        badges.push(`<span class="badge badge-primary gap-1">📱 TG: ${user.telegram_id}</span>`);
     }
     if (user.email) {
         badges.push(`<span class="badge badge-secondary gap-1">📧 Email</span>`);
@@ -872,6 +1003,7 @@ async function updateUser(event) {
         telegram_id: telegram_id,
         username: formData.get('username') || null,
         first_name: formData.get('first_name') || null,
+        last_name: formData.get('last_name') || null,
         email: formData.get('email') || null,
         is_admin: formData.get('is_admin') === 'on'
     };
@@ -886,7 +1018,18 @@ async function updateUser(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            // Handle Pydantic validation errors (array of errors)
+            let errorMessage = '';
+            if (Array.isArray(error.detail)) {
+                errorMessage = error.detail.map(e => e.msg || e.message || JSON.stringify(e)).join('; ');
+            } else if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail) {
+                errorMessage = JSON.stringify(error.detail);
+            } else {
+                errorMessage = `HTTP error! status: ${response.status}`;
+            }
+            throw new Error(errorMessage);
         }
 
         closeEditModal();

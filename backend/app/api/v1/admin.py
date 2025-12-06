@@ -583,8 +583,9 @@ async def create_user(
         email=user_data.email if user_data.email and user_data.email.strip() else None,
         username=user_data.username,
         first_name=user_data.first_name,
+        last_name=user_data.last_name,
         is_admin=user_data.is_admin,
-        is_active=False,  # Requires admin activation
+        is_active=user_data.is_active,  # Admin can activate immediately
         created_at=now,
         updated_at=now,
     )
