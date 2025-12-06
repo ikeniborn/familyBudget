@@ -47,18 +47,33 @@
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
         <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Добавить нового пользователя</h3>
         <form id="create-form" onsubmit="createUser(event)" class="space-y-2 sm:space-y-4">
+            <!-- Auth method hint -->
+            <div class="alert alert-info text-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <span>Укажите Telegram ID и/или Email. Необходим хотя бы один способ авторизации.</span>
+            </div>
+
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">📱 Telegram ID*</span>
+                    <span class="label-text">📱 Telegram ID</span>
                 </label>
                 <div class="flex gap-2">
-                    <input type="number" id="create-telegram-id" name="telegram_id" required placeholder="Введите Telegram ID" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200 flex-1" />
+                    <input type="number" id="create-telegram-id" name="telegram_id" placeholder="Введите Telegram ID (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200 flex-1" />
                     <button type="button" class="btn btn-outline btn-primary" onclick="checkTelegramId()">🔍 Проверить</button>
                 </div>
                 <label class="label">
                     <span class="label-text-alt" id="telegram-id-hint">Числовой ID пользователя в Telegram</span>
                 </label>
                 <div id="telegram-id-error" class="text-error text-sm mt-1 hidden"></div>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📧 Email</span>
+                </label>
+                <input type="email" id="create-email" name="email" maxlength="320" placeholder="user@example.com (необязательно)" class="input input-bordered rounded-lg focus:ring-2 focus:ring-primary transition-all duration-200" />
+                <label class="label">
+                    <span class="label-text-alt">Email для входа по паролю</span>
+                </label>
             </div>
             <div class="form-control">
                 <label class="label">
@@ -604,11 +619,17 @@ function closeCreateModal() {
 // Check Telegram ID (on-demand validation)
 async function checkTelegramId() {
     const telegramIdInput = document.getElementById('create-telegram-id');
-    const telegram_id = parseInt(telegramIdInput.value);
+    const telegramIdValue = telegramIdInput.value.trim();
 
     // Validation
-    if (!telegram_id || telegram_id <= 0) {
-        showNotification('Введите корректный Telegram ID', 'error');
+    if (!telegramIdValue) {
+        showNotification('Введите Telegram ID для проверки', 'warning');
+        return;
+    }
+
+    const telegram_id = parseInt(telegramIdValue);
+    if (isNaN(telegram_id) || telegram_id <= 0) {
+        showNotification('Telegram ID должен быть положительным числом', 'error');
         return;
     }
 
@@ -656,8 +677,21 @@ async function createUser(event) {
     event.preventDefault();
 
     const formData = new FormData(event.target);
+    const telegramIdValue = formData.get('telegram_id');
+    const emailValue = formData.get('email');
+
+    // Validate at least one auth method is provided
+    const hasTelegramId = telegramIdValue && telegramIdValue.trim() !== '';
+    const hasEmail = emailValue && emailValue.trim() !== '';
+
+    if (!hasTelegramId && !hasEmail) {
+        showNotification('Укажите Telegram ID или Email', 'error');
+        return;
+    }
+
     const data = {
-        telegram_id: parseInt(formData.get('telegram_id')),
+        telegram_id: hasTelegramId ? parseInt(telegramIdValue) : null,
+        email: hasEmail ? emailValue.trim() : null,
         username: formData.get('username') || null,
         first_name: formData.get('first_name') || null,
         is_admin: formData.get('is_admin') === 'on'

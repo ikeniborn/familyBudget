@@ -512,55 +512,79 @@ async def create_user(
     """
     Create new user (admin only).
 
-    Creates a new user record with SCD Type 2 fields.
-    Validates telegram_id uniqueness in database.
+    Creates a new user record with SCD Type 1 fields.
+    Validates telegram_id and/or email uniqueness in database.
 
-    **SCD Type 2 Behavior:**
-    - Creates initial version with is_current=True
-    - valid_from=now(), valid_to=9999-12-31
+    **Supports two auth methods:**
+    - Telegram ID only (for Telegram OAuth users)
+    - Email only (for email/password auth users)
+    - Both (user can login via either method)
+
+    **SCD Type 1 Behavior:**
+    - Creates record in main User table
+    - Creates initial history record in UserHistory table
 
     Args:
-        user_data: User creation data (telegram_id, username, etc.)
+        user_data: User creation data (telegram_id and/or email, username, etc.)
         current_admin: Current admin user (from dependency)
         session: Database session
 
     Returns:
-        UserDetailResponse: Created user record with SCD Type 2 fields
+        UserDetailResponse: Created user record
 
     Raises:
-        HTTPException: 409 if telegram_id already exists (duplicate)
+        HTTPException: 409 if telegram_id or email already exists (duplicate)
+        HTTPException: 400 if neither telegram_id nor email provided
 
     Example:
         POST /api/v1/admin/users
         Body: {
-            "telegram_id": 123456789,
+            "telegram_id": 123456789,  // optional if email provided
+            "email": "user@example.com",  // optional if telegram_id provided
             "username": "johndoe",
             "first_name": "John",
             "is_admin": false
         }
     """
-    # Check if user with this telegram_id already exists
-    statement = select(User).where(User.telegram_id == user_data.telegram_id)
-    result = await session.execute(statement)
-    existing_user = result.scalar_one_or_none()
+    # Check if user with this telegram_id already exists (if provided)
+    if user_data.telegram_id is not None:
+        statement = select(User).where(User.telegram_id == user_data.telegram_id)
+        result = await session.execute(statement)
+        existing_user = result.scalar_one_or_none()
 
-    if existing_user:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                f"User with telegram_id={user_data.telegram_id} "
-                "already exists"
+        if existing_user:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"User with telegram_id={user_data.telegram_id} "
+                    "already exists"
+                )
             )
-        )
+
+    # Check if user with this email already exists (if provided)
+    if user_data.email is not None and user_data.email.strip() != '':
+        email_statement = select(User).where(User.email == user_data.email)
+        email_result = await session.execute(email_statement)
+        existing_email_user = email_result.scalar_one_or_none()
+
+        if existing_email_user:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    f"User with email={user_data.email} "
+                    "already exists"
+                )
+            )
 
     # Create new user (SCD Type 1 - main table only)
     now = datetime.utcnow()
     new_user = User(
         telegram_id=user_data.telegram_id,
+        email=user_data.email if user_data.email and user_data.email.strip() else None,
         username=user_data.username,
         first_name=user_data.first_name,
         is_admin=user_data.is_admin,
-        is_active=False,  # NEW: Requires admin activation
+        is_active=False,  # Requires admin activation
         created_at=now,
         updated_at=now,
     )
