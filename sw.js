@@ -32,6 +32,10 @@ const STATIC_CACHE = [
 // Страницы доступные в offline режиме (только эти страницы работают без сети)
 const OFFLINE_PAGES = ['/', '/facts', '/plan'];
 
+// Страницы для быстрой загрузки (кэшируем при первом посещении, но требуют сети)
+// Эти страницы кэшируются для ускорения повторной загрузки, но не работают offline
+const CACHE_FIRST_PAGES = ['/api/v1/auth/telegram-login', '/login-email', '/register'];
+
 // Файлы с cache busting - кешируются RUNTIME (не в install event)
 // Service Worker будет кешировать их при первом запросе
 
@@ -143,7 +147,65 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Стратегия 2: HTML страницы - Network First (актуальный контент)
+  // Стратегия 2a: Страницы для быстрой загрузки - Cache First + Network Update
+  // Эти страницы кэшируются для ускорения, но требуют сети для работы
+  if (CACHE_FIRST_PAGES.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(request)
+        .then((cachedResponse) => {
+          // Всегда делаем сетевой запрос в фоне для обновления кэша
+          const fetchPromise = fetch(request).then((networkResponse) => {
+            if (networkResponse.ok) {
+              const clonedResponse = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, clonedResponse);
+              });
+            }
+            return networkResponse;
+          });
+
+          // Если есть в кэше - возвращаем сразу (stale-while-revalidate)
+          if (cachedResponse) {
+            if (DEBUG) console.log('[SW] Serving cached login page:', url.pathname);
+            return cachedResponse;
+          }
+
+          // Если нет в кэше - ждём сеть
+          return fetchPromise;
+        })
+        .catch(() => {
+          // Fallback на кэш при ошибке сети
+          return caches.match(request)
+            .then(cachedResponse => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // Нет кэша и нет сети - показываем сообщение
+              return new Response(
+                `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Нет подключения</title>
+</head>
+<body>
+  <h1>Нет подключения к интернету</h1>
+  <p>Для входа через Telegram требуется подключение к интернету.</p>
+  <a href="/">Вернуться на главную</a>
+</body>
+</html>`,
+                {
+                  status: 503,
+                  headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                }
+              );
+            });
+        })
+    );
+    return;
+  }
+
+  // Стратегия 2b: HTML страницы - Network First (актуальный контент)
   if (url.pathname === '/' || url.pathname.match(/\.html$/) || !url.pathname.includes('.')) {
     event.respondWith(
       fetch(request)
