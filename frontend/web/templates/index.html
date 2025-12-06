@@ -428,6 +428,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обработчик отправки формы факта (с поддержкой offline режима)
     document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
         e.preventDefault();
+        setSubmitLoading(e.target, true);
 
         const formData = new FormData(e.target);
 
@@ -541,12 +542,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error creating transaction:', error);
             showToast('Ошибка при создании факта: ' + error.message, 'error');
+        } finally {
+            setSubmitLoading(e.target, false);
         }
     });
 
     // Обработчик отправки формы плана (с поддержкой offline режима)
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
+        setSubmitLoading(e.target, true);
 
         const formData = new FormData(e.target);
 
@@ -685,6 +689,8 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error creating plan:', error);
             showToast('Ошибка при создании плана: ' + error.message, 'error');
+        } finally {
+            setSubmitLoading(e.target, false);
         }
     });
 });

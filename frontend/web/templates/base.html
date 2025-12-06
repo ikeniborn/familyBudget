@@ -574,6 +574,23 @@
             }, duration);
         }
 
+        // Submit button loading state management (prevents double submit)
+        function setSubmitLoading(form, isLoading) {
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (!submitBtn) return;
+
+            if (isLoading) {
+                submitBtn.disabled = true;
+                submitBtn.dataset.originalHtml = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Сохранение...';
+            } else {
+                submitBtn.disabled = false;
+                if (submitBtn.dataset.originalHtml) {
+                    submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+                }
+            }
+        }
+
         // Logout handler
         async function handleLogout() {
             try {
