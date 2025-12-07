@@ -141,7 +141,7 @@
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
-                                        <th title="Уведомление">🔔</th>
+                                        <th>Уведом.</th>
                                         <th>Статус</th>
                                     </tr>
                                 </thead>
@@ -1431,7 +1431,7 @@ async function loadPendingRecords() {
             // Notification indicator (only for plans)
             const hasNotification = item.data.notification_enabled === true;
             const notificationCell = hasNotification
-                ? '<td class="text-center text-warning" title="Уведомление включено">🔔</td>'
+                ? '<td class="text-center text-success">Да</td>'
                 : '<td class="text-center opacity-30">—</td>';
 
             // For transfers, create two rows (debit and credit)
