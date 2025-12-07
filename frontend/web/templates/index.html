@@ -2056,11 +2056,38 @@ async function saveTransferOffline(button) {
         const factSection = document.getElementById('transfer-date-section-fact');
         const isFactTransfer = factSection && !factSection.classList.contains('hidden');
 
+        // Helper to get selected option text
+        function getSelectedText(selectElement) {
+            if (!selectElement) return null;
+            const selected = selectElement.options[selectElement.selectedIndex];
+            return selected ? selected.text : null;
+        }
+
+        // Get form elements for names
+        const fromFcSelect = form.querySelector('[name="from_financial_center_id"]');
+        const toFcSelect = form.querySelector('[name="to_financial_center_id"]');
+
+        // Get article names from category trees (transfer modal uses global fromCategoryTree, toCategoryTree)
+        let fromArticleName = null;
+        let toArticleName = null;
+        if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree && fromCategoryTree.getSelectedCategory) {
+            const selected = fromCategoryTree.getSelectedCategory();
+            fromArticleName = selected ? selected.name : null;
+        }
+        if (typeof toCategoryTree !== 'undefined' && toCategoryTree && toCategoryTree.getSelectedCategory) {
+            const selected = toCategoryTree.getSelectedCategory();
+            toArticleName = selected ? selected.name : null;
+        }
+
         const data = {
             from_financial_center_id: parseInt(formData.get('from_financial_center_id')),
+            from_financial_center_name: getSelectedText(fromFcSelect),
             to_financial_center_id: parseInt(formData.get('to_financial_center_id')),
+            to_financial_center_name: getSelectedText(toFcSelect),
             from_article_id: parseInt(formData.get('from_article_id')),
+            from_article_name: fromArticleName,
             to_article_id: parseInt(formData.get('to_article_id')),
+            to_article_name: toArticleName,
             from_cost_center_id: formData.get('from_cost_center_id') ? parseInt(formData.get('from_cost_center_id')) : null,
             to_cost_center_id: formData.get('to_cost_center_id') ? parseInt(formData.get('to_cost_center_id')) : null,
             amount: parseFloat(formData.get('amount')),
@@ -2071,7 +2098,9 @@ async function saveTransferOffline(button) {
             data.transfer_date = BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date'));
             data.record_type = 'fact';
         } else {
-            data.plan_month = formData.get('transfer_plan_month');
+            // For plan transfers, use plan_month as transfer_date (first day of month)
+            const planMonth = formData.get('transfer_plan_month');
+            data.transfer_date = planMonth ? `${planMonth}-01` : null;
             data.record_type = 'plan';
         }
 
