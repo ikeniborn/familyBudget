@@ -13,7 +13,7 @@ Features:
 """
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Annotated, Optional
 
@@ -43,6 +43,10 @@ from backend.app.schemas.fact import (
     FactSummary,
     FactUpdate,
 )
+
+
+# Far future datetime constant for SCD Type 2 valid_to field
+FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
 logger = logging.getLogger(__name__)
 
@@ -876,7 +880,7 @@ async def delete_fact(
         record_type=fact.record_type,
         transfer_id=fact.transfer_id,
         valid_from=now,
-        valid_to=datetime(9999, 12, 31),
+        valid_to=FAR_FUTURE_DATETIME,
         is_current=False,  # Deleted records are never current
         change_type="DELETE",
         changed_fields=None,  # Full deletion
@@ -970,7 +974,7 @@ async def batch_delete_facts(
             record_type=fact.record_type,
             transfer_id=fact.transfer_id,
             valid_from=now,
-            valid_to=datetime(9999, 12, 31),
+            valid_to=FAR_FUTURE_DATETIME,
             is_current=False,  # Deleted records are never current
             change_type="DELETE",
             changed_fields=None,  # Full deletion

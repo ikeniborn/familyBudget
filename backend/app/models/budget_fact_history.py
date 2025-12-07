@@ -17,6 +17,10 @@ from sqlalchemy import DateTime, ARRAY, String
 from sqlmodel import Column, Field, SQLModel
 
 
+# Far future datetime constant for SCD Type 2 valid_to field
+FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+
+
 class BudgetFactHistory(SQLModel, table=True):
     """
     Budget Fact history table (SCD Type 2 - full change history).
@@ -224,7 +228,7 @@ class BudgetFactHistory(SQLModel, table=True):
 
     valid_to: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False),
-        default=datetime(9999, 12, 31),
+        default_factory=lambda: FAR_FUTURE_DATETIME,
         description="End of validity period (9999-12-31 for current version)"
     )
 

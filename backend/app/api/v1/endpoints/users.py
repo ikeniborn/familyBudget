@@ -11,7 +11,7 @@ Features:
     - Update user role with SCD Type 2 (admin only)
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -34,6 +34,10 @@ from backend.app.schemas.user import (
     UserUpdate,
 )
 from backend.app.services import create_new_version, has_changes
+
+
+# Far future datetime constant for SCD Type 2 valid_to field
+FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -207,7 +211,7 @@ async def create_user(
         last_name=user_data.last_name,
         is_admin=user_data.is_admin,
         valid_from=now,
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+        valid_to=FAR_FUTURE_DATETIME,
         is_current=True,
         created_at=now,
         updated_at=now,

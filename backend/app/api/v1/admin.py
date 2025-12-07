@@ -6,7 +6,7 @@ All endpoints require admin privileges (is_admin=True).
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -47,7 +47,8 @@ from backend.app.services.user_service import (
 )
 from backend.app.services.article_service import (
     update_article_profile as update_article_scd1,
-    create_initial_history as create_article_initial_history
+    create_initial_history as create_article_initial_history,
+    FAR_FUTURE_DATETIME,
 )
 from backend.app.services import (
     archive_recursive,
@@ -1690,7 +1691,7 @@ async def delete_article(
         code=article.code,
         is_active=article.is_active,
         valid_from=now,
-        valid_to=datetime(9999, 12, 31),
+        valid_to=FAR_FUTURE_DATETIME,
         is_current=False,  # Deleted records are never current
         change_type="DELETE",
         changed_fields=None,  # Full deletion
@@ -1732,7 +1733,7 @@ async def delete_article(
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
                 valid_from=now,
-                valid_to=datetime(9999, 12, 31),
+                valid_to=FAR_FUTURE_DATETIME,
                 is_current=False,
                 change_type="DELETE",
                 changed_fields=None,  # Full deletion
