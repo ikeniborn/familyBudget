@@ -135,18 +135,20 @@ calculate_cpu_limits() {
 
     if [[ $cpu_count -eq 1 ]]; then
         # Single CPU server - conservative limits
-        CONFIG[BACKEND_CPU_LIMIT]="0.8"
-        CONFIG[BACKEND_CPU_RESERVATION]="0.3"
+        # IMPORTANT: Total must be < 1.0 (not = 1.0) on single-CPU systems
+        # Docker enforces: "range of CPUs is from 0.01 to 1.00" (exclusive upper bound)
+        CONFIG[BACKEND_CPU_LIMIT]="0.75"
+        CONFIG[BACKEND_CPU_RESERVATION]="0.25"
         CONFIG[BOT_CPU_LIMIT]="0.15"
         CONFIG[BOT_CPU_RESERVATION]="0.05"
         CONFIG[NGINX_CPU_LIMIT]="0.05"
         CONFIG[NGINX_CPU_RESERVATION]="0.01"
 
         info "Single-CPU configuration:"
-        info "  Backend: 0.8 CPU (80%)"
-        info "  Bot: 0.15 CPU (15%)"
+        info "  Backend: 0.75 CPU (79%)"
+        info "  Bot: 0.15 CPU (16%)"
         info "  Nginx: 0.05 CPU (5%)"
-        info "  Total: 1.0 CPU"
+        info "  Total: 0.95 CPU (< 1.0 required)"
 
     elif [[ $cpu_count -eq 2 ]]; then
         # Dual CPU server - balanced limits

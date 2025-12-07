@@ -881,7 +881,9 @@ check_ssl_security() {
                 local proto_name="${protocol_names[$i]}"
 
                 # Use SNI (-servername) for proper testing
-                if echo | openssl s_client -connect "$test_host:443" -servername "$test_host" -"$proto" 2>/dev/null | grep -q "Cipher"; then
+                # FIXED: Check for actual cipher (not "Cipher is (NONE)") to avoid false positives
+                local ssl_output=$(echo | openssl s_client -connect "$test_host:443" -servername "$test_host" -"$proto" 2>&1)
+                if echo "$ssl_output" | grep "Cipher" | grep -q -v "(NONE)"; then
                     # Insecure protocols
                     if [[ "$proto" == "ssl3" ]] || [[ "$proto" == "tls1" ]] || [[ "$proto" == "tls1_1" ]]; then
                         print_status "    $proto_name:" "✗ Enabled (insecure!)" "$RED"
