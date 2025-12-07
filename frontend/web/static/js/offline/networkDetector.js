@@ -361,48 +361,75 @@ class SmartNetworkDetector {
     enableManualOfflineMode() {
         if (this.manualOfflineMode) return;
 
+        const oldStatus = this.status;
         this.manualOfflineMode = true;
         this._saveManualOfflineState();
         this.stopHeartbeat();
-        this._setStatus('offline');
+        this.status = 'offline';
 
         console.log('[NetworkDetector] Manual offline mode ENABLED');
 
-        // Dispatch event for UI updates
+        // Always dispatch events for UI updates (even if status was already offline)
+        // This ensures UI is updated when user manually enables offline mode
+        window.dispatchEvent(new CustomEvent('network-status-change', {
+            detail: {
+                status: 'offline',
+                previousStatus: oldStatus,
+                timestamp: Date.now(),
+                manual: true
+            }
+        }));
+
+        window.dispatchEvent(new CustomEvent('offline-status-change', {
+            detail: { online: false, status: 'offline', manual: true }
+        }));
+
         window.dispatchEvent(new CustomEvent('manual-offline-mode-change', {
             detail: { enabled: true }
         }));
+
+        // Notify callback if set
+        if (this.onStatusChange) {
+            this.onStatusChange('offline', oldStatus);
+        }
     }
 
     /**
      * Disable manual offline mode
      * Network checks resume and status is determined by actual connectivity
      */
-    disableManualOfflineMode() {
+    async disableManualOfflineMode() {
         if (!this.manualOfflineMode) return;
 
         this.manualOfflineMode = false;
         this._saveManualOfflineState();
         this._startHeartbeat();
 
-        // Check actual connectivity
-        this.checkConnectivity(true);
-
         console.log('[NetworkDetector] Manual offline mode DISABLED');
 
-        // Dispatch event for UI updates
+        // Dispatch event for UI updates first
         window.dispatchEvent(new CustomEvent('manual-offline-mode-change', {
             detail: { enabled: false }
+        }));
+
+        // Check actual connectivity and update status
+        // This will trigger network-status-change and offline-status-change events
+        await this.checkConnectivity(true);
+
+        // If status changed back to online, ensure UI is updated
+        const currentStatus = this.status;
+        window.dispatchEvent(new CustomEvent('offline-status-change', {
+            detail: { online: currentStatus !== 'offline', status: currentStatus, manual: false }
         }));
     }
 
     /**
      * Toggle manual offline mode
-     * @returns {boolean} New state (true = offline mode enabled)
+     * @returns {Promise<boolean>} New state (true = offline mode enabled)
      */
-    toggleManualOfflineMode() {
+    async toggleManualOfflineMode() {
         if (this.manualOfflineMode) {
-            this.disableManualOfflineMode();
+            await this.disableManualOfflineMode();
         } else {
             this.enableManualOfflineMode();
         }

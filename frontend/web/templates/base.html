@@ -920,7 +920,7 @@
         }
 
         // Toggle manual offline mode
-        function toggleManualOfflineMode() {
+        async function toggleManualOfflineMode() {
             if (!window.offlineManager || !window.offlineManager.networkDetector) {
                 console.warn('[Offline] NetworkDetector not available');
                 return;
@@ -928,10 +928,10 @@
 
             const detector = window.offlineManager.networkDetector;
             const wasEnabled = detector.isManualOfflineModeEnabled();
-            detector.toggleManualOfflineMode();
+            await detector.toggleManualOfflineMode();
             const isEnabled = detector.isManualOfflineModeEnabled();
 
-            // Update UI
+            // Update UI (events from networkDetector will also trigger this, but call explicitly for safety)
             updateManualOfflineToggleUI();
             updateOfflineUI();
 
