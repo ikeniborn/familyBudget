@@ -2081,17 +2081,28 @@ async function saveTransferOffline(button) {
 
 /**
  * Update save button visibility based on offline mode
- * Called when manual offline mode changes
+ * Called when manual or auto offline mode changes
  */
 function updateSaveButtonsVisibility() {
-    const isManualOffline = window.offlineManager &&
-                           window.offlineManager.networkDetector &&
-                           window.offlineManager.networkDetector.isManualOfflineModeEnabled();
+    let isOffline = false;
+
+    if (window.offlineManager && window.offlineManager.networkDetector) {
+        // Check manual offline mode
+        const isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
+        // Check auto offline mode (network status)
+        const networkStatus = window.offlineManager.networkDetector.getStatus();
+        const isAutoOffline = networkStatus === 'offline';
+
+        isOffline = isManualOffline || isAutoOffline;
+    } else {
+        // Fallback to navigator.onLine
+        isOffline = !navigator.onLine;
+    }
 
     // Get all save-upload buttons (online only)
     const uploadButtons = document.querySelectorAll('.save-upload-btn');
     uploadButtons.forEach(btn => {
-        if (isManualOffline) {
+        if (isOffline) {
             btn.disabled = true;
             btn.classList.add('btn-disabled');
             btn.title = 'Недоступно в оффлайн режиме';
@@ -2103,9 +2114,12 @@ function updateSaveButtonsVisibility() {
     });
 }
 
-// Listen for manual offline mode changes to update buttons
+// Listen for offline mode changes to update buttons
 window.addEventListener('manual-offline-mode-change', updateSaveButtonsVisibility);
 window.addEventListener('network-status-change', updateSaveButtonsVisibility);
+window.addEventListener('offline-status-change', updateSaveButtonsVisibility);
+window.addEventListener('online', updateSaveButtonsVisibility);
+window.addEventListener('offline', updateSaveButtonsVisibility);
 
 // Initial update on page load
 document.addEventListener('DOMContentLoaded', () => {
