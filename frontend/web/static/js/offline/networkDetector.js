@@ -62,11 +62,12 @@ class SmartNetworkDetector {
             navigator.connection.addEventListener('change', this._handleConnectionChange);
         }
 
-        // Запуск heartbeat
-        this._startHeartbeat();
-
-        // Первичная проверка
-        this.checkConnectivity();
+        // Запуск heartbeat (only if not in manual offline mode)
+        if (!this.manualOfflineMode) {
+            this._startHeartbeat();
+            // Первичная проверка
+            this.checkConnectivity();
+        }
     }
 
     /**
@@ -99,6 +100,10 @@ class SmartNetworkDetector {
      * Обработка события online
      */
     async _handleOnline() {
+        // Skip if manual offline mode is enabled
+        if (this.manualOfflineMode) {
+            return;
+        }
         // navigator.onLine стал true, но нужно проверить реальное соединение
         await this.checkConnectivity(true);
     }
@@ -114,6 +119,11 @@ class SmartNetworkDetector {
      * Обработка изменения качества соединения
      */
     async _handleConnectionChange() {
+        // Skip if manual offline mode is enabled
+        if (this.manualOfflineMode) {
+            return;
+        }
+
         const info = this.getConnectionInfo();
         if (!info) return;
 
@@ -228,6 +238,10 @@ class SmartNetworkDetector {
         }
 
         this.heartbeatTimer = setInterval(async () => {
+            // Skip if manual offline mode is enabled
+            if (this.manualOfflineMode) {
+                return;
+            }
             // Проверять только если думаем что online
             if (this.status !== 'offline') {
                 await this.checkConnectivity();
@@ -250,6 +264,11 @@ class SmartNetworkDetector {
      * (для интеграции с OfflineManager)
      */
     onRequestSuccess() {
+        // Skip if manual offline mode is enabled
+        if (this.manualOfflineMode) {
+            return;
+        }
+
         this.consecutiveFailures = 0;
 
         if (this.status === 'offline') {
@@ -266,6 +285,11 @@ class SmartNetworkDetector {
      * (для интеграции с OfflineManager)
      */
     onRequestFailure() {
+        // Skip if manual offline mode is enabled
+        if (this.manualOfflineMode) {
+            return;
+        }
+
         this.consecutiveFailures++;
 
         if (this.consecutiveFailures >= this.maxFailuresBeforeOffline) {
