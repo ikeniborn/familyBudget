@@ -817,6 +817,50 @@
             // Note: Toast is handled by OfflineManager.handleOffline() with debounce
         });
 
+        /**
+         * Auto-sync pending records when exiting offline mode (manual or auto)
+         */
+        async function syncPendingOnOfflineModeExit() {
+            if (!window.offlineManager) return;
+
+            try {
+                // Check if there are pending items
+                const pendingItems = await window.offlineManager.getPendingSyncItems();
+                if (pendingItems.length === 0) return;
+
+                debugLog('[Sync] Auto-syncing', pendingItems.length, 'pending items after offline mode exit');
+                showToast(`Синхронизация ${pendingItems.length} записей...`, 'info');
+
+                // Trigger sync
+                const results = await window.offlineManager.sync();
+
+                if (results.synced > 0) {
+                    showToast(`Синхронизировано записей: ${results.synced}`, 'success');
+                    // Reload pending records and recent transactions
+                    if (typeof loadPendingRecords === 'function') {
+                        await loadPendingRecords();
+                    }
+                    // Reload recent transactions via HTMX if available
+                    if (typeof htmx !== 'undefined') {
+                        const recentTransactions = document.getElementById('recent-transactions');
+                        if (recentTransactions) {
+                            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {target: '#recent-transactions', swap: 'innerHTML'});
+                        }
+                        const quickStats = document.getElementById('quick-stats');
+                        if (quickStats) {
+                            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {target: '#quick-stats', swap: 'innerHTML'});
+                        }
+                    }
+                }
+                if (results.failed > 0) {
+                    showToast(`Не удалось синхронизировать: ${results.failed}`, 'error');
+                }
+            } catch (error) {
+                console.error('[Sync] Auto-sync failed:', error);
+                showToast('Ошибка автосинхронизации: ' + error.message, 'error');
+            }
+        }
+
         // Listen for SmartNetworkDetector status changes (backend availability)
         // This catches cases where navigator.onLine is true but backend is unreachable
         window.addEventListener('offline-status-change', (event) => {
@@ -827,11 +871,21 @@
         });
 
         // Also listen for network-status-change (from SmartNetworkDetector directly)
-        window.addEventListener('network-status-change', (event) => {
+        window.addEventListener('network-status-change', async (event) => {
             const { status, previousStatus } = event.detail || {};
             debugLog('[Offline] Network status change:', previousStatus, '→', status);
             // Update UI based on actual backend availability
             updateOfflineUI();
+
+            // Auto-sync when transitioning from offline to online
+            // (but only if not in manual offline mode)
+            if (previousStatus === 'offline' && (status === 'online' || status === 'degraded')) {
+                const isManualOffline = window.offlineManager?.networkDetector?.isManualOfflineModeEnabled();
+                if (!isManualOffline) {
+                    debugLog('[Offline] Network restored, triggering auto-sync');
+                    await syncPendingOnOfflineModeExit();
+                }
+            }
         });
 
         // Update pending count
@@ -964,6 +1018,8 @@
                 showToast('Оффлайн режим включен вручную', 'warning');
             } else {
                 showToast('Оффлайн режим отключен', 'success');
+                // Auto-sync pending records when exiting manual offline mode
+                await syncPendingOnOfflineModeExit();
             }
         }
 

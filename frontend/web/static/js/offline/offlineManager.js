@@ -291,17 +291,8 @@ class OfflineManager {
             error: null
         });
 
-        // 3. Register Background Sync (if supported AND not in manual offline mode)
-        // Skip sync registration if manual offline mode is enabled - user wants to control when sync happens
-        const isManualOffline = this.networkDetector && this.networkDetector.isManualOfflineModeEnabled();
-        if (this.supportsBackgroundSync() && !isManualOffline) {
-            try {
-                const registration = await navigator.serviceWorker.ready;
-                await registration.sync.register('sync-budget-data');
-            } catch (error) {
-                // Ignore Background Sync registration errors
-            }
-        }
+        // Note: No automatic Background Sync registration here
+        // Sync is triggered manually by user or when exiting offline mode
 
         return {
             id: null,
@@ -521,12 +512,8 @@ class OfflineManager {
             error: null
         });
 
-        // Skip sync registration if manual offline mode is enabled
-        const isManualOffline = this.networkDetector && this.networkDetector.isManualOfflineModeEnabled();
-        if (this.supportsBackgroundSync() && !isManualOffline) {
-            const registration = await navigator.serviceWorker.ready;
-            await registration.sync.register('sync-budget-data');
-        }
+        // Note: No automatic Background Sync registration here
+        // Sync is triggered manually by user or when exiting offline mode
 
         return {
             transfer_id: null,
@@ -592,12 +579,8 @@ class OfflineManager {
             error: null
         });
 
-        // Skip sync registration if manual offline mode is enabled
-        const isManualOffline = this.networkDetector && this.networkDetector.isManualOfflineModeEnabled();
-        if (this.supportsBackgroundSync() && !isManualOffline) {
-            const registration = await navigator.serviceWorker.ready;
-            await registration.sync.register('sync-budget-data');
-        }
+        // Note: No automatic Background Sync registration here
+        // Sync is triggered manually by user or when exiting offline mode
 
         return {
             id: null,
