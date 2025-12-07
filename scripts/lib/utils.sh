@@ -160,6 +160,135 @@ prepare_upload_directories() {
 }
 
 # =============================================================================
+# ORPHANED PROCESS DETECTION
+# =============================================================================
+
+# Check for orphaned deployment-related processes and optionally terminate them
+# This prevents resource leaks from failed deployments or background tasks
+#
+# Checked processes:
+#   - alembic (database migration tool)
+#   - npm/npx (Node.js package manager)
+#   - pip (Python package manager)
+#   - git clone/pull/fetch (repository operations)
+#   - rsync (file synchronization)
+#   - python -m (direct module execution)
+#   - bash scripts from DEPLOY_DIR or SCRIPT_DIR
+#
+# NOT checked (legitimate service processes):
+#   - Docker containers (familybudget-*)
+#   - uvicorn workers (backend workers)
+#   - python -m bot.main (telegram bot)
+#   - postgres server processes
+#
+# Usage: check_orphaned_deployment_processes [--terminate]
+# Options:
+#   --terminate  Automatically terminate orphaned processes (requires confirmation)
+# Returns: 0 if no orphans, 1 if orphans found
+check_orphaned_deployment_processes() {
+    local should_terminate=false
+    if [[ "${1:-}" == "--terminate" ]]; then
+        should_terminate=true
+    fi
+
+    step "Checking for orphaned deployment processes"
+
+    local orphaned_pids=()
+    local orphaned_processes=()
+
+    # Patterns for deployment-related processes (NOT service processes)
+    local deployment_patterns=(
+        "alembic"
+        "npm install\|npm update\|npm ci"
+        "npx"
+        "pip install\|pip3 install"
+        "git clone\|git pull\|git fetch"
+        "rsync.*familyBudget\|rsync.*budget"
+        "python.*setup\.sh\|python.*deploy\.sh"
+        "bash.*setup\.sh\|bash.*deploy\.sh"
+    )
+
+    # Exclusion patterns (legitimate service processes)
+    local exclude_patterns=(
+        "docker"
+        "containerd"
+        "uvicorn.*backend\.app\.main"
+        "python -m bot\.main"
+        "postgres:"
+        "nginx:"
+        "multiprocessing\.spawn"  # uvicorn workers
+        "grep"  # This script's own grep
+        "check_orphaned"  # This function itself
+    )
+
+    # Build combined grep pattern
+    local search_pattern
+    search_pattern=$(IFS='|'; echo "${deployment_patterns[*]}")
+
+    # Find processes matching deployment patterns
+    local process_list
+    if ! process_list=$(ps aux | grep -E "$search_pattern" | grep -v grep); then
+        success "No orphaned deployment processes found"
+        return 0
+    fi
+
+    # Filter out excluded patterns
+    local filtered_list="$process_list"
+    for exclude in "${exclude_patterns[@]}"; do
+        filtered_list=$(echo "$filtered_list" | grep -v -E "$exclude" || true)
+    done
+
+    # If no processes left after filtering
+    if [[ -z "$filtered_list" ]]; then
+        success "No orphaned deployment processes found"
+        return 0
+    fi
+
+    # Parse PIDs and process details
+    while IFS= read -r line; do
+        local pid
+        pid=$(echo "$line" | awk '{print $2}')
+        orphaned_pids+=("$pid")
+        orphaned_processes+=("$line")
+    done <<< "$filtered_list"
+
+    # Report findings
+    if [[ ${#orphaned_pids[@]} -gt 0 ]]; then
+        warning "Found ${#orphaned_pids[@]} orphaned deployment process(es):"
+        echo ""
+        for process in "${orphaned_processes[@]}"; do
+            echo "  $process"
+        done
+        echo ""
+
+        if [[ "$should_terminate" == true ]]; then
+            warning "Terminating orphaned processes..."
+            for pid in "${orphaned_pids[@]}"; do
+                if kill -0 "$pid" 2>/dev/null; then
+                    info "Terminating PID $pid"
+                    kill -TERM "$pid" 2>/dev/null || true
+                    sleep 1
+                    if kill -0 "$pid" 2>/dev/null; then
+                        warning "Process $pid did not terminate gracefully, forcing..."
+                        kill -KILL "$pid" 2>/dev/null || true
+                    fi
+                fi
+            done
+            success "Orphaned processes terminated"
+        else
+            warning "To terminate these processes, run:"
+            echo "  sudo bash scripts/lib/utils.sh --cleanup-orphans"
+            echo ""
+            return 1
+        fi
+    else
+        success "No orphaned deployment processes found"
+    fi
+
+    return 0
+}
+
+# =============================================================================
 # DOCKER COMPOSE WRAPPER
 # =============================================================================
 

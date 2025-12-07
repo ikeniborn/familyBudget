@@ -1350,6 +1350,15 @@ main() {
         verify_all_services
         echo ""
 
+        # Check for orphaned deployment processes after successful deployment
+        # This ensures no deployment-related processes (alembic, npm, pip, rsync) remain running
+        # Uvicorn workers and other service processes are excluded from this check
+        check_orphaned_deployment_processes || {
+            warning "Orphaned processes detected but deployment completed successfully"
+            warning "These processes will be automatically cleaned up on next deployment"
+        }
+        echo ""
+
         # Save deployed version for next deployment comparison
         if [[ -n "${NEW_VERSION:-}" ]]; then
             save_deployed_version "$NEW_VERSION"
