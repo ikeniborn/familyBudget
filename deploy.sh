@@ -1268,6 +1268,17 @@ main() {
         ls -la "$DATA_DIR/postgres/" | head -20 || true
     fi
 
+    # CRITICAL FIX: Stop PostgreSQL before repair to ensure ALL directories (persistent + runtime) are created
+    # repair_postgres_directories_atomic() creates only persistent_dirs when PostgreSQL is running,
+    # but skips runtime_dirs (pg_notify, pg_dynshmem, pg_stat) to avoid race conditions.
+    # However, if PostgreSQL restarts after repair without runtime_dirs, it fails with FATAL errors.
+    # Solution: Stop PostgreSQL BEFORE repair so that repair creates ALL directories atomically.
+    if docker ps --filter "name=$PROJECT_NAME-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
+        info "Stopping PostgreSQL before atomic repair (ensures runtime dirs creation)"
+        cd "$DEPLOY_DIR" && docker compose stop postgres || true
+        sleep 2
+    fi
+
     repair_postgres_directories_atomic
     echo ""
 
