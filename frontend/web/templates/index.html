@@ -1864,6 +1864,291 @@ async function createReminder(factId, reminderDatetime) {
         return null;
     }
 }
+
+// ==================== OFFLINE SAVE FUNCTIONS ====================
+// These functions save records to the local queue WITHOUT immediately uploading to server
+// Used when user wants to save locally (or when in manual offline mode)
+
+/**
+ * Save transaction to offline queue only (without uploading)
+ * @param {HTMLElement} button - The clicked button element
+ */
+async function saveTransactionOffline(button) {
+    const formId = button.dataset.formId;
+    const modalId = button.dataset.modalId;
+    const form = document.getElementById(formId);
+    const modal = document.getElementById(modalId);
+
+    if (!form || !modal) {
+        console.error('[saveTransactionOffline] Form or modal not found:', formId, modalId);
+        return;
+    }
+
+    // Validate form
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    // Disable button and show loading
+    button.disabled = true;
+    button.classList.add('loading');
+
+    try {
+        const formData = new FormData(form);
+
+        // Helper to get selected option text
+        function getSelectedText(selectElement) {
+            if (!selectElement) return null;
+            const selected = selectElement.options[selectElement.selectedIndex];
+            return selected ? selected.text : null;
+        }
+
+        // Get form elements for names
+        const fcSelect = form.querySelector('[name="financial_center_id"]');
+        const ccSelect = form.querySelector('[name="cost_center_id"]');
+
+        // Get article name from category tree
+        let articleName = null;
+        if (transactionCategoryTreeSelect && transactionCategoryTreeSelect.getSelectedCategory) {
+            const selected = transactionCategoryTreeSelect.getSelectedCategory();
+            articleName = selected ? selected.name : null;
+        }
+
+        const data = {
+            record_type: 'fact',
+            fact_type: formData.get('record_type'),
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            article_name: articleName,
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            financial_center_name: getSelectedText(fcSelect),
+            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            cost_center_name: getSelectedText(ccSelect),
+            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')),
+            description: formData.get('description') || null
+        };
+
+        // Force offline save (bypass online check)
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createFactOffline(data);
+
+            modal.close();
+            form.reset();
+
+            // Reset date to today
+            const dateInput = form.querySelector('input[name="fact_date"]');
+            if (dateInput) {
+                dateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+            }
+
+            showToast('Факт сохранен локально (синхронизируется при подключении)', 'warning');
+            loadPendingRecords();
+            debugLog('[saveTransactionOffline] Saved:', result);
+        } else {
+            showToast('Ошибка: OfflineManager не доступен', 'error');
+        }
+    } catch (error) {
+        console.error('[saveTransactionOffline] Error:', error);
+        showToast('Ошибка при сохранении: ' + error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('loading');
+    }
+}
+
+/**
+ * Save plan to offline queue only (without uploading)
+ * @param {HTMLElement} button - The clicked button element
+ */
+async function savePlanOffline(button) {
+    const formId = button.dataset.formId;
+    const modalId = button.dataset.modalId;
+    const form = document.getElementById(formId);
+    const modal = document.getElementById(modalId);
+
+    if (!form || !modal) {
+        console.error('[savePlanOffline] Form or modal not found:', formId, modalId);
+        return;
+    }
+
+    // Validate form
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    // Disable button and show loading
+    button.disabled = true;
+    button.classList.add('loading');
+
+    try {
+        const formData = new FormData(form);
+
+        // Convert plan_month (YYYY-MM) to fact_date (YYYY-MM-01)
+        const planMonth = formData.get('plan_month');
+        const factDate = `${planMonth}-01`;
+
+        // Helper to get selected option text
+        function getSelectedText(selectElement) {
+            if (!selectElement) return null;
+            const selected = selectElement.options[selectElement.selectedIndex];
+            return selected ? selected.text : null;
+        }
+
+        // Get form elements for names
+        const fcSelect = form.querySelector('[name="financial_center_id"]');
+        const ccSelect = form.querySelector('[name="cost_center_id"]');
+
+        // Get article name from category tree
+        let articleName = null;
+        if (planCategoryTreeSelect && planCategoryTreeSelect.getSelectedCategory) {
+            const selected = planCategoryTreeSelect.getSelectedCategory();
+            articleName = selected ? selected.name : null;
+        }
+
+        const data = {
+            record_type: 'plan',
+            fact_type: formData.get('plan_type'),
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            article_name: articleName,
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            financial_center_name: getSelectedText(fcSelect),
+            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            cost_center_name: getSelectedText(ccSelect),
+            fact_date: factDate,
+            plan_date: planMonth, // Keep original for display
+            description: formData.get('description') || null
+        };
+
+        // Force offline save (bypass online check)
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createPlanOffline(data);
+
+            modal.close();
+            form.reset();
+
+            showToast('План сохранен локально (синхронизируется при подключении)', 'warning');
+            loadPendingRecords();
+            debugLog('[savePlanOffline] Saved:', result);
+        } else {
+            showToast('Ошибка: OfflineManager не доступен', 'error');
+        }
+    } catch (error) {
+        console.error('[savePlanOffline] Error:', error);
+        showToast('Ошибка при сохранении: ' + error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('loading');
+    }
+}
+
+/**
+ * Save transfer to offline queue only (without uploading)
+ * @param {HTMLElement} button - The clicked button element
+ */
+async function saveTransferOffline(button) {
+    const formId = button.dataset.formId;
+    const modalId = button.dataset.modalId;
+    const form = document.getElementById(formId);
+    const modal = document.getElementById(modalId);
+
+    if (!form || !modal) {
+        console.error('[saveTransferOffline] Form or modal not found:', formId, modalId);
+        return;
+    }
+
+    // Validate form
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    // Disable button and show loading
+    button.disabled = true;
+    button.classList.add('loading');
+
+    try {
+        const formData = new FormData(form);
+
+        // Determine transfer type from visible date/period section
+        const factSection = document.getElementById('transfer-date-section-fact');
+        const isFactTransfer = factSection && !factSection.classList.contains('hidden');
+
+        const data = {
+            from_financial_center_id: parseInt(formData.get('from_financial_center_id')),
+            to_financial_center_id: parseInt(formData.get('to_financial_center_id')),
+            from_article_id: parseInt(formData.get('from_article_id')),
+            to_article_id: parseInt(formData.get('to_article_id')),
+            from_cost_center_id: formData.get('from_cost_center_id') ? parseInt(formData.get('from_cost_center_id')) : null,
+            to_cost_center_id: formData.get('to_cost_center_id') ? parseInt(formData.get('to_cost_center_id')) : null,
+            amount: parseFloat(formData.get('amount')),
+            description: formData.get('description') || null
+        };
+
+        if (isFactTransfer) {
+            data.transfer_date = BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date'));
+            data.record_type = 'fact';
+        } else {
+            data.plan_month = formData.get('transfer_plan_month');
+            data.record_type = 'plan';
+        }
+
+        // Force offline save (bypass online check)
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createTransferOffline(data);
+
+            modal.close();
+            form.reset();
+
+            showToast('Перевод сохранен локально (синхронизируется при подключении)', 'warning');
+            loadPendingRecords();
+            debugLog('[saveTransferOffline] Saved:', result);
+        } else {
+            showToast('Ошибка: OfflineManager не доступен', 'error');
+        }
+    } catch (error) {
+        console.error('[saveTransferOffline] Error:', error);
+        showToast('Ошибка при сохранении: ' + error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('loading');
+    }
+}
+
+/**
+ * Update save button visibility based on offline mode
+ * Called when manual offline mode changes
+ */
+function updateSaveButtonsVisibility() {
+    const isManualOffline = window.offlineManager &&
+                           window.offlineManager.networkDetector &&
+                           window.offlineManager.networkDetector.isManualOfflineModeEnabled();
+
+    // Get all save-upload buttons (online only)
+    const uploadButtons = document.querySelectorAll('.save-upload-btn');
+    uploadButtons.forEach(btn => {
+        if (isManualOffline) {
+            btn.disabled = true;
+            btn.classList.add('btn-disabled');
+            btn.title = 'Недоступно в оффлайн режиме';
+        } else {
+            btn.disabled = false;
+            btn.classList.remove('btn-disabled');
+            btn.title = 'Сохранить и загрузить на сервер';
+        }
+    });
+}
+
+// Listen for manual offline mode changes to update buttons
+window.addEventListener('manual-offline-mode-change', updateSaveButtonsVisibility);
+window.addEventListener('network-status-change', updateSaveButtonsVisibility);
+
+// Initial update on page load
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(updateSaveButtonsVisibility, 1000); // Delay to ensure offlineManager is initialized
+});
 </script>
 
 <!-- Include Transfer Modal -->

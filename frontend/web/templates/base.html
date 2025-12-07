@@ -175,6 +175,24 @@
                 </div>
             </div>
 
+            <!-- Manual Offline Mode Toggle -->
+            <button id="manual-offline-toggle"
+                    class="btn btn-ghost btn-circle btn-sm sm:btn-md"
+                    onclick="toggleManualOfflineMode()"
+                    aria-label="Toggle offline mode"
+                    title="Переключить оффлайн режим">
+                <!-- Online icon (cloud with check) - shown when NOT in manual offline mode -->
+                <svg id="offline-toggle-online-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
+                </svg>
+                <!-- Offline icon (cloud with pause) - shown when in manual offline mode -->
+                <svg id="offline-toggle-offline-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-warning hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 10v4M14 10v4" />
+                </svg>
+            </button>
+
             <!-- Telegram Bot Link -->
             <a id="telegram-link" href="https://t.me/ikenibornbudgetbot" target="_blank" rel="noopener noreferrer"
                class="btn btn-ghost btn-circle btn-sm sm:btn-md"
@@ -896,7 +914,69 @@
 
             // Update pending count
             updatePendingCount();
+
+            // Update manual offline toggle button icon
+            updateManualOfflineToggleUI();
         }
+
+        // Toggle manual offline mode
+        function toggleManualOfflineMode() {
+            if (!window.offlineManager || !window.offlineManager.networkDetector) {
+                console.warn('[Offline] NetworkDetector not available');
+                return;
+            }
+
+            const detector = window.offlineManager.networkDetector;
+            const wasEnabled = detector.isManualOfflineModeEnabled();
+            detector.toggleManualOfflineMode();
+            const isEnabled = detector.isManualOfflineModeEnabled();
+
+            // Update UI
+            updateManualOfflineToggleUI();
+            updateOfflineUI();
+
+            // Show toast notification
+            if (isEnabled) {
+                showToast('Оффлайн режим включен вручную', 'warning');
+            } else {
+                showToast('Оффлайн режим отключен', 'success');
+            }
+        }
+
+        // Make function global for onclick handler
+        window.toggleManualOfflineMode = toggleManualOfflineMode;
+
+        // Update manual offline toggle button icon
+        function updateManualOfflineToggleUI() {
+            const onlineIcon = document.getElementById('offline-toggle-online-icon');
+            const offlineIcon = document.getElementById('offline-toggle-offline-icon');
+            const toggleButton = document.getElementById('manual-offline-toggle');
+
+            if (!onlineIcon || !offlineIcon || !toggleButton) return;
+
+            let isManualOffline = false;
+            if (window.offlineManager && window.offlineManager.networkDetector) {
+                isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
+            }
+
+            if (isManualOffline) {
+                onlineIcon.classList.add('hidden');
+                offlineIcon.classList.remove('hidden');
+                toggleButton.title = 'Оффлайн режим включен (нажмите для отключения)';
+            } else {
+                onlineIcon.classList.remove('hidden');
+                offlineIcon.classList.add('hidden');
+                toggleButton.title = 'Переключить оффлайн режим';
+            }
+        }
+
+        // Listen for manual offline mode changes
+        window.addEventListener('manual-offline-mode-change', (event) => {
+            const { enabled } = event.detail || {};
+            debugLog('[Offline] Manual offline mode change:', enabled);
+            updateManualOfflineToggleUI();
+            updateOfflineUI();
+        });
 
         // Poll pending count every 5 seconds
         setInterval(updatePendingCount, 5000);
