@@ -19,10 +19,10 @@ const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Критическая статика БЕЗ версий (для precaching в install event)
 // ТОЛЬКО файлы которые НЕ используют cache busting
+// ВАЖНО: /facts и /plan НЕ включены - это защищённые страницы,
+// они кэшируются при первом посещении (после авторизации)
 const STATIC_CACHE = [
   '/',
-  '/facts',
-  '/plan',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
@@ -51,7 +51,8 @@ self.addEventListener('install', (event) => {
         return Promise.allSettled(
           STATIC_CACHE.map(url =>
             cache.add(url).catch(err => {
-              if (DEBUG) console.warn('[SW] Failed to cache:', url, err);
+              // Подавляем ошибки кэширования - файл закэшируется позже при запросе
+              if (DEBUG) console.warn('[SW] Failed to cache:', url, err.message);
               return null;
             })
           )
