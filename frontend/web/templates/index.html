@@ -1381,16 +1381,25 @@ function setupPlanTypeButtons() {
 
 // Load and display pending records from sync queue
 async function loadPendingRecords() {
+    debugLog('[loadPendingRecords] Starting...');
     const card = document.getElementById('pending-records-card');
     const tbody = document.getElementById('pending-records-tbody');
     const countBadge = document.getElementById('pending-count-badge');
 
-    if (!card || !tbody || !window.offlineManager) {
+    if (!card || !tbody) {
+        debugLog('[loadPendingRecords] Card or tbody not found');
+        return;
+    }
+
+    if (!window.offlineManager) {
+        debugLog('[loadPendingRecords] offlineManager not ready, retrying in 500ms...');
+        setTimeout(loadPendingRecords, 500);
         return;
     }
 
     try {
         const pendingItems = await window.offlineManager.getPendingSyncItems();
+        debugLog('[loadPendingRecords] Found pending items:', pendingItems.length);
 
         if (pendingItems.length === 0) {
             card.classList.add('hidden');
@@ -1905,8 +1914,9 @@ async function saveTransactionOffline(button) {
             }
 
             showToast('Факт сохранен локально (синхронизируется при подключении)', 'warning');
-            loadPendingRecords();
             debugLog('[saveTransactionOffline] Saved:', result);
+            // Update pending records table with await
+            await loadPendingRecords();
         } else {
             showToast('Ошибка: OfflineManager не доступен', 'error');
         }
@@ -1992,8 +2002,9 @@ async function savePlanOffline(button) {
             form.reset();
 
             showToast('План сохранен локально (синхронизируется при подключении)', 'warning');
-            loadPendingRecords();
             debugLog('[savePlanOffline] Saved:', result);
+            // Update pending records table with await
+            await loadPendingRecords();
         } else {
             showToast('Ошибка: OfflineManager не доступен', 'error');
         }
@@ -2065,8 +2076,9 @@ async function saveTransferOffline(button) {
             form.reset();
 
             showToast('Перевод сохранен локально (синхронизируется при подключении)', 'warning');
-            loadPendingRecords();
             debugLog('[saveTransferOffline] Saved:', result);
+            // Update pending records table with await
+            await loadPendingRecords();
         } else {
             showToast('Ошибка: OfflineManager не доступен', 'error');
         }
