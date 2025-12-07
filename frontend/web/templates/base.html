@@ -753,16 +753,11 @@
 
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Новая версия доступна
-                                    debugLog('[PWA] New version available');
-
-                                    // Показываем уведомление пользователю
-                                    showToast('Доступна новая версия приложения', 'info');
-
-                                    // Опциональный автоматический reload (можно убрать если нужен ручной контроль)
-                                    setTimeout(() => {
-                                        newWorker.postMessage({ action: 'skipWaiting' });
-                                    }, 3000);
+                                    // Новая версия доступна - показываем уведомление
+                                    debugLog('[PWA] New version available, waiting for user action');
+                                    showToast('Доступна новая версия. Обновите страницу.', 'info', 5000);
+                                    // НЕ вызываем skipWaiting автоматически - это предотвращает двойную загрузку
+                                    // Новая версия активируется при следующей навигации или ручном refresh
                                 }
                             });
                         });
@@ -771,14 +766,12 @@
                         console.error('[PWA] Service Worker registration failed:', err);
                     });
 
-                // Обработка контроллера SW (reload при активации нового SW)
-                let refreshing = false;
+                // Обработка контроллера SW
+                // НЕ делаем автоматический reload при controllerchange
+                // Это предотвращает двойную загрузку страницы при обновлении SW
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    if (!refreshing) {
-                        refreshing = true;
-                        debugLog('[PWA] Reloading page for new Service Worker');
-                        window.location.reload();
-                    }
+                    debugLog('[PWA] Controller changed - new SW is now active');
+                    // Пользователь сам решает когда обновить страницу
                 });
             });
         } else {
