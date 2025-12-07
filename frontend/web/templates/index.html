@@ -310,57 +310,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10000); // 10 seconds
     }
 
-    // Проверка реального статуса сети через пинг сервера
-    async function checkServerConnection() {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-            const response = await fetch('/ping', {
-                method: 'GET',
-                signal: controller.signal,
-                cache: 'no-store'
-            });
-            clearTimeout(timeoutId);
-            return response.ok;
-        } catch (error) {
-            debugLog('[Network] Server ping failed:', error.message);
-            return false;
-        }
-    }
-
-    // Обновить видимость элементов в зависимости от статуса сети
-    async function updateOfflineUI() {
-        // Сначала используем navigator.onLine, потом проверяем пингом
-        let isOnline = navigator.onLine;
-
-        // Если браузер говорит что онлайн - проверяем реально через пинг
-        if (isOnline) {
-            isOnline = await checkServerConnection();
-        }
-
-        debugLog('[Offline UI] Status:', isOnline ? 'online' : 'offline');
-
-        // Скрыть/показать группу аналитики
-        const analyticsGroup = document.getElementById('analytics-group');
-        if (analyticsGroup) {
-            analyticsGroup.style.display = isOnline ? '' : 'none';
-        }
-
-        // Скрыть/показать секцию последних фактов
-        const recentCard = document.getElementById('recent-transactions-card');
-        if (recentCard) {
-            recentCard.style.display = isOnline ? '' : 'none';
-        }
-
-        // Скрыть/показать меню-гамбургер (три полоски) при оффлайн
-        const mobileMenuDropdown = document.getElementById('mobile-menu-dropdown');
-        if (mobileMenuDropdown) {
-            mobileMenuDropdown.style.display = isOnline ? '' : 'none';
-        }
-    }
-
-    // Проверить при загрузке
-    updateOfflineUI();
+    // NOTE: updateOfflineUI() is now handled by base.html
+    // It considers both navigator.onLine, SmartNetworkDetector status, AND manual offline mode
+    // Elements controlled by base.html: analytics-group, recent-transactions-card, mobile-menu-dropdown, etc.
 
     // Preload categories for offline use (both expense and income)
     // This ensures categories are cached before user goes offline
@@ -370,10 +322,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Слушать изменения статуса сети
+    // Слушать изменения статуса сети (updateOfflineUI handled by base.html)
     window.addEventListener('online', () => {
         debugLog('[Network] online event fired');
-        updateOfflineUI();
         loadPendingRecords();
         // Перезагрузить последние записи при восстановлении сети
         htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
@@ -381,9 +332,20 @@ document.addEventListener('DOMContentLoaded', function() {
             swap: 'innerHTML'
         });
     });
-    window.addEventListener('offline', () => {
-        debugLog('[Network] offline event fired');
-        updateOfflineUI();
+    // Listen for network-status-change from SmartNetworkDetector (includes manual mode)
+    window.addEventListener('network-status-change', (event) => {
+        debugLog('[Network] network-status-change:', event.detail);
+        if (event.detail.status === 'online') {
+            loadPendingRecords();
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
+            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                target: '#quick-stats',
+                swap: 'innerHTML'
+            });
+        }
     });
 
     // Загрузить категории, ЦФО и МВЗ для обеих форм

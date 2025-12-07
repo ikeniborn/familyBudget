@@ -858,12 +858,12 @@
         // Considers both navigator.onLine AND SmartNetworkDetector status
         // Backend may be unreachable even if navigator.onLine is true
         function updateOfflineUI() {
-            // Primary check: navigator.onLine (browser connectivity)
+            // Check manual offline mode first
+            let isManualOffline = false;
             let isOnline = navigator.onLine;
 
-            // Secondary check: SmartNetworkDetector status (actual backend availability)
-            // If SmartNetworkDetector reports 'offline', override navigator.onLine
             if (window.offlineManager && window.offlineManager.networkDetector) {
+                isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
                 const networkStatus = window.offlineManager.networkDetector.getStatus();
                 if (networkStatus === 'offline') {
                     isOnline = false;
@@ -871,13 +871,33 @@
                 }
             }
 
-            // Update offline badge
+            // If manual offline mode is enabled, treat as offline
+            if (isManualOffline) {
+                isOnline = false;
+            }
+
+            // Update offline badge (cloud with X) - show for AUTO offline only, hide for manual
             const offlineBadge = document.getElementById('offline-icon');
             if (offlineBadge) {
-                if (!isOnline) {
+                // Show only when auto-offline (not manual)
+                if (!isOnline && !isManualOffline) {
                     offlineBadge.classList.remove('hidden');
                 } else {
                     offlineBadge.classList.add('hidden');
+                }
+            }
+
+            // Update manual offline toggle button visibility
+            const manualOfflineToggle = document.getElementById('manual-offline-toggle');
+            if (manualOfflineToggle) {
+                // Hide toggle button when auto-offline (no network)
+                // Show only when online or manual offline mode
+                if (!isOnline && !isManualOffline) {
+                    // Auto-offline - hide toggle
+                    manualOfflineToggle.style.display = 'none';
+                } else {
+                    // Online or manual offline - show toggle
+                    manualOfflineToggle.style.display = '';
                 }
             }
 
@@ -903,6 +923,17 @@
             const userDropdown = document.getElementById('user-dropdown');
             if (userDropdown) {
                 userDropdown.style.display = isOnline ? '' : 'none';
+            }
+
+            // Hide analytics group and recent transactions on index page when offline
+            const analyticsGroup = document.getElementById('analytics-group');
+            if (analyticsGroup) {
+                analyticsGroup.style.display = isOnline ? '' : 'none';
+            }
+
+            const recentTransactionsCard = document.getElementById('recent-transactions-card');
+            if (recentTransactionsCard) {
+                recentTransactionsCard.style.display = isOnline ? '' : 'none';
             }
 
             // Update pending count
