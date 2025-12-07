@@ -141,6 +141,11 @@
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
+                                        <th class="text-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="Уведомление">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                                            </svg>
+                                        </th>
                                         <th>Статус</th>
                                     </tr>
                                 </thead>
@@ -310,57 +315,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 10000); // 10 seconds
     }
 
-    // Проверка реального статуса сети через пинг сервера
-    async function checkServerConnection() {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-            const response = await fetch('/ping', {
-                method: 'GET',
-                signal: controller.signal,
-                cache: 'no-store'
-            });
-            clearTimeout(timeoutId);
-            return response.ok;
-        } catch (error) {
-            debugLog('[Network] Server ping failed:', error.message);
-            return false;
-        }
-    }
-
-    // Обновить видимость элементов в зависимости от статуса сети
-    async function updateOfflineUI() {
-        // Сначала используем navigator.onLine, потом проверяем пингом
-        let isOnline = navigator.onLine;
-
-        // Если браузер говорит что онлайн - проверяем реально через пинг
-        if (isOnline) {
-            isOnline = await checkServerConnection();
-        }
-
-        debugLog('[Offline UI] Status:', isOnline ? 'online' : 'offline');
-
-        // Скрыть/показать группу аналитики
-        const analyticsGroup = document.getElementById('analytics-group');
-        if (analyticsGroup) {
-            analyticsGroup.style.display = isOnline ? '' : 'none';
-        }
-
-        // Скрыть/показать секцию последних фактов
-        const recentCard = document.getElementById('recent-transactions-card');
-        if (recentCard) {
-            recentCard.style.display = isOnline ? '' : 'none';
-        }
-
-        // Скрыть/показать меню-гамбургер (три полоски) при оффлайн
-        const mobileMenuDropdown = document.getElementById('mobile-menu-dropdown');
-        if (mobileMenuDropdown) {
-            mobileMenuDropdown.style.display = isOnline ? '' : 'none';
-        }
-    }
-
-    // Проверить при загрузке
-    updateOfflineUI();
+    // NOTE: updateOfflineUI() is now handled by base.html
+    // It considers both navigator.onLine, SmartNetworkDetector status, AND manual offline mode
+    // Elements controlled by base.html: analytics-group, recent-transactions-card, mobile-menu-dropdown, etc.
 
     // Preload categories for offline use (both expense and income)
     // This ensures categories are cached before user goes offline
@@ -370,10 +327,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Слушать изменения статуса сети
+    // Слушать изменения статуса сети (updateOfflineUI handled by base.html)
     window.addEventListener('online', () => {
         debugLog('[Network] online event fired');
-        updateOfflineUI();
         loadPendingRecords();
         // Перезагрузить последние записи при восстановлении сети
         htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
@@ -381,9 +337,20 @@ document.addEventListener('DOMContentLoaded', function() {
             swap: 'innerHTML'
         });
     });
-    window.addEventListener('offline', () => {
-        debugLog('[Network] offline event fired');
-        updateOfflineUI();
+    // Listen for network-status-change from SmartNetworkDetector (includes manual mode)
+    window.addEventListener('network-status-change', (event) => {
+        debugLog('[Network] network-status-change:', event.detail);
+        if (event.detail.status === 'online') {
+            loadPendingRecords();
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
+            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                target: '#quick-stats',
+                swap: 'innerHTML'
+            });
+        }
     });
 
     // Загрузить категории, ЦФО и МВЗ для обеих форм
@@ -576,6 +543,10 @@ document.addEventListener('DOMContentLoaded', function() {
             articleName = selected ? selected.name : null;
         }
 
+        // Get reminder settings BEFORE building data object
+        const enableReminder = formData.get('enable_reminder') === 'on';
+        const reminderDatetime = formData.get('reminder_datetime');
+
         // v5.1.3: Убрано поле transaction_type - не используется для планов
         const data = {
             record_type: 'plan',
@@ -589,12 +560,11 @@ document.addEventListener('DOMContentLoaded', function() {
             cost_center_name: getSelectedText(ccSelect), // For offline display
             plan_date: factDate, // For pending table display
             fact_date: factDate, // Обязательное поле - первое число месяца плана
-            description: formData.get('description') || null
+            description: formData.get('description') || null,
+            // Notification settings for offline display and post-sync reminder creation
+            notification_enabled: enableReminder,
+            reminder_datetime: enableReminder ? reminderDatetime : null
         };
-
-        // Get reminder settings BEFORE form reset
-        const enableReminder = formData.get('enable_reminder') === 'on';
-        const reminderDatetime = formData.get('reminder_datetime');
 
         try {
             // Use OfflineManager for offline support
@@ -1419,16 +1389,29 @@ function setupPlanTypeButtons() {
 
 // Load and display pending records from sync queue
 async function loadPendingRecords() {
+    console.log('[loadPendingRecords] Starting...');
     const card = document.getElementById('pending-records-card');
     const tbody = document.getElementById('pending-records-tbody');
     const countBadge = document.getElementById('pending-count-badge');
 
-    if (!card || !tbody || !window.offlineManager) {
+    console.log('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
+
+    if (!card || !tbody) {
+        console.error('[loadPendingRecords] Card or tbody not found');
         return;
     }
 
+    if (!window.offlineManager) {
+        console.log('[loadPendingRecords] offlineManager not ready, retrying in 500ms...');
+        setTimeout(loadPendingRecords, 500);
+        return;
+    }
+
+    console.log('[loadPendingRecords] offlineManager ready, getting pending items...');
+
     try {
         const pendingItems = await window.offlineManager.getPendingSyncItems();
+        console.log('[loadPendingRecords] Found pending items:', pendingItems.length, pendingItems);
 
         if (pendingItems.length === 0) {
             card.classList.add('hidden');
@@ -1449,6 +1432,13 @@ async function loadPendingRecords() {
             const statusBadge = getStatusBadge(item);
             const description = item.data.description || '—';
 
+            // Notification indicator (only for plans)
+            const hasNotification = item.data.notification_enabled === true;
+            const bellIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>';
+            const notificationCell = hasNotification
+                ? `<td class="text-center text-success" title="Уведомление включено">${bellIcon}</td>`
+                : '<td class="text-center opacity-30">—</td>';
+
             // For transfers, create two rows (debit and credit)
             if (item.entity === 'transfer') {
                 // Record type for transfer: fact or plan
@@ -1467,6 +1457,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
                         <td class="text-info font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
                 `);
@@ -1483,6 +1474,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
                         <td class="text-warning font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td class="text-center opacity-30">—</td>
                         <td>${statusBadge}</td>
                     </tr>
                 `);
@@ -1530,6 +1522,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
                         <td class="${colorClass} font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
                 `);
@@ -1577,20 +1570,38 @@ async function syncPendingRecords() {
 
     try {
         showToast('Синхронизация...', 'info');
-        await window.offlineManager.syncQueue();
+        const results = await window.offlineManager.syncQueue();
         await loadPendingRecords();
 
-        // Reload recent records and metrics
-        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-            target: '#recent-transactions',
-            swap: 'innerHTML'
-        });
-        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-            target: '#quick-stats',
-            swap: 'innerHTML'
-        });
-
-        showToast('Синхронизация завершена', 'success');
+        // Show appropriate message based on results
+        if (results.synced > 0 && results.failed === 0) {
+            showToast(`Синхронизировано: ${results.synced} записей`, 'success');
+            // Reload recent records and metrics only if something was synced
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
+            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                target: '#quick-stats',
+                swap: 'innerHTML'
+            });
+        } else if (results.synced > 0 && results.failed > 0) {
+            showToast(`Синхронизировано: ${results.synced}, ошибок: ${results.failed}`, 'warning');
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
+            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                target: '#quick-stats',
+                swap: 'innerHTML'
+            });
+        } else if (results.failed > 0) {
+            showToast(`Ошибка синхронизации: ${results.failed} записей`, 'error');
+        } else if (results.skipped) {
+            showToast('Нечего синхронизировать', 'info');
+        } else {
+            showToast('Синхронизация завершена', 'success');
+        }
     } catch (error) {
         console.error('[Sync] Error:', error);
         showToast('Ошибка синхронизации: ' + error.message, 'error');
@@ -1864,6 +1875,340 @@ async function createReminder(factId, reminderDatetime) {
         return null;
     }
 }
+
+// ==================== OFFLINE SAVE FUNCTIONS ====================
+// These functions save records to the local queue WITHOUT immediately uploading to server
+// Used when user wants to save locally (or when in manual offline mode)
+
+/**
+ * Save transaction to offline queue only (without uploading)
+ * @param {HTMLElement} button - The clicked button element
+ */
+async function saveTransactionOffline(button) {
+    const formId = button.dataset.formId;
+    const modalId = button.dataset.modalId;
+    const form = document.getElementById(formId);
+    const modal = document.getElementById(modalId);
+
+    if (!form || !modal) {
+        console.error('[saveTransactionOffline] Form or modal not found:', formId, modalId);
+        return;
+    }
+
+    // Validate form
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    // Disable button and show loading
+    button.disabled = true;
+    button.classList.add('loading');
+
+    try {
+        const formData = new FormData(form);
+
+        // Helper to get selected option text
+        function getSelectedText(selectElement) {
+            if (!selectElement) return null;
+            const selected = selectElement.options[selectElement.selectedIndex];
+            return selected ? selected.text : null;
+        }
+
+        // Get form elements for names
+        const fcSelect = form.querySelector('[name="financial_center_id"]');
+        const ccSelect = form.querySelector('[name="cost_center_id"]');
+
+        // Get article name from category tree
+        let articleName = null;
+        if (transactionCategoryTreeSelect && transactionCategoryTreeSelect.getSelectedCategory) {
+            const selected = transactionCategoryTreeSelect.getSelectedCategory();
+            articleName = selected ? selected.name : null;
+        }
+
+        const data = {
+            record_type: 'fact',
+            fact_type: formData.get('record_type'),
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            article_name: articleName,
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            financial_center_name: getSelectedText(fcSelect),
+            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            cost_center_name: getSelectedText(ccSelect),
+            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')),
+            description: formData.get('description') || null
+        };
+
+        // Force offline save (bypass online check)
+        console.log('[saveTransactionOffline] Data to save:', data);
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createFactOffline(data);
+            console.log('[saveTransactionOffline] Saved to IndexedDB:', result);
+
+            modal.close();
+            form.reset();
+
+            // Reset date to today
+            const dateInput = form.querySelector('input[name="fact_date"]');
+            if (dateInput) {
+                dateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+            }
+
+            showToast('Факт сохранен локально (синхронизируется при подключении)', 'warning');
+            console.log('[saveTransactionOffline] Calling loadPendingRecords...');
+            // Update pending records table with await
+            await loadPendingRecords();
+            console.log('[saveTransactionOffline] loadPendingRecords completed');
+        } else {
+            showToast('Ошибка: OfflineManager не доступен', 'error');
+        }
+    } catch (error) {
+        console.error('[saveTransactionOffline] Error:', error);
+        showToast('Ошибка при сохранении: ' + error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('loading');
+    }
+}
+
+/**
+ * Save plan to offline queue only (without uploading)
+ * @param {HTMLElement} button - The clicked button element
+ */
+async function savePlanOffline(button) {
+    const formId = button.dataset.formId;
+    const modalId = button.dataset.modalId;
+    const form = document.getElementById(formId);
+    const modal = document.getElementById(modalId);
+
+    if (!form || !modal) {
+        console.error('[savePlanOffline] Form or modal not found:', formId, modalId);
+        return;
+    }
+
+    // Validate form
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    // Disable button and show loading
+    button.disabled = true;
+    button.classList.add('loading');
+
+    try {
+        const formData = new FormData(form);
+
+        // Convert plan_month (YYYY-MM) to fact_date (YYYY-MM-01)
+        const planMonth = formData.get('plan_month');
+        const factDate = `${planMonth}-01`;
+
+        // Helper to get selected option text
+        function getSelectedText(selectElement) {
+            if (!selectElement) return null;
+            const selected = selectElement.options[selectElement.selectedIndex];
+            return selected ? selected.text : null;
+        }
+
+        // Get form elements for names
+        const fcSelect = form.querySelector('[name="financial_center_id"]');
+        const ccSelect = form.querySelector('[name="cost_center_id"]');
+
+        // Get article name from category tree
+        let articleName = null;
+        if (planCategoryTreeSelect && planCategoryTreeSelect.getSelectedCategory) {
+            const selected = planCategoryTreeSelect.getSelectedCategory();
+            articleName = selected ? selected.name : null;
+        }
+
+        const data = {
+            record_type: 'plan',
+            fact_type: formData.get('plan_type'),
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            article_name: articleName,
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            financial_center_name: getSelectedText(fcSelect),
+            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            cost_center_name: getSelectedText(ccSelect),
+            fact_date: factDate,
+            plan_date: planMonth, // Keep original for display
+            description: formData.get('description') || null
+        };
+
+        // Force offline save (bypass online check)
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createPlanOffline(data);
+
+            modal.close();
+            form.reset();
+
+            showToast('План сохранен локально (синхронизируется при подключении)', 'warning');
+            debugLog('[savePlanOffline] Saved:', result);
+            // Update pending records table with await
+            await loadPendingRecords();
+        } else {
+            showToast('Ошибка: OfflineManager не доступен', 'error');
+        }
+    } catch (error) {
+        console.error('[savePlanOffline] Error:', error);
+        showToast('Ошибка при сохранении: ' + error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('loading');
+    }
+}
+
+/**
+ * Save transfer to offline queue only (without uploading)
+ * @param {HTMLElement} button - The clicked button element
+ */
+async function saveTransferOffline(button) {
+    const formId = button.dataset.formId;
+    const modalId = button.dataset.modalId;
+    const form = document.getElementById(formId);
+    const modal = document.getElementById(modalId);
+
+    if (!form || !modal) {
+        console.error('[saveTransferOffline] Form or modal not found:', formId, modalId);
+        return;
+    }
+
+    // Validate form
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+
+    // Disable button and show loading
+    button.disabled = true;
+    button.classList.add('loading');
+
+    try {
+        const formData = new FormData(form);
+
+        // Determine transfer type from visible date/period section
+        const factSection = document.getElementById('transfer-date-section-fact');
+        const isFactTransfer = factSection && !factSection.classList.contains('hidden');
+
+        // Helper to get selected option text
+        function getSelectedText(selectElement) {
+            if (!selectElement) return null;
+            const selected = selectElement.options[selectElement.selectedIndex];
+            return selected ? selected.text : null;
+        }
+
+        // Get form elements for names
+        const fromFcSelect = form.querySelector('[name="from_financial_center_id"]');
+        const toFcSelect = form.querySelector('[name="to_financial_center_id"]');
+
+        // Get article names from category trees (transfer modal uses global fromCategoryTree, toCategoryTree)
+        let fromArticleName = null;
+        let toArticleName = null;
+        if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree && fromCategoryTree.getSelectedCategory) {
+            const selected = fromCategoryTree.getSelectedCategory();
+            fromArticleName = selected ? selected.name : null;
+        }
+        if (typeof toCategoryTree !== 'undefined' && toCategoryTree && toCategoryTree.getSelectedCategory) {
+            const selected = toCategoryTree.getSelectedCategory();
+            toArticleName = selected ? selected.name : null;
+        }
+
+        const data = {
+            from_financial_center_id: parseInt(formData.get('from_financial_center_id')),
+            from_financial_center_name: getSelectedText(fromFcSelect),
+            to_financial_center_id: parseInt(formData.get('to_financial_center_id')),
+            to_financial_center_name: getSelectedText(toFcSelect),
+            from_article_id: parseInt(formData.get('from_article_id')),
+            from_article_name: fromArticleName,
+            to_article_id: parseInt(formData.get('to_article_id')),
+            to_article_name: toArticleName,
+            from_cost_center_id: formData.get('from_cost_center_id') ? parseInt(formData.get('from_cost_center_id')) : null,
+            to_cost_center_id: formData.get('to_cost_center_id') ? parseInt(formData.get('to_cost_center_id')) : null,
+            amount: parseFloat(formData.get('amount')),
+            description: formData.get('description') || null
+        };
+
+        if (isFactTransfer) {
+            data.transfer_date = BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date'));
+            data.record_type = 'fact';
+        } else {
+            // For plan transfers, use plan_month as transfer_date (first day of month)
+            const planMonth = formData.get('transfer_plan_month');
+            data.transfer_date = planMonth ? `${planMonth}-01` : null;
+            data.record_type = 'plan';
+        }
+
+        // Force offline save (bypass online check)
+        if (window.offlineManager) {
+            const result = await window.offlineManager.createTransferOffline(data);
+
+            modal.close();
+            form.reset();
+
+            showToast('Перевод сохранен локально (синхронизируется при подключении)', 'warning');
+            debugLog('[saveTransferOffline] Saved:', result);
+            // Update pending records table with await
+            await loadPendingRecords();
+        } else {
+            showToast('Ошибка: OfflineManager не доступен', 'error');
+        }
+    } catch (error) {
+        console.error('[saveTransferOffline] Error:', error);
+        showToast('Ошибка при сохранении: ' + error.message, 'error');
+    } finally {
+        button.disabled = false;
+        button.classList.remove('loading');
+    }
+}
+
+/**
+ * Update save button visibility based on offline mode
+ * Called when manual or auto offline mode changes
+ */
+function updateSaveButtonsVisibility() {
+    let isOffline = false;
+
+    if (window.offlineManager && window.offlineManager.networkDetector) {
+        // Check manual offline mode
+        const isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
+        // Check auto offline mode (network status)
+        const networkStatus = window.offlineManager.networkDetector.getStatus();
+        const isAutoOffline = networkStatus === 'offline';
+
+        isOffline = isManualOffline || isAutoOffline;
+    } else {
+        // Fallback to navigator.onLine
+        isOffline = !navigator.onLine;
+    }
+
+    // Get all save-upload buttons (online only)
+    const uploadButtons = document.querySelectorAll('.save-upload-btn');
+    uploadButtons.forEach(btn => {
+        if (isOffline) {
+            btn.disabled = true;
+            btn.classList.add('btn-disabled');
+            btn.title = 'Недоступно в оффлайн режиме';
+        } else {
+            btn.disabled = false;
+            btn.classList.remove('btn-disabled');
+            btn.title = 'Сохранить и загрузить на сервер';
+        }
+    });
+}
+
+// Listen for offline mode changes to update buttons
+window.addEventListener('manual-offline-mode-change', updateSaveButtonsVisibility);
+window.addEventListener('network-status-change', updateSaveButtonsVisibility);
+window.addEventListener('offline-status-change', updateSaveButtonsVisibility);
+window.addEventListener('online', updateSaveButtonsVisibility);
+window.addEventListener('offline', updateSaveButtonsVisibility);
+
+// Initial update on page load
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(updateSaveButtonsVisibility, 1000); // Delay to ensure offlineManager is initialized
+});
 </script>
 
 <!-- Include Transfer Modal -->

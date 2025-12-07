@@ -34,6 +34,7 @@ from backend.app.schemas.import_multibank_schema import (
     AnalyzeResponse,
     BankProviderResponse,
     BulkUpdateRequest,
+    CreateBankRequest,
     FileUploadResponse,
     ImportExecuteRequest,
     ImportExecuteResponse,
@@ -87,6 +88,67 @@ async def list_banks(
         )
         for bank in banks
     ]
+
+
+@router.post("/banks", response_model=BankProviderResponse, status_code=201)
+async def create_bank(
+    request: CreateBankRequest,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Create new bank provider.
+
+    Any authenticated user can create a bank.
+    Bank code must be unique.
+
+    **Request Body:**
+    ```json
+    {
+        "code": "my_bank",
+        "name": "Мой Банк"
+    }
+    ```
+
+    **Returns:**
+    - Created BankProvider record
+
+    **Example:**
+    ```
+    POST /api/v1/import/banks
+    Body: {"code": "my_bank", "name": "Мой Банк"}
+    Response 201: {
+        "id": 6,
+        "code": "my_bank",
+        "name": "Мой Банк",
+        "active": true
+    }
+    ```
+
+    **Errors:**
+    - 400: Bank with this code already exists
+    """
+    logger.info(f"Creating bank '{request.code}' by user {current_user.id}")
+
+    # Normalize code: lowercase, replace spaces with underscores
+    normalized_code = request.code.lower().strip().replace(" ", "_")
+
+    try:
+        bank = await BankProviderService.create_bank(
+            session,
+            code=normalized_code,
+            name=request.name.strip()
+        )
+        logger.info(f"Created bank id={bank.id}, code='{bank.code}'")
+        return BankProviderResponse(
+            id=bank.id,
+            code=bank.code,
+            name=bank.name,
+            active=bank.active
+        )
+    except ValueError as e:
+        logger.warning(f"Failed to create bank '{normalized_code}': {e}")
+        raise HTTPException(400, str(e))
 
 
 @router.post("/upload", response_model=FileUploadResponse, status_code=201)

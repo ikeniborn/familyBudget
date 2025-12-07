@@ -3252,5 +3252,18 @@ window.addEventListener('resize', function() {
         analyticsCategoriesChart.resize();
     }
 });
+
+// ==================== PLAN PAGE SPECIFIC ====================
+// On plan page, hide the "save offline" buttons - show only "save and upload"
+// This is because plan page is meant for direct operations, not offline queuing
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide all save-offline buttons on plan page
+    const saveOfflineButtons = document.querySelectorAll('.save-offline-btn');
+    saveOfflineButtons.forEach(btn => {
+        btn.style.display = 'none';
+    });
+    debugLog('[plan.html] Hidden save-offline buttons - using save-upload only');
+});
 </script>
 {% endblock %}

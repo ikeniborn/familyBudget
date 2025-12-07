@@ -374,62 +374,144 @@ function setupPeriodButtons() {
 
 /**
  * Load Financial Centers and Cost Centers for Transfer Modal
- * Populates dropdowns with data from API
+ * Populates dropdowns with data from API or cache
+ * Uses cache for offline mode and as fallback
  */
 async function loadTransferData() {
-    try {
-        // Load Financial Centers
-        const fcResponse = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', {
-            credentials: 'include'
-        });
-        if (fcResponse.ok) {
-            const fcData = await fcResponse.json();
-            allFinancialCenters = fcData.financial_centers || [];
+    const CACHE_KEY_FC = 'transfer_financial_centers';
+    const CACHE_KEY_CC = 'transfer_cost_centers';
+    const CACHE_TTL = 3600; // 1 hour
 
-            // Populate both dropdowns initially
-            populateFinancialCenterDropdowns();
+    try {
+        // Try to load Financial Centers from API
+        let financialCenters = [];
+        let costCenters = [];
+
+        if (navigator.onLine) {
+            try {
+                const fcResponse = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', {
+                    credentials: 'include'
+                });
+                if (fcResponse.ok) {
+                    const fcData = await fcResponse.json();
+                    financialCenters = fcData.financial_centers || [];
+
+                    // Cache for offline use
+                    if (window.offlineManager && window.offlineManager.db) {
+                        await window.offlineManager.db.setCache(CACHE_KEY_FC, financialCenters, CACHE_TTL);
+                    }
+                }
+
+                const ccResponse = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', {
+                    credentials: 'include'
+                });
+                if (ccResponse.ok) {
+                    const ccData = await ccResponse.json();
+                    costCenters = ccData.cost_centers || [];
+
+                    // Cache for offline use
+                    if (window.offlineManager && window.offlineManager.db) {
+                        await window.offlineManager.db.setCache(CACHE_KEY_CC, costCenters, CACHE_TTL);
+                    }
+                }
+            } catch (fetchError) {
+                // Network error - try cache
+                console.log('[Transfer] API fetch failed, trying cache:', fetchError.message);
+            }
         }
 
-        // Load Cost Centers
-        const ccResponse = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', {
-            credentials: 'include'
-        });
-        if (ccResponse.ok) {
-            const ccData = await ccResponse.json();
-            const costCenters = ccData.cost_centers || [];
-
-            // Populate FROM dropdown
-            const fromCCSelect = document.querySelector('#from_cost_center');
-            if (fromCCSelect) {
-                // Clear existing options (keep placeholder)
-                while (fromCCSelect.options.length > 1) {
-                    fromCCSelect.remove(1);
-                }
-                costCenters.forEach(cc => {
-                    const option = document.createElement('option');
-                    option.value = cc.id;
-                    option.textContent = cc.name;
-                    fromCCSelect.appendChild(option);
-                });
+        // Fallback to cache if no data loaded
+        if (financialCenters.length === 0 && window.offlineManager && window.offlineManager.db) {
+            const cached = await window.offlineManager.db.getCache(CACHE_KEY_FC);
+            if (cached) {
+                financialCenters = cached;
+                console.log('[Transfer] Using cached financial centers:', financialCenters.length);
             }
+        }
 
-            // Populate TO dropdown
-            const toCCSelect = document.querySelector('#to_cost_center');
-            if (toCCSelect) {
-                // Clear existing options (keep placeholder)
-                while (toCCSelect.options.length > 1) {
-                    toCCSelect.remove(1);
-                }
-                costCenters.forEach(cc => {
-                    const option = document.createElement('option');
-                    option.value = cc.id;
-                    option.textContent = cc.name;
-                    toCCSelect.appendChild(option);
-                });
+        if (costCenters.length === 0 && window.offlineManager && window.offlineManager.db) {
+            const cached = await window.offlineManager.db.getCache(CACHE_KEY_CC);
+            if (cached) {
+                costCenters = cached;
+                console.log('[Transfer] Using cached cost centers:', costCenters.length);
             }
+        }
+
+        // Populate Financial Centers
+        allFinancialCenters = financialCenters;
+        populateFinancialCenterDropdowns();
+
+        // Populate Cost Centers
+        // Populate FROM dropdown
+        const fromCCSelect = document.querySelector('#from_cost_center');
+        if (fromCCSelect) {
+            // Clear existing options (keep placeholder)
+            while (fromCCSelect.options.length > 1) {
+                fromCCSelect.remove(1);
+            }
+            costCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                fromCCSelect.appendChild(option);
+            });
+        }
+
+        // Populate TO dropdown
+        const toCCSelect = document.querySelector('#to_cost_center');
+        if (toCCSelect) {
+            // Clear existing options (keep placeholder)
+            while (toCCSelect.options.length > 1) {
+                toCCSelect.remove(1);
+            }
+            costCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                toCCSelect.appendChild(option);
+            });
         }
     } catch (error) {
-        // Ignore load errors - user will see empty dropdowns
+        console.error('[Transfer] Error loading data:', error);
+        // Try cache as last resort
+        try {
+            if (window.offlineManager && window.offlineManager.db) {
+                const cachedFC = await window.offlineManager.db.getCache(CACHE_KEY_FC);
+                const cachedCC = await window.offlineManager.db.getCache(CACHE_KEY_CC);
+
+                if (cachedFC) {
+                    allFinancialCenters = cachedFC;
+                    populateFinancialCenterDropdowns();
+                }
+
+                if (cachedCC) {
+                    const fromCCSelect = document.querySelector('#from_cost_center');
+                    const toCCSelect = document.querySelector('#to_cost_center');
+
+                    if (fromCCSelect) {
+                        while (fromCCSelect.options.length > 1) fromCCSelect.remove(1);
+                        cachedCC.forEach(cc => {
+                            const option = document.createElement('option');
+                            option.value = cc.id;
+                            option.textContent = cc.name;
+                            fromCCSelect.appendChild(option);
+                        });
+                    }
+
+                    if (toCCSelect) {
+                        while (toCCSelect.options.length > 1) toCCSelect.remove(1);
+                        cachedCC.forEach(cc => {
+                            const option = document.createElement('option');
+                            option.value = cc.id;
+                            option.textContent = cc.name;
+                            toCCSelect.appendChild(option);
+                        });
+                    }
+                }
+            }
+        } catch (cacheError) {
+            console.error('[Transfer] Cache fallback failed:', cacheError);
+        }
     }
 }
 

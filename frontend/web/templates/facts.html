@@ -1891,5 +1891,18 @@ function openCreateModal() {
         }
     }, 50);
 }
+
+// ==================== FACTS PAGE SPECIFIC ====================
+// On facts page, hide the "save offline" buttons - show only "save and upload"
+// This is because facts page is meant for direct operations, not offline queuing
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Hide all save-offline buttons on facts page
+    const saveOfflineButtons = document.querySelectorAll('.save-offline-btn');
+    saveOfflineButtons.forEach(btn => {
+        btn.style.display = 'none';
+    });
+    debugLog('[facts.html] Hidden save-offline buttons - using save-upload only');
+});
 </script>
 {% endblock %}

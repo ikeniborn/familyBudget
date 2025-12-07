@@ -98,3 +98,42 @@ class BankProviderService:
             'tinkoff'
         """
         return await session.get(BankProvider, bank_id)
+
+    @staticmethod
+    async def create_bank(
+        session: AsyncSession,
+        code: str,
+        name: str
+    ) -> BankProvider:
+        """
+        Create new bank provider.
+
+        Validates code uniqueness before creating.
+
+        Args:
+            session: AsyncSession for database operations
+            code: Unique bank code (e.g., 'my_bank')
+            name: Bank display name (e.g., 'Мой Банк')
+
+        Returns:
+            Created BankProvider record
+
+        Raises:
+            ValueError: If bank with this code already exists
+
+        Examples:
+            >>> bank = await BankProviderService.create_bank(
+            ...     session, "my_bank", "Мой Банк"
+            ... )
+            >>> bank.id
+            6
+        """
+        existing = await BankProviderService.get_by_code(session, code)
+        if existing:
+            raise ValueError(f"Bank with code '{code}' already exists")
+
+        bank = BankProvider(code=code, name=name, active=True)
+        session.add(bank)
+        await session.commit()
+        await session.refresh(bank)
+        return bank

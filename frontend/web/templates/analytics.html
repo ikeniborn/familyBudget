@@ -2134,6 +2134,17 @@ async function loadCFOList() {
             option.textContent = cfo.name;
             select.appendChild(option);
         });
+
+        // Restore saved CFO filter from localStorage (v5.79.0)
+        const savedCFO = localStorage.getItem('budgetCFOFilter');
+        if (savedCFO !== null) {
+            // Check if saved value exists in options
+            const optionExists = Array.from(select.options).some(opt => opt.value === savedCFO);
+            if (optionExists) {
+                select.value = savedCFO;
+                currentCFOId = savedCFO === 'all' ? null : parseInt(savedCFO);
+            }
+        }
     } catch (error) {
         console.error('Error loading CFO list:', error);
     }
@@ -2148,6 +2159,9 @@ function updateCFOFilter() {
 
     // Update global state
     currentCFOId = selectedValue === 'all' ? null : parseInt(selectedValue);
+
+    // Save to localStorage (v5.79.0)
+    localStorage.setItem('budgetCFOFilter', selectedValue);
 
     // Reload all charts with new CFO filter (v5.1.3)
     if (planFactChart) loadPlanFactData(currentPeriod);

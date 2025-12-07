@@ -33,6 +33,7 @@ async def update_article_profile(
     updates: Dict[str, Any],
     changed_by_user_id: Optional[int] = None,
     change_type: str = "UPDATE",
+    auto_commit: bool = True,
 ) -> Article:
     """
     Update Article with SCD Type 1 + create ArticleHistory snapshot (SCD Type 2).
@@ -48,9 +49,11 @@ async def update_article_profile(
         updates: Dictionary of field updates (e.g., {"name": "Updated Name", "description": "New desc"})
         changed_by_user_id: Optional user ID who made the change (for audit)
         change_type: Type of change (UPDATE/ARCHIVE/RESTORE/etc.)
+        auto_commit: Whether to commit after update (default True for backwards compatibility).
+                     Set to False when doing bulk/cascade updates to avoid session state issues.
 
     Returns:
-        Updated Article instance (same id, refreshed from DB)
+        Updated Article instance (same id, refreshed from DB if auto_commit=True)
 
     Example:
         >>> article = await session.get(Article, 1)
@@ -67,6 +70,7 @@ async def update_article_profile(
         - ArticleHistory stores FULL snapshots with all fields (including parent_id, type)
         - changed_fields automatically detected by comparing old vs new values
         - Use change_type to categorize changes (UPDATE/ARCHIVE/RESTORE)
+        - For cascade updates, use auto_commit=False and commit once at the end
     """
     now = datetime.utcnow()
 
@@ -122,9 +126,10 @@ async def update_article_profile(
     )
     session.add(new_history)
 
-    # Step 5: Commit atomically
-    await session.commit()
-    await session.refresh(article)
+    # Step 5: Commit atomically (if auto_commit enabled)
+    if auto_commit:
+        await session.commit()
+        await session.refresh(article)
 
     return article
 

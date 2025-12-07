@@ -34,6 +34,8 @@ from backend.app.schemas.user import (
     UserUpdate,
     TelegramUserInfo,
     UserHistoryListResponse,
+    UserMergeRequest,
+    UserMergeResponse,
 )
 from backend.app.services.telegram_auth import (
     validate_telegram_user,
@@ -1067,6 +1069,173 @@ async def refresh_user_profile_from_telegram(
     return updated_user
 
 
+@router.post("/users/merge", response_model=UserMergeResponse)
+async def merge_users(
+    merge_data: UserMergeRequest,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+) -> UserMergeResponse:
+    """
+    Merge two user accounts (admin only).
+
+    Merges source user into target user:
+    - All facts from source are transferred to target
+    - Telegram ID is transferred from source to target (if applicable)
+    - Source user is deactivated and marked with merged_into_user_id
+    - Historical data is preserved (facts remain attributed to source in history)
+
+    Use case: When a user has registered twice (e.g., with different Telegram ID)
+    and admin needs to consolidate their data.
+
+    Args:
+        merge_data: Source and target user IDs
+        current_admin: Current admin user (from dependency)
+        session: Database session
+
+    Returns:
+        UserMergeResponse: Summary of merge operation
+
+    Raises:
+        HTTPException: 404 if source or target user not found
+        HTTPException: 400 if merge is invalid (same user, already merged, etc.)
+    """
+    source_user_id = merge_data.source_user_id
+    target_user_id = merge_data.target_user_id
+
+    # Validate: Cannot merge user into themselves
+    if source_user_id == target_user_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя объединить пользователя с самим собой"
+        )
+
+    # Load source user
+    source_query = select(User).where(User.id == source_user_id)
+    source_result = await session.execute(source_query)
+    source_user = source_result.scalar_one_or_none()
+
+    if not source_user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Исходный пользователь с ID {source_user_id} не найден"
+        )
+
+    # Check if source user is already merged
+    if source_user.merged_into_user_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Исходный аккаунт уже объединен с пользователем ID {source_user.merged_into_user_id}"
+        )
+
+    # Load target user
+    target_query = select(User).where(User.id == target_user_id)
+    target_result = await session.execute(target_query)
+    target_user = target_result.scalar_one_or_none()
+
+    if not target_user:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Целевой пользователь с ID {target_user_id} не найден"
+        )
+
+    # Check if target user is already merged (cannot merge into merged account)
+    if target_user.merged_into_user_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Целевой аккаунт уже объединен с другим пользователем"
+        )
+
+    now = datetime.utcnow()
+    telegram_id_transferred = False
+    source_telegram_id = source_user.telegram_id
+
+    # Use raw SQL for atomic telegram_id transfer to avoid constraint violations
+    # The constraint chk_user_has_auth_method requires telegram_id OR email to be set
+    # We need to transfer telegram_id atomically: clear from source AND set on target in one transaction
+
+    from sqlmodel import update
+
+    # 1. Transfer Telegram ID if source has it and target doesn't
+    if source_telegram_id is not None and target_user.telegram_id is None:
+        # First, clear from source (use raw SQL to avoid ORM autoflush issues)
+        # Set a placeholder to satisfy constraint temporarily if source has no email
+        if source_user.email is None:
+            # Source has only telegram_id - give it a placeholder email before clearing telegram_id
+            placeholder_email = f"merged_{source_user_id}@placeholder.local"
+            source_clear_stmt = (
+                update(User)
+                .where(User.id == source_user_id)
+                .values(telegram_id=None, email=placeholder_email, updated_at=now)
+            )
+        else:
+            # Source has email - can safely clear telegram_id
+            source_clear_stmt = (
+                update(User)
+                .where(User.id == source_user_id)
+                .values(telegram_id=None, updated_at=now)
+            )
+        await session.execute(source_clear_stmt)
+
+        # Then, set on target
+        target_set_stmt = (
+            update(User)
+            .where(User.id == target_user_id)
+            .values(telegram_id=source_telegram_id, updated_at=now)
+        )
+        await session.execute(target_set_stmt)
+        telegram_id_transferred = True
+
+    # 2. Transfer all facts from source to target
+    facts_update_stmt = (
+        update(Fact)
+        .where(Fact.user_id == source_user_id)
+        .values(user_id=target_user_id, updated_at=now)
+    )
+    facts_result = await session.execute(facts_update_stmt)
+    facts_transferred = facts_result.rowcount
+
+    # 3. Transfer financial centers from source to target
+    fc_update_stmt = (
+        update(FinancialCenter)
+        .where(FinancialCenter.user_id == source_user_id)
+        .values(user_id=target_user_id, updated_at=now)
+    )
+    await session.execute(fc_update_stmt)
+
+    # 4. Transfer cost centers from source to target
+    cc_update_stmt = (
+        update(CostCenter)
+        .where(CostCenter.user_id == source_user_id)
+        .values(user_id=target_user_id, updated_at=now)
+    )
+    await session.execute(cc_update_stmt)
+
+    # 5. Mark source user as merged and deactivate (using raw SQL to avoid stale ORM state)
+    source_merge_stmt = (
+        update(User)
+        .where(User.id == source_user_id)
+        .values(merged_into_user_id=target_user_id, is_active=False, updated_at=now)
+    )
+    await session.execute(source_merge_stmt)
+
+    # 6. Commit all changes
+    await session.commit()
+
+    logger.info(
+        f"Users merged: {source_user_id} -> {target_user_id} "
+        f"(facts: {facts_transferred}, telegram_id_transferred: {telegram_id_transferred}) "
+        f"by admin {current_admin.id}"
+    )
+
+    return UserMergeResponse(
+        message="Аккаунты успешно объединены",
+        source_user_id=source_user_id,
+        target_user_id=target_user_id,
+        facts_transferred=facts_transferred,
+        telegram_id_transferred=telegram_id_transferred,
+    )
+
+
 @router.get("/articles", response_model=List[ArticleResponse])
 async def get_all_articles(
     current_admin: CurrentAdmin,
@@ -1142,8 +1311,22 @@ async def create_article(
         ArticleResponse: Created article
 
     Raises:
-        HTTPException: 400 if parent_id invalid or type mismatch
+        HTTPException: 400 if parent_id invalid, type mismatch, or duplicate name+type
     """
+    # Check for duplicate (name + type) - same name with same type is not allowed
+    duplicate_query = select(Article).where(
+        Article.name == create_data.name,
+        Article.type == create_data.type,
+    )
+    duplicate_result = await session.execute(duplicate_query)
+    duplicate = duplicate_result.scalar_one_or_none()
+
+    if duplicate:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Категория с именем '{create_data.name}' и типом '{create_data.type}' уже существует"
+        )
+
     # Validate parent_id if provided
     if create_data.parent_id is not None:
         parent_query = select(Article).where(
@@ -1239,31 +1422,38 @@ async def update_article(
         raise HTTPException(status_code=404, detail="Article not found")
 
     # Prepare update data
+    # Note: We need to handle parent_id specially - it can be explicitly set to null (move to root)
+    # Frontend always sends parent_id (either a valid ID or null for root level)
     updates = {}
     if update_data.name is not None:
         updates["name"] = update_data.name
     if update_data.type is not None:
         updates["type"] = update_data.type
-    if update_data.parent_id is not None:
-        updates["parent_id"] = update_data.parent_id
+    # Always include parent_id - null means "move to root", not "don't change"
+    # Frontend always sends parent_id in the request body
+    updates["parent_id"] = update_data.parent_id
     if update_data.is_active is not None:
         updates["is_active"] = update_data.is_active
 
     # Validate parent_id if changing
     if "parent_id" in updates and updates["parent_id"] != article.parent_id:
-        # Check parent exists
-        parent_query = select(Article).where(
-            Article.id == updates["parent_id"],
-        )
-        parent_result = await session.execute(parent_query)
-        parent = parent_result.scalar_one_or_none()
+        new_parent_id = updates["parent_id"]
 
-        if not parent:
-            raise HTTPException(status_code=400, detail="Parent article not found")
+        # parent_id = null means "move to root" - this is valid, skip validation
+        if new_parent_id is not None:
+            # Check parent exists
+            parent_query = select(Article).where(
+                Article.id == new_parent_id,
+            )
+            parent_result = await session.execute(parent_query)
+            parent = parent_result.scalar_one_or_none()
 
-        # Cannot set self as parent
-        if updates["parent_id"] == article_id:
-            raise HTTPException(status_code=400, detail="Cannot set article as its own parent")
+            if not parent:
+                raise HTTPException(status_code=400, detail="Parent article not found")
+
+            # Cannot set self as parent
+            if new_parent_id == article_id:
+                raise HTTPException(status_code=400, detail="Cannot set article as its own parent")
 
     # Validate type change if changing
     if "type" in updates and updates["type"] != article.type:
@@ -1355,6 +1545,9 @@ async def update_article(
             "user_name": None
         }
 
+    # Store original type BEFORE update (for cascade detection)
+    original_type = article.type
+
     # Use SCD Type 1 + History (in-place update with history tracking)
     updated_article = await update_article_scd1(
         session=session,
@@ -1365,8 +1558,8 @@ async def update_article(
     )
 
     # CASCADE: If type was changed, recursively update all children
-    if "type" in updates and updates["type"] != article.type:
-        # Get all descendants
+    if "type" in updates and updates["type"] != original_type:
+        # Get all descendants and update without intermediate commits
         async def cascade_update_type(parent_article_id: int, new_type: str):
             """Recursively update type for all children of given article."""
             # Get all immediate children
@@ -1377,9 +1570,12 @@ async def update_article(
             children_list = children_result.scalars().all()
 
             for child in children_list:
+                # Store child's original type before potential update
+                child_original_type = child.type
+
                 # Only update if child has different type
-                if child.type != new_type:
-                    # Update child type using SCD Type 1
+                if child_original_type != new_type:
+                    # Update child type using SCD Type 1 (no auto commit - we'll commit once at the end)
                     child_updates = {"type": new_type}
                     await update_article_scd1(
                         session=session,
@@ -1387,10 +1583,11 @@ async def update_article(
                         updates=child_updates,
                         changed_by_user_id=current_admin.id,
                         change_type="CASCADE_TYPE_UPDATE",
+                        auto_commit=False,  # Don't commit yet - avoid session state issues
                     )
 
                     logger.info(
-                        f"CASCADE: Updated child type: {child.name} ({child.type} → {new_type})"
+                        f"CASCADE: Updated child type: {child.name} ({child_original_type} → {new_type})"
                     )
 
                     # Recursively update this child's children
@@ -1398,6 +1595,10 @@ async def update_article(
 
         # Start cascade from the updated article
         await cascade_update_type(updated_article.id, updated_article.type)
+
+        # Single commit for all cascade updates
+        await session.commit()
+        await session.refresh(updated_article)
 
     # TRIGGER: Recalculate article usage statistics after category update
     # This ensures usage_count is up-to-date for category selection UI sorting

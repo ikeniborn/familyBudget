@@ -19,10 +19,10 @@ const CACHE_NAME = `budget-${CACHE_VERSION}`;
 
 // Критическая статика БЕЗ версий (для precaching в install event)
 // ТОЛЬКО файлы которые НЕ используют cache busting
+// ВАЖНО: /facts и /plan НЕ включены - это защищённые страницы,
+// они кэшируются при первом посещении (после авторизации)
 const STATIC_CACHE = [
   '/',
-  '/facts',
-  '/plan',
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
@@ -31,6 +31,10 @@ const STATIC_CACHE = [
 
 // Страницы доступные в offline режиме (только эти страницы работают без сети)
 const OFFLINE_PAGES = ['/', '/facts', '/plan'];
+
+// Страницы для быстрой загрузки (кэшируем при первом посещении, но требуют сети)
+// Эти страницы кэшируются для ускорения повторной загрузки, но не работают offline
+const CACHE_FIRST_PAGES = ['/api/v1/auth/telegram-login', '/login-email', '/register'];
 
 // Файлы с cache busting - кешируются RUNTIME (не в install event)
 // Service Worker будет кешировать их при первом запросе
@@ -47,7 +51,8 @@ self.addEventListener('install', (event) => {
         return Promise.allSettled(
           STATIC_CACHE.map(url =>
             cache.add(url).catch(err => {
-              if (DEBUG) console.warn('[SW] Failed to cache:', url, err);
+              // Подавляем ошибки кэширования - файл закэшируется позже при запросе
+              if (DEBUG) console.warn('[SW] Failed to cache:', url, err.message);
               return null;
             })
           )
@@ -143,7 +148,65 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Стратегия 2: HTML страницы - Network First (актуальный контент)
+  // Стратегия 2a: Страницы для быстрой загрузки - Cache First + Network Update
+  // Эти страницы кэшируются для ускорения, но требуют сети для работы
+  if (CACHE_FIRST_PAGES.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(request)
+        .then((cachedResponse) => {
+          // Всегда делаем сетевой запрос в фоне для обновления кэша
+          const fetchPromise = fetch(request).then((networkResponse) => {
+            if (networkResponse.ok) {
+              const clonedResponse = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(request, clonedResponse);
+              });
+            }
+            return networkResponse;
+          });
+
+          // Если есть в кэше - возвращаем сразу (stale-while-revalidate)
+          if (cachedResponse) {
+            if (DEBUG) console.log('[SW] Serving cached login page:', url.pathname);
+            return cachedResponse;
+          }
+
+          // Если нет в кэше - ждём сеть
+          return fetchPromise;
+        })
+        .catch(() => {
+          // Fallback на кэш при ошибке сети
+          return caches.match(request)
+            .then(cachedResponse => {
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+              // Нет кэша и нет сети - показываем сообщение
+              return new Response(
+                `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Нет подключения</title>
+</head>
+<body>
+  <h1>Нет подключения к интернету</h1>
+  <p>Для входа через Telegram требуется подключение к интернету.</p>
+  <a href="/">Вернуться на главную</a>
+</body>
+</html>`,
+                {
+                  status: 503,
+                  headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                }
+              );
+            });
+        })
+    );
+    return;
+  }
+
+  // Стратегия 2b: HTML страницы - Network First (актуальный контент)
   if (url.pathname === '/' || url.pathname.match(/\.html$/) || !url.pathname.includes('.')) {
     event.respondWith(
       fetch(request)
@@ -469,11 +532,26 @@ async function syncCreate(item) {
 
   // Clean data: remove display-only fields not expected by API
   const cleanData = { ...item.data };
+
+  // Common display-only fields for facts/plans
   delete cleanData.article_name;
   delete cleanData.financial_center_name;
   delete cleanData.cost_center_name;
   delete cleanData.plan_date;
   delete cleanData.fact_type;
+  // Notification fields are stored for display but not sent to API
+  delete cleanData.notification_enabled;
+  delete cleanData.reminder_datetime;
+
+  // Transfer-specific display-only fields
+  if (item.entity === 'transfer') {
+    delete cleanData.from_financial_center_name;
+    delete cleanData.to_financial_center_name;
+    delete cleanData.from_article_name;
+    delete cleanData.to_article_name;
+  }
+
+  if (DEBUG) console.log(`[SW] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -505,11 +583,26 @@ async function syncUpdate(item) {
 
   // Clean data: remove display-only fields
   const cleanData = { ...item.data };
+
+  // Common display-only fields for facts/plans
   delete cleanData.article_name;
   delete cleanData.financial_center_name;
   delete cleanData.cost_center_name;
   delete cleanData.plan_date;
   delete cleanData.fact_type;
+  // Notification fields are stored for display but not sent to API
+  delete cleanData.notification_enabled;
+  delete cleanData.reminder_datetime;
+
+  // Transfer-specific display-only fields
+  if (item.entity === 'transfer') {
+    delete cleanData.from_financial_center_name;
+    delete cleanData.to_financial_center_name;
+    delete cleanData.from_article_name;
+    delete cleanData.to_article_name;
+  }
+
+  if (DEBUG) console.log(`[SW] Updating ${item.entity} at ${endpoint}:`, cleanData);
 
   const response = await fetch(endpoint, {
     method: 'PUT',

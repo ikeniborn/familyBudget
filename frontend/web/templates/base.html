@@ -175,6 +175,24 @@
                 </div>
             </div>
 
+            <!-- Manual Offline Mode Toggle -->
+            <button id="manual-offline-toggle"
+                    class="btn btn-ghost btn-circle btn-sm sm:btn-md"
+                    onclick="toggleManualOfflineMode()"
+                    aria-label="Toggle offline mode"
+                    title="Переключить оффлайн режим">
+                <!-- Online icon (cloud with check) - shown when NOT in manual offline mode -->
+                <svg id="offline-toggle-online-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
+                </svg>
+                <!-- Offline icon (cloud with pause) - shown when in manual offline mode -->
+                <svg id="offline-toggle-offline-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-warning hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 10v4M14 10v4" />
+                </svg>
+            </button>
+
             <!-- Telegram Bot Link -->
             <a id="telegram-link" href="https://t.me/ikenibornbudgetbot" target="_blank" rel="noopener noreferrer"
                class="btn btn-ghost btn-circle btn-sm sm:btn-md"
@@ -735,16 +753,11 @@
 
                             newWorker.addEventListener('statechange', () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Новая версия доступна
-                                    debugLog('[PWA] New version available');
-
-                                    // Показываем уведомление пользователю
-                                    showToast('Доступна новая версия приложения', 'info');
-
-                                    // Опциональный автоматический reload (можно убрать если нужен ручной контроль)
-                                    setTimeout(() => {
-                                        newWorker.postMessage({ action: 'skipWaiting' });
-                                    }, 3000);
+                                    // Новая версия доступна - показываем уведомление
+                                    debugLog('[PWA] New version available, waiting for user action');
+                                    showToast('Доступна новая версия. Обновите страницу.', 'info', 5000);
+                                    // НЕ вызываем skipWaiting автоматически - это предотвращает двойную загрузку
+                                    // Новая версия активируется при следующей навигации или ручном refresh
                                 }
                             });
                         });
@@ -753,14 +766,12 @@
                         console.error('[PWA] Service Worker registration failed:', err);
                     });
 
-                // Обработка контроллера SW (reload при активации нового SW)
-                let refreshing = false;
+                // Обработка контроллера SW
+                // НЕ делаем автоматический reload при controllerchange
+                // Это предотвращает двойную загрузку страницы при обновлении SW
                 navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    if (!refreshing) {
-                        refreshing = true;
-                        debugLog('[PWA] Reloading page for new Service Worker');
-                        window.location.reload();
-                    }
+                    debugLog('[PWA] Controller changed - new SW is now active');
+                    // Пользователь сам решает когда обновить страницу
                 });
             });
         } else {
@@ -793,17 +804,36 @@
 
         // Network status handlers (UI only, toast handled by OfflineManager)
         window.addEventListener('online', () => {
-            debugLog('[Offline] Network online');
+            debugLog('[Offline] Browser online event');
             // Update all UI elements (badge, menus, dropdowns)
             updateOfflineUI();
             // Note: Toast is handled by OfflineManager.handleOnline() with debounce
         });
 
         window.addEventListener('offline', () => {
-            debugLog('[Offline] Network offline');
+            debugLog('[Offline] Browser offline event');
             // Update all UI elements (badge, menus, dropdowns)
             updateOfflineUI();
             // Note: Toast is handled by OfflineManager.handleOffline() with debounce
+        });
+
+        // Listen for SmartNetworkDetector status changes (backend availability)
+        // This catches cases where navigator.onLine is true but backend is unreachable
+        window.addEventListener('offline-status-change', (event) => {
+            const { online, status } = event.detail || {};
+            debugLog('[Offline] SmartNetworkDetector status change:', status, 'online:', online);
+            // Update UI based on actual backend availability
+            updateOfflineUI();
+        });
+
+        // Also listen for network-status-change (from SmartNetworkDetector directly)
+        window.addEventListener('network-status-change', async (event) => {
+            const { status, previousStatus } = event.detail || {};
+            debugLog('[Offline] Network status change:', previousStatus, '→', status);
+            // Update UI based on actual backend availability
+            updateOfflineUI();
+
+            // Note: No auto-sync on network restore - user must click "Синхронизировать" button
         });
 
         // Update pending count
@@ -827,16 +857,49 @@
         }
 
         // Update offline UI
+        // Considers both navigator.onLine AND SmartNetworkDetector status
+        // Backend may be unreachable even if navigator.onLine is true
         function updateOfflineUI() {
-            const isOnline = navigator.onLine;
+            // Check manual offline mode first
+            let isManualOffline = false;
+            let isOnline = navigator.onLine;
 
-            // Update offline badge
+            if (window.offlineManager && window.offlineManager.networkDetector) {
+                isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
+                const networkStatus = window.offlineManager.networkDetector.getStatus();
+                if (networkStatus === 'offline') {
+                    isOnline = false;
+                    debugLog('[Offline] Backend unreachable, switching to offline mode');
+                }
+            }
+
+            // If manual offline mode is enabled, treat as offline
+            if (isManualOffline) {
+                isOnline = false;
+            }
+
+            // Update offline badge (cloud with X) - show for AUTO offline only, hide for manual
             const offlineBadge = document.getElementById('offline-icon');
             if (offlineBadge) {
-                if (!isOnline) {
+                // Show only when auto-offline (not manual)
+                if (!isOnline && !isManualOffline) {
                     offlineBadge.classList.remove('hidden');
                 } else {
                     offlineBadge.classList.add('hidden');
+                }
+            }
+
+            // Update manual offline toggle button visibility
+            const manualOfflineToggle = document.getElementById('manual-offline-toggle');
+            if (manualOfflineToggle) {
+                // Hide toggle button when auto-offline (no network)
+                // Show only when online or manual offline mode
+                if (!isOnline && !isManualOffline) {
+                    // Auto-offline - hide toggle
+                    manualOfflineToggle.style.display = 'none';
+                } else {
+                    // Online or manual offline - show toggle
+                    manualOfflineToggle.style.display = '';
                 }
             }
 
@@ -864,9 +927,83 @@
                 userDropdown.style.display = isOnline ? '' : 'none';
             }
 
+            // Hide analytics group and recent transactions on index page when offline
+            const analyticsGroup = document.getElementById('analytics-group');
+            if (analyticsGroup) {
+                analyticsGroup.style.display = isOnline ? '' : 'none';
+            }
+
+            const recentTransactionsCard = document.getElementById('recent-transactions-card');
+            if (recentTransactionsCard) {
+                recentTransactionsCard.style.display = isOnline ? '' : 'none';
+            }
+
             // Update pending count
             updatePendingCount();
+
+            // Update manual offline toggle button icon
+            updateManualOfflineToggleUI();
         }
+
+        // Toggle manual offline mode
+        async function toggleManualOfflineMode() {
+            if (!window.offlineManager || !window.offlineManager.networkDetector) {
+                console.warn('[Offline] NetworkDetector not available');
+                return;
+            }
+
+            const detector = window.offlineManager.networkDetector;
+            const wasEnabled = detector.isManualOfflineModeEnabled();
+            await detector.toggleManualOfflineMode();
+            const isEnabled = detector.isManualOfflineModeEnabled();
+
+            // Update UI (events from networkDetector will also trigger this, but call explicitly for safety)
+            updateManualOfflineToggleUI();
+            updateOfflineUI();
+
+            // Show toast notification
+            if (isEnabled) {
+                showToast('Оффлайн режим включен вручную', 'warning');
+            } else {
+                showToast('Оффлайн режим отключен', 'success');
+                // Note: No auto-sync - user must click "Синхронизировать" button
+            }
+        }
+
+        // Make function global for onclick handler
+        window.toggleManualOfflineMode = toggleManualOfflineMode;
+
+        // Update manual offline toggle button icon
+        function updateManualOfflineToggleUI() {
+            const onlineIcon = document.getElementById('offline-toggle-online-icon');
+            const offlineIcon = document.getElementById('offline-toggle-offline-icon');
+            const toggleButton = document.getElementById('manual-offline-toggle');
+
+            if (!onlineIcon || !offlineIcon || !toggleButton) return;
+
+            let isManualOffline = false;
+            if (window.offlineManager && window.offlineManager.networkDetector) {
+                isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
+            }
+
+            if (isManualOffline) {
+                onlineIcon.classList.add('hidden');
+                offlineIcon.classList.remove('hidden');
+                toggleButton.title = 'Оффлайн режим включен (нажмите для отключения)';
+            } else {
+                onlineIcon.classList.remove('hidden');
+                offlineIcon.classList.add('hidden');
+                toggleButton.title = 'Переключить оффлайн режим';
+            }
+        }
+
+        // Listen for manual offline mode changes
+        window.addEventListener('manual-offline-mode-change', (event) => {
+            const { enabled } = event.detail || {};
+            debugLog('[Offline] Manual offline mode change:', enabled);
+            updateManualOfflineToggleUI();
+            updateOfflineUI();
+        });
 
         // Poll pending count every 5 seconds
         setInterval(updatePendingCount, 5000);

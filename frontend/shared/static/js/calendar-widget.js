@@ -465,6 +465,9 @@ class CalendarWidget {
 
     // Calendar actions (event delegation)
     this.calendarElement.addEventListener('click', (e) => {
+      // CRITICAL: Stop propagation to prevent DaisyUI modal backdrop from closing
+      e.stopPropagation();
+
       const target = e.target.closest('[data-action]');
       if (!target) return;
 
@@ -506,6 +509,9 @@ class CalendarWidget {
 
     // Date selection
     this.calendarElement.addEventListener('click', (e) => {
+      // CRITICAL: Stop propagation to prevent DaisyUI modal backdrop from closing
+      e.stopPropagation();
+
       const dateButton = e.target.closest('[data-date]');
       if (!dateButton || dateButton.disabled) return;
 
