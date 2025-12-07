@@ -409,6 +409,271 @@ class DateFormatter {
 
     inputElement.value = this.todayISO();
   }
+
+  // ============================================================================
+  // Timezone-aware methods
+  // ============================================================================
+
+  /**
+   * Convert UTC ISO datetime string to user's timezone for display.
+   *
+   * Uses the browser's Intl.DateTimeFormat for timezone conversion.
+   * If no userTimezone specified, uses browser's local timezone.
+   *
+   * @param {string} utcIsoString - ISO datetime string in UTC (e.g., "2025-12-06T09:30:00Z")
+   * @param {string|null} userTimezone - IANA timezone (e.g., "Europe/Moscow") or null for browser local
+   * @returns {string} Formatted local datetime (DD.MM.YYYY HH:MM)
+   *
+   * @example
+   * DateFormatter.toUserTimezone('2025-12-06T09:30:00Z', 'Europe/Moscow')
+   * // => '06.12.2025 12:30' (UTC+3)
+   *
+   * DateFormatter.toUserTimezone('2025-12-06T09:30:00Z', null)
+   * // => Uses browser's local timezone
+   */
+  static toUserTimezone(utcIsoString, userTimezone = null) {
+    if (!utcIsoString) return '';
+
+    try {
+      const date = new Date(utcIsoString);
+      if (isNaN(date.getTime())) return '';
+
+      const options = {
+        timeZone: userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      };
+
+      // Format and convert to DD.MM.YYYY HH:MM
+      const formatter = new Intl.DateTimeFormat('ru-RU', options);
+      const parts = formatter.formatToParts(date);
+
+      let day = '', month = '', year = '', hour = '', minute = '';
+      for (const part of parts) {
+        if (part.type === 'day') day = part.value;
+        else if (part.type === 'month') month = part.value;
+        else if (part.type === 'year') year = part.value;
+        else if (part.type === 'hour') hour = part.value;
+        else if (part.type === 'minute') minute = part.value;
+      }
+
+      return `${day}.${month}.${year} ${hour}:${minute}`;
+    } catch (e) {
+      console.error('DateFormatter.toUserTimezone error:', e);
+      return '';
+    }
+  }
+
+  /**
+   * Convert UTC ISO date string to user's timezone for display (date only).
+   *
+   * @param {string} utcIsoString - ISO datetime string in UTC
+   * @param {string|null} userTimezone - IANA timezone or null for browser local
+   * @returns {string} Formatted local date (DD.MM.YYYY)
+   *
+   * @example
+   * DateFormatter.dateToUserTimezone('2025-12-06T23:30:00Z', 'Europe/Moscow')
+   * // => '07.12.2025' (next day in Moscow due to +3)
+   */
+  static dateToUserTimezone(utcIsoString, userTimezone = null) {
+    if (!utcIsoString) return '';
+
+    try {
+      const date = new Date(utcIsoString);
+      if (isNaN(date.getTime())) return '';
+
+      const options = {
+        timeZone: userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      };
+
+      const formatter = new Intl.DateTimeFormat('ru-RU', options);
+      const parts = formatter.formatToParts(date);
+
+      let day = '', month = '', year = '';
+      for (const part of parts) {
+        if (part.type === 'day') day = part.value;
+        else if (part.type === 'month') month = part.value;
+        else if (part.type === 'year') year = part.value;
+      }
+
+      return `${day}.${month}.${year}`;
+    } catch (e) {
+      console.error('DateFormatter.dateToUserTimezone error:', e);
+      return '';
+    }
+  }
+
+  /**
+   * Get current date in user's timezone (DD.MM.YYYY).
+   *
+   * Unlike today() which uses browser's local timezone,
+   * this method allows specifying a custom timezone.
+   *
+   * @param {string|null} userTimezone - IANA timezone or null for browser local
+   * @returns {string} Current date in user's timezone (DD.MM.YYYY)
+   *
+   * @example
+   * DateFormatter.todayInTimezone('Europe/Moscow')
+   * // => '06.12.2025' (current date in Moscow)
+   */
+  static todayInTimezone(userTimezone = null) {
+    return this.dateToUserTimezone(new Date().toISOString(), userTimezone);
+  }
+
+  /**
+   * Get current date in user's timezone (YYYY-MM-DD for API).
+   *
+   * @param {string|null} userTimezone - IANA timezone or null for browser local
+   * @returns {string} Current date in API format (YYYY-MM-DD)
+   *
+   * @example
+   * DateFormatter.todayISOInTimezone('Europe/Moscow')
+   * // => '2025-12-06'
+   */
+  static todayISOInTimezone(userTimezone = null) {
+    const displayDate = this.todayInTimezone(userTimezone);
+    return this.formatForAPI(displayDate);
+  }
+
+  /**
+   * Convert local datetime input to UTC ISO string for API.
+   *
+   * Parses a local datetime string (DD.MM.YYYY HH:MM) in the specified
+   * timezone and converts it to UTC ISO string.
+   *
+   * Note: This is a simplified implementation. For production use with
+   * complex DST handling, consider using libraries like Luxon or date-fns-tz.
+   *
+   * @param {string} localDatetime - Local datetime in "DD.MM.YYYY HH:MM" format
+   * @param {string|null} userTimezone - IANA timezone the input is in
+   * @returns {string|null} UTC ISO string or null if invalid
+   *
+   * @example
+   * DateFormatter.toUtcForApi('06.12.2025 12:30', 'Europe/Moscow')
+   * // => '2025-12-06T09:30:00.000Z' (Moscow UTC+3)
+   */
+  static toUtcForApi(localDatetime, userTimezone = null) {
+    if (!localDatetime) return null;
+
+    try {
+      // Parse DD.MM.YYYY HH:MM
+      const match = localDatetime.match(/^(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2})$/);
+      if (!match) return null;
+
+      const [, day, month, year, hour, minute] = match;
+
+      // Create date string in a format that browsers can parse with timezone
+      // Using the ISO-like format: YYYY-MM-DDTHH:MM:SS
+      const dateStr = `${year}-${month}-${day}T${hour}:${minute}:00`;
+
+      // For timezone conversion, we need to know the offset
+      // This is a simplified approach - create a date and calculate offset
+      const localDate = new Date(dateStr);
+
+      if (userTimezone) {
+        // Get the offset for the specified timezone
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: userTimezone,
+          timeZoneName: 'longOffset'
+        });
+
+        // Create a reference date at the same instant in UTC
+        // and find the offset difference
+        const parts = formatter.formatToParts(localDate);
+        const tzPart = parts.find(p => p.type === 'timeZoneName');
+
+        if (tzPart) {
+          // Parse offset like "GMT+03:00" or "GMT-05:00"
+          const offsetMatch = tzPart.value.match(/GMT([+-])(\d{2}):(\d{2})/);
+          if (offsetMatch) {
+            const [, sign, hours, minutes] = offsetMatch;
+            const offsetMinutes = (parseInt(hours) * 60 + parseInt(minutes)) * (sign === '+' ? 1 : -1);
+
+            // Subtract offset to get UTC
+            const utcDate = new Date(localDate.getTime() - offsetMinutes * 60 * 1000);
+            return utcDate.toISOString();
+          }
+        }
+      }
+
+      // Fallback: use browser's interpretation
+      return localDate.toISOString();
+    } catch (e) {
+      console.error('DateFormatter.toUtcForApi error:', e);
+      return null;
+    }
+  }
+
+  /**
+   * Format datetime with timezone for display (includes timezone indicator).
+   *
+   * @param {Date|string} date - Date object or ISO string
+   * @param {string|null} userTimezone - IANA timezone or null for browser local
+   * @returns {string} Formatted date and time with timezone (DD.MM.YYYY HH:MM (TZ))
+   *
+   * @example
+   * DateFormatter.formatDateTimeWithTz('2025-12-06T09:30:00Z', 'Europe/Moscow')
+   * // => '06.12.2025 12:30 (MSK)'
+   */
+  static formatDateTimeWithTz(date, userTimezone = null) {
+    if (!date) return '';
+
+    try {
+      const d = typeof date === 'string' ? new Date(date) : date;
+      if (isNaN(d.getTime())) return '';
+
+      const tz = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      const options = {
+        timeZone: tz,
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZoneName: 'short'
+      };
+
+      const formatter = new Intl.DateTimeFormat('ru-RU', options);
+      const parts = formatter.formatToParts(d);
+
+      let day = '', month = '', year = '', hour = '', minute = '', tzName = '';
+      for (const part of parts) {
+        if (part.type === 'day') day = part.value;
+        else if (part.type === 'month') month = part.value;
+        else if (part.type === 'year') year = part.value;
+        else if (part.type === 'hour') hour = part.value;
+        else if (part.type === 'minute') minute = part.value;
+        else if (part.type === 'timeZoneName') tzName = part.value;
+      }
+
+      return `${day}.${month}.${year} ${hour}:${minute} (${tzName})`;
+    } catch (e) {
+      console.error('DateFormatter.formatDateTimeWithTz error:', e);
+      return '';
+    }
+  }
+
+  /**
+   * Get browser's current timezone name (IANA format).
+   *
+   * @returns {string} Browser's timezone (e.g., "Europe/Moscow")
+   *
+   * @example
+   * DateFormatter.getBrowserTimezone()
+   * // => 'Europe/Moscow'
+   */
+  static getBrowserTimezone() {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  }
 }
 
 
@@ -601,7 +866,12 @@ class CalendarWidget {
     const parent = targetInput.parentElement;
     if (!parent.classList.contains('relative')) {
       const wrapper = document.createElement('div');
-      wrapper.className = 'relative';
+      wrapper.className = 'relative flex-1';
+      // Transfer flex-1 from input to wrapper if present
+      if (targetInput.classList.contains('flex-1')) {
+        targetInput.classList.remove('flex-1');
+        targetInput.classList.add('w-full');
+      }
       parent.insertBefore(wrapper, targetInput);
       wrapper.appendChild(targetInput);
       wrapper.appendChild(button);
@@ -847,6 +1117,9 @@ class CalendarWidget {
 
     // Calendar actions (event delegation)
     this.calendarElement.addEventListener('click', (e) => {
+      // CRITICAL: Stop propagation to prevent DaisyUI modal backdrop from closing
+      e.stopPropagation();
+
       const target = e.target.closest('[data-action]');
       if (!target) return;
 
@@ -888,6 +1161,9 @@ class CalendarWidget {
 
     // Date selection
     this.calendarElement.addEventListener('click', (e) => {
+      // CRITICAL: Stop propagation to prevent DaisyUI modal backdrop from closing
+      e.stopPropagation();
+
       const dateButton = e.target.closest('[data-date]');
       if (!dateButton || dateButton.disabled) return;
 

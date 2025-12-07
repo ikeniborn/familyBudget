@@ -776,7 +776,49 @@ async def update_fact(
     await session.commit()
     await session.refresh(fact)
 
-    return fact
+    # Load article for response (may already be loaded if article_id changed)
+    if "article_id" not in update_data:
+        article_stmt = select(Article).where(Article.id == fact.article_id)
+        article_result = await session.execute(article_stmt)
+        article = article_result.scalar_one_or_none()
+
+    # Load financial center and cost center names if present
+    financial_center_name = None
+    if fact.financial_center_id:
+        fc_stmt = select(FinancialCenter).where(
+            FinancialCenter.id == fact.financial_center_id
+        )
+        fc_result = await session.execute(fc_stmt)
+        fc = fc_result.scalar_one_or_none()
+        financial_center_name = fc.name if fc else None
+
+    cost_center_name = None
+    if fact.cost_center_id:
+        cc_stmt = select(CostCenter).where(
+            CostCenter.id == fact.cost_center_id
+        )
+        cc_result = await session.execute(cc_stmt)
+        cc = cc_result.scalar_one_or_none()
+        cost_center_name = cc.name if cc else None
+
+    # Return enriched response with article and center data
+    return {
+        "id": fact.id,
+        "user_id": fact.user_id,
+        "article_id": fact.article_id,
+        "article_type": article.type,
+        "article_name": article.name,
+        "fact_date": fact.fact_date,
+        "amount": fact.amount,
+        "description": fact.description,
+        "financial_center_id": fact.financial_center_id,
+        "financial_center_name": financial_center_name,
+        "cost_center_id": fact.cost_center_id,
+        "cost_center_name": cost_center_name,
+        "record_type": fact.record_type,
+        "created_at": fact.created_at,
+        "updated_at": fact.updated_at,
+    }
 
 
 @router.delete(
