@@ -291,8 +291,10 @@ class OfflineManager {
             error: null
         });
 
-        // 3. Register Background Sync (if supported)
-        if (this.supportsBackgroundSync()) {
+        // 3. Register Background Sync (if supported AND not in manual offline mode)
+        // Skip sync registration if manual offline mode is enabled - user wants to control when sync happens
+        const isManualOffline = this.networkDetector && this.networkDetector.isManualOfflineModeEnabled();
+        if (this.supportsBackgroundSync() && !isManualOffline) {
             try {
                 const registration = await navigator.serviceWorker.ready;
                 await registration.sync.register('sync-budget-data');
@@ -519,7 +521,9 @@ class OfflineManager {
             error: null
         });
 
-        if (this.supportsBackgroundSync()) {
+        // Skip sync registration if manual offline mode is enabled
+        const isManualOffline = this.networkDetector && this.networkDetector.isManualOfflineModeEnabled();
+        if (this.supportsBackgroundSync() && !isManualOffline) {
             const registration = await navigator.serviceWorker.ready;
             await registration.sync.register('sync-budget-data');
         }
@@ -588,7 +592,9 @@ class OfflineManager {
             error: null
         });
 
-        if (this.supportsBackgroundSync()) {
+        // Skip sync registration if manual offline mode is enabled
+        const isManualOffline = this.networkDetector && this.networkDetector.isManualOfflineModeEnabled();
+        if (this.supportsBackgroundSync() && !isManualOffline) {
             const registration = await navigator.serviceWorker.ready;
             await registration.sync.register('sync-budget-data');
         }
