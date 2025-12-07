@@ -17,7 +17,7 @@ Key Functions:
     - get_history(): Get all versions ordered by valid_from
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Any, Dict, Optional, Type, TypeVar
 
 from sqlalchemy.exc import IntegrityError
@@ -26,6 +26,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.article import Article
 from backend.app.models.user import User
+
+
+# Far future datetime constant for SCD Type 2 valid_to field
+# Uses timezone-aware UTC to prevent asyncpg year overflow issues
+FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
 # Generic type for SCD2 models
 T = TypeVar("T", Article, User)
@@ -113,7 +118,7 @@ async def create_new_version(
     # Set SCD Type 2 fields
     new_data["is_current"] = True
     new_data["valid_from"] = now
-    new_data["valid_to"] = datetime(9999, 12, 31, 23, 59, 59)
+    new_data["valid_to"] = FAR_FUTURE_DATETIME
     new_data["updated_at"] = now
 
     # Preserve original creation timestamp

@@ -13,7 +13,7 @@ Endpoints:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -36,6 +36,7 @@ from backend.app.services.scd2_service import has_changes
 from backend.app.services.cost_center_service import (
     create_initial_history,
     update_cost_center_profile,
+    FAR_FUTURE_DATETIME,
 )
 
 router = APIRouter(
@@ -396,7 +397,7 @@ async def delete_cost_center(
         code=cost_center.code,
         is_active=cost_center.is_active,
         valid_from=now,
-        valid_to=datetime(9999, 12, 31),
+        valid_to=FAR_FUTURE_DATETIME,
         is_current=False,  # Deleted records are never current
         change_type="DELETE",
         changed_fields=None,  # Full deletion
@@ -435,7 +436,7 @@ async def delete_cost_center(
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
                 valid_from=now,
-                valid_to=datetime(9999, 12, 31),
+                valid_to=FAR_FUTURE_DATETIME,
                 is_current=False,  # Deleted records are never current
                 change_type="DELETE",
                 changed_fields=None,  # Full deletion

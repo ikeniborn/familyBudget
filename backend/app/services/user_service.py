@@ -16,7 +16,7 @@ Key Functions:
     - get_user_version_at_date(): Time-travel query to UserHistory
 """
 
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from typing import Any, Dict, List, Optional
 
 from sqlmodel import select
@@ -24,6 +24,11 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.user import User
 from backend.app.models.user_history import UserHistory
+
+
+# Far future datetime constant for SCD Type 2 valid_to field
+# Uses timezone-aware UTC to prevent asyncpg year overflow issues
+FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 
 
 async def update_user_profile(
@@ -116,7 +121,7 @@ async def update_user_profile(
         two_factor_enabled=user.two_factor_enabled,  # Include 2FA status
         last_login_at=user.last_login_at,
         valid_from=now,
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),  # Far future
+        valid_to=FAR_FUTURE_DATETIME,
         is_current=True,
         change_type=change_type,
         changed_fields=changed_fields,
@@ -266,7 +271,7 @@ async def create_initial_history(
         two_factor_enabled=user.two_factor_enabled,  # Include 2FA status
         last_login_at=user.last_login_at,
         valid_from=now,
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+        valid_to=FAR_FUTURE_DATETIME,
         is_current=True,
         change_type=change_type,
         changed_fields=None,  # Initial creation - no previous version
