@@ -532,11 +532,26 @@ async function syncCreate(item) {
 
   // Clean data: remove display-only fields not expected by API
   const cleanData = { ...item.data };
+
+  // Common display-only fields for facts/plans
   delete cleanData.article_name;
   delete cleanData.financial_center_name;
   delete cleanData.cost_center_name;
   delete cleanData.plan_date;
   delete cleanData.fact_type;
+  // Notification fields are stored for display but not sent to API
+  delete cleanData.notification_enabled;
+  delete cleanData.reminder_datetime;
+
+  // Transfer-specific display-only fields
+  if (item.entity === 'transfer') {
+    delete cleanData.from_financial_center_name;
+    delete cleanData.to_financial_center_name;
+    delete cleanData.from_article_name;
+    delete cleanData.to_article_name;
+  }
+
+  if (DEBUG) console.log(`[SW] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -568,11 +583,26 @@ async function syncUpdate(item) {
 
   // Clean data: remove display-only fields
   const cleanData = { ...item.data };
+
+  // Common display-only fields for facts/plans
   delete cleanData.article_name;
   delete cleanData.financial_center_name;
   delete cleanData.cost_center_name;
   delete cleanData.plan_date;
   delete cleanData.fact_type;
+  // Notification fields are stored for display but not sent to API
+  delete cleanData.notification_enabled;
+  delete cleanData.reminder_datetime;
+
+  // Transfer-specific display-only fields
+  if (item.entity === 'transfer') {
+    delete cleanData.from_financial_center_name;
+    delete cleanData.to_financial_center_name;
+    delete cleanData.from_article_name;
+    delete cleanData.to_article_name;
+  }
+
+  if (DEBUG) console.log(`[SW] Updating ${item.entity} at ${endpoint}:`, cleanData);
 
   const response = await fetch(endpoint, {
     method: 'PUT',

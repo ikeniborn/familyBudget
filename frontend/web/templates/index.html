@@ -141,6 +141,7 @@
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
+                                        <th title="Уведомление">🔔</th>
                                         <th>Статус</th>
                                     </tr>
                                 </thead>
@@ -538,6 +539,10 @@ document.addEventListener('DOMContentLoaded', function() {
             articleName = selected ? selected.name : null;
         }
 
+        // Get reminder settings BEFORE building data object
+        const enableReminder = formData.get('enable_reminder') === 'on';
+        const reminderDatetime = formData.get('reminder_datetime');
+
         // v5.1.3: Убрано поле transaction_type - не используется для планов
         const data = {
             record_type: 'plan',
@@ -551,12 +556,11 @@ document.addEventListener('DOMContentLoaded', function() {
             cost_center_name: getSelectedText(ccSelect), // For offline display
             plan_date: factDate, // For pending table display
             fact_date: factDate, // Обязательное поле - первое число месяца плана
-            description: formData.get('description') || null
+            description: formData.get('description') || null,
+            // Notification settings for offline display and post-sync reminder creation
+            notification_enabled: enableReminder,
+            reminder_datetime: enableReminder ? reminderDatetime : null
         };
-
-        // Get reminder settings BEFORE form reset
-        const enableReminder = formData.get('enable_reminder') === 'on';
-        const reminderDatetime = formData.get('reminder_datetime');
 
         try {
             // Use OfflineManager for offline support
@@ -1424,6 +1428,12 @@ async function loadPendingRecords() {
             const statusBadge = getStatusBadge(item);
             const description = item.data.description || '—';
 
+            // Notification indicator (only for plans)
+            const hasNotification = item.data.notification_enabled === true;
+            const notificationCell = hasNotification
+                ? '<td class="text-center text-warning" title="Уведомление включено">🔔</td>'
+                : '<td class="text-center opacity-30">—</td>';
+
             // For transfers, create two rows (debit and credit)
             if (item.entity === 'transfer') {
                 // Record type for transfer: fact or plan
@@ -1442,6 +1452,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
                         <td class="text-info font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
                 `);
@@ -1458,6 +1469,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
                         <td class="text-warning font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td class="text-center opacity-30">—</td>
                         <td>${statusBadge}</td>
                     </tr>
                 `);
@@ -1505,6 +1517,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
                         <td class="${colorClass} font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
                 `);
@@ -1552,20 +1565,38 @@ async function syncPendingRecords() {
 
     try {
         showToast('Синхронизация...', 'info');
-        await window.offlineManager.syncQueue();
+        const results = await window.offlineManager.syncQueue();
         await loadPendingRecords();
 
-        // Reload recent records and metrics
-        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-            target: '#recent-transactions',
-            swap: 'innerHTML'
-        });
-        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-            target: '#quick-stats',
-            swap: 'innerHTML'
-        });
-
-        showToast('Синхронизация завершена', 'success');
+        // Show appropriate message based on results
+        if (results.synced > 0 && results.failed === 0) {
+            showToast(`Синхронизировано: ${results.synced} записей`, 'success');
+            // Reload recent records and metrics only if something was synced
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
+            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                target: '#quick-stats',
+                swap: 'innerHTML'
+            });
+        } else if (results.synced > 0 && results.failed > 0) {
+            showToast(`Синхронизировано: ${results.synced}, ошибок: ${results.failed}`, 'warning');
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
+            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                target: '#quick-stats',
+                swap: 'innerHTML'
+            });
+        } else if (results.failed > 0) {
+            showToast(`Ошибка синхронизации: ${results.failed} записей`, 'error');
+        } else if (results.skipped) {
+            showToast('Нечего синхронизировать', 'info');
+        } else {
+            showToast('Синхронизация завершена', 'success');
+        }
     } catch (error) {
         console.error('[Sync] Error:', error);
         showToast('Ошибка синхронизации: ' + error.message, 'error');

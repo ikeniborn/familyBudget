@@ -726,11 +726,25 @@ class OfflineManager {
 
         // Clean data: remove display-only fields not expected by API
         const cleanData = { ...item.data };
+
+        // Common display-only fields for facts/plans
         delete cleanData.article_name;
         delete cleanData.financial_center_name;
         delete cleanData.cost_center_name;
         delete cleanData.plan_date;
         delete cleanData.fact_type;
+        // Notification fields are stored for display but not sent to API
+        // (reminders are created separately after sync)
+        delete cleanData.notification_enabled;
+        delete cleanData.reminder_datetime;
+
+        // Transfer-specific display-only fields
+        if (item.entity === 'transfer') {
+            delete cleanData.from_financial_center_name;
+            delete cleanData.to_financial_center_name;
+            delete cleanData.from_article_name;
+            delete cleanData.to_article_name;
+        }
 
         debugLog(`[OfflineManager] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
@@ -764,11 +778,26 @@ class OfflineManager {
 
         // Clean data: remove display-only fields
         const cleanData = { ...item.data };
+
+        // Common display-only fields for facts/plans
         delete cleanData.article_name;
         delete cleanData.financial_center_name;
         delete cleanData.cost_center_name;
         delete cleanData.plan_date;
         delete cleanData.fact_type;
+        // Notification fields are stored for display but not sent to API
+        delete cleanData.notification_enabled;
+        delete cleanData.reminder_datetime;
+
+        // Transfer-specific display-only fields
+        if (item.entity === 'transfer') {
+            delete cleanData.from_financial_center_name;
+            delete cleanData.to_financial_center_name;
+            delete cleanData.from_article_name;
+            delete cleanData.to_article_name;
+        }
+
+        debugLog(`[OfflineManager] Updating ${item.entity} at ${endpoint}:`, cleanData);
 
         const response = await fetch(endpoint, {
             method: 'PUT',
@@ -946,10 +975,10 @@ class OfflineManager {
 
     /**
      * Sync all pending items in queue
-     * @returns {Promise<void>}
+     * @returns {Promise<Object>} Sync results {synced, failed, items}
      */
     async syncQueue() {
-        await this.sync();
+        return await this.sync();
     }
 
     /**
