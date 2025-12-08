@@ -11,6 +11,9 @@
 #   - cleanup_containers_networks_legacy() - Legacy cleanup
 #   - cleanup_full()                       - Full cleanup (DELETES DATA)
 #   - cleanup_old_deployment()             - Check and cleanup old deployments
+#   - cleanup_docker_images()              - Cleanup dangling images and build cache
+#   - cleanup_old_image_versions()         - Remove old image versions (keep last N)
+#   - check_and_restart_dockerd()          - Check dockerd CPU and restart if high
 #   - is_our_docker_container()            - Check if container belongs to our compose
 #
 # Dependencies:
@@ -872,6 +875,169 @@ cleanup_docker_images() {
         fi
     else
         success "No dangling Docker resources found - cleanup not needed"
+    fi
+
+    echo ""
+}
+
+# Cleanup old Docker image versions (keep only N recent versions)
+# This prevents accumulation of 100+ images that causes high dockerd CPU
+cleanup_old_image_versions() {
+    local keep_versions="${1:-3}"  # Keep last 3 versions by default
+
+    info "Checking for old Docker image versions..."
+
+    local images_cleaned=0
+    local space_freed=0
+
+    # Process each service (backend, bot)
+    for service in "backend" "bot"; do
+        local image_name="familybudget-${service}"
+
+        # Get all versions of this image, sorted by creation time (newest first)
+        local all_versions=$(docker images --format "{{.Tag}}" "$image_name" 2>/dev/null | grep -v '<none>' | sort -V -r)
+
+        if [[ -z "$all_versions" ]]; then
+            continue
+        fi
+
+        local version_count=$(echo "$all_versions" | wc -l)
+
+        if [[ $version_count -le $keep_versions ]]; then
+            continue
+        fi
+
+        # Get versions to remove (skip first N)
+        local versions_to_remove=$(echo "$all_versions" | tail -n +$((keep_versions + 1)))
+
+        if [[ -n "$versions_to_remove" ]]; then
+            local remove_count=$(echo "$versions_to_remove" | wc -l)
+            info "Removing $remove_count old versions of $image_name (keeping last $keep_versions)"
+
+            while IFS= read -r version; do
+                if [[ -n "$version" ]]; then
+                    # Check if image is in use by any container
+                    local in_use=$(docker ps -a --filter "ancestor=${image_name}:${version}" --format "{{.Names}}" 2>/dev/null | head -1)
+
+                    if [[ -n "$in_use" ]]; then
+                        warning "  Skipping ${image_name}:${version} (in use by $in_use)"
+                        continue
+                    fi
+
+                    # Get size before removal
+                    local img_size=$(docker images --format "{{.Size}}" "${image_name}:${version}" 2>/dev/null | head -1)
+
+                    if docker rmi "${image_name}:${version}" >> "$LOG_FILE" 2>&1; then
+                        ((images_cleaned++))
+                        echo "  ✓ Removed ${image_name}:${version} ($img_size)"
+                    else
+                        warning "  Failed to remove ${image_name}:${version}"
+                    fi
+                fi
+            done <<< "$versions_to_remove"
+        fi
+    done
+
+    if [[ $images_cleaned -gt 0 ]]; then
+        success "Cleaned up $images_cleaned old image versions"
+    else
+        info "No old image versions to clean up"
+    fi
+
+    echo ""
+}
+
+# Check dockerd CPU usage and restart if too high
+# High dockerd CPU (>50%) often indicates accumulated state that needs restart
+check_and_restart_dockerd() {
+    local cpu_threshold="${1:-50}"  # Restart if CPU > 50%
+
+    info "Checking Docker daemon health..."
+
+    # Get dockerd CPU usage (average over 3 samples)
+    local dockerd_pid=$(pgrep -x dockerd 2>/dev/null | head -1)
+
+    if [[ -z "$dockerd_pid" ]]; then
+        warning "dockerd process not found"
+        return 0
+    fi
+
+    # Get CPU usage (3 samples, 1 second apart)
+    local cpu_samples=()
+    for i in 1 2 3; do
+        local cpu=$(ps -p "$dockerd_pid" -o %cpu= 2>/dev/null | awk '{print int($1)}')
+        if [[ -n "$cpu" ]]; then
+            cpu_samples+=("$cpu")
+        fi
+        [[ $i -lt 3 ]] && sleep 1
+    done
+
+    if [[ ${#cpu_samples[@]} -eq 0 ]]; then
+        warning "Could not measure dockerd CPU usage"
+        return 0
+    fi
+
+    # Calculate average CPU
+    local total=0
+    for cpu in "${cpu_samples[@]}"; do
+        total=$((total + cpu))
+    done
+    local avg_cpu=$((total / ${#cpu_samples[@]}))
+
+    # Get dockerd uptime
+    local dockerd_start=$(ps -p "$dockerd_pid" -o lstart= 2>/dev/null)
+    local dockerd_time=$(ps -p "$dockerd_pid" -o time= 2>/dev/null | awk '{print $1}')
+
+    if [[ $avg_cpu -gt $cpu_threshold ]]; then
+        warning "Docker daemon CPU usage is high: ${avg_cpu}% (threshold: ${cpu_threshold}%)"
+        info "dockerd uptime: $dockerd_time, started: $dockerd_start"
+        echo ""
+
+        # Only restart if running with sudo/root
+        if [[ $EUID -eq 0 ]]; then
+            info "Restarting Docker daemon to clear accumulated state..."
+
+            # Stop all our containers gracefully first
+            if compose_cmd ps -q 2>/dev/null | grep -q .; then
+                info "Stopping containers before daemon restart..."
+                compose_cmd stop --timeout 60 >> "$LOG_FILE" 2>&1 || true
+            fi
+
+            # Restart Docker
+            if systemctl restart docker 2>/dev/null; then
+                success "Docker daemon restarted"
+
+                # Wait for Docker to be ready
+                local wait_count=0
+                while ! docker info >/dev/null 2>&1; do
+                    ((wait_count++))
+                    if [[ $wait_count -gt 30 ]]; then
+                        error "Docker daemon failed to start within 30 seconds"
+                        return 1
+                    fi
+                    sleep 1
+                done
+
+                success "Docker daemon is ready"
+
+                # Mark that PostgreSQL was stopped
+                POSTGRES_WAS_STOPPED=true
+
+                # Check new CPU usage
+                sleep 3
+                local new_cpu=$(ps -p $(pgrep -x dockerd) -o %cpu= 2>/dev/null | awk '{print int($1)}')
+                info "New dockerd CPU usage: ${new_cpu:-unknown}%"
+            else
+                error "Failed to restart Docker daemon"
+                return 1
+            fi
+        else
+            warning "Cannot restart Docker daemon without root privileges"
+            warning "Run deploy.sh with sudo to enable automatic daemon restart"
+            info "Manual restart: sudo systemctl restart docker"
+        fi
+    else
+        success "Docker daemon CPU usage is normal: ${avg_cpu}%"
     fi
 
     echo ""
