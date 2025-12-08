@@ -42,6 +42,28 @@ get_postgres_uid_from_image() {
 }
 
 # =============================================================================
+# VOLUME TYPE DETECTION
+# =============================================================================
+
+# Detect if PostgreSQL volume is bind mount or Docker managed
+# Returns: 0 = bind mount, 1 = Docker managed volume
+# Usage: if is_bind_mount_volume; then ... fi
+is_bind_mount_volume() {
+    local compose_file="${DEPLOY_DIR:-/opt/budget}/docker-compose.yml"
+
+    if [[ ! -f "$compose_file" ]]; then
+        return 0  # No compose file - assume bind mount (safer default)
+    fi
+
+    # Check if postgres_data volume has driver_opts (bind mount indicator)
+    if grep -A10 "^[[:space:]]*postgres_data:" "$compose_file" 2>/dev/null | grep -q "driver_opts:"; then
+        return 0  # Bind mount
+    else
+        return 1  # Docker managed
+    fi
+}
+
+# =============================================================================
 # POSTGRESQL ATOMIC DIRECTORY REPAIR (CRITICAL SAFEGUARD)
 # =============================================================================
 
