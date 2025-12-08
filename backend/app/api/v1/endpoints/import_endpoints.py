@@ -156,6 +156,7 @@ async def upload_file(
     current_user: CurrentUser,
     bank_provider_id: int,
     file: UploadFile = File(...),
+    delimiter: str | None = None,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -172,13 +173,14 @@ async def upload_file(
     **Parameters:**
     - bank_provider_id: Bank provider ID (from dropdown)
     - file: CSV file (multipart/form-data)
+    - delimiter: Optional CSV delimiter (';', ',', 'tab'). If not provided, auto-detected.
 
     **Returns:**
     - file_id, file_name, bank_provider_id, status
 
     **Example:**
     ```
-    POST /api/v1/import/upload?bank_provider_id=1
+    POST /api/v1/import/upload?bank_provider_id=1&delimiter=,
     Form Data: file=tinkoff_2025_11.csv
     Response: {
         "file_id": 123,
@@ -188,8 +190,16 @@ async def upload_file(
     }
     ```
     """
+    # Convert 'tab' to actual tab character
+    actual_delimiter = None
+    if delimiter:
+        if delimiter == 'tab':
+            actual_delimiter = '\t'
+        else:
+            actual_delimiter = delimiter
+
     logger.info(
-        f"Uploading file {file.filename} for user {current_user.id}, bank {bank_provider_id}"
+        f"Uploading file {file.filename} for user {current_user.id}, bank {bank_provider_id}, delimiter={actual_delimiter or 'auto'}"
     )
 
     # Validate file size (100MB)
@@ -231,7 +241,11 @@ async def upload_file(
 
     # Analyze CSV structure
     try:
-        analysis = await CSVAnalyzer.analyze_file(content, file.filename or "unknown.csv")
+        analysis = await CSVAnalyzer.analyze_file(
+            content,
+            file.filename or "unknown.csv",
+            user_delimiter=actual_delimiter
+        )
         file_upload.csv_headers = analysis["headers"]
         file_upload.csv_sample_rows = analysis["sample_rows"]
         file_upload.total_rows = analysis["total_rows"]

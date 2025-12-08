@@ -38,13 +38,17 @@ class CSVAnalyzer:
     """
 
     @staticmethod
-    async def analyze_file(file_content: bytes, filename: str) -> dict[str, Any]:
+    async def analyze_file(
+        file_content: bytes,
+        filename: str,
+        user_delimiter: str | None = None
+    ) -> dict[str, Any]:
         """
         Analyze CSV file structure.
 
         Detects:
         - Encoding (UTF-8 or Windows-1251)
-        - Delimiter (semicolon or comma)
+        - Delimiter (semicolon, comma, or tab) - uses user-specified if provided
         - Headers
         - Sample rows (first 5 rows)
         - Total rows
@@ -52,6 +56,8 @@ class CSVAnalyzer:
         Args:
             file_content: Raw file bytes
             filename: Original filename (for logging)
+            user_delimiter: Optional user-specified delimiter (';', ',', '\\t').
+                           If None, auto-detect.
 
         Returns:
             Dictionary with CSV structure:
@@ -89,10 +95,19 @@ class CSVAnalyzer:
                 text = file_content.decode('cp1251')
                 encoding = 'cp1251'
 
-        # Detect delimiter (try semicolon first, then comma)
-        # Check first 1000 characters for performance
-        sample = text[:1000]
-        delimiter = ';' if ';' in sample else ','
+        # Use user-specified delimiter or auto-detect
+        if user_delimiter:
+            delimiter = user_delimiter
+        else:
+            # Auto-detect delimiter (try semicolon first, then comma, then tab)
+            # Check first 1000 characters for performance
+            sample = text[:1000]
+            if ';' in sample:
+                delimiter = ';'
+            elif '\t' in sample:
+                delimiter = '\t'
+            else:
+                delimiter = ','
 
         # Parse CSV
         reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
@@ -153,14 +168,14 @@ class CSVAnalyzer:
         """
         Detect CSV delimiter.
 
-        Checks for semicolon (;) or comma (,) in first 1000 characters.
-        Semicolon is prioritized (common for Russian banks).
+        Checks for semicolon (;), tab, or comma (,) in first 1000 characters.
+        Semicolon is prioritized (common for Russian banks), then tab, then comma.
 
         Args:
             text: CSV file text content
 
         Returns:
-            Detected delimiter (';' or ',')
+            Detected delimiter (';', '\\t', or ',')
 
         Examples:
             >>> CSVAnalyzer.detect_delimiter("Date;Amount")
@@ -168,6 +183,14 @@ class CSVAnalyzer:
 
             >>> CSVAnalyzer.detect_delimiter("Date,Amount")
             ','
+
+            >>> CSVAnalyzer.detect_delimiter("Date\\tAmount")
+            '\\t'
         """
         sample = text[:1000]
-        return ';' if ';' in sample else ','
+        if ';' in sample:
+            return ';'
+        elif '\t' in sample:
+            return '\t'
+        else:
+            return ','

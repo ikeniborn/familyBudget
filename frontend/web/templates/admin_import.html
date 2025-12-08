@@ -81,6 +81,21 @@
                     </label>
                 </div>
 
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text">🔤 Разделитель колонок</span>
+                    </label>
+                    <select id="csv-delimiter" class="select select-bordered w-full max-w-xs" required>
+                        <option value="auto">Автоопределение</option>
+                        <option value=";">Точка с запятой (;)</option>
+                        <option value=",">Запятая (,)</option>
+                        <option value="tab">Табуляция (Tab)</option>
+                    </select>
+                    <label class="label">
+                        <span class="label-text-alt">Выберите разделитель или оставьте автоопределение</span>
+                    </label>
+                </div>
+
                 <div class="flex gap-2">
                     <button type="submit" class="btn btn-primary gap-2" id="upload-btn">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -736,6 +751,9 @@ async function uploadCSV(event) {
         return;
     }
 
+    const delimiterSelect = document.getElementById('csv-delimiter');
+    const delimiter = delimiterSelect.value;
+
     const uploadBtn = document.getElementById('upload-btn');
     uploadBtn.disabled = true;
     uploadBtn.innerHTML = '<span class="loading loading-spinner"></span>Загрузка...';
@@ -744,7 +762,13 @@ async function uploadCSV(event) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch(`/api/v1/import/upload?bank_provider_id=${selectedBankId}`, {
+        // Build URL with delimiter parameter
+        let uploadUrl = `/api/v1/import/upload?bank_provider_id=${selectedBankId}`;
+        if (delimiter && delimiter !== 'auto') {
+            uploadUrl += `&delimiter=${encodeURIComponent(delimiter)}`;
+        }
+
+        const response = await fetch(uploadUrl, {
             method: 'POST',
             credentials: 'include',
             body: formData
