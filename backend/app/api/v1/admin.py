@@ -1669,8 +1669,6 @@ async def update_article(
     from backend.app.models.article_financial_center import ArticleFinancialCenter
     from backend.app.services.hierarchy_service import get_depth
 
-    logger.info(f"[FC Update] article_id={article_id}, financial_center_ids from request: {update_data.financial_center_ids}")
-
     financial_center_ids = []
     if update_data.financial_center_ids is not None:
         # Check if article is leaf (no children)
