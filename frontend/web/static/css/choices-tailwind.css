@@ -106,6 +106,44 @@
     display: none !important;
 }
 
+/* ============================================================================
+ * GLOBAL DROPDOWN STYLES (applies to ALL Choices.js instances)
+ * Fixes transparent background issue for dropdowns without wrapper class
+ * ============================================================================ */
+.choices__list--dropdown {
+    background-color: white !important;
+    opacity: 1 !important;
+    z-index: 30 !important;
+    border: 1px solid rgb(209 213 219) !important; /* gray-300 */
+    border-radius: 0.5rem !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dark .choices__list--dropdown {
+    background-color: rgb(31 41 55) !important; /* gray-800 */
+    border-color: rgb(75 85 99) !important; /* gray-600 */
+}
+
+/* Global dropdown item styles for readability */
+.choices__list--dropdown .choices__item {
+    color: rgb(17 24 39) !important; /* gray-900 */
+    padding: 0.75rem 1rem !important;
+}
+
+.dark .choices__list--dropdown .choices__item {
+    color: rgb(255 255 255) !important; /* white */
+}
+
+.choices__list--dropdown .choices__item--selectable:hover,
+.choices__list--dropdown .choices__item--selectable.is-highlighted {
+    background-color: rgb(243 244 246) !important; /* gray-100 */
+}
+
+.dark .choices__list--dropdown .choices__item--selectable:hover,
+.dark .choices__list--dropdown .choices__item--selectable.is-highlighted {
+    background-color: rgb(55 65 81) !important; /* gray-700 */
+}
+
 .choices-tailwind .choices__list--dropdown .choices__item[data-value=""],
 .choices-telegram .choices__list--dropdown .choices__item[data-value=""] {
     display: none !important;
