@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load financial centers for multiselect
 async function loadFinancialCenters() {
     try {
-        const response = await fetch('/api/v1/admin/financial-centers', {
+        const response = await fetch('/api/v1/financial-centers', {
             credentials: 'include',
         });
 
