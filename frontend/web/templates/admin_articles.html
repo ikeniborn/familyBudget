@@ -274,6 +274,8 @@ function populateFinancialCenterSelect(selectId, selectedIds) {
     // Normalize selectedIds to integers for comparison (handles string/number mismatch)
     const normalizedSelectedIds = (selectedIds || []).map(id => parseInt(id, 10));
 
+    debugLog(`[populateFinancialCenterSelect] ${selectId}: selectedIds=`, normalizedSelectedIds, 'FC count=', financialCentersData.length);
+
     // Add options for each financial center
     financialCentersData.forEach(fc => {
         const option = document.createElement('option');
@@ -284,8 +286,11 @@ function populateFinancialCenterSelect(selectId, selectedIds) {
         select.appendChild(option);
     });
 
-    // Force browser to recognize selection changes
-    select.dispatchEvent(new Event('change'));
+    // Verify selection was applied correctly
+    const actualSelected = Array.from(select.selectedOptions).map(opt => parseInt(opt.value));
+    debugLog(`[populateFinancialCenterSelect] ${selectId}: actualSelected=`, actualSelected);
+
+    // Note: Removed dispatchEvent('change') as it could interfere with selection
 }
 
 // Update FC container visibility based on is_leaf status
@@ -736,6 +741,10 @@ async function updateArticle(event) {
     let financialCenterIds = null;
     if (fcSelect && !fcSelect.disabled) {
         financialCenterIds = Array.from(fcSelect.selectedOptions).map(opt => parseInt(opt.value));
+        debugLog('[updateArticle] fcSelect.disabled=', fcSelect.disabled, 'selectedOptions count=', fcSelect.selectedOptions.length);
+        debugLog('[updateArticle] All options:', Array.from(fcSelect.options).map(o => ({value: o.value, selected: o.selected})));
+    } else {
+        debugLog('[updateArticle] fcSelect disabled or not found, sending null');
     }
 
     const data = {
@@ -745,6 +754,8 @@ async function updateArticle(event) {
         is_active: document.getElementById('edit-is-active').checked,
         financial_center_ids: financialCenterIds
     };
+
+    debugLog('[updateArticle] Sending data:', JSON.stringify(data));
 
     try {
         const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
