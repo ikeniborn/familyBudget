@@ -137,7 +137,6 @@
                                         <th>Тип</th>
                                         <th>Дата</th>
                                         <th>ЦФО</th>
-                                        <th>Тип категории</th>
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
@@ -1459,7 +1458,7 @@ async function loadPendingRecords() {
                     ? '<span class="badge badge-info badge-sm">План</span>'
                     : '<span class="badge badge-success badge-sm">Факт</span>';
 
-                // Debit row (списание) - amount in blue
+                // Debit row (списание) - amount in blue, icon 📤
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
                 rows.push(`
@@ -1467,8 +1466,7 @@ async function loadPendingRecords() {
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
-                        <td class="text-info">Списание</td>
-                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCategory}">📤 ${fromCategory}</td>
                         <td class="text-info font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         ${notificationCell}
@@ -1476,7 +1474,7 @@ async function loadPendingRecords() {
                     </tr>
                 `);
 
-                // Credit row (пополнение) - amount in orange
+                // Credit row (пополнение) - amount in orange, icon 📥
                 const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
                 rows.push(`
@@ -1484,8 +1482,7 @@ async function loadPendingRecords() {
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
-                        <td class="text-warning">Пополнение</td>
-                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
+                        <td class="max-w-[100px] truncate" title="${toCategory}">📥 ${toCategory}</td>
                         <td class="text-warning font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td class="text-center opacity-30">—</td>
@@ -1501,29 +1498,29 @@ async function loadPendingRecords() {
                 const categoryName = item.data.article_name ||
                     (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
 
-                // Determine category type based on fact_type (expense/income for facts)
-                // expense = red, income = green, debit = blue, credit = orange
+                // Determine icon and color based on fact_type (expense/income for facts)
+                // expense = 💸 red, income = 💰 green, debit = 📤 blue, credit = 📥 orange
                 const factType = item.data.fact_type || item.data.article_type || '';
-                let categoryTypeLabel, colorClass;
+                let categoryIcon, colorClass;
                 switch (factType) {
                     case 'expense':
-                        categoryTypeLabel = 'Расход';
+                        categoryIcon = '💸';
                         colorClass = 'text-error';
                         break;
                     case 'income':
-                        categoryTypeLabel = 'Доход';
+                        categoryIcon = '💰';
                         colorClass = 'text-success';
                         break;
                     case 'debit':
-                        categoryTypeLabel = 'Списание';
+                        categoryIcon = '📤';
                         colorClass = 'text-info';
                         break;
                     case 'credit':
-                        categoryTypeLabel = 'Пополнение';
+                        categoryIcon = '📥';
                         colorClass = 'text-warning';
                         break;
                     default:
-                        categoryTypeLabel = '—';
+                        categoryIcon = '❓';
                         colorClass = '';
                 }
 
@@ -1532,8 +1529,7 @@ async function loadPendingRecords() {
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
-                        <td class="${colorClass}">${categoryTypeLabel}</td>
-                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
+                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryIcon} ${categoryName}</td>
                         <td class="${colorClass} font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         ${notificationCell}
