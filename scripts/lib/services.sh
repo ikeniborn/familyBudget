@@ -44,14 +44,50 @@ start_services() {
     info "Starting services in detached mode (background)..."
     local start_result=0
 
-    # Determine build flag based on DOCKER_REBUILD_NEEDED
+    # Determine build strategy based on DOCKER_REBUILD_NEEDED
     # DOCKER_REBUILD_NEEDED is set by version.sh:process_version_bump()
+    #
+    # CRITICAL FIX (2025-12-08): When trigger files change (requirements.txt, Dockerfile),
+    # we MUST use --no-cache to force fresh pip install. Docker's layer cache can
+    # incorrectly reuse old layers even when file content changed.
+    #
+    # Without --no-cache: Docker may use cached pip install layer → missing new dependencies
+    # With --no-cache: Forces fresh pip install → all dependencies correctly installed
+    local needs_fresh_build=false
     local build_flag=""
+
     if [[ "${DOCKER_REBUILD_NEEDED:-true}" == "true" ]]; then
-        build_flag="--build"
-        info "Docker images will be rebuilt (trigger files changed or first deploy)"
+        needs_fresh_build=true
+        info "Docker images will be rebuilt with --no-cache (trigger files changed)"
+        info "This ensures new dependencies are correctly installed"
     else
-        info "Docker images will NOT be rebuilt (no trigger files changed)"
+        build_flag="--build"
+        info "Docker images will use cached build (no trigger files changed)"
+    fi
+
+    # If fresh build needed (trigger files changed), build with --no-cache first
+    # This ensures new dependencies (requirements.txt) are correctly installed
+    if [[ "$needs_fresh_build" == "true" ]]; then
+        info "Building Docker images with --no-cache (dependency files changed)..."
+        echo ""
+
+        # Determine which services to build based on profile
+        local services_to_build="backend"
+        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            services_to_build="backend bot"
+        fi
+
+        for service in $services_to_build; do
+            info "Building $service with --no-cache..."
+            if compose_cmd build --no-cache "$service" >> "$LOG_FILE" 2>&1; then
+                success "$service built successfully (fresh install of dependencies)"
+            else
+                error "Failed to build $service with --no-cache"
+                error "Check $LOG_FILE for details"
+                return 1
+            fi
+        done
+        echo ""
     fi
 
     # Check if PostgreSQL should be kept running (selective restart)
@@ -124,7 +160,8 @@ start_services() {
 
             # Save Docker build checksums ONLY after successful start with rebuild
             # This ensures next deploy will correctly detect if trigger files changed
-            if [[ "$build_flag" == "--build" ]]; then
+            # Save when either: --build flag used OR --no-cache build was performed
+            if [[ "$build_flag" == "--build" ]] || [[ "$needs_fresh_build" == "true" ]]; then
                 info "Saving Docker build checksums for future rebuild detection..."
                 if save_docker_build_checksums "$SCRIPT_DIR"; then
                     success "Docker build checksums saved"
