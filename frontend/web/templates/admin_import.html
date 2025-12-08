@@ -134,11 +134,60 @@
         <div class="card-body">
             <div class="mb-4">
                 <h2 class="card-title text-2xl">🔗 Шаг 3: Маппинг колонок</h2>
-                <p class="text-base-content/70">Укажите соответствие между колонками CSV и полями бюджета</p>
+                <p class="text-base-content/70">Настройте разделитель, укажите соответствие колонок и формат данных</p>
+            </div>
+
+            <!-- Delimiter Selection with Preview -->
+            <div class="bg-base-200 p-4 rounded-lg mb-4">
+                <div class="flex flex-wrap gap-4 items-end">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">🔤 Разделитель колонок</span>
+                        </label>
+                        <select id="mapping-delimiter" class="select select-bordered w-48" onchange="onDelimiterChange()">
+                            <option value=";">Точка с запятой (;)</option>
+                            <option value=",">Запятая (,)</option>
+                            <option value="tab">Табуляция (Tab)</option>
+                        </select>
+                    </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">📅 Формат даты</span>
+                        </label>
+                        <select id="mapping-date-format" class="select select-bordered w-64">
+                            <option value="">Автоопределение</option>
+                            <option value="%d.%m.%Y %H:%M:%S">DD.MM.YYYY HH:MM:SS (20.11.2025 10:30:00)</option>
+                            <option value="%d.%m.%Y">DD.MM.YYYY (20.11.2025)</option>
+                            <option value="%Y-%m-%d">YYYY-MM-DD (2025-11-20)</option>
+                            <option value="%d/%m/%Y">DD/MM/YYYY (20/11/2025)</option>
+                            <option value="%m/%d/%Y %H:%M:%S">M/D/YYYY H:MM:SS (7/4/2025 0:00:00)</option>
+                            <option value="%m/%d/%Y">M/D/YYYY (7/4/2025)</option>
+                        </select>
+                    </div>
+                    <div id="delimiter-preview-status" class="text-sm text-base-content/70">
+                        <!-- Status text -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- CSV Preview Table -->
+            <div class="mb-4">
+                <h3 class="text-lg font-semibold mb-2">📋 Предпросмотр CSV (первые 5 строк)</h3>
+                <div class="overflow-x-auto bg-base-200 rounded-lg p-2">
+                    <table class="table table-xs w-full" id="csv-preview-table">
+                        <thead id="csv-preview-thead">
+                            <!-- Populated by JavaScript -->
+                        </thead>
+                        <tbody id="csv-preview-tbody">
+                            <!-- Populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             <!-- Mapping Table -->
             <div class="overflow-x-auto">
+                <h3 class="text-lg font-semibold mb-2">🔗 Маппинг колонок</h3>
                 <table class="table table-zebra w-full">
                     <thead>
                         <tr>
@@ -361,6 +410,7 @@ let uploadedFileId = null;
 let savedMappingId = null;
 let csvHeaders = [];
 let csvSampleRows = [];
+let csvDelimiter = null;  // Detected/selected delimiter
 let currentMapping = {};
 let stagingRecords = [];
 let allArticles = [];
@@ -386,9 +436,11 @@ function resetWorkflow() {
     // Reset global variables
     uploadedFileId = null;
     savedMappingId = null;
+    savedTransformations = null;
     csvHeaders = [];
     csvSampleRows = [];
-    columnMapping = {};
+    csvDelimiter = null;
+    currentMapping = {};
 
     // Reset forms
     document.getElementById('upload-form').reset();
@@ -704,6 +756,8 @@ function showConfirmDialog(message, title = 'Подтверждение') {
     });
 }
 
+let savedTransformations = null;  // Store saved transformations separately
+
 async function loadSavedMapping(bankId) {
     try {
         const response = await fetch(`/api/v1/import/mappings/${bankId}`, {
@@ -714,12 +768,14 @@ async function loadSavedMapping(bankId) {
             const data = await response.json();
             savedMappingId = data.mapping_id;
             currentMapping = data.mapping;
+            savedTransformations = data.transformations;  // Store transformations
 
             // Enable Apply Mapping button if mapping exists
             updateApplyMappingButtonState();
         } else {
             // No saved mapping - will use default or empty
             savedMappingId = null;
+            savedTransformations = null;
             const errorData = await response.json();
             if (errorData.detail && errorData.detail.default_mapping) {
                 currentMapping = errorData.detail.default_mapping;
@@ -731,6 +787,7 @@ async function loadSavedMapping(bankId) {
     } catch (error) {
         console.error('Error loading saved mapping:', error);
         savedMappingId = null;
+        savedTransformations = null;
         updateApplyMappingButtonState();
     }
 }
@@ -874,6 +931,7 @@ async function analyzeFile(fileId) {
         const data = await response.json();
         csvHeaders = data.headers;
         csvSampleRows = data.sample_rows;
+        csvDelimiter = data.delimiter;  // Save detected delimiter
 
         // Don't show mapping step automatically - wait for user to click button
 
@@ -889,6 +947,33 @@ async function showMappingStep(isUpdateMode = false) {
     document.getElementById('step-2-upload').style.display = 'none';
     document.getElementById('step-3-mapping').style.display = 'block';
     updateProgressIndicator(3);
+
+    // Set initial delimiter from saved transformations or file analysis
+    const delimiterSelect = document.getElementById('mapping-delimiter');
+    const dateFormatSelect = document.getElementById('mapping-date-format');
+
+    if (savedTransformations && savedTransformations.delimiter) {
+        // Use saved delimiter from mapping
+        const delimValue = savedTransformations.delimiter === '\t' ? 'tab' : savedTransformations.delimiter;
+        delimiterSelect.value = delimValue;
+    } else if (csvDelimiter) {
+        // Fallback to detected delimiter from file analysis
+        const delimValue = csvDelimiter === '\t' ? 'tab' : csvDelimiter;
+        const option = Array.from(delimiterSelect.options).find(o => o.value === delimValue);
+        if (option) {
+            delimiterSelect.value = delimValue;
+        }
+    }
+
+    // Set initial date format from saved transformations (if available)
+    if (savedTransformations && savedTransformations.date_format) {
+        dateFormatSelect.value = savedTransformations.date_format;
+    } else {
+        dateFormatSelect.value = '';  // Auto-detect
+    }
+
+    // Render CSV preview with current delimiter
+    await loadCsvPreview();
 
     // Render mapping table
     renderMappingTable();
@@ -907,6 +992,84 @@ async function showMappingStep(isUpdateMode = false) {
         // If mapping already exists (update mode), show the button
         applyMappingBtn.style.display = 'inline-flex';
     }
+}
+
+// Delimiter change handler
+async function onDelimiterChange() {
+    await loadCsvPreview();
+    // Re-render mapping table with new headers
+    renderMappingTable();
+}
+
+// Load CSV preview with current delimiter
+async function loadCsvPreview() {
+    if (!uploadedFileId) return;
+
+    const delimiter = document.getElementById('mapping-delimiter').value;
+    const statusEl = document.getElementById('delimiter-preview-status');
+    statusEl.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Загрузка...';
+
+    try {
+        const response = await fetch(
+            `/api/v1/import/files/${uploadedFileId}/preview?delimiter=${encodeURIComponent(delimiter)}`,
+            { credentials: 'include' }
+        );
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Preview failed');
+        }
+
+        const data = await response.json();
+        csvHeaders = data.headers;
+        csvSampleRows = data.sample_rows;
+        csvDelimiter = delimiter === 'tab' ? '\t' : delimiter;
+
+        renderCsvPreview();
+        statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк`;
+
+    } catch (error) {
+        console.error('Preview error:', error);
+        statusEl.innerHTML = `<span class="text-error">✗ Ошибка: ${error.message}</span>`;
+    }
+}
+
+// Render CSV preview table
+function renderCsvPreview() {
+    const thead = document.getElementById('csv-preview-thead');
+    const tbody = document.getElementById('csv-preview-tbody');
+
+    // Clear
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+
+    if (!csvHeaders || csvHeaders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center text-base-content/50">Нет данных для отображения</td></tr>';
+        return;
+    }
+
+    // Headers
+    const headerRow = document.createElement('tr');
+    csvHeaders.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        th.className = 'text-xs';
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+
+    // Rows
+    csvSampleRows.forEach(row => {
+        const tr = document.createElement('tr');
+        csvHeaders.forEach(header => {
+            const td = document.createElement('td');
+            td.textContent = row[header] || '';
+            td.className = 'text-xs max-w-[200px] truncate';
+            td.title = row[header] || '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
 }
 
 function renderMappingTable() {
@@ -1019,6 +1182,15 @@ async function saveMapping() {
             return;
         }
 
+        // Collect transformations (delimiter and date format)
+        const delimiterValue = document.getElementById('mapping-delimiter').value;
+        const dateFormatValue = document.getElementById('mapping-date-format').value;
+
+        const transformations = {
+            delimiter: delimiterValue,
+            date_format: dateFormatValue || null  // null = auto-detect
+        };
+
         const response = await fetch('/api/v1/import/mappings', {
             method: 'POST',
             credentials: 'include',
@@ -1026,7 +1198,7 @@ async function saveMapping() {
             body: JSON.stringify({
                 bank_provider_id: selectedBankId,
                 mapping: mapping,
-                transformations: null
+                transformations: transformations
             })
         });
 

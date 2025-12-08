@@ -43,7 +43,8 @@ class GenericCSVParser:
         user_id: int,
         file_upload_id: int,
         delimiter: str = ';',
-        encoding: str = 'utf-8'
+        encoding: str = 'utf-8',
+        date_format: Optional[str] = None
     ) -> list[dict[str, Any]]:
         """
         Parse CSV using provided mapping.
@@ -58,6 +59,8 @@ class GenericCSVParser:
             file_upload_id: File upload ID (for reference)
             delimiter: CSV delimiter (default ';')
             encoding: File encoding (default 'utf-8')
+            date_format: Specific date format to use (e.g., '%m/%d/%Y %H:%M:%S').
+                        If None, auto-detect from multiple formats.
 
         Returns:
             List of dicts ready for ImportStaging insertion
@@ -105,13 +108,14 @@ class GenericCSVParser:
                         )
                     continue
 
-                # Parse date (try multiple formats)
-                fact_date = GenericCSVParser._parse_date(fact_date_str)
+                # Parse date (use specified format or try multiple formats)
+                fact_date = GenericCSVParser._parse_date(fact_date_str, date_format)
                 if not fact_date:
                     skipped_date += 1
                     if skipped_date <= 3:  # Log first 3 unparseable dates
                         logger.warning(
-                            f"Row {row_num}: cannot parse date '{fact_date_str}'"
+                            f"Row {row_num}: cannot parse date '{fact_date_str}' "
+                            f"with format={date_format or 'auto'}"
                         )
                     continue  # Skip invalid dates
 
@@ -156,35 +160,49 @@ class GenericCSVParser:
         return staging_records
 
     @staticmethod
-    def _parse_date(date_str: str) -> Optional[datetime.date]:
+    def _parse_date(date_str: str, date_format: Optional[str] = None) -> Optional[datetime.date]:
         """
-        Parse date from string (supports multiple formats).
+        Parse date from string using specified format or auto-detect.
 
-        Tries:
-        - DD.MM.YYYY HH:MM:SS
+        If date_format is provided, uses only that format.
+        Otherwise, tries multiple common formats.
+
+        Supported auto-detect formats:
+        - DD.MM.YYYY HH:MM:SS (Tinkoff)
         - DD.MM.YYYY
-        - YYYY-MM-DD
-        - DD/MM/YYYY
+        - YYYY-MM-DD (ISO)
+        - DD/MM/YYYY (European)
+        - M/D/YYYY H:MM:SS (US with time)
+        - M/D/YYYY (US)
+        - YYYY.MM.DD
 
         Args:
             date_str: Date string from CSV
+            date_format: Specific strptime format to use (e.g., '%m/%d/%Y %H:%M:%S').
+                        If None, auto-detect from multiple formats.
 
         Returns:
             datetime.date or None if parsing fails
 
         Examples:
+            >>> GenericCSVParser._parse_date("7/4/2025 0:00:00", "%m/%d/%Y %H:%M:%S")
+            datetime.date(2025, 7, 4)
+
             >>> GenericCSVParser._parse_date("20.11.2025 10:30:00")
-            datetime.date(2025, 11, 20)
-
-            >>> GenericCSVParser._parse_date("20.11.2025")
-            datetime.date(2025, 11, 20)
-
-            >>> GenericCSVParser._parse_date("2025-11-20")
             datetime.date(2025, 11, 20)
 
             >>> GenericCSVParser._parse_date("invalid")
             None
         """
+        # If specific format provided, use only that
+        if date_format:
+            try:
+                dt = datetime.strptime(date_str.strip(), date_format)
+                return dt.date()
+            except ValueError:
+                return None
+
+        # Auto-detect: try multiple formats
         date_formats = [
             "%d.%m.%Y %H:%M:%S",  # Tinkoff: 20.11.2025 10:30:00
             "%d.%m.%Y",           # Common: 20.11.2025

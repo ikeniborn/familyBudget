@@ -332,6 +332,96 @@ async def analyze_file(
     )
 
 
+@router.get("/files/{file_id}/preview")
+async def preview_file(
+    file_id: int,
+    delimiter: str,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Preview CSV file with specified delimiter.
+
+    Re-parses the uploaded file with the given delimiter and returns
+    headers and first 5 sample rows. Used for delimiter selection UI.
+
+    **Parameters:**
+    - file_id: File upload ID
+    - delimiter: CSV delimiter (';', ',', 'tab')
+
+    **Returns:**
+    - headers, sample_rows, delimiter
+
+    **Example:**
+    ```
+    GET /api/v1/import/files/123/preview?delimiter=,
+    Response: {
+        "file_id": 123,
+        "headers": ["Дата", "Сумма", "Описание"],
+        "sample_rows": [{"Дата": "7/4/2025 0:00:00", ...}],
+        "delimiter": ","
+    }
+    ```
+    """
+    logger.info(f"Preview file {file_id} with delimiter={repr(delimiter)} for user {current_user.id}")
+
+    file_upload = await session.get(ImportFileUpload, file_id)
+    if not file_upload or file_upload.user_id != current_user.id:
+        raise HTTPException(404, "File not found")
+
+    # Check temp file exists
+    if not file_upload.temp_file_path:
+        raise HTTPException(400, "File content not available")
+
+    temp_file_path = Path(file_upload.temp_file_path)
+    if not temp_file_path.exists():
+        raise HTTPException(404, "Temporary file not found")
+
+    # Convert 'tab' to actual tab character
+    actual_delimiter = '\t' if delimiter == 'tab' else delimiter
+
+    # Read and parse file with specified delimiter
+    try:
+        with open(temp_file_path, "rb") as f:
+            content = f.read()
+
+        # Detect encoding
+        try:
+            text = content.decode('utf-8')
+            encoding = 'utf-8'
+        except UnicodeDecodeError:
+            try:
+                text = content.decode('windows-1251')
+                encoding = 'windows-1251'
+            except UnicodeDecodeError:
+                text = content.decode('cp1251')
+                encoding = 'cp1251'
+
+        # Parse CSV with specified delimiter
+        import csv
+        import io
+        reader = csv.DictReader(io.StringIO(text), delimiter=actual_delimiter)
+        rows = list(reader)
+
+        headers = list(rows[0].keys()) if rows else []
+        sample_rows = rows[:5]
+
+        logger.info(f"Preview: {len(headers)} columns, {len(rows)} total rows")
+
+        return {
+            "file_id": file_upload.id,
+            "headers": headers,
+            "sample_rows": sample_rows,
+            "total_rows": len(rows),
+            "delimiter": delimiter,
+            "encoding": encoding
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to preview file {file_id}: {e}")
+        raise HTTPException(500, f"Failed to preview CSV: {str(e)}")
+
+
 @router.get("/mappings/{bank_provider_id}", response_model=MappingResponse)
 async def get_mapping(
     bank_provider_id: int,
@@ -535,9 +625,21 @@ async def parse_file(
         logger.error(f"Failed to read temp file {temp_file_path}: {e}")
         raise HTTPException(500, f"Failed to read temporary file: {str(e)}")
 
-    # Parse CSV with mapping (use stored delimiter/encoding from analysis)
-    delimiter = file_upload.csv_delimiter or ";"
+    # Get delimiter and date_format from mapping transformations (if set)
+    # Otherwise fall back to file upload metadata
+    transformations = mapping_record.transformations or {}
+    delimiter = transformations.get("delimiter") or file_upload.csv_delimiter or ";"
     encoding = file_upload.csv_encoding or "utf-8"
+    date_format = transformations.get("date_format")  # None = auto-detect
+
+    # Convert 'tab' to actual tab character
+    if delimiter == 'tab':
+        delimiter = '\t'
+
+    logger.info(
+        f"Parsing with delimiter={repr(delimiter)}, encoding={encoding}, "
+        f"date_format={date_format or 'auto'}"
+    )
 
     try:
         staging_records = await GenericCSVParser.parse_with_mapping(
@@ -546,7 +648,8 @@ async def parse_file(
             user_id=current_user.id,
             file_upload_id=file_upload.id,
             delimiter=delimiter,
-            encoding=encoding
+            encoding=encoding,
+            date_format=date_format
         )
 
         # Insert records to staging
