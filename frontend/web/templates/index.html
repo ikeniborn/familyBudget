@@ -327,20 +327,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Слушать изменения статуса сети (updateOfflineUI handled by base.html)
-    window.addEventListener('online', () => {
+    window.addEventListener('online', async () => {
         debugLog('[Network] online event fired');
-        loadPendingRecords();
         // Перезагрузить последние записи при восстановлении сети
         htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
             target: '#recent-transactions',
             swap: 'innerHTML'
         });
+        // Показать уведомление о pending записях (без авто-синхронизации)
+        await notifyPendingRecords();
     });
     // Listen for network-status-change from SmartNetworkDetector (includes manual mode)
-    window.addEventListener('network-status-change', (event) => {
+    window.addEventListener('network-status-change', async (event) => {
         debugLog('[Network] network-status-change:', event.detail);
         if (event.detail.status === 'online') {
-            loadPendingRecords();
             htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                 target: '#recent-transactions',
                 swap: 'innerHTML'
@@ -349,6 +349,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 target: '#quick-stats',
                 swap: 'innerHTML'
             });
+            // Показать уведомление о pending записях (без авто-синхронизации)
+            await notifyPendingRecords();
         }
     });
 
@@ -1398,6 +1400,24 @@ function setupPlanTypeButtons() {
 
 // === Pending Records Management ===
 
+// Notify user about pending records (without auto-sync)
+async function notifyPendingRecords() {
+    if (!window.offlineManager) {
+        return;
+    }
+
+    try {
+        const pendingItems = await window.offlineManager.getPendingSyncItems();
+        if (pendingItems.length > 0) {
+            showToast(`Есть ${pendingItems.length} записей в ожидании синхронизации`, 'info');
+            // Обновить UI карточки pending записей
+            await loadPendingRecords();
+        }
+    } catch (error) {
+        debugLog('[notifyPendingRecords] Error:', error);
+    }
+}
+
 // Load and display pending records from sync queue
 async function loadPendingRecords() {
     debugLog('[loadPendingRecords] Starting...');
@@ -1951,10 +1971,8 @@ async function saveTransactionOffline(button) {
         };
 
         // Force offline save (bypass online check)
-        console.log('[saveTransactionOffline] Data to save:', data);
         if (window.offlineManager) {
-            const result = await window.offlineManager.createFactOffline(data);
-            console.log('[saveTransactionOffline] Saved to IndexedDB:', result);
+            await window.offlineManager.createFactOffline(data);
 
             modal.close();
             form.reset();
@@ -1966,10 +1984,8 @@ async function saveTransactionOffline(button) {
             }
 
             showToast('Факт сохранен локально (синхронизируется при подключении)', 'warning');
-            console.log('[saveTransactionOffline] Calling loadPendingRecords...');
-            // Update pending records table with await
+            // Update pending records table
             await loadPendingRecords();
-            console.log('[saveTransactionOffline] loadPendingRecords completed');
         } else {
             showToast('Ошибка: OfflineManager не доступен', 'error');
         }
