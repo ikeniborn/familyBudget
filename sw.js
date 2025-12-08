@@ -265,8 +265,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Стратегия 3: Статика (CSS/JS/fonts/images) - Cache First (быстрая загрузка)
-  if (url.pathname.match(/\.(css|js|png|jpg|jpeg|svg|woff2|woff|ttf|ico|gif|webp)$/)) {
+  // Стратегия 3: Статика (CSS/JS/JSON/fonts/images) - Cache First (быстрая загрузка)
+  if (url.pathname.match(/\.(css|js|json|png|jpg|jpeg|svg|woff2|woff|ttf|ico|gif|webp)$/)) {
     event.respondWith(
       // КРИТИЧНО: ignoreSearch: true для корректной работы с cache busting (?v=...)
       caches.match(request, { ignoreSearch: true })
