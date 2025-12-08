@@ -388,7 +388,7 @@ validate_minified_files() {
             print_message error "Invalid syntax: $file"
             ((validation_errors++))
         fi
-    done < <(find "$WEB_JS_DIR" "$WEBAPP_JS_DIR" "$SHARED_JS_DIR" -type f -name "*.min.js" -print0 2>/dev/null)
+    done < <(find "$WEB_JS_DIR" "$WEBAPP_JS_DIR" "$SHARED_JS_DIR" -type f -name "*.min.js" ! -path "*/vendor/*" -print0 2>/dev/null)
 
     if [[ $validation_errors -eq 0 ]]; then
         print_message success "All minified files are valid"

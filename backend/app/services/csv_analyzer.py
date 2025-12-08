@@ -9,7 +9,11 @@ Pattern: Service layer (business logic)
 
 import csv
 import io
+import logging
 from typing import Any
+
+
+logger = logging.getLogger(__name__)
 
 
 class CSVAnalyzer:
@@ -38,13 +42,17 @@ class CSVAnalyzer:
     """
 
     @staticmethod
-    async def analyze_file(file_content: bytes, filename: str) -> dict[str, Any]:
+    async def analyze_file(
+        file_content: bytes,
+        filename: str,
+        user_delimiter: str | None = None
+    ) -> dict[str, Any]:
         """
         Analyze CSV file structure.
 
         Detects:
         - Encoding (UTF-8 or Windows-1251)
-        - Delimiter (semicolon or comma)
+        - Delimiter (semicolon, comma, or tab) - uses user-specified if provided
         - Headers
         - Sample rows (first 5 rows)
         - Total rows
@@ -52,6 +60,8 @@ class CSVAnalyzer:
         Args:
             file_content: Raw file bytes
             filename: Original filename (for logging)
+            user_delimiter: Optional user-specified delimiter (';', ',', '\\t').
+                           If None, auto-detect.
 
         Returns:
             Dictionary with CSV structure:
@@ -89,10 +99,14 @@ class CSVAnalyzer:
                 text = file_content.decode('cp1251')
                 encoding = 'cp1251'
 
-        # Detect delimiter (try semicolon first, then comma)
-        # Check first 1000 characters for performance
-        sample = text[:1000]
-        delimiter = ';' if ';' in sample else ','
+        # Use user-specified delimiter or auto-detect
+        if user_delimiter:
+            delimiter = user_delimiter
+            logger.info(f"Using user-specified delimiter: {repr(delimiter)}")
+        else:
+            # Auto-detect delimiter using csv.Sniffer (more reliable)
+            delimiter = CSVAnalyzer.detect_delimiter(text)
+            logger.info(f"Auto-detected delimiter: {repr(delimiter)}")
 
         # Parse CSV
         reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
@@ -151,23 +165,82 @@ class CSVAnalyzer:
     @staticmethod
     def detect_delimiter(text: str) -> str:
         """
-        Detect CSV delimiter.
+        Detect CSV delimiter using csv.Sniffer.
 
-        Checks for semicolon (;) or comma (,) in first 1000 characters.
-        Semicolon is prioritized (common for Russian banks).
+        Uses Python's csv.Sniffer to intelligently detect the delimiter by
+        analyzing the structure of the CSV file. Falls back to manual counting
+        if Sniffer fails.
+
+        Priority for fallback: semicolon (;) > tab (\\t) > comma (,)
+        (semicolon is common for Russian bank exports)
 
         Args:
             text: CSV file text content
 
         Returns:
-            Detected delimiter (';' or ',')
+            Detected delimiter (';', '\\t', or ',')
 
         Examples:
-            >>> CSVAnalyzer.detect_delimiter("Date;Amount")
+            >>> CSVAnalyzer.detect_delimiter("Date;Amount\\n2025-01-01;100")
             ';'
 
-            >>> CSVAnalyzer.detect_delimiter("Date,Amount")
+            >>> CSVAnalyzer.detect_delimiter("Date,Amount\\n2025-01-01,100")
             ','
+
+            >>> CSVAnalyzer.detect_delimiter("Date\\tAmount\\n2025-01-01\\t100")
+            '\\t'
         """
-        sample = text[:1000]
-        return ';' if ';' in sample else ','
+        # Use sample of first 8KB for Sniffer (enough for structure detection)
+        sample = text[:8192]
+
+        # Try csv.Sniffer first (most reliable)
+        try:
+            sniffer = csv.Sniffer()
+            dialect = sniffer.sniff(sample, delimiters=';,\t')
+            detected = dialect.delimiter
+            logger.debug(f"csv.Sniffer detected delimiter: {repr(detected)}")
+            return detected
+        except csv.Error as e:
+            logger.warning(f"csv.Sniffer failed: {e}, falling back to heuristic")
+
+        # Fallback: count consistent column counts per delimiter
+        # Get first 10 lines for analysis
+        lines = sample.split('\n')[:10]
+        if not lines:
+            return ','
+
+        candidates = [';', '\t', ',']
+        best_delimiter = ','
+        best_score = 0
+
+        for delim in candidates:
+            # Count columns per line
+            column_counts = []
+            for line in lines:
+                if line.strip():
+                    # Use csv.reader to properly handle quoted fields
+                    try:
+                        reader = csv.reader(io.StringIO(line), delimiter=delim)
+                        row = next(reader, [])
+                        if row:
+                            column_counts.append(len(row))
+                    except csv.Error:
+                        continue
+
+            if not column_counts:
+                continue
+
+            # Score based on consistency and column count
+            # Prefer delimiters that give consistent column counts > 1
+            first_count = column_counts[0]
+            consistency = sum(1 for c in column_counts if c == first_count) / len(column_counts)
+            score = first_count * consistency if first_count > 1 else 0
+
+            logger.debug(f"Delimiter {repr(delim)}: columns={first_count}, consistency={consistency:.2f}, score={score:.2f}")
+
+            if score > best_score:
+                best_score = score
+                best_delimiter = delim
+
+        logger.info(f"Heuristic detected delimiter: {repr(best_delimiter)} (score={best_score:.2f})")
+        return best_delimiter

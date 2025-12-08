@@ -156,6 +156,7 @@ async def upload_file(
     current_user: CurrentUser,
     bank_provider_id: int,
     file: UploadFile = File(...),
+    delimiter: str | None = None,
     session: AsyncSession = Depends(get_session)
 ):
     """
@@ -172,13 +173,14 @@ async def upload_file(
     **Parameters:**
     - bank_provider_id: Bank provider ID (from dropdown)
     - file: CSV file (multipart/form-data)
+    - delimiter: Optional CSV delimiter (';', ',', 'tab'). If not provided, auto-detected.
 
     **Returns:**
     - file_id, file_name, bank_provider_id, status
 
     **Example:**
     ```
-    POST /api/v1/import/upload?bank_provider_id=1
+    POST /api/v1/import/upload?bank_provider_id=1&delimiter=,
     Form Data: file=tinkoff_2025_11.csv
     Response: {
         "file_id": 123,
@@ -188,8 +190,16 @@ async def upload_file(
     }
     ```
     """
+    # Convert 'tab' to actual tab character
+    actual_delimiter = None
+    if delimiter:
+        if delimiter == 'tab':
+            actual_delimiter = '\t'
+        else:
+            actual_delimiter = delimiter
+
     logger.info(
-        f"Uploading file {file.filename} for user {current_user.id}, bank {bank_provider_id}"
+        f"Uploading file {file.filename} for user {current_user.id}, bank {bank_provider_id}, delimiter={actual_delimiter or 'auto'}"
     )
 
     # Validate file size (100MB)
@@ -231,10 +241,16 @@ async def upload_file(
 
     # Analyze CSV structure
     try:
-        analysis = await CSVAnalyzer.analyze_file(content, file.filename or "unknown.csv")
+        analysis = await CSVAnalyzer.analyze_file(
+            content,
+            file.filename or "unknown.csv",
+            user_delimiter=actual_delimiter
+        )
         file_upload.csv_headers = analysis["headers"]
         file_upload.csv_sample_rows = analysis["sample_rows"]
         file_upload.total_rows = analysis["total_rows"]
+        file_upload.csv_delimiter = analysis["delimiter"]
+        file_upload.csv_encoding = analysis["encoding"]
         file_upload.status = "analyzed"
         file_upload.analyzed_at = datetime.utcnow()
         await session.commit()
@@ -311,9 +327,99 @@ async def analyze_file(
         headers=file_upload.csv_headers or [],
         sample_rows=file_upload.csv_sample_rows or [],
         total_rows=file_upload.total_rows or 0,
-        delimiter=";",  # TODO: Store in file_upload
-        encoding="utf-8"  # TODO: Store in file_upload
+        delimiter=file_upload.csv_delimiter or ";",
+        encoding=file_upload.csv_encoding or "utf-8"
     )
+
+
+@router.get("/files/{file_id}/preview")
+async def preview_file(
+    file_id: int,
+    delimiter: str,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Preview CSV file with specified delimiter.
+
+    Re-parses the uploaded file with the given delimiter and returns
+    headers and first 5 sample rows. Used for delimiter selection UI.
+
+    **Parameters:**
+    - file_id: File upload ID
+    - delimiter: CSV delimiter (';', ',', 'tab')
+
+    **Returns:**
+    - headers, sample_rows, delimiter
+
+    **Example:**
+    ```
+    GET /api/v1/import/files/123/preview?delimiter=,
+    Response: {
+        "file_id": 123,
+        "headers": ["Дата", "Сумма", "Описание"],
+        "sample_rows": [{"Дата": "7/4/2025 0:00:00", ...}],
+        "delimiter": ","
+    }
+    ```
+    """
+    logger.info(f"Preview file {file_id} with delimiter={repr(delimiter)} for user {current_user.id}")
+
+    file_upload = await session.get(ImportFileUpload, file_id)
+    if not file_upload or file_upload.user_id != current_user.id:
+        raise HTTPException(404, "File not found")
+
+    # Check temp file exists
+    if not file_upload.temp_file_path:
+        raise HTTPException(400, "File content not available")
+
+    temp_file_path = Path(file_upload.temp_file_path)
+    if not temp_file_path.exists():
+        raise HTTPException(404, "Temporary file not found")
+
+    # Convert 'tab' to actual tab character
+    actual_delimiter = '\t' if delimiter == 'tab' else delimiter
+
+    # Read and parse file with specified delimiter
+    try:
+        with open(temp_file_path, "rb") as f:
+            content = f.read()
+
+        # Detect encoding
+        try:
+            text = content.decode('utf-8')
+            encoding = 'utf-8'
+        except UnicodeDecodeError:
+            try:
+                text = content.decode('windows-1251')
+                encoding = 'windows-1251'
+            except UnicodeDecodeError:
+                text = content.decode('cp1251')
+                encoding = 'cp1251'
+
+        # Parse CSV with specified delimiter
+        import csv
+        import io
+        reader = csv.DictReader(io.StringIO(text), delimiter=actual_delimiter)
+        rows = list(reader)
+
+        headers = list(rows[0].keys()) if rows else []
+        sample_rows = rows[:5]
+
+        logger.info(f"Preview: {len(headers)} columns, {len(rows)} total rows")
+
+        return {
+            "file_id": file_upload.id,
+            "headers": headers,
+            "sample_rows": sample_rows,
+            "total_rows": len(rows),
+            "delimiter": delimiter,
+            "encoding": encoding
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to preview file {file_id}: {e}")
+        raise HTTPException(500, f"Failed to preview CSV: {str(e)}")
 
 
 @router.get("/mappings/{bank_provider_id}", response_model=MappingResponse)
@@ -519,15 +625,31 @@ async def parse_file(
         logger.error(f"Failed to read temp file {temp_file_path}: {e}")
         raise HTTPException(500, f"Failed to read temporary file: {str(e)}")
 
-    # Parse CSV with mapping
+    # Get delimiter and date_format from mapping transformations (if set)
+    # Otherwise fall back to file upload metadata
+    transformations = mapping_record.transformations or {}
+    delimiter = transformations.get("delimiter") or file_upload.csv_delimiter or ";"
+    encoding = file_upload.csv_encoding or "utf-8"
+    date_format = transformations.get("date_format")  # None = auto-detect
+
+    # Convert 'tab' to actual tab character
+    if delimiter == 'tab':
+        delimiter = '\t'
+
+    logger.info(
+        f"Parsing with delimiter={repr(delimiter)}, encoding={encoding}, "
+        f"date_format={date_format or 'auto'}"
+    )
+
     try:
         staging_records = await GenericCSVParser.parse_with_mapping(
             file_content=file_content,
             mapping=mapping_record.mapping,
             user_id=current_user.id,
             file_upload_id=file_upload.id,
-            delimiter=";",  # TODO: Store delimiter in file_upload during analysis
-            encoding="utf-8"  # TODO: Store encoding in file_upload during analysis
+            delimiter=delimiter,
+            encoding=encoding,
+            date_format=date_format
         )
 
         # Insert records to staging

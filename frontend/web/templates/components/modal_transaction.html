@@ -21,6 +21,16 @@
                        autocomplete="off" />
             </div>
 
+            <!-- Центр финансовой ответственности (ЦФО) - ПЕРВЫМ для фильтрации категорий -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">ЦФО *</span>
+                </label>
+                <select name="financial_center_id" required class="select select-bordered">
+                    <option value="">-- Выберите ЦФО --</option>
+                </select>
+            </div>
+
             <!-- Тип операции -->
             <div class="form-control">
                 <label class="label py-1">
@@ -38,23 +48,13 @@
                 </div>
             </div>
 
-            <!-- Категория -->
+            <!-- Категория (фильтруется по выбранному ЦФО) -->
             <div class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Категория *</span>
                 </label>
                 <select name="article_id" required class="select select-bordered">
                     <option value="" disabled hidden>-- Выберите категорию --</option>
-                </select>
-            </div>
-
-            <!-- Центр финансовой ответственности (ЦФО) -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">ЦФО *</span>
-                </label>
-                <select name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите ЦФО --</option>
                 </select>
             </div>
 

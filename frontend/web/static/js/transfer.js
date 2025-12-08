@@ -573,8 +573,13 @@ function setupCFOFiltering() {
     const toFCSelect = document.querySelector('#to_financial_center');
 
     if (fromFCSelect) {
-        fromFCSelect.addEventListener('change', () => {
+        fromFCSelect.addEventListener('change', async () => {
             populateFinancialCenterDropdowns();
+            // Filter FROM categories by selected FC
+            if (fromCategoryTree) {
+                const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
+                await fromCategoryTree.updateFinancialCenter(fcId);
+            }
             // Reload FROM hints when ЦФО changes (only for plan transfers)
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('from');
@@ -583,8 +588,13 @@ function setupCFOFiltering() {
     }
 
     if (toFCSelect) {
-        toFCSelect.addEventListener('change', () => {
+        toFCSelect.addEventListener('change', async () => {
             populateFinancialCenterDropdowns();
+            // Filter TO categories by selected FC
+            if (toCategoryTree) {
+                const fcId = toFCSelect.value ? parseInt(toFCSelect.value) : null;
+                await toCategoryTree.updateFinancialCenter(fcId);
+            }
             // Reload TO hints when ЦФО changes (only for plan transfers)
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('to');
@@ -676,6 +686,7 @@ function setupQuickDateButtons() {
 /**
  * Open Transfer Modal
  * Reloads financial centers data to ensure dropdowns are populated
+ * Applies category filtering based on currently selected FCs
  */
 async function openTransferModal() {
     const modal = document.querySelector('#transfer_modal');
@@ -684,10 +695,26 @@ async function openTransferModal() {
         // (may not have completed on page load due to race condition)
         await loadTransferData();
 
-        // Set today as default date
-        const today = BudgetShared.DateFormatter.today();
-        document.querySelector('#transfer_date').value =
-            BudgetShared.DateFormatter.formatForDisplay(today);
+        // Apply category filtering based on currently selected FCs
+        // This is necessary when reopening modal with previously selected FC
+        const fromFCSelect = document.querySelector('#from_financial_center');
+        const toFCSelect = document.querySelector('#to_financial_center');
+
+        if (fromCategoryTree && fromFCSelect) {
+            const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
+            await fromCategoryTree.updateFinancialCenter(fcId);
+        }
+        if (toCategoryTree && toFCSelect) {
+            const fcId = toFCSelect.value ? parseInt(toFCSelect.value) : null;
+            await toCategoryTree.updateFinancialCenter(fcId);
+        }
+
+        // Set today as default date (only for fact transfers, plan uses period buttons)
+        if (transferRecordType === 'fact') {
+            const today = BudgetShared.DateFormatter.today();
+            document.querySelector('#transfer_date').value =
+                BudgetShared.DateFormatter.formatForDisplay(today);
+        }
 
         modal.showModal();
     }

@@ -137,7 +137,6 @@
                                         <th>Тип</th>
                                         <th>Дата</th>
                                         <th>ЦФО</th>
-                                        <th>Тип категории</th>
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
@@ -328,20 +327,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Слушать изменения статуса сети (updateOfflineUI handled by base.html)
-    window.addEventListener('online', () => {
+    window.addEventListener('online', async () => {
         debugLog('[Network] online event fired');
-        loadPendingRecords();
         // Перезагрузить последние записи при восстановлении сети
         htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
             target: '#recent-transactions',
             swap: 'innerHTML'
         });
+        // Показать уведомление о pending записях (без авто-синхронизации)
+        await notifyPendingRecords();
     });
     // Listen for network-status-change from SmartNetworkDetector (includes manual mode)
-    window.addEventListener('network-status-change', (event) => {
+    window.addEventListener('network-status-change', async (event) => {
         debugLog('[Network] network-status-change:', event.detail);
         if (event.detail.status === 'online') {
-            loadPendingRecords();
             htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                 target: '#recent-transactions',
                 swap: 'innerHTML'
@@ -350,6 +349,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 target: '#quick-stats',
                 swap: 'innerHTML'
             });
+            // Показать уведомление о pending записях (без авто-синхронизации)
+            await notifyPendingRecords();
         }
     });
 
@@ -798,10 +799,16 @@ async function loadFinancialCenters() {
             });
         });
 
-        // Add change listeners to reload recommended amounts when ЦФО changes
+        // Add change listeners to filter categories AND reload hints when ЦФО changes
         const transactionFcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
         if (transactionFcSelect) {
-            transactionFcSelect.addEventListener('change', () => {
+            transactionFcSelect.addEventListener('change', async () => {
+                // Filter categories by selected FC
+                if (transactionCategoryTreeSelect) {
+                    const fcId = transactionFcSelect.value ? parseInt(transactionFcSelect.value) : null;
+                    await transactionCategoryTreeSelect.updateFinancialCenter(fcId);
+                }
+                // Update recommended amounts
                 const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
                 loadRecommendedAmounts('form_modal_add_transaction', 'fact', selectedCategory);
             });
@@ -809,7 +816,13 @@ async function loadFinancialCenters() {
 
         const planFcSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
         if (planFcSelect) {
-            planFcSelect.addEventListener('change', () => {
+            planFcSelect.addEventListener('change', async () => {
+                // Filter categories by selected FC
+                if (planCategoryTreeSelect) {
+                    const fcId = planFcSelect.value ? parseInt(planFcSelect.value) : null;
+                    await planCategoryTreeSelect.updateFinancialCenter(fcId);
+                }
+                // Update plan hints
                 const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
                 loadPlanHints(selectedCategory);
             });
@@ -1387,31 +1400,49 @@ function setupPlanTypeButtons() {
 
 // === Pending Records Management ===
 
+// Notify user about pending records (without auto-sync)
+async function notifyPendingRecords() {
+    if (!window.offlineManager) {
+        return;
+    }
+
+    try {
+        const pendingItems = await window.offlineManager.getPendingSyncItems();
+        if (pendingItems.length > 0) {
+            showToast(`Есть ${pendingItems.length} записей в ожидании синхронизации`, 'info');
+            // Обновить UI карточки pending записей
+            await loadPendingRecords();
+        }
+    } catch (error) {
+        debugLog('[notifyPendingRecords] Error:', error);
+    }
+}
+
 // Load and display pending records from sync queue
 async function loadPendingRecords() {
-    console.log('[loadPendingRecords] Starting...');
+    debugLog('[loadPendingRecords] Starting...');
     const card = document.getElementById('pending-records-card');
     const tbody = document.getElementById('pending-records-tbody');
     const countBadge = document.getElementById('pending-count-badge');
 
-    console.log('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
+    debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
 
     if (!card || !tbody) {
-        console.error('[loadPendingRecords] Card or tbody not found');
+        debugLog('[loadPendingRecords] Card or tbody not found');
         return;
     }
 
     if (!window.offlineManager) {
-        console.log('[loadPendingRecords] offlineManager not ready, retrying in 500ms...');
+        debugLog('[loadPendingRecords] offlineManager not ready, retrying in 500ms...');
         setTimeout(loadPendingRecords, 500);
         return;
     }
 
-    console.log('[loadPendingRecords] offlineManager ready, getting pending items...');
+    debugLog('[loadPendingRecords] offlineManager ready, getting pending items...');
 
     try {
         const pendingItems = await window.offlineManager.getPendingSyncItems();
-        console.log('[loadPendingRecords] Found pending items:', pendingItems.length, pendingItems);
+        debugLog('[loadPendingRecords] Found pending items:', pendingItems.length, pendingItems);
 
         if (pendingItems.length === 0) {
             card.classList.add('hidden');
@@ -1441,11 +1472,13 @@ async function loadPendingRecords() {
 
             // For transfers, create two rows (debit and credit)
             if (item.entity === 'transfer') {
-                // Record type for transfer: fact or plan
+                // Record type for transfer: fact or plan (badge HTML)
                 const isPlanTransfer = item.data.record_type === 'plan';
-                const typeLabel = isPlanTransfer ? 'План' : 'Факт';
+                const typeLabel = isPlanTransfer
+                    ? '<span class="badge badge-info badge-sm">План</span>'
+                    : '<span class="badge badge-success badge-sm">Факт</span>';
 
-                // Debit row (списание) - amount in blue
+                // Debit row (списание) - amount in blue, icon 📤
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
                 rows.push(`
@@ -1453,8 +1486,7 @@ async function loadPendingRecords() {
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
-                        <td class="text-info">Списание</td>
-                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCategory}">📤 ${fromCategory}</td>
                         <td class="text-info font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         ${notificationCell}
@@ -1462,7 +1494,7 @@ async function loadPendingRecords() {
                     </tr>
                 `);
 
-                // Credit row (пополнение) - amount in orange
+                // Credit row (пополнение) - amount in orange, icon 📥
                 const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
                 rows.push(`
@@ -1470,8 +1502,7 @@ async function loadPendingRecords() {
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
-                        <td class="text-warning">Пополнение</td>
-                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
+                        <td class="max-w-[100px] truncate" title="${toCategory}">📥 ${toCategory}</td>
                         <td class="text-warning font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td class="text-center opacity-30">—</td>
@@ -1487,29 +1518,29 @@ async function loadPendingRecords() {
                 const categoryName = item.data.article_name ||
                     (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
 
-                // Determine category type based on fact_type (expense/income for facts)
-                // expense = red, income = green, debit = blue, credit = orange
+                // Determine icon and color based on fact_type (expense/income for facts)
+                // expense = 💸 red, income = 💰 green, debit = 📤 blue, credit = 📥 orange
                 const factType = item.data.fact_type || item.data.article_type || '';
-                let categoryTypeLabel, colorClass;
+                let categoryIcon, colorClass;
                 switch (factType) {
                     case 'expense':
-                        categoryTypeLabel = 'Расход';
+                        categoryIcon = '💸';
                         colorClass = 'text-error';
                         break;
                     case 'income':
-                        categoryTypeLabel = 'Доход';
+                        categoryIcon = '💰';
                         colorClass = 'text-success';
                         break;
                     case 'debit':
-                        categoryTypeLabel = 'Списание';
+                        categoryIcon = '📤';
                         colorClass = 'text-info';
                         break;
                     case 'credit':
-                        categoryTypeLabel = 'Пополнение';
+                        categoryIcon = '📥';
                         colorClass = 'text-warning';
                         break;
                     default:
-                        categoryTypeLabel = '—';
+                        categoryIcon = '❓';
                         colorClass = '';
                 }
 
@@ -1518,8 +1549,7 @@ async function loadPendingRecords() {
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
-                        <td class="${colorClass}">${categoryTypeLabel}</td>
-                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
+                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryIcon} ${categoryName}</td>
                         <td class="${colorClass} font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         ${notificationCell}
@@ -1537,14 +1567,14 @@ async function loadPendingRecords() {
     }
 }
 
-// Get human-readable type label (without icons)
+// Get record type badge HTML (matching recent-transactions-card style)
 function getRecordTypeLabel(entity) {
-    const labels = {
-        'fact': 'Факт',
-        'plan': 'План',
-        'transfer': 'Перевод'
+    const badges = {
+        'fact': '<span class="badge badge-success badge-sm">Факт</span>',
+        'plan': '<span class="badge badge-info badge-sm">План</span>',
+        'transfer': '<span class="badge badge-neutral badge-sm">Перевод</span>'
     };
-    return labels[entity] || entity || '—';
+    return badges[entity] || `<span class="badge badge-ghost badge-sm">${entity || '—'}</span>`;
 }
 
 // Get status badge HTML
@@ -1941,10 +1971,8 @@ async function saveTransactionOffline(button) {
         };
 
         // Force offline save (bypass online check)
-        console.log('[saveTransactionOffline] Data to save:', data);
         if (window.offlineManager) {
-            const result = await window.offlineManager.createFactOffline(data);
-            console.log('[saveTransactionOffline] Saved to IndexedDB:', result);
+            await window.offlineManager.createFactOffline(data);
 
             modal.close();
             form.reset();
@@ -1956,10 +1984,8 @@ async function saveTransactionOffline(button) {
             }
 
             showToast('Факт сохранен локально (синхронизируется при подключении)', 'warning');
-            console.log('[saveTransactionOffline] Calling loadPendingRecords...');
-            // Update pending records table with await
+            // Update pending records table
             await loadPendingRecords();
-            console.log('[saveTransactionOffline] loadPendingRecords completed');
         } else {
             showToast('Ошибка: OfflineManager не доступен', 'error');
         }

@@ -1222,6 +1222,15 @@ main() {
     cleanup_docker_images true  # true = auto-cleanup (no confirmation needed)
     echo ""
 
+    # Cleanup old image versions (keep only last 3) to prevent 100+ images accumulation
+    cleanup_old_image_versions 3
+    echo ""
+
+    # Check Docker daemon health and restart if CPU is too high (>50%)
+    # High dockerd CPU often indicates accumulated state from many images
+    check_and_restart_dockerd 50
+    echo ""
+
     # Initialize PostgreSQL directory with correct permissions (skipped if PostgreSQL is running)
     initialize_postgres_directory
     echo ""

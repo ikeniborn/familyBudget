@@ -162,6 +162,15 @@
             <div class="page-title">Добавить факт</div>
         </div>
 
+        <!-- Financial Center Select - ПЕРВЫМ для фильтрации категорий -->
+        <div class="form-group">
+            <label class="form-label form-label-required">Центр финансовой ответственности (ЦФО)</label>
+            <select id="financial-center" class="form-input" required>
+                <option value="">Загрузка...</option>
+            </select>
+            <span class="error-message" id="financial-center-error"></span>
+        </div>
+
         <!-- Transaction Type Selector -->
         <div class="form-group">
             <label class="form-label">Тип категории</label>
@@ -202,7 +211,7 @@
             <span class="error-message" id="amount-error"></span>
         </div>
 
-        <!-- Category Select -->
+        <!-- Category Select (фильтруется по выбранному ЦФО) -->
         <div class="form-group">
             <label class="form-label form-label-required">Категория</label>
             <select id="category-select" class="form-input" required>
@@ -210,15 +219,6 @@
             </select>
             <div id="category-path-display" class="category-path-info" style="display: none;"></div>
             <span class="error-message" id="category-error"></span>
-        </div>
-
-        <!-- Financial Center Select -->
-        <div class="form-group">
-            <label class="form-label form-label-required">Центр финансовой ответственности (ЦФО)</label>
-            <select id="financial-center" class="form-input" required>
-                <option value="">Загрузка...</option>
-            </select>
-            <span class="error-message" id="financial-center-error"></span>
         </div>
 
         <!-- Cost Center Select -->
@@ -314,15 +314,17 @@
             // Setup quick date buttons
             setupQuickDateButtons();
 
-            // Load categories
+            // Load financial centers FIRST (for category filtering)
+            await loadFinancialCenters();
+
+            // Load cost centers
+            await loadCostCenters();
+
+            // Load categories (will filter by FC if selected)
             await loadCategories();
 
             // Load recommended amounts (initial load based on default type: expense)
             loadRecommendedAmounts();
-
-            // Load financial centers and cost centers
-            await loadFinancialCenters();
-            await loadCostCenters();
 
             // Setup MainButton for save
             setupMainButton();
@@ -647,10 +649,17 @@
                     select.appendChild(option);
                 });
 
-                // Setup change handler
-                select.addEventListener('change', () => {
-                    formState.financialCenterId = parseInt(select.value) || null;
+                // Setup change handler - update category filter when FC changes
+                select.addEventListener('change', async () => {
+                    const fcId = parseInt(select.value) || null;
+                    formState.financialCenterId = fcId;
                     document.getElementById('financial-center-error').textContent = '';
+
+                    // Update category filter based on selected FC
+                    if (categoryTreeSelect) {
+                        await categoryTreeSelect.updateFinancialCenter(fcId);
+                    }
+
                     app.ui.hapticLight();
                 });
 

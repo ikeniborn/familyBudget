@@ -133,6 +133,10 @@ async def list_articles(
     parent_id: Annotated[int | None, Query()] = None,
     sort_by: Annotated[Literal["usage_count", "name"], Query()] = "usage_count",
     include_inactive: Annotated[bool, Query()] = False,
+    financial_center_id: Annotated[int | None, Query(
+        description="Filter articles by financial center ID. "
+                    "Returns articles with NO FC restrictions OR linked to this specific FC."
+    )] = None,
 ) -> ArticleListResponse:
     """
     List articles with optional filtering and sorting.
@@ -147,6 +151,9 @@ async def list_articles(
     - include_inactive: Include archived categories (default: False)
         - False: Only active categories (visible in dropdowns)
         - True: Include archived categories (for admin UI)
+    - financial_center_id: Filter articles by financial center (whitelist pattern)
+        - If provided: Returns articles with NO FC restrictions OR linked to this FC
+        - If not provided: Returns all articles (no FC filtering)
 
     **Sorting:**
     - sort_by: Sort order ('usage_count' or 'name', default: 'usage_count')
@@ -160,6 +167,8 @@ async def list_articles(
     **Returns:**
     - 200 OK: List of articles with pagination info and usage statistics
     """
+    from backend.app.models.article_financial_center import ArticleFinancialCenter
+
     # Base query with LEFT JOIN to ArticleUsageStats
     # Returns: Row(Article, usage_count)
     statement = select(
@@ -185,6 +194,30 @@ async def list_articles(
     # Filter by active status (archived categories functionality)
     if not include_inactive:
         statement = statement.where(Article.is_active == True)  # noqa: E712
+
+    # Filter by financial_center_id (whitelist pattern)
+    # Articles with NO entries in t_article_financial_center = available for ALL FCs
+    # Articles WITH entries = available ONLY for linked FCs
+    if financial_center_id is not None:
+        # Subquery: article IDs that have ANY FC restriction
+        articles_with_fc_restrictions = select(
+            ArticleFinancialCenter.article_id
+        ).distinct()
+
+        # Subquery: article IDs linked to the specified FC
+        articles_linked_to_fc = select(
+            ArticleFinancialCenter.article_id
+        ).where(
+            ArticleFinancialCenter.financial_center_id == financial_center_id
+        )
+
+        # Filter: article has NO restrictions OR is linked to this FC
+        statement = statement.where(
+            or_(
+                Article.id.not_in(articles_with_fc_restrictions),
+                Article.id.in_(articles_linked_to_fc)
+            )
+        )
 
     # NO user isolation - all users see all articles (shared references)
 
@@ -214,6 +247,25 @@ async def list_articles(
     if not include_inactive:
         count_stmt = count_stmt.where(Article.is_active == True)  # noqa: E712
 
+    # Apply financial_center_id filter to count query as well
+    if financial_center_id is not None:
+        articles_with_fc_restrictions = select(
+            ArticleFinancialCenter.article_id
+        ).distinct()
+
+        articles_linked_to_fc = select(
+            ArticleFinancialCenter.article_id
+        ).where(
+            ArticleFinancialCenter.financial_center_id == financial_center_id
+        )
+
+        count_stmt = count_stmt.where(
+            or_(
+                Article.id.not_in(articles_with_fc_restrictions),
+                Article.id.in_(articles_linked_to_fc)
+            )
+        )
+
     total_result = await session.execute(count_stmt)
     total = total_result.scalar_one()
 
@@ -224,17 +276,26 @@ async def list_articles(
     result = await session.execute(statement)
     rows = result.all()  # Returns list of Row(Article, usage_count)
 
-    # Build ArticleResponse with usage_count
+    # Get all article IDs that are used as parent_id (for is_leaf calculation)
+    # An article is a leaf if it has NO children (i.e., not used as parent_id)
+    parent_ids_query = select(Article.parent_id).where(
+        Article.parent_id.isnot(None)
+    ).distinct()
+    parent_ids_result = await session.execute(parent_ids_query)
+    parent_ids = {row[0] for row in parent_ids_result.all()}
+
+    # Build ArticleResponse with usage_count and is_leaf
     from backend.app.schemas.article import ArticleResponse
     articles_with_usage = []
     for row in rows:
         article = row[0]  # Article object
         usage_count = row[1]  # int (from COALESCE)
 
-        # Create ArticleResponse from Article and add usage_count
+        # Create ArticleResponse from Article and add usage_count + is_leaf
         article_dict = {
             **article.model_dump(),
-            "usage_count": usage_count
+            "usage_count": usage_count,
+            "is_leaf": article.id not in parent_ids,  # Calculate from DB, not filtered list
         }
         article_response = ArticleResponse.model_validate(article_dict)
         articles_with_usage.append(article_response)
