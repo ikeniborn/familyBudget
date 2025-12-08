@@ -351,7 +351,7 @@ sync_mirror() {
 
         # Ensure required directories exist
         info "Creating required directories..."
-        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" 2>/dev/null || true
+        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" "$DEPLOY_DIR/uploads/temp" 2>/dev/null || true
         chmod 755 "$DEPLOY_DIR/backups" 2>/dev/null || true
 
         # Set executable permissions for all shell scripts
@@ -456,6 +456,7 @@ sync_update() {
         ! -path "./data/*" \
         ! -path "./logs/*" \
         ! -path "./backups/*" \
+        ! -path "./uploads/*" \
         ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
@@ -477,6 +478,7 @@ sync_update() {
     # Generate list of files in deploy directory
     # IMPORTANT: Exclude .npm-isolated/* and .migration_checksums from cleanup (production-only)
     # CRITICAL: Exclude node_modules/* from cleanup (should not exist, but safeguard)
+    # CRITICAL: Exclude uploads/* - user uploaded files (temp storage for import)
     (cd "$DEPLOY_DIR" && find . -type f \
         ! -path "./.git/*" \
         ! -path "./.env" \
@@ -484,6 +486,7 @@ sync_update() {
         ! -path "./data/*" \
         ! -path "./logs/*" \
         ! -path "./backups/*" \
+        ! -path "./uploads/*" \
         ! -path "./sql/*" \
         ! -name "*.pyc" \
         ! -path "./__pycache__/*" \
@@ -522,7 +525,7 @@ sync_update() {
 
     # Ensure required directories exist
     info "Creating required directories..."
-    mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" 2>/dev/null || true
+    mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" "$DEPLOY_DIR/uploads/temp" 2>/dev/null || true
     chmod 755 "$DEPLOY_DIR/backups" 2>/dev/null || true
 
     # Set executable permissions for all shell scripts
@@ -655,7 +658,7 @@ sync_clean() {
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
 
         # Ensure logs/, data/, and backups/ directories exist
-        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" 2>/dev/null || true
+        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" "$DEPLOY_DIR/uploads/temp" 2>/dev/null || true
 
         # Set proper permissions for backups directory
         # 755 allows root to write (backup.sh) and containers to read (health checks)
