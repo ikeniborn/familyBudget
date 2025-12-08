@@ -488,9 +488,9 @@
 
     <!-- Toast Container (for dynamic notifications) -->
     <!-- z-[99999] ensures toasts appear above ALL elements including modals -->
-    <!-- top-20 (80px) to appear below sticky navbar (~64px) with safe margin -->
+    <!-- top-[4.5rem] (72px) to appear just below sticky navbar (~64px) -->
     <!-- Mobile: max 50% width, Desktop: max 400px, fixed position for overlay -->
-    <div id="toast-container" class="fixed top-20 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none" role="alert" aria-live="polite"></div>
+    <div id="toast-container" class="fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none" role="alert" aria-live="polite"></div>
 
     <!-- Footer -->
     <footer class="footer footer-center p-4 bg-base-200 text-base-content border-t">
@@ -543,7 +543,7 @@
                 container = openModal.querySelector('.modal-toast-container');
                 if (!container) {
                     container = document.createElement('div');
-                    container.className = 'modal-toast-container fixed top-20 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
+                    container.className = 'modal-toast-container fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
                     openModal.appendChild(container);
                 }
             } else {
