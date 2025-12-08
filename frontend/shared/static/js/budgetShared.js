@@ -1801,6 +1801,17 @@ class ChoicesCategoryTree {
                 return staleCache.data;
             }
 
+            // Fallback: if specific FC cache not found, try "all" cache (from preload)
+            // This handles the case when user is offline and selects a different FC
+            if (fcPart !== 'all') {
+                const fallbackCacheKey = `${this.options.type}:${this.options.showInactive}:all`;
+                const fallbackCache = ChoicesCategoryTree._cache.get(fallbackCacheKey);
+                if (fallbackCache && fallbackCache.data && fallbackCache.data.length > 0) {
+                    debugLog('[ChoicesCategoryTree] Using fallback "all" cache for offline mode (FC filter not available offline)');
+                    return fallbackCache.data;
+                }
+            }
+
             // No cache available - return empty array to avoid breaking UI
             console.warn('[ChoicesCategoryTree] No cached categories available for offline mode');
             return [];
