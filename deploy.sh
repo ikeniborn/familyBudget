@@ -889,6 +889,12 @@ main() {
     sync_code_to_deploy
     echo ""
 
+    # CRITICAL: Regenerate nginx config IMMEDIATELY after sync
+    # sync_update() may delete nginx/conf.d/*.conf as "orphaned" (not in repo)
+    # This ensures nginx config is always present, even if deploy is interrupted later
+    regenerate_nginx_config
+    echo ""
+
     # Regenerate PWA icons if trigger file exists (AFTER sync, BEFORE SW cache update)
     # This ensures new icons are available before Service Worker cache is updated
     regenerate_pwa_icons_if_needed
@@ -1251,10 +1257,8 @@ main() {
 
     # stop_services removed - redundant after cleanup_old_deployment
 
-    # Configure nginx with appropriate template (HTTP or HTTPS) based on SSL state
-    # Uses smart selection from nginx.sh module (no sed marker manipulation)
-    regenerate_nginx_config
-    echo ""
+    # NOTE: regenerate_nginx_config() moved earlier - runs immediately after sync_code_to_deploy()
+    # This ensures nginx config exists even if deploy is interrupted during cleanup phase
 
     # CRITICAL: Validate PostgreSQL permissions BEFORE starting services
     # This runs ALWAYS, even when smart cleanup skips PostgreSQL restart
