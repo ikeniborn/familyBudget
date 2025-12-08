@@ -1401,29 +1401,29 @@ function setupPlanTypeButtons() {
 
 // Load and display pending records from sync queue
 async function loadPendingRecords() {
-    console.log('[loadPendingRecords] Starting...');
+    debugLog('[loadPendingRecords] Starting...');
     const card = document.getElementById('pending-records-card');
     const tbody = document.getElementById('pending-records-tbody');
     const countBadge = document.getElementById('pending-count-badge');
 
-    console.log('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
+    debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
 
     if (!card || !tbody) {
-        console.error('[loadPendingRecords] Card or tbody not found');
+        debugLog('[loadPendingRecords] Card or tbody not found');
         return;
     }
 
     if (!window.offlineManager) {
-        console.log('[loadPendingRecords] offlineManager not ready, retrying in 500ms...');
+        debugLog('[loadPendingRecords] offlineManager not ready, retrying in 500ms...');
         setTimeout(loadPendingRecords, 500);
         return;
     }
 
-    console.log('[loadPendingRecords] offlineManager ready, getting pending items...');
+    debugLog('[loadPendingRecords] offlineManager ready, getting pending items...');
 
     try {
         const pendingItems = await window.offlineManager.getPendingSyncItems();
-        console.log('[loadPendingRecords] Found pending items:', pendingItems.length, pendingItems);
+        debugLog('[loadPendingRecords] Found pending items:', pendingItems.length, pendingItems);
 
         if (pendingItems.length === 0) {
             card.classList.add('hidden');
