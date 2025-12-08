@@ -451,8 +451,9 @@ async def get_recent_facts_html(
             # Format date
             fact_date_str = fact.fact_date.strftime("%d.%m.%Y")
 
-            # Determine color based on article type (income/credit = positive, expense/debit = negative)
-            amount_class = "text-success font-bold" if article.type in ["income", "credit"] else "text-error font-bold"
+            # Determine color based on article type
+            # income/credit (пополнение) = orange, expense/debit (списание) = blue
+            amount_class = "text-warning font-bold" if article.type in ["income", "credit"] else "text-info font-bold"
 
             # Article icon based on type (income=💰, credit=📥, expense=💸, debit=📤)
             if article.type == "income":
