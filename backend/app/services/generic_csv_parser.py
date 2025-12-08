@@ -119,9 +119,9 @@ class GenericCSVParser:
                         )
                     continue  # Skip invalid dates
 
-                # Build csv_metadata (bank-specific fields)
+                # Build csv_metadata (additional info fields for enrichment)
                 csv_metadata = {}
-                for field in ["csv_category", "csv_mcc", "csv_card"]:
+                for field in ["csv_category", "csv_info1", "csv_info2"]:
                     if field in mapping and mapping[field]:
                         value = row.get(mapping[field])
                         if value:

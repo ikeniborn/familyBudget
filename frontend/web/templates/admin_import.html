@@ -297,8 +297,8 @@
                             <th>Сумма</th>
                             <th>Описание</th>
                             <th class="text-xs text-base-content/60">Категория (CSV)</th>
-                            <th class="text-xs text-base-content/60">MCC</th>
-                            <th class="text-xs text-base-content/60">Карта</th>
+                            <th class="text-xs text-base-content/60">Инфо 1</th>
+                            <th class="text-xs text-base-content/60">Инфо 2</th>
                             <th>Комментарий</th>
                             <th>Категория</th>
                             <th>ЦФО</th>
@@ -1060,8 +1060,8 @@ function renderMappingTable() {
         { key: 'amount', label: 'Сумма', required: true },
         { key: 'description', label: 'Описание', required: false },
         { key: 'csv_category', label: 'Категория (metadata)', required: false },
-        { key: 'csv_mcc', label: 'MCC код (metadata)', required: false },
-        { key: 'csv_card', label: 'Номер карты (metadata)', required: false }
+        { key: 'csv_info1', label: 'Информация 1 (metadata)', required: false },
+        { key: 'csv_info2', label: 'Информация 2 (metadata)', required: false }
     ];
 
     budgetFields.forEach(field => {
@@ -1153,8 +1153,8 @@ async function saveMapping() {
         mapping.amount = document.getElementById('mapping-amount').value;
         mapping.description = document.getElementById('mapping-description').value || '';
         mapping.csv_category = document.getElementById('mapping-csv_category').value || '';
-        mapping.csv_mcc = document.getElementById('mapping-csv_mcc').value || '';
-        mapping.csv_card = document.getElementById('mapping-csv_card').value || '';
+        mapping.csv_info1 = document.getElementById('mapping-csv_info1').value || '';
+        mapping.csv_info2 = document.getElementById('mapping-csv_info2').value || '';
 
         if (!mapping.fact_date || !mapping.amount) {
             showNotification('Обязательные поля: Дата операции и Сумма', 'error');
@@ -1316,15 +1316,17 @@ function createStagingRow(record, index) {
     csvCategoryCell.textContent = record.csv_metadata?.category || '';
     csvCategoryCell.title = record.csv_metadata?.category || '';
 
-    // CSV Metadata: MCC
-    const csvMccCell = document.createElement('td');
-    csvMccCell.className = 'text-xs text-base-content/70';
-    csvMccCell.textContent = record.csv_metadata?.mcc || '';
+    // CSV Metadata: Info 1
+    const csvInfo1Cell = document.createElement('td');
+    csvInfo1Cell.className = 'text-xs text-base-content/70 max-w-[150px] truncate';
+    csvInfo1Cell.textContent = record.csv_metadata?.info1 || '';
+    csvInfo1Cell.title = record.csv_metadata?.info1 || '';
 
-    // CSV Metadata: Card
-    const csvCardCell = document.createElement('td');
-    csvCardCell.className = 'text-xs text-base-content/70';
-    csvCardCell.textContent = record.csv_metadata?.card || '';
+    // CSV Metadata: Info 2
+    const csvInfo2Cell = document.createElement('td');
+    csvInfo2Cell.className = 'text-xs text-base-content/70 max-w-[150px] truncate';
+    csvInfo2Cell.textContent = record.csv_metadata?.info2 || '';
+    csvInfo2Cell.title = record.csv_metadata?.info2 || '';
 
     // Comment (editable)
     const commentCell = document.createElement('td');
@@ -1365,8 +1367,8 @@ function createStagingRow(record, index) {
     row.appendChild(amountCell);
     row.appendChild(descCell);
     row.appendChild(csvCategoryCell);
-    row.appendChild(csvMccCell);
-    row.appendChild(csvCardCell);
+    row.appendChild(csvInfo1Cell);
+    row.appendChild(csvInfo2Cell);
     row.appendChild(commentCell);
     row.appendChild(articleCell);
     row.appendChild(fcCell);
