@@ -1604,11 +1604,14 @@ class ChoicesCategoryTree {
         const apiBaseUrl = options.apiBaseUrl || '/api/v1';
         const showInactive = options.showInactive || false;
 
-        const types = ['expense', 'income'];
+        // Preload all 4 types: expense/income for transactions, debit/credit for transfers
+        const types = ['expense', 'income', 'debit', 'credit'];
 
-        // Preload both types in parallel
+        // Preload all types in parallel
         const preloadPromises = types.map(async (type) => {
-            const cacheKey = `${type}:${showInactive}`;
+            // IMPORTANT: Use "all" as FC part to match loadCategories() cache key
+            // loadCategories uses: `${type}:${showInactive}:${fcPart}` where fcPart defaults to "all"
+            const cacheKey = `${type}:${showInactive}:all`;
 
             // Skip if already cached
             if (ChoicesCategoryTree._cache.has(cacheKey)) {
