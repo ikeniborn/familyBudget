@@ -1572,6 +1572,9 @@ async def update_article(
     # Check if anything changed (after removing is_active)
     changed, changed_fields = has_changes(article, updates)
 
+    # Also check if financial_center_ids changed
+    fc_changed = update_data.financial_center_ids is not None
+
     # Process is_active change (recursive archive/restore)
     if is_active_change is not None:
         if is_active_change is False:
@@ -1586,8 +1589,9 @@ async def update_article(
         # Refresh article to get updated is_active status
         await session.refresh(article)
 
-    # If no other changes, return current article
-    if not changed:
+    # If no changes to article fields AND no FC changes, return current article
+    # NOTE: fc_changed must be checked here to ensure FC updates are processed
+    if not changed and not fc_changed:
         return {
             "id": article.id,
             "user_id": article.user_id,
@@ -1606,17 +1610,20 @@ async def update_article(
     # Store original type BEFORE update (for cascade detection)
     original_type = article.type
 
-    # Use SCD Type 1 + History (in-place update with history tracking)
-    updated_article = await update_article_scd1(
-        session=session,
-        article=article,
-        updates=updates,
-        changed_by_user_id=current_admin.id,
-        change_type="UPDATE",
-    )
+    # Only update article fields if they actually changed
+    updated_article = article  # Default to current article
+    if changed:
+        # Use SCD Type 1 + History (in-place update with history tracking)
+        updated_article = await update_article_scd1(
+            session=session,
+            article=article,
+            updates=updates,
+            changed_by_user_id=current_admin.id,
+            change_type="UPDATE",
+        )
 
     # CASCADE: If type was changed, recursively update all children
-    if "type" in updates and updates["type"] != original_type:
+    if changed and "type" in updates and updates["type"] != original_type:
         # Get all descendants and update without intermediate commits
         async def cascade_update_type(parent_article_id: int, new_type: str):
             """Recursively update type for all children of given article."""
@@ -1661,6 +1668,8 @@ async def update_article(
     # Handle financial_center_ids update
     from backend.app.models.article_financial_center import ArticleFinancialCenter
     from backend.app.services.hierarchy_service import get_depth
+
+    logger.info(f"[FC Update] article_id={article_id}, financial_center_ids from request: {update_data.financial_center_ids}")
 
     financial_center_ids = []
     if update_data.financial_center_ids is not None:

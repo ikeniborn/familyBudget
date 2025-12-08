@@ -755,7 +755,9 @@ async function updateArticle(event) {
         financial_center_ids: financialCenterIds
     };
 
-    debugLog('[updateArticle] Sending data:', JSON.stringify(data));
+    // TEMP: Force console log for debugging FC issue
+    console.log('[updateArticle] financial_center_ids:', financialCenterIds);
+    console.log('[updateArticle] Full data:', JSON.stringify(data, null, 2));
 
     try {
         const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
