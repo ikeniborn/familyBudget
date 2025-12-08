@@ -798,10 +798,16 @@ async function loadFinancialCenters() {
             });
         });
 
-        // Add change listeners to reload recommended amounts when ЦФО changes
+        // Add change listeners to filter categories AND reload hints when ЦФО changes
         const transactionFcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
         if (transactionFcSelect) {
-            transactionFcSelect.addEventListener('change', () => {
+            transactionFcSelect.addEventListener('change', async () => {
+                // Filter categories by selected FC
+                if (transactionCategoryTreeSelect) {
+                    const fcId = transactionFcSelect.value ? parseInt(transactionFcSelect.value) : null;
+                    await transactionCategoryTreeSelect.updateFinancialCenter(fcId);
+                }
+                // Update recommended amounts
                 const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
                 loadRecommendedAmounts('form_modal_add_transaction', 'fact', selectedCategory);
             });
@@ -809,7 +815,13 @@ async function loadFinancialCenters() {
 
         const planFcSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
         if (planFcSelect) {
-            planFcSelect.addEventListener('change', () => {
+            planFcSelect.addEventListener('change', async () => {
+                // Filter categories by selected FC
+                if (planCategoryTreeSelect) {
+                    const fcId = planFcSelect.value ? parseInt(planFcSelect.value) : null;
+                    await planCategoryTreeSelect.updateFinancialCenter(fcId);
+                }
+                // Update plan hints
                 const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
                 loadPlanHints(selectedCategory);
             });

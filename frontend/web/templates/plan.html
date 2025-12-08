@@ -1242,8 +1242,14 @@ async function loadFinancialCenters() {
                 createSelect.appendChild(option);
             });
 
-            // Add change listener to reload plan hints when ЦФО changes
-            createSelect.addEventListener('change', () => {
+            // Add change listener to filter categories AND reload plan hints when ЦФО changes
+            createSelect.addEventListener('change', async () => {
+                // Filter categories by selected FC
+                if (createCategoryTreeSelect) {
+                    const fcId = createSelect.value ? parseInt(createSelect.value) : null;
+                    await createCategoryTreeSelect.updateFinancialCenter(fcId);
+                }
+                // Update plan hints
                 const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
                 loadPlanHints(selectedCategory);
             });

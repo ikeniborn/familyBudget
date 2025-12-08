@@ -17,6 +17,16 @@
                 <input type="hidden" name="plan_month" required />
             </div>
 
+            <!-- Центр финансовой ответственности (ЦФО) - moved above operation type for FC filtering -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">ЦФО *</span>
+                </label>
+                <select name="financial_center_id" required class="select select-bordered">
+                    <option value="">-- Выберите ЦФО --</option>
+                </select>
+            </div>
+
             <!-- Тип операции -->
             <div class="form-control">
                 <label class="label py-1">
@@ -41,16 +51,6 @@
                 </label>
                 <select name="article_id" required class="select select-bordered">
                     <option value="" disabled hidden>-- Выберите категорию --</option>
-                </select>
-            </div>
-
-            <!-- Центр финансовой ответственности (ЦФО) -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">ЦФО *</span>
-                </label>
-                <select name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите ЦФО --</option>
                 </select>
             </div>
 

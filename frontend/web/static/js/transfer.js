@@ -573,8 +573,13 @@ function setupCFOFiltering() {
     const toFCSelect = document.querySelector('#to_financial_center');
 
     if (fromFCSelect) {
-        fromFCSelect.addEventListener('change', () => {
+        fromFCSelect.addEventListener('change', async () => {
             populateFinancialCenterDropdowns();
+            // Filter FROM categories by selected FC
+            if (fromCategoryTree) {
+                const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
+                await fromCategoryTree.updateFinancialCenter(fcId);
+            }
             // Reload FROM hints when ЦФО changes (only for plan transfers)
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('from');
@@ -583,8 +588,13 @@ function setupCFOFiltering() {
     }
 
     if (toFCSelect) {
-        toFCSelect.addEventListener('change', () => {
+        toFCSelect.addEventListener('change', async () => {
             populateFinancialCenterDropdowns();
+            // Filter TO categories by selected FC
+            if (toCategoryTree) {
+                const fcId = toFCSelect.value ? parseInt(toFCSelect.value) : null;
+                await toCategoryTree.updateFinancialCenter(fcId);
+            }
             // Reload TO hints when ЦФО changes (only for plan transfers)
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('to');

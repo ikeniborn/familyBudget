@@ -271,14 +271,21 @@ function populateFinancialCenterSelect(selectId, selectedIds) {
     // Clear existing options
     select.innerHTML = '';
 
+    // Normalize selectedIds to integers for comparison (handles string/number mismatch)
+    const normalizedSelectedIds = (selectedIds || []).map(id => parseInt(id, 10));
+
     // Add options for each financial center
     financialCentersData.forEach(fc => {
         const option = document.createElement('option');
+        const fcIdInt = parseInt(fc.id, 10);
         option.value = fc.id;
         option.textContent = fc.name;
-        option.selected = selectedIds.includes(fc.id);
+        option.selected = normalizedSelectedIds.includes(fcIdInt);
         select.appendChild(option);
     });
+
+    // Force browser to recognize selection changes
+    select.dispatchEvent(new Event('change'));
 }
 
 // Update FC container visibility based on is_leaf status
@@ -627,7 +634,7 @@ async function createArticle(event) {
 }
 
 // Show edit modal
-function showEditModal(articleId) {
+async function showEditModal(articleId) {
     const article = articlesData.find(a => a.id === articleId);
     if (!article) return;
 
@@ -638,8 +645,14 @@ function showEditModal(articleId) {
     document.getElementById('edit-parent').value = article.parent_id || '';
     document.getElementById('edit-is-active').checked = article.is_active !== false;
 
+    // Ensure financial centers are loaded (race condition protection)
+    if (financialCentersData.length === 0) {
+        await loadFinancialCenters();
+    }
+
     // Populate financial center multiselect with current selection
     const fcIds = article.financial_center_ids || [];
+    debugLog('[showEditModal] Article FC IDs:', fcIds, 'FC Data count:', financialCentersData.length);
     populateFinancialCenterSelect('edit-financial-centers', fcIds);
 
     // Show/hide FC container based on is_leaf status
