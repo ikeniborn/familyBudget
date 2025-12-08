@@ -9,8 +9,12 @@ Pattern: Service layer (business logic)
 
 import csv
 import io
+import logging
 from datetime import datetime
 from typing import Any, Optional
+
+
+logger = logging.getLogger(__name__)
 
 
 class GenericCSVParser:
@@ -76,20 +80,39 @@ class GenericCSVParser:
         reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
 
         staging_records = []
-        for row in reader:
+        skipped_missing = 0
+        skipped_date = 0
+
+        for row_num, row in enumerate(reader, start=2):  # start=2 because row 1 is header
             try:
                 # Extract values using mapping
-                fact_date_str = row.get(mapping.get("fact_date", ""), "")
-                amount_str = row.get(mapping.get("amount", ""), "")
+                fact_date_col = mapping.get("fact_date", "")
+                amount_col = mapping.get("amount", "")
+
+                fact_date_str = row.get(fact_date_col, "")
+                amount_str = row.get(amount_col, "")
                 description = row.get(mapping.get("description", ""), "")
 
                 # Skip rows with missing required fields
                 if not fact_date_str or not amount_str:
+                    skipped_missing += 1
+                    if skipped_missing <= 3:  # Log first 3 skipped rows
+                        logger.warning(
+                            f"Row {row_num}: missing required fields. "
+                            f"fact_date_col='{fact_date_col}', amount_col='{amount_col}', "
+                            f"fact_date_str='{fact_date_str}', amount_str='{amount_str}', "
+                            f"row_keys={list(row.keys())[:5]}"
+                        )
                     continue
 
                 # Parse date (try multiple formats)
                 fact_date = GenericCSVParser._parse_date(fact_date_str)
                 if not fact_date:
+                    skipped_date += 1
+                    if skipped_date <= 3:  # Log first 3 unparseable dates
+                        logger.warning(
+                            f"Row {row_num}: cannot parse date '{fact_date_str}'"
+                        )
                     continue  # Skip invalid dates
 
                 # Build csv_metadata (bank-specific fields)
@@ -120,8 +143,15 @@ class GenericCSVParser:
 
             except Exception as e:
                 # Skip rows that fail parsing
-                # TODO: Log error for debugging
+                logger.error(f"Row {row_num}: parsing error: {e}")
                 continue
+
+        # Log summary
+        logger.info(
+            f"Parsing complete: {len(staging_records)} records parsed, "
+            f"{skipped_missing} skipped (missing fields), "
+            f"{skipped_date} skipped (invalid date)"
+        )
 
         return staging_records
 
@@ -159,7 +189,9 @@ class GenericCSVParser:
             "%d.%m.%Y %H:%M:%S",  # Tinkoff: 20.11.2025 10:30:00
             "%d.%m.%Y",           # Common: 20.11.2025
             "%Y-%m-%d",           # ISO: 2025-11-20
-            "%d/%m/%Y",           # Alternative: 20/11/2025
+            "%d/%m/%Y",           # European: 20/11/2025 (day/month)
+            "%m/%d/%Y %H:%M:%S",  # US with time: 7/4/2025 0:00:00
+            "%m/%d/%Y",           # US: 7/4/2025 (month/day)
             "%Y.%m.%d",           # Alternative: 2025.11.20
         ]
 
