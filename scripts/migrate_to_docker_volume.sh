@@ -111,7 +111,18 @@ pre_migration_checks() {
     fi
     log_success "Docker: Running"
 
-    # 3. Check bind mount exists and has data
+    # 3. CRITICAL: Check if already migrated (one-time operation)
+    if docker volume inspect "$NEW_VOLUME_NAME" &>/dev/null; then
+        if ! grep -A10 "^[[:space:]]*postgres_data:" "$COMPOSE_FILE" 2>/dev/null | grep -q "driver_opts:"; then
+            log_error "Migration already completed!"
+            log_error "Docker volume '$NEW_VOLUME_NAME' exists and docker-compose.yml uses Docker managed volume."
+            log_error "This is a ONE-TIME migration. No action needed."
+            exit 1
+        fi
+    fi
+    log_success "Migration status: Not yet migrated"
+
+    # 4. Check bind mount exists and has data
     if [[ ! -d "$BIND_MOUNT_PATH" ]]; then
         log_error "Bind mount path does not exist: $BIND_MOUNT_PATH"
         exit 1
