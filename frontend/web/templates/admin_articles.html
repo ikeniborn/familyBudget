@@ -386,6 +386,7 @@ function renderArticlesTable(articles) {
                     <tr>
                         <th>📝 Название</th>
                         <th>🏷️ Тип</th>
+                        <th>🏦 ЦФО</th>
                         <th>🔢 Код</th>
                         <th>👤 Владелец</th>
                         <th>⚙️ Действия</th>
@@ -428,6 +429,22 @@ function buildTree(articles) {
     return roots;
 }
 
+// Helper: Get FC names from IDs
+function getFCNamesLabel(fcIds) {
+    if (!fcIds || fcIds.length === 0) {
+        return '<span class="badge badge-ghost">Все</span>';
+    }
+    const names = fcIds.map(id => {
+        const fc = financialCentersData.find(f => f.id === id);
+        return fc ? fc.name : `#${id}`;
+    });
+    // If more than 2 FCs, show first 2 and count
+    if (names.length > 2) {
+        return `<span class="badge badge-info badge-sm">${names.slice(0, 2).join(', ')} +${names.length - 2}</span>`;
+    }
+    return `<span class="badge badge-info badge-sm">${names.join(', ')}</span>`;
+}
+
 // Render tree nodes recursively
 function renderTreeNodes(nodes, level) {
     let html = '';
@@ -437,6 +454,8 @@ function renderTreeNodes(nodes, level) {
         const prefix = level > 0 ? '↳ ' : '';
         // Show user_name (first_name) from backend
         const ownerLabel = node.user_name || '—';
+        // Show FC names (or "Все" if empty)
+        const fcLabel = getFCNamesLabel(node.financial_center_ids);
 
         // Full type mapping for all 4 types (with colored badges)
         let typeLabel, typeBadge;
@@ -484,6 +503,7 @@ function renderTreeNodes(nodes, level) {
             <tr data-article-id="${node.id}">
                 <td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
                 <td>${typeBadge}</td>
+                <td>${fcLabel}</td>
                 <td class="font-mono text-sm">${node.code || '—'}</td>
                 <td>${ownerLabel}</td>
                 <td>
