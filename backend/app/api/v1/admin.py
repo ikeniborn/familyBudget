@@ -1247,7 +1247,7 @@ async def get_all_articles(
     """
     Get all articles (admin only).
 
-    Returns list of all articles.
+    Returns list of all articles with financial_center_ids and is_leaf flags.
     Can filter by is_active flag and article type.
 
     Args:
@@ -1257,8 +1257,10 @@ async def get_all_articles(
         type: Optional filter by article type (income or expense)
 
     Returns:
-        List[ArticleResponse]: List of articles
+        List[ArticleResponse]: List of articles with financial_center_ids and is_leaf
     """
+    from backend.app.models.article_financial_center import ArticleFinancialCenter
+
     query = select(Article, User).outerjoin(User, Article.user_id == User.id)
 
     # Filter archived categories unless explicitly included
@@ -1272,6 +1274,31 @@ async def get_all_articles(
 
     result = await session.execute(query)
     rows = result.all()
+
+    # Get all article IDs
+    article_ids = [article.id for article, _ in rows]
+
+    # Load all financial center links in one query
+    fc_links_query = select(ArticleFinancialCenter).where(
+        ArticleFinancialCenter.article_id.in_(article_ids)
+    )
+    fc_links_result = await session.execute(fc_links_query)
+    fc_links = fc_links_result.scalars().all()
+
+    # Build mapping: article_id -> list of financial_center_ids
+    fc_map: dict[int, list[int]] = {}
+    for link in fc_links:
+        if link.article_id not in fc_map:
+            fc_map[link.article_id] = []
+        fc_map[link.article_id].append(link.financial_center_id)
+
+    # Determine which articles have children (for is_leaf calculation)
+    # An article is a leaf if it has NO children (i.e., not used as parent_id)
+    parent_ids_query = select(Article.parent_id).where(
+        Article.parent_id.isnot(None)
+    ).distinct()
+    parent_ids_result = await session.execute(parent_ids_query)
+    parent_ids = {row[0] for row in parent_ids_result.all()}
 
     return [
         ArticleResponse(
@@ -1287,6 +1314,8 @@ async def get_all_articles(
             updated_at=article.updated_at,
             usage_count=0,
             hierarchy=None,
+            financial_center_ids=fc_map.get(article.id, []),
+            is_leaf=article.id not in parent_ids,
         )
         for article, user in rows
     ]
@@ -1370,6 +1399,32 @@ async def create_article(
         change_type="CREATE",
     )
 
+    # Handle financial center links (only for leaf articles - new articles are always leaves)
+    financial_center_ids = []
+    if create_data.financial_center_ids:
+        from backend.app.models.article_financial_center import ArticleFinancialCenter
+
+        # Validate all financial centers exist
+        for fc_id in create_data.financial_center_ids:
+            fc_query = select(FinancialCenter).where(FinancialCenter.id == fc_id)
+            fc_result = await session.execute(fc_query)
+            fc = fc_result.scalar_one_or_none()
+            if not fc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Финансовый центр с id={fc_id} не найден"
+                )
+
+            # Create link
+            link = ArticleFinancialCenter(
+                article_id=new_article.id,
+                financial_center_id=fc_id
+            )
+            session.add(link)
+
+        await session.commit()
+        financial_center_ids = create_data.financial_center_ids
+
     # Return dict with datetime converted to ISO strings for JSON serialization
     return {
         "id": new_article.id,
@@ -1383,7 +1438,9 @@ async def create_article(
         "updated_at": new_article.updated_at.isoformat(),
         "usage_count": 0,  # Default for newly created articles
         "hierarchy": None,
-        "user_name": None  # No user name for new articles (system created)
+        "user_name": None,  # No user name for new articles (system created)
+        "financial_center_ids": financial_center_ids,
+        "is_leaf": True,  # New articles are always leaves
     }
 
 
@@ -1601,6 +1658,59 @@ async def update_article(
         await session.commit()
         await session.refresh(updated_article)
 
+    # Handle financial_center_ids update
+    from backend.app.models.article_financial_center import ArticleFinancialCenter
+    from backend.app.services.hierarchy_service import get_depth
+
+    financial_center_ids = []
+    if update_data.financial_center_ids is not None:
+        # Check if article is leaf (no children)
+        depth = await get_depth(session, article_id)
+        if depth > 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Привязки к ЦФО можно устанавливать только для листовых категорий (без подкатегорий)"
+            )
+
+        # Delete existing links
+        delete_links_query = select(ArticleFinancialCenter).where(
+            ArticleFinancialCenter.article_id == article_id
+        )
+        links_result = await session.execute(delete_links_query)
+        for link in links_result.scalars().all():
+            await session.delete(link)
+
+        # Create new links
+        for fc_id in update_data.financial_center_ids:
+            fc_query = select(FinancialCenter).where(FinancialCenter.id == fc_id)
+            fc_result = await session.execute(fc_query)
+            fc = fc_result.scalar_one_or_none()
+            if not fc:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Финансовый центр с id={fc_id} не найден"
+                )
+
+            link = ArticleFinancialCenter(
+                article_id=article_id,
+                financial_center_id=fc_id
+            )
+            session.add(link)
+
+        await session.commit()
+        financial_center_ids = update_data.financial_center_ids
+    else:
+        # Load existing financial_center_ids
+        existing_links_query = select(ArticleFinancialCenter.financial_center_id).where(
+            ArticleFinancialCenter.article_id == article_id
+        )
+        existing_links_result = await session.execute(existing_links_query)
+        financial_center_ids = [row[0] for row in existing_links_result.all()]
+
+    # Calculate is_leaf
+    depth = await get_depth(session, article_id)
+    is_leaf = (depth == 0)
+
     # TRIGGER: Recalculate article usage statistics after category update
     # This ensures usage_count is up-to-date for category selection UI sorting
     try:
@@ -1624,7 +1734,9 @@ async def update_article(
         "updated_at": updated_article.updated_at.isoformat(),
         "usage_count": 0,  # Default for updated articles - stats recalculated daily
         "hierarchy": None,
-        "user_name": None  # No user name after update
+        "user_name": None,  # No user name after update
+        "financial_center_ids": financial_center_ids,
+        "is_leaf": is_leaf,
     }
 
 

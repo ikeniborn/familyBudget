@@ -903,6 +903,18 @@ async function loadFinancialCenters() {
                 option.textContent = center.name;
                 createSelect.appendChild(option);
             });
+
+            // Add change listener to filter categories by selected FC (only for CREATE modal)
+            // Edit modal should NOT filter categories - user can see all categories
+            createSelect.addEventListener('change', async () => {
+                const fcId = createSelect.value ? parseInt(createSelect.value) : null;
+                debugLog('FC changed in create modal:', fcId);
+
+                // Update category filter based on selected FC
+                if (createCategoryTreeSelect) {
+                    await createCategoryTreeSelect.updateFinancialCenter(fcId);
+                }
+            });
         }
 
         // Populate edit dropdown

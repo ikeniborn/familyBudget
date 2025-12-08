@@ -52,6 +52,13 @@ class ArticleCreate(BaseModel):
         examples=[True, False]
     )
 
+    financial_center_ids: Optional[list[int]] = Field(
+        default=None,
+        description="List of financial center IDs this article is available for. "
+                    "NULL/empty = available for all. Only valid for leaf articles.",
+        examples=[[1, 2, 3], None]
+    )
+
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str) -> str:
@@ -126,6 +133,13 @@ class ArticleUpdate(BaseModel):
         default=None,
         description="Active status flag (True = visible in UI, False = archived)",
         examples=[True, False]
+    )
+
+    financial_center_ids: Optional[list[int]] = Field(
+        default=None,
+        description="List of financial center IDs. Pass empty list [] to clear all links "
+                    "(available for all). Only valid for leaf articles.",
+        examples=[[1, 2], []]
     )
 
     @field_validator("name")
@@ -257,6 +271,22 @@ class ArticleResponse(BaseModel):
     hierarchy: Optional[ArticleHierarchyInfo] = Field(
         default=None,
         description="Hierarchy information (optional)"
+    )
+
+    # Financial center links (populated from t_article_financial_center)
+    financial_center_ids: list[int] = Field(
+        default_factory=list,
+        description="List of financial center IDs this article is linked to. "
+                    "Empty list = available for all financial centers.",
+        examples=[[1, 2], []]
+    )
+
+    # Leaf status (calculated from hierarchy)
+    is_leaf: bool = Field(
+        default=True,
+        description="True if article has no children (leaf node in hierarchy). "
+                    "Only leaf articles can have financial center restrictions.",
+        examples=[True, False]
     )
 
     model_config = {

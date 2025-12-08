@@ -8,6 +8,7 @@
  * - Full path display below field after selection
  * - Hierarchical breadcrumb navigation
  * - Dual authentication support: Bearer token (WebApp) or cookies (web interface)
+ * - Financial center filtering (whitelist pattern)
  *
  * Usage (Telegram WebApp with Bearer token):
  *   const categoryTree = new ChoicesCategoryTree('#article_id', {
@@ -22,11 +23,20 @@
  *     onCategoryChange: (category) => console.log(category)
  *   });
  *
+ * Usage (with financial center filtering):
+ *   const categoryTree = new ChoicesCategoryTree('#article_id', {
+ *     type: 'expense',
+ *     financialCenterId: 5,  // Show only categories available for FC 5
+ *     onCategoryChange: (category) => console.log(category)
+ *   });
+ *   // Update FC filter dynamically
+ *   await categoryTree.updateFinancialCenter(10);  // Reload with new FC
+ *
  * API Requirements:
- * - GET /api/v1/articles?type={type}&sort_by=usage_count
+ * - GET /api/v1/articles?type={type}&sort_by=usage_count&financial_center_id={fc_id}
  * - GET /api/v1/articles/{id}/ancestors
  *
- * @version 2.0.0 (Shared: WebApp + Web)
+ * @version 2.1.0 (Added financial center filtering)
  * @requires Choices.js v11.1.0
  */
 
@@ -108,6 +118,7 @@ class ChoicesCategoryTree {
      * @param {string} options.apiBaseUrl - Base URL for API (default: '/api/v1')
      * @param {boolean} options.showLeafOnly - Show only leaf categories (default: true)
      * @param {boolean} options.showInactive - Include archived categories (default: false)
+     * @param {number|null} options.financialCenterId - OPTIONAL: Filter categories by financial center ID
      */
     constructor(selector, options = {}) {
         this.selector = selector;
@@ -128,6 +139,7 @@ class ChoicesCategoryTree {
             apiBaseUrl: options.apiBaseUrl || '/api/v1',
             showLeafOnly: options.showLeafOnly !== false,  // Default true
             showInactive: options.showInactive || false,  // Default false - hide archived categories
+            financialCenterId: options.financialCenterId || null,  // Filter by FC (null = all)
         };
 
         this.choices = null;
@@ -167,8 +179,9 @@ class ChoicesCategoryTree {
      * Uses Bearer token (WebApp) or cookie-based auth (web interface).
      */
     async loadCategories() {
-        // Generate cache key based on type and showInactive
-        const cacheKey = `${this.options.type}:${this.options.showInactive}`;
+        // Generate cache key based on type, showInactive, and financialCenterId
+        const fcPart = this.options.financialCenterId || 'all';
+        const cacheKey = `${this.options.type}:${this.options.showInactive}:${fcPart}`;
 
         // Check cache first (30 second TTL)
         const cached = ChoicesCategoryTree._cache.get(cacheKey);
@@ -184,8 +197,11 @@ class ChoicesCategoryTree {
             return;
         }
 
-        // Create new request
-        const url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000&include_inactive=${this.options.showInactive}`;
+        // Create new request with optional financial_center_id filter
+        let url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000&include_inactive=${this.options.showInactive}`;
+        if (this.options.financialCenterId) {
+            url += `&financial_center_id=${this.options.financialCenterId}`;
+        }
 
         // Build headers conditionally
         const headers = {};
@@ -555,6 +571,79 @@ class ChoicesCategoryTree {
 
         // Reinitialize
         await this.init();
+    }
+
+    /**
+     * Update financial center ID for category filtering.
+     * Invalidates cache and reloads categories.
+     *
+     * @param {number|null} financialCenterId - Financial center ID (null = show all)
+     */
+    async updateFinancialCenter(financialCenterId) {
+        // Update option
+        this.options.financialCenterId = financialCenterId;
+
+        // Invalidate cache for this type (all FC variants)
+        const cacheKeyPrefix = `${this.options.type}:${this.options.showInactive}`;
+        for (const key of ChoicesCategoryTree._cache.keys()) {
+            if (key.startsWith(cacheKeyPrefix)) {
+                ChoicesCategoryTree._cache.delete(key);
+            }
+        }
+
+        // Reset selection
+        if (this.element) {
+            this.element.value = '';
+        }
+
+        try {
+            // Load new categories from API
+            await this.loadCategories();
+
+            // Build hierarchy maps
+            this.buildHierarchyMaps();
+
+            // Filter to leaf categories if needed
+            const displayCategories = this.options.showLeafOnly
+                ? this.getLeafCategories()
+                : this.categories;
+
+            // Update Choices.js without full recreation
+            if (this.choices) {
+                // Clear existing choices
+                this.choices.clearStore();
+
+                // Prepare new choices data with parent chain
+                const choices = displayCategories.map(cat => {
+                    const parentChain = this.getParentChain(cat.id);
+                    const parentText = parentChain.length > 0
+                        ? parentChain.map(p => p.name).join(' › ')
+                        : '';
+
+                    return {
+                        value: cat.id,
+                        label: cat.name,
+                        customProperties: {
+                            usage_count: cat.usage_count || 0,
+                            parent_id: cat.parent_id,
+                            parent_text: parentText,
+                        }
+                    };
+                });
+
+                // Set new choices
+                this.choices.setChoices(choices, 'value', 'label', true);
+
+                // Log info about filtering
+                if (financialCenterId) {
+                    debugLog(`[ChoicesCategoryTree] Filtered to FC ${financialCenterId}: ${choices.length} categories`);
+                } else {
+                    debugLog(`[ChoicesCategoryTree] Showing all categories: ${choices.length}`);
+                }
+            }
+        } catch (error) {
+            console.error('[ChoicesCategoryTree] Error updating financial center:', error);
+        }
     }
 
     /**

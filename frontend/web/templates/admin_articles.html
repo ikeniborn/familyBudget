@@ -85,6 +85,17 @@
                     <!-- Will be populated dynamically -->
                 </select>
             </div>
+            <div class="form-control" id="create-fc-container">
+                <label class="label">
+                    <span class="label-text">🏦 Финансовые центры</span>
+                </label>
+                <select id="create-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
+                    <!-- Will be populated dynamically -->
+                </select>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Не выбрано = категория доступна для всех ЦФО. Удерживайте Ctrl для выбора нескольких.
+                </p>
+            </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-primary">✅ Создать</button>
@@ -137,6 +148,20 @@
                     Неактивные категории скрыты из выбора при добавлении фактов. Изменение статуса применится ко всем подкатегориям рекурсивно.
                 </p>
             </div>
+            <div class="form-control" id="edit-fc-container">
+                <label class="label">
+                    <span class="label-text">🏦 Финансовые центры</span>
+                </label>
+                <select id="edit-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
+                    <!-- Will be populated dynamically -->
+                </select>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Не выбрано = категория доступна для всех ЦФО. Удерживайте Ctrl для выбора нескольких.
+                </p>
+                <p class="text-sm text-warning mt-1" id="edit-fc-non-leaf-warning" style="display: none;">
+                    ⚠️ Привязка к ЦФО доступна только для листовых категорий (без подкатегорий).
+                </p>
+            </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-primary">💾 Сохранить</button>
@@ -171,6 +196,7 @@ let currentType = 'all';
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 let currentSearchQuery = '';
 let articlesData = [];
+let financialCentersData = []; // List of all financial centers
 
 // Custom confirmation dialog
 let confirmModalResolveCallback = null;
@@ -202,6 +228,7 @@ function confirmModalResolve(result) {
 // Load articles on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadArticles();
+    loadFinancialCenters();
 
     // Search input event listener for real-time filtering
     const searchInput = document.getElementById('search-input');
@@ -215,6 +242,62 @@ document.addEventListener('DOMContentLoaded', function() {
         populateParentSelect('create-parent', this.value);
     });
 });
+
+// Load financial centers for multiselect
+async function loadFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/admin/financial-centers', {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        financialCentersData = await response.json();
+        populateFinancialCenterSelect('create-financial-centers', []);
+        populateFinancialCenterSelect('edit-financial-centers', []);
+    } catch (error) {
+        console.error('Error loading financial centers:', error);
+    }
+}
+
+// Populate financial center multiselect
+function populateFinancialCenterSelect(selectId, selectedIds) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    // Clear existing options
+    select.innerHTML = '';
+
+    // Add options for each financial center
+    financialCentersData.forEach(fc => {
+        const option = document.createElement('option');
+        option.value = fc.id;
+        option.textContent = fc.name;
+        option.selected = selectedIds.includes(fc.id);
+        select.appendChild(option);
+    });
+}
+
+// Update FC container visibility based on is_leaf status
+function updateFCContainerVisibility(containerId, warningId, isLeaf) {
+    const container = document.getElementById(containerId);
+    const warning = document.getElementById(warningId);
+    const select = container?.querySelector('select');
+
+    if (!container) return;
+
+    if (isLeaf) {
+        // Leaf article - show select, hide warning
+        if (select) select.disabled = false;
+        if (warning) warning.style.display = 'none';
+    } else {
+        // Non-leaf article - disable select, show warning
+        if (select) select.disabled = true;
+        if (warning) warning.style.display = 'block';
+    }
+}
 
 // Toggle type filter (all/income/expense/debit/credit)
 function toggleTypeFilter(type) {
@@ -425,6 +508,8 @@ function showCreateModal() {
 function closeCreateModal() {
     document.getElementById('create-modal').close();
     document.getElementById('create-form').reset();
+    // Clear financial center selection
+    populateFinancialCenterSelect('create-financial-centers', []);
 }
 
 // Populate parent select dropdown
@@ -478,10 +563,16 @@ async function createArticle(event) {
     event.preventDefault();
 
     const formData = new FormData(event.target);
+
+    // Get selected financial center IDs from multiselect
+    const fcSelect = document.getElementById('create-financial-centers');
+    const financialCenterIds = Array.from(fcSelect.selectedOptions).map(opt => parseInt(opt.value));
+
     const data = {
         name: formData.get('name'),
         type: formData.get('type'),
-        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
+        financial_center_ids: financialCenterIds.length > 0 ? financialCenterIds : null
     };
 
     try {
@@ -546,6 +637,14 @@ function showEditModal(articleId) {
     document.getElementById('edit-parent').value = article.parent_id || '';
     document.getElementById('edit-is-active').checked = article.is_active !== false;
 
+    // Populate financial center multiselect with current selection
+    const fcIds = article.financial_center_ids || [];
+    populateFinancialCenterSelect('edit-financial-centers', fcIds);
+
+    // Show/hide FC container based on is_leaf status
+    const isLeaf = article.is_leaf !== false; // Default to true if not set
+    updateFCContainerVisibility('edit-fc-container', 'edit-fc-non-leaf-warning', isLeaf);
+
     // Add event listener for type change to update parent list dynamically
     const editTypeSelect = document.getElementById('edit-type');
     const editParentSelect = document.getElementById('edit-parent');
@@ -597,11 +696,20 @@ async function updateArticle(event) {
 
     const formData = new FormData(event.target);
     const articleId = formData.get('id');
+
+    // Get selected financial center IDs from multiselect (only if enabled)
+    const fcSelect = document.getElementById('edit-financial-centers');
+    let financialCenterIds = null;
+    if (fcSelect && !fcSelect.disabled) {
+        financialCenterIds = Array.from(fcSelect.selectedOptions).map(opt => parseInt(opt.value));
+    }
+
     const data = {
         name: formData.get('name'),
         type: formData.get('type'),
         parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
-        is_active: document.getElementById('edit-is-active').checked
+        is_active: document.getElementById('edit-is-active').checked,
+        financial_center_ids: financialCenterIds
     };
 
     try {
