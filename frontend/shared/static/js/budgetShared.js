@@ -2137,7 +2137,7 @@ class ChoicesCategoryTree {
 
     /**
      * Update financial center ID for category filtering.
-     * Invalidates cache and reloads categories.
+     * Invalidates cache and reloads categories (online) or uses cached data (offline).
      *
      * @param {number|null} financialCenterId - Financial center ID (null = show all)
      */
@@ -2145,7 +2145,53 @@ class ChoicesCategoryTree {
         // Update option
         this.options.financialCenterId = financialCenterId;
 
-        // Invalidate cache for this type (all FC variants)
+        // Check if we're offline - if so, use cached data without invalidation
+        const isOffline = !navigator.onLine ||
+            (window.offlineManager && !window.offlineManager.isOnline);
+
+        if (isOffline) {
+            debugLog('[ChoicesCategoryTree] Offline mode - using cached categories for FC update');
+
+            // Try to use cached data with "all" FC key (from preload)
+            const fallbackCacheKey = `${this.options.type}:${this.options.showInactive}:all`;
+            const cached = ChoicesCategoryTree._cache.get(fallbackCacheKey);
+
+            if (cached && cached.data && cached.data.length > 0) {
+                this.categories = cached.data;
+                this.buildHierarchyMaps();
+
+                const displayCategories = this.options.showLeafOnly
+                    ? this.getLeafCategories()
+                    : this.categories;
+
+                if (this.choices) {
+                    this.choices.clearStore();
+                    const choices = displayCategories.map(cat => {
+                        const parentChain = this.getParentChain(cat.id);
+                        const parentText = parentChain.length > 0
+                            ? parentChain.map(p => p.name).join(' › ')
+                            : '';
+                        return {
+                            value: cat.id,
+                            label: cat.name,
+                            customProperties: {
+                                usage_count: cat.usage_count || 0,
+                                parent_id: cat.parent_id,
+                                parent_text: parentText,
+                            }
+                        };
+                    });
+                    this.choices.setChoices(choices, 'value', 'label', true);
+                    debugLog(`[ChoicesCategoryTree] Offline: using cached categories (${choices.length} items)`);
+                }
+                return;
+            } else {
+                console.warn('[ChoicesCategoryTree] Offline mode but no cached categories available');
+                return;
+            }
+        }
+
+        // Online mode: invalidate cache and reload
         const cacheKeyPrefix = `${this.options.type}:${this.options.showInactive}`;
         for (const key of ChoicesCategoryTree._cache.keys()) {
             if (key.startsWith(cacheKeyPrefix)) {
