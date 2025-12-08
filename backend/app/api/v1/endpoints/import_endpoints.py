@@ -235,6 +235,8 @@ async def upload_file(
         file_upload.csv_headers = analysis["headers"]
         file_upload.csv_sample_rows = analysis["sample_rows"]
         file_upload.total_rows = analysis["total_rows"]
+        file_upload.csv_delimiter = analysis["delimiter"]
+        file_upload.csv_encoding = analysis["encoding"]
         file_upload.status = "analyzed"
         file_upload.analyzed_at = datetime.utcnow()
         await session.commit()
@@ -311,8 +313,8 @@ async def analyze_file(
         headers=file_upload.csv_headers or [],
         sample_rows=file_upload.csv_sample_rows or [],
         total_rows=file_upload.total_rows or 0,
-        delimiter=";",  # TODO: Store in file_upload
-        encoding="utf-8"  # TODO: Store in file_upload
+        delimiter=file_upload.csv_delimiter or ";",
+        encoding=file_upload.csv_encoding or "utf-8"
     )
 
 
@@ -519,15 +521,18 @@ async def parse_file(
         logger.error(f"Failed to read temp file {temp_file_path}: {e}")
         raise HTTPException(500, f"Failed to read temporary file: {str(e)}")
 
-    # Parse CSV with mapping
+    # Parse CSV with mapping (use stored delimiter/encoding from analysis)
+    delimiter = file_upload.csv_delimiter or ";"
+    encoding = file_upload.csv_encoding or "utf-8"
+
     try:
         staging_records = await GenericCSVParser.parse_with_mapping(
             file_content=file_content,
             mapping=mapping_record.mapping,
             user_id=current_user.id,
             file_upload_id=file_upload.id,
-            delimiter=";",  # TODO: Store delimiter in file_upload during analysis
-            encoding="utf-8"  # TODO: Store encoding in file_upload during analysis
+            delimiter=delimiter,
+            encoding=encoding
         )
 
         # Insert records to staging

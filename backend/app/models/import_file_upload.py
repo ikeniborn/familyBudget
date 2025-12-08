@@ -107,6 +107,18 @@ class ImportFileUpload(SQLModel, table=True):
         description="Total number of rows in CSV"
     )
 
+    csv_delimiter: Optional[str] = Field(
+        default=None,
+        max_length=5,
+        description="Detected CSV delimiter (e.g., ';' or ',')"
+    )
+
+    csv_encoding: Optional[str] = Field(
+        default=None,
+        max_length=20,
+        description="Detected file encoding (e.g., 'utf-8', 'windows-1251')"
+    )
+
     # Processing status
     status: str = Field(
         default="uploaded",
