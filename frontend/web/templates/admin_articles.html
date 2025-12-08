@@ -254,7 +254,8 @@ async function loadFinancialCenters() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        financialCentersData = await response.json();
+        const data = await response.json();
+        financialCentersData = data.financial_centers || [];
         populateFinancialCenterSelect('create-financial-centers', []);
         populateFinancialCenterSelect('edit-financial-centers', []);
     } catch (error) {
