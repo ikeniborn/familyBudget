@@ -290,9 +290,23 @@ class ChoicesCategoryTree {
 
     /**
      * Get leaf categories (categories without children).
+     * Uses API-provided is_leaf flag if available, otherwise calculates locally.
+     *
+     * IMPORTANT: When filtering by financial_center_id, the API returns only
+     * categories available for that FC. The childrenMap built from filtered
+     * list may incorrectly mark parent categories as leaves (because their
+     * children were filtered out). The API-provided is_leaf flag is calculated
+     * from the FULL database, so it's always correct.
      */
     getLeafCategories() {
-        return this.categories.filter(cat => !this.childrenMap.has(cat.id));
+        return this.categories.filter(cat => {
+            // Prefer API-provided is_leaf (calculated from full DB)
+            if (typeof cat.is_leaf === 'boolean') {
+                return cat.is_leaf;
+            }
+            // Fallback to local childrenMap calculation (for backwards compatibility)
+            return !this.childrenMap.has(cat.id);
+        });
     }
 
     /**

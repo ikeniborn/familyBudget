@@ -3,8 +3,8 @@
 {% block title %}Настройка 2FA{% endblock %}
 
 {% block extra_head %}
-<!-- QRCode.js for generating QR codes (local vendor copy) -->
-<script src="/static/js/vendor/qrcode.min.js?v=PLACEHOLDER"></script>
+<!-- qr-creator for generating QR codes (local vendor copy, 0 dependencies) -->
+<script src="/static/js/vendor/qr-creator.min.js?v=PLACEHOLDER"></script>
 {% endblock %}
 
 {% block content %}
@@ -242,17 +242,17 @@ async function initSetup() {
 
         setupSecret = data.secret;
 
-        // Generate QR code (using qrcodejs library)
+        // Generate QR code (using qr-creator library, 0 dependencies)
         const qrcodeDiv = document.getElementById('qrcode');
         qrcodeDiv.innerHTML = ''; // Clear previous content
-        new QRCode(qrcodeDiv, {
+        QrCreator.render({
             text: data.qr_uri,
-            width: 200,
-            height: 200,
-            colorDark: '#000000',
-            colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.M
-        });
+            radius: 0,
+            ecLevel: 'M',
+            fill: '#000000',
+            background: '#ffffff',
+            size: 200
+        }, qrcodeDiv);
 
         // Show secret for manual entry
         document.getElementById('secret-display').value = data.secret;

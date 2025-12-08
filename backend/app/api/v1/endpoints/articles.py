@@ -276,17 +276,26 @@ async def list_articles(
     result = await session.execute(statement)
     rows = result.all()  # Returns list of Row(Article, usage_count)
 
-    # Build ArticleResponse with usage_count
+    # Get all article IDs that are used as parent_id (for is_leaf calculation)
+    # An article is a leaf if it has NO children (i.e., not used as parent_id)
+    parent_ids_query = select(Article.parent_id).where(
+        Article.parent_id.isnot(None)
+    ).distinct()
+    parent_ids_result = await session.execute(parent_ids_query)
+    parent_ids = {row[0] for row in parent_ids_result.all()}
+
+    # Build ArticleResponse with usage_count and is_leaf
     from backend.app.schemas.article import ArticleResponse
     articles_with_usage = []
     for row in rows:
         article = row[0]  # Article object
         usage_count = row[1]  # int (from COALESCE)
 
-        # Create ArticleResponse from Article and add usage_count
+        # Create ArticleResponse from Article and add usage_count + is_leaf
         article_dict = {
             **article.model_dump(),
-            "usage_count": usage_count
+            "usage_count": usage_count,
+            "is_leaf": article.id not in parent_ids,  # Calculate from DB, not filtered list
         }
         article_response = ArticleResponse.model_validate(article_dict)
         articles_with_usage.append(article_response)
