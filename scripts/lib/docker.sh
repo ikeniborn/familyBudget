@@ -927,11 +927,16 @@ cleanup_old_image_versions() {
                     # Get size before removal
                     local img_size=$(docker images --format "{{.Size}}" "${image_name}:${version}" 2>/dev/null | head -1)
 
-                    if docker rmi "${image_name}:${version}" >> "$LOG_FILE" 2>&1; then
-                        ((images_cleaned++))
+                    # Use subshell to isolate errors and prevent script exit on failure
+                    local rmi_output
+                    if rmi_output=$(docker rmi "${image_name}:${version}" 2>&1); then
+                        ((images_cleaned++)) || true
                         echo "  ✓ Removed ${image_name}:${version} ($img_size)"
+                        # Log the output
+                        [[ -n "$rmi_output" ]] && echo "$rmi_output" >> "$LOG_FILE"
                     else
                         warning "  Failed to remove ${image_name}:${version}"
+                        [[ -n "$rmi_output" ]] && echo "$rmi_output" >> "$LOG_FILE"
                     fi
                 fi
             done <<< "$versions_to_remove"
