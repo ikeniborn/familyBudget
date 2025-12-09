@@ -916,22 +916,36 @@ cleanup_old_image_versions() {
 
             while IFS= read -r version; do
                 if [[ -n "$version" ]]; then
-                    # Check if image is in use by any container
-                    local in_use=$(docker ps -a --filter "ancestor=${image_name}:${version}" --format "{{.Names}}" 2>/dev/null | head -1)
+                    # Check if image is in use by RUNNING container (not stopped)
+                    # Using 'docker ps' without '-a' to exclude stopped containers
+                    local in_use=$(docker ps --filter "ancestor=${image_name}:${version}" --format "{{.Names}}" 2>/dev/null | head -1)
 
                     if [[ -n "$in_use" ]]; then
                         warning "  Skipping ${image_name}:${version} (in use by $in_use)"
                         continue
                     fi
 
+                    # Also check if this exact image is referenced by our compose service
+                    # This prevents race conditions during container recreation
+                    local current_image=$(docker inspect "familybudget-${service}" --format '{{.Config.Image}}' 2>/dev/null || echo "")
+                    if [[ "$current_image" == "${image_name}:${version}" ]]; then
+                        warning "  Skipping ${image_name}:${version} (current compose image)"
+                        continue
+                    fi
+
                     # Get size before removal
                     local img_size=$(docker images --format "{{.Size}}" "${image_name}:${version}" 2>/dev/null | head -1)
 
-                    if docker rmi "${image_name}:${version}" >> "$LOG_FILE" 2>&1; then
-                        ((images_cleaned++))
+                    # Use subshell to isolate errors and prevent script exit on failure
+                    local rmi_output
+                    if rmi_output=$(docker rmi "${image_name}:${version}" 2>&1); then
+                        ((images_cleaned++)) || true
                         echo "  ✓ Removed ${image_name}:${version} ($img_size)"
+                        # Log the output
+                        [[ -n "$rmi_output" ]] && echo "$rmi_output" >> "$LOG_FILE"
                     else
                         warning "  Failed to remove ${image_name}:${version}"
+                        [[ -n "$rmi_output" ]] && echo "$rmi_output" >> "$LOG_FILE"
                     fi
                 fi
             done <<< "$versions_to_remove"
@@ -949,12 +963,13 @@ cleanup_old_image_versions() {
 
 # Check dockerd CPU usage and restart if too high
 # High dockerd CPU (>50%) often indicates accumulated state that needs restart
+# IMPORTANT: Uses 'top' for INSTANTANEOUS CPU, not 'ps' which shows lifetime average
 check_and_restart_dockerd() {
     local cpu_threshold="${1:-50}"  # Restart if CPU > 50%
 
     info "Checking Docker daemon health..."
 
-    # Get dockerd CPU usage (average over 3 samples)
+    # Get dockerd PID
     local dockerd_pid=$(pgrep -x dockerd 2>/dev/null | head -1)
 
     if [[ -z "$dockerd_pid" ]]; then
@@ -962,14 +977,16 @@ check_and_restart_dockerd() {
         return 0
     fi
 
-    # Get CPU usage (3 samples, 1 second apart)
+    # Get INSTANTANEOUS CPU usage using top (not ps which shows lifetime average)
+    # top -bn2 runs 2 iterations: first is since boot, second is current
+    # We take the second iteration for accurate current CPU
     local cpu_samples=()
     for i in 1 2 3; do
-        local cpu=$(ps -p "$dockerd_pid" -o %cpu= 2>/dev/null | awk '{print int($1)}')
-        if [[ -n "$cpu" ]]; then
+        # Use top with 2 iterations, 1 second delay, take second result
+        local cpu=$(top -bn2 -d1 -p "$dockerd_pid" 2>/dev/null | grep -E "^\s*$dockerd_pid" | tail -1 | awk '{print int($9)}')
+        if [[ -n "$cpu" && "$cpu" =~ ^[0-9]+$ ]]; then
             cpu_samples+=("$cpu")
         fi
-        [[ $i -lt 3 ]] && sleep 1
     done
 
     if [[ ${#cpu_samples[@]} -eq 0 ]]; then
@@ -977,14 +994,14 @@ check_and_restart_dockerd() {
         return 0
     fi
 
-    # Calculate average CPU
+    # Calculate average of instantaneous samples
     local total=0
     for cpu in "${cpu_samples[@]}"; do
         total=$((total + cpu))
     done
     local avg_cpu=$((total / ${#cpu_samples[@]}))
 
-    # Get dockerd uptime
+    # Get dockerd uptime for logging
     local dockerd_start=$(ps -p "$dockerd_pid" -o lstart= 2>/dev/null)
     local dockerd_time=$(ps -p "$dockerd_pid" -o time= 2>/dev/null | awk '{print $1}')
 
@@ -1042,6 +1059,69 @@ check_and_restart_dockerd() {
 
     echo ""
 }
+
+# Soft Docker system cleanup (alternative to dockerd restart)
+# Cleans up unused resources without stopping running services
+# Run this AFTER successful deployment to release accumulated Docker state
+cleanup_docker_system_soft() {
+    info "Running soft Docker system cleanup..."
+
+    local cleaned_something=false
+
+    # 1. Prune unused networks (safe - won't affect running containers)
+    local unused_networks=$(docker network ls --filter "dangling=true" -q 2>/dev/null | wc -l || echo "0")
+    if [[ $unused_networks -gt 0 ]]; then
+        info "Removing $unused_networks unused networks..."
+        if docker network prune -f >> "$LOG_FILE" 2>&1; then
+            success "Removed unused networks"
+            cleaned_something=true
+        fi
+    fi
+
+    # 2. Prune stopped containers (safe - only removes exited containers)
+    local stopped_containers=$(docker ps -a -f "status=exited" -q 2>/dev/null | wc -l || echo "0")
+    if [[ $stopped_containers -gt 0 ]]; then
+        info "Removing $stopped_containers stopped containers..."
+        if docker container prune -f >> "$LOG_FILE" 2>&1; then
+            success "Removed stopped containers"
+            cleaned_something=true
+        fi
+    fi
+
+    # 3. Light system prune (without volumes, without build cache)
+    # This clears Docker daemon's internal tracking state
+    info "Clearing Docker daemon cache..."
+    if docker system prune -f --filter "until=1h" >> "$LOG_FILE" 2>&1; then
+        cleaned_something=true
+    fi
+
+    # 4. Check dockerd INSTANTANEOUS CPU after cleanup (using top, not ps)
+    local dockerd_pid=$(pgrep -x dockerd 2>/dev/null | head -1)
+    if [[ -n "$dockerd_pid" ]]; then
+        sleep 2
+        # Use top for instantaneous CPU (ps shows lifetime average which is misleading)
+        local cpu=$(top -bn2 -d1 -p "$dockerd_pid" 2>/dev/null | grep -E "^\s*$dockerd_pid" | tail -1 | awk '{print int($9)}')
+        if [[ -n "$cpu" && "$cpu" =~ ^[0-9]+$ ]]; then
+            if [[ $cpu -gt 50 ]]; then
+                warning "dockerd CPU still elevated after cleanup: ${cpu}%"
+                warning "Recommend: sudo systemctl restart docker"
+            elif [[ $cpu -gt 30 ]]; then
+                warning "dockerd CPU slightly elevated: ${cpu}%"
+            else
+                success "dockerd CPU after cleanup: ${cpu}%"
+            fi
+        fi
+    fi
+
+    if [[ "$cleaned_something" == "true" ]]; then
+        success "Soft Docker cleanup completed"
+    else
+        info "No Docker resources needed cleanup"
+    fi
+
+    echo ""
+}
+export -f cleanup_docker_system_soft
 
 # Find free subnets in range 172.20-172.30
 

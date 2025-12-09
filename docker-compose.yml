@@ -271,10 +271,12 @@ services:
     profiles:
       - full  # Only start if 'full' profile is active
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://backend:8000/health"]
+      # Check nginx itself, not backend - prevents false "unhealthy" during backend restart
+      test: ["CMD", "nginx", "-t"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -290,19 +292,11 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${DATA_DIR:-/opt/budget/data}/postgres  # Absolute path to prevent volume recreation
-    # BIND MOUNT ARCHITECTURE (not Docker managed volume)
-    # WHY: Direct access to PostgreSQL data from host for backups and debugging
-    # TRADE-OFF: PostgreSQL creates critical directories (pg_notify, pg_dynshmem, etc.) ONLY during initdb
-    #   - If ANY directory is missing on subsequent starts → FATAL error
-    #   - deploy.sh runs repair_postgres_directories_atomic() before EVERY start to ensure integrity
-    # ALTERNATIVE: Use Docker managed volume (better isolation, automatic permission handling)
-    #   - Requires migration: docker volume create + copy data
-    #   - Planned for v6.0+ (breaking change)
+    # Docker managed volume (migrated from bind mount)
+    # Migration: scripts/migrate_to_docker_volume.sh
+    # Docs: docs/POSTGRES_VOLUME_MIGRATION.md
+    external: true
+    name: budget_postgres_data
 
   postgres_backups:
     driver: local
