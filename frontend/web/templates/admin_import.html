@@ -243,8 +243,6 @@
                             <option value="">-- Все типы --</option>
                             <option value="expense" style="color: rgb(239, 68, 68);">💸 Расходы</option>
                             <option value="income" style="color: rgb(34, 197, 94);">💰 Доходы</option>
-                            <option value="debit" style="color: rgb(59, 130, 246);">📤 Списание</option>
-                            <option value="credit" style="color: rgb(251, 146, 60);">📥 Пополнение</option>
                         </select>
                     </div>
 
@@ -300,6 +298,7 @@
                             <th class="text-xs text-base-content/60">Инфо 1</th>
                             <th class="text-xs text-base-content/60">Инфо 2</th>
                             <th>Комментарий</th>
+                            <th>Тип</th>
                             <th>Категория</th>
                             <th>ЦФО</th>
                             <th>МВЗ</th>
@@ -401,6 +400,7 @@ let stagingRecords = [];
 let allArticles = [];
 let financialCenters = [];
 let costCenters = [];
+let rowArticleTypes = {};  // Хранит выбранный тип для каждой строки: { recordId: 'expense' | 'income' }
 
 // ========== Reset Workflow ==========
 function resetWorkflow() {
@@ -426,6 +426,7 @@ function resetWorkflow() {
     csvSampleRows = [];
     csvDelimiter = null;
     currentMapping = {};
+    rowArticleTypes = {};  // Очистить сохраненные типы
 
     // Reset forms
     document.getElementById('upload-form').reset();
@@ -1339,7 +1340,12 @@ function createStagingRow(record, index) {
     commentInput.onblur = () => updateStagingComment(record.id, commentInput.value);
     commentCell.appendChild(commentInput);
 
-    // Article
+    // Article Type - ВАЖНО: вызвать ПЕРЕД createArticleSelect!
+    const typeCell = document.createElement('td');
+    const typeSelect = createTypeSelect(record);  // Это заполняет rowArticleTypes[record.id]
+    typeCell.appendChild(typeSelect);
+
+    // Article - теперь использует rowArticleTypes[record.id] из createTypeSelect
     const articleCell = document.createElement('td');
     const articleSelect = createArticleSelect(record);
     articleCell.appendChild(articleSelect);
@@ -1370,6 +1376,7 @@ function createStagingRow(record, index) {
     row.appendChild(csvInfo1Cell);
     row.appendChild(csvInfo2Cell);
     row.appendChild(commentCell);
+    row.appendChild(typeCell);
     row.appendChild(articleCell);
     row.appendChild(fcCell);
     row.appendChild(ccCell);
@@ -1390,9 +1397,11 @@ function createArticleSelect(record) {
     emptyOption.textContent = '-- Выберите --';
     select.appendChild(emptyOption);
 
-    // Filter articles by type based on amount sign
+    // Использовать тип из rowArticleTypes (уже заполнен в createTypeSelect)
+    // Fallback на определение по сумме (не должен срабатывать при нормальном flow)
     const amount = parseFloat(record.amount_string.replace(',', '.'));
-    const recordType = amount < 0 ? 'expense' : 'income';
+    const defaultType = amount < 0 ? 'expense' : 'income';
+    const recordType = rowArticleTypes[record.id] || defaultType;
 
     const filteredArticles = allArticles.filter(a => a.type === recordType);
 
@@ -1489,6 +1498,122 @@ function createCCSelect(record) {
     return select;
 }
 
+// ========== Article Type Select ==========
+function createTypeSelect(record) {
+    const select = document.createElement('select');
+    select.id = `article-type-${record.id}`;
+    select.className = 'select select-bordered select-sm w-28';
+    select.style.height = '3rem';
+    select.style.minHeight = '3rem';
+
+    // Определить тип: из сохраненного, или из типа уже выбранной статьи, или по знаку суммы
+    const amount = parseFloat(record.amount_string.replace(',', '.'));
+    const defaultType = amount < 0 ? 'expense' : 'income';
+    const savedType = rowArticleTypes[record.id];
+
+    // Если статья уже выбрана - определить тип по ней
+    let typeFromArticle = null;
+    if (record.article_id) {
+        const existingArticle = allArticles.find(a => a.id === record.article_id);
+        if (existingArticle) {
+            typeFromArticle = existingArticle.type;
+        }
+    }
+
+    const currentType = savedType || typeFromArticle || defaultType;
+
+    // Сохранить тип если еще не сохранен
+    if (!savedType) {
+        rowArticleTypes[record.id] = currentType;
+    }
+
+    const options = [
+        { value: 'expense', label: '💸 Расход', color: 'rgb(239, 68, 68)' },
+        { value: 'income', label: '💰 Доход', color: 'rgb(34, 197, 94)' }
+    ];
+
+    options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        option.style.color = opt.color;
+        if (opt.value === currentType) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+
+    // При изменении типа - обновить список категорий и сбросить выбранную категорию
+    select.onchange = () => {
+        rowArticleTypes[record.id] = select.value;
+        updateRowArticleOptions(record.id, true);  // true = сбросить article_id
+    };
+
+    return select;
+}
+
+async function updateRowArticleOptions(recordId, resetArticle = false) {
+    const typeSelect = document.getElementById(`article-type-${recordId}`);
+    const articleSelect = document.getElementById(`article-${recordId}`);
+
+    if (!typeSelect || !articleSelect) return;
+
+    const selectedType = typeSelect.value;
+
+    // Сбросить article_id на сервере если нужно
+    if (resetArticle) {
+        await updateStagingField(recordId, 'article_id', null);
+        // Обновить локальную запись
+        const recordIndex = stagingRecords.findIndex(r => r.id === recordId);
+        if (recordIndex >= 0) {
+            stagingRecords[recordIndex].article_id = null;
+        }
+    }
+
+    // Очистить и перестроить опции
+    articleSelect.innerHTML = '';
+
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = '-- Выберите --';
+    articleSelect.appendChild(emptyOption);
+
+    // Фильтровать по выбранному типу
+    const filteredArticles = allArticles.filter(a => a.type === selectedType);
+    const tree = buildArticleTree(filteredArticles);
+    const flatNodes = flattenArticleTree(tree);
+
+    flatNodes.forEach(node => {
+        const option = document.createElement('option');
+        option.value = node.id;
+        const indent = '›  '.repeat(node.level);
+        const icon = node.isLeaf ? '▸' : '📂';
+        option.textContent = `${indent}${icon} ${node.name}`;
+
+        const color = getArticleTypeColorStyle(node.type);
+        if (color) option.style.color = color;
+
+        if (!node.isLeaf) {
+            option.disabled = true;
+            option.style.fontWeight = 'bold';
+            option.style.opacity = '0.7';
+        }
+
+        articleSelect.appendChild(option);
+    });
+
+    // Восстановить значение если категория подходит по типу
+    const record = stagingRecords.find(r => r.id === recordId);
+    if (record && record.article_id) {
+        const validOption = flatNodes.find(n => n.id === record.article_id && n.isLeaf);
+        if (validOption) {
+            articleSelect.value = record.article_id;
+        }
+    }
+
+    updateStats();
+}
+
 // ========== Article Tree Utilities ==========
 // Build hierarchical tree from flat article list
 function buildArticleTree(articles) {
@@ -1563,22 +1688,19 @@ function updateBulkCategoryType() {
     articleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
     articleSelect.disabled = false;
 
-    // If no type selected, show all articles
-    // If type selected, show only matching articles
+    // Фильтрация только по expense/income (debit/credit не используются при импорте)
     const filtered = typeSelect.value
         ? allArticles.filter(a => a.type === typeSelect.value)
-        : allArticles;
+        : allArticles.filter(a => a.type === 'expense' || a.type === 'income');
 
     // Build tree and flatten with hierarchy
     const tree = buildArticleTree(filtered);
     const flatNodes = flattenArticleTree(tree);
 
-    // Group by type while preserving hierarchical order within each type
+    // Группировка только expense → income
     const groupedByType = {
         'expense': [],
-        'income': [],
-        'debit': [],
-        'credit': []
+        'income': []
     };
 
     flatNodes.forEach(node => {
@@ -1587,12 +1709,10 @@ function updateBulkCategoryType() {
         }
     });
 
-    // Flatten back in type order: expense → income → debit → credit
+    // Flatten back in type order: expense → income
     const sortedNodes = [
         ...groupedByType['expense'],
-        ...groupedByType['income'],
-        ...groupedByType['debit'],
-        ...groupedByType['credit']
+        ...groupedByType['income']
     ];
 
     sortedNodes.forEach(node => {
@@ -1653,6 +1773,16 @@ async function applyBulkUpdate() {
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Bulk update failed');
+        }
+
+        // После успешного обновления - синхронизировать типы для выбранных строк
+        if (articleId) {
+            const selectedArticle = allArticles.find(a => a.id === parseInt(articleId));
+            if (selectedArticle) {
+                selectedIds.forEach(id => {
+                    rowArticleTypes[id] = selectedArticle.type;
+                });
+            }
         }
 
         showNotification(`Обновлено ${selectedIds.length} записей`, 'success');

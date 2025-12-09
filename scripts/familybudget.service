@@ -10,8 +10,7 @@ Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=/opt/budget
 
-# Repair PostgreSQL directories before starting (prevents startup failures)
-ExecStartPre=/bin/bash -c 'source /opt/budget/scripts/lib/config.sh && source /opt/budget/scripts/lib/utils.sh && source /opt/budget/scripts/lib/postgres.sh && repair_postgres_directories_atomic'
+# NOTE: PostgreSQL repair removed - Docker managed volume handles this automatically
 
 # Start all containers
 ExecStart=/usr/bin/docker compose up -d
