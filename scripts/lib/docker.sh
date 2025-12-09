@@ -954,12 +954,13 @@ cleanup_old_image_versions() {
 
 # Check dockerd CPU usage and restart if too high
 # High dockerd CPU (>50%) often indicates accumulated state that needs restart
+# IMPORTANT: Uses 'top' for INSTANTANEOUS CPU, not 'ps' which shows lifetime average
 check_and_restart_dockerd() {
     local cpu_threshold="${1:-50}"  # Restart if CPU > 50%
 
     info "Checking Docker daemon health..."
 
-    # Get dockerd CPU usage (average over 3 samples)
+    # Get dockerd PID
     local dockerd_pid=$(pgrep -x dockerd 2>/dev/null | head -1)
 
     if [[ -z "$dockerd_pid" ]]; then
@@ -967,14 +968,16 @@ check_and_restart_dockerd() {
         return 0
     fi
 
-    # Get CPU usage (3 samples, 1 second apart)
+    # Get INSTANTANEOUS CPU usage using top (not ps which shows lifetime average)
+    # top -bn2 runs 2 iterations: first is since boot, second is current
+    # We take the second iteration for accurate current CPU
     local cpu_samples=()
     for i in 1 2 3; do
-        local cpu=$(ps -p "$dockerd_pid" -o %cpu= 2>/dev/null | awk '{print int($1)}')
-        if [[ -n "$cpu" ]]; then
+        # Use top with 2 iterations, 1 second delay, take second result
+        local cpu=$(top -bn2 -d1 -p "$dockerd_pid" 2>/dev/null | grep -E "^\s*$dockerd_pid" | tail -1 | awk '{print int($9)}')
+        if [[ -n "$cpu" && "$cpu" =~ ^[0-9]+$ ]]; then
             cpu_samples+=("$cpu")
         fi
-        [[ $i -lt 3 ]] && sleep 1
     done
 
     if [[ ${#cpu_samples[@]} -eq 0 ]]; then
@@ -982,14 +985,14 @@ check_and_restart_dockerd() {
         return 0
     fi
 
-    # Calculate average CPU
+    # Calculate average of instantaneous samples
     local total=0
     for cpu in "${cpu_samples[@]}"; do
         total=$((total + cpu))
     done
     local avg_cpu=$((total / ${#cpu_samples[@]}))
 
-    # Get dockerd uptime
+    # Get dockerd uptime for logging
     local dockerd_start=$(ps -p "$dockerd_pid" -o lstart= 2>/dev/null)
     local dockerd_time=$(ps -p "$dockerd_pid" -o time= 2>/dev/null | awk '{print $1}')
 
@@ -1083,15 +1086,18 @@ cleanup_docker_system_soft() {
         cleaned_something=true
     fi
 
-    # 4. Check dockerd CPU after cleanup
+    # 4. Check dockerd INSTANTANEOUS CPU after cleanup (using top, not ps)
     local dockerd_pid=$(pgrep -x dockerd 2>/dev/null | head -1)
     if [[ -n "$dockerd_pid" ]]; then
         sleep 2
-        local cpu=$(ps -p "$dockerd_pid" -o %cpu= 2>/dev/null | awk '{print int($1)}')
-        if [[ -n "$cpu" ]]; then
-            if [[ $cpu -gt 30 ]]; then
+        # Use top for instantaneous CPU (ps shows lifetime average which is misleading)
+        local cpu=$(top -bn2 -d1 -p "$dockerd_pid" 2>/dev/null | grep -E "^\s*$dockerd_pid" | tail -1 | awk '{print int($9)}')
+        if [[ -n "$cpu" && "$cpu" =~ ^[0-9]+$ ]]; then
+            if [[ $cpu -gt 50 ]]; then
                 warning "dockerd CPU still elevated after cleanup: ${cpu}%"
-                info "Consider running: sudo systemctl restart docker"
+                warning "Recommend: sudo systemctl restart docker"
+            elif [[ $cpu -gt 30 ]]; then
+                warning "dockerd CPU slightly elevated: ${cpu}%"
             else
                 success "dockerd CPU after cleanup: ${cpu}%"
             fi
