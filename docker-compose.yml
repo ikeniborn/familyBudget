@@ -271,10 +271,12 @@ services:
     profiles:
       - full  # Only start if 'full' profile is active
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://backend:8000/health"]
+      # Check nginx itself, not backend - prevents false "unhealthy" during backend restart
+      test: ["CMD", "nginx", "-t"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:

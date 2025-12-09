@@ -250,6 +250,12 @@ regenerate_nginx_config() {
         return 1
     fi
 
+    # Reload nginx if container is running (applies new config without restart)
+    if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "familybudget-nginx"; then
+        info "Reloading nginx to apply new configuration"
+        reload_nginx || warning "Failed to reload nginx (will be applied on next restart)"
+    fi
+
     success "Nginx configured successfully"
     return 0
 }
