@@ -51,10 +51,9 @@ BACKUP_DIR="$DEPLOY_DIR/backups"
 COMPOSE_FILE="$DEPLOY_DIR/docker-compose.yml"
 LOG_FILE="$DEPLOY_DIR/logs/migration_$(date +%Y%m%d_%H%M%S).log"
 
-# Docker volume name (must match docker-compose.yml project name)
-# Docker Compose uses directory name as project name by default
-PROJECT_NAME="familybudget"
-NEW_VOLUME_NAME="${PROJECT_NAME}_postgres_data"
+# Docker volume name (must match docker-compose.yml external volume name)
+# Note: Volume name is defined in docker-compose.yml as "budget_postgres_data"
+NEW_VOLUME_NAME="budget_postgres_data"
 
 # Colors
 RED='\033[0;31m'
@@ -353,58 +352,21 @@ verify_migration() {
 # Docker Compose Update
 # =============================================================================
 
-update_compose_file() {
-    log_info "Updating docker-compose.yml..."
-
-    # Backup original
-    local backup_compose="${COMPOSE_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
-    cp "$COMPOSE_FILE" "$backup_compose"
-    log_info "Original docker-compose.yml backed up to: $backup_compose"
-
-    # Create a Python script for safe YAML modification
-    # This is safer than sed for YAML files
-    python3 << 'PYTHON_SCRIPT'
-import re
-import sys
-
-compose_file = sys.argv[1] if len(sys.argv) > 1 else '/opt/budget/docker-compose.yml'
-
-with open(compose_file, 'r') as f:
-    content = f.read()
-
-# Pattern to match postgres_data volume with driver_opts
-# We need to remove driver_opts section while keeping driver: local
-pattern = r'''(  postgres_data:
-    driver: local)
-    driver_opts:
-      type: none
-      o: bind
-      device: [^\n]+(?:\n      # [^\n]*)*'''
-
-replacement = r'''\1
-    # Docker managed volume (migrated from bind mount)
-    # Original bind mount backed up to /opt/budget/data/postgres.backup'''
-
-new_content = re.sub(pattern, replacement, content)
-
-if new_content == content:
-    print("WARNING: docker-compose.yml pattern not matched - manual update may be needed")
-    sys.exit(1)
-
-with open(compose_file, 'w') as f:
-    f.write(new_content)
-
-print("docker-compose.yml updated successfully")
-PYTHON_SCRIPT
-
-    local result=$?
-    if [[ $result -ne 0 ]]; then
-        log_warning "Automatic docker-compose.yml update failed"
-        log_warning "Please manually remove driver_opts from postgres_data volume"
-        log_warning "Backup preserved at: $backup_compose"
-    else
-        log_success "docker-compose.yml updated"
-    fi
+print_next_steps() {
+    echo ""
+    echo "======================================"
+    echo "  NEXT STEPS (REQUIRED)"
+    echo "======================================"
+    echo ""
+    echo "Run deploy.sh to sync the updated docker-compose.yml from repository:"
+    echo ""
+    echo "  cd ~/familyBudget"
+    echo "  sudo bash deploy.sh --sync-mode update --cleanup-mode smart"
+    echo ""
+    echo "This will:"
+    echo "  1. Copy updated docker-compose.yml (with Docker managed volume) to /opt/budget/"
+    echo "  2. Restart services with the new volume configuration"
+    echo ""
 }
 
 # =============================================================================
@@ -626,8 +588,8 @@ main() {
 
     if verify_migration; then
         backup_bind_mount
-        update_compose_file
         print_summary
+        print_next_steps
     else
         log_error "Migration verification failed"
         log_error "Rolling back..."
