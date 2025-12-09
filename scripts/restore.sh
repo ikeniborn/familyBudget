@@ -180,6 +180,94 @@ check_docker() {
     return 0
 }
 
+stop_application_services() {
+    log_info "Stopping application services (backend, bot)..."
+
+    # Check which services are running
+    local running_services=""
+    if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps --status running | grep -q backend; then
+        running_services="backend"
+    fi
+    if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps --status running | grep -q bot; then
+        running_services="${running_services} bot"
+    fi
+
+    if [ -z "$running_services" ]; then
+        log_info "No application services running"
+        return 0
+    fi
+
+    # Stop services
+    if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" stop backend bot 2>/dev/null; then
+        log_success "Stopped services: ${running_services}"
+    else
+        log_warn "Some services may not have stopped cleanly"
+    fi
+
+    # Wait for connections to close
+    sleep 2
+    return 0
+}
+
+start_application_services() {
+    log_info "Starting application services..."
+
+    # Start backend first (bot depends on it)
+    if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" start backend 2>/dev/null; then
+        log_info "Backend started, waiting for health check..."
+        # Wait for backend to become healthy
+        local max_wait=60
+        local waited=0
+        while [ $waited -lt $max_wait ]; do
+            if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps | grep backend | grep -q "healthy"; then
+                log_success "Backend is healthy"
+                break
+            fi
+            sleep 2
+            waited=$((waited + 2))
+        done
+
+        if [ $waited -ge $max_wait ]; then
+            log_warn "Backend health check timeout, continuing anyway"
+        fi
+    fi
+
+    # Start bot if it was part of the profile
+    if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps -a | grep -q bot; then
+        docker compose -f "${PROJECT_ROOT}/docker-compose.yml" start bot 2>/dev/null
+        log_success "Bot started"
+    fi
+
+    return 0
+}
+
+terminate_database_connections() {
+    log_info "Terminating active database connections..."
+
+    # Get count of active connections
+    local conn_count=$(docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
+        psql -U "$POSTGRES_USER" -d postgres -t -c \
+        "SELECT COUNT(*) FROM pg_stat_activity WHERE datname = '${POSTGRES_DB}' AND pid <> pg_backend_pid();" 2>/dev/null | tr -d ' ')
+
+    if [ -z "$conn_count" ] || [ "$conn_count" = "0" ]; then
+        log_info "No active connections to terminate"
+        return 0
+    fi
+
+    log_info "Terminating $conn_count active connection(s)..."
+
+    # Terminate all connections to the database
+    docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
+        psql -U "$POSTGRES_USER" -d postgres -c \
+        "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${POSTGRES_DB}' AND pid <> pg_backend_pid();" > /dev/null 2>&1
+
+    # Wait a moment for connections to close
+    sleep 1
+
+    log_success "Database connections terminated"
+    return 0
+}
+
 list_local_backups() {
     echo ""
     echo "📂 Local backups in $BACKUP_DIR:"
@@ -507,9 +595,13 @@ approval_gate() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "This operation will:"
-    echo "  1. DROP existing database: $POSTGRES_DB"
-    echo "  2. CREATE new database from backup"
-    echo "  3. ALL current data will be LOST"
+    echo "  1. STOP backend and bot services"
+    echo "  2. TERMINATE all database connections"
+    echo "  3. DROP existing database: $POSTGRES_DB"
+    echo "  4. CREATE new database from backup"
+    echo "  5. RESTART application services"
+    echo ""
+    echo -e "${RED}ALL current data will be LOST!${NC}"
     echo ""
     echo "Backup file:"
     echo "  $(basename "$BACKUP_FILE")"
@@ -535,12 +627,20 @@ approval_gate() {
 perform_restore() {
     log_info "Starting database restore..."
 
+    # Stop application services to release database connections
+    stop_application_services
+
+    # Terminate any remaining connections
+    terminate_database_connections
+
     # Drop existing database and recreate
     log_info "Dropping existing database..."
 
     if ! docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
         psql -U "$POSTGRES_USER" -d postgres -c "DROP DATABASE IF EXISTS ${POSTGRES_DB};"; then
         log_error "Failed to drop database"
+        log_error "Attempting to restart services..."
+        start_application_services
         return 1
     fi
 
@@ -549,20 +649,28 @@ perform_restore() {
     if ! docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
         psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE ${POSTGRES_DB};"; then
         log_error "Failed to create database"
+        log_error "Attempting to restart services..."
+        start_application_services
         return 1
     fi
 
     # Restore from backup
-    log_info "Restoring from backup..."
+    log_info "Restoring from backup (this may take a while)..."
 
     if zcat "$BACKUP_FILE" | docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
         psql -U "$POSTGRES_USER" "$POSTGRES_DB" > /dev/null 2>&1; then
 
         log_success "Database restore completed"
+
+        # Restart application services
+        start_application_services
+
         return 0
     else
         log_error "Database restore failed"
         log_error "You can restore from safety backup: $SAFETY_BACKUP"
+        log_error "Attempting to restart services..."
+        start_application_services
         return 1
     fi
 }
@@ -577,13 +685,31 @@ cleanup() {
 generate_restore_report() {
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "   RESTORE SUMMARY"
+    echo -e "${GREEN}   RESTORE SUMMARY${NC}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
     echo "Database: $POSTGRES_DB"
     echo "Restored from: $(basename "$BACKUP_FILE")"
     echo "Safety backup: $SAFETY_BACKUP"
     echo "Log file: $LOG_FILE"
+    echo ""
+
+    # Show service status
+    echo "Service Status:"
+    if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps | grep backend | grep -q "healthy"; then
+        echo -e "  Backend:  ${GREEN}✓ healthy${NC}"
+    else
+        echo -e "  Backend:  ${YELLOW}⚠ starting${NC}"
+    fi
+
+    if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps -a | grep -q bot; then
+        if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" ps | grep bot | grep -q "Up"; then
+            echo -e "  Bot:      ${GREEN}✓ running${NC}"
+        else
+            echo -e "  Bot:      ${YELLOW}⚠ starting${NC}"
+        fi
+    fi
+
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo ""
