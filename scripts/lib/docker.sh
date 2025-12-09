@@ -19,7 +19,7 @@
 # Dependencies:
 #   - config.sh (DEPLOY_DIR, LOG_FILE, POSTGRES_WAS_STOPPED)
 #   - utils.sh (info, success, warning, error, step, is_postgres_running, is_postgres_healthy)
-#   - postgres.sh (initialize_postgres_directory, check_and_repair_postgres_data)
+#   - postgres.sh (verify_postgres_health_post_start, create_deployment_safety_backup, check_postgres_health_pre_deploy)
 #
 # Version: 1.0.0
 # Phase: 3.1
@@ -603,7 +603,8 @@ cleanup_containers_networks_legacy() {
 # =============================================================================
 # POSTGRES FUNCTIONS (Loaded from scripts/lib/postgres.sh)
 # =============================================================================
-# Functions: initialize_postgres_directory, check_and_repair_postgres_data
+# Functions: verify_postgres_health_post_start, create_deployment_safety_backup, check_postgres_health_pre_deploy
+# NOTE: Repair functions removed after migration to Docker managed volume
 
 # Full cleanup - stop all services + optional data deletion
 cleanup_full() {

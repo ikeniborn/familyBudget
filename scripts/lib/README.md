@@ -20,7 +20,7 @@ The deployment script has been modularized to improve:
 | **utils.sh** | Core utilities (logging, checks, Docker) | 1 | config.sh | 13 functions | 124 |
 | **validation.sh** | Prerequisites and environment validation | 1 | config.sh, utils.sh | 4 functions | 207 |
 | **status.sh** | Service status reporting | 1 | config.sh, utils.sh | 2 functions | 146 |
-| **postgres.sh** | PostgreSQL data management | 2 | config.sh, utils.sh | 2 functions | 263 |
+| **postgres.sh** | PostgreSQL health check & backup | 2 | config.sh, utils.sh | 3 functions | ~370 |
 | **services.sh** | Service lifecycle management | 2 | config.sh, utils.sh | 7 functions | 292 |
 | **migrations.sh** | Database migrations (Alembic) | 2→3 | config.sh, utils.sh | 3 functions | 124 |
 | **firewall.sh** | UFW firewall configuration | 2 | config.sh, utils.sh | 1 function | 57 |
@@ -224,14 +224,19 @@ print_status
 
 ### Phase 2: Service Modules (Medium Complexity)
 
-#### 5. postgres.sh - PostgreSQL Management
+#### 5. postgres.sh - PostgreSQL Health Check and Backup
 
-**Purpose:** Manage PostgreSQL data directory, permissions, and integrity checking
+**Purpose:** PostgreSQL health verification and pre-deployment backup functions.
+
+**NOTE:** Repair functions removed after migration to Docker managed volume.
+Docker managed volumes automatically handle permissions and directories.
+See git history for legacy bind mount repair code.
 
 **Functions:**
 
-- `initialize_postgres_directory()` - Initialize PostgreSQL data directory with correct permissions
-- `check_and_repair_postgres_data()` - Check and repair PostgreSQL data integrity
+- `verify_postgres_health_post_start()` - Verify PostgreSQL health after service start
+- `create_deployment_safety_backup()` - Create safety backup before deployment
+- `check_postgres_health_pre_deploy()` - Check PostgreSQL health before deployment
 
 **Usage:**
 ```bash
@@ -239,22 +244,25 @@ source scripts/lib/config.sh
 source scripts/lib/utils.sh
 source scripts/lib/postgres.sh
 
-# Initialize PostgreSQL directory
-initialize_postgres_directory
+# Pre-deploy health check
+check_postgres_health_pre_deploy
 
-# Check and repair PostgreSQL data
-check_and_repair_postgres_data
+# Create safety backup (if PostgreSQL running)
+create_deployment_safety_backup "pre_start"
+
+# Post-start verification
+verify_postgres_health_post_start
 ```
 
 **Key Features:**
-- **Permission Management:** Sets correct ownership (999:999) for PostgreSQL data directory
-- **Integrity Checks:** Validates data directory structure and permissions
-- **Smart Detection:** Skips checks when PostgreSQL is running (selective restart mode)
-- **Repair Capability:** Automatically fixes permission issues
+- **Health Checks:** Verifies PostgreSQL container status, connection health, restart loops
+- **Safety Backups:** Creates pg_dump backups before deployment for rollback capability
+- **Corruption Detection:** Detects data corruption patterns in PostgreSQL logs
+- **Recovery Guidance:** Provides clear recovery options when issues detected
 
 **Dependencies:** config.sh, utils.sh
 
-**LOC:** 263
+**LOC:** ~370
 
 ---
 

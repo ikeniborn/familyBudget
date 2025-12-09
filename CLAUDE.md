@@ -104,65 +104,46 @@ familyBudget/
 - `Notification` - Уведомления (broadcast support)
 - `ImportStaging` - Staging table для импорта из Tinkoff
 
-**2a. PostgreSQL Data Directory (Bind Mount Architecture)**
+**2a. PostgreSQL Data Directory (Docker Managed Volume)**
 
-**ВАЖНО:** PostgreSQL использует **bind mount** вместо Docker managed volume.
+PostgreSQL использует Docker managed volume для хранения данных:
 
 ```yaml
 # docker-compose.yml
 volumes:
   postgres_data:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: /opt/budget/data/postgres  # Bind mount to host directory
+    external: true
+    name: budget_postgres_data  # Docker managed volume
 ```
 
-**Архитектурные особенности:**
+**Преимущества Docker managed volume:**
+- Автоматическое управление permissions (нет необходимости в repair-функциях)
+- Лучшая изоляция данных от host системы
+- Упрощённый deploy без сложной логики восстановления директорий
+- Docker гарантирует целостность volume при перезапусках
 
-1. **Инициализация (`initdb`):**
-   - PostgreSQL создает критические директории ТОЛЬКО при первой инициализации
-   - Критические директории: `pg_notify`, `pg_dynshmem`, `pg_stat`, `pg_tblspc`, `pg_logical/snapshots`, и др.
-
-2. **Последующие запуски:**
-   - PostgreSQL **НЕ проверяет** наличие критических директорий
-   - Если хотя бы одна директория отсутствует → **FATAL**: "could not open directory pg_notify"
-
-3. **Автоматическое восстановление:**
-   - `deploy.sh` вызывает `repair_postgres_directories_atomic()` перед КАЖДЫМ запуском
-   - Функция создает отсутствующие директории с правильными permissions (70:70 для Alpine)
-   - Если все директории присутствуют → silent success (no output)
-
-4. **Race Conditions Prevention:**
-   - `validate_postgres_permissions_always()` проверяет статус PostgreSQL ПЕРЕД любыми операциями с ФС
-   - Если PostgreSQL запущен → NO filesystem modifications (возврат без изменений)
-   - Рекурсивный `chown -R` запускается ТОЛЬКО когда PostgreSQL остановлен
+**Расположение данных:**
+- Volume name: `budget_postgres_data`
+- Физически: `/var/lib/docker/volumes/budget_postgres_data/_data/`
 
 **Troubleshooting:**
 
 ```bash
-# Проверить структуру директорий
-ls -la /opt/budget/data/postgres/
+# Проверить volume
+docker volume inspect budget_postgres_data
 
-# Вручную создать отсутствующие директории
-cd ~/familyBudget
-sudo bash -c "source scripts/lib/config.sh; source scripts/lib/utils.sh; source scripts/lib/postgres.sh; repair_postgres_directories_atomic"
+# Проверить данные в volume
+docker run --rm -v budget_postgres_data:/data alpine ls -la /data/
 
-# Проверить логи PostgreSQL
-docker logs familybudget-postgres --tail 50
+# Логи PostgreSQL
+docker compose logs postgres --tail 50
 
-# Миграция на Docker managed volume (future) - НЕ делать в production без backup!
-# docker volume create familybudget_postgres_data
-# docker compose down postgres
-# cp -a /opt/budget/data/postgres/* /var/lib/docker/volumes/familybudget_postgres_data/_data/
-# # Изменить docker-compose.yml - убрать driver_opts
-# docker compose up -d postgres
+# Создать volume вручную (если отсутствует)
+docker volume create budget_postgres_data
 ```
 
-**Планы на будущее (v6.0+):**
-- Миграция на Docker managed volume для лучшей изоляции и автоматического управления permissions
-- Breaking change - требует миграцию данных существующих установок
+**История:** v6.0 - миграция с bind mount на Docker managed volume завершена.
+Legacy repair функции удалены (см. git history для справки).
 
 **3. Database Migrations (Alembic)**
 - `backend/db/migrations/env.py` - Alembic environment

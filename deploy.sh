@@ -5,9 +5,8 @@
 # This script deploys the Family Budget application using Docker Compose:
 # - Validates prerequisites (Docker, .env file)
 # - Syncs code from repository to deployment directory
-# - Checks and repairs PostgreSQL data directory structure (auto-recovery)
 # - Builds Docker images
-# - Starts services
+# - Starts services (PostgreSQL uses Docker managed volume)
 # - Waits for healthy status
 # - Runs database migrations
 # - Displays deployment status and URLs
@@ -167,8 +166,8 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # =============================================================================
 # POSTGRES FUNCTIONS (Loaded from scripts/lib/postgres.sh)
 # =============================================================================
-# Functions: get_postgres_uid_from_image, initialize_postgres_directory,
-#            validate_postgres_permissions_always, check_and_repair_postgres_data
+# Functions: verify_postgres_health_post_start, create_deployment_safety_backup,
+#            check_postgres_health_pre_deploy
 
 # =============================================================================
 # NETWORK FUNCTIONS (Loaded from scripts/lib/network.sh)
@@ -1160,18 +1159,8 @@ main() {
         warning "PostgreSQL corruption detected - AUTOMATIC RECOVERY MODE"
         echo ""
 
-        # TRY IMMEDIATE ATOMIC REPAIR FIRST (lightweight, faster than Full cleanup)
-        # Only for bind mount volumes - Docker managed volumes don't need repair
-        if is_bind_mount_volume; then
-            info "Attempting immediate atomic repair (faster than Full cleanup)..."
-            set +e
-            repair_postgres_directories_atomic
-            atomic_repair_result=$?
-            set -e
-        else
-            info "Docker managed volume - skipping bind mount repair"
-            atomic_repair_result=0
-        fi
+        # Docker managed volume - no repair needed (Docker handles permissions automatically)
+        atomic_repair_result=0
 
         if [[ $atomic_repair_result -eq 0 ]]; then
             success "Atomic repair completed - retrying health check"
@@ -1232,15 +1221,8 @@ main() {
     fi
     echo ""
 
-    # EARLY SAFETY CHECK: Repair PostgreSQL directories BEFORE any cleanup operations
-    # This ensures PostgreSQL directories exist even if deploy is interrupted during cleanup
-    # The repair function is idempotent (silent success if all dirs present)
-    # See: PostgreSQL bind mount architecture in CLAUDE.md for details
-    # Only for bind mount volumes - Docker managed volumes don't need repair
-    if is_bind_mount_volume; then
-        repair_postgres_directories_atomic
-    fi
-    echo ""
+    # NOTE: Legacy bind mount repair code removed after migration to Docker managed volume
+    # Docker managed volumes automatically handle permissions and directories
 
     # Check for old deployments and cleanup if needed (sets POSTGRES_WAS_STOPPED flag)
     cleanup_old_deployment
@@ -1259,19 +1241,8 @@ main() {
     check_and_restart_dockerd 50
     echo ""
 
-    # Initialize PostgreSQL directory with correct permissions (skipped if PostgreSQL is running)
-    # Only for bind mount volumes - Docker managed volumes don't need initialization
-    if is_bind_mount_volume; then
-        initialize_postgres_directory
-    fi
-    echo ""
-
-    # Check and repair PostgreSQL data directory (skipped if PostgreSQL is running or clean sync)
-    # Only for bind mount volumes - Docker managed volumes don't need repair
-    if is_bind_mount_volume; then
-        check_and_repair_postgres_data "$SYNC_MODE"
-    fi
-    echo ""
+    # NOTE: PostgreSQL initialization and repair functions removed after migration to Docker managed volume
+    # Docker managed volumes automatically handle directory creation and permissions
 
     # Note: Image building now happens automatically in start_services()
     # via 'docker compose up --build' which uses cache for unchanged images
@@ -1281,14 +1252,8 @@ main() {
     # NOTE: regenerate_nginx_config() moved earlier - runs immediately after sync_code_to_deploy()
     # This ensures nginx config exists even if deploy is interrupted during cleanup phase
 
-    # CRITICAL: Validate PostgreSQL permissions BEFORE starting services
-    # This runs ALWAYS, even when smart cleanup skips PostgreSQL restart
-    # Fixes ownership issues (e.g., wrong UID after sync from different environment)
-    # Only for bind mount volumes - Docker managed volumes handle permissions automatically
-    if is_bind_mount_volume; then
-        validate_postgres_permissions_always
-    fi
-    echo ""
+    # NOTE: PostgreSQL permissions validation removed after migration to Docker managed volume
+    # Docker managed volumes handle permissions automatically
 
     # PRODUCTION SAFEGUARD: Create safety backup before starting services
     # This provides rollback capability if corruption occurs during deployment
@@ -1296,27 +1261,8 @@ main() {
     create_deployment_safety_backup "pre_start"
     echo ""
 
-    # PRE-START CHECK: Atomically repair PostgreSQL directories if needed
-    # This ensures ALL critical directories (pg_notify, pg_dynshmem, pg_tblspc, etc.)
-    # are present BEFORE starting PostgreSQL, preventing FATAL startup errors.
-    # Includes restart loop detection and automatic container stop for safe repair.
-    # Runs ALWAYS, even during selective restarts (when POSTGRES_WAS_STOPPED=false).
-    # Only for bind mount volumes - Docker managed volumes don't need repair
-    if is_bind_mount_volume; then
-        # CRITICAL FIX: Stop PostgreSQL before repair to ensure ALL directories (persistent + runtime) are created
-        # repair_postgres_directories_atomic() creates only persistent_dirs when PostgreSQL is running,
-        # but skips runtime_dirs (pg_notify, pg_dynshmem, pg_stat) to avoid race conditions.
-        # However, if PostgreSQL restarts after repair without runtime_dirs, it fails with FATAL errors.
-        # Solution: Stop PostgreSQL BEFORE repair so that repair creates ALL directories atomically.
-        if docker ps --filter "name=$PROJECT_NAME-postgres" --filter "status=running" -q 2>/dev/null | grep -q .; then
-            info "Stopping PostgreSQL before atomic repair (ensures runtime dirs creation)"
-            cd "$DEPLOY_DIR" && docker compose stop postgres || true
-            sleep 2
-        fi
-
-        repair_postgres_directories_atomic
-    fi
-    echo ""
+    # NOTE: Pre-start PostgreSQL repair removed after migration to Docker managed volume
+    # Docker managed volumes create directories automatically with correct permissions
 
     # Prepare upload directories for backend container (import feature)
     # Creates /opt/budget/uploads and /opt/budget/uploads/temp with correct permissions
