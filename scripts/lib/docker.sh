@@ -1048,6 +1048,66 @@ check_and_restart_dockerd() {
     echo ""
 }
 
+# Soft Docker system cleanup (alternative to dockerd restart)
+# Cleans up unused resources without stopping running services
+# Run this AFTER successful deployment to release accumulated Docker state
+cleanup_docker_system_soft() {
+    info "Running soft Docker system cleanup..."
+
+    local cleaned_something=false
+
+    # 1. Prune unused networks (safe - won't affect running containers)
+    local unused_networks=$(docker network ls --filter "dangling=true" -q 2>/dev/null | wc -l || echo "0")
+    if [[ $unused_networks -gt 0 ]]; then
+        info "Removing $unused_networks unused networks..."
+        if docker network prune -f >> "$LOG_FILE" 2>&1; then
+            success "Removed unused networks"
+            cleaned_something=true
+        fi
+    fi
+
+    # 2. Prune stopped containers (safe - only removes exited containers)
+    local stopped_containers=$(docker ps -a -f "status=exited" -q 2>/dev/null | wc -l || echo "0")
+    if [[ $stopped_containers -gt 0 ]]; then
+        info "Removing $stopped_containers stopped containers..."
+        if docker container prune -f >> "$LOG_FILE" 2>&1; then
+            success "Removed stopped containers"
+            cleaned_something=true
+        fi
+    fi
+
+    # 3. Light system prune (without volumes, without build cache)
+    # This clears Docker daemon's internal tracking state
+    info "Clearing Docker daemon cache..."
+    if docker system prune -f --filter "until=1h" >> "$LOG_FILE" 2>&1; then
+        cleaned_something=true
+    fi
+
+    # 4. Check dockerd CPU after cleanup
+    local dockerd_pid=$(pgrep -x dockerd 2>/dev/null | head -1)
+    if [[ -n "$dockerd_pid" ]]; then
+        sleep 2
+        local cpu=$(ps -p "$dockerd_pid" -o %cpu= 2>/dev/null | awk '{print int($1)}')
+        if [[ -n "$cpu" ]]; then
+            if [[ $cpu -gt 30 ]]; then
+                warning "dockerd CPU still elevated after cleanup: ${cpu}%"
+                info "Consider running: sudo systemctl restart docker"
+            else
+                success "dockerd CPU after cleanup: ${cpu}%"
+            fi
+        fi
+    fi
+
+    if [[ "$cleaned_something" == "true" ]]; then
+        success "Soft Docker cleanup completed"
+    else
+        info "No Docker resources needed cleanup"
+    fi
+
+    echo ""
+}
+export -f cleanup_docker_system_soft
+
 # Find free subnets in range 172.20-172.30
 
 # Check if port is used by our docker-compose services

@@ -1406,6 +1406,12 @@ main() {
         }
         echo ""
 
+        # Soft Docker cleanup AFTER successful deployment
+        # Removes unused networks, stopped containers, and clears daemon cache
+        # This is a soft alternative to dockerd restart for reducing high CPU
+        cleanup_docker_system_soft
+        echo ""
+
         # Save deployed version for next deployment comparison
         if [[ -n "${NEW_VERSION:-}" ]]; then
             save_deployed_version "$NEW_VERSION"
