@@ -1935,7 +1935,7 @@ async function executeImport() {
             console.error('Import API error:', errorData);
 
             // Extract error message from different possible formats
-            let errorMessage = 'Import failed';
+            let errorMessage = 'Ошибка импорта';
             if (typeof errorData.detail === 'string') {
                 errorMessage = errorData.detail;
             } else if (errorData.detail && errorData.detail.message) {
@@ -1943,6 +1943,9 @@ async function executeImport() {
             } else if (errorData.message) {
                 errorMessage = errorData.message;
             }
+
+            // Translate common backend error messages to Russian
+            errorMessage = translateImportError(errorMessage);
 
             throw new Error(errorMessage);
         }
@@ -1954,8 +1957,47 @@ async function executeImport() {
 
     } catch (error) {
         console.error('Import error:', error);
-        showNotification(`Ошибка импорта: ${error.message}`, 'error');
+        showNotification(error.message, 'error');
     }
+}
+
+// Translate backend import error messages to Russian
+function translateImportError(message) {
+    // Missing article_id
+    const articleMatch = message.match(/Staging record (\d+) missing article_id/);
+    if (articleMatch) {
+        return `Запись #${articleMatch[1]}: не выбрана категория. Назначьте категорию перед импортом.`;
+    }
+
+    // Missing financial_center_id
+    const fcMatch = message.match(/Staging record (\d+) missing financial_center_id/);
+    if (fcMatch) {
+        return `Запись #${fcMatch[1]}: не выбран ЦФО. Назначьте финансовый центр перед импортом.`;
+    }
+
+    // Invalid amount format
+    const amountMatch = message.match(/Invalid amount format '([^']+)' in record (\d+)/);
+    if (amountMatch) {
+        return `Запись #${amountMatch[2]}: неверный формат суммы "${amountMatch[1]}".`;
+    }
+
+    // Some staging records not found
+    const notFoundMatch = message.match(/Some staging records not found\. Requested: (\d+), Found: (\d+)/);
+    if (notFoundMatch) {
+        return `Некоторые записи не найдены. Запрошено: ${notFoundMatch[1]}, найдено: ${notFoundMatch[2]}. Обновите страницу.`;
+    }
+
+    // No staging records found
+    if (message.includes('No staging records found')) {
+        return 'Записи для импорта не найдены. Обновите страницу.';
+    }
+
+    // staging_ids cannot be empty
+    if (message.includes('staging_ids cannot be empty')) {
+        return 'Не выбраны записи для импорта.';
+    }
+
+    return message;
 }
 
 async function clearStaging() {
