@@ -1014,16 +1014,23 @@ async function restoreArticle(articleId, event) {
 }
 
 // Utility: Show notification (toast instead of alert)
+// Uses global showToast from base.html for consistent centered toasts
 function showNotification(message, type) {
     // Handle error objects properly
     if (typeof message === 'object' && message !== null) {
         message = message.detail || message.message || JSON.stringify(message);
     }
 
-    // Use global toast container from base.html (centered, high z-index)
+    // Use global showToast from base.html (centered, with proper animations)
+    if (typeof showToast === 'function') {
+        showToast(message, type);
+        return;
+    }
+
+    // Fallback: Use global toast container from base.html (centered, high z-index)
     let toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
-        // Fallback: create container if not found (positioned below navbar)
+        // Fallback: create container if not found (positioned below navbar, centered)
         toastContainer = document.createElement('div');
         toastContainer.id = 'toast-container';
         toastContainer.style.cssText = `
@@ -1043,45 +1050,37 @@ function showNotification(message, type) {
 
     // Create toast element
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `alert ${type === 'error' ? 'alert-error' : type === 'warning' ? 'alert-warning' : 'alert-success'} shadow-xl pointer-events-auto`;
     toast.style.cssText = `
-        background: ${type === 'error' ? '#ef4444' : '#10b981'};
-        color: white;
-        padding: 16px 24px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        min-width: 300px;
-        max-width: 500px;
-        font-size: 14px;
-        line-height: 1.5;
-        animation: slideIn 0.3s ease-out;
+        max-width: min(90vw, 400px);
+        width: auto;
+        animation: toastSlideDown 0.3s ease-out;
         cursor: pointer;
-        pointer-events: auto;
     `;
-    toast.textContent = message;
+    toast.innerHTML = `<span>${message}</span>`;
 
     // Add animation keyframes if not exists
     if (!document.getElementById('toast-animations')) {
         const style = document.createElement('style');
         style.id = 'toast-animations';
         style.textContent = `
-            @keyframes slideIn {
+            @keyframes toastSlideDown {
                 from {
-                    transform: translateX(400px);
+                    transform: translateY(-20px);
                     opacity: 0;
                 }
                 to {
-                    transform: translateX(0);
+                    transform: translateY(0);
                     opacity: 1;
                 }
             }
-            @keyframes slideOut {
+            @keyframes toastSlideUp {
                 from {
-                    transform: translateX(0);
+                    transform: translateY(0);
                     opacity: 1;
                 }
                 to {
-                    transform: translateX(400px);
+                    transform: translateY(-20px);
                     opacity: 0;
                 }
             }
@@ -1094,14 +1093,14 @@ function showNotification(message, type) {
 
     // Auto-dismiss after 5 seconds
     const dismissTimeout = setTimeout(() => {
-        toast.style.animation = 'slideOut 0.3s ease-out';
+        toast.style.animation = 'toastSlideUp 0.3s ease-out';
         setTimeout(() => toast.remove(), 300);
     }, 5000);
 
     // Click to dismiss
     toast.addEventListener('click', () => {
         clearTimeout(dismissTimeout);
-        toast.style.animation = 'slideOut 0.3s ease-out';
+        toast.style.animation = 'toastSlideUp 0.3s ease-out';
         setTimeout(() => toast.remove(), 300);
     });
 }
