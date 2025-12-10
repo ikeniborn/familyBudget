@@ -3,15 +3,16 @@
  * Управление CRUD операциями в offline режиме с автоматической синхронизацией
  *
  * Features:
- * - CREATE/UPDATE/DELETE для facts, transfers, plans
+ * - CREATE/UPDATE/DELETE для facts, transfers, plans, shopping lists & items
  * - Automatic sync при восстановлении сети
  * - Background Sync API support (Chrome, Edge, Яндекс.Браузер)
  * - Fallback для Safari (polling)
  * - Conflict resolution
  * - Retry logic для failed syncs
  * - SmartNetworkDetector для надежного определения состояния сети
+ * - Caching stores & product groups для offline работы
  *
- * @version 1.1.0
+ * @version 2.0.0 - Added Shopping Lists support
  */
 
 class OfflineManager {

@@ -6,21 +6,31 @@
  * - offline_facts: Offline транзакции
  * - offline_transfers: Offline переводы
  * - offline_plans: Offline планы
+ * - offline_shopping_lists: Offline списки покупок
+ * - offline_shopping_list_items: Offline items списков покупок
  * - sync_queue: Очередь синхронизации
+ * - sync_queue_shopping: Очередь синхронизации для shopping lists
  * - data_cache: Кеш reference data (articles, financial centers, cost centers)
+ * - cached_stores: Кеш магазинов (для offline)
+ * - cached_product_groups: Кеш групп товаров (для offline)
  *
- * @version 1.0.0
+ * @version 2.0.0 - Added Shopping Lists support
  */
 
 const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
     facts: 'offline_facts',
     transfers: 'offline_transfers',
     plans: 'offline_plans',
+    shoppingLists: 'offline_shopping_lists',
+    shoppingListItems: 'offline_shopping_list_items',
     syncQueue: 'sync_queue',
-    cache: 'data_cache'
+    syncQueueShopping: 'sync_queue_shopping',
+    cache: 'data_cache',
+    cachedStores: 'cached_stores',
+    cachedProductGroups: 'cached_product_groups'
 };
 
 class IndexedDBManager {
@@ -105,6 +115,61 @@ class IndexedDBManager {
                         keyPath: 'key'
                     });
                     cacheStore.createIndex('expires', 'expires', { unique: false });
+                }
+
+                // Store 6: Offline Shopping Lists
+                if (!db.objectStoreNames.contains(STORES.shoppingLists)) {
+                    const shoppingListsStore = db.createObjectStore(STORES.shoppingLists, {
+                        keyPath: 'tempId',
+                        autoIncrement: false
+                    });
+                    shoppingListsStore.createIndex('synced', 'synced', { unique: false });
+                    shoppingListsStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    shoppingListsStore.createIndex('serverId', 'serverId', { unique: false });
+                }
+
+                // Store 7: Offline Shopping List Items
+                if (!db.objectStoreNames.contains(STORES.shoppingListItems)) {
+                    const itemsStore = db.createObjectStore(STORES.shoppingListItems, {
+                        keyPath: 'tempId',
+                        autoIncrement: false
+                    });
+                    itemsStore.createIndex('synced', 'synced', { unique: false });
+                    itemsStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    itemsStore.createIndex('serverId', 'serverId', { unique: false });
+                    itemsStore.createIndex('shoppingListId', 'shoppingListId', { unique: false });
+                    itemsStore.createIndex('syncStatus', 'syncStatus', { unique: false });
+                }
+
+                // Store 8: Sync Queue Shopping (separate queue for shopping lists)
+                if (!db.objectStoreNames.contains(STORES.syncQueueShopping)) {
+                    const queueStore = db.createObjectStore(STORES.syncQueueShopping, {
+                        keyPath: 'id',
+                        autoIncrement: true
+                    });
+                    queueStore.createIndex('status', 'status', { unique: false });
+                    queueStore.createIndex('timestamp', 'timestamp', { unique: false });
+                    queueStore.createIndex('entity', 'entity', { unique: false });
+                    queueStore.createIndex('operation', 'operation', { unique: false });
+                }
+
+                // Store 9: Cached Stores (for offline)
+                if (!db.objectStoreNames.contains(STORES.cachedStores)) {
+                    const storesStore = db.createObjectStore(STORES.cachedStores, {
+                        keyPath: 'id'
+                    });
+                    storesStore.createIndex('name', 'name', { unique: false });
+                    storesStore.createIndex('cachedAt', 'cachedAt', { unique: false });
+                }
+
+                // Store 10: Cached Product Groups (for offline)
+                if (!db.objectStoreNames.contains(STORES.cachedProductGroups)) {
+                    const productGroupsStore = db.createObjectStore(STORES.cachedProductGroups, {
+                        keyPath: 'id'
+                    });
+                    productGroupsStore.createIndex('name', 'name', { unique: false });
+                    productGroupsStore.createIndex('parentId', 'parentId', { unique: false });
+                    productGroupsStore.createIndex('cachedAt', 'cachedAt', { unique: false });
                 }
             };
         });
@@ -532,6 +597,277 @@ class IndexedDBManager {
         return count;
     }
 
+    // ==================== SHOPPING LISTS ====================
+
+    /**
+     * Add offline shopping list
+     * @param {Object} list - Shopping list data
+     * @returns {Promise<string>} tempId
+     */
+    async addShoppingList(list) {
+        return await this._add(STORES.shoppingLists, list);
+    }
+
+    /**
+     * Get shopping list by tempId
+     * @param {string} tempId
+     * @returns {Promise<Object>}
+     */
+    async getShoppingList(tempId) {
+        return await this._get(STORES.shoppingLists, tempId);
+    }
+
+    /**
+     * Get all shopping lists
+     * @param {boolean} synced - Filter by synced status (null = all)
+     * @returns {Promise<Array>}
+     */
+    async getAllShoppingLists(synced = null) {
+        if (synced !== null) {
+            return await this._getAll(STORES.shoppingLists, 'synced', synced);
+        }
+        return await this._getAll(STORES.shoppingLists);
+    }
+
+    /**
+     * Update shopping list
+     * @param {Object} list - Updated shopping list data
+     * @returns {Promise<string>}
+     */
+    async updateShoppingList(list) {
+        return await this._update(STORES.shoppingLists, list);
+    }
+
+    /**
+     * Delete shopping list
+     * @param {string} tempId
+     * @returns {Promise<void>}
+     */
+    async deleteShoppingList(tempId) {
+        return await this._delete(STORES.shoppingLists, tempId);
+    }
+
+    /**
+     * Count shopping lists
+     * @param {boolean} synced - Filter by synced status (null = all)
+     * @returns {Promise<number>}
+     */
+    async countShoppingLists(synced = null) {
+        if (synced !== null) {
+            return await this._count(STORES.shoppingLists, 'synced', synced);
+        }
+        return await this._count(STORES.shoppingLists);
+    }
+
+    // ==================== SHOPPING LIST ITEMS ====================
+
+    /**
+     * Add offline shopping list item
+     * @param {Object} item - Shopping list item data
+     * @returns {Promise<string>} tempId
+     */
+    async addShoppingListItem(item) {
+        return await this._add(STORES.shoppingListItems, item);
+    }
+
+    /**
+     * Get shopping list item by tempId
+     * @param {string} tempId
+     * @returns {Promise<Object>}
+     */
+    async getShoppingListItem(tempId) {
+        return await this._get(STORES.shoppingListItems, tempId);
+    }
+
+    /**
+     * Get all shopping list items for a shopping list
+     * @param {number} shoppingListId - Shopping list ID (serverId)
+     * @returns {Promise<Array>}
+     */
+    async getShoppingListItemsByListId(shoppingListId) {
+        return await this._getAll(STORES.shoppingListItems, 'shoppingListId', shoppingListId);
+    }
+
+    /**
+     * Get all shopping list items
+     * @param {boolean} synced - Filter by synced status (null = all)
+     * @returns {Promise<Array>}
+     */
+    async getAllShoppingListItems(synced = null) {
+        if (synced !== null) {
+            return await this._getAll(STORES.shoppingListItems, 'synced', synced);
+        }
+        return await this._getAll(STORES.shoppingListItems);
+    }
+
+    /**
+     * Get items by sync status
+     * @param {string} syncStatus - Sync status ('synced', 'pending', 'conflict')
+     * @returns {Promise<Array>}
+     */
+    async getItemsBySyncStatus(syncStatus) {
+        return await this._getAll(STORES.shoppingListItems, 'syncStatus', syncStatus);
+    }
+
+    /**
+     * Update shopping list item
+     * @param {Object} item - Updated shopping list item data
+     * @returns {Promise<string>}
+     */
+    async updateShoppingListItem(item) {
+        return await this._update(STORES.shoppingListItems, item);
+    }
+
+    /**
+     * Delete shopping list item
+     * @param {string} tempId
+     * @returns {Promise<void>}
+     */
+    async deleteShoppingListItem(tempId) {
+        return await this._delete(STORES.shoppingListItems, tempId);
+    }
+
+    /**
+     * Count shopping list items
+     * @param {boolean} synced - Filter by synced status (null = all)
+     * @returns {Promise<number>}
+     */
+    async countShoppingListItems(synced = null) {
+        if (synced !== null) {
+            return await this._count(STORES.shoppingListItems, 'synced', synced);
+        }
+        return await this._count(STORES.shoppingListItems);
+    }
+
+    // ==================== CACHED STORES ====================
+
+    /**
+     * Cache stores (for offline)
+     * @param {Array} stores - Array of store objects
+     * @returns {Promise<void>}
+     */
+    async cacheStores(stores) {
+        await this.init();
+
+        for (const store of stores) {
+            await this._update(STORES.cachedStores, {
+                ...store,
+                cachedAt: new Date().toISOString()
+            });
+        }
+    }
+
+    /**
+     * Get cached stores
+     * @returns {Promise<Array>}
+     */
+    async getCachedStores() {
+        return await this._getAll(STORES.cachedStores);
+    }
+
+    /**
+     * Get cached store by ID
+     * @param {number} id - Store ID
+     * @returns {Promise<Object>}
+     */
+    async getCachedStore(id) {
+        return await this._get(STORES.cachedStores, id);
+    }
+
+    // ==================== CACHED PRODUCT GROUPS ====================
+
+    /**
+     * Cache product groups (for offline)
+     * @param {Array} productGroups - Array of product group objects
+     * @returns {Promise<void>}
+     */
+    async cacheProductGroups(productGroups) {
+        await this.init();
+
+        for (const group of productGroups) {
+            await this._update(STORES.cachedProductGroups, {
+                ...group,
+                cachedAt: new Date().toISOString()
+            });
+        }
+    }
+
+    /**
+     * Get cached product groups
+     * @returns {Promise<Array>}
+     */
+    async getCachedProductGroups() {
+        return await this._getAll(STORES.cachedProductGroups);
+    }
+
+    /**
+     * Get cached product group by ID
+     * @param {number} id - Product group ID
+     * @returns {Promise<Object>}
+     */
+    async getCachedProductGroup(id) {
+        return await this._get(STORES.cachedProductGroups, id);
+    }
+
+    // ==================== SYNC QUEUE SHOPPING ====================
+
+    /**
+     * Add item to shopping sync queue
+     * @param {Object} queueItem - Queue item
+     * @returns {Promise<number>} Queue item ID
+     */
+    async addShoppingSyncQueueItem(queueItem) {
+        const item = {
+            ...queueItem,
+            status: queueItem.status || 'pending',
+            timestamp: queueItem.timestamp || new Date().toISOString(),
+            retries: queueItem.retries || 0
+        };
+        return await this._add(STORES.syncQueueShopping, item);
+    }
+
+    /**
+     * Get all shopping sync queue items
+     * @param {string} status - Filter by status (null = all)
+     * @returns {Promise<Array>}
+     */
+    async getShoppingSyncQueue(status = null) {
+        if (status !== null) {
+            return await this._getAll(STORES.syncQueueShopping, 'status', status);
+        }
+        return await this._getAll(STORES.syncQueueShopping);
+    }
+
+    /**
+     * Update shopping sync queue item
+     * @param {Object} queueItem - Updated queue item
+     * @returns {Promise<number>}
+     */
+    async updateShoppingSyncQueueItem(queueItem) {
+        return await this._update(STORES.syncQueueShopping, queueItem);
+    }
+
+    /**
+     * Delete shopping sync queue item
+     * @param {number} id - Queue item ID
+     * @returns {Promise<void>}
+     */
+    async deleteShoppingSyncQueueItem(id) {
+        return await this._delete(STORES.syncQueueShopping, id);
+    }
+
+    /**
+     * Count shopping sync queue items
+     * @param {string} status - Filter by status (null = all)
+     * @returns {Promise<number>}
+     */
+    async countShoppingSyncQueue(status = null) {
+        if (status !== null) {
+            return await this._count(STORES.syncQueueShopping, 'status', status);
+        }
+        return await this._count(STORES.syncQueueShopping);
+    }
+
     // ==================== UTILITY METHODS ====================
 
     /**
@@ -542,7 +878,9 @@ class IndexedDBManager {
         const factsCount = await this.countFacts(false);
         const transfersCount = await this.countTransfers(false);
         const plansCount = await this.countPlans(false);
-        return factsCount + transfersCount + plansCount;
+        const shoppingListsCount = await this.countShoppingLists(false);
+        const shoppingListItemsCount = await this.countShoppingListItems(false);
+        return factsCount + transfersCount + plansCount + shoppingListsCount + shoppingListItemsCount;
     }
 
     /**
@@ -556,8 +894,13 @@ class IndexedDBManager {
             STORES.facts,
             STORES.transfers,
             STORES.plans,
+            STORES.shoppingLists,
+            STORES.shoppingListItems,
             STORES.syncQueue,
-            STORES.cache
+            STORES.syncQueueShopping,
+            STORES.cache,
+            STORES.cachedStores,
+            STORES.cachedProductGroups
         ];
 
         for (const storeName of storeNames) {
@@ -607,12 +950,29 @@ class IndexedDBManager {
                     pending: await this.countPlans(false),
                     synced: await this.countPlans(true)
                 },
+                shoppingLists: {
+                    total: await this.countShoppingLists(),
+                    pending: await this.countShoppingLists(false),
+                    synced: await this.countShoppingLists(true)
+                },
+                shoppingListItems: {
+                    total: await this.countShoppingListItems(),
+                    pending: await this.countShoppingListItems(false),
+                    synced: await this.countShoppingListItems(true)
+                },
                 syncQueue: {
                     total: await this.countSyncQueue(),
                     pending: await this.countSyncQueue('pending'),
                     syncing: await this.countSyncQueue('syncing'),
                     failed: await this.countSyncQueue('failed'),
                     completed: await this.countSyncQueue('completed')
+                },
+                syncQueueShopping: {
+                    total: await this.countShoppingSyncQueue(),
+                    pending: await this.countShoppingSyncQueue('pending'),
+                    syncing: await this.countShoppingSyncQueue('syncing'),
+                    failed: await this.countShoppingSyncQueue('failed'),
+                    completed: await this.countShoppingSyncQueue('completed')
                 }
             }
         };

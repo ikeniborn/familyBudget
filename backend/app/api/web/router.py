@@ -267,6 +267,66 @@ async def admin_cost_centers(
     )
 
 
+@web_router.get("/admin/stores", response_class=HTMLResponse)
+async def admin_stores(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin stores management page (admin only).
+
+    Provides interface for managing stores (shopping locations):
+    - Create/edit/delete stores
+    - Store name, address, description
+    - Archive/restore functionality
+    - Used for shopping list items
+
+    Uses REST API endpoints for CRUD operations (/api/v1/stores).
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_stores.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Stores Management"
+        }
+    )
+
+
+@web_router.get("/admin/product-groups", response_class=HTMLResponse)
+async def admin_product_groups(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    Admin product groups management page (admin only).
+
+    Provides interface for managing hierarchical product categories:
+    - Tree editor (similar to Articles)
+    - Create/edit/delete/move product groups
+    - Parent-child relationships
+    - Archive/restore functionality
+    - Used for shopping list items categorization
+
+    Uses REST API endpoints for CRUD and hierarchy operations:
+    - /api/v1/product-groups
+    - /api/v1/product-groups/{id}/subtree
+    - /api/v1/product-groups/{id}/move
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_product_groups.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Product Groups Management"
+        }
+    )
+
+
 @web_router.get("/notifications", response_class=HTMLResponse)
 async def notifications(
     request: Request,
@@ -322,6 +382,47 @@ async def import_page(
             "request": request,
             "user": current_user,
             "page_title": "Импорт Tinkoff"
+        }
+    )
+
+
+@web_router.get("/lists", response_class=HTMLResponse)
+async def shopping_lists_page(
+    request: Request,
+    current_user: CurrentUser
+):
+    """
+    Shopping Lists page (all authenticated users).
+
+    Provides interface for managing shopping lists:
+    - Landing view: Grid of shopping list cards
+    - Detail view: Table of shopping list items
+    - Hierarchy view: Collapsible tree (Store → ProductGroup → Items)
+    - CSV import: Auto-detection, column mapping, preview
+    - Offline support: Works without network connection
+    - Mobile-optimized: 3rem touch targets, responsive layout
+
+    Features:
+    - SHARED model: All lists visible to all users (creator can delete)
+    - Inline editing: Edit items directly in table
+    - Batch operations: Select all, complete selected, delete selected
+    - Progress tracking: Completed/total items counter
+    - Admin-managed stores and product groups
+
+    Uses REST API endpoints:
+    - /api/v1/shopping-lists
+    - /api/v1/shopping-list-items
+    - /api/v1/stores
+    - /api/v1/product-groups
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "lists.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Списки покупок"
         }
     )
 

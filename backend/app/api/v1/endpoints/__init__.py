@@ -13,6 +13,12 @@ This package contains all API endpoint routers organized by domain:
 - transfers: Transfer between financial centers endpoints
 - push: Push notification endpoints (PWA offline mode)
 - consent: User consent endpoints (GDPR compliance)
+- stores: Stores CRUD endpoints (Shopping Lists Feature)
+- product_groups: ProductGroups CRUD endpoints with hierarchy (Shopping Lists Feature)
+- shopping_lists: ShoppingLists CRUD endpoints (Shopping Lists Feature)
+- shopping_list_items: ShoppingListItems CRUD endpoints with batch ops (Shopping Lists Feature)
+- shopping_csv_import: Shopping Lists CSV import endpoints (Shopping Lists Feature)
+- import_templates: Import templates CRUD endpoints (Shopping Lists Feature)
 """
 
 from backend.app.api.v1.endpoints.articles import router as articles_router
@@ -27,10 +33,22 @@ from backend.app.api.v1.endpoints.import_endpoints import router as import_route
 from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
+from backend.app.api.v1.endpoints.product_groups import (
+    router as product_groups_router,
+)
 from backend.app.api.v1.endpoints.push import router as push_router
 from backend.app.api.v1.endpoints.reminders import router as reminders_router
+from backend.app.api.v1.endpoints.shopping_list_items import (
+    router as shopping_list_items_router,
+)
+from backend.app.api.v1.endpoints.shopping_lists import (
+    router as shopping_lists_router,
+)
+from backend.app.api.v1.endpoints.stores import router as stores_router
 from backend.app.api.v1.endpoints.transfers import router as transfers_router
 from backend.app.api.v1.endpoints.users import router as users_router
+from backend.app.api.v1.endpoints.shopping_csv_import import router as shopping_csv_import_router
+from backend.app.api.v1.endpoints.import_templates import router as import_templates_router
 
 __all__ = [
     "auth_router",
@@ -45,4 +63,10 @@ __all__ = [
     "transfers_router",
     "push_router",
     "reminders_router",
+    "stores_router",
+    "product_groups_router",
+    "shopping_lists_router",
+    "shopping_list_items_router",
+    "shopping_csv_import_router",
+    "import_templates_router",
 ]

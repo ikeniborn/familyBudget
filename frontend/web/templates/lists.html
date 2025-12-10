@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<!-- Choices.js for product group hierarchical selector -->
+<link rel="stylesheet" href="/static/css/vendor/choices.min.css">
+<link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
+
+<!-- Lists CSS -->
+<link rel="stylesheet" href="/static/css/lists.min.css?v=PLACEHOLDER">
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- ============================================== -->
+    <!-- LANDING VIEW: Grid of Shopping List Cards -->
+    <!-- ============================================== -->
+    <div id="landing-view" class="view-state">
+        <!-- Page Header -->
+        <div class="mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h1 class="text-3xl font-bold mb-2">🛒 Списки покупок</h1>
+                    <p class="text-base-content/70">Создавайте и управляйте списками покупок, работает offline</p>
+                </div>
+                <button class="btn btn-success gap-1" onclick="openCreateListModal()" title="Создать новый список">
+                    ➕ Новый список
+                </button>
+            </div>
+        </div>
+
+        <!-- Shopping Lists Grid -->
+        <div id="lists-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Cards will be rendered here dynamically -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden text-center py-12">
+            <div class="text-6xl mb-4">🛒</div>
+            <h3 class="text-2xl font-bold mb-2">Нет списков покупок</h3>
+            <p class="text-base-content/70 mb-4">Создайте первый список, чтобы начать</p>
+            <button class="btn btn-primary" onclick="openCreateListModal()">
+                ➕ Создать список
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- DETAIL VIEW: Shopping List Items Table -->
+    <!-- ============================================== -->
+    <div id="detail-view" class="view-state hidden">
+        <!-- Breadcrumb Navigation -->
+        <div class="text-sm breadcrumbs mb-4">
+            <ul>
+                <li><a href="#" onclick="showLandingView(); return false;">🛒 Списки покупок</a></li>
+                <li id="breadcrumb-list-name">Loading...</li>
+            </ul>
+        </div>
+
+        <!-- List Header -->
+        <div class="mb-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div class="flex-1">
+                    <h1 class="text-3xl font-bold mb-2" id="list-detail-name">Loading...</h1>
+                    <p class="text-base-content/70" id="list-detail-description">...</p>
+                    <div class="mt-2">
+                        <span class="badge badge-info" id="list-progress-badge">0 / 0 выполнено</span>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button class="btn btn-sm btn-outline gap-1" onclick="showLandingView()">
+                        ← Назад к спискам
+                    </button>
+                    <button class="btn btn-sm btn-success gap-1" onclick="openAddItemModal()" title="Добавить товар">
+                        ➕ Добавить товар
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSV Import Accordion -->
+        <div class="collapse collapse-arrow bg-base-100 shadow-lg mb-6">
+            <input type="checkbox" id="csv-import-toggle" />
+            <label for="csv-import-toggle" class="collapse-title text-xl font-medium cursor-pointer">
+                📥 Импорт из CSV
+            </label>
+            <div class="collapse-content">
+                <div class="pt-4">
+                    <p class="text-sm text-base-content/70 mb-4">
+                        Загрузите CSV файл со списком покупок. Автоматическое определение формата, предпросмотр и маппинг колонок.
+                    </p>
+                    <div id="csv-import-wizard">
+                        <!-- CSV import wizard will be rendered here -->
+                        <p class="text-center text-base-content/50">Coming soon in Stage 7...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="flex flex-wrap items-center gap-2 mb-4">
+            <!-- Batch Actions (Table View Only) -->
+            <div class="flex gap-2 flex-wrap" id="table-controls">
+                <button class="btn btn-sm btn-outline gap-1" onclick="toggleSelectAll()" id="select-all-btn">
+                    ☑️ Выбрать все
+                </button>
+                <button class="btn btn-sm btn-outline gap-1" onclick="selectCompleted()" title="Выбрать выполненные">
+                    ✅ Выделить выполненные
+                </button>
+                <button class="btn btn-sm btn-error gap-1" onclick="deleteSelected()" id="delete-selected-btn" disabled>
+                    🗑️ Удалить выбранные
+                </button>
+            </div>
+
+            <!-- Hierarchy Controls (Hierarchy View Only) -->
+            <div class="flex gap-2 flex-wrap hidden" id="hierarchy-controls">
+                <button class="btn btn-sm btn-outline gap-1" onclick="expandAllNodes()" title="Развернуть все узлы">
+                    ⬇️ Развернуть все
+                </button>
+                <button class="btn btn-sm btn-outline gap-1" onclick="collapseAllNodes()" title="Свернуть все узлы">
+                    ⬆️ Свернуть все
+                </button>
+            </div>
+
+            <!-- Spacer -->
+            <div class="flex-1"></div>
+
+            <!-- View Toggle -->
+            <div class="join">
+                <button class="btn btn-sm join-item" id="table-view-btn" onclick="switchView('table')">
+                    📋 Таблица
+                </button>
+                <button class="btn btn-sm join-item btn-outline" id="hierarchy-view-btn" onclick="switchView('hierarchy')">
+                    🌳 Иерархия
+                </button>
+            </div>
+        </div>
+
+        <!-- Table View -->
+        <div id="table-view" class="view-mode">
+            <div class="overflow-x-auto shadow-lg rounded-lg">
+                <table class="table table-zebra w-full">
+                    <thead>
+                        <tr>
+                            <th class="w-12">
+                                <input type="checkbox" class="checkbox" id="header-checkbox" onchange="toggleSelectAll()">
+                            </th>
+                            <th class="w-12">✅</th>
+                            <th>🏪 Магазин</th>
+                            <th>📦 Группа</th>
+                            <th>🛒 Товар</th>
+                            <th class="text-right">📊 Кол-во</th>
+                            <th>📏 Ед.</th>
+                            <th>💬 Комментарий</th>
+                            <th class="text-center">⚙️</th>
+                        </tr>
+                    </thead>
+                    <tbody id="items-table-body">
+                        <!-- Items will be rendered here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State for Table -->
+            <div id="table-empty-state" class="hidden text-center py-12 bg-base-100 shadow-lg rounded-lg">
+                <div class="text-6xl mb-4">📝</div>
+                <h3 class="text-2xl font-bold mb-2">Список пуст</h3>
+                <p class="text-base-content/70 mb-4">Добавьте первый товар или импортируйте из CSV</p>
+                <button class="btn btn-primary" onclick="openAddItemModal()">
+                    ➕ Добавить товар
+                </button>
+            </div>
+        </div>
+
+        <!-- Hierarchy View -->
+        <div id="hierarchy-view" class="view-mode hidden">
+            <div class="bg-base-100 shadow-lg rounded-lg p-4">
+                <div id="hierarchy-tree">
+                    <!-- Hierarchy tree will be rendered here dynamically by hierarchyView.js -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- MODALS -->
+<!-- ============================================== -->
+
+<!-- Create Shopping List Modal -->
+<dialog id="create-list-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">📝 Создать список покупок</h3>
+        <form id="create-list-form" onsubmit="handleCreateList(event)">
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text font-medium">Название списка <span class="text-error">*</span></span>
+                </label>
+                <input type="text" name="name" class="input input-bordered" placeholder="Например: Продукты на неделю" required>
+            </div>
+
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text font-medium">Описание</span>
+                </label>
+                <textarea name="description" class="textarea textarea-bordered" rows="3" placeholder="Опционально: дополнительная информация"></textarea>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeCreateListModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Создать</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Add/Edit Item Modal -->
+<dialog id="item-modal" class="modal">
+    <div class="modal-box max-w-2xl">
+        <h3 class="font-bold text-lg mb-4" id="item-modal-title">📝 Добавить товар</h3>
+        <form id="item-form" onsubmit="handleSaveItem(event)">
+            <input type="hidden" name="item_id" id="item-id">
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <!-- Store -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">🏪 Магазин <span class="text-error">*</span></span>
+                    </label>
+                    <select name="store_id" id="item-store" class="select select-bordered h-12" required>
+                        <option value="">Выберите магазин</option>
+                        <!-- Options populated dynamically -->
+                    </select>
+                </div>
+
+                <!-- Product Group -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📦 Группа товаров <span class="text-error">*</span></span>
+                    </label>
+                    <select name="product_group_id" id="item-product-group" class="select select-bordered h-12" required>
+                        <option value="">Выберите группу</option>
+                        <!-- Options populated dynamically with hierarchy -->
+                    </select>
+                </div>
+            </div>
+
+            <!-- Product Name -->
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text font-medium">🛒 Название товара <span class="text-error">*</span></span>
+                </label>
+                <input type="text" name="product_name" id="item-product-name" class="input input-bordered h-12" placeholder="Например: Молоко 3.2%" required>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <!-- Quantity -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📊 Количество</span>
+                    </label>
+                    <input type="number" name="quantity" id="item-quantity" class="input input-bordered h-12" step="0.01" placeholder="1.0">
+                </div>
+
+                <!-- Unit -->
+                <div class="form-control">
+                    <label class="label">
+                        <span class="label-text font-medium">📏 Единица измерения</span>
+                    </label>
+                    <select name="unit" id="item-unit" class="select select-bordered h-12">
+                        <option value="">Не указано</option>
+                        <option value="шт">шт (штук)</option>
+                        <option value="кг">кг (килограмм)</option>
+                        <option value="г">г (грамм)</option>
+                        <option value="л">л (литр)</option>
+                        <option value="мл">мл (миллилитр)</option>
+                        <option value="уп">уп (упаковка)</option>
+                        <option value="пач">пач (пачка)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Comment -->
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text font-medium">💬 Комментарий</span>
+                </label>
+                <textarea name="comment" id="item-comment" class="textarea textarea-bordered" rows="2" placeholder="Опциональный комментарий"></textarea>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeItemModal()">Отмена</button>
+                <button type="submit" class="btn btn-primary">Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Delete Confirmation Modal -->
+<dialog id="delete-confirm-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">⚠️ Подтверждение удаления</h3>
+        <p class="mb-4" id="delete-confirm-message">Вы уверены, что хотите удалить выбранные товары?</p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="closeDeleteConfirmModal()">Отмена</button>
+            <button type="button" class="btn btn-error" onclick="confirmDelete()">Удалить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Choices.js -->
+<script src="/static/js/vendor/choices.min.js"></script>
+
+<!-- Offline Support for Shopping Lists -->
+<script src="/static/js/offline/offlineShoppingManager.min.js?v=PLACEHOLDER"></script>
+
+<!-- CSV Importer -->
+<script src="/static/js/lists/csvImporter.min.js?v=PLACEHOLDER"></script>
+
+<!-- Hierarchy View Renderer -->
+<script src="/static/js/lists/hierarchyView.min.js?v=PLACEHOLDER"></script>
+
+<!-- Lists Manager (Core CRUD logic) -->
+<script src="/static/js/lists/listsManager.min.js?v=PLACEHOLDER"></script>
+
+<!-- Hierarchical Product Group Selector -->
+<script src="/shared/static/js/choicesProductGroupTree.min.js?v=PLACEHOLDER"></script>
+
+<script>
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        // Initialize Lists Manager
+        await window.listsManager.init();
+
+        // Make hierarchyView globally accessible for onclick handlers
+        if (window.listsManager.hierarchyView) {
+            window.hierarchyView = window.listsManager.hierarchyView;
+        }
+
+        debugLog('[Lists] Page initialized');
+    } catch (error) {
+        console.error('[Lists] Initialization error:', error);
+        showToast('Ошибка инициализации страницы', 'error');
+    }
+});
+</script>
+{% endblock %}

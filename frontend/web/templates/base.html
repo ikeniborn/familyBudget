@@ -142,6 +142,7 @@
                 <li><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
                 <li><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
                 <li><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
+                <li><a href="/lists" class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
                 <li><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}" aria-current="{% if '/notifications' in request.url.path %}page{% endif %}">🔔 Уведомления</a></li>
                 <li><a href="/import" class="{% if '/import' in request.url.path %}active{% endif %}" aria-current="{% if '/import' in request.url.path %}page{% endif %}">📥 Импорт</a></li>
                 {% endif %}
@@ -155,6 +156,8 @@
                             <li><a href="/admin/articles" class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Категории</a></li>
                             <li><a href="/admin/financial-centers" class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 ЦФО</a></li>
                             <li><a href="/admin/cost-centers" class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 МВЗ</a></li>
+                            <li><a href="/admin/stores" class="{% if '/admin/stores' in request.url.path %}active{% endif %}">🏪 Магазины</a></li>
+                            <li><a href="/admin/product-groups" class="{% if '/admin/product-groups' in request.url.path %}active{% endif %}">📦 Группы товаров</a></li>
                             <li><a href="/admin/monitoring" class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
                         </ul>
                     </details>
@@ -361,6 +364,7 @@
                     <li><a href="/analytics">📊 Аналитика</a></li>
                     <li><a href="/facts">💸 Факт</a></li>
                     <li><a href="/plan">📋 План</a></li>
+                    <li><a href="/lists">🛒 Списки</a></li>
                     <li><a href="/notifications">🔔 Уведомления</a></li>
                     <li><a href="/import">📥 Импорт</a></li>
                     <li><a href="/security">🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
@@ -372,6 +376,8 @@
                         <li><a href="/admin/articles">📁 Категории</a></li>
                         <li><a href="/admin/financial-centers">🏢 ЦФО</a></li>
                         <li><a href="/admin/cost-centers">💼 МВЗ</a></li>
+                        <li><a href="/admin/stores">🏪 Магазины</a></li>
+                        <li><a href="/admin/product-groups">📦 Группы товаров</a></li>
                         <li><a href="/admin/monitoring">🔍 Мониторинг</a></li>
                     {% endif %}
                     {% if user %}

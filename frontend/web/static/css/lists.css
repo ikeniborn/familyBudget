@@ -1,0 +1,823 @@
+/**
+ * Shopping Lists Page Styles
+ *
+ * Stage 5: Landing View + Detail View (Table)
+ * Stage 9: Mobile Optimization
+ *
+ * Mobile-first design with touch-friendly UI:
+ * - 3rem (48px) touch targets (Apple HIG recommends 44px minimum)
+ * - Responsive breakpoints (mobile/tablet/desktop)
+ * - iOS Safari safe area support
+ * - Optimized gestures and interactions
+ * - Accessible focus states
+ */
+
+/* ============================================== */
+/* iOS Safari Safe Area Support */
+/* ============================================== */
+
+:root {
+    /* iOS safe area insets for notch/home indicator */
+    --safe-area-inset-top: env(safe-area-inset-top, 0);
+    --safe-area-inset-right: env(safe-area-inset-right, 0);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
+    --safe-area-inset-left: env(safe-area-inset-left, 0);
+}
+
+/* Apply safe area padding to main container */
+.lists-page {
+    padding-top: calc(1rem + var(--safe-area-inset-top));
+    padding-right: calc(1rem + var(--safe-area-inset-right));
+    padding-bottom: calc(1rem + var(--safe-area-inset-bottom));
+    padding-left: calc(1rem + var(--safe-area-inset-left));
+}
+
+/* ============================================== */
+/* Touch Optimization */
+/* ============================================== */
+
+/* Prevent text selection during interactions */
+.shopping-list-card,
+.hierarchy-toggle,
+.action-buttons .btn {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Faster tap response on iOS */
+.btn,
+.shopping-list-card,
+.editable-cell,
+.hierarchy-node {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    touch-action: manipulation; /* Disable double-tap zoom */
+}
+
+/* Prevent pull-to-refresh on scrollable areas */
+.table-container,
+.hierarchy-tree,
+#lists-grid {
+    overscroll-behavior-y: contain;
+}
+
+/* Smooth scrolling for better UX */
+.table-container,
+.hierarchy-tree {
+    -webkit-overflow-scrolling: touch; /* iOS momentum scrolling */
+    scroll-behavior: smooth;
+}
+
+/* ============================================== */
+/* View State Management */
+/* ============================================== */
+
+.view-state {
+    display: block;
+}
+
+.view-state.hidden {
+    display: none;
+}
+
+.view-mode {
+    display: block;
+}
+
+.view-mode.hidden {
+    display: none;
+}
+
+/* ============================================== */
+/* Landing View: Shopping List Cards */
+/* ============================================== */
+
+.shopping-list-card {
+    background: var(--fallback-b1, oklch(var(--b1)));
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+}
+
+.shopping-list-card:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+    border-color: var(--fallback-p, oklch(var(--p)));
+}
+
+.shopping-list-card:active {
+    transform: translateY(0);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+}
+
+.card-description {
+    font-size: 0.875rem;
+    opacity: 0.7;
+    margin-bottom: 1rem;
+    flex-grow: 1;
+    line-height: 1.4;
+}
+
+.card-progress {
+    margin-top: auto;
+}
+
+.card-progress-bar {
+    width: 100%;
+    height: 0.5rem;
+    background: var(--fallback-b3, oklch(var(--b3)));
+    border-radius: 0.25rem;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.card-progress-fill {
+    height: 100%;
+    background: var(--fallback-su, oklch(var(--su)));
+    transition: width 0.3s ease;
+}
+
+.card-progress-text {
+    font-size: 0.75rem;
+    opacity: 0.6;
+}
+
+/* ============================================== */
+/* Detail View: Items Table */
+/* ============================================== */
+
+/* Table row hover */
+.table tbody tr:hover {
+    background-color: var(--fallback-b2, oklch(var(--b2)));
+}
+
+/* Completed item styling */
+.table tbody tr.completed {
+    opacity: 0.6;
+}
+
+.table tbody tr.completed td {
+    text-decoration: line-through;
+}
+
+/* Editable cells (inline editing) */
+.editable-cell {
+    cursor: pointer;
+    padding: 0.5rem;
+    min-height: 3rem;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.editable-cell:hover {
+    border-color: var(--fallback-bc, oklch(var(--bc) / 0.2));
+    background: var(--fallback-b2, oklch(var(--b2)));
+}
+
+.editable-cell:focus {
+    border-color: var(--fallback-p, oklch(var(--p)));
+    outline: none;
+}
+
+.editable-cell.editing {
+    background: var(--fallback-b1, oklch(var(--b1)));
+}
+
+/* Touch-friendly inputs and buttons (3rem = 48px minimum) */
+.table input[type="checkbox"],
+.table select,
+.table input[type="text"],
+.table input[type="number"],
+.table button {
+    min-height: 3rem;
+    min-width: 3rem;
+}
+
+.table input[type="checkbox"] {
+    width: 1.5rem;
+    height: 1.5rem;
+}
+
+/* Action buttons in table */
+.action-buttons {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+    min-height: 3rem;
+    min-width: 3rem;
+    padding: 0.5rem;
+}
+
+/* ============================================== */
+/* Offline Status Badges */
+/* ============================================== */
+
+.offline-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-weight: 600;
+}
+
+.offline-badge.pending {
+    background: var(--fallback-wa, oklch(var(--wa)));
+    color: var(--fallback-wac, oklch(var(--wac)));
+}
+
+.offline-badge.conflict {
+    background: var(--fallback-er, oklch(var(--er)));
+    color: var(--fallback-erc, oklch(var(--erc)));
+}
+
+.offline-badge.synced {
+    background: var(--fallback-su, oklch(var(--su)));
+    color: var(--fallback-suc, oklch(var(--suc)));
+}
+
+/* ============================================== */
+/* Hierarchy View (Stage 6) */
+/* ============================================== */
+
+.hierarchy-tree {
+    font-family: system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+}
+
+.hierarchy-node {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    transition: background 0.2s ease;
+    gap: 0.5rem;
+    border-radius: 0.25rem;
+    min-height: 3rem;
+}
+
+.hierarchy-node:hover {
+    background: var(--fallback-b2, oklch(var(--b2)));
+}
+
+/* Completed item styling in hierarchy */
+.hierarchy-node.completed {
+    opacity: 0.6;
+}
+
+.hierarchy-node.completed .hierarchy-label {
+    text-decoration: line-through;
+}
+
+/* Hierarchy toggle button (▶/▼) */
+.hierarchy-toggle {
+    cursor: pointer;
+    user-select: none;
+    min-width: 1.5rem;
+    text-align: center;
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+}
+
+.hierarchy-toggle:hover {
+    transform: scale(1.2);
+}
+
+/* Indentation (levels) */
+.hierarchy-indent {
+    display: inline-block;
+    width: 1.5rem;
+    flex-shrink: 0;
+}
+
+/* Tree lines (└── ├──) */
+.hierarchy-line {
+    color: var(--fallback-bc, oklch(var(--bc) / 0.3));
+    font-family: monospace;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+/* Icons (🏪 📦 🛒) */
+.hierarchy-icon {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+/* Labels */
+.hierarchy-label {
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Counts (badges) */
+.hierarchy-count {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+/* Actions (edit/delete buttons) */
+.hierarchy-actions {
+    display: flex;
+    gap: 0.25rem;
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+/* Hierarchy children (nested items) */
+.hierarchy-children {
+    padding-left: 0;
+}
+
+/* Level-specific styling */
+.hierarchy-level-1 {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.hierarchy-level-2 {
+    font-weight: 500;
+    font-size: 0.9375rem;
+}
+
+.hierarchy-level-3 {
+    font-weight: 400;
+    font-size: 0.875rem;
+}
+
+/* Touch-friendly checkboxes in hierarchy */
+.hierarchy-node .checkbox {
+    width: 1.5rem;
+    height: 1.5rem;
+    flex-shrink: 0;
+}
+
+/* Responsive: Mobile adjustments */
+@media (max-width: 640px) {
+    .hierarchy-node {
+        flex-wrap: wrap;
+    }
+
+    .hierarchy-label {
+        white-space: normal;
+        word-break: break-word;
+    }
+
+    .hierarchy-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 0.5rem;
+    }
+
+    .hierarchy-count {
+        margin-left: 0.5rem;
+    }
+}
+
+/* ============================================== */
+/* Modal Styles */
+/* ============================================== */
+
+/* Ensure all modal inputs/selects are touch-friendly */
+.modal-box .form-control input,
+.modal-box .form-control select,
+.modal-box .form-control textarea,
+.modal-box .btn {
+    min-height: 3rem;
+}
+
+.modal-box .form-control textarea {
+    min-height: 4rem;
+}
+
+/* Required field indicator */
+.modal-box .text-error {
+    color: var(--fallback-er, oklch(var(--er)));
+}
+
+/* Mobile modal optimizations */
+@media (max-width: 640px) {
+    .modal-box {
+        /* iOS Safari fix: use dvh (dynamic viewport height) instead of vh */
+        max-height: 90dvh;
+        max-height: 90vh; /* Fallback for older browsers */
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: auto;
+        width: calc(100% - 2rem);
+        max-width: none;
+    }
+
+    /* Ensure modal scrolls properly on iOS */
+    .modal-box .modal-body {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Larger close button on mobile */
+    .modal-box .btn-close {
+        min-width: 3rem;
+        min-height: 3rem;
+        padding: 0.75rem;
+    }
+
+    /* Full-width buttons in modal footer */
+    .modal-box .modal-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .modal-box .modal-actions .btn {
+        width: 100%;
+    }
+}
+
+/* ============================================== */
+/* Toolbar Styles */
+/* ============================================== */
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 1rem 0;
+}
+
+.toolbar .btn {
+    min-height: 3rem;
+}
+
+/* View toggle buttons */
+.join .btn {
+    min-height: 3rem;
+}
+
+/* ============================================== */
+/* Responsive Breakpoints */
+/* ============================================== */
+
+/* Mobile (<640px): Card layout for table */
+@media (max-width: 640px) {
+    /* Convert table to card layout */
+    .table {
+        display: block;
+    }
+
+    .table thead {
+        display: none;
+    }
+
+    .table tbody {
+        display: block;
+    }
+
+    .table tbody tr {
+        display: block;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .table tbody tr td {
+        display: block;
+        text-align: left !important;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid var(--fallback-bc, oklch(var(--bc) / 0.1));
+    }
+
+    .table tbody tr td:last-child {
+        border-bottom: none;
+    }
+
+    /* Add labels for mobile */
+    .table tbody tr td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        display: inline-block;
+        margin-right: 0.5rem;
+        min-width: 100px;
+    }
+
+    /* Action buttons stacked */
+    .action-buttons {
+        justify-content: flex-start;
+        margin-top: 0.5rem;
+    }
+
+    /* Toolbar stacked */
+    .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .toolbar > * {
+        width: 100%;
+    }
+
+    /* Grid cards: 1 column on mobile */
+    #lists-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Tablet (640px - 1024px): 2 columns */
+@media (min-width: 640px) and (max-width: 1024px) {
+    #lists-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Desktop (>1024px): 3 columns */
+@media (min-width: 1024px) {
+    #lists-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* ============================================== */
+/* Loading States */
+/* ============================================== */
+
+.skeleton {
+    background: linear-gradient(
+        90deg,
+        var(--fallback-b2, oklch(var(--b2))) 0%,
+        var(--fallback-b3, oklch(var(--b3))) 50%,
+        var(--fallback-b2, oklch(var(--b2))) 100%
+    );
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 0.25rem;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-card {
+    height: 180px;
+    width: 100%;
+}
+
+.skeleton-row {
+    height: 3rem;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+/* ============================================== */
+/* Utility Classes */
+/* ============================================== */
+
+.truncate-2-lines {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.truncate-1-line {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ============================================== */
+/* Accessibility Enhancements */
+/* ============================================== */
+
+/* Visible focus states for keyboard navigation */
+.shopping-list-card:focus,
+.btn:focus,
+.editable-cell:focus,
+.hierarchy-node:focus-within {
+    outline: 3px solid var(--fallback-p, oklch(var(--p)));
+    outline-offset: 2px;
+}
+
+/* Skip to content link for screen readers */
+.skip-to-content {
+    position: absolute;
+    left: -9999px;
+    z-index: 999;
+    padding: 1rem;
+    background: var(--fallback-p, oklch(var(--p)));
+    color: var(--fallback-pc, oklch(var(--pc)));
+    text-decoration: none;
+}
+
+.skip-to-content:focus {
+    left: 1rem;
+    top: 1rem;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .shopping-list-card {
+        border: 3px solid currentColor;
+    }
+
+    .offline-badge {
+        border: 2px solid currentColor;
+    }
+
+    .hierarchy-node {
+        border-left: 3px solid currentColor;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    .skeleton {
+        animation: none;
+        background: var(--fallback-b2, oklch(var(--b2)));
+    }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+    .shopping-list-card {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    }
+
+    .shopping-list-card:hover {
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+    }
+}
+
+/* ============================================== */
+/* Performance Optimizations */
+/* ============================================== */
+
+/* GPU acceleration for smoother animations */
+.shopping-list-card,
+.hierarchy-toggle,
+.btn {
+    will-change: transform;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* Lazy load images optimization */
+img[loading="lazy"] {
+    content-visibility: auto;
+}
+
+/* Contain layout shifts */
+.shopping-list-card,
+.hierarchy-node,
+.table tbody tr {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 180px;
+}
+
+/* ============================================== */
+/* Print Styles */
+/* ============================================== */
+
+@media print {
+    /* Hide interactive elements */
+    .toolbar,
+    .action-buttons,
+    .hierarchy-toggle,
+    .offline-badge,
+    .btn {
+        display: none !important;
+    }
+
+    /* Simplify layout */
+    .shopping-list-card,
+    .table tbody tr,
+    .hierarchy-node {
+        box-shadow: none !important;
+        border: 1px solid #ccc !important;
+        page-break-inside: avoid;
+    }
+
+    /* Show URLs for links */
+    a[href]:after {
+        content: " (" attr(href) ")";
+        font-size: 0.8em;
+        color: #666;
+    }
+
+    /* Black text on white background */
+    * {
+        background: white !important;
+        color: black !important;
+    }
+
+    .completed {
+        opacity: 0.5 !important;
+    }
+}
+
+/* ============================================== */
+/* Landscape Orientation Optimizations */
+/* ============================================== */
+
+@media (orientation: landscape) and (max-height: 500px) {
+    /* Compact mode for landscape on phones */
+    .shopping-list-card {
+        min-height: 120px;
+        padding: 1rem;
+    }
+
+    .card-title {
+        font-size: 1rem;
+    }
+
+    .hierarchy-node {
+        min-height: 2.5rem;
+        padding: 0.25rem 0.5rem;
+    }
+
+    .modal-box {
+        max-height: 85vh;
+    }
+}
+
+/* ============================================== */
+/* Extra Large Screens (4K, Ultra-wide) */
+/* ============================================== */
+
+@media (min-width: 1920px) {
+    #lists-grid {
+        grid-template-columns: repeat(4, 1fr);
+        max-width: 1800px;
+        margin: 0 auto;
+    }
+
+    .container {
+        max-width: 1800px;
+    }
+}
+
+/* ============================================== */
+/* CSS Grid Feature Detection */
+/* ============================================== */
+
+@supports not (display: grid) {
+    /* Fallback for older browsers */
+    #lists-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .shopping-list-card {
+        flex: 1 1 calc(33.333% - 1rem);
+        min-width: 280px;
+    }
+}
+
+/* ============================================== */
+/* Loading Performance Hints */
+/* ============================================== */
+
+/* Hint browser to optimize rendering */
+.lists-page {
+    contain: layout style paint;
+}
+
+/* Critical rendering path optimization */
+.shopping-list-card img,
+.hierarchy-icon {
+    font-display: swap; /* For icon fonts */
+}
+
+/* Prevent layout shift from images */
+.card-image {
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+}

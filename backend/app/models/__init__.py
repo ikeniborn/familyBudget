@@ -23,6 +23,14 @@ Models:
     UserConsent: GDPR consent records (append-only audit log)
     PushSubscription: Web Push subscription for notifications
     ScheduledReminder: Scheduled reminders for budget plans
+    Store: Store dimension with SCD Type 1 (shopping locations, shared)
+    StoreHistory: Store change history (SCD Type 2)
+    ProductGroup: Product group dimension with SCD Type 1 and hierarchy (shared)
+    ProductGroupHistory: Product group change history (SCD Type 2)
+    ProductGroupHierarchy: Closure table for product group hierarchy
+    ShoppingList: Shopping list header table (shared, owner delete only)
+    ShoppingListItem: Shopping list items table (shared, offline sync support)
+    ImportTemplate: User-specific CSV import templates (JSONB config)
 
 Design Patterns:
     - SCD Type 2: Slowly Changing Dimension Type 2 for tracking historical changes
@@ -51,10 +59,18 @@ from backend.app.models.hierarchy import ArticleHierarchy
 from backend.app.models.import_column_mapping import ImportColumnMapping
 from backend.app.models.import_file_upload import ImportFileUpload
 from backend.app.models.import_staging import ImportStaging
+from backend.app.models.import_template import ImportTemplate
 from backend.app.models.notification import Notification
+from backend.app.models.product_group import ProductGroup
+from backend.app.models.product_group_hierarchy import ProductGroupHierarchy
+from backend.app.models.product_group_history import ProductGroupHistory
 from backend.app.models.push_subscription import PushSubscription
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.scheduled_reminder import ScheduledReminder
+from backend.app.models.shopping_list import ShoppingList
+from backend.app.models.shopping_list_item import ShoppingListItem
+from backend.app.models.store import Store
+from backend.app.models.store_history import StoreHistory
 from backend.app.models.two_factor_session import TwoFactorSession
 from backend.app.models.user import User
 from backend.app.models.user_consent import UserConsent
@@ -76,7 +92,15 @@ __all__ = [
     "ImportFileUpload",
     "ImportColumnMapping",
     "ImportStaging",
+    "ImportTemplate",
     "UserConsent",
     "PushSubscription",
     "ScheduledReminder",
+    "Store",
+    "StoreHistory",
+    "ProductGroup",
+    "ProductGroupHistory",
+    "ProductGroupHierarchy",
+    "ShoppingList",
+    "ShoppingListItem",
 ]
