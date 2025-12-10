@@ -77,20 +77,20 @@
             </div>
         </div>
 
-        <!-- CSV Import Accordion -->
+        <!-- Import Accordion (CSV or Google Sheets) -->
         <div class="collapse collapse-arrow bg-base-100 shadow-lg mb-6">
-            <input type="checkbox" id="csv-import-toggle" />
-            <label for="csv-import-toggle" class="collapse-title text-xl font-medium cursor-pointer">
-                📥 Импорт из CSV
+            <input type="checkbox" id="import-toggle"
+                   onchange="if(this.checked) initializeImportWizard()" />
+            <label for="import-toggle" class="collapse-title text-xl font-medium cursor-pointer">
+                📥 Импорт товаров (CSV или Google Sheets)
             </label>
             <div class="collapse-content">
                 <div class="pt-4">
                     <p class="text-sm text-base-content/70 mb-4">
-                        Загрузите CSV файл со списком покупок. Автоматическое определение формата, предпросмотр и маппинг колонок.
+                        Выберите способ импорта: загрузить CSV файл или указать ссылку на Google Sheets.
                     </p>
-                    <div id="csv-import-wizard">
-                        <!-- CSV import wizard will be rendered here -->
-                        <p class="text-center text-base-content/50">Coming soon in Stage 7...</p>
+                    <div id="import-wizard">
+                        <!-- Import wizard will be rendered here by ImportManager -->
                     </div>
                 </div>
             </div>
@@ -316,6 +316,40 @@
     </form>
 </dialog>
 
+<!-- Delete List Confirmation Modal -->
+<dialog id="delete-list-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg mb-4">⚠️ Удаление списка покупок</h3>
+        <div class="alert alert-warning mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Это действие необратимо!</span>
+        </div>
+        <p class="mb-4">
+            Вы действительно хотите удалить список
+            <strong id="delete-list-name">...</strong>?
+        </p>
+        <p class="text-sm text-base-content/70 mb-4">
+            Будут удалены все товары в этом списке.
+        </p>
+        <p class="text-sm text-base-content/70 mb-4">
+            <strong>Примечание:</strong> Удалить список может только его создатель.
+        </p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="closeDeleteListModal()">
+                Отмена
+            </button>
+            <button type="button" class="btn btn-error" onclick="confirmDeleteList()">
+                Удалить список
+            </button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
 {% endblock %}
 
 {% block extra_scripts %}
@@ -327,6 +361,12 @@
 
 <!-- CSV Importer -->
 <script src="/static/js/lists/csvImporter.min.js?v=PLACEHOLDER"></script>
+
+<!-- Google Sheets Importer -->
+<script src="/static/js/lists/googleSheetsImporter.min.js?v=PLACEHOLDER"></script>
+
+<!-- Import Manager (coordinates CSV and Google Sheets) -->
+<script src="/static/js/lists/importManager.min.js?v=PLACEHOLDER"></script>
 
 <!-- Hierarchy View Renderer -->
 <script src="/static/js/lists/hierarchyView.min.js?v=PLACEHOLDER"></script>

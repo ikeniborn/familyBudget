@@ -18,6 +18,7 @@ from backend.app.api.v1.endpoints import (
     cost_centers_router,
     facts_router,
     financial_centers_router,
+    google_sheets_import_router,
     import_router,
     import_templates_router,
     notifications_router,
@@ -107,6 +108,9 @@ api_router.include_router(shopping_list_items_router)
 
 # Shopping Lists CSV Import endpoints (Shopping Lists Feature) ✅
 api_router.include_router(shopping_csv_import_router)
+
+# Google Sheets Import endpoints (Shopping Lists Feature) ✅
+api_router.include_router(google_sheets_import_router)
 
 # Import Templates endpoints (Shopping Lists Feature) ✅
 api_router.include_router(import_templates_router)

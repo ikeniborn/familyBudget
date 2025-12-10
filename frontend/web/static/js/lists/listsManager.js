@@ -42,6 +42,14 @@ class ListsManager {
                 console.warn('[ListsManager] HierarchyView not loaded');
             }
 
+            // Initialize Import Manager
+            if (typeof ImportManager !== 'undefined') {
+                window.importManager = new ImportManager(this);
+                debugLog('[ListsManager] ImportManager initialized');
+            } else {
+                console.warn('[ListsManager] ImportManager not loaded');
+            }
+
             // Show landing view by default
             await this.showLandingView();
 
@@ -229,9 +237,20 @@ class ListsManager {
             const completedItems = list.completed_items || 0;
             const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
 
+            // Escape name for use in onclick attribute
+            const escapedName = this.escapeHtml(list.name).replace(/'/g, "\\'");
+
             return `
                 <div class="shopping-list-card" onclick="window.listsManager.showDetailView(${list.id})">
-                    <div class="card-title">${this.escapeHtml(list.name)}</div>
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="card-title flex-1">${this.escapeHtml(list.name)}</div>
+                        <button class="btn btn-ghost btn-xs btn-circle text-error hover:bg-error hover:text-error-content ml-2"
+                                onclick="event.stopPropagation(); openDeleteListModal(${list.id}, '${escapedName}');"
+                                title="Удалить список"
+                                aria-label="Удалить список ${this.escapeHtml(list.name)}">
+                            🗑️
+                        </button>
+                    </div>
                     <div class="card-description truncate-2-lines">
                         ${list.description ? this.escapeHtml(list.description) : 'Без описания'}
                     </div>
@@ -901,6 +920,112 @@ function expandAllNodes() {
 function collapseAllNodes() {
     if (window.hierarchyView) {
         window.hierarchyView.collapseAll();
+    }
+}
+
+// ============================================================================
+// DELETE LIST FUNCTIONS
+// ============================================================================
+
+/**
+ * Global function to open delete list modal
+ * @param {number} listId - Shopping list ID
+ * @param {string} listName - Shopping list name (escaped)
+ */
+function openDeleteListModal(listId, listName) {
+    // Store listId for later use
+    window.deleteListId = listId;
+
+    // Update modal content
+    document.getElementById('delete-list-name').textContent = listName;
+
+    // Open modal
+    const modal = document.getElementById('delete-list-modal');
+    modal.showModal();
+
+    debugLog('[DeleteList] Modal opened for list:', listId);
+}
+
+/**
+ * Close delete list modal
+ */
+function closeDeleteListModal() {
+    const modal = document.getElementById('delete-list-modal');
+    modal.close();
+    window.deleteListId = null;
+
+    debugLog('[DeleteList] Modal closed');
+}
+
+/**
+ * Confirm delete list
+ */
+async function confirmDeleteList() {
+    const listId = window.deleteListId;
+
+    if (!listId) {
+        showToast('Ошибка: список не выбран', 'error');
+        return;
+    }
+
+    try {
+        // Close modal
+        closeDeleteListModal();
+
+        // Show loading
+        showToast('Удаление списка...', 'info');
+
+        debugLog('[DeleteList] Deleting list:', listId);
+
+        // Call DELETE endpoint
+        const response = await fetch(`/api/v1/shopping-lists/${listId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+            // Parse error response
+            let errorDetail = `HTTP ${response.status}`;
+            try {
+                const error = await response.json();
+                errorDetail = error.detail || errorDetail;
+            } catch (e) {
+                // Failed to parse JSON, use status code
+            }
+
+            // Handle 403 Forbidden (not creator)
+            if (response.status === 403) {
+                throw new Error('Только создатель списка может его удалить');
+            }
+
+            throw new Error(errorDetail);
+        }
+
+        // Success - reload landing view
+        showToast('✅ Список успешно удален', 'success');
+
+        debugLog('[DeleteList] List deleted successfully:', listId);
+
+        // Reload shopping lists
+        await window.listsManager.showLandingView();
+
+    } catch (error) {
+        console.error('[DeleteList] Error deleting list:', error);
+        showToast(`❌ Ошибка удаления: ${error.message}`, 'error');
+    }
+}
+
+// ============================================================================
+// IMPORT MANAGER INITIALIZATION
+// ============================================================================
+
+/**
+ * Initialize import wizard when accordion is opened
+ */
+function initializeImportWizard() {
+    if (window.importManager && !window.importManager.container) {
+        window.importManager.init();
+        debugLog('[ImportWizard] Initialized');
     }
 }
 
