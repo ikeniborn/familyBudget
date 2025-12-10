@@ -21,17 +21,17 @@ class SmartNetworkDetector {
 
         // Счетчик последовательных ошибок
         this.consecutiveFailures = 0;
-        this.maxFailuresBeforeOffline = options.maxFailures || 2;
+        this.maxFailuresBeforeOffline = options.maxFailures || 3;
 
-        // Heartbeat настройки
+        // Heartbeat настройки (прогрессивные интервалы)
         this.heartbeatUrl = options.heartbeatUrl || '/health';
-        this.heartbeatInterval = options.heartbeatInterval || 10000; // 10 сек (было 30)
+        this.heartbeatIntervals = options.heartbeatIntervals || [2000, 4000, 20000]; // 2s, 4s, 20s
         this.heartbeatTimeout = options.heartbeatTimeout || 5000; // 5 сек
         this.lastHeartbeat = 0;
         this.heartbeatTimer = null;
 
-        // Минимальный интервал между проверками
-        this.minCheckInterval = options.minCheckInterval || 5000; // 5 сек
+        // Минимальный интервал между проверками (защита от спама)
+        this.minCheckInterval = options.minCheckInterval || 1000; // 1 сек (защита от спама)
         this.lastCheck = 0;
 
         // Network Information API thresholds
@@ -230,22 +230,50 @@ class SmartNetworkDetector {
     }
 
     /**
-     * Запустить периодический heartbeat
+     * Получить задержку до следующей проверки (прогрессивный backoff)
+     * @private
+     */
+    _getNextCheckDelay() {
+        // consecutiveFailures = 0: первая проверка через 2s
+        // consecutiveFailures = 1: вторая проверка через 2s
+        // consecutiveFailures = 2: третья проверка через 4s
+        // consecutiveFailures >= 3 (offline): проверки каждые 20s
+        const index = Math.min(this.consecutiveFailures, this.heartbeatIntervals.length - 1);
+        return this.heartbeatIntervals[index];
+    }
+
+    /**
+     * Запустить периодический heartbeat (с прогрессивным backoff)
      */
     _startHeartbeat() {
+        this._scheduleNextHeartbeat();
+    }
+
+    /**
+     * Запланировать следующую проверку heartbeat
+     * @private
+     */
+    _scheduleNextHeartbeat() {
+        // Очистить предыдущий таймер
         if (this.heartbeatTimer) {
-            clearInterval(this.heartbeatTimer);
+            clearTimeout(this.heartbeatTimer);
         }
 
-        this.heartbeatTimer = setInterval(async () => {
-            // Skip if manual offline mode is enabled
-            if (this.manualOfflineMode) {
-                return;
-            }
+        // Skip if manual offline mode is enabled
+        if (this.manualOfflineMode) {
+            return;
+        }
+
+        const delay = this._getNextCheckDelay();
+
+        this.heartbeatTimer = setTimeout(async () => {
             // ВАЖНО: Проверять ВСЕГДА, независимо от статуса!
             // Это позволяет обнаруживать восстановление сети даже когда status = 'offline'
             await this.checkConnectivity();
-        }, this.heartbeatInterval);
+
+            // Запланировать следующую проверку
+            this._scheduleNextHeartbeat();
+        }, delay);
     }
 
     /**
@@ -253,7 +281,7 @@ class SmartNetworkDetector {
      */
     stopHeartbeat() {
         if (this.heartbeatTimer) {
-            clearInterval(this.heartbeatTimer);
+            clearTimeout(this.heartbeatTimer);
             this.heartbeatTimer = null;
         }
     }

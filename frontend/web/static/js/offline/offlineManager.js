@@ -65,10 +65,10 @@ class OfflineManager {
         if (typeof SmartNetworkDetector !== 'undefined') {
             this.networkDetector = new SmartNetworkDetector({
                 heartbeatUrl: '/health',
-                heartbeatInterval: 10000,  // 10 сек (увеличена частота проверки)
+                heartbeatIntervals: [2000, 4000, 20000],  // Прогрессивные интервалы: 2s, 4s, 20s
                 heartbeatTimeout: 5000,    // 5 сек timeout
-                maxFailures: 2,            // 2 ошибки подряд → offline
-                minCheckInterval: 5000,    // Не проверять чаще 5 сек
+                maxFailures: 3,            // 3 ошибки подряд → offline
+                minCheckInterval: 1000,    // Защита от спама (1 сек)
                 onStatusChange: (newStatus, oldStatus) => {
                     this._handleNetworkStatusChange(newStatus, oldStatus);
                 }
