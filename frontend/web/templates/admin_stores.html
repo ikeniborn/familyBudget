@@ -288,6 +288,17 @@ function closeCreateModal() {
     document.getElementById('create-modal').close();
 }
 
+// Extract error message from response
+function extractErrorMessage(error, defaultMessage) {
+    if (!error.detail) return defaultMessage;
+    if (typeof error.detail === 'string') return error.detail;
+    if (Array.isArray(error.detail)) {
+        // Pydantic validation errors
+        return error.detail.map(e => e.msg).join(', ');
+    }
+    return defaultMessage;
+}
+
 // Create store
 async function createStore(event) {
     event.preventDefault();
@@ -309,7 +320,7 @@ async function createStore(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to create store');
+            throw new Error(extractErrorMessage(error, 'Failed to create store'));
         }
 
         closeCreateModal();
@@ -364,7 +375,7 @@ async function updateStore(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to update store');
+            throw new Error(extractErrorMessage(error, 'Failed to update store'));
         }
 
         closeEditModal();

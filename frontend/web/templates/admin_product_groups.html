@@ -382,6 +382,17 @@ function addTreeOptionsToSelect(select, nodes, level) {
     });
 }
 
+// Extract error message from response
+function extractErrorMessage(error, defaultMessage) {
+    if (!error.detail) return defaultMessage;
+    if (typeof error.detail === 'string') return error.detail;
+    if (Array.isArray(error.detail)) {
+        // Pydantic validation errors
+        return error.detail.map(e => e.msg).join(', ');
+    }
+    return defaultMessage;
+}
+
 // Create product group
 async function createProductGroup(event) {
     event.preventDefault();
@@ -403,7 +414,7 @@ async function createProductGroup(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to create product group');
+            throw new Error(extractErrorMessage(error, 'Failed to create product group'));
         }
 
         closeCreateModal();
@@ -462,7 +473,7 @@ async function updateProductGroup(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to update product group');
+            throw new Error(extractErrorMessage(error, 'Failed to update product group'));
         }
 
         closeEditModal();
