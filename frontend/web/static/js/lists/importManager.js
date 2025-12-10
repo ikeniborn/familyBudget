@@ -151,6 +151,8 @@ class ImportManager {
             // Initialize CSV importer if not already
             if (!this.csvImporter && typeof CSVImporter !== 'undefined') {
                 this.csvImporter = new CSVImporter(this.listsManager);
+                // Expose globally for onclick handlers in rendered HTML
+                window.csvImporter = this.csvImporter;
             }
 
             if (this.csvImporter) {
@@ -167,6 +169,8 @@ class ImportManager {
             // Initialize Google Sheets importer if not already
             if (!this.googleSheetsImporter && typeof GoogleSheetsImporter !== 'undefined') {
                 this.googleSheetsImporter = new GoogleSheetsImporter(this.listsManager);
+                // Expose globally for onsubmit handlers in rendered HTML
+                window.googleSheetsImporter = this.googleSheetsImporter;
             }
 
             if (this.googleSheetsImporter) {

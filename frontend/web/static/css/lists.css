@@ -680,12 +680,14 @@
 /* ============================================== */
 
 /* GPU acceleration for smoother animations */
-.shopping-list-card,
-.hierarchy-toggle,
-.btn {
+/* Note: Removed transform: translateZ(0) and backface-visibility: hidden
+   as they can cause blurry text rendering on some devices/browsers.
+   Using will-change only during actual interactions. */
+.shopping-list-card:hover,
+.shopping-list-card:active,
+.hierarchy-toggle:hover,
+.hierarchy-toggle:active {
     will-change: transform;
-    transform: translateZ(0);
-    backface-visibility: hidden;
 }
 
 /* Lazy load images optimization */
