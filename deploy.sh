@@ -1133,6 +1133,21 @@ main() {
         local sw_min_size=$(stat -c%s "$sw_min" 2>/dev/null || stat -f%z "$sw_min" 2>/dev/null)
         local sw_gz_size=$(stat -c%s "$sw_min_gz" 2>/dev/null || stat -f%z "$sw_min_gz" 2>/dev/null)
         success "Service Worker minified: sw.min.js (${sw_min_size}B) + sw.min.js.gz (${sw_gz_size}B)"
+
+        # BUGFIX: Restart nginx to remount updated sw.min.js files
+        # Docker volumes are mounted at container start. If sw.min.js changes on host,
+        # nginx continues serving old version until restarted.
+        if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "familybudget-nginx"; then
+            info "Service Worker updated - restarting nginx to apply changes..."
+            docker compose restart nginx >/dev/null 2>&1 || warning "Failed to restart nginx"
+            # Wait for nginx to become healthy
+            sleep 3
+            if docker ps --filter "name=familybudget-nginx" --filter "health=healthy" --format '{{.Names}}' 2>/dev/null | grep -q "nginx"; then
+                success "Nginx restarted successfully (Service Worker changes applied)"
+            else
+                warning "Nginx may not be healthy - check manually"
+            fi
+        fi
     elif [[ -f "$DEPLOY_DIR/sw.js" ]]; then
         warning "Service Worker minified files missing - nginx will fallback to backend proxy"
     fi
