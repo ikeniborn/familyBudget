@@ -25,7 +25,7 @@ class SmartNetworkDetector {
 
         // Heartbeat настройки
         this.heartbeatUrl = options.heartbeatUrl || '/health';
-        this.heartbeatInterval = options.heartbeatInterval || 30000; // 30 сек
+        this.heartbeatInterval = options.heartbeatInterval || 10000; // 10 сек (было 30)
         this.heartbeatTimeout = options.heartbeatTimeout || 5000; // 5 сек
         this.lastHeartbeat = 0;
         this.heartbeatTimer = null;
@@ -242,10 +242,9 @@ class SmartNetworkDetector {
             if (this.manualOfflineMode) {
                 return;
             }
-            // Проверять только если думаем что online
-            if (this.status !== 'offline') {
-                await this.checkConnectivity();
-            }
+            // ВАЖНО: Проверять ВСЕГДА, независимо от статуса!
+            // Это позволяет обнаруживать восстановление сети даже когда status = 'offline'
+            await this.checkConnectivity();
         }, this.heartbeatInterval);
     }
 
