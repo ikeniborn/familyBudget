@@ -119,8 +119,13 @@ async def create_store(
     Shared references architecture: Only admins can create stores.
     Store is created with current_user.id as creator_id (audit trail).
     """
+    # Debug logging for validation troubleshooting
+    logger.debug(f"create_store called by user {current_user.id} (is_admin={current_user.is_admin})")
+    logger.debug(f"store_data received: {store_data.model_dump()}")
+
     # Check: Only admins can create stores
     if not current_user.is_admin:
+        logger.warning(f"Non-admin user {current_user.id} attempted to create store")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can create stores",

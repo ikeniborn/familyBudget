@@ -144,8 +144,13 @@ async def create_product_group(
     - Parent product group must exist if parent_id provided
     - Name is required, max 255 characters
     """
+    # Debug logging for validation troubleshooting
+    logger.debug(f"create_product_group called by user {current_user.id} (is_admin={current_user.is_admin})")
+    logger.debug(f"product_group_data received: {product_group_data.model_dump()}")
+
     # Check: Only admins can create product groups
     if not current_user.is_admin:
+        logger.warning(f"Non-admin user {current_user.id} attempted to create product group")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only administrators can create product groups",
