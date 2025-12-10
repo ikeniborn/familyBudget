@@ -10,6 +10,19 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
+class CSVAnalyzeRequest(BaseModel):
+    """Request to analyze CSV file."""
+
+    file_content: str = Field(description="Base64 encoded CSV file content")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "file_content": "TWFnYXppbjtHcnVwcGU7VG92YXI=...",
+            }
+        }
+
+
 class CSVAnalyzeResponse(BaseModel):
     """Response from CSV analyze endpoint."""
 

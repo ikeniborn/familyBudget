@@ -17,6 +17,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.core.dependencies import CurrentUser
 from backend.app.db.session import get_session
 from backend.app.schemas.csv_import import (
+    CSVAnalyzeRequest,
     CSVAnalyzeResponse,
     CSVImportRequest,
     CSVImportResponse,
@@ -39,7 +40,7 @@ router = APIRouter(prefix="/shopping-lists/import", tags=["Shopping CSV Import"]
 
 @router.post("/analyze", response_model=CSVAnalyzeResponse)
 async def analyze_csv(
-    file_content: str,
+    request: CSVAnalyzeRequest,
     current_user: CurrentUser,
 ) -> CSVAnalyzeResponse:
     """
@@ -52,7 +53,7 @@ async def analyze_csv(
     4. Return suggestions and sample rows
 
     Args:
-        file_content: Base64 encoded CSV file content
+        request: CSVAnalyzeRequest with base64 encoded file content
         current_user: Current authenticated user
 
     Returns:
@@ -63,7 +64,7 @@ async def analyze_csv(
     """
     try:
         # Decode base64
-        file_bytes = base64.b64decode(file_content)
+        file_bytes = base64.b64decode(request.file_content)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
