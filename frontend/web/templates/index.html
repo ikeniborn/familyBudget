@@ -5,14 +5,23 @@
 {% block content %}
 <div class="space-y-6">
     {% if user %}
-        <!-- Welcome Section (auto-hides after 10 seconds) -->
-        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500">
+        <!-- Welcome Section (manual close with localStorage) -->
+        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500 relative">
             <div class="hero-content text-center py-6">
                 <div class="max-w-md">
                     <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
                     <p class="opacity-80">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
                 </div>
             </div>
+            <!-- Close Button (bottom-right corner) -->
+            <button onclick="showWelcomeCloseConfirmation()"
+                    class="btn btn-sm btn-ghost absolute bottom-2 right-2 gap-1"
+                    title="Скрыть секцию приветствия">
+                <span class="hidden sm:inline">Скрыть</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
         </div>
 
         <!-- Quick Stats Section -->
@@ -222,6 +231,24 @@
 
     <!-- Modal: Добавить план -->
     {{ plan_modal('modal_add_plan') }}
+
+    <!-- Modal: Confirm Welcome Section Close -->
+    <dialog id="modal_welcome_close_confirm" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">⚠️ Подтверждение</h3>
+            <p class="py-4">
+                Вы уверены, что хотите скрыть секцию приветствия?<br>
+                <span class="text-sm opacity-70">Она больше не будет отображаться. Чтобы вернуть её, нужно будет очистить кэш браузера.</span>
+            </p>
+            <div class="modal-action">
+                <button onclick="confirmWelcomeClose()" class="btn btn-error btn-sm">Да, скрыть</button>
+                <button onclick="closeWelcomeConfirmModal()" class="btn btn-sm">Отмена</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
 {% endif %}
 
 {% endblock %}
@@ -299,20 +326,64 @@ function openAddTransactionModal() {
     }, 50); // Увеличил delay до 50ms для надёжности
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-hide Welcome Section after 10 seconds
+// Welcome Section Management
+function checkWelcomeSectionVisibility() {
+    try {
+        const isHidden = localStorage.getItem('welcomeSectionHidden') === 'true';
+        const welcomeSection = document.getElementById('welcome-section');
+
+        if (isHidden && welcomeSection) {
+            // Hide immediately without animation on page load
+            welcomeSection.style.display = 'none';
+        }
+    } catch (e) {
+        console.error('localStorage not available:', e);
+    }
+}
+
+function showWelcomeCloseConfirmation() {
+    const modal = document.getElementById('modal_welcome_close_confirm');
+    if (modal) {
+        modal.showModal();
+    }
+}
+
+function closeWelcomeConfirmModal() {
+    const modal = document.getElementById('modal_welcome_close_confirm');
+    if (modal) {
+        modal.close();
+    }
+}
+
+function hideWelcomeSection() {
     const welcomeSection = document.getElementById('welcome-section');
     if (welcomeSection) {
+        welcomeSection.style.opacity = '0';
+        welcomeSection.style.maxHeight = '0';
+        welcomeSection.style.overflow = 'hidden';
+        welcomeSection.style.padding = '0';
+        welcomeSection.style.margin = '0';
+
         setTimeout(() => {
-            welcomeSection.style.opacity = '0';
-            welcomeSection.style.maxHeight = '0';
-            welcomeSection.style.overflow = 'hidden';
-            welcomeSection.style.padding = '0';
-            welcomeSection.style.margin = '0';
-            // Remove from DOM after animation
-            setTimeout(() => welcomeSection.remove(), 500);
-        }, 10000); // 10 seconds
+            welcomeSection.style.display = 'none';
+        }, 500);
     }
+}
+
+function confirmWelcomeClose() {
+    try {
+        localStorage.setItem('welcomeSectionHidden', 'true');
+    } catch (e) {
+        console.error('Failed to save to localStorage:', e);
+    }
+
+    hideWelcomeSection();
+    closeWelcomeConfirmModal();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if welcome section should be hidden based on localStorage
+    checkWelcomeSectionVisibility();
 
     // NOTE: updateOfflineUI() is now handled by base.html
     // It considers both navigator.onLine, SmartNetworkDetector status, AND manual offline mode
