@@ -227,7 +227,7 @@ class GoogleSheetsImporter {
      * Delegate to CSVImporter for Steps 2-5
      * Strategy: Create CSVImporter instance and pass our CSV data
      */
-    delegateToCSVImporter() {
+    async delegateToCSVImporter() {
         // Initialize CSV importer if not already
         if (!this.csvImporter) {
             if (typeof CSVImporter === 'undefined') {
@@ -239,12 +239,28 @@ class GoogleSheetsImporter {
             this.csvImporter = new CSVImporter(this.listsManager);
         }
 
-        // Set CSV data from Google Sheets
-        this.csvImporter.fileContent = this.fileContent;
+        // Decode base64 content from Google Sheets API to raw CSV text
+        // The API returns base64-encoded CSV, but CSVImporter expects raw text
+        try {
+            const rawCsvText = decodeURIComponent(escape(atob(this.fileContent)));
+            this.csvImporter.fileContent = rawCsvText;
+        } catch (e) {
+            console.error('[GoogleSheetsImporter] Error decoding base64:', e);
+            showToast('Ошибка декодирования данных', 'error');
+            return;
+        }
+
         this.csvImporter.container = this.container;
 
         // Start CSV import workflow from Step 2 (analysis)
-        this.csvImporter.analyzeCSV();
+        // analyzeFile() will encode to base64 for API and then render step 2
+        try {
+            await this.csvImporter.analyzeFile();
+            this.csvImporter.renderStep2();
+        } catch (error) {
+            console.error('[GoogleSheetsImporter] Error analyzing CSV:', error);
+            showToast(`Ошибка анализа: ${error.message}`, 'error');
+        }
 
         debugLog('[GoogleSheetsImporter] Delegated to CSVImporter');
     }
