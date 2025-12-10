@@ -353,9 +353,14 @@ self.addEventListener('message', (event) => {
 /**
  * IndexedDB Helper Functions
  * Используются для работы с offline data из Service Worker
+ *
+ * ВАЖНО: DB_VERSION должна совпадать с версией в idb.js!
+ * Service Worker НЕ создаёт схему (нет onupgradeneeded),
+ * он только читает/пишет в существующие stores.
+ * Схема управляется в frontend/web/static/js/offline/idb.js
  */
 const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;  // ✅ Синхронизировано с idb.js (v2.0.0 - Shopping Lists support)
 
 async function openIndexedDB() {
   return new Promise((resolve, reject) => {
