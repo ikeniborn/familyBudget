@@ -31,8 +31,8 @@ from backend.app.services.csv_column_matcher import (
 from backend.app.services.csv_detector import detect_csv_format
 from backend.app.services.csv_security import sanitize_csv_row
 from backend.app.services.csv_validator import validate_csv_rows
-from backend.app.services.shopping_list_item_service import create_shopping_list_item
 from backend.app.schemas.shopping_list_item import ShoppingListItemCreate
+from backend.app.models.shopping_list_item import ShoppingListItem
 
 router = APIRouter(prefix="/shopping-lists/import", tags=["Shopping CSV Import"])
 
@@ -364,7 +364,9 @@ async def execute_csv_import(
 
         # Create shopping list item
         try:
-            item_data = ShoppingListItemCreate(
+            # Create item directly (not via endpoint)
+            item = ShoppingListItem(
+                creator_id=current_user.id,
                 shopping_list_id=request.shopping_list_id,
                 store_id=stores_cache[store_name],
                 product_group_id=product_groups_cache[product_group_name],
@@ -372,13 +374,11 @@ async def execute_csv_import(
                 quantity=row.get("quantity"),
                 unit=row.get("unit"),
                 comment=row.get("comment"),
+                sync_status="synced",  # Created online = synced
             )
 
-            await create_shopping_list_item(
-                session=session,
-                item_data=item_data,
-                current_user=current_user,
-            )
+            session.add(item)
+            # Note: commit happens after the loop (line ~395)
 
             imported_count += 1
 
