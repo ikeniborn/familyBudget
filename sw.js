@@ -366,7 +366,19 @@ async function openIndexedDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => {
+      // Handle VersionError: requested version < existing version
+      // This can happen when old SW tries to open upgraded DB
+      if (request.error.name === 'VersionError') {
+        if (DEBUG) console.log('[SW] VersionError - opening DB without version');
+        // Retry without version (opens current version)
+        const retryRequest = indexedDB.open(DB_NAME);
+        retryRequest.onsuccess = () => resolve(retryRequest.result);
+        retryRequest.onerror = () => reject(retryRequest.error);
+      } else {
+        reject(request.error);
+      }
+    };
   });
 }
 

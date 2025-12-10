@@ -146,14 +146,20 @@ class ListsManager {
                 credentials: 'same-origin'
             });
 
-            if (!response.ok) {
+            // 404 is OK for empty lists (no items imported yet)
+            if (!response.ok && response.status !== 404) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            const data = await response.json();
-            this.currentItems = data.items || [];
-
-            debugLog('[ListsManager] Loaded items:', this.currentItems.length);
+            // Handle empty list (404 or empty items array)
+            if (response.status === 404) {
+                debugLog('[ListsManager] List is empty (no items yet)');
+                this.currentItems = [];
+            } else {
+                const data = await response.json();
+                this.currentItems = data.items || [];
+                debugLog('[ListsManager] Loaded items:', this.currentItems.length);
+            }
 
             // Update progress badge
             this.updateProgressBadge();
@@ -244,10 +250,11 @@ class ListsManager {
                 <div class="shopping-list-card" onclick="window.listsManager.showDetailView(${list.id})">
                     <div class="flex justify-between items-start mb-2">
                         <div class="card-title flex-1">${this.escapeHtml(list.name)}</div>
-                        <button class="btn btn-ghost btn-xs btn-circle text-error hover:bg-error hover:text-error-content ml-2"
+                        <button class="btn btn-ghost btn-sm btn-circle text-error hover:bg-error hover:text-error-content ml-2"
                                 onclick="event.stopPropagation(); openDeleteListModal(${list.id}, '${escapedName}');"
                                 title="Удалить список"
-                                aria-label="Удалить список ${this.escapeHtml(list.name)}">
+                                aria-label="Удалить список ${this.escapeHtml(list.name)}"
+                                style="transform: scale(1.25);">
                             🗑️
                         </button>
                     </div>
