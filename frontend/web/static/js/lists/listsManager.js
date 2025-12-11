@@ -20,6 +20,18 @@ class ListsManager {
         this.selectedItemIds = new Set();
         this.choicesInstances = {}; // Choices.js instances
         this.hierarchyView = null; // HierarchyView instance
+        this.db = null; // IndexedDBManager instance for offline support
+    }
+
+    /**
+     * Check if currently online
+     * Uses offlineManager's network detector if available
+     */
+    get isOnline() {
+        if (window.offlineManager && window.offlineManager.networkDetector) {
+            return window.offlineManager.networkDetector.getStatus() !== 'offline';
+        }
+        return navigator.onLine;
     }
 
     /**
@@ -29,6 +41,15 @@ class ListsManager {
         debugLog('[ListsManager] Initializing...');
 
         try {
+            // Initialize IndexedDB for offline support
+            if (typeof IndexedDBManager !== 'undefined') {
+                this.db = new IndexedDBManager();
+                await this.db.init();
+                debugLog('[ListsManager] IndexedDB initialized for offline support');
+            } else {
+                console.warn('[ListsManager] IndexedDBManager not available, offline mode disabled');
+            }
+
             // Load reference data
             await Promise.all([
                 this.loadStores(),
@@ -120,104 +141,247 @@ class ListsManager {
     }
 
     /**
-     * Load all shopping lists
+     * Load all shopping lists (online or from cache)
      */
     async loadShoppingLists() {
+        const CACHE_KEY = 'shopping_lists';
+        const CACHE_TTL = 86400; // 24 hours
+
         try {
-            const response = await fetch('/api/v1/shopping-lists', {
-                credentials: 'same-origin'
-            });
+            if (this.isOnline) {
+                // Online: fetch from API and cache
+                const response = await fetch('/api/v1/shopping-lists', {
+                    credentials: 'same-origin'
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                this.shoppingLists = data.shopping_lists || [];
+
+                // Cache for offline use
+                if (this.db && this.shoppingLists.length > 0) {
+                    await this.db.setCache(CACHE_KEY, this.shoppingLists, CACHE_TTL);
+                    debugLog('[ListsManager] Cached shopping lists for offline use');
+                }
+
+                debugLog('[ListsManager] Loaded shopping lists from API:', this.shoppingLists.length);
+            } else {
+                // Offline: load from cache
+                if (this.db) {
+                    const cached = await this.db.getCache(CACHE_KEY);
+                    this.shoppingLists = cached || [];
+                    debugLog('[ListsManager] Loaded shopping lists from cache:', this.shoppingLists.length);
+
+                    if (this.shoppingLists.length === 0) {
+                        showToast('Списки недоступны в offline режиме. Посетите страницу online.', 'warning');
+                    }
+                } else {
+                    this.shoppingLists = [];
+                    console.warn('[ListsManager] Offline and no cache available');
+                }
             }
-
-            const data = await response.json();
-            this.shoppingLists = data.shopping_lists || [];
-
-            debugLog('[ListsManager] Loaded shopping lists:', this.shoppingLists.length);
         } catch (error) {
             console.error('[ListsManager] Error loading shopping lists:', error);
-            showToast('Ошибка загрузки списков', 'error');
-            this.shoppingLists = [];
+
+            // Fallback to cache on error
+            if (this.db) {
+                try {
+                    const cached = await this.db.getCache(CACHE_KEY);
+                    this.shoppingLists = cached || [];
+                    debugLog('[ListsManager] Loaded shopping lists from cache (fallback):', this.shoppingLists.length);
+                } catch (cacheError) {
+                    console.error('[ListsManager] Error loading shopping lists from cache:', cacheError);
+                    showToast('Ошибка загрузки списков', 'error');
+                    this.shoppingLists = [];
+                }
+            } else {
+                showToast('Ошибка загрузки списков', 'error');
+                this.shoppingLists = [];
+            }
         }
     }
 
     /**
-     * Load items for specific shopping list
+     * Load items for specific shopping list (online or from cache)
      */
     async loadShoppingListItems(listId) {
+        const CACHE_KEY = `shopping_list_items_${listId}`;
+        const CACHE_TTL = 86400; // 24 hours
+
         try {
-            const response = await fetch(`/api/v1/shopping-list-items?shopping_list_id=${listId}`, {
-                credentials: 'same-origin'
-            });
+            if (this.isOnline) {
+                // Online: fetch from API and cache
+                const response = await fetch(`/api/v1/shopping-list-items?shopping_list_id=${listId}`, {
+                    credentials: 'same-origin'
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                this.currentItems = data.items || [];
+
+                // Cache for offline use
+                if (this.db) {
+                    await this.db.setCache(CACHE_KEY, this.currentItems, CACHE_TTL);
+                    debugLog('[ListsManager] Cached shopping list items for offline use');
+                }
+
+                debugLog('[ListsManager] Loaded items from API:', this.currentItems.length);
+            } else {
+                // Offline: load from cache
+                if (this.db) {
+                    const cached = await this.db.getCache(CACHE_KEY);
+                    this.currentItems = cached || [];
+                    debugLog('[ListsManager] Loaded items from cache:', this.currentItems.length);
+                } else {
+                    this.currentItems = [];
+                    console.warn('[ListsManager] Offline and no cache available');
+                }
             }
-
-            const data = await response.json();
-            this.currentItems = data.items || [];
-            debugLog('[ListsManager] Loaded items:', this.currentItems.length);
 
             // Update progress badge
             this.updateProgressBadge();
+
         } catch (error) {
             console.error('[ListsManager] Error loading items:', error);
-            showToast('Ошибка загрузки товаров', 'error');
-            this.currentItems = [];
+
+            // Fallback to cache on error
+            if (this.db) {
+                try {
+                    const cached = await this.db.getCache(CACHE_KEY);
+                    this.currentItems = cached || [];
+                    debugLog('[ListsManager] Loaded items from cache (fallback):', this.currentItems.length);
+                    this.updateProgressBadge();
+                } catch (cacheError) {
+                    console.error('[ListsManager] Error loading items from cache:', cacheError);
+                    showToast('Ошибка загрузки товаров', 'error');
+                    this.currentItems = [];
+                }
+            } else {
+                showToast('Ошибка загрузки товаров', 'error');
+                this.currentItems = [];
+            }
         }
     }
 
     /**
-     * Load stores
+     * Load stores (online or from cache)
      */
     async loadStores() {
         try {
-            const response = await fetch('/api/v1/stores', {
-                credentials: 'same-origin'
-            });
+            if (this.isOnline) {
+                // Online: fetch from API and cache
+                const response = await fetch('/api/v1/stores', {
+                    credentials: 'same-origin'
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                this.stores = data.stores || [];
+
+                // Cache for offline use
+                if (this.db && this.stores.length > 0) {
+                    await this.db.cacheStores(this.stores);
+                    debugLog('[ListsManager] Cached stores for offline use');
+                }
+
+                debugLog('[ListsManager] Loaded stores from API:', this.stores.length);
+            } else {
+                // Offline: load from cache
+                if (this.db) {
+                    this.stores = await this.db.getCachedStores();
+                    debugLog('[ListsManager] Loaded stores from cache:', this.stores.length);
+                } else {
+                    this.stores = [];
+                    console.warn('[ListsManager] Offline and no cache available');
+                }
             }
-
-            const data = await response.json();
-            this.stores = data.stores || [];
 
             // Populate store selects
             this.populateStoreSelect();
 
-            debugLog('[ListsManager] Loaded stores:', this.stores.length);
         } catch (error) {
             console.error('[ListsManager] Error loading stores:', error);
-            this.stores = [];
+
+            // Fallback to cache on error
+            if (this.db) {
+                try {
+                    this.stores = await this.db.getCachedStores();
+                    debugLog('[ListsManager] Loaded stores from cache (fallback):', this.stores.length);
+                    this.populateStoreSelect();
+                } catch (cacheError) {
+                    console.error('[ListsManager] Error loading stores from cache:', cacheError);
+                    this.stores = [];
+                }
+            } else {
+                this.stores = [];
+            }
         }
     }
 
     /**
-     * Load product groups
+     * Load product groups (online or from cache)
      */
     async loadProductGroups() {
         try {
-            const response = await fetch('/api/v1/product-groups', {
-                credentials: 'same-origin'
-            });
+            if (this.isOnline) {
+                // Online: fetch from API and cache
+                const response = await fetch('/api/v1/product-groups', {
+                    credentials: 'same-origin'
+                });
 
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                this.productGroups = data.product_groups || [];
+
+                // Cache for offline use
+                if (this.db && this.productGroups.length > 0) {
+                    await this.db.cacheProductGroups(this.productGroups);
+                    debugLog('[ListsManager] Cached product groups for offline use');
+                }
+
+                debugLog('[ListsManager] Loaded product groups from API:', this.productGroups.length);
+            } else {
+                // Offline: load from cache
+                if (this.db) {
+                    this.productGroups = await this.db.getCachedProductGroups();
+                    debugLog('[ListsManager] Loaded product groups from cache:', this.productGroups.length);
+                } else {
+                    this.productGroups = [];
+                    console.warn('[ListsManager] Offline and no cache available');
+                }
             }
-
-            const data = await response.json();
-            this.productGroups = data.product_groups || [];
 
             // Populate product group select
             this.populateProductGroupSelect();
 
-            debugLog('[ListsManager] Loaded product groups:', this.productGroups.length);
         } catch (error) {
             console.error('[ListsManager] Error loading product groups:', error);
-            this.productGroups = [];
+
+            // Fallback to cache on error
+            if (this.db) {
+                try {
+                    this.productGroups = await this.db.getCachedProductGroups();
+                    debugLog('[ListsManager] Loaded product groups from cache (fallback):', this.productGroups.length);
+                    this.populateProductGroupSelect();
+                } catch (cacheError) {
+                    console.error('[ListsManager] Error loading product groups from cache:', cacheError);
+                    this.productGroups = [];
+                }
+            } else {
+                this.productGroups = [];
+            }
         }
     }
 
