@@ -32,6 +32,26 @@ const STATIC_CACHE = [
 // Страницы доступные в offline режиме (только эти страницы работают без сети)
 const OFFLINE_PAGES = ['/', '/lists'];
 
+// Критические ресурсы для offline страниц (CSS/JS без версий - ignoreSearch найдёт их)
+// ВАЖНО: Файлы кэшируются БЕЗ query string, но ignoreSearch: true позволяет найти их
+// при запросе с cache busting (?v=...). Добавляйте только файлы, уникальные для страницы.
+// Общие файлы (vendor, shared) уже кэшируются при посещении главной страницы.
+const OFFLINE_PAGE_ASSETS = [
+  // === Страница /lists ===
+  // CSS
+  '/static/css/lists.min.css',
+  // JS - offline support
+  '/static/js/offline/offlineShoppingManager.min.js',
+  // JS - lists functionality
+  '/static/js/lists/csvImporter.min.js',
+  '/static/js/lists/googleSheetsImporter.min.js',
+  '/static/js/lists/importManager.min.js',
+  '/static/js/lists/hierarchyView.min.js',
+  '/static/js/lists/listsManager.min.js',
+  // JS - shared (used by lists)
+  '/shared/static/js/choicesProductGroupTree.min.js'
+];
+
 // Страницы для быстрой загрузки (кэшируем при первом посещении, но требуют сети)
 // Эти страницы кэшируются для ускорения повторной загрузки, но не работают offline
 const CACHE_FIRST_PAGES = ['/api/v1/auth/telegram-login', '/login-email', '/register'];
@@ -39,7 +59,7 @@ const CACHE_FIRST_PAGES = ['/api/v1/auth/telegram-login', '/login-email', '/regi
 // Файлы с cache busting - кешируются RUNTIME (не в install event)
 // Service Worker будет кешировать их при первом запросе
 
-// Install event - кешируем критическую статику
+// Install event - кешируем критическую статику и ресурсы offline страниц
 self.addEventListener('install', (event) => {
   if (DEBUG) console.log('[SW] Installing version:', CACHE_VERSION);
 
@@ -57,6 +77,30 @@ self.addEventListener('install', (event) => {
             })
           )
         );
+      })
+      .then(() => {
+        // Кэшируем ресурсы для offline страниц (CSS/JS)
+        // ВАЖНО: Кэшируем БЕЗ credentials т.к. это публичная статика
+        if (DEBUG) console.log('[SW] Caching offline page assets');
+        return caches.open(CACHE_NAME).then((cache) => {
+          return Promise.allSettled(
+            OFFLINE_PAGE_ASSETS.map(url =>
+              fetch(url, { credentials: 'omit' })
+                .then(response => {
+                  if (response.ok) {
+                    return cache.put(url, response);
+                  }
+                  if (DEBUG) console.warn('[SW] Asset not found:', url);
+                  return null;
+                })
+                .catch(err => {
+                  // Подавляем ошибки - файл может закэшироваться позже
+                  if (DEBUG) console.warn('[SW] Failed to cache asset:', url, err.message);
+                  return null;
+                })
+            )
+          );
+        });
       })
       .then(() => {
         if (DEBUG) console.log('[SW] Skip waiting');
