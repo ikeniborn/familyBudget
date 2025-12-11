@@ -210,8 +210,8 @@ function renderStoresTable() {
 
     filteredStores.forEach((store, index) => {
         const statusBadge = store.is_active
-            ? '<span class="badge badge-success badge-sm">✓ Активный</span>'
-            : '<span class="badge badge-ghost badge-sm">📦 Архивный</span>';
+            ? '<span class="badge badge-success badge-sm">✓</span>'
+            : '<span class="badge badge-ghost badge-sm">📦</span>';
 
         const actions = store.is_active
             ? `
