@@ -1587,8 +1587,10 @@ class CalendarWidget {
 
 class ChoicesCategoryTree {
     // Static cache to avoid duplicate API calls across instances
-    static _cache = new Map();  // key: "type:showInactive" -> { data: [], timestamp: Date }
-    static _pendingRequests = new Map();  // key: "type:showInactive" -> Promise
+    // key: "type:showInactive:fcPart" -> { data: [], timestamp: Date }
+    // fcPart is financial_center_id or "all" for unfiltered
+    static _cache = new Map();
+    static _pendingRequests = new Map();  // key: "type:showInactive:fcPart" -> Promise
 
     /**
      * Preload categories for offline use.
@@ -1607,7 +1609,7 @@ class ChoicesCategoryTree {
         // Preload all 4 types: expense/income for transactions, debit/credit for transfers
         const types = ['expense', 'income', 'debit', 'credit'];
 
-        // Preload all types in parallel
+        // Preload both types in parallel
         const preloadPromises = types.map(async (type) => {
             // IMPORTANT: Use "all" as FC part to match loadCategories() cache key
             // loadCategories uses: `${type}:${showInactive}:${fcPart}` where fcPart defaults to "all"
@@ -1801,14 +1803,16 @@ class ChoicesCategoryTree {
                 return staleCache.data;
             }
 
-            // Fallback: if specific FC cache not found, try "all" cache (from preload)
-            // This handles the case when user is offline and selects a different FC
-            if (fcPart !== 'all') {
-                const fallbackCacheKey = `${this.options.type}:${this.options.showInactive}:all`;
-                const fallbackCache = ChoicesCategoryTree._cache.get(fallbackCacheKey);
-                if (fallbackCache && fallbackCache.data && fallbackCache.data.length > 0) {
-                    debugLog('[ChoicesCategoryTree] Using fallback "all" cache for offline mode (FC filter not available offline)');
-                    return fallbackCache.data;
+            // Fallback 1: If specific FC cache not found, try "all" categories cache
+            // This allows offline mode to work even if user changes FC filter
+            if (this.options.financialCenterId) {
+                const allCacheKey = `${this.options.type}:${this.options.showInactive}:all`;
+                const allCache = ChoicesCategoryTree._cache.get(allCacheKey);
+                if (allCache && allCache.data && allCache.data.length > 0) {
+                    debugLog(`[ChoicesCategoryTree] Offline: No cache for FC ${this.options.financialCenterId}, using all categories`);
+                    // Note: This returns all categories, not filtered by FC
+                    // User can still select categories, filtering will apply when back online
+                    return allCache.data;
                 }
             }
 
@@ -2148,7 +2152,8 @@ class ChoicesCategoryTree {
 
     /**
      * Update financial center ID for category filtering.
-     * Invalidates cache and reloads categories (online) or uses cached data (offline).
+     * Invalidates specific FC cache and reloads categories.
+     * In offline mode, falls back to "all" categories cache.
      *
      * @param {number|null} financialCenterId - Financial center ID (null = show all)
      */
@@ -2156,58 +2161,11 @@ class ChoicesCategoryTree {
         // Update option
         this.options.financialCenterId = financialCenterId;
 
-        // Check if we're offline - if so, use cached data without invalidation
-        const isOffline = !navigator.onLine ||
-            (window.offlineManager && !window.offlineManager.isOnline);
-
-        if (isOffline) {
-            debugLog('[ChoicesCategoryTree] Offline mode - using cached categories for FC update');
-
-            // Try to use cached data with "all" FC key (from preload)
-            const fallbackCacheKey = `${this.options.type}:${this.options.showInactive}:all`;
-            const cached = ChoicesCategoryTree._cache.get(fallbackCacheKey);
-
-            if (cached && cached.data && cached.data.length > 0) {
-                this.categories = cached.data;
-                this.buildHierarchyMaps();
-
-                const displayCategories = this.options.showLeafOnly
-                    ? this.getLeafCategories()
-                    : this.categories;
-
-                if (this.choices) {
-                    this.choices.clearStore();
-                    const choices = displayCategories.map(cat => {
-                        const parentChain = this.getParentChain(cat.id);
-                        const parentText = parentChain.length > 0
-                            ? parentChain.map(p => p.name).join(' › ')
-                            : '';
-                        return {
-                            value: cat.id,
-                            label: cat.name,
-                            customProperties: {
-                                usage_count: cat.usage_count || 0,
-                                parent_id: cat.parent_id,
-                                parent_text: parentText,
-                            }
-                        };
-                    });
-                    this.choices.setChoices(choices, 'value', 'label', true);
-                    debugLog(`[ChoicesCategoryTree] Offline: using cached categories (${choices.length} items)`);
-                }
-                return;
-            } else {
-                console.warn('[ChoicesCategoryTree] Offline mode but no cached categories available');
-                return;
-            }
-        }
-
-        // Online mode: invalidate cache and reload
-        const cacheKeyPrefix = `${this.options.type}:${this.options.showInactive}`;
-        for (const key of ChoicesCategoryTree._cache.keys()) {
-            if (key.startsWith(cacheKeyPrefix)) {
-                ChoicesCategoryTree._cache.delete(key);
-            }
+        // Only invalidate the specific FC cache, NOT the "all" cache
+        // This preserves the "all" cache for offline fallback
+        if (financialCenterId) {
+            const specificCacheKey = `${this.options.type}:${this.options.showInactive}:${financialCenterId}`;
+            ChoicesCategoryTree._cache.delete(specificCacheKey);
         }
 
         // Reset selection
@@ -2216,7 +2174,7 @@ class ChoicesCategoryTree {
         }
 
         try {
-            // Load new categories from API
+            // Load new categories from API (with offline fallback)
             await this.loadCategories();
 
             // Build hierarchy maps
@@ -2258,6 +2216,11 @@ class ChoicesCategoryTree {
                     debugLog(`[ChoicesCategoryTree] Filtered to FC ${financialCenterId}: ${choices.length} categories`);
                 } else {
                     debugLog(`[ChoicesCategoryTree] Showing all categories: ${choices.length}`);
+                }
+
+                // Warn if using fallback data (all categories) due to offline
+                if (choices.length === 0 && !navigator.onLine) {
+                    console.warn(`[ChoicesCategoryTree] Offline: No categories available for FC ${financialCenterId}`);
                 }
             }
         } catch (error) {

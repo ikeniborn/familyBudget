@@ -488,7 +488,7 @@ async function updateProductGroup(event) {
 // Archive product group
 async function archiveProductGroup(groupId) {
     const group = productGroupsData.find(g => g.id === groupId);
-    const confirmed = await confirmDialog(
+    const confirmed = await showConfirmDialog(
         'Архивировать группу товаров?',
         `Вы уверены, что хотите архивировать "${group.name}"?\n\nАрхивная группа будет скрыта из выпадающих списков, но данные сохранятся.`
     );
@@ -517,7 +517,7 @@ async function archiveProductGroup(groupId) {
 // Restore product group
 async function restoreProductGroup(groupId) {
     const group = productGroupsData.find(g => g.id === groupId);
-    const confirmed = await confirmDialog(
+    const confirmed = await showConfirmDialog(
         'Восстановить группу товаров?',
         `Вы уверены, что хотите восстановить "${group.name}"?`
     );
@@ -546,7 +546,7 @@ async function restoreProductGroup(groupId) {
 // Delete product group
 async function deleteProductGroup(groupId) {
     const group = productGroupsData.find(g => g.id === groupId);
-    const confirmed = await confirmDialog(
+    const confirmed = await showConfirmDialog(
         'Удалить группу товаров?',
         `⚠️ ВНИМАНИЕ: Вы уверены, что хотите УДАЛИТЬ "${group.name}"?\n\nЭто действие НЕОБРАТИМО и удалит все связанные данные:\n• Все дочерние группы\n• Все товары в списках покупок для этой группы\n\nРекомендуется использовать архивирование вместо удаления.`
     );

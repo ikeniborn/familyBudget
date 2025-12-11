@@ -390,7 +390,7 @@ async function updateStore(event) {
 // Archive store
 async function archiveStore(storeId) {
     const store = storesData.find(s => s.id === storeId);
-    const confirmed = await confirmDialog(
+    const confirmed = await showConfirmDialog(
         'Архивировать магазин?',
         `Вы уверены, что хотите архивировать "${store.name}"?\n\nАрхивный магазин будет скрыт из выпадающих списков, но данные сохранятся.`
     );
@@ -419,7 +419,7 @@ async function archiveStore(storeId) {
 // Restore store
 async function restoreStore(storeId) {
     const store = storesData.find(s => s.id === storeId);
-    const confirmed = await confirmDialog(
+    const confirmed = await showConfirmDialog(
         'Восстановить магазин?',
         `Вы уверены, что хотите восстановить "${store.name}"?`
     );
@@ -448,7 +448,7 @@ async function restoreStore(storeId) {
 // Delete store
 async function deleteStore(storeId) {
     const store = storesData.find(s => s.id === storeId);
-    const confirmed = await confirmDialog(
+    const confirmed = await showConfirmDialog(
         'Удалить магазин?',
         `⚠️ ВНИМАНИЕ: Вы уверены, что хотите УДАЛИТЬ "${store.name}"?\n\nЭто действие НЕОБРАТИМО и удалит все связанные данные:\n• Все товары в списках покупок для этого магазина\n\nРекомендуется использовать архивирование вместо удаления.`
     );

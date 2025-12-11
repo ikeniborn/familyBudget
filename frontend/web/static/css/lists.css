@@ -602,7 +602,7 @@
 
     .table tbody tr {
         display: grid;
-        grid-template-columns: auto 1fr auto;
+        grid-template-columns: auto 1fr auto auto;
         grid-template-rows: auto auto;
         gap: 0.25rem 0.5rem;
         margin-bottom: 0.75rem;
@@ -612,7 +612,7 @@
         align-items: center;
     }
 
-    /* Checkbox column - spans 2 rows */
+    /* Selection checkbox - spans 2 rows, col 1 */
     .table tbody tr td:nth-child(1) {
         grid-row: 1 / 3;
         grid-column: 1;
@@ -620,17 +620,8 @@
         border-bottom: none;
     }
 
-    /* Completed checkbox - row 1, col 1 (after selection checkbox) */
-    .table tbody tr td:nth-child(2) {
-        grid-row: 1;
-        grid-column: 1;
-        padding: 0;
-        border-bottom: none;
-        display: none; /* Hide on mobile - use swipe or long-press */
-    }
-
-    /* Product name - prominent on row 1 */
-    .table tbody tr td:nth-child(5) {
+    /* Product name (col 4) - prominent on row 1 */
+    .table tbody tr td:nth-child(4) {
         grid-row: 1;
         grid-column: 2;
         font-weight: 600;
@@ -639,39 +630,39 @@
         border-bottom: none;
     }
 
-    /* Store + Group + Quantity - compact row 2 */
-    .table tbody tr td:nth-child(3),
-    .table tbody tr td:nth-child(4),
-    .table tbody tr td:nth-child(6),
-    .table tbody tr td:nth-child(7) {
+    /* Store (col 2) - compact row 2 */
+    .table tbody tr td:nth-child(2) {
         grid-row: 2;
+        grid-column: 2;
         padding: 0;
         border-bottom: none;
         font-size: 0.75rem;
         color: var(--fallback-bc, oklch(var(--bc) / 0.6));
     }
 
-    /* Store */
-    .table tbody tr td:nth-child(3) {
-        grid-column: 2;
-    }
-
-    /* Hide Group, Quantity, Unit separately - combine in one line */
-    .table tbody tr td:nth-child(4),
+    /* Hide Group, Quantity, Unit, Comment on mobile */
+    .table tbody tr td:nth-child(3),
+    .table tbody tr td:nth-child(5),
     .table tbody tr td:nth-child(6),
     .table tbody tr td:nth-child(7) {
         display: none;
     }
 
-    /* Comment - hidden on mobile, show on tap */
+    /* Completed checkbox (col 8) - row 1-2, col 3 */
     .table tbody tr td:nth-child(8) {
-        display: none;
-    }
-
-    /* Actions - row 1-2, col 3 */
-    .table tbody tr td:nth-child(9) {
         grid-row: 1 / 3;
         grid-column: 3;
+        padding: 0;
+        border-bottom: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Actions (col 9) - row 1-2, col 4 */
+    .table tbody tr td:nth-child(9) {
+        grid-row: 1 / 3;
+        grid-column: 4;
         padding: 0;
         border-bottom: none;
     }

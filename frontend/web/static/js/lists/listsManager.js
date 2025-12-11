@@ -268,6 +268,26 @@ class ListsManager {
     }
 
     /**
+     * Get full breadcrumbs path for a product group
+     * Returns: "Root → Parent → Child"
+     */
+    getProductGroupBreadcrumbs(groupId) {
+        const groupMap = {};
+        this.productGroups.forEach(group => {
+            groupMap[group.id] = group;
+        });
+
+        const path = [];
+        let currentId = groupId;
+        while (currentId && groupMap[currentId]) {
+            path.unshift(groupMap[currentId].name);
+            currentId = groupMap[currentId].parent_id;
+        }
+
+        return path.join(' → ');
+    }
+
+    /**
      * Render items table
      */
     renderItemsTable() {
@@ -286,30 +306,30 @@ class ListsManager {
 
         tbody.innerHTML = this.currentItems.map(item => {
             const store = this.stores.find(s => s.id === item.store_id);
-            const productGroup = this.productGroups.find(pg => pg.id === item.product_group_id);
+            const groupPath = this.getProductGroupBreadcrumbs(item.product_group_id);
             const isCompleted = item.is_completed;
             const isSelected = this.selectedItemIds.has(item.id);
 
             return `
                 <tr class="${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
-                    <td>
+                    <td class="px-1">
                         <input type="checkbox"
-                               class="checkbox"
+                               class="checkbox checkbox-xs"
                                ${isSelected ? 'checked' : ''}
                                onchange="window.listsManager.toggleItemSelection(${item.id}, this.checked)">
                     </td>
-                    <td>
-                        <input type="checkbox"
-                               class="checkbox"
-                               ${isCompleted ? 'checked' : ''}
-                               onchange="window.listsManager.toggleItemCompleted(${item.id}, this.checked)">
-                    </td>
                     <td data-label="Магазин">${store ? this.escapeHtml(store.name) : 'N/A'}</td>
-                    <td data-label="Группа">${productGroup ? this.escapeHtml(productGroup.name) : 'N/A'}</td>
+                    <td data-label="Группа" class="text-xs">${groupPath ? this.escapeHtml(groupPath) : 'N/A'}</td>
                     <td data-label="Товар">${this.escapeHtml(item.product_name)}</td>
                     <td data-label="Кол-во" class="text-right">${item.quantity !== null ? item.quantity : '—'}</td>
                     <td data-label="Ед.">${item.unit ? this.escapeHtml(item.unit) : '—'}</td>
                     <td data-label="Комментарий" class="truncate-1-line">${item.comment ? this.escapeHtml(item.comment) : '—'}</td>
+                    <td class="px-1 text-center">
+                        <input type="checkbox"
+                               class="checkbox checkbox-xs"
+                               ${isCompleted ? 'checked' : ''}
+                               onchange="window.listsManager.toggleItemCompleted(${item.id}, this.checked)">
+                    </td>
                     <td data-label="Действия" class="text-center">
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-square btn-ghost"
@@ -369,8 +389,8 @@ class ListsManager {
 
     /**
      * Populate product group select dropdown
-     * Shows only leaf groups with full path in parentheses
-     * Example: "Кислое (Молочные → Кислое)"
+     * Shows only leaf groups with parent path in parentheses
+     * Example: "Кислое (Молочные)" - parents only, smaller gray text
      */
     populateProductGroupSelect() {
         const select = document.getElementById('item-product-group');
@@ -399,10 +419,10 @@ class ListsManager {
         // Sort leaves alphabetically
         leafGroups.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
 
-        // Helper to get breadcrumbs path
-        const getBreadcrumbs = (groupId) => {
+        // Helper to get parent breadcrumbs path (ancestors only, not including the item itself)
+        const getParentBreadcrumbs = (groupId) => {
             const path = [];
-            let currentId = groupId;
+            let currentId = groupMap[groupId]?.parent_id;
             while (currentId && groupMap[currentId]) {
                 path.unshift(groupMap[currentId]);
                 currentId = groupMap[currentId].parent_id;
@@ -410,25 +430,26 @@ class ListsManager {
             return path;
         };
 
-        // Add product group options - only leaves with full path
+        // Add product group options - only leaves with parent path
         leafGroups
             .filter(pg => pg.is_active)
             .forEach(pg => {
                 const option = document.createElement('option');
                 option.value = pg.id;
 
-                // Get breadcrumbs path
-                const breadcrumbs = getBreadcrumbs(pg.id);
+                // Get parents path (excludes the element itself)
+                const parents = getParentBreadcrumbs(pg.id);
 
-                // Format: "Name (Path → To → Name)" or just "Name" if root
+                // Format: "Name (Parent → Parent)" or just "Name" if no parents
+                // Parents shown in smaller gray text
                 let label = this.escapeHtml(pg.name);
-                if (breadcrumbs.length > 1) {
-                    const pathStr = breadcrumbs.map(g => this.escapeHtml(g.name)).join(' → ');
-                    label = `${this.escapeHtml(pg.name)} (${pathStr})`;
+                if (parents.length > 0) {
+                    const parentsStr = parents.map(g => this.escapeHtml(g.name)).join(' → ');
+                    label = `${this.escapeHtml(pg.name)} <span class="product-group-parents">(${parentsStr})</span>`;
                 }
 
                 option.innerHTML = label;
-                option.dataset.path = breadcrumbs.map(g => g.name).join(' → ');
+                option.dataset.path = parents.map(g => g.name).join(' → ');
                 select.appendChild(option);
             });
     }
@@ -494,19 +515,20 @@ class ListsManager {
 
     /**
      * Toggle select all items
+     * If all items are selected - deselect all
+     * Otherwise - select all
      */
     toggleSelectAll() {
-        const headerCheckbox = document.getElementById('header-checkbox');
-        const isChecked = headerCheckbox.checked;
+        const allSelected = this.selectedItemIds.size === this.currentItems.length && this.currentItems.length > 0;
 
-        if (isChecked) {
+        if (allSelected) {
+            // Deselect all
+            this.selectedItemIds.clear();
+        } else {
             // Select all
             this.currentItems.forEach(item => {
                 this.selectedItemIds.add(item.id);
             });
-        } else {
-            // Deselect all
-            this.selectedItemIds.clear();
         }
 
         this.renderItemsTable();
@@ -533,7 +555,6 @@ class ListsManager {
     updateSelectionUI() {
         const deleteBtn = document.getElementById('delete-selected-btn');
         const selectAllBtn = document.getElementById('select-all-btn');
-        const headerCheckbox = document.getElementById('header-checkbox');
 
         // Update delete button state - preserve mobile-friendly structure
         if (this.selectedItemIds.size > 0) {
@@ -562,12 +583,10 @@ class ListsManager {
         const selectAllIconSpan = selectAllBtn.querySelector('span:first-child');
         if (this.selectedItemIds.size === this.currentItems.length && this.currentItems.length > 0) {
             if (selectAllIconSpan) selectAllIconSpan.textContent = '☐';
-            if (selectAllTextSpan) selectAllTextSpan.textContent = 'Снять';
-            headerCheckbox.checked = true;
+            if (selectAllTextSpan) selectAllTextSpan.textContent = 'Снять выделение';
         } else {
             if (selectAllIconSpan) selectAllIconSpan.textContent = '☑️';
-            if (selectAllTextSpan) selectAllTextSpan.textContent = 'Все';
-            headerCheckbox.checked = false;
+            if (selectAllTextSpan) selectAllTextSpan.textContent = 'Выделить все';
         }
     }
 
@@ -595,16 +614,24 @@ class ListsManager {
                 item.is_completed = isCompleted;
             }
 
-            // Re-render
-            this.renderItemsTable();
+            // Re-render based on current view
+            if (this.currentView === 'hierarchy' && this.hierarchyView) {
+                this.hierarchyView.render();
+            } else {
+                this.renderItemsTable();
+            }
             this.updateProgressBadge();
 
             showToast(isCompleted ? 'Товар отмечен как выполненный' : 'Отметка снята', 'success');
         } catch (error) {
             console.error('[ListsManager] Error toggling item completed:', error);
             showToast('Ошибка обновления статуса', 'error');
-            // Revert checkbox
-            this.renderItemsTable();
+            // Revert view
+            if (this.currentView === 'hierarchy' && this.hierarchyView) {
+                this.hierarchyView.render();
+            } else {
+                this.renderItemsTable();
+            }
         }
     }
 

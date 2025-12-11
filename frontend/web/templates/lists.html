@@ -22,7 +22,7 @@
                     <h1 class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2">🛒 Списки покупок</h1>
                     <p class="text-sm sm:text-base text-base-content/70">Управляйте списками покупок</p>
                 </div>
-                <button class="btn btn-sm sm:btn-md btn-success w-full sm:w-auto" onclick="openCreateListModal()" title="Создать новый список">
+                <button class="btn btn-sm sm:btn-md btn-success w-full sm:w-auto h-8" onclick="openCreateListModal()" title="Создать новый список">
                     <span>➕</span><span class="ml-1">Новый список</span>
                 </button>
             </div>
@@ -68,7 +68,7 @@
                 </div>
                 <div class="flex flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
                     <button class="btn btn-sm btn-outline flex-1 sm:flex-initial" onclick="showLandingView()">
-                        <span>←</span><span class="hidden xs:inline ml-1">Назад</span>
+                        <span>⬅️</span><span class="hidden sm:inline ml-1">Назад</span>
                     </button>
                     <button class="btn btn-sm btn-success flex-1 sm:flex-initial" onclick="openAddItemModal()" title="Добавить товар">
                         <span>➕</span><span class="ml-1">Добавить</span>
@@ -100,8 +100,8 @@
         <div class="toolbar">
             <!-- Batch Actions (Table View Only) -->
             <div class="flex gap-1 sm:gap-2" id="table-controls">
-                <button class="btn btn-sm btn-outline" onclick="toggleSelectAll()" id="select-all-btn" title="Выбрать все">
-                    <span>☑️</span><span class="hidden sm:inline ml-1">Все</span>
+                <button class="btn btn-sm btn-outline" onclick="toggleSelectAll()" id="select-all-btn" title="Выделить все">
+                    <span>☑️</span><span class="hidden sm:inline ml-1">Выделить все</span>
                 </button>
                 <button class="btn btn-sm btn-outline" onclick="selectCompleted()" title="Выбрать выполненные">
                     <span>✅</span><span class="hidden sm:inline ml-1">Готово</span>
@@ -141,16 +141,14 @@
                 <table class="table table-zebra w-full">
                     <thead>
                         <tr>
-                            <th class="w-12">
-                                <input type="checkbox" class="checkbox" id="header-checkbox" onchange="toggleSelectAll()">
-                            </th>
-                            <th class="w-12">✅</th>
+                            <th class="w-8 px-1"></th>
                             <th>🏪 Магазин</th>
                             <th>📦 Группа</th>
                             <th>🛒 Товар</th>
                             <th class="text-right">📊 Кол-во</th>
                             <th>📏 Ед.</th>
                             <th>💬 Комментарий</th>
+                            <th class="w-10 px-1 text-center">✅</th>
                             <th class="text-center">⚙️</th>
                         </tr>
                     </thead>
@@ -231,28 +229,26 @@
                 <input type="text" name="product_name" id="item-product-name" class="input input-bordered input-sm sm:input-md" placeholder="Молоко 3.2%" required>
             </div>
 
-            <div class="grid grid-cols-2 gap-2 sm:gap-4 mb-2 sm:mb-4">
-                <!-- Store -->
-                <div class="form-control">
-                    <label class="label py-1">
-                        <span class="label-text font-medium text-xs sm:text-sm">🏪 Магазин <span class="text-error">*</span></span>
-                    </label>
-                    <select name="store_id" id="item-store" class="select select-bordered select-sm sm:select-md" required>
-                        <option value="">Магазин</option>
-                        <!-- Options populated dynamically -->
-                    </select>
-                </div>
+            <!-- Store -->
+            <div class="form-control mb-2 sm:mb-4">
+                <label class="label py-1">
+                    <span class="label-text font-medium text-xs sm:text-sm">🏪 Магазин <span class="text-error">*</span></span>
+                </label>
+                <select name="store_id" id="item-store" class="select select-bordered select-sm sm:select-md" required>
+                    <option value="">Магазин</option>
+                    <!-- Options populated dynamically -->
+                </select>
+            </div>
 
-                <!-- Product Group -->
-                <div class="form-control">
-                    <label class="label py-1">
-                        <span class="label-text font-medium text-xs sm:text-sm">📦 Группа <span class="text-error">*</span></span>
-                    </label>
-                    <select name="product_group_id" id="item-product-group" class="select select-bordered select-sm sm:select-md" required>
-                        <option value="">Группа</option>
-                        <!-- Options populated dynamically with hierarchy -->
-                    </select>
-                </div>
+            <!-- Product Group -->
+            <div class="form-control mb-2 sm:mb-4">
+                <label class="label py-1">
+                    <span class="label-text font-medium text-xs sm:text-sm">📦 Группа <span class="text-error">*</span></span>
+                </label>
+                <select name="product_group_id" id="item-product-group" class="select select-bordered select-sm sm:select-md" required>
+                    <option value="">Группа</option>
+                    <!-- Options populated dynamically with hierarchy -->
+                </select>
             </div>
 
             <div class="grid grid-cols-2 gap-2 sm:gap-4 mb-2 sm:mb-4">
@@ -261,7 +257,7 @@
                     <label class="label py-1">
                         <span class="label-text font-medium text-xs sm:text-sm">📊 Кол-во</span>
                     </label>
-                    <input type="number" name="quantity" id="item-quantity" class="input input-bordered input-sm sm:input-md" step="0.01" placeholder="1">
+                    <input type="number" name="quantity" id="item-quantity" class="input input-bordered input-sm sm:input-md" step="0.1" placeholder="1">
                 </div>
 
                 <!-- Unit -->
