@@ -162,10 +162,10 @@ class GenericCSVParser:
     @staticmethod
     def _parse_date(date_str: str, date_format: Optional[str] = None) -> Optional[datetime.date]:
         """
-        Parse date from string using specified format or auto-detect.
+        Parse date from string using specified format with fallback to auto-detect.
 
-        If date_format is provided, uses only that format.
-        Otherwise, tries multiple common formats.
+        If date_format is provided, tries that format first.
+        If it fails, falls back to auto-detect with multiple common formats.
 
         Supported auto-detect formats:
         - DD.MM.YYYY HH:MM:SS (Tinkoff)
@@ -178,8 +178,8 @@ class GenericCSVParser:
 
         Args:
             date_str: Date string from CSV
-            date_format: Specific strptime format to use (e.g., '%m/%d/%Y %H:%M:%S').
-                        If None, auto-detect from multiple formats.
+            date_format: Specific strptime format to try first (e.g., '%m/%d/%Y %H:%M:%S').
+                        If parsing fails, falls back to auto-detect.
 
         Returns:
             datetime.date or None if parsing fails
@@ -191,19 +191,21 @@ class GenericCSVParser:
             >>> GenericCSVParser._parse_date("20.11.2025 10:30:00")
             datetime.date(2025, 11, 20)
 
+            >>> GenericCSVParser._parse_date("01.01.2026", "%d.%m.%Y %H:%M:%S")  # Fallback
+            datetime.date(2026, 1, 1)
+
             >>> GenericCSVParser._parse_date("invalid")
             None
         """
-        # If specific format provided, use only that
-        if date_format:
-            try:
-                dt = datetime.strptime(date_str.strip(), date_format)
-                return dt.date()
-            except ValueError:
-                return None
+        # Build list of formats to try
+        date_formats = []
 
-        # Auto-detect: try multiple formats
-        date_formats = [
+        # If specific format provided, try it first
+        if date_format:
+            date_formats.append(date_format)
+
+        # Then try common formats (auto-detect)
+        date_formats.extend([
             "%d.%m.%Y %H:%M:%S",  # Tinkoff: 20.11.2025 10:30:00
             "%d.%m.%Y",           # Common: 20.11.2025
             "%Y-%m-%d",           # ISO: 2025-11-20
@@ -211,7 +213,7 @@ class GenericCSVParser:
             "%m/%d/%Y %H:%M:%S",  # US with time: 7/4/2025 0:00:00
             "%m/%d/%Y",           # US: 7/4/2025 (month/day)
             "%Y.%m.%d",           # Alternative: 2025.11.20
-        ]
+        ])
 
         for fmt in date_formats:
             try:
