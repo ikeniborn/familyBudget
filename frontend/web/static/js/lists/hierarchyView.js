@@ -168,7 +168,7 @@ class HierarchyView {
                         ${isExpanded ? '▼' : '▶'}
                     </span>
                     <span class="hierarchy-store-icon">🏪</span>
-                    <span class="hierarchy-store-name">${this.escapeHtml(store.name)}</span>
+                    <span class="hierarchy-store-name hierarchy-clickable" onclick="window.hierarchyView.toggleNode('${storeNodeId}')">${this.escapeHtml(store.name)}</span>
                     <span class="hierarchy-store-badge">${counts.completed}/${counts.total}</span>
                 </div>
             `;
@@ -220,7 +220,7 @@ class HierarchyView {
                         </span>
                     ` : '<span class="hierarchy-toggle-placeholder"></span>'}
                     <span class="hierarchy-group-icon">📦</span>
-                    <span class="hierarchy-group-name">${this.escapeHtml(productGroup.name)}</span>
+                    <span class="hierarchy-group-name ${hasNestedContent ? 'hierarchy-clickable' : ''}" ${hasNestedContent ? `onclick="window.hierarchyView.toggleNode('${pgNodeId}')"` : ''}>${this.escapeHtml(productGroup.name)}</span>
                     <span class="hierarchy-group-badge">${totalCompletedCount}/${totalItemCount}</span>
                 </div>
             `;

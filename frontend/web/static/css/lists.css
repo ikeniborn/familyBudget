@@ -389,6 +389,16 @@
     flex-shrink: 0;
 }
 
+/* ---- Clickable Headers (Store/Group Names) ---- */
+.hierarchy-clickable {
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.hierarchy-clickable:hover {
+    color: var(--fallback-p, oklch(var(--p)));
+}
+
 /* ---- Items List (Compact, Left-aligned) ---- */
 .hierarchy-items-list {
     padding: 0.25rem 0;
