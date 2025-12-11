@@ -88,13 +88,13 @@ async def admin_users(
 @web_router.get("/admin/articles", response_class=HTMLResponse)
 async def admin_articles(
     request: Request,
-    current_admin: CurrentAdmin
+    current_user: CurrentUser
 ):
     """
-    Admin articles management page (admin only).
+    Articles management page (all authenticated users).
 
-    Provides interface for managing income/expense categories
-    with hierarchical tree structure.
+    Provides interface for viewing income/expense categories
+    with hierarchical tree structure. Admin users can create/edit/delete.
     """
     from backend.app.main import templates
 
@@ -102,8 +102,8 @@ async def admin_articles(
         "admin_articles.html",
         {
             "request": request,
-            "user": current_admin,
-            "page_title": "Articles Management"
+            "user": current_user,
+            "page_title": "Категории"
         }
     )
 
@@ -214,10 +214,10 @@ async def admin_dashboard(
 @web_router.get("/admin/financial-centers", response_class=HTMLResponse)
 async def admin_financial_centers(
     request: Request,
-    current_admin: CurrentAdmin
+    current_user: CurrentUser
 ):
     """
-    Admin financial centers management page (admin only).
+    Financial centers management page (all authenticated users).
 
     Provides interface for managing financial centers (ЦФО):
     - Bank accounts
@@ -233,8 +233,8 @@ async def admin_financial_centers(
         "admin_financial_centers.html",
         {
             "request": request,
-            "user": current_admin,
-            "page_title": "Financial Centers Management"
+            "user": current_user,
+            "page_title": "ЦФО"
         }
     )
 
@@ -242,10 +242,10 @@ async def admin_financial_centers(
 @web_router.get("/admin/cost-centers", response_class=HTMLResponse)
 async def admin_cost_centers(
     request: Request,
-    current_admin: CurrentAdmin
+    current_user: CurrentUser
 ):
     """
-    Admin cost centers management page (admin only).
+    Cost centers management page (all authenticated users).
 
     Provides interface for managing cost centers (МВЗ):
     - Projects
@@ -261,8 +261,8 @@ async def admin_cost_centers(
         "admin_cost_centers.html",
         {
             "request": request,
-            "user": current_admin,
-            "page_title": "Cost Centers Management"
+            "user": current_user,
+            "page_title": "МВЗ"
         }
     )
 
@@ -270,10 +270,10 @@ async def admin_cost_centers(
 @web_router.get("/admin/stores", response_class=HTMLResponse)
 async def admin_stores(
     request: Request,
-    current_admin: CurrentAdmin
+    current_user: CurrentUser
 ):
     """
-    Admin stores management page (admin only).
+    Stores management page (all authenticated users).
 
     Provides interface for managing stores (shopping locations):
     - Create/edit/delete stores
@@ -289,8 +289,8 @@ async def admin_stores(
         "admin_stores.html",
         {
             "request": request,
-            "user": current_admin,
-            "page_title": "Stores Management"
+            "user": current_user,
+            "page_title": "Магазины"
         }
     )
 
@@ -298,10 +298,10 @@ async def admin_stores(
 @web_router.get("/admin/product-groups", response_class=HTMLResponse)
 async def admin_product_groups(
     request: Request,
-    current_admin: CurrentAdmin
+    current_user: CurrentUser
 ):
     """
-    Admin product groups management page (admin only).
+    Product groups management page (all authenticated users).
 
     Provides interface for managing hierarchical product categories:
     - Tree editor (similar to Articles)
@@ -321,8 +321,8 @@ async def admin_product_groups(
         "admin_product_groups.html",
         {
             "request": request,
-            "user": current_admin,
-            "page_title": "Product Groups Management"
+            "user": current_user,
+            "page_title": "Группы товаров"
         }
     )
 

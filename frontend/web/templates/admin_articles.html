@@ -15,12 +15,14 @@
                 <div class="flex flex-col gap-3 mb-3">
                     <div class="flex justify-between items-center">
                         <h2 class="card-title text-2xl">📊 Категории</h2>
+                        {% if user.is_admin %}
                         <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
                             Новая категория
                         </button>
+                        {% endif %}
                     </div>
                     <div class="flex flex-wrap gap-2 items-center">
                         <select id="filter-type" class="select select-bordered" onchange="toggleTypeFilter(this.value)">
@@ -54,6 +56,7 @@
     </div>
 </div>
 
+{% if user.is_admin %}
 <!-- Create Article Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
@@ -172,6 +175,7 @@
         <button>close</button>
     </form>
 </dialog>
+{% endif %}
 
 <!-- Custom Confirmation Dialog -->
 <dialog id="confirm-modal" class="modal">
@@ -191,6 +195,9 @@
 
 {% block extra_scripts %}
 <script>
+// Check if current user is admin
+const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+
 // Global state
 let currentType = 'all';
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
@@ -386,7 +393,7 @@ function renderArticlesTable(articles) {
                         <th>🏦 ЦФО</th>
                         <th>🔢 Код</th>
                         <th>👤 Владелец</th>
-                        <th>⚙️ Действия</th>
+                        ${isAdmin ? '<th>⚙️ Действия</th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -484,17 +491,21 @@ function renderTreeNodes(nodes, level) {
             : '';
 
         // Action buttons (icon-only) - show Archive or Restore depending on is_active status
-        const actionButtons = node.is_active
-            ? `
-                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
-                <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
-                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
-              `
-            : `
-                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
-                <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
-                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
-              `;
+        let actionsCell = '';
+        if (isAdmin) {
+            const actionButtons = node.is_active
+                ? `
+                    <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
+                    <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
+                    <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
+                  `
+                : `
+                    <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>
+                    <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
+                    <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deactivateArticle(${node.id})" title="Удалить">🗑️</button>
+                  `;
+            actionsCell = `<td><div class="flex gap-1">${actionButtons}</div></td>`;
+        }
 
         html += `
             <tr data-article-id="${node.id}">
@@ -503,11 +514,7 @@ function renderTreeNodes(nodes, level) {
                 <td>${fcLabel}</td>
                 <td class="font-mono text-sm">${node.code || '—'}</td>
                 <td>${ownerLabel}</td>
-                <td>
-                    <div class="flex gap-1">
-                        ${actionButtons}
-                    </div>
-                </td>
+                ${actionsCell}
             </tr>
         `;
 

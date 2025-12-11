@@ -13,12 +13,14 @@
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="card-title text-2xl">📊 Центры затрат</h2>
+                {% if user.is_admin %}
                 <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                     Новый МВЗ
                 </button>
+                {% endif %}
             </div>
 
             <!-- Status Filter -->
@@ -40,6 +42,7 @@
     </div>
 </div>
 
+{% if user.is_admin %}
 <!-- Create Cost Center Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
@@ -96,6 +99,7 @@
         <button>close</button>
     </form>
 </dialog>
+{% endif %}
 
 <!-- Custom Confirmation Dialog -->
 <dialog id="confirm-modal" class="modal">
@@ -119,6 +123,7 @@
 // Global state
 let centersData = [];
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
+const isAdmin = {{ 'true' if user.is_admin else 'false' }};
 
 // Load centers on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -181,7 +186,7 @@ function renderCentersTable(centers) {
                         <th>🔢 Код</th>
                         <th>📄 Описание</th>
                         <th>📅 Создан</th>
-                        <th>⚙️ Действия</th>
+                        ${isAdmin ? '<th>⚙️ Действия</th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
@@ -192,18 +197,22 @@ function renderCentersTable(centers) {
         const isArchived = center.is_active === false;
         const archivedBadge = isArchived ? ' <span class="badge badge-sm badge-ghost">📦 архив</span>' : '';
 
-        // Action buttons: icon-only with tooltips
-        const actionButtons = isArchived
-            ? `
-                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${center.id})" title="Изменить">✏️</button>
-                <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreCenter(${center.id})" title="Восстановить">♻️</button>
-                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
-              `
-            : `
-                <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${center.id})" title="Изменить">✏️</button>
-                <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveCenter(${center.id})" title="Архивировать">📦</button>
-                <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
-              `;
+        // Action buttons: icon-only with tooltips (only for admins)
+        let actionsCell = '';
+        if (isAdmin) {
+            const actionButtons = isArchived
+                ? `
+                    <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${center.id})" title="Изменить">✏️</button>
+                    <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreCenter(${center.id})" title="Восстановить">♻️</button>
+                    <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
+                  `
+                : `
+                    <button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${center.id})" title="Изменить">✏️</button>
+                    <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveCenter(${center.id})" title="Архивировать">📦</button>
+                    <button class="btn btn-sm btn-outline btn-error btn-icon-only" onclick="deleteCenter(${center.id})" title="Удалить">🗑️</button>
+                  `;
+            actionsCell = `<td><div class="flex gap-1">${actionButtons}</div></td>`;
+        }
 
         // Format created_at date (YYYY-MM-DD HH:MM:SS → DD.MM.YYYY)
         const createdDate = center.created_at ? new Date(center.created_at).toLocaleDateString('ru-RU') : '—';
@@ -214,11 +223,7 @@ function renderCentersTable(centers) {
                 <td class="font-mono text-sm">${center.code || '—'}</td>
                 <td>${description}</td>
                 <td>${createdDate}</td>
-                <td>
-                    <div class="flex gap-1">
-                        ${actionButtons}
-                    </div>
-                </td>
+                ${actionsCell}
             </tr>
         `;
     });
