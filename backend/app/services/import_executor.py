@@ -38,13 +38,18 @@ class ImportExecutor:
         """
         Parse amount string to Decimal.
 
-        Supports multiple formats:
-        - Russian format: "+500,00" or "-900,00" (comma as decimal separator)
+        Supports multiple formats (after normalization by GenericCSVParser):
+        - Normalized format: "-1234.56" (dot as decimal separator, no thousand separators)
+        - Russian format: "+500,00" or "-900,00" (comma as decimal separator) - legacy
         - International: "+500.00" or "-900.00" (dot as decimal separator)
-        - With spaces: "-1 234,56" (space as thousand separator)
+        - With spaces: "-1 234,56" (space as thousand separator) - legacy
+
+        The GenericCSVParser._normalize_amount() should have already converted
+        amounts to normalized format (dot decimal, no thousand separators).
+        This method handles both normalized and legacy formats for backward compatibility.
 
         Args:
-            amount_str: Amount string from CSV (e.g., "-900,00" or "-900.00")
+            amount_str: Amount string from staging (e.g., "-900.00" or "-900,00")
 
         Returns:
             Decimal with sign preserved
@@ -53,9 +58,71 @@ class ImportExecutor:
             ValueError: If amount cannot be parsed
         """
         try:
-            # Remove spaces (thousand separator), replace comma with dot
-            cleaned = amount_str.strip().replace(" ", "").replace(",", ".")
-            return Decimal(cleaned)
+            cleaned = amount_str.strip()
+
+            # Remove spaces (thousand separator for Russian format)
+            cleaned = cleaned.replace(" ", "")
+
+            # Count dots and commas to determine format
+            dots = cleaned.count('.')
+            commas = cleaned.count(',')
+
+            if dots == 1 and commas == 0:
+                # Standard format with dot decimal: "1234.56" or "-1234.56"
+                return Decimal(cleaned)
+
+            elif dots == 0 and commas == 1:
+                # Russian format with comma decimal: "1234,56" or "-1234,56"
+                return Decimal(cleaned.replace(",", "."))
+
+            elif dots >= 1 and commas == 1:
+                # Check position: if comma is after last dot, it's DE format
+                last_dot = cleaned.rfind('.')
+                last_comma = cleaned.rfind(',')
+
+                if last_comma > last_dot:
+                    # German format: 1.234,56
+                    cleaned = cleaned.replace(".", "")
+                    cleaned = cleaned.replace(",", ".")
+                    return Decimal(cleaned)
+                else:
+                    # US format with extra dots (unlikely): 1,234.56.78
+                    cleaned = cleaned.replace(",", "")
+                    return Decimal(cleaned)
+
+            elif commas >= 1 and dots == 1:
+                # US format: 1,234.56
+                last_dot = cleaned.rfind('.')
+                last_comma = cleaned.rfind(',')
+
+                if last_dot > last_comma:
+                    # Dot is decimal separator: 1,234.56
+                    cleaned = cleaned.replace(",", "")
+                    return Decimal(cleaned)
+                else:
+                    # Comma is decimal separator (unlikely): 1.234,56
+                    cleaned = cleaned.replace(".", "")
+                    cleaned = cleaned.replace(",", ".")
+                    return Decimal(cleaned)
+
+            elif dots == 0 and commas >= 1:
+                # Multiple commas as thousands separators: 1,234,567
+                cleaned = cleaned.replace(",", "")
+                return Decimal(cleaned)
+
+            elif commas == 0 and dots >= 1:
+                # Multiple dots as thousands separators: 1.234.567
+                cleaned = cleaned.replace(".", "")
+                return Decimal(cleaned)
+
+            elif dots == 0 and commas == 0:
+                # No separators: "1234" or "-1234"
+                return Decimal(cleaned)
+
+            else:
+                # Fallback: try as-is
+                return Decimal(cleaned)
+
         except (InvalidOperation, ValueError) as e:
             raise ValueError(f"Invalid amount format: {amount_str}") from e
 

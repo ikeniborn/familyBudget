@@ -44,7 +44,8 @@ class GenericCSVParser:
         file_upload_id: int,
         delimiter: str = ';',
         encoding: str = 'utf-8',
-        date_format: Optional[str] = None
+        date_format: Optional[str] = None,
+        number_format: Optional[str] = None
     ) -> list[dict[str, Any]]:
         """
         Parse CSV using provided mapping.
@@ -61,6 +62,11 @@ class GenericCSVParser:
             encoding: File encoding (default 'utf-8')
             date_format: Specific date format to use (e.g., '%m/%d/%Y %H:%M:%S').
                         If None, auto-detect from multiple formats.
+            number_format: Number format for amount parsing:
+                        - 'ru': Russian/EU format (space for thousands, comma for decimal: 1 234,56)
+                        - 'us': US format (comma for thousands, dot for decimal: 1,234.56)
+                        - 'de': German format (dot for thousands, comma for decimal: 1.234,56)
+                        - None: auto-detect
 
         Returns:
             List of dicts ready for ImportStaging insertion
@@ -129,12 +135,17 @@ class GenericCSVParser:
                             metadata_key = field.replace("csv_", "")
                             csv_metadata[metadata_key] = value
 
+                # Normalize amount_string to standard format (Russian: space + comma)
+                normalized_amount = GenericCSVParser._normalize_amount(
+                    amount_str, number_format
+                )
+
                 # Build staging record
                 staging_record = {
                     "user_id": user_id,
                     "file_upload_id": file_upload_id,
                     "fact_date": fact_date,
-                    "amount_string": amount_str,
+                    "amount_string": normalized_amount,
                     "description": description or None,
                     "csv_metadata": csv_metadata or None,
                     "article_id": None,
@@ -223,6 +234,137 @@ class GenericCSVParser:
                 continue
 
         return None
+
+    @staticmethod
+    def _normalize_amount(amount_str: str, number_format: Optional[str] = None) -> str:
+        """
+        Normalize amount string to standard format for storage.
+
+        Converts various number formats to a normalized format that can be
+        parsed by ImportExecutor.parse_amount().
+
+        Supported formats:
+        - 'ru': Russian/EU format (space for thousands, comma for decimal: 1 234,56)
+        - 'us': US format (comma for thousands, dot for decimal: 1,234.56)
+        - 'de': German format (dot for thousands, comma for decimal: 1.234,56)
+        - None/auto: Attempt to detect format automatically
+
+        Output format: Standard format with dot as decimal separator (1234.56)
+        This format is compatible with Python's Decimal and float parsing.
+
+        Args:
+            amount_str: Original amount string from CSV
+            number_format: Number format hint ('ru', 'us', 'de', or None for auto)
+
+        Returns:
+            Normalized amount string with dot decimal separator
+
+        Examples:
+            >>> GenericCSVParser._normalize_amount("-1 234,56", "ru")
+            '-1234.56'
+
+            >>> GenericCSVParser._normalize_amount("-1,234.56", "us")
+            '-1234.56'
+
+            >>> GenericCSVParser._normalize_amount("-1.234,56", "de")
+            '-1234.56'
+
+            >>> GenericCSVParser._normalize_amount("-9,000.00", None)  # auto-detect US
+            '-9000.00'
+        """
+        if not amount_str:
+            return amount_str
+
+        # Clean whitespace
+        cleaned = amount_str.strip()
+
+        # Handle explicit formats
+        if number_format == 'ru':
+            # Russian/EU: space for thousands, comma for decimal
+            # Example: "1 234,56" or "-1 234,56"
+            cleaned = cleaned.replace(" ", "")
+            cleaned = cleaned.replace(",", ".")
+            return cleaned
+
+        elif number_format == 'us':
+            # US: comma for thousands, dot for decimal
+            # Example: "1,234.56" or "-1,234.56"
+            cleaned = cleaned.replace(",", "")
+            return cleaned
+
+        elif number_format == 'de':
+            # German: dot for thousands, comma for decimal
+            # Example: "1.234,56" or "-1.234,56"
+            cleaned = cleaned.replace(".", "")
+            cleaned = cleaned.replace(",", ".")
+            return cleaned
+
+        # Auto-detect format
+        # Count dots and commas to determine format
+        dots = cleaned.count('.')
+        commas = cleaned.count(',')
+
+        # Remove spaces first (common thousand separator)
+        cleaned = cleaned.replace(" ", "")
+
+        # Determine format based on pattern analysis
+        if dots == 1 and commas == 0:
+            # Simple format with dot decimal: "1234.56" or "-1234.56"
+            return cleaned
+
+        elif dots == 0 and commas == 1:
+            # Simple format with comma decimal: "1234,56" or "-1234,56"
+            return cleaned.replace(",", ".")
+
+        elif dots >= 1 and commas == 1:
+            # Check position: if comma is after last dot, it's German format
+            # Example: "1.234,56" (German) vs unlikely "1,234.56.78"
+            last_dot = cleaned.rfind('.')
+            last_comma = cleaned.rfind(',')
+
+            if last_comma > last_dot:
+                # German format: dots for thousands, comma for decimal
+                cleaned = cleaned.replace(".", "")
+                cleaned = cleaned.replace(",", ".")
+                return cleaned
+            else:
+                # Unusual format, try US-like interpretation
+                cleaned = cleaned.replace(",", "")
+                return cleaned
+
+        elif commas >= 1 and dots == 1:
+            # Check position: if dot is after last comma, it's US format
+            # Example: "1,234.56" (US)
+            last_dot = cleaned.rfind('.')
+            last_comma = cleaned.rfind(',')
+
+            if last_dot > last_comma:
+                # US format: commas for thousands, dot for decimal
+                cleaned = cleaned.replace(",", "")
+                return cleaned
+            else:
+                # Unusual, try German-like interpretation
+                cleaned = cleaned.replace(".", "")
+                cleaned = cleaned.replace(",", ".")
+                return cleaned
+
+        elif dots == 0 and commas >= 1:
+            # Multiple commas, likely thousands separators
+            # Example: "1,234,567" (US with no decimal)
+            # Or single comma as decimal: "1234,56" (already handled above)
+            # Assume commas are thousands separators
+            cleaned = cleaned.replace(",", "")
+            return cleaned
+
+        elif commas == 0 and dots >= 1:
+            # Multiple dots, likely thousands separators (rare)
+            # Example: "1.234.567" (DE with no decimal)
+            # Assume dots are thousands separators
+            cleaned = cleaned.replace(".", "")
+            return cleaned
+
+        # Fallback: return original with spaces removed
+        return cleaned
 
     @staticmethod
     def _parse_amount(amount_str: str) -> Optional[float]:
