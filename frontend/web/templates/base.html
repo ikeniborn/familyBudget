@@ -804,6 +804,17 @@
 
                 // Update UI
                 updateOfflineUI();
+
+                // Precache offline pages для работы в offline режиме
+                // Страницы из OFFLINE_PAGES в sw.js, кроме / (уже в STATIC_CACHE)
+                if (window.offlineManager.isOnline) {
+                    const OFFLINE_PAGES = ['/lists'];  // Защищённые страницы, не в STATIC_CACHE
+                    OFFLINE_PAGES.forEach(page => {
+                        fetch(page, { credentials: 'include' })
+                            .then(() => debugLog('[Precache] Cached:', page))
+                            .catch(e => console.warn('[Precache] Failed:', page, e.message));
+                    });
+                }
             } catch (error) {
                 console.error('[Offline] Initialization error:', error);
             }

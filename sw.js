@@ -253,12 +253,40 @@ self.addEventListener('fetch', (event) => {
                 if (DEBUG) console.log('[SW] Serving HTML from cache (offline):', url.pathname);
                 return cachedResponse;
               }
-              // Если нет в кеше - показываем offline страницу
-              return caches.match('/')
-                .then(homeResponse => homeResponse || new Response(
-                  '<h1>Offline</h1><p>Нет подключения к интернету</p>',
-                  { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-                ));
+              // Страница в OFFLINE_PAGES, но не закеширована
+              // Показываем информативное сообщение вместо тихого редиректа на /
+              if (DEBUG) console.log('[SW] Page in OFFLINE_PAGES but not cached:', url.pathname);
+              return new Response(
+                `<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Страница не загружена</title>
+    <style>
+        body { font-family: system-ui, sans-serif; text-align: center; padding: 2rem; background: #f3f4f6; }
+        .container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .icon { font-size: 3rem; margin-bottom: 1rem; }
+        h1 { color: #374151; margin-bottom: 0.5rem; font-size: 1.25rem; }
+        p { color: #6b7280; margin-bottom: 1.5rem; font-size: 0.875rem; }
+        a { display: inline-block; padding: 0.75rem 1.5rem; background: #3b82f6; color: white; text-decoration: none; border-radius: 0.5rem; }
+        a:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📡</div>
+        <h1>Страница недоступна offline</h1>
+        <p>Для работы в offline режиме откройте страницу "${url.pathname}" при наличии интернета.</p>
+        <a href="/">← На главную</a>
+    </div>
+</body>
+</html>`,
+                {
+                  status: 200,
+                  headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                }
+              );
             });
         })
     );
