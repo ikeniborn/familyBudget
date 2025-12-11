@@ -313,7 +313,7 @@ class ListsManager {
                     <td data-label="Действия" class="text-center">
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-square btn-ghost"
-                                    onclick="window.listsManager.openEditItemModal(${item.id})"
+                                    onclick="openEditItemModal(${item.id})"
                                     title="Редактировать">
                                 ✏️
                             </button>
