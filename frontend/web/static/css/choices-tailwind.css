@@ -422,11 +422,20 @@
 }
 
 /* Product group parent path styling (smaller and gray) */
-.product-group-parents {
-    @apply text-gray-500;
-    font-size: 0.85em;
+/* Applied in dropdown items and selected item display */
+.product-group-parents,
+.choices__list--dropdown .product-group-parents,
+.choices__list--single .product-group-parents,
+.choices__item .product-group-parents {
+    color: rgb(107 114 128) !important; /* gray-500 */
+    font-size: 0.8em !important;
+    font-weight: 400 !important;
+    opacity: 0.85;
 }
 
-.dark .product-group-parents {
-    @apply text-gray-400;
+.dark .product-group-parents,
+.dark .choices__list--dropdown .product-group-parents,
+.dark .choices__list--single .product-group-parents,
+.dark .choices__item .product-group-parents {
+    color: rgb(156 163 175) !important; /* gray-400 */
 }

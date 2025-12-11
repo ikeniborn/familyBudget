@@ -312,12 +312,6 @@ class ListsManager {
 
             return `
                 <tr class="${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
-                    <td class="px-1">
-                        <input type="checkbox"
-                               class="checkbox checkbox-xs"
-                               ${isSelected ? 'checked' : ''}
-                               onchange="window.listsManager.toggleItemSelection(${item.id}, this.checked)">
-                    </td>
                     <td data-label="Магазин">${store ? this.escapeHtml(store.name) : 'N/A'}</td>
                     <td data-label="Группа" class="text-xs">${groupPath ? this.escapeHtml(groupPath) : 'N/A'}</td>
                     <td data-label="Товар">${this.escapeHtml(item.product_name)}</td>
@@ -490,13 +484,19 @@ class ListsManager {
             this.choicesInstances.productGroup.destroy();
         }
 
-        // Create new Choices.js instance
+        // Create new Choices.js instance with choices-tailwind styling
         this.choicesInstances.productGroup = new Choices(select, {
             searchEnabled: true,
             searchPlaceholderValue: 'Поиск группы...',
             noResultsText: 'Группа не найдена',
             itemSelectText: '',
-            allowHTML: true // Allow HTML in options for indentation
+            allowHTML: true, // Allow HTML in options for parent path styling
+            shouldSort: false, // Maintain alphabetical order from populateProductGroupSelect
+            placeholder: true,
+            placeholderValue: 'Группа',
+            classNames: {
+                containerOuter: ['choices', 'choices-tailwind'] // Apply tailwind theme
+            }
         });
     }
 
@@ -657,8 +657,12 @@ class ListsManager {
             this.currentItems = this.currentItems.filter(item => item.id !== itemId);
             this.selectedItemIds.delete(itemId);
 
-            // Re-render
-            this.renderItemsTable();
+            // Re-render based on current view
+            if (this.currentView === 'hierarchy' && this.hierarchyView) {
+                this.hierarchyView.render();
+            } else {
+                this.renderItemsTable();
+            }
             this.updateProgressBadge();
 
             showToast('Товар удален', 'success');
@@ -701,13 +705,113 @@ class ListsManager {
             this.currentItems = this.currentItems.filter(item => !this.selectedItemIds.has(item.id));
             this.selectedItemIds.clear();
 
-            // Re-render
-            this.renderItemsTable();
+            // Re-render based on current view
+            if (this.currentView === 'hierarchy' && this.hierarchyView) {
+                this.hierarchyView.render();
+            } else {
+                this.renderItemsTable();
+            }
             this.updateProgressBadge();
 
             showToast(`Удалено ${count} товаров`, 'success');
         } catch (error) {
             console.error('[ListsManager] Error deleting selected items:', error);
+            showToast('Ошибка удаления товаров', 'error');
+        }
+    }
+
+    /**
+     * Mark all items as completed
+     */
+    async markAllCompleted() {
+        if (this.currentItems.length === 0) {
+            showToast('Список пуст', 'info');
+            return;
+        }
+
+        const uncompletedItems = this.currentItems.filter(item => !item.is_completed);
+        if (uncompletedItems.length === 0) {
+            showToast('Все товары уже отмечены', 'info');
+            return;
+        }
+
+        try {
+            // Update each uncompleted item
+            const promises = uncompletedItems.map(item =>
+                fetch(`/api/v1/shopping-list-items/${item.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ is_completed: true })
+                })
+            );
+
+            await Promise.all(promises);
+
+            // Update local state
+            this.currentItems.forEach(item => {
+                item.is_completed = true;
+            });
+
+            // Re-render based on current view
+            if (this.currentView === 'hierarchy' && this.hierarchyView) {
+                this.hierarchyView.render();
+            } else {
+                this.renderItemsTable();
+            }
+            this.updateProgressBadge();
+
+            showToast(`Отмечено ${uncompletedItems.length} товаров`, 'success');
+        } catch (error) {
+            console.error('[ListsManager] Error marking all completed:', error);
+            showToast('Ошибка обновления статуса', 'error');
+        }
+    }
+
+    /**
+     * Delete all completed items
+     */
+    async deleteCompleted() {
+        const completedItems = this.currentItems.filter(item => item.is_completed);
+
+        if (completedItems.length === 0) {
+            showToast('Нет отмеченных товаров', 'info');
+            return;
+        }
+
+        if (!confirm(`Удалить ${completedItems.length} отмеченных товаров?`)) {
+            return;
+        }
+
+        try {
+            const itemIds = completedItems.map(item => item.id);
+
+            const response = await fetch('/api/v1/shopping-list-items/batch-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ item_ids: itemIds })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            // Remove from local state
+            this.currentItems = this.currentItems.filter(item => !item.is_completed);
+            this.selectedItemIds.clear();
+
+            // Re-render based on current view
+            if (this.currentView === 'hierarchy' && this.hierarchyView) {
+                this.hierarchyView.render();
+            } else {
+                this.renderItemsTable();
+            }
+            this.updateProgressBadge();
+
+            showToast(`Удалено ${completedItems.length} товаров`, 'success');
+        } catch (error) {
+            console.error('[ListsManager] Error deleting completed items:', error);
             showToast('Ошибка удаления товаров', 'error');
         }
     }
@@ -938,7 +1042,13 @@ async function handleSaveItem(event) {
 
         // Reload items
         await window.listsManager.loadShoppingListItems(window.listsManager.currentListId);
-        window.listsManager.renderItemsTable();
+
+        // Re-render based on current view
+        if (window.listsManager.currentView === 'hierarchy' && window.listsManager.hierarchyView) {
+            window.listsManager.hierarchyView.render();
+        } else {
+            window.listsManager.renderItemsTable();
+        }
     } catch (error) {
         console.error('[ListsManager] Error saving item:', error);
         showToast('Ошибка сохранения товара', 'error');
@@ -953,17 +1063,17 @@ function toggleSelectAll() {
 }
 
 /**
- * Select completed items
+ * Mark all items as completed
  */
-function selectCompleted() {
-    window.listsManager.selectCompleted();
+function markAllCompleted() {
+    window.listsManager.markAllCompleted();
 }
 
 /**
- * Delete selected items
+ * Delete all completed items
  */
-function deleteSelected() {
-    window.listsManager.deleteSelected();
+function deleteCompleted() {
+    window.listsManager.deleteCompleted();
 }
 
 /**

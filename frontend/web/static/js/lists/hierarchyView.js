@@ -264,9 +264,9 @@ class HierarchyView {
                     ${indentHtml}
                     <span class="hierarchy-line">${linePrefix}</span>
                     <input type="checkbox"
-                           class="checkbox checkbox-sm"
+                           class="checkbox checkbox-xs"
                            ${isCompleted ? 'checked' : ''}
-                           onclick="window.listsManager.toggleItemCompleted(${item.id}, this.checked)">
+                           onchange="window.listsManager.toggleItemCompleted(${item.id}, this.checked)">
                     <span class="hierarchy-icon">🛒</span>
                     <span class="hierarchy-label ${isCompleted ? 'line-through' : ''}">
                         ${this.escapeHtml(item.product_name)}

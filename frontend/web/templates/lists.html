@@ -67,7 +67,7 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
-                    <button class="btn btn-sm btn-outline flex-1 sm:flex-initial" onclick="showLandingView()">
+                    <button class="btn btn-sm flex-1 sm:flex-initial" onclick="showLandingView()">
                         <span>⬅️</span><span class="hidden sm:inline ml-1">Назад</span>
                     </button>
                     <button class="btn btn-sm btn-success flex-1 sm:flex-initial" onclick="openAddItemModal()" title="Добавить товар">
@@ -100,23 +100,20 @@
         <div class="toolbar">
             <!-- Batch Actions (Table View Only) -->
             <div class="flex gap-1 sm:gap-2" id="table-controls">
-                <button class="btn btn-sm btn-outline" onclick="toggleSelectAll()" id="select-all-btn" title="Выделить все">
-                    <span>☑️</span><span class="hidden sm:inline ml-1">Выделить все</span>
+                <button class="btn btn-sm" onclick="markAllCompleted()" title="Отметить все как выполненные">
+                    <span>✅</span><span class="hidden sm:inline ml-1">Отметить все</span>
                 </button>
-                <button class="btn btn-sm btn-outline" onclick="selectCompleted()" title="Выбрать выполненные">
-                    <span>✅</span><span class="hidden sm:inline ml-1">Готово</span>
-                </button>
-                <button class="btn btn-sm btn-error" onclick="deleteSelected()" id="delete-selected-btn" disabled title="Удалить выбранные">
-                    <span>🗑️</span><span class="hidden sm:inline ml-1">Удалить</span>
+                <button class="btn btn-sm btn-error" onclick="deleteCompleted()" title="Удалить отмеченные">
+                    <span>🗑️</span><span class="hidden sm:inline ml-1">Удалить отмеченные</span>
                 </button>
             </div>
 
             <!-- Hierarchy Controls (Hierarchy View Only) -->
             <div class="flex gap-1 sm:gap-2 hidden" id="hierarchy-controls">
-                <button class="btn btn-sm btn-outline" onclick="expandAllNodes()" title="Развернуть все узлы">
+                <button class="btn btn-sm" onclick="expandAllNodes()" title="Развернуть все узлы">
                     <span>⬇️</span><span class="hidden sm:inline ml-1">Развернуть</span>
                 </button>
-                <button class="btn btn-sm btn-outline" onclick="collapseAllNodes()" title="Свернуть все узлы">
+                <button class="btn btn-sm" onclick="collapseAllNodes()" title="Свернуть все узлы">
                     <span>⬆️</span><span class="hidden sm:inline ml-1">Свернуть</span>
                 </button>
             </div>
@@ -141,7 +138,6 @@
                 <table class="table table-zebra w-full">
                     <thead>
                         <tr>
-                            <th class="w-8 px-1"></th>
                             <th>🏪 Магазин</th>
                             <th>📦 Группа</th>
                             <th>🛒 Товар</th>
