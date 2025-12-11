@@ -263,7 +263,8 @@ class HierarchyView {
                            class="checkbox checkbox-xs"
                            ${isCompleted ? 'checked' : ''}
                            onchange="window.listsManager.toggleItemCompleted(${item.id}, this.checked)">
-                    <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
+                    <span class="hierarchy-item-name hierarchy-clickable ${isCompleted ? 'line-through' : ''}"
+                          onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
                         ${this.escapeHtml(item.product_name)}
                     </span>
                     ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
