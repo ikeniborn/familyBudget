@@ -89,6 +89,12 @@ class ListsManager {
         this.currentListId = listId;
         this.selectedItemIds.clear();
 
+        // Reset HierarchyView expanded nodes for new list
+        // Each list should start with fresh tree state
+        if (this.hierarchyView) {
+            this.hierarchyView.expandedNodes.clear();
+        }
+
         // Find the list
         const list = this.shoppingLists.find(l => l.id === listId);
         if (!list) {
@@ -551,42 +557,51 @@ class ListsManager {
 
     /**
      * Update selection UI
+     * Note: This method is called from renderItemsTable() but the selection UI
+     * elements (delete-selected-btn, select-all-btn) are not currently in the HTML.
+     * Adding null checks to prevent errors.
      */
     updateSelectionUI() {
         const deleteBtn = document.getElementById('delete-selected-btn');
         const selectAllBtn = document.getElementById('select-all-btn');
 
         // Update delete button state - preserve mobile-friendly structure
-        if (this.selectedItemIds.size > 0) {
-            deleteBtn.disabled = false;
-            // Update only the text span, keep icon
-            const textSpan = deleteBtn.querySelector('span:last-child');
-            if (textSpan && textSpan.classList.contains('hidden')) {
-                // Mobile: show count in icon span
-                deleteBtn.querySelector('span:first-child').textContent = `🗑️${this.selectedItemIds.size}`;
-            } else if (textSpan) {
-                // Desktop: show full text
-                textSpan.textContent = `Удалить (${this.selectedItemIds.size})`;
-            }
-        } else {
-            deleteBtn.disabled = true;
-            const textSpan = deleteBtn.querySelector('span:last-child');
-            if (textSpan && textSpan.classList.contains('hidden')) {
-                deleteBtn.querySelector('span:first-child').textContent = '🗑️';
-            } else if (textSpan) {
-                textSpan.textContent = 'Удалить';
+        if (deleteBtn) {
+            if (this.selectedItemIds.size > 0) {
+                deleteBtn.disabled = false;
+                // Update only the text span, keep icon
+                const textSpan = deleteBtn.querySelector('span:last-child');
+                if (textSpan && textSpan.classList.contains('hidden')) {
+                    // Mobile: show count in icon span
+                    const iconSpan = deleteBtn.querySelector('span:first-child');
+                    if (iconSpan) iconSpan.textContent = `🗑️${this.selectedItemIds.size}`;
+                } else if (textSpan) {
+                    // Desktop: show full text
+                    textSpan.textContent = `Удалить (${this.selectedItemIds.size})`;
+                }
+            } else {
+                deleteBtn.disabled = true;
+                const textSpan = deleteBtn.querySelector('span:last-child');
+                if (textSpan && textSpan.classList.contains('hidden')) {
+                    const iconSpan = deleteBtn.querySelector('span:first-child');
+                    if (iconSpan) iconSpan.textContent = '🗑️';
+                } else if (textSpan) {
+                    textSpan.textContent = 'Удалить';
+                }
             }
         }
 
         // Update select all button - preserve mobile-friendly structure
-        const selectAllTextSpan = selectAllBtn.querySelector('span:last-child');
-        const selectAllIconSpan = selectAllBtn.querySelector('span:first-child');
-        if (this.selectedItemIds.size === this.currentItems.length && this.currentItems.length > 0) {
-            if (selectAllIconSpan) selectAllIconSpan.textContent = '☐';
-            if (selectAllTextSpan) selectAllTextSpan.textContent = 'Снять выделение';
-        } else {
-            if (selectAllIconSpan) selectAllIconSpan.textContent = '☑️';
-            if (selectAllTextSpan) selectAllTextSpan.textContent = 'Выделить все';
+        if (selectAllBtn) {
+            const selectAllTextSpan = selectAllBtn.querySelector('span:last-child');
+            const selectAllIconSpan = selectAllBtn.querySelector('span:first-child');
+            if (this.selectedItemIds.size === this.currentItems.length && this.currentItems.length > 0) {
+                if (selectAllIconSpan) selectAllIconSpan.textContent = '☐';
+                if (selectAllTextSpan) selectAllTextSpan.textContent = 'Снять выделение';
+            } else {
+                if (selectAllIconSpan) selectAllIconSpan.textContent = '☑️';
+                if (selectAllTextSpan) selectAllTextSpan.textContent = 'Выделить все';
+            }
         }
     }
 
@@ -769,6 +784,54 @@ class ListsManager {
     }
 
     /**
+     * Unmark all items (set is_completed = false)
+     */
+    async unmarkAllCompleted() {
+        if (this.currentItems.length === 0) {
+            showToast('Список пуст', 'info');
+            return;
+        }
+
+        const completedItems = this.currentItems.filter(item => item.is_completed);
+        if (completedItems.length === 0) {
+            showToast('Нет отмеченных товаров', 'info');
+            return;
+        }
+
+        try {
+            // Update each completed item to uncompleted
+            const promises = completedItems.map(item =>
+                fetch(`/api/v1/shopping-list-items/${item.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ is_completed: false })
+                })
+            );
+
+            await Promise.all(promises);
+
+            // Update local state
+            this.currentItems.forEach(item => {
+                item.is_completed = false;
+            });
+
+            // Re-render based on current view
+            if (this.currentView === 'hierarchy' && this.hierarchyView) {
+                this.hierarchyView.render();
+            } else {
+                this.renderItemsTable();
+            }
+            this.updateProgressBadge();
+
+            showToast(`Снято ${completedItems.length} отметок`, 'success');
+        } catch (error) {
+            console.error('[ListsManager] Error unmarking all completed:', error);
+            showToast('Ошибка обновления статуса', 'error');
+        }
+    }
+
+    /**
      * Delete all completed items
      */
     async deleteCompleted() {
@@ -833,6 +896,9 @@ class ListsManager {
             const hierarchyControls = document.getElementById('hierarchy-controls');
             if (tableControls) tableControls.classList.remove('hidden');
             if (hierarchyControls) hierarchyControls.classList.add('hidden');
+
+            // Re-render table to sync checkbox states
+            this.renderItemsTable();
         } else if (viewName === 'hierarchy') {
             document.getElementById('table-view').classList.add('hidden');
             document.getElementById('hierarchy-view').classList.remove('hidden');
@@ -1067,6 +1133,13 @@ function toggleSelectAll() {
  */
 function markAllCompleted() {
     window.listsManager.markAllCompleted();
+}
+
+/**
+ * Unmark all items (remove completed status)
+ */
+function unmarkAllCompleted() {
+    window.listsManager.unmarkAllCompleted();
 }
 
 /**
