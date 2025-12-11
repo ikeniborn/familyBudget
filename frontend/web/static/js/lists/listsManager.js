@@ -22,6 +22,7 @@ class ListsManager {
         this.hierarchyView = null; // HierarchyView instance
         this.db = null; // IndexedDBManager instance for offline support
         this.searchQuery = ''; // Search filter for items
+        this.sseClient = null; // SSE client for real-time updates
     }
 
     /**
@@ -55,6 +56,14 @@ class ListsManager {
             if (window.offlineManager && typeof OfflineShoppingManager !== 'undefined') {
                 this.offlineShopping = new OfflineShoppingManager(window.offlineManager);
                 debugLog('[ListsManager] OfflineShoppingManager initialized');
+            }
+
+            // Initialize SSE client for real-time updates
+            if (typeof ShoppingListSSEClient !== 'undefined') {
+                this.sseClient = new ShoppingListSSEClient();
+                debugLog('[ListsManager] SSE Client initialized');
+            } else {
+                console.warn('[ListsManager] ShoppingListSSEClient not available');
             }
 
             // Listen for network status changes (sync when back online)
@@ -120,6 +129,12 @@ class ListsManager {
     async showLandingView() {
         debugLog('[ListsManager] Showing landing view');
 
+        // Disconnect from SSE when leaving detail view
+        if (this.sseClient) {
+            this.sseClient.disconnect();
+            debugLog('[ListsManager] Disconnected from SSE');
+        }
+
         // Reset state
         this.currentListId = null;
         this.currentItems = [];
@@ -181,6 +196,12 @@ class ListsManager {
 
         // Initialize Choices.js for product group selector in modal
         this.initProductGroupChoices();
+
+        // Connect to SSE for real-time updates (if online)
+        if (this.sseClient && this.isOnline) {
+            this.sseClient.connect(listId);
+            debugLog('[ListsManager] Connected to SSE for list:', listId);
+        }
     }
 
     /**
@@ -1484,6 +1505,373 @@ class ListsManager {
                 importAccordion.classList.add('hidden', 'sm:block');
             }
         }
+    }
+
+    // ==========================================================
+    // SSE UI UPDATE METHODS
+    // Called by ShoppingListSSEClient for real-time updates
+    // ==========================================================
+
+    /**
+     * Add item to UI (from SSE event)
+     * @param {Object} item - Item data from server
+     */
+    addItemToUI(item) {
+        if (!item || !item.id) {
+            debugLog('[ListsManager] Invalid item for addItemToUI');
+            return;
+        }
+
+        // Check if item already exists (avoid duplicates)
+        const exists = this.currentItems.some(i => i.id === item.id);
+        if (exists) {
+            debugLog('[ListsManager] Item already exists, updating instead:', item.id);
+            this.updateItemInUI(item);
+            return;
+        }
+
+        // Add to items array
+        this.currentItems.push(item);
+        debugLog('[ListsManager] Added item from SSE:', item.id);
+
+        // Re-render and update badge
+        this.renderCurrentView();
+        this.updateProgressBadge();
+        this.updateItemsCache();
+
+        // Show notification
+        showToast(`Добавлен товар: ${item.product_name}`, 'info', 3000);
+    }
+
+    /**
+     * Update item in UI (from SSE event)
+     * @param {Object} item - Updated item data from server
+     */
+    updateItemInUI(item) {
+        if (!item || !item.id) {
+            debugLog('[ListsManager] Invalid item for updateItemInUI');
+            return;
+        }
+
+        const index = this.currentItems.findIndex(i => i.id === item.id);
+        if (index === -1) {
+            debugLog('[ListsManager] Item not found for update:', item.id);
+            // Item doesn't exist locally - add it
+            this.addItemToUI(item);
+            return;
+        }
+
+        // Update item in array
+        this.currentItems[index] = { ...this.currentItems[index], ...item };
+        debugLog('[ListsManager] Updated item from SSE:', item.id);
+
+        // Re-render and update badge
+        this.renderCurrentView();
+        this.updateProgressBadge();
+        this.updateItemsCache();
+    }
+
+    /**
+     * Remove item from UI (from SSE event)
+     * @param {number} itemId - Item ID to remove
+     */
+    removeItemFromUI(itemId) {
+        if (!itemId) {
+            debugLog('[ListsManager] Invalid itemId for removeItemFromUI');
+            return;
+        }
+
+        const index = this.currentItems.findIndex(i => i.id === itemId);
+        if (index === -1) {
+            debugLog('[ListsManager] Item not found for removal:', itemId);
+            return;
+        }
+
+        const removedItem = this.currentItems[index];
+        this.currentItems.splice(index, 1);
+        debugLog('[ListsManager] Removed item from SSE:', itemId);
+
+        // Also remove from selection if selected
+        this.selectedItemIds.delete(itemId);
+
+        // Re-render and update badge
+        this.renderCurrentView();
+        this.updateProgressBadge();
+        this.updateItemsCache();
+
+        // Show notification
+        showToast(`Удалён товар: ${removedItem.product_name}`, 'info', 3000);
+    }
+
+    /**
+     * Toggle item completed status in UI (from SSE event)
+     * @param {number} itemId - Item ID
+     * @param {boolean} isCompleted - New completed status
+     */
+    toggleItemCompletedInUI(itemId, isCompleted) {
+        if (!itemId) {
+            debugLog('[ListsManager] Invalid itemId for toggleItemCompletedInUI');
+            return;
+        }
+
+        const item = this.currentItems.find(i => i.id === itemId);
+        if (!item) {
+            debugLog('[ListsManager] Item not found for toggle:', itemId);
+            return;
+        }
+
+        // Update status
+        item.is_completed = isCompleted;
+        if (isCompleted) {
+            item.completed_at = new Date().toISOString();
+        }
+        debugLog('[ListsManager] Toggled item from SSE:', itemId, isCompleted);
+
+        // Re-render and update badge
+        this.renderCurrentView();
+        this.updateProgressBadge();
+        this.updateItemsCache();
+    }
+
+    /**
+     * Reload items for current list
+     * Used after conflict resolution
+     */
+    async loadItems() {
+        if (this.currentListId) {
+            await this.loadShoppingListItems(this.currentListId);
+            this.renderCurrentView();
+            this.updateProgressBadge();
+        }
+    }
+
+    // ==========================================================
+    // AUTOCOMPLETE METHODS
+    // Product suggestions from shopping list history
+    // ==========================================================
+
+    /**
+     * Handle product input for autocomplete
+     * @param {string} value - Input value
+     */
+    handleProductInput(value) {
+        // Clear previous debounce timer
+        if (this._autocompleteTimer) {
+            clearTimeout(this._autocompleteTimer);
+        }
+
+        // Hide dropdown if query too short
+        if (!value || value.length < 2) {
+            this.hideProductSuggestions();
+            return;
+        }
+
+        // Debounce API calls (300ms)
+        this._autocompleteTimer = setTimeout(() => {
+            this.showProductSuggestions(value);
+        }, 300);
+    }
+
+    /**
+     * Fetch and show product suggestions
+     * @param {string} query - Search query
+     */
+    async showProductSuggestions(query) {
+        if (query.length < 2) {
+            this.hideProductSuggestions();
+            return;
+        }
+
+        try {
+            let suggestions = [];
+
+            if (this.isOnline) {
+                // Online: fetch from API
+                const response = await fetch(
+                    `/api/v1/shopping-list-items/products/suggest?q=${encodeURIComponent(query)}&limit=10`
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    suggestions = data.suggestions || [];
+
+                    // Cache suggestions for offline use
+                    if (this.db && suggestions.length > 0) {
+                        await this._cacheProductSuggestions(suggestions);
+                    }
+                }
+            } else {
+                // Offline: search in cached suggestions
+                suggestions = await this._searchCachedSuggestions(query);
+            }
+
+            this.renderSuggestionsDropdown(suggestions);
+
+        } catch (error) {
+            console.error('[ListsManager] Error fetching suggestions:', error);
+            // Try offline cache on error
+            if (this.db) {
+                const cached = await this._searchCachedSuggestions(query);
+                if (cached.length > 0) {
+                    this.renderSuggestionsDropdown(cached);
+                }
+            }
+        }
+    }
+
+    /**
+     * Render suggestions dropdown
+     * @param {Array} suggestions - Product suggestions
+     */
+    renderSuggestionsDropdown(suggestions) {
+        const dropdown = document.getElementById('product-suggestions-dropdown');
+        if (!dropdown) return;
+
+        if (!suggestions || suggestions.length === 0) {
+            this.hideProductSuggestions();
+            return;
+        }
+
+        // Build dropdown HTML
+        const html = suggestions.map((s, index) => `
+            <div class="suggestion-item px-3 py-2 hover:bg-base-200 cursor-pointer flex items-center gap-2"
+                 data-index="${index}"
+                 onclick="window.listsManager.selectSuggestion(${index})">
+                <div class="flex-1">
+                    <div class="font-medium text-sm">${this._escapeHtml(s.product_name)}</div>
+                    <div class="text-xs text-base-content/60">
+                        ${s.store_name ? `<span class="mr-2">🏪 ${this._escapeHtml(s.store_name)}</span>` : ''}
+                        ${s.product_group_name ? `<span>📦 ${this._escapeHtml(s.product_group_name)}</span>` : ''}
+                    </div>
+                </div>
+                ${s.usage_count > 1 ? `<span class="badge badge-ghost badge-xs">${s.usage_count}x</span>` : ''}
+            </div>
+        `).join('');
+
+        dropdown.innerHTML = html;
+        dropdown.classList.remove('hidden');
+
+        // Store suggestions for selection
+        this._currentSuggestions = suggestions;
+
+        debugLog('[ListsManager] Showing', suggestions.length, 'suggestions');
+    }
+
+    /**
+     * Select a suggestion from dropdown
+     * @param {number} index - Suggestion index
+     */
+    selectSuggestion(index) {
+        const suggestion = this._currentSuggestions?.[index];
+        if (!suggestion) return;
+
+        // Fill form fields
+        const productNameInput = document.getElementById('item-product-name');
+        const storeSelect = document.getElementById('item-store');
+        const productGroupSelect = document.getElementById('item-product-group');
+
+        if (productNameInput) {
+            productNameInput.value = suggestion.product_name;
+        }
+
+        if (storeSelect && suggestion.store_id) {
+            storeSelect.value = suggestion.store_id;
+        }
+
+        if (productGroupSelect && suggestion.product_group_id) {
+            // For Choices.js select
+            if (this.choicesInstances?.productGroup) {
+                this.choicesInstances.productGroup.setChoiceByValue(String(suggestion.product_group_id));
+            } else {
+                productGroupSelect.value = suggestion.product_group_id;
+            }
+        }
+
+        // Hide dropdown
+        this.hideProductSuggestions();
+
+        debugLog('[ListsManager] Selected suggestion:', suggestion.product_name);
+    }
+
+    /**
+     * Hide product suggestions dropdown
+     */
+    hideProductSuggestions() {
+        const dropdown = document.getElementById('product-suggestions-dropdown');
+        if (dropdown) {
+            dropdown.classList.add('hidden');
+            dropdown.innerHTML = '';
+        }
+        this._currentSuggestions = null;
+    }
+
+    /**
+     * Cache product suggestions for offline use
+     * @param {Array} suggestions - Suggestions to cache
+     * @private
+     */
+    async _cacheProductSuggestions(suggestions) {
+        if (!this.db) return;
+
+        try {
+            // Store each suggestion with product_name as key
+            for (const suggestion of suggestions) {
+                await this.db.setCache(
+                    `product_suggestion_${suggestion.product_name.toLowerCase()}`,
+                    suggestion,
+                    86400 * 7  // 7 days TTL
+                );
+            }
+        } catch (error) {
+            console.error('[ListsManager] Error caching suggestions:', error);
+        }
+    }
+
+    /**
+     * Search cached suggestions offline
+     * @param {string} query - Search query
+     * @returns {Promise<Array>}
+     * @private
+     */
+    async _searchCachedSuggestions(query) {
+        if (!this.db) return [];
+
+        try {
+            // Get all cached items and filter by query
+            const allCache = await this.db._getAll('data_cache');
+            const suggestions = [];
+            const queryLower = query.toLowerCase();
+
+            for (const item of allCache) {
+                if (item.key?.startsWith('product_suggestion_') &&
+                    item.key.includes(queryLower)) {
+                    if (item.value && item.expires > Date.now()) {
+                        suggestions.push(item.value);
+                    }
+                }
+            }
+
+            // Sort by usage_count
+            suggestions.sort((a, b) => (b.usage_count || 1) - (a.usage_count || 1));
+
+            return suggestions.slice(0, 10);
+        } catch (error) {
+            console.error('[ListsManager] Error searching cached suggestions:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     * @param {string} str - String to escape
+     * @returns {string}
+     * @private
+     */
+    _escapeHtml(str) {
+        if (!str) return '';
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
     }
 }
 

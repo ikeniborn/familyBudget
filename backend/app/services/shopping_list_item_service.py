@@ -8,16 +8,18 @@ Key Features:
     - SHARED model: All users can add/edit/delete items
     - Batch operations: Complete/delete multiple items at once
     - Offline sync: sync_status field ('synced', 'pending', 'conflict')
-    - No history tracking (simple fact table)
+    - Soft delete: deleted_at timestamp, records kept for autocomplete
+    - Optimistic locking: version field incremented on each update
 
 Key Functions:
     - batch_complete_items(): Mark multiple items as completed
-    - batch_delete_items(): Delete multiple items at once
+    - batch_delete_items(): Soft-delete multiple items at once
     - mark_items_pending(): Mark items as pending sync (offline create/update)
     - detect_conflicts(): Detect offline sync conflicts
     - resolve_conflict(): Resolve sync conflicts (server/client/merge)
 """
 
+from datetime import datetime
 from typing import List, Optional
 
 from sqlalchemy import func
@@ -31,6 +33,7 @@ async def batch_complete_items(
     session: AsyncSession,
     item_ids: List[int],
     is_completed: bool = True,
+    user_id: Optional[int] = None,
 ) -> int:
     """
     Mark multiple shopping list items as completed (or uncompleted).
@@ -41,6 +44,7 @@ async def batch_complete_items(
         session: AsyncSession for database operations
         item_ids: List of ShoppingListItem IDs to update
         is_completed: True to mark as completed, False to unmark
+        user_id: Optional user ID for audit (last_modified_by)
 
     Returns:
         Number of items updated
@@ -50,31 +54,49 @@ async def batch_complete_items(
         >>> count = await batch_complete_items(
         ...     session=session,
         ...     item_ids=[1, 2, 3],
-        ...     is_completed=True
+        ...     is_completed=True,
+        ...     user_id=123
         ... )
         >>> print(f"Marked {count} items as completed")
 
     Notes:
         - SHARED model: Any user can complete any item
-        - Updates updated_at timestamp
-        - sync_status remains unchanged (stays 'synced')
+        - Increments version for optimistic locking
+        - Sets completed_at when marking as completed
+        - Excludes soft-deleted items (deleted_at IS NULL)
         - Returns 0 if no items found
     """
     if not item_ids:
         return 0
 
-    # Get items
+    # Get active items (exclude soft-deleted)
     statement = select(ShoppingListItem).where(
-        ShoppingListItem.id.in_(item_ids)
+        ShoppingListItem.id.in_(item_ids),
+        ShoppingListItem.deleted_at.is_(None),
     )
     result = await session.execute(statement)
     items = result.scalars().all()
 
     # Update each item
+    now = datetime.utcnow()
     count = 0
     for item in items:
+        # Skip if no change needed
+        if item.is_completed == is_completed:
+            continue
+
         item.is_completed = is_completed
-        item.updated_at = func.now()
+        item.version += 1
+        item.updated_at = now
+
+        # Set completed_at when marking as completed
+        if is_completed and not item.completed_at:
+            item.completed_at = now
+
+        # Audit trail
+        if user_id:
+            item.last_modified_by = user_id
+
         session.add(item)
         count += 1
 
@@ -86,44 +108,57 @@ async def batch_complete_items(
 async def batch_delete_items(
     session: AsyncSession,
     item_ids: List[int],
+    user_id: Optional[int] = None,
 ) -> int:
     """
-    Delete multiple shopping list items at once.
+    Soft-delete multiple shopping list items at once.
 
     Batch operation for efficiency.
 
     Args:
         session: AsyncSession for database operations
-        item_ids: List of ShoppingListItem IDs to delete
+        item_ids: List of ShoppingListItem IDs to soft-delete
+        user_id: Optional user ID for audit (last_modified_by)
 
     Returns:
-        Number of items deleted
+        Number of items soft-deleted
 
     Example:
-        >>> # Delete items 1, 2, 3
-        >>> count = await batch_delete_items(session=session, item_ids=[1, 2, 3])
-        >>> print(f"Deleted {count} items")
+        >>> # Soft-delete items 1, 2, 3
+        >>> count = await batch_delete_items(session=session, item_ids=[1, 2, 3], user_id=123)
+        >>> print(f"Soft-deleted {count} items")
 
     Notes:
         - SHARED model: Any user can delete any item
-        - No history tracking (permanent deletion)
+        - Soft delete: Sets deleted_at timestamp, record remains in DB
+        - Increments version for optimistic locking
+        - Excludes already soft-deleted items
         - Returns 0 if no items found
-        - IMPORTANT: Use await session.delete() to avoid RuntimeWarning
     """
     if not item_ids:
         return 0
 
-    # Get items
+    # Get active items (exclude already soft-deleted)
     statement = select(ShoppingListItem).where(
-        ShoppingListItem.id.in_(item_ids)
+        ShoppingListItem.id.in_(item_ids),
+        ShoppingListItem.deleted_at.is_(None),
     )
     result = await session.execute(statement)
     items = result.scalars().all()
 
-    # Delete each item
+    # Soft-delete each item
+    now = datetime.utcnow()
     count = 0
     for item in items:
-        await session.delete(item)  # IMPORTANT: Use await to avoid RuntimeWarning
+        item.deleted_at = now
+        item.version += 1
+        item.updated_at = now
+
+        # Audit trail
+        if user_id:
+            item.last_modified_by = user_id
+
+        session.add(item)
         count += 1
 
     await session.commit()
@@ -207,11 +242,13 @@ async def get_pending_sync_items(
 
     Notes:
         - Returns items with sync_status='pending'
+        - Excludes soft-deleted items (deleted_at IS NULL)
         - Ordered by created_at ASC (oldest first)
         - Used for background sync queue processing
     """
     statement = select(ShoppingListItem).where(
-        ShoppingListItem.sync_status == 'pending'
+        ShoppingListItem.sync_status == 'pending',
+        ShoppingListItem.deleted_at.is_(None),
     )
 
     if shopping_list_id is not None:
@@ -250,12 +287,14 @@ async def detect_conflicts(
 
     Notes:
         - Returns items with sync_status='conflict'
+        - Excludes soft-deleted items (deleted_at IS NULL)
         - Conflicts must be resolved manually (user chooses: server/client/merge)
         - UI should show conflict indicators (⚠️ icon)
     """
     statement = select(ShoppingListItem).where(
         ShoppingListItem.shopping_list_id == shopping_list_id,
-        ShoppingListItem.sync_status == 'conflict'
+        ShoppingListItem.sync_status == 'conflict',
+        ShoppingListItem.deleted_at.is_(None),
     )
 
     result = await session.execute(statement)
@@ -345,6 +384,7 @@ async def get_items_by_completion_status(
         >>> print(f"Still need to buy: {len(incomplete)} items")
 
     Notes:
+        - Excludes soft-deleted items (deleted_at IS NULL)
         - Ordered by created_at ASC (order added)
         - Used for filtering UI (show only incomplete items)
     """
@@ -352,7 +392,8 @@ async def get_items_by_completion_status(
         select(ShoppingListItem)
         .where(
             ShoppingListItem.shopping_list_id == shopping_list_id,
-            ShoppingListItem.is_completed == is_completed
+            ShoppingListItem.is_completed == is_completed,
+            ShoppingListItem.deleted_at.is_(None),
         )
         .order_by(ShoppingListItem.created_at.asc())
     )
@@ -387,6 +428,7 @@ async def get_items_by_store(
         >>> print(f"Need to buy {len(walmart_items)} items at Walmart")
 
     Notes:
+        - Excludes soft-deleted items (deleted_at IS NULL)
         - Ordered by product_group_id, product_name (grouped by category)
         - Useful for shopping trip planning (items per store)
     """
@@ -394,7 +436,8 @@ async def get_items_by_store(
         select(ShoppingListItem)
         .where(
             ShoppingListItem.shopping_list_id == shopping_list_id,
-            ShoppingListItem.store_id == store_id
+            ShoppingListItem.store_id == store_id,
+            ShoppingListItem.deleted_at.is_(None),
         )
         .order_by(
             ShoppingListItem.product_group_id,
@@ -432,6 +475,7 @@ async def get_items_by_product_group(
         >>> print(f"Dairy: {len(dairy_items)} items")
 
     Notes:
+        - Excludes soft-deleted items (deleted_at IS NULL)
         - Ordered by product_name
         - Used for hierarchy view (grouped by category)
     """
@@ -439,7 +483,8 @@ async def get_items_by_product_group(
         select(ShoppingListItem)
         .where(
             ShoppingListItem.shopping_list_id == shopping_list_id,
-            ShoppingListItem.product_group_id == product_group_id
+            ShoppingListItem.product_group_id == product_group_id,
+            ShoppingListItem.deleted_at.is_(None),
         )
         .order_by(ShoppingListItem.product_name)
     )

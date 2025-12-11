@@ -27,6 +27,7 @@ from backend.app.api.v1.endpoints import (
     reminders_router,
     shopping_csv_import_router,
     shopping_list_items_router,
+    shopping_list_sse_router,
     shopping_lists_router,
     stores_router,
     transfers_router,
@@ -114,3 +115,6 @@ api_router.include_router(google_sheets_import_router)
 
 # Import Templates endpoints (Shopping Lists Feature) ✅
 api_router.include_router(import_templates_router)
+
+# Shopping List SSE endpoints (Real-time Updates) ✅
+api_router.include_router(shopping_list_sse_router)

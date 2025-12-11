@@ -241,12 +241,21 @@
         <form id="item-form" onsubmit="handleSaveItem(event)">
             <input type="hidden" name="item_id" id="item-id">
 
-            <!-- Product Name - first field for quick entry -->
-            <div class="form-control mb-2 sm:mb-4">
+            <!-- Product Name - first field for quick entry (with autocomplete) -->
+            <div class="form-control mb-2 sm:mb-4 relative">
                 <label class="label py-1">
                     <span class="label-text font-medium text-xs sm:text-sm">🛒 Товар <span class="text-error">*</span></span>
                 </label>
-                <input type="text" name="product_name" id="item-product-name" class="input input-bordered input-sm sm:input-md" placeholder="Молоко 3.2%" required>
+                <input type="text" name="product_name" id="item-product-name"
+                       class="input input-bordered input-sm sm:input-md"
+                       placeholder="Молоко 3.2%" required
+                       autocomplete="off"
+                       oninput="window.listsManager?.handleProductInput(this.value)">
+                <!-- Autocomplete dropdown -->
+                <div id="product-suggestions-dropdown"
+                     class="absolute top-full left-0 right-0 z-50 mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                    <!-- Suggestions will be rendered here -->
+                </div>
             </div>
 
             <!-- Store -->
@@ -379,6 +388,9 @@
 <!-- Hierarchy View Renderer -->
 <script src="/static/js/lists/hierarchyView.min.js?v=PLACEHOLDER"></script>
 
+<!-- SSE Client for real-time updates -->
+<script src="/static/js/lists/sseClient.min.js?v=PLACEHOLDER"></script>
+
 <!-- Lists Manager (Core CRUD logic) -->
 <script src="/static/js/lists/listsManager.min.js?v=PLACEHOLDER"></script>
 
@@ -396,6 +408,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (window.listsManager.hierarchyView) {
             window.hierarchyView = window.listsManager.hierarchyView;
         }
+
+        // Close autocomplete dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('product-suggestions-dropdown');
+            const input = document.getElementById('item-product-name');
+            if (dropdown && !dropdown.contains(e.target) && e.target !== input) {
+                window.listsManager?.hideProductSuggestions();
+            }
+        });
 
         debugLog('[Lists] Page initialized');
     } catch (error) {

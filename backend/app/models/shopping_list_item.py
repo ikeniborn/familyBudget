@@ -41,6 +41,16 @@ class ShoppingListItem(SQLModel, table=True):
         - 'conflict': Item has conflicting changes (offline + online)
         - Conflict resolution: user chooses 'server', 'client', or 'merge'
 
+    Optimistic Locking:
+        - version field: incremented on each update
+        - Used for conflict detection during sync
+        - If client version != server version, conflict is detected
+
+    Soft Delete:
+        - deleted_at field: NULL = active, NOT NULL = soft-deleted
+        - Soft-deleted items are excluded from regular queries
+        - Kept for autocomplete history and conflict resolution
+
     Attributes:
         id: Surrogate primary key
         creator_id: Creator user ID (required - tracks who added the item, audit only)
@@ -52,7 +62,11 @@ class ShoppingListItem(SQLModel, table=True):
         unit: Unit of measurement (OPTIONAL, max 50 chars, e.g., "kg", "liters", "pieces")
         comment: Optional comment or notes (e.g., "buy on sale", "specific brand")
         is_completed: Completion flag (True = marked as bought, False = still needed)
+        completed_at: When item was marked as completed (for conflict resolution)
         sync_status: Offline sync status ('synced', 'pending', 'conflict')
+        version: Optimistic locking version (incremented on each update)
+        deleted_at: Soft delete timestamp (NULL = active, NOT NULL = deleted)
+        last_modified_by: User ID who last modified this item
         created_at: Timestamp when item was created (immutable)
         updated_at: Timestamp when item was last updated (auto-updated on changes)
 
@@ -157,6 +171,11 @@ class ShoppingListItem(SQLModel, table=True):
         index=True,
         description="Completion flag (True = marked as bought, False = still needed)"
     )
+    completed_at: Optional[datetime] = Field(
+        default=None,
+        nullable=True,
+        description="When item was marked as completed (for conflict resolution priority)"
+    )
 
     # Offline sync status
     sync_status: str = Field(
@@ -167,7 +186,28 @@ class ShoppingListItem(SQLModel, table=True):
         description="Offline sync status: 'synced', 'pending', 'conflict'"
     )
 
+    # Optimistic locking
+    version: int = Field(
+        default=1,
+        nullable=False,
+        description="Optimistic locking version (incremented on each update)"
+    )
+
+    # Soft delete
+    deleted_at: Optional[datetime] = Field(
+        default=None,
+        nullable=True,
+        index=True,
+        description="Soft delete timestamp (NULL = active, NOT NULL = deleted)"
+    )
+
     # Audit fields
+    last_modified_by: Optional[int] = Field(
+        default=None,
+        foreign_key="t_d_user.id",
+        nullable=True,
+        description="User ID who last modified this item"
+    )
     created_at: datetime = Field(
         default_factory=datetime.utcnow,
         nullable=False,

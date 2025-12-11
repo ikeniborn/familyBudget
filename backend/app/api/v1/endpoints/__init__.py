@@ -50,6 +50,7 @@ from backend.app.api.v1.endpoints.users import router as users_router
 from backend.app.api.v1.endpoints.shopping_csv_import import router as shopping_csv_import_router
 from backend.app.api.v1.endpoints.import_templates import router as import_templates_router
 from backend.app.api.v1.endpoints.google_sheets_import import router as google_sheets_import_router
+from backend.app.api.v1.endpoints.shopping_list_sse import router as shopping_list_sse_router
 
 __all__ = [
     "auth_router",
@@ -71,4 +72,5 @@ __all__ = [
     "shopping_csv_import_router",
     "import_templates_router",
     "google_sheets_import_router",
+    "shopping_list_sse_router",
 ]

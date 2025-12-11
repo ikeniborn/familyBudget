@@ -18,7 +18,7 @@
  */
 
 const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;  // v3: Added sync_metadata store
 
 const STORES = {
     facts: 'offline_facts',
@@ -30,7 +30,8 @@ const STORES = {
     syncQueueShopping: 'sync_queue_shopping',
     cache: 'data_cache',
     cachedStores: 'cached_stores',
-    cachedProductGroups: 'cached_product_groups'
+    cachedProductGroups: 'cached_product_groups',
+    syncMetadata: 'sync_metadata'
 };
 
 class IndexedDBManager {
@@ -170,6 +171,13 @@ class IndexedDBManager {
                     productGroupsStore.createIndex('name', 'name', { unique: false });
                     productGroupsStore.createIndex('parentId', 'parentId', { unique: false });
                     productGroupsStore.createIndex('cachedAt', 'cachedAt', { unique: false });
+                }
+
+                // Store 11: Sync Metadata (lastSyncTimestamp per list)
+                if (!db.objectStoreNames.contains(STORES.syncMetadata)) {
+                    db.createObjectStore(STORES.syncMetadata, {
+                        keyPath: 'listId'
+                    });
                 }
             };
         });
@@ -866,6 +874,60 @@ class IndexedDBManager {
             return await this._count(STORES.syncQueueShopping, 'status', status);
         }
         return await this._count(STORES.syncQueueShopping);
+    }
+
+    // ==================== SYNC METADATA ====================
+
+    /**
+     * Get sync metadata for a shopping list
+     * @param {number} listId - Shopping list ID
+     * @returns {Promise<Object|null>} Sync metadata or null
+     */
+    async getSyncMetadata(listId) {
+        return await this._get(STORES.syncMetadata, listId);
+    }
+
+    /**
+     * Set sync metadata for a shopping list
+     * @param {number} listId - Shopping list ID
+     * @param {string} lastSyncTimestamp - ISO timestamp of last sync
+     * @param {Object} [extra] - Additional metadata
+     * @returns {Promise<number>}
+     */
+    async setSyncMetadata(listId, lastSyncTimestamp, extra = {}) {
+        return await this._update(STORES.syncMetadata, {
+            listId,
+            lastSyncTimestamp,
+            ...extra,
+            updatedAt: new Date().toISOString()
+        });
+    }
+
+    /**
+     * Get last sync timestamp for a shopping list
+     * @param {number} listId - Shopping list ID
+     * @returns {Promise<string|null>} ISO timestamp or null
+     */
+    async getLastSyncTimestamp(listId) {
+        const metadata = await this.getSyncMetadata(listId);
+        return metadata ? metadata.lastSyncTimestamp : null;
+    }
+
+    /**
+     * Delete sync metadata for a shopping list
+     * @param {number} listId - Shopping list ID
+     * @returns {Promise<void>}
+     */
+    async deleteSyncMetadata(listId) {
+        return await this._delete(STORES.syncMetadata, listId);
+    }
+
+    /**
+     * Get all sync metadata
+     * @returns {Promise<Array>}
+     */
+    async getAllSyncMetadata() {
+        return await this._getAll(STORES.syncMetadata);
     }
 
     // ==================== UTILITY METHODS ====================
