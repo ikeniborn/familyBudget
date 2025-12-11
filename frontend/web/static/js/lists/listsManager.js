@@ -458,27 +458,30 @@ class ListsManager {
     }
 
     /**
-     * Render items table
+     * Render items table (desktop) and mobile cards
      */
     renderItemsTable() {
         const tbody = document.getElementById('items-table-body');
+        const mobileContainer = document.getElementById('mobile-cards-container');
         const emptyState = document.getElementById('table-empty-state');
-        const tableView = document.querySelector('.overflow-x-auto');
+        const desktopTable = document.getElementById('desktop-table-container');
 
         if (this.currentItems.length === 0) {
-            tableView.classList.add('hidden');
+            if (desktopTable) desktopTable.classList.add('hidden');
+            if (mobileContainer) mobileContainer.classList.add('hidden');
             emptyState.classList.remove('hidden');
             return;
         }
 
-        tableView.classList.remove('hidden');
+        if (desktopTable) desktopTable.classList.remove('hidden');
+        if (mobileContainer) mobileContainer.classList.remove('hidden');
         emptyState.classList.add('hidden');
 
+        // Render desktop table
         tbody.innerHTML = this.currentItems.map(item => {
             const store = this.stores.find(s => s.id === item.store_id);
             const groupPath = this.getProductGroupBreadcrumbs(item.product_group_id);
             const isCompleted = item.is_completed;
-            const isSelected = this.selectedItemIds.has(item.id);
 
             return `
                 <tr class="${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
@@ -512,8 +515,69 @@ class ListsManager {
             `;
         }).join('');
 
+        // Render mobile cards
+        if (mobileContainer) {
+            mobileContainer.innerHTML = this.currentItems.map(item => {
+                return this.renderMobileCard(item);
+            }).join('');
+        }
+
         // Update selection UI
         this.updateSelectionUI();
+    }
+
+    /**
+     * Render a single mobile card for an item
+     * Format: Store → Group → Product | Qty Unit | Status | Edit | Delete
+     */
+    renderMobileCard(item) {
+        const store = this.stores.find(s => s.id === item.store_id);
+        const group = this.productGroups.find(g => g.id === item.product_group_id);
+        const isCompleted = item.is_completed;
+
+        // Build path: Store → Group → Product
+        const storeName = store ? this.escapeHtml(store.name) : '?';
+        const groupName = group ? this.escapeHtml(group.name) : '?';
+        const productName = this.escapeHtml(item.product_name);
+
+        // Format quantity
+        let qtyText = '';
+        if (item.quantity !== null) {
+            qtyText = this.formatQuantity(item.quantity, item.unit);
+            if (item.unit) {
+                qtyText += ' ' + this.escapeHtml(item.unit);
+            }
+        }
+
+        // Status indicator (small dot or checkmark)
+        const statusIcon = isCompleted ? '✓' : '';
+        const statusClass = isCompleted ? 'mobile-card-completed' : '';
+
+        return `
+            <div class="mobile-item-card ${statusClass}" data-item-id="${item.id}">
+                <div class="mobile-card-main" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
+                    <div class="mobile-card-path">
+                        <span class="mobile-card-store">${storeName}</span>
+                        <span class="mobile-card-separator">→</span>
+                        <span class="mobile-card-group">${groupName}</span>
+                        <span class="mobile-card-separator">→</span>
+                        <span class="mobile-card-product">${productName}</span>
+                    </div>
+                    <div class="mobile-card-status">${statusIcon}</div>
+                </div>
+                <div class="mobile-card-details">
+                    ${qtyText ? `<span class="mobile-card-qty">${qtyText}</span>` : ''}
+                    <div class="mobile-card-actions">
+                        <button class="btn btn-xs btn-ghost btn-square" onclick="event.stopPropagation(); openEditItemModal(${item.id})" title="Редактировать">
+                            ✏️
+                        </button>
+                        <button class="btn btn-xs btn-ghost btn-square text-error" onclick="event.stopPropagation(); window.listsManager.deleteItem(${item.id})" title="Удалить">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     /**

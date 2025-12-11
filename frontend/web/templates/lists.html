@@ -77,8 +77,8 @@
             </div>
         </div>
 
-        <!-- Import Accordion (CSV or Google Sheets) - compact on mobile -->
-        <div class="collapse collapse-arrow bg-base-100 shadow-md sm:shadow-lg mb-4 sm:mb-6">
+        <!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
+        <div class="collapse collapse-arrow bg-base-100 shadow-md sm:shadow-lg mb-4 sm:mb-6 hidden sm:block">
             <input type="checkbox" id="import-toggle"
                    onchange="if(this.checked) initializeImportWizard()" />
             <label for="import-toggle" class="collapse-title text-base sm:text-xl font-medium cursor-pointer py-2 sm:py-4 min-h-0">
@@ -137,7 +137,8 @@
 
         <!-- Table View -->
         <div id="table-view" class="view-mode">
-            <div class="overflow-x-auto shadow-lg rounded-lg">
+            <!-- Desktop Table (hidden on mobile) -->
+            <div class="overflow-x-auto shadow-lg rounded-lg hidden sm:block" id="desktop-table-container">
                 <table class="table table-zebra w-full">
                     <thead>
                         <tr>
@@ -155,6 +156,11 @@
                         <!-- Items will be rendered here dynamically -->
                     </tbody>
                 </table>
+            </div>
+
+            <!-- Mobile Cards View (visible only on mobile) -->
+            <div id="mobile-cards-container" class="sm:hidden space-y-2">
+                <!-- Mobile cards will be rendered here dynamically -->
             </div>
 
             <!-- Empty State for Table -->
