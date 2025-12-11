@@ -92,7 +92,8 @@ async def list_staging_records(
             article_id=record.article_id,
             financial_center_id=record.financial_center_id,
             cost_center_id=record.cost_center_id,
-            is_selected=record.is_selected
+            is_selected=record.is_selected,
+            record_type=record.record_type
         )
         for record in records
     ]
@@ -157,6 +158,8 @@ async def update_staging_record(
         record.budget_description = update_data.budget_description
     if update_data.user_comment is not None:
         record.user_comment = update_data.user_comment
+    if update_data.record_type is not None:
+        record.record_type = update_data.record_type
 
     session.add(record)
     await session.commit()
@@ -352,6 +355,8 @@ async def bulk_update_staging(
             record.financial_center_id = request.financial_center_id
         if request.cost_center_id is not None:
             record.cost_center_id = request.cost_center_id
+        if request.record_type is not None:
+            record.record_type = request.record_type
 
         session.add(record)
 
@@ -477,7 +482,7 @@ async def execute_import(
             amount=amount,
             fact_date=record.fact_date,
             description=final_description,
-            record_type="fact",
+            record_type=record.record_type,
             created_at=now,
             updated_at=now
         )

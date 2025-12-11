@@ -214,6 +214,7 @@ class StagingRecordResponse(BaseModel):
     financial_center_id: Optional[int]
     cost_center_id: Optional[int]
     is_selected: bool
+    record_type: str = "fact"
 
 
 class StagingUpdateRequest(BaseModel):
@@ -232,6 +233,7 @@ class StagingUpdateRequest(BaseModel):
     cost_center_id: Optional[int] = None
     budget_description: Optional[str] = None
     user_comment: Optional[str] = None
+    record_type: Optional[str] = None
 
 
 class BulkUpdateRequest(BaseModel):
@@ -252,6 +254,7 @@ class BulkUpdateRequest(BaseModel):
     article_id: Optional[int] = None
     financial_center_id: Optional[int] = None
     cost_center_id: Optional[int] = None
+    record_type: Optional[str] = None
 
 
 class ImportExecuteRequest(BaseModel):
