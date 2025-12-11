@@ -321,7 +321,7 @@ class ListsManager {
                     <td data-label="Магазин">${store ? this.escapeHtml(store.name) : 'N/A'}</td>
                     <td data-label="Группа" class="text-xs">${groupPath ? this.escapeHtml(groupPath) : 'N/A'}</td>
                     <td data-label="Товар">${this.escapeHtml(item.product_name)}</td>
-                    <td data-label="Кол-во" class="text-right">${item.quantity !== null ? item.quantity : '—'}</td>
+                    <td data-label="Кол-во" class="text-right">${item.quantity !== null ? this.formatQuantity(item.quantity, item.unit) : '—'}</td>
                     <td data-label="Ед.">${item.unit ? this.escapeHtml(item.unit) : '—'}</td>
                     <td data-label="Комментарий" class="truncate-1-line">${item.comment ? this.escapeHtml(item.comment) : '—'}</td>
                     <td class="px-1 text-center">
@@ -371,10 +371,14 @@ class ListsManager {
         const select = document.getElementById('item-store');
         if (!select) return;
 
-        // Keep first option (placeholder)
-        const firstOption = select.querySelector('option[value=""]');
+        // Clear and add empty placeholder option (disabled, hidden)
         select.innerHTML = '';
-        if (firstOption) select.appendChild(firstOption);
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        placeholder.hidden = true;
+        select.appendChild(placeholder);
 
         // Add store options
         this.stores
@@ -927,6 +931,31 @@ class ListsManager {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Format quantity based on unit type
+     * - шт, л, мл, уп, пач, г: integer (no decimals)
+     * - кг: 1 decimal place with comma separator
+     * @param {number|null} quantity - The quantity value
+     * @param {string|null} unit - The unit type
+     * @returns {string|null} Formatted quantity string
+     */
+    formatQuantity(quantity, unit) {
+        if (quantity === null || quantity === undefined) {
+            return null;
+        }
+
+        // Units that should display with 1 decimal (comma separator)
+        const oneDecimalUnits = ['кг'];
+
+        // All other units display as integers: шт, л, мл, уп, пач, г
+        if (unit && oneDecimalUnits.includes(unit)) {
+            return quantity.toFixed(1).replace('.', ',');
+        }
+
+        // Default: integer (round to nearest whole number)
+        return Math.round(quantity).toString();
     }
 }
 

@@ -266,7 +266,7 @@ class HierarchyView {
                     <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
                         ${this.escapeHtml(item.product_name)}
                     </span>
-                    ${item.quantity ? `<span class="hierarchy-item-qty">${item.quantity}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+                    ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
                     <div class="hierarchy-item-actions">
                         <button class="btn btn-xs btn-ghost btn-square"
                                 onclick="openEditItemModal(${item.id})"
@@ -373,6 +373,31 @@ class HierarchyView {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    /**
+     * Format quantity based on unit type
+     * - шт, л, мл, уп, пач, г: integer (no decimals)
+     * - кг: 1 decimal place with comma separator
+     * @param {number|null} quantity - The quantity value
+     * @param {string|null} unit - The unit type
+     * @returns {string|null} Formatted quantity string
+     */
+    formatQuantity(quantity, unit) {
+        if (quantity === null || quantity === undefined) {
+            return null;
+        }
+
+        // Units that should display with 1 decimal (comma separator)
+        const oneDecimalUnits = ['кг'];
+
+        // All other units display as integers: шт, л, мл, уп, пач, г
+        if (unit && oneDecimalUnits.includes(unit)) {
+            return quantity.toFixed(1).replace('.', ',');
+        }
+
+        // Default: integer (round to nearest whole number)
+        return Math.round(quantity).toString();
     }
 }
 
