@@ -3,15 +3,16 @@
  * Управление CRUD операциями в offline режиме с автоматической синхронизацией
  *
  * Features:
- * - CREATE/UPDATE/DELETE для facts, transfers, plans
+ * - CREATE/UPDATE/DELETE для facts, transfers, plans, shopping lists & items
  * - Automatic sync при восстановлении сети
  * - Background Sync API support (Chrome, Edge, Яндекс.Браузер)
  * - Fallback для Safari (polling)
  * - Conflict resolution
  * - Retry logic для failed syncs
  * - SmartNetworkDetector для надежного определения состояния сети
+ * - Caching stores & product groups для offline работы
  *
- * @version 1.1.0
+ * @version 2.0.0 - Added Shopping Lists support
  */
 
 class OfflineManager {
@@ -65,10 +66,10 @@ class OfflineManager {
         if (typeof SmartNetworkDetector !== 'undefined') {
             this.networkDetector = new SmartNetworkDetector({
                 heartbeatUrl: '/health',
-                heartbeatInterval: 30000,  // 30 сек
+                heartbeatIntervals: [2000, 4000, 20000],  // Прогрессивные интервалы: 2s, 4s, 20s
                 heartbeatTimeout: 5000,    // 5 сек timeout
-                maxFailures: 2,            // 2 ошибки подряд → offline
-                minCheckInterval: 5000,    // Не проверять чаще 5 сек
+                maxFailures: 3,            // 3 ошибки подряд → offline
+                minCheckInterval: 1000,    // Защита от спама (1 сек)
                 onStatusChange: (newStatus, oldStatus) => {
                     this._handleNetworkStatusChange(newStatus, oldStatus);
                 }

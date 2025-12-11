@@ -5,14 +5,23 @@
 {% block content %}
 <div class="space-y-6">
     {% if user %}
-        <!-- Welcome Section (auto-hides after 10 seconds) -->
-        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500">
+        <!-- Welcome Section (manual close with localStorage) -->
+        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500 relative">
             <div class="hero-content text-center py-6">
                 <div class="max-w-md">
                     <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
                     <p class="opacity-80">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
                 </div>
             </div>
+            <!-- Close Button (bottom-right corner) -->
+            <button onclick="showWelcomeCloseConfirmation()"
+                    class="btn btn-sm btn-ghost absolute bottom-2 right-2 gap-1"
+                    title="Скрыть секцию приветствия">
+                <span class="hidden sm:inline">Скрыть</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
         </div>
 
         <!-- Quick Stats Section -->
@@ -85,20 +94,26 @@
                             </div>
                         </div>
 
-                        <!-- Аналитика -->
+                        <!-- Прочее (Аналитика + Списки) -->
                         <div id="analytics-group" class="border border-primary/30 rounded-lg p-3 bg-primary/5">
                             <h3 class="text-sm font-semibold text-primary mb-2 flex items-center gap-1">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
                                 </svg>
-                                Аналитика
+                                Прочее
                             </h3>
                             <div class="flex flex-col gap-2">
-                                <a id="analytics-btn" href="/analytics" class="btn btn-sm btn-outline btn-primary justify-start gap-2">
+                                <a id="analytics-btn" href="/analytics" class="btn btn-sm btn-outline btn-primary justify-start gap-2" data-offline-hidden="true">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
                                     Панель аналитики
+                                </a>
+                                <a id="lists-btn" href="/lists" class="btn btn-sm btn-outline btn-accent justify-start gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    Списки
                                 </a>
                             </div>
                         </div>
@@ -222,6 +237,24 @@
 
     <!-- Modal: Добавить план -->
     {{ plan_modal('modal_add_plan') }}
+
+    <!-- Modal: Confirm Welcome Section Close -->
+    <dialog id="modal_welcome_close_confirm" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg mb-4">⚠️ Подтверждение</h3>
+            <p class="py-4">
+                Вы уверены, что хотите скрыть секцию приветствия?<br>
+                <span class="text-sm opacity-70">Она больше не будет отображаться. Чтобы вернуть её, нужно будет очистить кэш браузера.</span>
+            </p>
+            <div class="modal-action">
+                <button onclick="confirmWelcomeClose()" class="btn btn-error btn-sm">Да, скрыть</button>
+                <button onclick="closeWelcomeConfirmModal()" class="btn btn-sm">Отмена</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
 {% endif %}
 
 {% endblock %}
@@ -299,20 +332,64 @@ function openAddTransactionModal() {
     }, 50); // Увеличил delay до 50ms для надёжности
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Auto-hide Welcome Section after 10 seconds
+// Welcome Section Management
+function checkWelcomeSectionVisibility() {
+    try {
+        const isHidden = localStorage.getItem('welcomeSectionHidden') === 'true';
+        const welcomeSection = document.getElementById('welcome-section');
+
+        if (isHidden && welcomeSection) {
+            // Hide immediately without animation on page load
+            welcomeSection.style.display = 'none';
+        }
+    } catch (e) {
+        console.error('localStorage not available:', e);
+    }
+}
+
+function showWelcomeCloseConfirmation() {
+    const modal = document.getElementById('modal_welcome_close_confirm');
+    if (modal) {
+        modal.showModal();
+    }
+}
+
+function closeWelcomeConfirmModal() {
+    const modal = document.getElementById('modal_welcome_close_confirm');
+    if (modal) {
+        modal.close();
+    }
+}
+
+function hideWelcomeSection() {
     const welcomeSection = document.getElementById('welcome-section');
     if (welcomeSection) {
+        welcomeSection.style.opacity = '0';
+        welcomeSection.style.maxHeight = '0';
+        welcomeSection.style.overflow = 'hidden';
+        welcomeSection.style.padding = '0';
+        welcomeSection.style.margin = '0';
+
         setTimeout(() => {
-            welcomeSection.style.opacity = '0';
-            welcomeSection.style.maxHeight = '0';
-            welcomeSection.style.overflow = 'hidden';
-            welcomeSection.style.padding = '0';
-            welcomeSection.style.margin = '0';
-            // Remove from DOM after animation
-            setTimeout(() => welcomeSection.remove(), 500);
-        }, 10000); // 10 seconds
+            welcomeSection.style.display = 'none';
+        }, 500);
     }
+}
+
+function confirmWelcomeClose() {
+    try {
+        localStorage.setItem('welcomeSectionHidden', 'true');
+    } catch (e) {
+        console.error('Failed to save to localStorage:', e);
+    }
+
+    hideWelcomeSection();
+    closeWelcomeConfirmModal();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if welcome section should be hidden based on localStorage
+    checkWelcomeSectionVisibility();
 
     // NOTE: updateOfflineUI() is now handled by base.html
     // It considers both navigator.onLine, SmartNetworkDetector status, AND manual offline mode

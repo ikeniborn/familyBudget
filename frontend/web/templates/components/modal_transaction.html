@@ -93,7 +93,12 @@
             </div>
 
             <div class="modal-action mt-3">
-                <button type="button" onclick="{{ modal_id }}.close()" class="btn btn-sm btn-ghost">Отмена</button>
+                <button type="button" onclick="{{ modal_id }}.close()" class="btn btn-sm btn-ghost">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span class="hidden sm:inline">Отмена</span>
+                </button>
                 <!-- Save to local queue only (offline-aware) -->
                 <button type="button" class="btn btn-sm btn-warning save-offline-btn"
                         data-form-id="form_{{ modal_id }}"
@@ -103,7 +108,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                     </svg>
-                    Сохранить
+                    <span class="hidden sm:inline">Сохранить</span>
                 </button>
                 <!-- Save and upload to server (online only) -->
                 <button type="submit" class="btn btn-sm btn-success save-upload-btn"
@@ -111,7 +116,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
-                    Сохранить и загрузить
+                    <span class="hidden sm:inline">Сохранить и загрузить</span>
                 </button>
             </div>
         </form>

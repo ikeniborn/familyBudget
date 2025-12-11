@@ -48,3 +48,4 @@ httpx==0.28.1
 # Development
 black==24.10.0
 ruff==0.8.4
+sse-starlette>=2.0.0

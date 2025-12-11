@@ -1,13 +1,15 @@
 """
 Code Generator Utility - Auto-generate sequential business codes for dimension tables.
 
-Generates unique sequential codes for Article, FinancialCenter, and CostCenter models.
+Generates unique sequential codes for dimension models.
 
 Pattern: {PREFIX}-{SEQUENTIAL_NUMBER}
 Examples:
 - Article: ART-1, ART-2, ART-3, ...
 - FinancialCenter: CFO-1, CFO-2, CFO-3, ...
 - CostCenter: MVZ-1, MVZ-2, MVZ-3, ...
+- Store: STORE-1, STORE-2, STORE-3, ...
+- ProductGroup: PGRP-1, PGRP-2, PGRP-3, ...
 
 Created: 2025-11-09
 """
@@ -22,16 +24,20 @@ from sqlmodel import SQLModel
 from backend.app.models.article import Article
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.cost_center import CostCenter
+from backend.app.models.store import Store
+from backend.app.models.product_group import ProductGroup
 
 
 # Type variable for dimension models
-T = TypeVar("T", Article, FinancialCenter, CostCenter)
+T = TypeVar("T", Article, FinancialCenter, CostCenter, Store, ProductGroup)
 
 # Prefix mapping for each model type
 MODEL_PREFIXES = {
     Article: "ART",
     FinancialCenter: "CFO",
     CostCenter: "MVZ",
+    Store: "STORE",
+    ProductGroup: "PGRP",
 }
 
 
