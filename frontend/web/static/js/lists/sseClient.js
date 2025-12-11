@@ -349,21 +349,24 @@ class ShoppingListSSEClient {
         const indicator = document.getElementById('sse-status-indicator');
         if (!indicator) return;
 
+        // Badge size classes matching progress badge (badge-sm on mobile, badge-md on desktop)
+        const sizeClasses = 'badge-sm sm:badge-md';
+
         if (this.isConnected) {
-            indicator.className = 'badge badge-success badge-xs';
+            indicator.className = `badge badge-success ${sizeClasses}`;
             indicator.innerHTML = '🟢';
             indicator.title = 'Синхронизация активна';
         } else if (this.reconnectAttempts > 0 && this.reconnectAttempts < this.maxReconnectAttempts) {
-            indicator.className = 'badge badge-warning badge-xs';
-            indicator.innerHTML = '<span class="loading loading-ring loading-xs"></span>';
+            indicator.className = `badge badge-warning ${sizeClasses}`;
+            indicator.innerHTML = '<span class="loading loading-ring loading-xs sm:loading-sm"></span>';
             indicator.title = `Переподключение (${this.reconnectAttempts}/${this.maxReconnectAttempts})`;
         } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            indicator.className = 'badge badge-error badge-xs';
+            indicator.className = `badge badge-error ${sizeClasses}`;
             indicator.innerHTML = '🔴';
             indicator.title = 'Ошибка соединения. Обновите страницу';
         } else {
-            indicator.className = 'badge badge-neutral badge-xs';
-            indicator.innerHTML = '<span class="loading loading-ring loading-xs"></span>';
+            indicator.className = `badge badge-neutral ${sizeClasses}`;
+            indicator.innerHTML = '<span class="loading loading-ring loading-xs sm:loading-sm"></span>';
             indicator.title = 'Подключение...';
         }
     }

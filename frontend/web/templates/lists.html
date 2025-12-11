@@ -64,8 +64,8 @@
                     <p class="text-sm sm:text-base text-base-content/70 truncate" id="list-detail-description">...</p>
                     <div class="mt-1 sm:mt-2 flex gap-2 items-center">
                         <span class="badge badge-info badge-sm sm:badge-md" id="list-progress-badge">0 / 0 выполнено</span>
-                        <span class="badge badge-neutral badge-xs" id="sse-status-indicator" title="Статус синхронизации">
-                            <span class="loading loading-ring loading-xs"></span>
+                        <span class="badge badge-neutral badge-sm sm:badge-md" id="sse-status-indicator" title="Статус синхронизации">
+                            <span class="loading loading-ring loading-xs sm:loading-sm"></span>
                         </span>
                     </div>
                 </div>
@@ -81,11 +81,11 @@
         </div>
 
         <!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
-        <div class="collapse collapse-arrow bg-base-100 shadow-md sm:shadow-lg mb-4 sm:mb-6 hidden sm:block">
+        <div class="collapse collapse-arrow bg-base-100 shadow-sm sm:shadow-md mb-4 sm:mb-6 hidden sm:block w-fit rounded-lg">
             <input type="checkbox" id="import-toggle"
                    onchange="handleImportToggle(this.checked)" />
-            <label for="import-toggle" class="collapse-title text-base sm:text-xl font-medium cursor-pointer py-2 sm:py-4 min-h-0">
-                📥 <span class="hidden xs:inline">Импорт</span><span class="xs:hidden">Импорт</span>
+            <label for="import-toggle" class="collapse-title text-sm sm:text-base font-medium cursor-pointer py-1.5 sm:py-2 min-h-0 pr-10">
+                📥 Импорт
             </label>
             <div class="collapse-content px-2 sm:px-4">
                 <div class="pt-2 sm:pt-4">
