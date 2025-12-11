@@ -389,16 +389,22 @@ class HierarchyView {
             return null;
         }
 
+        // Convert to number if string (API may return string)
+        const numQuantity = typeof quantity === 'string' ? parseFloat(quantity) : quantity;
+        if (isNaN(numQuantity)) {
+            return null;
+        }
+
         // Units that should display with 1 decimal (comma separator)
         const oneDecimalUnits = ['кг'];
 
         // All other units display as integers: шт, л, мл, уп, пач, г
         if (unit && oneDecimalUnits.includes(unit)) {
-            return quantity.toFixed(1).replace('.', ',');
+            return numQuantity.toFixed(1).replace('.', ',');
         }
 
         // Default: integer (round to nearest whole number)
-        return Math.round(quantity).toString();
+        return Math.round(numQuantity).toString();
     }
 }
 
