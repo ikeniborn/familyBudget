@@ -192,7 +192,25 @@ class ListsManager {
 
         // Load items for this list
         await this.loadShoppingListItems(listId);
-        this.renderItemsTable();
+
+        // Restore saved view preference from localStorage
+        let savedView = 'table'; // default
+        try {
+            const stored = localStorage.getItem('lists_view_preference');
+            if (stored === 'table' || stored === 'hierarchy') {
+                savedView = stored;
+                debugLog('[ListsManager] Restored view preference:', savedView);
+            }
+        } catch (e) {
+            // localStorage may be unavailable
+        }
+
+        // Apply saved view (this also renders the content)
+        if (savedView === 'hierarchy' && this.hierarchyView) {
+            this.switchView('hierarchy');
+        } else {
+            this.switchView('table');
+        }
 
         // Initialize Choices.js for product group selector in modal
         this.initProductGroupChoices();
@@ -534,8 +552,9 @@ class ListsManager {
         const filteredItems = this.filterItemsBySearch();
 
         if (filteredItems.length === 0) {
-            if (desktopTable) desktopTable.classList.add('hidden');
-            if (mobileContainer) mobileContainer.classList.add('hidden');
+            // Use table-content-hidden to hide without breaking responsive classes
+            if (desktopTable) desktopTable.classList.add('table-content-hidden');
+            if (mobileContainer) mobileContainer.classList.add('table-content-hidden');
             emptyState.classList.remove('hidden');
 
             // Update empty state message based on search
@@ -551,8 +570,9 @@ class ListsManager {
             return;
         }
 
-        if (desktopTable) desktopTable.classList.remove('hidden');
-        if (mobileContainer) mobileContainer.classList.remove('hidden');
+        // Remove table-content-hidden to show (responsive classes handle desktop/mobile visibility)
+        if (desktopTable) desktopTable.classList.remove('table-content-hidden');
+        if (mobileContainer) mobileContainer.classList.remove('table-content-hidden');
         emptyState.classList.add('hidden');
 
         // Render desktop table
@@ -1381,9 +1401,19 @@ class ListsManager {
 
     /**
      * Switch view (table <-> hierarchy)
+     * Saves preference to localStorage for persistence
      */
     switchView(viewName) {
         this.currentView = viewName;
+
+        // Save preference to localStorage
+        try {
+            localStorage.setItem('lists_view_preference', viewName);
+            debugLog('[ListsManager] Saved view preference:', viewName);
+        } catch (e) {
+            // localStorage may be unavailable in private browsing
+            console.warn('[ListsManager] Failed to save view preference:', e);
+        }
 
         if (viewName === 'table') {
             document.getElementById('table-view').classList.remove('hidden');

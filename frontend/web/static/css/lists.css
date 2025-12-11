@@ -106,6 +106,14 @@
     display: none;
 }
 
+/* Content visibility control (for empty state)
+   This class hides content regardless of responsive breakpoint.
+   Used by JS to hide desktop/mobile containers when list is empty,
+   without breaking the responsive hidden/sm:block pattern. */
+.table-content-hidden {
+    display: none !important;
+}
+
 /* ============================================== */
 /* Landing View: Shopping List Cards */
 /* ============================================== */
