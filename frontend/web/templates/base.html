@@ -139,16 +139,16 @@
             <ul class="menu menu-horizontal px-1" role="menubar">
                 {% if user %}
                 <li><a href="/" class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>
-                <li><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
-                <li><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
-                <li><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
+                <li data-offline-hidden="true"><a href="/analytics" class="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/analytics' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📊 Аналитика</a></li>
+                <li data-offline-hidden="true"><a href="/facts" class="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/facts' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">💸 Факт</a></li>
+                <li data-offline-hidden="true"><a href="/plan" class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
                 <li><a href="/lists" class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
-                <li><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}" aria-current="{% if '/notifications' in request.url.path %}page{% endif %}">🔔 Уведомления</a></li>
-                <li><a href="/import" class="{% if '/import' in request.url.path %}active{% endif %}" aria-current="{% if '/import' in request.url.path %}page{% endif %}">📥 Импорт</a></li>
+                <li data-offline-hidden="true"><a href="/notifications" class="{% if '/notifications' in request.url.path %}active{% endif %}" aria-current="{% if '/notifications' in request.url.path %}page{% endif %}">🔔 Уведомления</a></li>
+                <li data-offline-hidden="true"><a href="/import" class="{% if '/import' in request.url.path %}active{% endif %}" aria-current="{% if '/import' in request.url.path %}page{% endif %}">📥 Импорт</a></li>
                 {% endif %}
 
                 {% if user and user.is_admin %}
-                <li>
+                <li data-offline-hidden="true">
                     <details>
                         <summary>Администратор</summary>
                         <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
@@ -361,24 +361,24 @@
                     {% endif %}
                     {% if user %}
                     <li><a href="/">🏠 Главная</a></li>
-                    <li><a href="/analytics">📊 Аналитика</a></li>
-                    <li><a href="/facts">💸 Факт</a></li>
-                    <li><a href="/plan">📋 План</a></li>
+                    <li data-offline-hidden="true"><a href="/analytics">📊 Аналитика</a></li>
+                    <li data-offline-hidden="true"><a href="/facts">💸 Факт</a></li>
+                    <li data-offline-hidden="true"><a href="/plan">📋 План</a></li>
                     <li><a href="/lists">🛒 Списки</a></li>
-                    <li><a href="/notifications">🔔 Уведомления</a></li>
-                    <li><a href="/import">📥 Импорт</a></li>
-                    <li><a href="/security">🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
+                    <li data-offline-hidden="true"><a href="/notifications">🔔 Уведомления</a></li>
+                    <li data-offline-hidden="true"><a href="/import">📥 Импорт</a></li>
+                    <li data-offline-hidden="true"><a href="/security">🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
                     {% endif %}
 
                     {% if user and user.is_admin %}
-                        <li class="menu-title"><span>Администратор</span></li>
-                        <li><a href="/admin/users">👥 Пользователи</a></li>
-                        <li><a href="/admin/articles">📁 Категории</a></li>
-                        <li><a href="/admin/financial-centers">🏢 ЦФО</a></li>
-                        <li><a href="/admin/cost-centers">💼 МВЗ</a></li>
-                        <li><a href="/admin/stores">🏪 Магазины</a></li>
-                        <li><a href="/admin/product-groups">📦 Группы товаров</a></li>
-                        <li><a href="/admin/monitoring">🔍 Мониторинг</a></li>
+                        <li class="menu-title" data-offline-hidden="true"><span>Администратор</span></li>
+                        <li data-offline-hidden="true"><a href="/admin/users">👥 Пользователи</a></li>
+                        <li data-offline-hidden="true"><a href="/admin/articles">📁 Категории</a></li>
+                        <li data-offline-hidden="true"><a href="/admin/financial-centers">🏢 ЦФО</a></li>
+                        <li data-offline-hidden="true"><a href="/admin/cost-centers">💼 МВЗ</a></li>
+                        <li data-offline-hidden="true"><a href="/admin/stores">🏪 Магазины</a></li>
+                        <li data-offline-hidden="true"><a href="/admin/product-groups">📦 Группы товаров</a></li>
+                        <li data-offline-hidden="true"><a href="/admin/monitoring">🔍 Мониторинг</a></li>
                     {% endif %}
                     {% if user %}
                         <div class="divider my-1"></div>
@@ -910,16 +910,22 @@
                 }
             }
 
-            // Hide hamburger menu (mobile menu) when offline
-            const mobileMenuDropdown = document.getElementById('mobile-menu-dropdown');
-            if (mobileMenuDropdown) {
-                mobileMenuDropdown.style.display = isOnline ? '' : 'none';
+            // Mobile menu - show/hide individual items with data-offline-hidden
+            const mobileMenuContent = document.getElementById('mobile-menu-content');
+            if (mobileMenuContent) {
+                const offlineHiddenItems = mobileMenuContent.querySelectorAll('[data-offline-hidden="true"]');
+                offlineHiddenItems.forEach(item => {
+                    item.style.display = isOnline ? '' : 'none';
+                });
             }
 
-            // Hide navbar center menu (desktop: Главная, Аналитика, etc.) when offline
+            // Navbar center menu - show/hide individual items with data-offline-hidden
             const navbarCenterMenu = document.getElementById('navbar-center-menu');
             if (navbarCenterMenu) {
-                navbarCenterMenu.style.display = isOnline ? '' : 'none';
+                const offlineHiddenItems = navbarCenterMenu.querySelectorAll('[data-offline-hidden="true"]');
+                offlineHiddenItems.forEach(item => {
+                    item.style.display = isOnline ? '' : 'none';
+                });
             }
 
             // Hide Telegram link when offline (both mobile and desktop)
@@ -934,10 +940,13 @@
                 userDropdown.style.display = isOnline ? '' : 'none';
             }
 
-            // Hide analytics group and recent transactions on index page when offline
+            // In analytics-group (now "Прочее") - hide only items with data-offline-hidden
             const analyticsGroup = document.getElementById('analytics-group');
             if (analyticsGroup) {
-                analyticsGroup.style.display = isOnline ? '' : 'none';
+                const offlineHiddenItems = analyticsGroup.querySelectorAll('[data-offline-hidden="true"]');
+                offlineHiddenItems.forEach(item => {
+                    item.style.display = isOnline ? '' : 'none';
+                });
             }
 
             const recentTransactionsCard = document.getElementById('recent-transactions-card');
