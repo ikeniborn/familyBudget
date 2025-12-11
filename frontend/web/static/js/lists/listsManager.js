@@ -487,7 +487,12 @@ class ListsManager {
                 <tr class="${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
                     <td data-label="Магазин">${store ? this.escapeHtml(store.name) : 'N/A'}</td>
                     <td data-label="Группа" class="text-xs">${groupPath ? this.escapeHtml(groupPath) : 'N/A'}</td>
-                    <td data-label="Товар">${this.escapeHtml(item.product_name)}</td>
+                    <td data-label="Товар">
+                        <span class="table-item-name hierarchy-clickable ${isCompleted ? 'line-through opacity-60' : ''}"
+                              onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
+                            ${this.escapeHtml(item.product_name)}
+                        </span>
+                    </td>
                     <td data-label="Кол-во" class="text-right">${item.quantity !== null ? this.formatQuantity(item.quantity, item.unit) : '—'}</td>
                     <td data-label="Ед.">${item.unit ? this.escapeHtml(item.unit) : '—'}</td>
                     <td data-label="Комментарий" class="truncate-1-line">${item.comment ? this.escapeHtml(item.comment) : '—'}</td>

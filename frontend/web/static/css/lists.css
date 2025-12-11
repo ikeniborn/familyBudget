@@ -190,6 +190,24 @@
     text-decoration: line-through;
 }
 
+/* Exclude clickable product name from line-through (it has its own styling) */
+.table tbody tr.completed td .table-item-name {
+    text-decoration: inherit;
+}
+
+/* ---- Clickable Product Name in Table View ---- */
+.table-item-name {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    margin: -0.25rem -0.5rem;
+    border-radius: 0.25rem;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.table-item-name:hover {
+    background-color: var(--fallback-b2, oklch(var(--b2)));
+}
+
 /* Editable cells (inline editing) */
 .editable-cell {
     cursor: pointer;
