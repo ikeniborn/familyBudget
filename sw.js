@@ -30,7 +30,28 @@ const STATIC_CACHE = [
 ];
 
 // Страницы доступные в offline режиме (только эти страницы работают без сети)
-const OFFLINE_PAGES = ['/', '/facts', '/plan'];
+const OFFLINE_PAGES = ['/', '/lists'];
+
+// Критические ресурсы для offline страниц (CSS/JS без версий - ignoreSearch найдёт их)
+// ВАЖНО: Файлы кэшируются БЕЗ query string, но ignoreSearch: true позволяет найти их
+// при запросе с cache busting (?v=...). Добавляйте только файлы, уникальные для страницы.
+// Общие файлы (vendor, shared) уже кэшируются при посещении главной страницы.
+const OFFLINE_PAGE_ASSETS = [
+  // === Страница /lists ===
+  // CSS
+  '/static/css/lists.min.css',
+  // JS - offline support
+  '/static/js/offline/offlineShoppingManager.min.js',
+  // JS - lists functionality
+  '/static/js/lists/csvImporter.min.js',
+  '/static/js/lists/googleSheetsImporter.min.js',
+  '/static/js/lists/importManager.min.js',
+  '/static/js/lists/hierarchyView.min.js',
+  '/static/js/lists/sseClient.min.js',
+  '/static/js/lists/listsManager.min.js',
+  // JS - shared (used by lists)
+  '/shared/static/js/choicesProductGroupTree.min.js'
+];
 
 // Страницы для быстрой загрузки (кэшируем при первом посещении, но требуют сети)
 // Эти страницы кэшируются для ускорения повторной загрузки, но не работают offline
@@ -39,7 +60,7 @@ const CACHE_FIRST_PAGES = ['/api/v1/auth/telegram-login', '/login-email', '/regi
 // Файлы с cache busting - кешируются RUNTIME (не в install event)
 // Service Worker будет кешировать их при первом запросе
 
-// Install event - кешируем критическую статику
+// Install event - кешируем критическую статику и ресурсы offline страниц
 self.addEventListener('install', (event) => {
   if (DEBUG) console.log('[SW] Installing version:', CACHE_VERSION);
 
@@ -57,6 +78,30 @@ self.addEventListener('install', (event) => {
             })
           )
         );
+      })
+      .then(() => {
+        // Кэшируем ресурсы для offline страниц (CSS/JS)
+        // ВАЖНО: Кэшируем БЕЗ credentials т.к. это публичная статика
+        if (DEBUG) console.log('[SW] Caching offline page assets');
+        return caches.open(CACHE_NAME).then((cache) => {
+          return Promise.allSettled(
+            OFFLINE_PAGE_ASSETS.map(url =>
+              fetch(url, { credentials: 'omit' })
+                .then(response => {
+                  if (response.ok) {
+                    return cache.put(url, response);
+                  }
+                  if (DEBUG) console.warn('[SW] Asset not found:', url);
+                  return null;
+                })
+                .catch(err => {
+                  // Подавляем ошибки - файл может закэшироваться позже
+                  if (DEBUG) console.warn('[SW] Failed to cache asset:', url, err.message);
+                  return null;
+                })
+            )
+          );
+        });
       })
       .then(() => {
         if (DEBUG) console.log('[SW] Skip waiting');
@@ -253,12 +298,40 @@ self.addEventListener('fetch', (event) => {
                 if (DEBUG) console.log('[SW] Serving HTML from cache (offline):', url.pathname);
                 return cachedResponse;
               }
-              // Если нет в кеше - показываем offline страницу
-              return caches.match('/')
-                .then(homeResponse => homeResponse || new Response(
-                  '<h1>Offline</h1><p>Нет подключения к интернету</p>',
-                  { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-                ));
+              // Страница в OFFLINE_PAGES, но не закеширована
+              // Показываем информативное сообщение вместо тихого редиректа на /
+              if (DEBUG) console.log('[SW] Page in OFFLINE_PAGES but not cached:', url.pathname);
+              return new Response(
+                `<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Страница не загружена</title>
+    <style>
+        body { font-family: system-ui, sans-serif; text-align: center; padding: 2rem; background: #f3f4f6; }
+        .container { max-width: 400px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .icon { font-size: 3rem; margin-bottom: 1rem; }
+        h1 { color: #374151; margin-bottom: 0.5rem; font-size: 1.25rem; }
+        p { color: #6b7280; margin-bottom: 1.5rem; font-size: 0.875rem; }
+        a { display: inline-block; padding: 0.75rem 1.5rem; background: #3b82f6; color: white; text-decoration: none; border-radius: 0.5rem; }
+        a:hover { background: #2563eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">📡</div>
+        <h1>Страница недоступна offline</h1>
+        <p>Для работы в offline режиме откройте страницу "${url.pathname}" при наличии интернета.</p>
+        <a href="/">← На главную</a>
+    </div>
+</body>
+</html>`,
+                {
+                  status: 200,
+                  headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                }
+              );
             });
         })
     );
@@ -353,15 +426,32 @@ self.addEventListener('message', (event) => {
 /**
  * IndexedDB Helper Functions
  * Используются для работы с offline data из Service Worker
+ *
+ * ВАЖНО: DB_VERSION должна совпадать с версией в idb.js!
+ * Service Worker НЕ создаёт схему (нет onupgradeneeded),
+ * он только читает/пишет в существующие stores.
+ * Схема управляется в frontend/web/static/js/offline/idb.js
  */
 const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;  // ✅ Синхронизировано с idb.js (v2.0.0 - Shopping Lists support)
 
 async function openIndexedDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onerror = () => {
+      // Handle VersionError: requested version < existing version
+      // This can happen when old SW tries to open upgraded DB
+      if (request.error.name === 'VersionError') {
+        if (DEBUG) console.log('[SW] VersionError - opening DB without version');
+        // Retry without version (opens current version)
+        const retryRequest = indexedDB.open(DB_NAME);
+        retryRequest.onsuccess = () => resolve(retryRequest.result);
+        retryRequest.onerror = () => reject(retryRequest.error);
+      } else {
+        reject(request.error);
+      }
+    };
   });
 }
 

@@ -141,6 +141,13 @@ class ImportStaging(SQLModel, table=True):
         description="Whether to import this transaction (user checkbox in UI)"
     )
 
+    record_type: str = Field(
+        default="fact",
+        max_length=10,
+        nullable=False,
+        description="Record type: 'fact' for actual transactions, 'plan' for budget plans"
+    )
+
     # Audit fields
     created_at: datetime = Field(
         default_factory=datetime.utcnow,

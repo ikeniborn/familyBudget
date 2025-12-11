@@ -1,0 +1,602 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">🗂️ Управление группами товаров</h1>
+        <p class="text-base-content/70">Создавайте и редактируйте категории товаров с иерархической структурой для списков покупок</p>
+    </div>
+
+    <!-- Product Groups Table -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="mb-4">
+                <div class="flex flex-col gap-3 mb-3">
+                    <div class="flex justify-between items-center">
+                        <h2 class="card-title text-2xl">📦 Группы товаров</h2>
+                        {% if user.is_admin %}
+                        <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Новая группа
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <div class="form-control flex-1 min-w-[200px] max-w-xs">
+                            <div class="flex items-center gap-0">
+                                <span class="bg-base-200 px-3 h-12 flex items-center rounded-l-lg border border-r-0 border-base-300">🔍</span>
+                                <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-bordered w-full rounded-l-none" oninput="handleSearch(this.value)" />
+                            </div>
+                        </div>
+                        <div class="btn-group">
+                            <button class="btn btn-sm" id="status-all" onclick="updateStatusFilter('all')" aria-pressed="true" style="height: 3rem; min-height: 3rem;">Все</button>
+                            <button class="btn btn-sm btn-outline" id="status-active" onclick="updateStatusFilter('active')" aria-pressed="false" style="height: 3rem; min-height: 3rem;">✓ Активные</button>
+                            <button class="btn btn-sm btn-outline" id="status-archived" onclick="updateStatusFilter('archived')" aria-pressed="false" style="height: 3rem; min-height: 3rem;">📦 Архивные</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="groups-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if user.is_admin %}
+<!-- Create Product Group Modal -->
+<dialog id="create-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новую группу товаров</h3>
+        <form id="create-form" onsubmit="createProductGroup(event)" class="space-y-2 sm:space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Например: Молочные продукты" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📂 Родительская группа</span>
+                </label>
+                <select id="create-parent" name="parent_id" class="select select-bordered">
+                    <option value="">-- Корневой уровень --</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📄 Описание</span>
+                </label>
+                <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">✅ Создать</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Edit Product Group Modal -->
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать группу товаров</h3>
+        <form id="edit-form" onsubmit="updateProductGroup(event)" class="space-y-2 sm:space-y-4">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📂 Родительская группа</span>
+                </label>
+                <select id="edit-parent" name="parent_id" class="select select-bordered">
+                    <option value="">-- Корневой уровень --</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📄 Описание</span>
+                </label>
+                <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+{% endif %}
+
+<!-- Custom Confirmation Dialog -->
+<dialog id="confirm-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
+        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
+            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="confirmModalResolve(false)">close</button>
+    </form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/confirmDialog.min.js?v=PLACEHOLDER"></script>
+<script>
+// Check if current user is admin
+const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+
+// Global state
+let productGroupsData = [];
+let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
+let currentSearchQuery = '';
+
+// Load product groups on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadProductGroups();
+});
+
+// Load product groups from API
+async function loadProductGroups() {
+    const container = document.getElementById('groups-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        // Include inactive groups if viewing "all" or "archived" filter
+        let url = '/api/v1/product-groups?limit=1000';
+        if (currentStatusFilter === 'all' || currentStatusFilter === 'archived') {
+            url += '&include_inactive=true';
+        }
+
+        const response = await fetch(url, {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        productGroupsData = data.product_groups || [];
+
+        renderProductGroupsTree();
+    } catch (error) {
+        console.error('Failed to load product groups:', error);
+        container.innerHTML = '<div class="alert alert-error"><span>❌ Ошибка загрузки групп товаров. Попробуйте перезагрузить страницу.</span></div>';
+    }
+}
+
+// Render product groups tree
+function renderProductGroupsTree() {
+    const container = document.getElementById('groups-table-container');
+
+    // Filter by status
+    let filtered = productGroupsData;
+    if (currentStatusFilter === 'active') {
+        filtered = filtered.filter(g => g.is_active === true);
+    } else if (currentStatusFilter === 'archived') {
+        filtered = filtered.filter(g => g.is_active === false);
+    }
+
+    // Filter by search query
+    if (currentSearchQuery) {
+        const query = currentSearchQuery.toLowerCase();
+        filtered = filtered.filter(g => g.name.toLowerCase().includes(query));
+    }
+
+    if (filtered.length === 0) {
+        const message = currentSearchQuery
+            ? `📦 Группы товаров не найдены по запросу "${currentSearchQuery}". Попробуйте изменить поисковый запрос.`
+            : '📦 Группы товаров не найдены. Нажмите "➕ Новая группа" для создания.';
+        container.innerHTML = `<div class="text-center py-8 text-base-content/60">${message}</div>`;
+        return;
+    }
+
+    // Build hierarchy tree
+    const tree = buildTree(filtered);
+
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
+                <thead>
+                    <tr>
+                        <th>📝 Название</th>
+                        <th>🔢 Код</th>
+                        <th>✅ Статус</th>
+                        ${isAdmin ? '<th>⚙️ Действия</th>' : ''}
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // Render tree recursively
+    html += renderTreeNodes(tree, 0);
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Build hierarchy tree
+function buildTree(groups) {
+    const map = {};
+    const roots = [];
+
+    // Create map
+    groups.forEach(group => {
+        map[group.id] = { ...group, children: [] };
+    });
+
+    // Build tree
+    groups.forEach(group => {
+        if (group.parent_id && map[group.parent_id]) {
+            map[group.parent_id].children.push(map[group.id]);
+        } else {
+            roots.push(map[group.id]);
+        }
+    });
+
+    return roots;
+}
+
+// Render tree nodes recursively
+function renderTreeNodes(nodes, level) {
+    let html = '';
+
+    nodes.forEach(node => {
+        const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
+        const prefix = level > 0 ? '↳ ' : '';
+        const statusBadge = node.is_active
+            ? '<span class="badge badge-success badge-xs">✓</span>'
+            : '<span class="badge badge-ghost badge-xs">📦</span>';
+
+        let actionsCell = '';
+        if (isAdmin) {
+            const actions = node.is_active
+                ? `
+                    <button class="btn btn-xs btn-ghost" onclick="showEditModal(${node.id})" title="Редактировать">
+                        ✏️
+                    </button>
+                    <button class="btn btn-xs btn-warning" onclick="archiveProductGroup(${node.id})" title="Архивировать">
+                        📦
+                    </button>
+                    <button class="btn btn-xs btn-error" onclick="deleteProductGroup(${node.id})" title="Удалить">
+                        🗑️
+                    </button>
+                `
+                : `
+                    <button class="btn btn-xs btn-ghost" onclick="showEditModal(${node.id})" title="Редактировать">
+                        ✏️
+                    </button>
+                    <button class="btn btn-xs btn-success" onclick="restoreProductGroup(${node.id})" title="Восстановить">
+                        ♻️
+                    </button>
+                    <button class="btn btn-xs btn-error" onclick="deleteProductGroup(${node.id})" title="Удалить">
+                        🗑️
+                    </button>
+                `;
+            actionsCell = `<td class="space-x-1">${actions}</td>`;
+        }
+
+        html += `
+            <tr>
+                <td>
+                    ${indent}${prefix}<strong>${escapeHtml(node.name)}</strong>
+                    ${node.description ? `<div class="text-xs text-base-content/70 ml-2">${escapeHtml(node.description)}</div>` : ''}
+                </td>
+                <td><span class="badge badge-outline badge-sm">${node.code}</span></td>
+                <td>${statusBadge}</td>
+                ${actionsCell}
+            </tr>
+        `;
+
+        // Render children recursively
+        if (node.children && node.children.length > 0) {
+            html += renderTreeNodes(node.children, level + 1);
+        }
+    });
+
+    return html;
+}
+
+// Update status filter
+function updateStatusFilter(status) {
+    currentStatusFilter = status;
+
+    // Update button states
+    document.getElementById('status-all').classList.toggle('btn-outline', status !== 'all');
+    document.getElementById('status-active').classList.toggle('btn-outline', status !== 'active');
+    document.getElementById('status-archived').classList.toggle('btn-outline', status !== 'archived');
+
+    document.getElementById('status-all').setAttribute('aria-pressed', status === 'all');
+    document.getElementById('status-active').setAttribute('aria-pressed', status === 'active');
+    document.getElementById('status-archived').setAttribute('aria-pressed', status === 'archived');
+
+    renderProductGroupsTree();
+}
+
+// Handle search input
+function handleSearch(query) {
+    currentSearchQuery = query.trim();
+    renderProductGroupsTree();
+}
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-form').reset();
+    populateParentSelect('create-parent', null);
+    document.getElementById('create-modal').showModal();
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').close();
+}
+
+// Populate parent select dropdown
+function populateParentSelect(selectId, currentGroupId) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">-- Корневой уровень --</option>';
+
+    // Filter out current group and its descendants (prevent circular reference)
+    const available = productGroupsData.filter(g => {
+        if (!g.is_active) return false; // Only show active groups
+        if (currentGroupId && g.id === currentGroupId) return false; // Exclude self
+        // TODO: Exclude descendants (requires getSubtree API call)
+        return true;
+    });
+
+    // Build tree for hierarchical display
+    const tree = buildTree(available);
+    addTreeOptionsToSelect(select, tree, 0);
+}
+
+// Add tree options to select recursively
+function addTreeOptionsToSelect(select, nodes, level) {
+    nodes.forEach(node => {
+        const indent = '  '.repeat(level);
+        const prefix = level > 0 ? '└─ ' : '';
+        const option = document.createElement('option');
+        option.value = node.id;
+        option.textContent = `${indent}${prefix}${node.name}`;
+        select.appendChild(option);
+
+        if (node.children && node.children.length > 0) {
+            addTreeOptionsToSelect(select, node.children, level + 1);
+        }
+    });
+}
+
+// Extract error message from response
+function extractErrorMessage(error, defaultMessage) {
+    if (!error.detail) return defaultMessage;
+    if (typeof error.detail === 'string') return error.detail;
+    if (Array.isArray(error.detail)) {
+        // Pydantic validation errors
+        return error.detail.map(e => e.msg).join(', ');
+    }
+    return defaultMessage;
+}
+
+// Create product group
+async function createProductGroup(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = {
+        name: form.name.value.trim(),
+        parent_id: form.parent_id.value ? parseInt(form.parent_id.value) : null,
+        description: form.description.value.trim() || null,
+    };
+
+    try {
+        const response = await fetch('/api/v1/product-groups', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(extractErrorMessage(error, 'Failed to create product group'));
+        }
+
+        closeCreateModal();
+        await loadProductGroups();
+        showToast('✅ Группа товаров создана успешно', 'success');
+    } catch (error) {
+        console.error('Failed to create product group:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Show edit modal
+function showEditModal(groupId) {
+    const group = productGroupsData.find(g => g.id === groupId);
+    if (!group) {
+        showToast('❌ Группа товаров не найдена', 'error');
+        return;
+    }
+
+    document.getElementById('edit-id').value = group.id;
+    document.getElementById('edit-name').value = group.name;
+    document.getElementById('edit-description').value = group.description || '';
+
+    populateParentSelect('edit-parent', group.id);
+    if (group.parent_id) {
+        document.getElementById('edit-parent').value = group.parent_id;
+    }
+
+    document.getElementById('edit-modal').showModal();
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').close();
+}
+
+// Update product group
+async function updateProductGroup(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const groupId = form.id.value;
+    const formData = {
+        name: form.name.value.trim(),
+        parent_id: form.parent_id.value ? parseInt(form.parent_id.value) : null,
+        description: form.description.value.trim() || null,
+    };
+
+    try {
+        const response = await fetch(`/api/v1/product-groups/${groupId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(extractErrorMessage(error, 'Failed to update product group'));
+        }
+
+        closeEditModal();
+        await loadProductGroups();
+        showToast('✅ Группа товаров обновлена успешно', 'success');
+    } catch (error) {
+        console.error('Failed to update product group:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Archive product group
+async function archiveProductGroup(groupId) {
+    const group = productGroupsData.find(g => g.id === groupId);
+    const confirmed = await showConfirmDialog(
+        'Архивировать группу товаров?',
+        `Вы уверены, что хотите архивировать "${group.name}"?\n\nАрхивная группа будет скрыта из выпадающих списков, но данные сохранятся.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/v1/product-groups/${groupId}/archive`, {
+            method: 'PUT',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to archive product group');
+        }
+
+        await loadProductGroups();
+        showToast('✅ Группа товаров архивирована', 'success');
+    } catch (error) {
+        console.error('Failed to archive product group:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Restore product group
+async function restoreProductGroup(groupId) {
+    const group = productGroupsData.find(g => g.id === groupId);
+    const confirmed = await showConfirmDialog(
+        'Восстановить группу товаров?',
+        `Вы уверены, что хотите восстановить "${group.name}"?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/v1/product-groups/${groupId}/restore`, {
+            method: 'PUT',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to restore product group');
+        }
+
+        await loadProductGroups();
+        showToast('✅ Группа товаров восстановлена', 'success');
+    } catch (error) {
+        console.error('Failed to restore product group:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Delete product group
+async function deleteProductGroup(groupId) {
+    const group = productGroupsData.find(g => g.id === groupId);
+    const confirmed = await showConfirmDialog(
+        'Удалить группу товаров?',
+        `⚠️ ВНИМАНИЕ: Вы уверены, что хотите УДАЛИТЬ "${group.name}"?\n\nЭто действие НЕОБРАТИМО и удалит все связанные данные:\n• Все дочерние группы\n• Все товары в списках покупок для этой группы\n\nРекомендуется использовать архивирование вместо удаления.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/v1/product-groups/${groupId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to delete product group');
+        }
+
+        await loadProductGroups();
+        showToast('✅ Группа товаров удалена', 'success');
+    } catch (error) {
+        console.error('Failed to delete product group:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Show toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} fixed bottom-4 right-4 w-auto max-w-md z-50 shadow-lg`;
+    toast.innerHTML = `<span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

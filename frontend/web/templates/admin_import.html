@@ -149,6 +149,17 @@
                             <option value="%m/%d/%Y">M/D/YYYY (7/4/2025)</option>
                         </select>
                     </div>
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">💰 Формат числа</span>
+                        </label>
+                        <select id="mapping-number-format" class="select select-bordered w-64">
+                            <option value="">Автоопределение</option>
+                            <option value="ru">Ru/EU: 1 234,56 (пробел + запятая)</option>
+                            <option value="us">US: 1,234.56 (запятая + точка)</option>
+                            <option value="de">DE: 1.234,56 (точка + запятая)</option>
+                        </select>
+                    </div>
                     <div id="delimiter-preview-status" class="text-sm text-base-content/70">
                         <!-- Status text -->
                     </div>
@@ -206,7 +217,7 @@
     <div class="card bg-base-100 shadow-lg lg:w-[95vw] lg:max-w-none lg:-mx-[calc((95vw-100%)/2)]" id="step-4-enrichment" style="display: none;">
         <div class="card-body">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="card-title text-2xl">📋 Шаг 4: Обогащение фактов</h2>
+                <h2 class="card-title text-2xl">📋 Шаг 4: Обогащение данных</h2>
                 <div id="staging-stats" class="stats shadow">
                     <div class="stat py-2 px-4">
                         <div class="stat-title text-xs">Всего</div>
@@ -273,6 +284,17 @@
                         </select>
                     </div>
 
+                    <div class="form-control w-36">
+                        <label class="label py-0">
+                            <span class="label-text text-xs">Тип записи</span>
+                        </label>
+                        <select id="bulk-record-type" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
+                            <option value="">-- Не выбрано --</option>
+                            <option value="fact">Факт</option>
+                            <option value="plan">План</option>
+                        </select>
+                    </div>
+
                     <button class="btn btn-primary btn-sm" onclick="applyBulkUpdate()">
                         Применить к выбранным
                     </button>
@@ -302,6 +324,7 @@
                             <th>Категория</th>
                             <th>ЦФО</th>
                             <th>МВЗ</th>
+                            <th>Тип записи</th>
                             <th>Действия</th>
                         </tr>
                     </thead>
@@ -952,6 +975,14 @@ async function showMappingStep(isUpdateMode = false) {
         dateFormatSelect.value = '';  // Auto-detect
     }
 
+    // Set initial number format from saved transformations (if available)
+    const numberFormatSelect = document.getElementById('mapping-number-format');
+    if (savedTransformations && savedTransformations.number_format) {
+        numberFormatSelect.value = savedTransformations.number_format;
+    } else {
+        numberFormatSelect.value = '';  // Auto-detect
+    }
+
     // Render CSV preview with current delimiter
     await loadCsvPreview();
 
@@ -1162,13 +1193,15 @@ async function saveMapping() {
             return;
         }
 
-        // Collect transformations (delimiter and date format)
+        // Collect transformations (delimiter, date format, number format)
         const delimiterValue = document.getElementById('mapping-delimiter').value;
         const dateFormatValue = document.getElementById('mapping-date-format').value;
+        const numberFormatValue = document.getElementById('mapping-number-format').value;
 
         const transformations = {
             delimiter: delimiterValue,
-            date_format: dateFormatValue || null  // null = auto-detect
+            date_format: dateFormatValue || null,  // null = auto-detect
+            number_format: numberFormatValue || null  // null = auto-detect
         };
 
         const response = await fetch('/api/v1/import/mappings', {
@@ -1360,6 +1393,11 @@ function createStagingRow(record, index) {
     const ccSelect = createCCSelect(record);
     ccCell.appendChild(ccSelect);
 
+    // Record Type (fact/plan)
+    const recordTypeCell = document.createElement('td');
+    const recordTypeSelect = createRecordTypeSelect(record);
+    recordTypeCell.appendChild(recordTypeSelect);
+
     // Actions
     const actionsCell = document.createElement('td');
     const deleteBtn = document.createElement('button');
@@ -1380,6 +1418,7 @@ function createStagingRow(record, index) {
     row.appendChild(articleCell);
     row.appendChild(fcCell);
     row.appendChild(ccCell);
+    row.appendChild(recordTypeCell);
     row.appendChild(actionsCell);
 
     return row;
@@ -1496,6 +1535,58 @@ function createCCSelect(record) {
     select.onchange = () => updateStagingField(record.id, 'cost_center_id', select.value);
 
     return select;
+}
+
+// ========== Record Type Select (fact/plan) ==========
+function createRecordTypeSelect(record) {
+    const select = document.createElement('select');
+    select.id = `record-type-${record.id}`;
+    select.className = 'select select-bordered select-sm w-28';
+    select.style.height = '3rem';
+    select.style.minHeight = '3rem';
+
+    const options = [
+        { value: 'fact', label: 'Факт' },
+        { value: 'plan', label: 'План' }
+    ];
+
+    options.forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.value;
+        option.textContent = opt.label;
+        if ((record.record_type || 'fact') === opt.value) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+
+    select.onchange = () => updateStagingRecordType(record.id, select.value);
+    return select;
+}
+
+async function updateStagingRecordType(stagingId, value) {
+    try {
+        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ record_type: value })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Update failed');
+        }
+
+        // Update local record
+        const recordIndex = stagingRecords.findIndex(r => r.id === stagingId);
+        if (recordIndex >= 0) {
+            stagingRecords[recordIndex].record_type = value;
+        }
+        updateStats();
+    } catch (error) {
+        showNotification(`Ошибка: ${error.message}`, 'error');
+    }
 }
 
 // ========== Article Type Select ==========
@@ -1751,8 +1842,9 @@ async function applyBulkUpdate() {
     const articleId = document.getElementById('bulk-article').value || null;
     const fcId = document.getElementById('bulk-fc').value || null;
     const ccId = document.getElementById('bulk-cc').value || null;
+    const recordType = document.getElementById('bulk-record-type').value || null;
 
-    if (!articleId && !fcId && !ccId) {
+    if (!articleId && !fcId && !ccId && !recordType) {
         showNotification('Выберите хотя бы одно поле для обновления', 'error');
         return;
     }
@@ -1766,7 +1858,8 @@ async function applyBulkUpdate() {
                 staging_ids: selectedIds,
                 article_id: articleId ? parseInt(articleId) : null,
                 financial_center_id: fcId ? parseInt(fcId) : null,
-                cost_center_id: ccId ? parseInt(ccId) : null
+                cost_center_id: ccId ? parseInt(ccId) : null,
+                record_type: recordType
             })
         });
 
@@ -2094,9 +2187,8 @@ function updateProgressIndicator(currentStep) {
 
 function formatAmount(amount) {
     return new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: 'RUB',
-        minimumFractionDigits: 2
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
     }).format(amount);
 }
 

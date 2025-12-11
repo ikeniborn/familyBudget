@@ -19,6 +19,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentUser, InternalAPIKey, get_session
+from backend.app.models.article import Article
 from backend.app.models.notification import Notification
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.notification import (
@@ -167,8 +168,11 @@ async def list_notifications(
     GET /api/v1/notifications?skip=0&limit=50&notification_type=budget_threshold&date_from=2025-10-01&date_to=2025-10-31
     ```
     """
-    # Base query for items
-    statement = select(Notification)
+    # Base query for items with LEFT JOIN to Article for article_name
+    statement = (
+        select(Notification, Article.name.label("article_name"))
+        .outerjoin(Article, Notification.article_id == Article.id)
+    )
 
     # Base query for count (will apply same filters)
     count_stmt = select(func.count(Notification.id))
@@ -200,7 +204,28 @@ async def list_notifications(
 
     # Execute query
     result = await session.execute(statement)
-    items = result.scalars().all()
+    rows = result.all()
+
+    # Convert to NotificationRead with article_name
+    items = []
+    for row in rows:
+        notification = row[0]  # Notification object
+        article_name = row[1]  # Article.name from JOIN
+        # Create dict from notification and add article_name
+        notification_dict = {
+            "id": notification.id,
+            "user_id": notification.user_id,
+            "article_id": notification.article_id,
+            "article_name": article_name,
+            "notification_type": notification.notification_type,
+            "threshold_percent": notification.threshold_percent,
+            "plan_amount": notification.plan_amount,
+            "actual_amount": notification.actual_amount,
+            "period_start": notification.period_start,
+            "period_end": notification.period_end,
+            "created_at": notification.created_at,
+        }
+        items.append(NotificationRead(**notification_dict))
 
     return NotificationList(
         items=items,

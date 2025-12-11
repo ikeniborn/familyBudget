@@ -18,10 +18,18 @@ from backend.app.api.v1.endpoints import (
     cost_centers_router,
     facts_router,
     financial_centers_router,
+    google_sheets_import_router,
     import_router,
+    import_templates_router,
     notifications_router,
+    product_groups_router,
     push_router,
     reminders_router,
+    shopping_csv_import_router,
+    shopping_list_items_router,
+    shopping_list_sse_router,
+    shopping_lists_router,
+    stores_router,
     transfers_router,
     users_router,
 )
@@ -86,3 +94,27 @@ api_router.include_router(consent_router)
 
 # Scheduled Reminders endpoints (Plan Reminders Feature) ✅
 api_router.include_router(reminders_router)
+
+# Stores endpoints (Shopping Lists Feature) ✅
+api_router.include_router(stores_router)
+
+# Product Groups endpoints (Shopping Lists Feature) ✅
+api_router.include_router(product_groups_router)
+
+# Shopping Lists endpoints (Shopping Lists Feature) ✅
+api_router.include_router(shopping_lists_router)
+
+# Shopping List Items endpoints (Shopping Lists Feature) ✅
+api_router.include_router(shopping_list_items_router)
+
+# Shopping Lists CSV Import endpoints (Shopping Lists Feature) ✅
+api_router.include_router(shopping_csv_import_router)
+
+# Google Sheets Import endpoints (Shopping Lists Feature) ✅
+api_router.include_router(google_sheets_import_router)
+
+# Import Templates endpoints (Shopping Lists Feature) ✅
+api_router.include_router(import_templates_router)
+
+# Shopping List SSE endpoints (Real-time Updates) ✅
+api_router.include_router(shopping_list_sse_router)

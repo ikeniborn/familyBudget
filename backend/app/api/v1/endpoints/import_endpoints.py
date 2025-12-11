@@ -625,12 +625,13 @@ async def parse_file(
         logger.error(f"Failed to read temp file {temp_file_path}: {e}")
         raise HTTPException(500, f"Failed to read temporary file: {str(e)}")
 
-    # Get delimiter and date_format from mapping transformations (if set)
+    # Get delimiter, date_format, number_format from mapping transformations (if set)
     # Otherwise fall back to file upload metadata
     transformations = mapping_record.transformations or {}
     delimiter = transformations.get("delimiter") or file_upload.csv_delimiter or ";"
     encoding = file_upload.csv_encoding or "utf-8"
     date_format = transformations.get("date_format")  # None = auto-detect
+    number_format = transformations.get("number_format")  # None = auto-detect
 
     # Convert 'tab' to actual tab character
     if delimiter == 'tab':
@@ -638,7 +639,7 @@ async def parse_file(
 
     logger.info(
         f"Parsing with delimiter={repr(delimiter)}, encoding={encoding}, "
-        f"date_format={date_format or 'auto'}"
+        f"date_format={date_format or 'auto'}, number_format={number_format or 'auto'}"
     )
 
     try:
@@ -649,7 +650,8 @@ async def parse_file(
             file_upload_id=file_upload.id,
             delimiter=delimiter,
             encoding=encoding,
-            date_format=date_format
+            date_format=date_format,
+            number_format=number_format
         )
 
         # Insert records to staging

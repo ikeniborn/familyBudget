@@ -114,10 +114,16 @@ async def cleanup_database():
                     t_f_refresh_token,
                     t_notification,
                     t_f_budget_fact,
+                    t_f_shopping_list_item,
+                    t_f_shopping_list,
                     t_d_article_hierarchy,
+                    t_d_product_group_hierarchy,
                     t_d_financial_center,
                     t_d_cost_center,
                     t_d_article,
+                    t_d_product_group,
+                    t_d_store,
+                    t_d_import_template,
                     t_d_user
                 RESTART IDENTITY CASCADE;
             """))
@@ -404,3 +410,177 @@ async def admin_client(
 
     # Cleanup
     app.dependency_overrides.clear()
+
+
+# ============================================================================
+# Shopping Lists Fixtures
+# ============================================================================
+
+
+@pytest_asyncio.fixture
+async def test_store(session: AsyncSession, test_user: User):
+    """
+    Create test store.
+
+    Returns:
+        Store: Walmart store (shared across users, creator_id for audit)
+    """
+    from backend.app.models.store import Store
+
+    store = Store(
+        creator_id=test_user.id,
+        name="Walmart",
+        code="STORE-1",
+        description="Walmart Supercenter",
+        is_active=True,
+        is_current=True,
+        valid_from=datetime.utcnow(),
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+    )
+    session.add(store)
+    await session.commit()
+    await session.refresh(store)
+    return store
+
+
+@pytest_asyncio.fixture
+async def test_product_group_root(session: AsyncSession, test_user: User):
+    """
+    Create test root product group (no parent).
+
+    Returns:
+        ProductGroup: Food category (shared, creator_id for audit)
+    """
+    from backend.app.models.product_group import ProductGroup
+
+    group = ProductGroup(
+        creator_id=test_user.id,
+        parent_id=None,
+        name="Food",
+        code="PGRP-1",
+        description="Food products",
+        is_active=True,
+        is_current=True,
+        valid_from=datetime.utcnow(),
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+    )
+    session.add(group)
+    await session.commit()
+    await session.refresh(group)
+    return group
+
+
+@pytest_asyncio.fixture
+async def test_product_group_child(
+    session: AsyncSession, test_user: User, test_product_group_root
+):
+    """
+    Create test child product group.
+
+    Returns:
+        ProductGroup: Vegetables category (child of Food)
+    """
+    from backend.app.models.product_group import ProductGroup
+
+    group = ProductGroup(
+        creator_id=test_user.id,
+        parent_id=test_product_group_root.id,
+        name="Vegetables",
+        code="PGRP-2",
+        description="Fresh vegetables",
+        is_active=True,
+        is_current=True,
+        valid_from=datetime.utcnow(),
+        valid_to=datetime(9999, 12, 31, 23, 59, 59),
+    )
+    session.add(group)
+    await session.commit()
+    await session.refresh(group)
+    return group
+
+
+@pytest_asyncio.fixture
+async def test_shopping_list(session: AsyncSession, test_user: User):
+    """
+    Create test shopping list.
+
+    Returns:
+        ShoppingList: Weekly groceries list (shared, creator_id for audit)
+    """
+    from backend.app.models.shopping_list import ShoppingList
+
+    shopping_list = ShoppingList(
+        creator_id=test_user.id,
+        name="Weekly Groceries",
+        description="Shopping list for the week",
+        is_active=True,
+    )
+    session.add(shopping_list)
+    await session.commit()
+    await session.refresh(shopping_list)
+    return shopping_list
+
+
+@pytest_asyncio.fixture
+async def test_shopping_list_item(
+    session: AsyncSession,
+    test_user: User,
+    test_shopping_list,
+    test_store,
+    test_product_group_root,
+):
+    """
+    Create test shopping list item.
+
+    Returns:
+        ShoppingListItem: Tomatoes item (shared, creator_id for audit)
+    """
+    from backend.app.models.shopping_list_item import ShoppingListItem
+    from decimal import Decimal
+
+    item = ShoppingListItem(
+        creator_id=test_user.id,
+        shopping_list_id=test_shopping_list.id,
+        store_id=test_store.id,
+        product_group_id=test_product_group_root.id,
+        product_name="Tomatoes",
+        quantity=Decimal("2.5"),
+        unit="kg",
+        comment="Fresh red tomatoes",
+        is_completed=False,
+        sync_status="synced",
+    )
+    session.add(item)
+    await session.commit()
+    await session.refresh(item)
+    return item
+
+
+@pytest_asyncio.fixture
+async def test_import_template(session: AsyncSession, test_user: User):
+    """
+    Create test import template (user-specific).
+
+    Returns:
+        ImportTemplate: CSV import template for user
+    """
+    from backend.app.models.import_template import ImportTemplate
+
+    template = ImportTemplate(
+        user_id=test_user.id,
+        name="My CSV Template",
+        config={
+            "delimiter": ",",
+            "column_mapping": {
+                "store": "Store",
+                "product_group": "Category",
+                "product_name": "Product",
+                "quantity": "Qty",
+                "unit": "Unit",
+            },
+        },
+    )
+    session.add(template)
+    await session.commit()
+    await session.refresh(template)
+    return template
