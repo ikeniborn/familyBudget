@@ -21,6 +21,18 @@ class ShoppingListSSEClient {
         this.maxReconnectDelay = 30000;  // 30 seconds
         this.reconnectTimeout = null;
         this.handlers = {};
+
+        // Переподключение при возврате на вкладку
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' &&
+                !this.isConnected &&
+                this.currentListId &&
+                !this.reconnectTimeout) {
+                debugLog('[SSEClient] Tab visible, reconnecting');
+                this.reconnectAttempts = 0;
+                this._createConnection();
+            }
+        });
     }
 
     /**
@@ -62,6 +74,7 @@ class ShoppingListSSEClient {
                 debugLog('[SSEClient] Connection opened');
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
+                this._updateStatusIndicator();
                 this._notifyHandlers('connect', { listId: this.currentListId });
             };
 
@@ -116,6 +129,7 @@ class ShoppingListSSEClient {
             this.eventSource.onerror = (error) => {
                 console.error('[SSEClient] Connection error:', error);
                 this.isConnected = false;
+                this._updateStatusIndicator();
                 this._notifyHandlers('error', error);
                 this._scheduleReconnect();
             };
@@ -144,6 +158,7 @@ class ShoppingListSSEClient {
         this.isConnected = false;
         this.currentListId = null;
         this.reconnectAttempts = 0;
+        this._updateStatusIndicator();
         this._notifyHandlers('disconnect', {});
     }
 
@@ -152,12 +167,25 @@ class ShoppingListSSEClient {
      * @private
      */
     _scheduleReconnect() {
+        // Если offline - ждать восстановления сети
+        if (!navigator.onLine) {
+            debugLog('[SSEClient] Offline, waiting for network');
+            this._updateStatusIndicator();
+            window.addEventListener('online', () => {
+                debugLog('[SSEClient] Back online, reconnecting');
+                this.reconnectAttempts = 0;
+                this._createConnection();
+            }, { once: true });
+            return;
+        }
+
         if (this.reconnectTimeout) {
             return;  // Already scheduled
         }
 
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
             console.error('[SSEClient] Max reconnect attempts reached');
+            this._updateStatusIndicator();
             this._notifyHandlers('reconnect_failed', {
                 attempts: this.reconnectAttempts
             });
@@ -175,6 +203,7 @@ class ShoppingListSSEClient {
         this.reconnectTimeout = setTimeout(() => {
             this.reconnectTimeout = null;
             this.reconnectAttempts++;
+            this._updateStatusIndicator();
 
             if (this.eventSource) {
                 this.eventSource.close();
@@ -310,6 +339,33 @@ class ShoppingListSSEClient {
             listId: this.currentListId,
             reconnectAttempts: this.reconnectAttempts
         };
+    }
+
+    /**
+     * Update SSE status indicator in UI
+     * @private
+     */
+    _updateStatusIndicator() {
+        const indicator = document.getElementById('sse-status-indicator');
+        if (!indicator) return;
+
+        if (this.isConnected) {
+            indicator.className = 'badge badge-success badge-xs';
+            indicator.innerHTML = '🟢';
+            indicator.title = 'Синхронизация активна';
+        } else if (this.reconnectAttempts > 0 && this.reconnectAttempts < this.maxReconnectAttempts) {
+            indicator.className = 'badge badge-warning badge-xs';
+            indicator.innerHTML = '<span class="loading loading-ring loading-xs"></span>';
+            indicator.title = `Переподключение (${this.reconnectAttempts}/${this.maxReconnectAttempts})`;
+        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            indicator.className = 'badge badge-error badge-xs';
+            indicator.innerHTML = '🔴';
+            indicator.title = 'Ошибка соединения. Обновите страницу';
+        } else {
+            indicator.className = 'badge badge-neutral badge-xs';
+            indicator.innerHTML = '<span class="loading loading-ring loading-xs"></span>';
+            indicator.title = 'Подключение...';
+        }
     }
 }
 

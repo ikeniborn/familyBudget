@@ -113,6 +113,7 @@ class ConnectionManager:
             exclude_user_id: Optional user ID to exclude (sender)
         """
         if list_id not in self.connections:
+            logger.debug(f"SSE broadcast skipped: no connections for list {list_id}")
             return
 
         event = {
@@ -124,14 +125,26 @@ class ConnectionManager:
         async with self._lock:
             connections = list(self.connections.get(list_id, []))
 
+        # Подсчет получателей (исключая отправителя)
+        recipient_count = sum(1 for uid, _ in connections if uid != exclude_user_id)
+        logger.info(
+            f"SSE broadcast: event={event_type}, list={list_id}, "
+            f"total_connections={len(connections)}, recipients={recipient_count}, "
+            f"exclude_user={exclude_user_id}"
+        )
+
+        sent_count = 0
         for user_id, queue in connections:
             if exclude_user_id and user_id == exclude_user_id:
                 continue  # Don't send to sender
 
             try:
                 queue.put_nowait(event)
+                sent_count += 1
             except asyncio.QueueFull:
                 logger.warning(f"SSE queue full for user {user_id}, list {list_id}")
+
+        logger.debug(f"SSE broadcast complete: sent to {sent_count} clients for list {list_id}")
 
     def get_connection_count(self, list_id: int) -> int:
         """Get number of active connections for a list."""
@@ -259,6 +272,7 @@ async def broadcast_item_created(
     user_id: int | None = None,
 ):
     """Broadcast item created event."""
+    logger.debug(f"broadcast_item_created: list={list_id}, item_id={item_data.get('id')}")
     await manager.broadcast(
         list_id=list_id,
         event_type="item_created",
@@ -273,6 +287,7 @@ async def broadcast_item_updated(
     user_id: int | None = None,
 ):
     """Broadcast item updated event."""
+    logger.debug(f"broadcast_item_updated: list={list_id}, item_id={item_data.get('id')}")
     await manager.broadcast(
         list_id=list_id,
         event_type="item_updated",
@@ -287,6 +302,7 @@ async def broadcast_item_deleted(
     user_id: int | None = None,
 ):
     """Broadcast item deleted event."""
+    logger.debug(f"broadcast_item_deleted: list={list_id}, item_id={item_id}")
     await manager.broadcast(
         list_id=list_id,
         event_type="item_deleted",
@@ -302,6 +318,7 @@ async def broadcast_item_completed(
     user_id: int | None = None,
 ):
     """Broadcast item completed event."""
+    logger.debug(f"broadcast_item_completed: list={list_id}, item={item_id}, completed={is_completed}")
     await manager.broadcast(
         list_id=list_id,
         event_type="item_completed",

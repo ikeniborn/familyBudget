@@ -62,8 +62,11 @@
                 <div class="flex-1 min-w-0">
                     <h1 class="text-xl sm:text-3xl font-bold mb-1 sm:mb-2 truncate" id="list-detail-name">Loading...</h1>
                     <p class="text-sm sm:text-base text-base-content/70 truncate" id="list-detail-description">...</p>
-                    <div class="mt-1 sm:mt-2">
+                    <div class="mt-1 sm:mt-2 flex gap-2 items-center">
                         <span class="badge badge-info badge-sm sm:badge-md" id="list-progress-badge">0 / 0 выполнено</span>
+                        <span class="badge badge-neutral badge-xs" id="sse-status-indicator" title="Статус синхронизации">
+                            <span class="loading loading-ring loading-xs"></span>
+                        </span>
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
