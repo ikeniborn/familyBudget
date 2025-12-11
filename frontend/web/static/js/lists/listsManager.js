@@ -71,23 +71,38 @@ class ListsManager {
                 const { online } = event.detail || {};
                 this.updateOfflineUI(!online);
 
-                if (online && this.offlineShopping) {
-                    try {
-                        // Sync pending changes
-                        const results = await this.offlineShopping.sync();
-                        debugLog('[ListsManager] Sync results:', results);
+                if (online) {
+                    // Reconnect SSE when back online
+                    if (this.sseClient && this.currentListId) {
+                        debugLog('[ListsManager] Back online, reconnecting SSE');
+                        this.sseClient.reconnectAttempts = 0; // Reset attempts
+                        this.sseClient.connect(this.currentListId);
+                    }
 
-                        // Reload current list data from server
-                        if (this.currentListId) {
-                            await this.loadShoppingListItems(this.currentListId);
-                            this.renderCurrentView();
-                        }
+                    if (this.offlineShopping) {
+                        try {
+                            // Sync pending changes
+                            const results = await this.offlineShopping.sync();
+                            debugLog('[ListsManager] Sync results:', results);
 
-                        if (results && results.synced > 0) {
-                            showToast(`Синхронизировано: ${results.synced} изменений`, 'success');
+                            // Reload current list data from server
+                            if (this.currentListId) {
+                                await this.loadShoppingListItems(this.currentListId);
+                                this.renderCurrentView();
+                            }
+
+                            if (results && results.synced > 0) {
+                                showToast(`Синхронизировано: ${results.synced} изменений`, 'success');
+                            }
+                        } catch (error) {
+                            console.error('[ListsManager] Sync error:', error);
                         }
-                    } catch (error) {
-                        console.error('[ListsManager] Sync error:', error);
+                    }
+                } else {
+                    // Disconnect SSE when going offline
+                    if (this.sseClient) {
+                        debugLog('[ListsManager] Going offline, disconnecting SSE');
+                        this.sseClient.disconnect();
                     }
                 }
             });
