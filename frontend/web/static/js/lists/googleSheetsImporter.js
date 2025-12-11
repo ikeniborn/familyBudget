@@ -237,6 +237,11 @@ class GoogleSheetsImporter {
             }
 
             this.csvImporter = new CSVImporter(this.listsManager);
+            // Expose globally for onclick handlers in rendered HTML
+            window.csvImporter = this.csvImporter;
+
+            // Set custom navigation: clicking "Step 1" should return to Google Sheets URL input
+            this.csvImporter.onBackToStep1 = 'window.googleSheetsImporter.renderStep1()';
         }
 
         // Decode base64 content from Google Sheets API to raw CSV text

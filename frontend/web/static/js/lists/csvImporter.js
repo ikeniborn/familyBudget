@@ -32,6 +32,34 @@ class CSVImporter {
 
         // Container
         this.container = document.getElementById('csv-import-wizard');
+
+        // Custom navigation callbacks (used when delegated from GoogleSheetsImporter)
+        // If set, clicking "Step 1" in breadcrumbs will call this instead of renderStep1()
+        this.onBackToStep1 = null;
+        // Global variable name to use for onclick handlers (default: 'csvImporter')
+        this.globalVarName = 'csvImporter';
+    }
+
+    /**
+     * Get onclick handler for step 1 navigation
+     * Returns custom callback if set, otherwise default renderStep1
+     */
+    getStep1OnClick() {
+        if (this.onBackToStep1) {
+            return this.onBackToStep1;
+        }
+        return `window.${this.globalVarName}.renderStep1()`;
+    }
+
+    /**
+     * Get onclick handler for any step navigation
+     * @param {number} step - Step number (1-5)
+     */
+    getStepOnClick(step) {
+        if (step === 1) {
+            return this.getStep1OnClick();
+        }
+        return `window.${this.globalVarName}.renderStep${step}()`;
     }
 
     /**
@@ -52,6 +80,8 @@ class CSVImporter {
     renderStep1() {
         this.currentStep = 1;
 
+        const varName = this.globalVarName;
+
         this.container.innerHTML = `
             <div class="csv-wizard-step">
                 <div class="mb-4">
@@ -71,7 +101,7 @@ class CSVImporter {
                            id="csv-file-input"
                            accept=".csv"
                            class="hidden"
-                           onchange="window.csvImporter.handleFileSelect(event)">
+                           onchange="window.${varName}.handleFileSelect(event)">
 
                     <label for="csv-file-input" class="cursor-pointer">
                         <div class="text-6xl mb-4">📄</div>
@@ -279,13 +309,15 @@ class CSVImporter {
         this.currentStep = 2;
 
         const result = this.detectionResult;
+        const step1OnClick = this.getStep1OnClick();
+        const varName = this.globalVarName;
 
         this.container.innerHTML = `
             <div class="csv-wizard-step">
                 <div class="mb-4">
                     <div class="text-sm breadcrumbs">
                         <ul>
-                            <li><a onclick="window.csvImporter.renderStep1()">Шаг 1: Загрузка файла</a></li>
+                            <li><a onclick="${step1OnClick}">Шаг 1: Загрузка файла</a></li>
                             <li class="font-bold">Шаг 2: Определение формата</li>
                             <li class="opacity-50">Шаг 3: Сопоставление колонок</li>
                             <li class="opacity-50">Шаг 4: Предпросмотр</li>
@@ -342,10 +374,10 @@ class CSVImporter {
                 </div>
 
                 <div class="flex gap-2">
-                    <button class="btn btn-outline" onclick="window.csvImporter.renderStep1()">
+                    <button class="btn btn-outline" onclick="${step1OnClick}">
                         ← Назад
                     </button>
-                    <button class="btn btn-primary" onclick="window.csvImporter.renderStep3()">
+                    <button class="btn btn-primary" onclick="window.${varName}.renderStep3()">
                         Далее: Сопоставление колонок →
                     </button>
                 </div>
@@ -363,6 +395,8 @@ class CSVImporter {
 
         const result = this.detectionResult;
         const autoMapping = result.auto_mapping;
+        const step1OnClick = this.getStep1OnClick();
+        const varName = this.globalVarName;
 
         // Initialize column mapping from auto-mapping
         this.columnMapping = { ...autoMapping };
@@ -382,8 +416,8 @@ class CSVImporter {
                 <div class="mb-4">
                     <div class="text-sm breadcrumbs">
                         <ul>
-                            <li><a onclick="window.csvImporter.renderStep1()">Шаг 1: Загрузка файла</a></li>
-                            <li><a onclick="window.csvImporter.renderStep2()">Шаг 2: Определение формата</a></li>
+                            <li><a onclick="${step1OnClick}">Шаг 1: Загрузка файла</a></li>
+                            <li><a onclick="window.${varName}.renderStep2()">Шаг 2: Определение формата</a></li>
                             <li class="font-bold">Шаг 3: Сопоставление колонок</li>
                             <li class="opacity-50">Шаг 4: Предпросмотр</li>
                             <li class="opacity-50">Шаг 5: Импорт</li>
@@ -408,7 +442,7 @@ class CSVImporter {
                             </label>
                             <select class="select select-bordered"
                                     data-column="${this.escapeHtml(column)}"
-                                    onchange="window.csvImporter.updateMapping('${this.escapeHtml(column)}', this.value)">
+                                    onchange="window.${varName}.updateMapping('${this.escapeHtml(column)}', this.value)">
                                 ${fieldOptions.map(opt => `
                                     <option value="${opt.value}"
                                             ${autoMapping[column] === opt.value ? 'selected' : ''}>
@@ -423,10 +457,10 @@ class CSVImporter {
                 <div id="mapping-validation" class="mb-4"></div>
 
                 <div class="flex gap-2">
-                    <button class="btn btn-outline" onclick="window.csvImporter.renderStep2()">
+                    <button class="btn btn-outline" onclick="window.${varName}.renderStep2()">
                         ← Назад
                     </button>
-                    <button class="btn btn-primary" onclick="window.csvImporter.validateAndContinue()">
+                    <button class="btn btn-primary" onclick="window.${varName}.validateAndContinue()">
                         Далее: Предпросмотр →
                     </button>
                 </div>
@@ -500,15 +534,18 @@ class CSVImporter {
     async renderStep4() {
         this.currentStep = 4;
 
+        const step1OnClick = this.getStep1OnClick();
+        const varName = this.globalVarName;
+
         // Show loading state
         this.container.innerHTML = `
             <div class="csv-wizard-step">
                 <div class="mb-4">
                     <div class="text-sm breadcrumbs">
                         <ul>
-                            <li><a onclick="window.csvImporter.renderStep1()">Шаг 1: Загрузка файла</a></li>
-                            <li><a onclick="window.csvImporter.renderStep2()">Шаг 2: Определение формата</a></li>
-                            <li><a onclick="window.csvImporter.renderStep3()">Шаг 3: Сопоставление колонок</a></li>
+                            <li><a onclick="${step1OnClick}">Шаг 1: Загрузка файла</a></li>
+                            <li><a onclick="window.${varName}.renderStep2()">Шаг 2: Определение формата</a></li>
+                            <li><a onclick="window.${varName}.renderStep3()">Шаг 3: Сопоставление колонок</a></li>
                             <li class="font-bold">Шаг 4: Предпросмотр</li>
                             <li class="opacity-50">Шаг 5: Импорт</li>
                         </ul>
@@ -578,6 +615,8 @@ class CSVImporter {
      */
     renderPreviewResults() {
         const result = this.validationResult;
+        const step1OnClick = this.getStep1OnClick();
+        const varName = this.globalVarName;
 
         // Determine overall status
         const statusClass = result.is_valid ? 'alert-success' : 'alert-warning';
@@ -674,9 +713,9 @@ class CSVImporter {
                 <div class="mb-4">
                     <div class="text-sm breadcrumbs">
                         <ul>
-                            <li><a onclick="window.csvImporter.renderStep1()">Шаг 1: Загрузка файла</a></li>
-                            <li><a onclick="window.csvImporter.renderStep2()">Шаг 2: Определение формата</a></li>
-                            <li><a onclick="window.csvImporter.renderStep3()">Шаг 3: Сопоставление колонок</a></li>
+                            <li><a onclick="${step1OnClick}">Шаг 1: Загрузка файла</a></li>
+                            <li><a onclick="window.${varName}.renderStep2()">Шаг 2: Определение формата</a></li>
+                            <li><a onclick="window.${varName}.renderStep3()">Шаг 3: Сопоставление колонок</a></li>
                             <li class="font-bold">Шаг 4: Предпросмотр</li>
                             <li class="opacity-50">Шаг 5: Импорт</li>
                         </ul>
@@ -750,10 +789,10 @@ class CSVImporter {
                 ` : ''}
 
                 <div class="flex gap-2">
-                    <button class="btn btn-outline" onclick="window.csvImporter.renderStep3()">
+                    <button class="btn btn-outline" onclick="window.${varName}.renderStep3()">
                         ← Назад
                     </button>
-                    <button class="btn btn-success" onclick="window.csvImporter.executeImport()" ${result.valid_rows === 0 ? 'disabled' : ''}>
+                    <button class="btn btn-success" onclick="window.${varName}.executeImport()" ${result.valid_rows === 0 ? 'disabled' : ''}>
                         ✓ Импортировать ${result.valid_rows} ${this.pluralize(result.valid_rows, 'строку', 'строки', 'строк')}
                     </button>
                 </div>
@@ -765,14 +804,17 @@ class CSVImporter {
      * Render preview error
      */
     renderPreviewError(errorMessage) {
+        const step1OnClick = this.getStep1OnClick();
+        const varName = this.globalVarName;
+
         this.container.innerHTML = `
             <div class="csv-wizard-step">
                 <div class="mb-4">
                     <div class="text-sm breadcrumbs">
                         <ul>
-                            <li><a onclick="window.csvImporter.renderStep1()">Шаг 1: Загрузка файла</a></li>
-                            <li><a onclick="window.csvImporter.renderStep2()">Шаг 2: Определение формата</a></li>
-                            <li><a onclick="window.csvImporter.renderStep3()">Шаг 3: Сопоставление колонок</a></li>
+                            <li><a onclick="${step1OnClick}">Шаг 1: Загрузка файла</a></li>
+                            <li><a onclick="window.${varName}.renderStep2()">Шаг 2: Определение формата</a></li>
+                            <li><a onclick="window.${varName}.renderStep3()">Шаг 3: Сопоставление колонок</a></li>
                             <li class="font-bold">Шаг 4: Предпросмотр</li>
                             <li class="opacity-50">Шаг 5: Импорт</li>
                         </ul>
@@ -787,10 +829,10 @@ class CSVImporter {
                 </div>
 
                 <div class="flex gap-2">
-                    <button class="btn btn-outline" onclick="window.csvImporter.renderStep3()">
+                    <button class="btn btn-outline" onclick="window.${varName}.renderStep3()">
                         ← Назад к маппингу
                     </button>
-                    <button class="btn btn-primary" onclick="window.csvImporter.renderStep4()">
+                    <button class="btn btn-primary" onclick="window.${varName}.renderStep4()">
                         🔄 Повторить
                     </button>
                 </div>

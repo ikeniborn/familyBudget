@@ -149,12 +149,12 @@ class HierarchyView {
     }
 
     /**
-     * Render tree HTML
+     * Render tree HTML - compact design optimized for mobile
      */
     renderTree(hierarchy) {
-        let html = '<div class="hierarchy-tree">';
+        let html = '<div class="hierarchy-tree-compact">';
 
-        // Render stores (level 1)
+        // Render stores (level 1) - store headers
         Object.values(hierarchy).forEach(store => {
             const storeNodeId = `store-${store.id}`;
             const isExpanded = this.expandedNodes.has(storeNodeId);
@@ -163,13 +163,13 @@ class HierarchyView {
             const counts = this.countItemsInTree(store.productGroupTree);
 
             html += `
-                <div class="hierarchy-node hierarchy-level-1" data-node-id="${storeNodeId}">
+                <div class="hierarchy-store" data-node-id="${storeNodeId}">
                     <span class="hierarchy-toggle" onclick="window.hierarchyView.toggleNode('${storeNodeId}')">
                         ${isExpanded ? '▼' : '▶'}
                     </span>
-                    <span class="hierarchy-icon">🏪</span>
-                    <span class="hierarchy-label font-bold">${this.escapeHtml(store.name)}</span>
-                    <span class="hierarchy-count badge badge-sm badge-ghost">${counts.total}</span>
+                    <span class="hierarchy-store-icon">🏪</span>
+                    <span class="hierarchy-store-name">${this.escapeHtml(store.name)}</span>
+                    <span class="hierarchy-store-badge">${counts.completed}/${counts.total}</span>
                 </div>
             `;
 
@@ -184,12 +184,13 @@ class HierarchyView {
 
     /**
      * Render product group tree recursively (supports nested product groups)
+     * Compact design: minimal indentation, groups only show hierarchy structure
      * @param {Object} pgTree - Tree of product groups (keys are IDs)
      * @param {string} parentNodeId - Parent node ID for building unique node IDs
-     * @param {number} depth - Current depth level for indentation
+     * @param {number} depth - Current depth level for indentation (max 2 levels visible)
      */
     renderProductGroupTree(pgTree, parentNodeId, depth) {
-        let html = '<div class="hierarchy-children">';
+        let html = '<div class="hierarchy-group-list">';
 
         const productGroups = Object.values(pgTree);
         productGroups.forEach((productGroup, index) => {
@@ -207,21 +208,20 @@ class HierarchyView {
             // Check if has nested content (items or child product groups)
             const hasNestedContent = productGroup.items.length > 0 || Object.keys(productGroup.children).length > 0;
 
-            // Generate indentation
-            const indentHtml = '<span class="hierarchy-indent"></span>'.repeat(depth);
+            // Compact indentation - use CSS classes instead of repeating elements
+            // depth 1 = under store, depth 2+ = nested groups
+            const indentClass = depth === 1 ? 'indent-1' : 'indent-2';
 
             html += `
-                <div class="hierarchy-node hierarchy-level-${depth + 1}" data-node-id="${pgNodeId}">
-                    ${indentHtml}
-                    <span class="hierarchy-line">└──</span>
+                <div class="hierarchy-group ${indentClass}" data-node-id="${pgNodeId}">
                     ${hasNestedContent ? `
                         <span class="hierarchy-toggle" onclick="window.hierarchyView.toggleNode('${pgNodeId}')">
                             ${isExpanded ? '▼' : '▶'}
                         </span>
                     ` : '<span class="hierarchy-toggle-placeholder"></span>'}
-                    <span class="hierarchy-icon">📦</span>
-                    <span class="hierarchy-label">${this.escapeHtml(productGroup.name)}</span>
-                    <span class="hierarchy-count badge badge-sm badge-info">${totalCompletedCount}/${totalItemCount}</span>
+                    <span class="hierarchy-group-icon">📦</span>
+                    <span class="hierarchy-group-name">${this.escapeHtml(productGroup.name)}</span>
+                    <span class="hierarchy-group-badge">${totalCompletedCount}/${totalItemCount}</span>
                 </div>
             `;
 
@@ -231,7 +231,7 @@ class HierarchyView {
                     html += this.renderProductGroupTree(productGroup.children, pgNodeId, depth + 1);
                 }
 
-                // Then render items (at the end)
+                // Then render items (at the end) - compact list
                 if (productGroup.items.length > 0) {
                     html += this.renderItems(productGroup.items, pgNodeId, depth + 1);
                 }
@@ -244,35 +244,30 @@ class HierarchyView {
 
     /**
      * Render items at specified depth
+     * Items are rendered as a compact list with MINIMAL indentation
+     * (shifted to left edge for better mobile viewing)
      * @param {Array} items - Array of item objects
      * @param {string} parentNodeId - Parent node ID
-     * @param {number} depth - Current depth level for indentation
+     * @param {number} depth - Current depth level (used for styling only)
      */
     renderItems(items, parentNodeId, depth = 2) {
-        let html = '<div class="hierarchy-children">';
-
-        // Generate indentation based on depth (depth + 1 for items under product group)
-        const indentHtml = '<span class="hierarchy-indent"></span>'.repeat(depth + 1);
+        // Items container - compact list at left edge
+        let html = '<div class="hierarchy-items-list">';
 
         items.forEach((item, index) => {
-            const isLast = index === items.length - 1;
-            const linePrefix = isLast ? '└──' : '├──';
             const isCompleted = item.is_completed;
 
             html += `
-                <div class="hierarchy-node hierarchy-level-${depth + 2} ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
-                    ${indentHtml}
-                    <span class="hierarchy-line">${linePrefix}</span>
+                <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
                     <input type="checkbox"
                            class="checkbox checkbox-xs"
                            ${isCompleted ? 'checked' : ''}
                            onchange="window.listsManager.toggleItemCompleted(${item.id}, this.checked)">
-                    <span class="hierarchy-icon">🛒</span>
-                    <span class="hierarchy-label ${isCompleted ? 'line-through' : ''}">
+                    <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
                         ${this.escapeHtml(item.product_name)}
-                        ${item.quantity ? `<span class="text-xs opacity-60 ml-2">${item.quantity} ${item.unit || ''}</span>` : ''}
                     </span>
-                    <div class="hierarchy-actions ml-auto">
+                    ${item.quantity ? `<span class="hierarchy-item-qty">${item.quantity}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+                    <div class="hierarchy-item-actions">
                         <button class="btn btn-xs btn-ghost btn-square"
                                 onclick="openEditItemModal(${item.id})"
                                 title="Редактировать">
