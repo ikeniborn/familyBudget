@@ -142,24 +142,17 @@ class ListsManager {
      */
     async loadShoppingListItems(listId) {
         try {
-            const response = await fetch(`/api/v1/shopping-lists/${listId}/items`, {
+            const response = await fetch(`/api/v1/shopping-list-items?shopping_list_id=${listId}`, {
                 credentials: 'same-origin'
             });
 
-            // 404 is OK for empty lists (no items imported yet)
-            if (!response.ok && response.status !== 404) {
+            if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
 
-            // Handle empty list (404 or empty items array)
-            if (response.status === 404) {
-                debugLog('[ListsManager] List is empty (no items yet)');
-                this.currentItems = [];
-            } else {
-                const data = await response.json();
-                this.currentItems = data.items || [];
-                debugLog('[ListsManager] Loaded items:', this.currentItems.length);
-            }
+            const data = await response.json();
+            this.currentItems = data.items || [];
+            debugLog('[ListsManager] Loaded items:', this.currentItems.length);
 
             // Update progress badge
             this.updateProgressBadge();
