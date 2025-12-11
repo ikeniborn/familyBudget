@@ -106,6 +106,9 @@ class CSVImportRequest(BaseModel):
     skip_invalid: bool = Field(
         default=False, description="Skip rows with validation errors"
     )
+    create_missing_references: bool = Field(
+        default=False, description="Auto-create missing stores and product groups"
+    )
 
     class Config:
         json_schema_extra = {
@@ -123,6 +126,7 @@ class CSVImportRequest(BaseModel):
                 "shopping_list_id": 1,
                 "skip_duplicates": False,
                 "skip_invalid": False,
+                "create_missing_references": False,
             }
         }
 

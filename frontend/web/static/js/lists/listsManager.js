@@ -21,6 +21,7 @@ class ListsManager {
         this.choicesInstances = {}; // Choices.js instances
         this.hierarchyView = null; // HierarchyView instance
         this.db = null; // IndexedDBManager instance for offline support
+        this.searchQuery = ''; // Search filter for items
     }
 
     /**
@@ -49,6 +50,38 @@ class ListsManager {
             } else {
                 console.warn('[ListsManager] IndexedDBManager not available, offline mode disabled');
             }
+
+            // Initialize OfflineShoppingManager for offline CRUD operations
+            if (window.offlineManager && typeof OfflineShoppingManager !== 'undefined') {
+                this.offlineShopping = new OfflineShoppingManager(window.offlineManager);
+                debugLog('[ListsManager] OfflineShoppingManager initialized');
+            }
+
+            // Listen for network status changes (sync when back online)
+            window.addEventListener('offline-status-change', async (event) => {
+                const { online } = event.detail || {};
+                this.updateOfflineUI(!online);
+
+                if (online && this.offlineShopping) {
+                    try {
+                        // Sync pending changes
+                        const results = await this.offlineShopping.sync();
+                        debugLog('[ListsManager] Sync results:', results);
+
+                        // Reload current list data from server
+                        if (this.currentListId) {
+                            await this.loadShoppingListItems(this.currentListId);
+                            this.renderCurrentView();
+                        }
+
+                        if (results && results.synced > 0) {
+                            showToast(`Синхронизировано: ${results.synced} изменений`, 'success');
+                        }
+                    } catch (error) {
+                        console.error('[ListsManager] Sync error:', error);
+                    }
+                }
+            });
 
             // Load reference data
             await Promise.all([
@@ -107,8 +140,18 @@ class ListsManager {
     async showDetailView(listId) {
         debugLog('[ListsManager] Showing detail view for list:', listId);
 
-        this.currentListId = listId;
+        // IMPORTANT: Full state reset BEFORE loading new list
+        // This prevents showing old list data while new list loads
+        this.currentItems = [];  // Clear items immediately
         this.selectedItemIds.clear();
+        this.currentListId = listId;
+
+        // Reset search query for new list
+        this.searchQuery = '';
+        const searchInput = document.getElementById('items-search');
+        if (searchInput) searchInput.value = '';
+        const clearBtn = document.getElementById('clear-search-btn');
+        if (clearBtn) clearBtn.classList.add('hidden');
 
         // Reset HierarchyView expanded nodes for new list
         // Each list should start with fresh tree state
@@ -466,10 +509,24 @@ class ListsManager {
         const emptyState = document.getElementById('table-empty-state');
         const desktopTable = document.getElementById('desktop-table-container');
 
-        if (this.currentItems.length === 0) {
+        // Apply search filter
+        const filteredItems = this.filterItemsBySearch();
+
+        if (filteredItems.length === 0) {
             if (desktopTable) desktopTable.classList.add('hidden');
             if (mobileContainer) mobileContainer.classList.add('hidden');
             emptyState.classList.remove('hidden');
+
+            // Update empty state message based on search
+            const emptyTitle = emptyState.querySelector('h3');
+            const emptyText = emptyState.querySelector('p');
+            if (this.searchQuery && this.searchQuery.trim() !== '') {
+                if (emptyTitle) emptyTitle.textContent = 'Ничего не найдено';
+                if (emptyText) emptyText.textContent = 'Попробуйте изменить поисковый запрос';
+            } else {
+                if (emptyTitle) emptyTitle.textContent = 'Список пуст';
+                if (emptyText) emptyText.textContent = 'Добавьте первый товар или импортируйте из CSV';
+            }
             return;
         }
 
@@ -478,31 +535,24 @@ class ListsManager {
         emptyState.classList.add('hidden');
 
         // Render desktop table
-        tbody.innerHTML = this.currentItems.map(item => {
+        tbody.innerHTML = filteredItems.map(item => {
             const store = this.stores.find(s => s.id === item.store_id);
             const groupPath = this.getProductGroupBreadcrumbs(item.product_group_id);
             const isCompleted = item.is_completed;
 
             return `
-                <tr class="${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
+                <tr class="${isCompleted ? 'completed' : ''} cursor-pointer hover:bg-base-200" data-item-id="${item.id}" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
                     <td data-label="Магазин">${store ? this.escapeHtml(store.name) : 'N/A'}</td>
                     <td data-label="Группа" class="text-xs">${groupPath ? this.escapeHtml(groupPath) : 'N/A'}</td>
                     <td data-label="Товар">
-                        <span class="table-item-name hierarchy-clickable ${isCompleted ? 'line-through opacity-60' : ''}"
-                              onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
+                        <span class="table-item-name ${isCompleted ? 'line-through opacity-60' : ''}">
                             ${this.escapeHtml(item.product_name)}
                         </span>
                     </td>
                     <td data-label="Кол-во" class="text-right">${item.quantity !== null ? this.formatQuantity(item.quantity, item.unit) : '—'}</td>
                     <td data-label="Ед.">${item.unit ? this.escapeHtml(item.unit) : '—'}</td>
                     <td data-label="Комментарий" class="truncate-1-line">${item.comment ? this.escapeHtml(item.comment) : '—'}</td>
-                    <td class="px-1 text-center">
-                        <input type="checkbox"
-                               class="checkbox checkbox-xs"
-                               ${isCompleted ? 'checked' : ''}
-                               onchange="window.listsManager.toggleItemCompleted(${item.id}, this.checked)">
-                    </td>
-                    <td data-label="Действия" class="text-center">
+                    <td data-label="Действия" class="text-center" onclick="event.stopPropagation()">
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-square btn-ghost"
                                     onclick="openEditItemModal(${item.id})"
@@ -520,9 +570,10 @@ class ListsManager {
             `;
         }).join('');
 
-        // Render mobile cards
+        // Render mobile cards (sorted by store → group → product)
         if (mobileContainer) {
-            mobileContainer.innerHTML = this.currentItems.map(item => {
+            const sortedItems = this.getSortedItemsForMobile(filteredItems);
+            mobileContainer.innerHTML = sortedItems.map(item => {
                 return this.renderMobileCard(item);
             }).join('');
         }
@@ -586,6 +637,137 @@ class ListsManager {
     }
 
     /**
+     * Get items sorted for mobile view
+     * Sort order: store → group → product
+     */
+    getSortedItemsForMobile(items = null) {
+        const itemsToSort = items || this.currentItems;
+
+        // Build lookup maps for sorting
+        const storeMap = {};
+        this.stores.forEach(s => { storeMap[s.id] = s.name || ''; });
+
+        const groupMap = {};
+        this.productGroups.forEach(g => { groupMap[g.id] = g.name || ''; });
+
+        // Sort items
+        return [...itemsToSort].sort((a, b) => {
+            // 1. Sort by store name
+            const storeA = (storeMap[a.store_id] || '').toLowerCase();
+            const storeB = (storeMap[b.store_id] || '').toLowerCase();
+            if (storeA !== storeB) {
+                return storeA.localeCompare(storeB, 'ru');
+            }
+
+            // 2. Sort by group name
+            const groupA = (groupMap[a.product_group_id] || '').toLowerCase();
+            const groupB = (groupMap[b.product_group_id] || '').toLowerCase();
+            if (groupA !== groupB) {
+                return groupA.localeCompare(groupB, 'ru');
+            }
+
+            // 3. Sort by product name
+            const productA = (a.product_name || '').toLowerCase();
+            const productB = (b.product_name || '').toLowerCase();
+            return productA.localeCompare(productB, 'ru');
+        });
+    }
+
+    /**
+     * Filter items by search query
+     * Searches in: product name, store name, group name, group ancestors
+     * @returns {Array} Filtered items
+     */
+    filterItemsBySearch() {
+        if (!this.searchQuery || this.searchQuery.trim() === '') {
+            return this.currentItems;
+        }
+
+        const query = this.searchQuery.toLowerCase().trim();
+
+        // Build lookup maps
+        const storeMap = {};
+        this.stores.forEach(s => { storeMap[s.id] = s.name || ''; });
+
+        const groupMap = {};
+        this.productGroups.forEach(g => { groupMap[g.id] = g; });
+
+        // Helper to get all ancestor names for a group
+        const getGroupAncestorNames = (groupId) => {
+            const names = [];
+            let currentId = groupId;
+            while (currentId && groupMap[currentId]) {
+                names.push(groupMap[currentId].name || '');
+                currentId = groupMap[currentId].parent_id;
+            }
+            return names;
+        };
+
+        return this.currentItems.filter(item => {
+            // Check product name
+            if ((item.product_name || '').toLowerCase().includes(query)) {
+                return true;
+            }
+
+            // Check store name
+            const storeName = storeMap[item.store_id] || '';
+            if (storeName.toLowerCase().includes(query)) {
+                return true;
+            }
+
+            // Check group name and ancestors
+            const groupNames = getGroupAncestorNames(item.product_group_id);
+            for (const name of groupNames) {
+                if (name.toLowerCase().includes(query)) {
+                    return true;
+                }
+            }
+
+            // Check comment
+            if ((item.comment || '').toLowerCase().includes(query)) {
+                return true;
+            }
+
+            return false;
+        });
+    }
+
+    /**
+     * Set search query and re-render
+     */
+    setSearchQuery(query) {
+        this.searchQuery = query;
+
+        // Show/hide clear button
+        const clearBtn = document.getElementById('clear-search-btn');
+        if (clearBtn) {
+            if (query && query.trim() !== '') {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+        }
+
+        // Re-render based on current view
+        if (this.currentView === 'hierarchy' && this.hierarchyView) {
+            this.hierarchyView.render();
+        } else {
+            this.renderItemsTable();
+        }
+    }
+
+    /**
+     * Clear search query
+     */
+    clearSearch() {
+        const input = document.getElementById('items-search');
+        if (input) {
+            input.value = '';
+        }
+        this.setSearchQuery('');
+    }
+
+    /**
      * Update progress badge
      */
     updateProgressBadge() {
@@ -626,69 +808,20 @@ class ListsManager {
 
     /**
      * Populate product group select dropdown
-     * Shows only leaf groups with parent path in parentheses
-     * Example: "Кислое (Молочные)" - parents only, smaller gray text
+     * Note: This method prepares the select element for Choices.js
+     * The actual options are populated via buildProductGroupChoices() in initProductGroupChoices()
      */
     populateProductGroupSelect() {
         const select = document.getElementById('item-product-group');
         if (!select) return;
 
-        // Keep first option (placeholder)
-        const firstOption = select.querySelector('option[value=""]');
+        // Clear select and add placeholder option
+        // Choices.js will use buildProductGroupChoices() to populate the dropdown
         select.innerHTML = '';
-        if (firstOption) select.appendChild(firstOption);
-
-        // Build group map for breadcrumbs lookup
-        const groupMap = {};
-        this.productGroups.forEach(group => {
-            groupMap[group.id] = group;
-        });
-
-        // Find leaf groups (groups that have no children)
-        const parentIds = new Set();
-        this.productGroups.forEach(group => {
-            if (group.parent_id) {
-                parentIds.add(group.parent_id);
-            }
-        });
-        const leafGroups = this.productGroups.filter(group => !parentIds.has(group.id));
-
-        // Sort leaves alphabetically
-        leafGroups.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
-
-        // Helper to get parent breadcrumbs path (ancestors only, not including the item itself)
-        const getParentBreadcrumbs = (groupId) => {
-            const path = [];
-            let currentId = groupMap[groupId]?.parent_id;
-            while (currentId && groupMap[currentId]) {
-                path.unshift(groupMap[currentId]);
-                currentId = groupMap[currentId].parent_id;
-            }
-            return path;
-        };
-
-        // Add product group options - only leaves with parent path
-        leafGroups
-            .filter(pg => pg.is_active)
-            .forEach(pg => {
-                const option = document.createElement('option');
-                option.value = pg.id;
-
-                // Get parents path (excludes the element itself)
-                const parents = getParentBreadcrumbs(pg.id);
-
-                // Format: "Name (Parent → Parent)" or just "Name" if no parents
-                // Parents shown in smaller gray text
-                let label = this.escapeHtml(pg.name);
-                if (parents.length > 0) {
-                    const parentsStr = parents.map(g => this.escapeHtml(g.name)).join(' → ');
-                    label = `${this.escapeHtml(pg.name)} <span class="product-group-parents">(${parentsStr})</span>`;
-                }
-
-                option.innerHTML = label;
-                option.dataset.path = parents.map(g => g.name).join(' → ');
-                select.appendChild(option);
-            });
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Группа';
+        select.appendChild(placeholder);
     }
 
     /**
@@ -727,6 +860,9 @@ class ListsManager {
             this.choicesInstances.productGroup.destroy();
         }
 
+        // Build choices array with HTML labels for proper rendering
+        const choices = this.buildProductGroupChoices();
+
         // Create new Choices.js instance with choices-tailwind styling
         this.choicesInstances.productGroup = new Choices(select, {
             searchEnabled: true,
@@ -734,13 +870,113 @@ class ListsManager {
             noResultsText: 'Группа не найдена',
             itemSelectText: '',
             allowHTML: true, // Allow HTML in options for parent path styling
-            shouldSort: false, // Maintain alphabetical order from populateProductGroupSelect
+            shouldSort: false, // Maintain alphabetical order
             placeholder: true,
             placeholderValue: 'Группа',
+            choices: choices,
             classNames: {
                 containerOuter: ['choices', 'choices-tailwind'] // Apply tailwind theme
             }
         });
+
+        // Initialize unit change listener for quantity input
+        this.initUnitChangeListener();
+    }
+
+    /**
+     * Build choices array for product groups with HTML labels
+     * Format: "Name (Parent)" where Parent is styled gray and smaller
+     * Shows only immediate parent, not full hierarchy
+     * @returns {Array} Choices array for Choices.js
+     */
+    buildProductGroupChoices() {
+        // Build group map for parent lookup
+        const groupMap = {};
+        this.productGroups.forEach(group => {
+            groupMap[group.id] = group;
+        });
+
+        // Find leaf groups (groups that have no children)
+        const parentIds = new Set();
+        this.productGroups.forEach(group => {
+            if (group.parent_id) {
+                parentIds.add(group.parent_id);
+            }
+        });
+        const leafGroups = this.productGroups.filter(group => !parentIds.has(group.id));
+
+        // Sort leaves alphabetically
+        leafGroups.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+        // Build choices array
+        const choices = [];
+        leafGroups
+            .filter(pg => pg.is_active)
+            .forEach(pg => {
+                // Get immediate parent only (not full hierarchy)
+                const parent = pg.parent_id ? groupMap[pg.parent_id] : null;
+
+                // Format: "Name (Parent)" with HTML styling for parent
+                let label = this.escapeHtml(pg.name);
+                if (parent) {
+                    label = `${this.escapeHtml(pg.name)} <span class="product-group-parents">(${this.escapeHtml(parent.name)})</span>`;
+                }
+
+                choices.push({
+                    value: pg.id.toString(),
+                    label: label,
+                    selected: false,
+                    disabled: false
+                });
+            });
+
+        return choices;
+    }
+
+    /**
+     * Initialize unit change listener for quantity input
+     * Updates step attribute based on selected unit:
+     * - кг: step=0.1 (one decimal place)
+     * - other units: step=1 (integer only)
+     */
+    initUnitChangeListener() {
+        const unitSelect = document.getElementById('item-unit');
+        const quantityInput = document.getElementById('item-quantity');
+
+        if (!unitSelect || !quantityInput) return;
+
+        // Remove existing listener if any
+        unitSelect.removeEventListener('change', this.handleUnitChange);
+
+        // Create bound handler
+        this.handleUnitChange = (event) => {
+            const unit = event.target.value;
+            this.updateQuantityInputStep(unit, quantityInput);
+        };
+
+        // Add listener
+        unitSelect.addEventListener('change', this.handleUnitChange);
+    }
+
+    /**
+     * Update quantity input step based on unit
+     * @param {string} unit - Selected unit
+     * @param {HTMLInputElement} quantityInput - Quantity input element
+     */
+    updateQuantityInputStep(unit, quantityInput) {
+        if (unit === 'кг') {
+            // For kg: allow one decimal place
+            quantityInput.step = '0.1';
+        } else {
+            // For all other units: integer only
+            quantityInput.step = '1';
+
+            // Round current value to integer if it has decimals
+            const currentValue = parseFloat(quantityInput.value);
+            if (!isNaN(currentValue) && currentValue !== Math.round(currentValue)) {
+                quantityInput.value = Math.round(currentValue);
+            }
+        }
     }
 
     /**
@@ -843,84 +1079,90 @@ class ListsManager {
     }
 
     /**
-     * Toggle item completed status
+     * Toggle item completed status (with offline support)
      */
     async toggleItemCompleted(itemId, isCompleted) {
+        // 1. Optimistic UI update - update state and render immediately
+        const item = this.currentItems.find(i => i.id === itemId);
+        if (item) {
+            item.is_completed = isCompleted;
+        }
+        this.renderCurrentView();
+        this.updateProgressBadge();
+
         try {
-            const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({ is_completed: isCompleted })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            // Update local state
-            const item = this.currentItems.find(i => i.id === itemId);
-            if (item) {
-                item.is_completed = isCompleted;
-            }
-
-            // Re-render based on current view
-            if (this.currentView === 'hierarchy' && this.hierarchyView) {
-                this.hierarchyView.render();
+            // 2. Send to server or queue for offline
+            if (this.offlineShopping) {
+                await this.offlineShopping.updateItem(itemId, { is_completed: isCompleted });
             } else {
-                this.renderItemsTable();
+                // Fallback to direct fetch (no offline support)
+                const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ is_completed: isCompleted })
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
             }
-            this.updateProgressBadge();
 
-            showToast(isCompleted ? 'Товар отмечен как выполненный' : 'Отметка снята', 'success');
+            // 3. Update cache
+            await this.updateItemsCache();
+
         } catch (error) {
             console.error('[ListsManager] Error toggling item completed:', error);
-            showToast('Ошибка обновления статуса', 'error');
-            // Revert view
-            if (this.currentView === 'hierarchy' && this.hierarchyView) {
-                this.hierarchyView.render();
-            } else {
-                this.renderItemsTable();
+            // 4. Revert only if truly online and error occurred
+            // (offline errors are expected and handled by offlineShopping)
+            if (this.isOnline && !error.message?.includes('offline')) {
+                if (item) item.is_completed = !isCompleted;
+                this.renderCurrentView();
+                this.updateProgressBadge();
+                showToast('Ошибка обновления статуса', 'error');
             }
         }
     }
 
     /**
-     * Delete item
+     * Delete item (with offline support)
      */
     async deleteItem(itemId) {
-        if (!confirm('Удалить этот товар?')) {
-            return;
-        }
+        if (!confirm('Удалить этот товар?')) return;
+
+        // 1. Optimistic UI update - save deleted item for potential revert
+        const itemIndex = this.currentItems.findIndex(item => item.id === itemId);
+        if (itemIndex === -1) return;
+
+        const deletedItem = this.currentItems[itemIndex];
+        this.currentItems.splice(itemIndex, 1);
+        this.selectedItemIds.delete(itemId);
+        this.renderCurrentView();
+        this.updateProgressBadge();
 
         try {
-            const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
-                method: 'DELETE',
-                credentials: 'same-origin'
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            // Remove from local state
-            this.currentItems = this.currentItems.filter(item => item.id !== itemId);
-            this.selectedItemIds.delete(itemId);
-
-            // Re-render based on current view
-            if (this.currentView === 'hierarchy' && this.hierarchyView) {
-                this.hierarchyView.render();
+            // 2. Delete on server or queue for offline
+            if (this.offlineShopping) {
+                await this.offlineShopping.deleteItem(itemId);
             } else {
-                this.renderItemsTable();
+                // Fallback to direct fetch (no offline support)
+                const response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
             }
-            this.updateProgressBadge();
 
+            // 3. Update cache
+            await this.updateItemsCache();
             showToast('Товар удален', 'success');
+
         } catch (error) {
             console.error('[ListsManager] Error deleting item:', error);
-            showToast('Ошибка удаления товара', 'error');
+            // 4. Revert deletion only if truly online and error occurred
+            if (this.isOnline && !error.message?.includes('offline')) {
+                this.currentItems.splice(itemIndex, 0, deletedItem);
+                this.renderCurrentView();
+                this.updateProgressBadge();
+                showToast('Ошибка удаления товара', 'error');
+            }
         }
     }
 
@@ -1196,6 +1438,53 @@ class ListsManager {
         // Default: integer (round to nearest whole number)
         return Math.round(numQuantity).toString();
     }
+
+    // ==========================================================
+    // Offline Support Helper Methods
+    // ==========================================================
+
+    /**
+     * Render current view (table or hierarchy)
+     * Used after offline sync and optimistic updates
+     */
+    renderCurrentView() {
+        if (this.currentView === 'hierarchy' && this.hierarchyView) {
+            this.hierarchyView.render();
+        } else {
+            this.renderItemsTable();
+        }
+    }
+
+    /**
+     * Update items cache in IndexedDB
+     * Called after successful mutations to keep cache in sync
+     */
+    async updateItemsCache() {
+        if (this.db && this.currentListId) {
+            const CACHE_KEY = `shopping_list_items_${this.currentListId}`;
+            const CACHE_TTL = 86400; // 24 hours
+            await this.db.setCache(CACHE_KEY, this.currentItems, CACHE_TTL);
+            debugLog('[ListsManager] Updated items cache');
+        }
+    }
+
+    /**
+     * Update UI for offline mode
+     * @param {boolean} isOffline - true if offline
+     */
+    updateOfflineUI(isOffline) {
+        // Hide Import accordion in offline mode
+        const importAccordion = document.querySelector('.collapse.collapse-arrow.bg-base-100');
+        if (importAccordion) {
+            if (isOffline) {
+                importAccordion.classList.add('hidden');
+                importAccordion.classList.remove('sm:block');
+            } else {
+                importAccordion.classList.remove('hidden');
+                importAccordion.classList.add('hidden', 'sm:block');
+            }
+        }
+    }
 }
 
 // ============================================== //
@@ -1281,6 +1570,13 @@ function openAddItemModal() {
     form.reset();
     document.getElementById('item-id').value = '';
     document.getElementById('item-modal-title').textContent = '📝 Добавить товар';
+
+    // Reset quantity input step to default (integer)
+    const quantityInput = document.getElementById('item-quantity');
+    if (quantityInput) {
+        quantityInput.step = '1';
+    }
+
     modal.showModal();
 }
 
@@ -1304,6 +1600,10 @@ function openEditItemModal(itemId) {
     document.getElementById('item-comment').value = item.comment || '';
     document.getElementById('item-modal-title').textContent = '✏️ Редактировать товар';
 
+    // Update quantity input step based on unit
+    const quantityInput = document.getElementById('item-quantity');
+    window.listsManager.updateQuantityInputStep(item.unit || '', quantityInput);
+
     // Update Choices.js instance
     if (window.listsManager.choicesInstances.productGroup) {
         window.listsManager.choicesInstances.productGroup.setChoiceByValue(item.product_group_id.toString());
@@ -1321,7 +1621,7 @@ function closeItemModal() {
 }
 
 /**
- * Handle save item form submission
+ * Handle save item form submission (with offline support)
  */
 async function handleSaveItem(event) {
     event.preventDefault();
@@ -1341,48 +1641,62 @@ async function handleSaveItem(event) {
     };
 
     try {
-        let response;
-        if (isEdit) {
-            // Update existing item
-            response = await fetch(`/api/v1/shopping-list-items/${itemId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify(data)
-            });
-        } else {
-            // Create new item
-            data.shopping_list_id = window.listsManager.currentListId;
-            response = await fetch('/api/v1/shopping-list-items', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify(data)
-            });
-        }
+        const manager = window.listsManager;
+        let result;
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (manager.offlineShopping) {
+            // Use OfflineShoppingManager for online/offline support
+            if (isEdit) {
+                result = await manager.offlineShopping.updateItem(parseInt(itemId), data);
+            } else {
+                data.shopping_list_id = manager.currentListId;
+                result = await manager.offlineShopping.createItem(data);
+            }
+        } else {
+            // Fallback to direct fetch (no offline support)
+            const url = isEdit
+                ? `/api/v1/shopping-list-items/${itemId}`
+                : '/api/v1/shopping-list-items';
+            if (!isEdit) data.shopping_list_id = manager.currentListId;
+
+            const response = await fetch(url, {
+                method: isEdit ? 'PUT' : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            result = await response.json();
         }
 
         showToast(isEdit ? 'Товар обновлен' : 'Товар добавлен', 'success');
-
-        // Close modal
         closeItemModal();
 
-        // Reload items
-        await window.listsManager.loadShoppingListItems(window.listsManager.currentListId);
-
-        // Re-render based on current view
-        if (window.listsManager.currentView === 'hierarchy' && window.listsManager.hierarchyView) {
-            window.listsManager.hierarchyView.render();
+        // Optimistic update of local state
+        if (isEdit) {
+            const item = manager.currentItems.find(i => i.id === parseInt(itemId));
+            if (item) Object.assign(item, data);
         } else {
-            window.listsManager.renderItemsTable();
+            // Add new item with temp or real ID
+            const newItem = {
+                id: result.id || result.tempId,
+                ...data,
+                is_completed: false,
+                _offline: result._offline || false
+            };
+            // Get store and product group names for display
+            const store = manager.stores?.find(s => s.id === data.store_id);
+            const group = manager.productGroups?.find(g => g.id === data.product_group_id);
+            if (store) newItem.store_name = store.name;
+            if (group) newItem.product_group_name = group.name;
+
+            manager.currentItems.push(newItem);
         }
+
+        manager.renderCurrentView();
+        manager.updateProgressBadge();
+        await manager.updateItemsCache();
+
     } catch (error) {
         console.error('[ListsManager] Error saving item:', error);
         showToast('Ошибка сохранения товара', 'error');
@@ -1546,6 +1860,43 @@ function initializeImportWizard() {
         window.importManager.init();
         debugLog('[ImportWizard] Initialized');
     }
+}
+
+/**
+ * Handle import accordion toggle (open/close)
+ * @param {boolean} isOpen - Whether the accordion is being opened
+ */
+function handleImportToggle(isOpen) {
+    const wizardContainer = document.getElementById('import-wizard');
+
+    if (isOpen) {
+        // Opening - initialize wizard
+        initializeImportWizard();
+    } else {
+        // Closing - clear wizard content and reset state
+        if (wizardContainer) {
+            wizardContainer.innerHTML = '';
+        }
+        if (window.importManager) {
+            window.importManager.container = null;
+            window.importManager.currentMethod = null;
+        }
+        debugLog('[ImportWizard] Closed and reset');
+    }
+}
+
+/**
+ * Handle search input
+ */
+function handleItemsSearch(query) {
+    window.listsManager.setSearchQuery(query);
+}
+
+/**
+ * Clear search
+ */
+function clearItemsSearch() {
+    window.listsManager.clearSearch();
 }
 
 debugLog('[ListsManager] Module loaded');

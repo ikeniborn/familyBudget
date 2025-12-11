@@ -114,6 +114,12 @@ class NotificationRead(BaseModel):
         examples=[5]
     )
 
+    article_name: Optional[str] = Field(
+        default=None,
+        description="Budget category name (joined from Article table)",
+        examples=["Продукты"]
+    )
+
     notification_type: str = Field(
         description="Notification type",
         examples=["budget_threshold"]
@@ -156,6 +162,7 @@ class NotificationRead(BaseModel):
                 "id": 1,
                 "user_id": None,
                 "article_id": 5,
+                "article_name": "Продукты",
                 "notification_type": "budget_threshold",
                 "threshold_percent": 90,
                 "plan_amount": 10000.00,

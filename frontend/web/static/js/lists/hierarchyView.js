@@ -23,7 +23,8 @@ class HierarchyView {
             return;
         }
 
-        const items = this.listsManager.currentItems;
+        // Apply search filter from listsManager
+        const items = this.listsManager.filterItemsBySearch();
         const stores = this.listsManager.stores;
         const productGroups = this.listsManager.productGroups;
 
@@ -258,17 +259,12 @@ class HierarchyView {
             const isCompleted = item.is_completed;
 
             html += `
-                <div class="hierarchy-item ${isCompleted ? 'completed' : ''}" data-item-id="${item.id}">
-                    <input type="checkbox"
-                           class="checkbox checkbox-xs"
-                           ${isCompleted ? 'checked' : ''}
-                           onchange="window.listsManager.toggleItemCompleted(${item.id}, this.checked)">
-                    <span class="hierarchy-item-name hierarchy-clickable ${isCompleted ? 'line-through' : ''}"
-                          onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
+                <div class="hierarchy-item ${isCompleted ? 'completed' : ''} cursor-pointer" data-item-id="${item.id}" onclick="window.listsManager.toggleItemCompleted(${item.id}, ${!isCompleted})">
+                    <span class="hierarchy-item-name ${isCompleted ? 'line-through' : ''}">
                         ${this.escapeHtml(item.product_name)}
                     </span>
                     ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
-                    <div class="hierarchy-item-actions">
+                    <div class="hierarchy-item-actions" onclick="event.stopPropagation()">
                         <button class="btn btn-xs btn-ghost btn-square"
                                 onclick="openEditItemModal(${item.id})"
                                 title="Редактировать">
@@ -292,16 +288,29 @@ class HierarchyView {
      * Render empty state
      */
     renderEmpty() {
-        this.container.innerHTML = `
-            <div class="text-center py-12">
-                <div class="text-6xl mb-4">🌳</div>
-                <h3 class="text-2xl font-bold mb-2">Список пуст</h3>
-                <p class="text-base-content/70 mb-4">Добавьте товары, чтобы увидеть иерархию</p>
-                <button class="btn btn-primary" onclick="openAddItemModal()">
-                    ➕ Добавить товар
-                </button>
-            </div>
-        `;
+        // Check if search is active
+        const hasSearch = this.listsManager.searchQuery && this.listsManager.searchQuery.trim() !== '';
+
+        if (hasSearch) {
+            this.container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">🔍</div>
+                    <h3 class="text-2xl font-bold mb-2">Ничего не найдено</h3>
+                    <p class="text-base-content/70 mb-4">Попробуйте изменить поисковый запрос</p>
+                </div>
+            `;
+        } else {
+            this.container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">🌳</div>
+                    <h3 class="text-2xl font-bold mb-2">Список пуст</h3>
+                    <p class="text-base-content/70 mb-4">Добавьте товары, чтобы увидеть иерархию</p>
+                    <button class="btn btn-primary" onclick="openAddItemModal()">
+                        ➕ Добавить товар
+                    </button>
+                </div>
+            `;
+        }
     }
 
     /**

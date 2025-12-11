@@ -80,7 +80,7 @@
         <!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
         <div class="collapse collapse-arrow bg-base-100 shadow-md sm:shadow-lg mb-4 sm:mb-6 hidden sm:block">
             <input type="checkbox" id="import-toggle"
-                   onchange="if(this.checked) initializeImportWizard()" />
+                   onchange="handleImportToggle(this.checked)" />
             <label for="import-toggle" class="collapse-title text-base sm:text-xl font-medium cursor-pointer py-2 sm:py-4 min-h-0">
                 📥 <span class="hidden xs:inline">Импорт</span><span class="xs:hidden">Импорт</span>
             </label>
@@ -93,6 +93,22 @@
                         <!-- Import wizard will be rendered here by ImportManager -->
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <!-- Search Field -->
+        <div class="mb-3 sm:mb-4">
+            <div class="relative">
+                <input type="text"
+                       id="items-search"
+                       class="input input-bordered input-sm sm:input-md w-full pl-9 sm:pl-10"
+                       placeholder="Поиск по товарам..."
+                       oninput="handleItemsSearch(this.value)">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-base-content/50">🔍</span>
+                <button id="clear-search-btn"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 btn btn-ghost btn-xs btn-circle hidden"
+                        onclick="clearItemsSearch()"
+                        title="Очистить поиск">✕</button>
             </div>
         </div>
 
@@ -148,7 +164,6 @@
                             <th class="text-right">📊 Кол-во</th>
                             <th>📏 Ед.</th>
                             <th>💬 Комментарий</th>
-                            <th class="w-10 px-1 text-center">✅</th>
                             <th class="text-center">⚙️</th>
                         </tr>
                     </thead>
