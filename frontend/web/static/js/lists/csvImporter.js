@@ -486,19 +486,188 @@ class CSVImporter {
     /**
      * Validate mapping and continue
      */
-    validateAndContinue() {
+    async validateAndContinue() {
         if (this.validateMapping()) {
-            this.renderStep4();
+            await this.renderStep4();
         } else {
             showToast('Пожалуйста, сопоставьте все обязательные поля', 'warning');
         }
     }
 
     /**
-     * Step 4: Preview & validation (simplified)
+     * Step 4: Preview & validation
      */
-    renderStep4() {
+    async renderStep4() {
         this.currentStep = 4;
+
+        // Show loading state
+        this.container.innerHTML = `
+            <div class="csv-wizard-step">
+                <div class="mb-4">
+                    <div class="text-sm breadcrumbs">
+                        <ul>
+                            <li><a onclick="window.csvImporter.renderStep1()">Шаг 1: Загрузка файла</a></li>
+                            <li><a onclick="window.csvImporter.renderStep2()">Шаг 2: Определение формата</a></li>
+                            <li><a onclick="window.csvImporter.renderStep3()">Шаг 3: Сопоставление колонок</a></li>
+                            <li class="font-bold">Шаг 4: Предпросмотр</li>
+                            <li class="opacity-50">Шаг 5: Импорт</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="flex justify-center items-center py-8">
+                    <span class="loading loading-spinner loading-lg"></span>
+                    <span class="ml-4 text-lg">Валидация данных...</span>
+                </div>
+            </div>
+        `;
+
+        try {
+            // Call preview API for validation
+            await this.callPreviewAPI();
+
+            // Render preview with validation results
+            this.renderPreviewResults();
+
+        } catch (error) {
+            console.error('[CSVImporter] Error in preview:', error);
+            this.renderPreviewError(error.message);
+        }
+
+        debugLog('[CSVImporter] Rendered step 4');
+    }
+
+    /**
+     * Call preview API for validation
+     */
+    async callPreviewAPI() {
+        // Encode file content to base64
+        const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
+
+        // Prepare request payload
+        const requestData = {
+            file_content: fileContent,
+            delimiter: this.detectionResult.delimiter,
+            encoding: this.detectionResult.encoding,
+            has_header: this.detectionResult.has_header,
+            column_mapping: this.columnMapping,
+        };
+
+        debugLog('[CSVImporter] Calling preview API with:', requestData);
+
+        const response = await fetch('/api/v1/shopping-lists/import/preview', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to validate CSV data');
+        }
+
+        this.validationResult = await response.json();
+        debugLog('[CSVImporter] Validation result:', this.validationResult);
+    }
+
+    /**
+     * Render preview results with validation
+     */
+    renderPreviewResults() {
+        const result = this.validationResult;
+
+        // Determine overall status
+        const statusClass = result.is_valid ? 'alert-success' : 'alert-warning';
+        const statusIcon = result.is_valid
+            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
+        const statusText = result.is_valid
+            ? 'Все данные валидны и готовы к импорту'
+            : `Обнаружены проблемы: ${result.invalid_rows} строк с ошибками`;
+
+        // Build preview table rows
+        const previewTableRows = result.preview_rows.map(row => {
+            const rowClass = this.getRowValidationClass(row.validation_status);
+            const statusBadge = this.getStatusBadge(row.validation_status);
+
+            // Get mapped field names for display
+            const mappedFields = Object.entries(this.columnMapping)
+                .filter(([_, field]) => field)
+                .map(([_, field]) => field);
+
+            // Build data cells
+            const dataCells = mappedFields.map(field => {
+                const value = row.data[field] || '';
+                const hasError = row.errors?.some(e => e.field === field);
+                const hasWarning = row.warnings?.some(w => w.field === field);
+                const cellClass = hasError ? 'bg-error/20 text-error' : (hasWarning ? 'bg-warning/20 text-warning' : '');
+
+                return `<td class="${cellClass}">${this.escapeHtml(value)}</td>`;
+            }).join('');
+
+            // Build error/warning tooltip
+            const issues = [...(row.errors || []), ...(row.warnings || [])];
+            const issueTooltip = issues.length > 0
+                ? `title="${issues.map(i => this.escapeHtml(i.message)).join('; ')}"`
+                : '';
+
+            return `
+                <tr class="${rowClass}" ${issueTooltip}>
+                    <td class="text-center">${row.row_index + 1}</td>
+                    <td class="text-center">${statusBadge}</td>
+                    ${dataCells}
+                </tr>
+            `;
+        }).join('');
+
+        // Build header cells
+        const mappedFields = Object.entries(this.columnMapping)
+            .filter(([_, field]) => field)
+            .map(([csvCol, field]) => ({ csvCol, field }));
+
+        const headerCells = mappedFields.map(({ csvCol, field }) => {
+            const fieldLabel = this.getFieldLabel(field);
+            return `<th title="CSV: ${this.escapeHtml(csvCol)}">${fieldLabel}</th>`;
+        }).join('');
+
+        // Build errors list (if any)
+        const errorsSection = result.errors.length > 0 ? `
+            <div class="collapse collapse-arrow bg-error/10 mb-4">
+                <input type="checkbox" checked />
+                <div class="collapse-title font-medium text-error">
+                    ❌ Ошибки (${result.errors.length})
+                </div>
+                <div class="collapse-content">
+                    <ul class="list-disc list-inside text-sm space-y-1">
+                        ${result.errors.slice(0, 10).map(e => `
+                            <li>Строка ${e.row_index + 1}: <strong>${this.escapeHtml(e.field)}</strong> - ${this.escapeHtml(e.message)}</li>
+                        `).join('')}
+                        ${result.errors.length > 10 ? `<li class="text-base-content/70">... и еще ${result.errors.length - 10} ошибок</li>` : ''}
+                    </ul>
+                </div>
+            </div>
+        ` : '';
+
+        // Build warnings list (if any)
+        const warningsSection = result.warnings.length > 0 ? `
+            <div class="collapse collapse-arrow bg-warning/10 mb-4">
+                <input type="checkbox" />
+                <div class="collapse-title font-medium text-warning">
+                    ⚠️ Предупреждения (${result.warnings.length})
+                </div>
+                <div class="collapse-content">
+                    <ul class="list-disc list-inside text-sm space-y-1">
+                        ${result.warnings.slice(0, 10).map(w => `
+                            <li>Строка ${w.row_index + 1}: <strong>${this.escapeHtml(w.field)}</strong> - ${this.escapeHtml(w.message)}</li>
+                        `).join('')}
+                        ${result.warnings.length > 10 ? `<li class="text-base-content/70">... и еще ${result.warnings.length - 10} предупреждений</li>` : ''}
+                    </ul>
+                </div>
+            </div>
+        ` : '';
 
         this.container.innerHTML = `
             <div class="csv-wizard-step">
@@ -514,25 +683,175 @@ class CSVImporter {
                     </div>
                 </div>
 
-                <div class="alert alert-info mb-4">
+                <!-- Status Alert -->
+                <div class="alert ${statusClass} mb-4">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        ${statusIcon}
                     </svg>
-                    <span>В полной версии здесь будет валидация данных с подсветкой ошибок</span>
+                    <span>${statusText}</span>
                 </div>
+
+                <!-- Statistics -->
+                <div class="stats stats-vertical sm:stats-horizontal shadow mb-6 w-full">
+                    <div class="stat">
+                        <div class="stat-title">Всего строк</div>
+                        <div class="stat-value text-primary">${result.total_rows}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title">Валидных</div>
+                        <div class="stat-value text-success">${result.valid_rows}</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-title">С ошибками</div>
+                        <div class="stat-value text-error">${result.invalid_rows}</div>
+                    </div>
+                </div>
+
+                <!-- Errors and Warnings -->
+                ${errorsSection}
+                ${warningsSection}
+
+                <!-- Preview Table -->
+                <div class="mb-6">
+                    <h4 class="font-bold mb-2">Предпросмотр данных (первые ${result.preview_rows.length} строк):</h4>
+                    <div class="overflow-x-auto">
+                        <table class="table table-sm table-zebra">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">№</th>
+                                    <th class="text-center">Статус</th>
+                                    ${headerCells}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${previewTableRows}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Import Options -->
+                ${result.invalid_rows > 0 ? `
+                <div class="form-control mb-4">
+                    <label class="label cursor-pointer justify-start gap-2">
+                        <input type="checkbox" id="skip-invalid-checkbox" class="checkbox checkbox-primary" />
+                        <span class="label-text">Пропустить строки с ошибками (${result.invalid_rows})</span>
+                    </label>
+                </div>
+                ` : ''}
+
+                ${result.warnings.length > 0 ? `
+                <div class="form-control mb-4">
+                    <label class="label cursor-pointer justify-start gap-2">
+                        <input type="checkbox" id="skip-duplicates-checkbox" class="checkbox checkbox-warning" />
+                        <span class="label-text">Пропустить дубликаты (${result.warnings.length})</span>
+                    </label>
+                </div>
+                ` : ''}
 
                 <div class="flex gap-2">
                     <button class="btn btn-outline" onclick="window.csvImporter.renderStep3()">
                         ← Назад
                     </button>
-                    <button class="btn btn-success" onclick="window.csvImporter.executeImport()">
-                        ✓ Выполнить импорт
+                    <button class="btn btn-success" onclick="window.csvImporter.executeImport()" ${result.valid_rows === 0 ? 'disabled' : ''}>
+                        ✓ Импортировать ${result.valid_rows} ${this.pluralize(result.valid_rows, 'строку', 'строки', 'строк')}
                     </button>
                 </div>
             </div>
         `;
+    }
 
-        debugLog('[CSVImporter] Rendered step 4');
+    /**
+     * Render preview error
+     */
+    renderPreviewError(errorMessage) {
+        this.container.innerHTML = `
+            <div class="csv-wizard-step">
+                <div class="mb-4">
+                    <div class="text-sm breadcrumbs">
+                        <ul>
+                            <li><a onclick="window.csvImporter.renderStep1()">Шаг 1: Загрузка файла</a></li>
+                            <li><a onclick="window.csvImporter.renderStep2()">Шаг 2: Определение формата</a></li>
+                            <li><a onclick="window.csvImporter.renderStep3()">Шаг 3: Сопоставление колонок</a></li>
+                            <li class="font-bold">Шаг 4: Предпросмотр</li>
+                            <li class="opacity-50">Шаг 5: Импорт</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="alert alert-error mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Ошибка валидации: ${this.escapeHtml(errorMessage)}</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <button class="btn btn-outline" onclick="window.csvImporter.renderStep3()">
+                        ← Назад к маппингу
+                    </button>
+                    <button class="btn btn-primary" onclick="window.csvImporter.renderStep4()">
+                        🔄 Повторить
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Get CSS class for row based on validation status
+     */
+    getRowValidationClass(status) {
+        switch (status) {
+            case 'error': return 'bg-error/10';
+            case 'warning': return 'bg-warning/10';
+            default: return '';
+        }
+    }
+
+    /**
+     * Get badge HTML for validation status
+     */
+    getStatusBadge(status) {
+        switch (status) {
+            case 'error': return '<span class="badge badge-error badge-sm">❌</span>';
+            case 'warning': return '<span class="badge badge-warning badge-sm">⚠️</span>';
+            default: return '<span class="badge badge-success badge-sm">✓</span>';
+        }
+    }
+
+    /**
+     * Get human-readable field label
+     */
+    getFieldLabel(field) {
+        const labels = {
+            'store': '🏪 Магазин',
+            'product_group': '📦 Группа',
+            'product_name': '🛒 Товар',
+            'quantity': '📊 Кол-во',
+            'unit': '📏 Ед.',
+            'comment': '💬 Комментарий'
+        };
+        return labels[field] || field;
+    }
+
+    /**
+     * Pluralize Russian word
+     */
+    pluralize(count, one, few, many) {
+        const mod10 = count % 10;
+        const mod100 = count % 100;
+
+        if (mod100 >= 11 && mod100 <= 19) {
+            return many;
+        }
+        if (mod10 === 1) {
+            return one;
+        }
+        if (mod10 >= 2 && mod10 <= 4) {
+            return few;
+        }
+        return many;
     }
 
     /**
@@ -541,11 +860,17 @@ class CSVImporter {
     async executeImport() {
         try {
             // Get current shopping list ID
-            const currentListId = this.listsManager.currentShoppingListId;
+            const currentListId = this.listsManager.currentListId;
             if (!currentListId) {
                 showToast('Пожалуйста, выберите список для импорта', 'error');
                 return;
             }
+
+            // Read checkbox options
+            const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox');
+            const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
+            const skipInvalid = skipInvalidCheckbox ? skipInvalidCheckbox.checked : false;
+            const skipDuplicates = skipDuplicatesCheckbox ? skipDuplicatesCheckbox.checked : false;
 
             // Show loading
             showToast('Импорт данных...', 'info');
@@ -561,8 +886,8 @@ class CSVImporter {
                 has_header: this.detectionResult.has_header,
                 column_mapping: this.columnMapping,
                 shopping_list_id: currentListId,
-                skip_duplicates: false,
-                skip_invalid: false,
+                skip_duplicates: skipDuplicates,
+                skip_invalid: skipInvalid,
             };
 
             debugLog('[CSVImporter] Executing import with:', requestData);
@@ -573,6 +898,7 @@ class CSVImporter {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify(requestData)
             });
 
@@ -585,7 +911,7 @@ class CSVImporter {
             debugLog('[CSVImporter] Import result:', result);
 
             // Show results
-            if (result.success) {
+            if (result.success || result.imported_count > 0) {
                 showToast(
                     `✅ Импорт завершён! Импортировано: ${result.imported_count}, Пропущено: ${result.skipped_count}, Ошибок: ${result.error_count}`,
                     'success',
@@ -595,9 +921,17 @@ class CSVImporter {
                 // Reload shopping list items
                 await this.listsManager.loadShoppingListItems(currentListId);
 
-                // Close wizard
+                // Re-render items table
+                this.listsManager.renderItemsTable();
+
+                // Close import accordion
+                const importToggle = document.getElementById('import-toggle');
+                if (importToggle) {
+                    importToggle.checked = false;
+                }
+
+                // Reset wizard
                 this.container.innerHTML = '';
-                document.getElementById('csv-import-section').open = false;
 
             } else {
                 // Show errors

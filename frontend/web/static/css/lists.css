@@ -2,10 +2,12 @@
  * Shopping Lists Page Styles
  *
  * Stage 5: Landing View + Detail View (Table)
- * Stage 9: Mobile Optimization
+ * Stage 9: Mobile Optimization v2
  *
  * Mobile-first design with touch-friendly UI:
- * - 3rem (48px) touch targets (Apple HIG recommends 44px minimum)
+ * - Adaptive sizing: compact on mobile, spacious on desktop
+ * - Desktop: buttons 2rem, selects 3rem
+ * - Mobile: buttons 2.5rem (44px touch target), selects 2.75rem
  * - Responsive breakpoints (mobile/tablet/desktop)
  * - iOS Safari safe area support
  * - Optimized gestures and interactions
@@ -13,7 +15,7 @@
  */
 
 /* ============================================== */
-/* iOS Safari Safe Area Support */
+/* CSS Custom Properties (Design Tokens) */
 /* ============================================== */
 
 :root {
@@ -22,6 +24,20 @@
     --safe-area-inset-right: env(safe-area-inset-right, 0);
     --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
     --safe-area-inset-left: env(safe-area-inset-left, 0);
+
+    /* Adaptive sizing - Desktop defaults */
+    --btn-height: 2rem;        /* 32px - compact buttons on desktop */
+    --select-height: 3rem;     /* 48px - comfortable selects */
+    --input-height: 2.5rem;    /* 40px - inputs */
+    --touch-target: 2.75rem;   /* 44px minimum touch target */
+
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+
+    /* Mobile overrides (applied via media query) */
 }
 
 /* Apply safe area padding to main container */
@@ -197,33 +213,34 @@
     background: var(--fallback-b1, oklch(var(--b1)));
 }
 
-/* Touch-friendly inputs and buttons (3rem = 48px minimum) */
+/* Touch-friendly inputs and buttons - use CSS variables */
 .table input[type="checkbox"],
 .table select,
 .table input[type="text"],
 .table input[type="number"],
 .table button {
-    min-height: 3rem;
-    min-width: 3rem;
+    min-height: var(--touch-target);
+    min-width: var(--touch-target);
 }
 
 .table input[type="checkbox"] {
-    width: 1.5rem;
-    height: 1.5rem;
+    width: 1.25rem;
+    height: 1.25rem;
 }
 
-/* Action buttons in table */
+/* Action buttons in table - desktop compact */
 .action-buttons {
     display: flex;
-    gap: 0.25rem;
+    gap: var(--spacing-xs);
     justify-content: center;
     flex-wrap: wrap;
 }
 
 .action-buttons .btn {
-    min-height: 3rem;
-    min-width: 3rem;
-    padding: 0.5rem;
+    min-height: var(--btn-height);
+    min-width: var(--btn-height);
+    padding: 0.25rem;
+    font-size: 0.875rem;
 }
 
 /* ============================================== */
@@ -264,11 +281,11 @@
 .hierarchy-node {
     display: flex;
     align-items: center;
-    padding: 0.5rem;
+    padding: var(--spacing-sm);
     transition: background 0.2s ease;
-    gap: 0.5rem;
+    gap: var(--spacing-sm);
     border-radius: 0.25rem;
-    min-height: 3rem;
+    min-height: var(--touch-target);
 }
 
 .hierarchy-node:hover {
@@ -395,16 +412,25 @@
 /* Modal Styles */
 /* ============================================== */
 
-/* Ensure all modal inputs/selects are touch-friendly */
+/* Desktop: use CSS variable heights for inputs/selects */
 .modal-box .form-control input,
-.modal-box .form-control select,
-.modal-box .form-control textarea,
-.modal-box .btn {
-    min-height: 3rem;
+.modal-box .form-control select {
+    min-height: var(--select-height);
 }
 
 .modal-box .form-control textarea {
     min-height: 4rem;
+}
+
+/* Desktop buttons in modal: 2rem height */
+.modal-box .btn {
+    min-height: var(--btn-height);
+}
+
+/* Modal action buttons slightly larger for touch */
+.modal-box .modal-action .btn {
+    min-height: var(--touch-target);
+    padding: 0 1.25rem;
 }
 
 /* Required field indicator */
@@ -412,17 +438,62 @@
     color: var(--fallback-er, oklch(var(--er)));
 }
 
+/* Form spacing optimization */
+.modal-box .form-control {
+    margin-bottom: 0.75rem;
+}
+
+.modal-box .form-control .label {
+    padding-bottom: 0.25rem;
+}
+
+.modal-box .form-control .label-text {
+    font-size: 0.875rem;
+}
+
 /* Mobile modal optimizations */
 @media (max-width: 640px) {
     .modal-box {
         /* iOS Safari fix: use dvh (dynamic viewport height) instead of vh */
-        max-height: 90dvh;
-        max-height: 90vh; /* Fallback for older browsers */
+        max-height: 85dvh;
+        max-height: 85vh; /* Fallback for older browsers */
         overflow-y: auto;
         -webkit-overflow-scrolling: touch;
-        margin: auto;
+        margin: 1rem;
         width: calc(100% - 2rem);
         max-width: none;
+        padding: 1rem;
+    }
+
+    /* Compact modal header */
+    .modal-box h3.font-bold {
+        font-size: 1.125rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* Compact form controls */
+    .modal-box .form-control {
+        margin-bottom: 0.5rem;
+    }
+
+    .modal-box .form-control .label {
+        padding-bottom: 0.125rem;
+    }
+
+    .modal-box .form-control .label-text {
+        font-size: 0.8125rem;
+    }
+
+    /* Mobile inputs: touch-friendly but compact */
+    .modal-box .form-control input,
+    .modal-box .form-control select {
+        min-height: var(--input-height);
+        font-size: 1rem; /* Prevent iOS zoom on focus */
+    }
+
+    .modal-box .form-control textarea {
+        min-height: 3rem;
+        font-size: 1rem;
     }
 
     /* Ensure modal scrolls properly on iOS */
@@ -430,21 +501,29 @@
         -webkit-overflow-scrolling: touch;
     }
 
-    /* Larger close button on mobile */
+    /* Compact close button on mobile */
     .modal-box .btn-close {
-        min-width: 3rem;
-        min-height: 3rem;
-        padding: 0.75rem;
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+        padding: 0.5rem;
     }
 
-    /* Full-width buttons in modal footer */
-    .modal-box .modal-actions {
-        flex-direction: column;
+    /* Compact modal action buttons */
+    .modal-box .modal-action {
+        margin-top: 0.75rem;
         gap: 0.5rem;
     }
 
-    .modal-box .modal-actions .btn {
-        width: 100%;
+    .modal-box .modal-action .btn {
+        min-height: 2.5rem;
+        padding: 0 1rem;
+        font-size: 0.875rem;
+    }
+
+    /* Single column grid on mobile for form */
+    .modal-box .grid.grid-cols-1.md\\:grid-cols-2 {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
     }
 }
 
@@ -455,27 +534,60 @@
 .toolbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: var(--spacing-sm);
     align-items: center;
-    padding: 1rem 0;
+    padding: var(--spacing-md) 0;
 }
 
+/* Desktop: compact 2rem buttons */
 .toolbar .btn {
-    min-height: 3rem;
+    min-height: var(--btn-height);
+    font-size: 0.875rem;
+    padding: 0 0.75rem;
 }
 
-/* View toggle buttons */
+/* View toggle buttons - match toolbar buttons */
 .join .btn {
-    min-height: 3rem;
+    min-height: var(--btn-height);
+    font-size: 0.875rem;
+}
+
+/* Desktop: Selects use 3rem height */
+.toolbar select,
+.toolbar .select {
+    min-height: var(--select-height);
 }
 
 /* ============================================== */
 /* Responsive Breakpoints */
 /* ============================================== */
 
-/* Mobile (<640px): Card layout for table */
+/* Mobile (<640px): Compact mobile-optimized layout */
 @media (max-width: 640px) {
-    /* Convert table to card layout */
+    /* Override CSS variables for mobile */
+    :root {
+        --btn-height: 2.5rem;      /* 40px - touch-friendly but compact */
+        --select-height: 2.75rem;  /* 44px - minimum touch target */
+        --input-height: 2.75rem;   /* 44px */
+        --spacing-md: 0.75rem;     /* Tighter spacing */
+        --spacing-lg: 1rem;
+    }
+
+    /* Compact page header on mobile */
+    .space-y-6 > .mb-6 {
+        margin-bottom: 1rem;
+    }
+
+    .space-y-6 h1.text-3xl {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .space-y-6 .text-base-content\/70 {
+        font-size: 0.875rem;
+    }
+
+    /* Convert table to compact card layout */
     .table {
         display: block;
     }
@@ -489,52 +601,175 @@
     }
 
     .table tbody tr {
-        display: block;
-        margin-bottom: 1rem;
-        padding: 1rem;
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        grid-template-rows: auto auto;
+        gap: 0.25rem 0.5rem;
+        margin-bottom: 0.75rem;
+        padding: 0.75rem;
         border-radius: 0.5rem;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        align-items: center;
     }
 
-    .table tbody tr td {
-        display: block;
-        text-align: left !important;
-        padding: 0.5rem 0;
-        border-bottom: 1px solid var(--fallback-bc, oklch(var(--bc) / 0.1));
-    }
-
-    .table tbody tr td:last-child {
+    /* Checkbox column - spans 2 rows */
+    .table tbody tr td:nth-child(1) {
+        grid-row: 1 / 3;
+        grid-column: 1;
+        padding: 0;
         border-bottom: none;
     }
 
-    /* Add labels for mobile */
+    /* Completed checkbox - row 1, col 1 (after selection checkbox) */
+    .table tbody tr td:nth-child(2) {
+        grid-row: 1;
+        grid-column: 1;
+        padding: 0;
+        border-bottom: none;
+        display: none; /* Hide on mobile - use swipe or long-press */
+    }
+
+    /* Product name - prominent on row 1 */
+    .table tbody tr td:nth-child(5) {
+        grid-row: 1;
+        grid-column: 2;
+        font-weight: 600;
+        font-size: 1rem;
+        padding: 0;
+        border-bottom: none;
+    }
+
+    /* Store + Group + Quantity - compact row 2 */
+    .table tbody tr td:nth-child(3),
+    .table tbody tr td:nth-child(4),
+    .table tbody tr td:nth-child(6),
+    .table tbody tr td:nth-child(7) {
+        grid-row: 2;
+        padding: 0;
+        border-bottom: none;
+        font-size: 0.75rem;
+        color: var(--fallback-bc, oklch(var(--bc) / 0.6));
+    }
+
+    /* Store */
+    .table tbody tr td:nth-child(3) {
+        grid-column: 2;
+    }
+
+    /* Hide Group, Quantity, Unit separately - combine in one line */
+    .table tbody tr td:nth-child(4),
+    .table tbody tr td:nth-child(6),
+    .table tbody tr td:nth-child(7) {
+        display: none;
+    }
+
+    /* Comment - hidden on mobile, show on tap */
+    .table tbody tr td:nth-child(8) {
+        display: none;
+    }
+
+    /* Actions - row 1-2, col 3 */
+    .table tbody tr td:nth-child(9) {
+        grid-row: 1 / 3;
+        grid-column: 3;
+        padding: 0;
+        border-bottom: none;
+    }
+
     .table tbody tr td::before {
-        content: attr(data-label);
-        font-weight: 700;
-        display: inline-block;
-        margin-right: 0.5rem;
-        min-width: 100px;
+        display: none; /* Hide labels on mobile - use visual layout */
     }
 
-    /* Action buttons stacked */
+    /* Compact action buttons */
     .action-buttons {
-        justify-content: flex-start;
-        margin-top: 0.5rem;
-    }
-
-    /* Toolbar stacked */
-    .toolbar {
         flex-direction: column;
-        align-items: stretch;
+        gap: 0.125rem;
     }
 
-    .toolbar > * {
-        width: 100%;
+    .action-buttons .btn {
+        min-height: 2.25rem;
+        min-width: 2.25rem;
+        padding: 0.25rem;
+        font-size: 0.875rem;
+    }
+
+    /* Compact toolbar - horizontal scroll */
+    .toolbar {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 0.5rem 0;
+        gap: 0.375rem;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .toolbar::-webkit-scrollbar {
+        display: none;
+    }
+
+    /* Compact toolbar buttons on mobile */
+    .toolbar .btn {
+        min-height: 2.25rem;
+        padding: 0 0.5rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    /* Hide text labels on small screens, show only icons */
+    .toolbar .btn .btn-text {
+        display: none;
+    }
+
+    /* View toggle - compact */
+    .join .btn {
+        min-height: 2.25rem;
+        padding: 0 0.5rem;
+        font-size: 0.75rem;
     }
 
     /* Grid cards: 1 column on mobile */
     #lists-grid {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    /* Compact shopping list cards */
+    .shopping-list-card {
+        padding: 1rem;
+        min-height: 140px;
+    }
+
+    .card-title {
+        font-size: 1.125rem;
+    }
+
+    .card-description {
+        font-size: 0.8125rem;
+        -webkit-line-clamp: 1;
+    }
+
+    /* Compact breadcrumbs */
+    .breadcrumbs {
+        font-size: 0.8125rem;
+    }
+
+    /* Compact progress badge */
+    .badge {
+        font-size: 0.75rem;
+        padding: 0.125rem 0.5rem;
+    }
+
+    /* Import accordion compact */
+    .collapse-title {
+        font-size: 1rem;
+        padding: 0.75rem 1rem;
+        min-height: 2.5rem;
+    }
+
+    .collapse-content {
+        padding: 0 1rem 1rem;
     }
 }
 

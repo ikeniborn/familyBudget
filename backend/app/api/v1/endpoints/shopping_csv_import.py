@@ -365,6 +365,16 @@ async def execute_csv_import(
 
         # Create shopping list item
         try:
+            # Parse quantity if present
+            quantity_str = row.get("quantity")
+            quantity = None
+            if quantity_str and quantity_str.strip():
+                try:
+                    # Replace comma with dot for decimal parsing
+                    quantity = float(quantity_str.replace(",", "."))
+                except ValueError:
+                    quantity = None
+
             # Create item directly (not via endpoint)
             item = ShoppingListItem(
                 creator_id=current_user.id,
@@ -372,9 +382,9 @@ async def execute_csv_import(
                 store_id=stores_cache[store_name],
                 product_group_id=product_groups_cache[product_group_name],
                 product_name=row["product_name"],
-                quantity=row.get("quantity"),
-                unit=row.get("unit"),
-                comment=row.get("comment"),
+                quantity=quantity,
+                unit=row.get("unit") if row.get("unit") else None,
+                comment=row.get("comment") if row.get("comment") else None,
                 sync_status="synced",  # Created online = synced
             )
 

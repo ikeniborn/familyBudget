@@ -518,21 +518,38 @@ class ListsManager {
         const selectAllBtn = document.getElementById('select-all-btn');
         const headerCheckbox = document.getElementById('header-checkbox');
 
-        // Update delete button state
+        // Update delete button state - preserve mobile-friendly structure
         if (this.selectedItemIds.size > 0) {
             deleteBtn.disabled = false;
-            deleteBtn.textContent = `🗑️ Удалить выбранные (${this.selectedItemIds.size})`;
+            // Update only the text span, keep icon
+            const textSpan = deleteBtn.querySelector('span:last-child');
+            if (textSpan && textSpan.classList.contains('hidden')) {
+                // Mobile: show count in icon span
+                deleteBtn.querySelector('span:first-child').textContent = `🗑️${this.selectedItemIds.size}`;
+            } else if (textSpan) {
+                // Desktop: show full text
+                textSpan.textContent = `Удалить (${this.selectedItemIds.size})`;
+            }
         } else {
             deleteBtn.disabled = true;
-            deleteBtn.textContent = '🗑️ Удалить выбранные';
+            const textSpan = deleteBtn.querySelector('span:last-child');
+            if (textSpan && textSpan.classList.contains('hidden')) {
+                deleteBtn.querySelector('span:first-child').textContent = '🗑️';
+            } else if (textSpan) {
+                textSpan.textContent = 'Удалить';
+            }
         }
 
-        // Update select all button
+        // Update select all button - preserve mobile-friendly structure
+        const selectAllTextSpan = selectAllBtn.querySelector('span:last-child');
+        const selectAllIconSpan = selectAllBtn.querySelector('span:first-child');
         if (this.selectedItemIds.size === this.currentItems.length && this.currentItems.length > 0) {
-            selectAllBtn.textContent = '☐ Снять выделение';
+            if (selectAllIconSpan) selectAllIconSpan.textContent = '☐';
+            if (selectAllTextSpan) selectAllTextSpan.textContent = 'Снять';
             headerCheckbox.checked = true;
         } else {
-            selectAllBtn.textContent = '☑️ Выбрать все';
+            if (selectAllIconSpan) selectAllIconSpan.textContent = '☑️';
+            if (selectAllTextSpan) selectAllTextSpan.textContent = 'Все';
             headerCheckbox.checked = false;
         }
     }
