@@ -29,6 +29,121 @@ from backend.app.schemas.import_multibank_schema import (
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_amount_smart(amount_str: str) -> Decimal:
+    """
+    Parse amount string with smart format detection.
+
+    Handles various international number formats:
+    - Russian/EU: "1 234,56" or "-1 234,56" (space thousands, comma decimal)
+    - US: "1,234.56" or "-1,234.56" (comma thousands, dot decimal)
+    - German: "1.234,56" or "-1.234,56" (dot thousands, comma decimal)
+    - Edge case: "15.100.00" (multiple dots - treat as thousand separators)
+    - Simple: "1234.56", "1234,56", "1234"
+
+    The key insight for ambiguous formats like "X.XXX.XX":
+    - If the string ends with ".XX" (two digits after last dot), that's likely a decimal
+    - The preceding dots are thousand separators
+
+    Args:
+        amount_str: Amount string from staging record
+
+    Returns:
+        Decimal value
+
+    Raises:
+        ValueError: If amount cannot be parsed
+
+    Examples:
+        >>> _parse_amount_smart("-15.100.00")  # German-like with dot decimal
+        Decimal('-15100.00')
+
+        >>> _parse_amount_smart("-1.234,56")   # German
+        Decimal('-1234.56')
+
+        >>> _parse_amount_smart("-1,234.56")   # US
+        Decimal('-1234.56')
+
+        >>> _parse_amount_smart("-1 234,56")   # Russian
+        Decimal('-1234.56')
+    """
+    if not amount_str:
+        raise ValueError("Empty amount string")
+
+    cleaned = amount_str.strip()
+
+    # Remove currency symbols and extra whitespace
+    # Common currency symbols: ₽ $ € £ ¥
+    for symbol in ['₽', '$', '€', '£', '¥', 'RUB', 'USD', 'EUR', 'руб', 'руб.']:
+        cleaned = cleaned.replace(symbol, '')
+    cleaned = cleaned.strip()
+
+    # Remove spaces (thousand separator in Russian format)
+    cleaned = cleaned.replace(" ", "").replace("\u00a0", "")  # Also non-breaking space
+
+    # Count separators
+    dots = cleaned.count('.')
+    commas = cleaned.count(',')
+
+    try:
+        # Case 1: No separators - simple integer
+        if dots == 0 and commas == 0:
+            return Decimal(cleaned)
+
+        # Case 2: Single dot, no commas - standard decimal (1234.56)
+        if dots == 1 and commas == 0:
+            return Decimal(cleaned)
+
+        # Case 3: Single comma, no dots - Russian decimal (1234,56)
+        if dots == 0 and commas == 1:
+            return Decimal(cleaned.replace(",", "."))
+
+        # Case 4: Multiple dots, no commas (e.g., "15.100.00" or "1.234.567")
+        # Heuristic: if ends with .XX (2 digits), last dot is decimal separator
+        if dots >= 2 and commas == 0:
+            # Check if it looks like "XXX.XX" at the end (decimal with 2 places)
+            last_dot_pos = cleaned.rfind('.')
+            after_last_dot = cleaned[last_dot_pos + 1:]
+
+            if len(after_last_dot) == 2 and after_last_dot.isdigit():
+                # Treat as: thousand separators + decimal
+                # "15.100.00" -> "15100.00"
+                # Split at last dot, remove other dots, rejoin
+                before_decimal = cleaned[:last_dot_pos].replace(".", "")
+                return Decimal(f"{before_decimal}.{after_last_dot}")
+            else:
+                # All dots are thousand separators: "1.234.567" -> "1234567"
+                return Decimal(cleaned.replace(".", ""))
+
+        # Case 5: Dots and comma mixed - determine which is decimal
+        # German: "1.234,56" (dot thousands, comma decimal) -> last_comma > last_dot
+        # US: "1,234.56" (comma thousands, dot decimal) -> last_dot > last_comma
+        if dots >= 1 and commas >= 1:
+            last_dot = cleaned.rfind('.')
+            last_comma = cleaned.rfind(',')
+
+            if last_comma > last_dot:
+                # German format: dots are thousands, comma is decimal
+                cleaned = cleaned.replace(".", "")
+                cleaned = cleaned.replace(",", ".")
+                return Decimal(cleaned)
+            else:
+                # US format: commas are thousands, dot is decimal
+                cleaned = cleaned.replace(",", "")
+                return Decimal(cleaned)
+
+        # Case 6: Multiple commas, no dots (e.g., "1,234,567")
+        # Commas are thousand separators
+        if commas >= 2 and dots == 0:
+            return Decimal(cleaned.replace(",", ""))
+
+        # Fallback: try as-is
+        return Decimal(cleaned)
+
+    except Exception as e:
+        raise ValueError(f"Cannot parse amount: {amount_str}") from e
+
+
 router = APIRouter(prefix="/admin/staging", tags=["Admin - Import Staging"])
 
 
@@ -453,13 +568,13 @@ async def execute_import(
     now = datetime.utcnow()
 
     for record in records:
-        # Parse amount string (handle both comma and dot as decimal separator)
+        # Parse amount string with smart format detection
+        # Handles: Russian (1 234,56), US (1,234.56), German (1.234,56), and edge cases
         # Convert to absolute value since bank CSVs store expenses as negative numbers
         # but database requires positive amounts (check_amount_positive constraint)
         try:
-            amount_str = record.amount_string.replace(",", ".")
-            amount = abs(Decimal(amount_str))
-        except Exception as e:
+            amount = abs(_parse_amount_smart(record.amount_string))
+        except ValueError as e:
             logger.error(f"Failed to parse amount '{record.amount_string}' for record {record.id}: {e}")
             raise HTTPException(
                 400,
