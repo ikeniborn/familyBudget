@@ -788,6 +788,17 @@ class CSVImporter {
                 </div>
                 ` : ''}
 
+                <!-- Create missing references option -->
+                <div class="form-control mb-4">
+                    <label class="label cursor-pointer justify-start gap-2">
+                        <input type="checkbox" id="create-missing-checkbox" class="checkbox checkbox-success" />
+                        <span class="label-text">Загрузить с новой группой или магазином</span>
+                    </label>
+                    <label class="label pt-0">
+                        <span class="label-text-alt text-xs opacity-70">Автоматически создавать отсутствующие магазины и группы товаров</span>
+                    </label>
+                </div>
+
                 <div class="flex gap-2">
                     <button class="btn btn-outline" onclick="window.${varName}.renderStep3()">
                         ← Назад
@@ -911,8 +922,10 @@ class CSVImporter {
             // Read checkbox options
             const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox');
             const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
+            const createMissingCheckbox = document.getElementById('create-missing-checkbox');
             const skipInvalid = skipInvalidCheckbox ? skipInvalidCheckbox.checked : false;
             const skipDuplicates = skipDuplicatesCheckbox ? skipDuplicatesCheckbox.checked : false;
+            const createMissing = createMissingCheckbox ? createMissingCheckbox.checked : false;
 
             // Show loading
             showToast('Импорт данных...', 'info');
@@ -930,6 +943,7 @@ class CSVImporter {
                 shopping_list_id: currentListId,
                 skip_duplicates: skipDuplicates,
                 skip_invalid: skipInvalid,
+                create_missing_references: createMissing,
             };
 
             debugLog('[CSVImporter] Executing import with:', requestData);

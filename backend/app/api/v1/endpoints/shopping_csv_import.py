@@ -315,6 +315,8 @@ async def execute_csv_import(
     from backend.app.services.csv_validator import (
         validate_store_reference,
         validate_product_group_reference,
+        get_or_create_store,
+        get_or_create_product_group,
     )
     stores_cache = {}
     product_groups_cache = {}
@@ -346,21 +348,45 @@ async def execute_csv_import(
         store_name = row.get("store", "").strip()
         product_group_name = row.get("product_group", "").strip()
 
-        # Validate and get IDs (use cache)
-        store_error = await validate_store_reference(
-            session, idx, store_name, stores_cache
-        )
-        if store_error:
-            error_count += 1
-            errors.append(store_error.to_dict())
-            continue
+        # Get or create store and product group IDs
+        try:
+            if request.create_missing_references:
+                # Auto-create missing stores and product groups
+                store_id = await get_or_create_store(
+                    session, store_name, current_user.id, stores_cache
+                )
+                product_group_id = await get_or_create_product_group(
+                    session, product_group_name, current_user.id, product_groups_cache
+                )
+            else:
+                # Validate that references exist (old behavior)
+                store_error = await validate_store_reference(
+                    session, idx, store_name, stores_cache
+                )
+                if store_error:
+                    error_count += 1
+                    errors.append(store_error.to_dict())
+                    continue
 
-        product_group_error = await validate_product_group_reference(
-            session, idx, product_group_name, product_groups_cache
-        )
-        if product_group_error:
+                product_group_error = await validate_product_group_reference(
+                    session, idx, product_group_name, product_groups_cache
+                )
+                if product_group_error:
+                    error_count += 1
+                    errors.append(product_group_error.to_dict())
+                    continue
+
+                # Get IDs from cache (validation already populated cache)
+                store_id = stores_cache[store_name]
+                product_group_id = product_groups_cache[product_group_name]
+
+        except Exception as e:
             error_count += 1
-            errors.append(product_group_error.to_dict())
+            errors.append({
+                "row_index": idx,
+                "field": "general",
+                "message": f"Failed to get/create references: {str(e)}",
+            })
             continue
 
         # Create shopping list item
@@ -379,8 +405,8 @@ async def execute_csv_import(
             item = ShoppingListItem(
                 creator_id=current_user.id,
                 shopping_list_id=request.shopping_list_id,
-                store_id=stores_cache[store_name],
-                product_group_id=product_groups_cache[product_group_name],
+                store_id=store_id,
+                product_group_id=product_group_id,
                 product_name=row["product_name"],
                 quantity=quantity,
                 unit=row.get("unit") if row.get("unit") else None,

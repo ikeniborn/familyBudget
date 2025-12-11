@@ -234,6 +234,114 @@ async def validate_product_group_reference(
     )
 
 
+async def get_or_create_store(
+    session: AsyncSession,
+    store_name: str,
+    creator_id: int,
+    stores_cache: dict[str, int],
+) -> int:
+    """
+    Get existing store ID or create new store.
+
+    Args:
+        session: Database session
+        store_name: Store name to find or create
+        creator_id: User ID who is creating the store (if needed)
+        stores_cache: Cache of store_name → store_id
+
+    Returns:
+        Store ID (existing or newly created)
+
+    Notes:
+        - Checks cache first for performance
+        - Creates new store if not found (any user can create)
+        - Auto-flushes to get new store ID
+    """
+    # Check cache first
+    if store_name in stores_cache:
+        return stores_cache[store_name]
+
+    # Try to find existing store
+    result = await session.execute(
+        select(Store).where(Store.name == store_name, Store.is_active == True)
+    )
+    store = result.scalar_one_or_none()
+
+    if store:
+        # Add to cache and return
+        stores_cache[store_name] = store.id
+        return store.id
+
+    # Create new store
+    new_store = Store(
+        creator_id=creator_id,
+        name=store_name,
+        is_active=True,
+    )
+    session.add(new_store)
+    await session.flush()  # Flush to get ID before commit
+
+    # Add to cache
+    stores_cache[store_name] = new_store.id
+    return new_store.id
+
+
+async def get_or_create_product_group(
+    session: AsyncSession,
+    product_group_name: str,
+    creator_id: int,
+    product_groups_cache: dict[str, int],
+) -> int:
+    """
+    Get existing product group ID or create new product group.
+
+    Args:
+        session: Database session
+        product_group_name: Product group name to find or create
+        creator_id: User ID who is creating the product group (if needed)
+        product_groups_cache: Cache of group_name → group_id
+
+    Returns:
+        Product group ID (existing or newly created)
+
+    Notes:
+        - Checks cache first for performance
+        - Creates new product group if not found (any user can create)
+        - Created as root group (parent_id=NULL) for simplicity
+        - Auto-flushes to get new group ID
+    """
+    # Check cache first
+    if product_group_name in product_groups_cache:
+        return product_groups_cache[product_group_name]
+
+    # Try to find existing product group
+    result = await session.execute(
+        select(ProductGroup).where(
+            ProductGroup.name == product_group_name, ProductGroup.is_active == True
+        )
+    )
+    product_group = result.scalar_one_or_none()
+
+    if product_group:
+        # Add to cache and return
+        product_groups_cache[product_group_name] = product_group.id
+        return product_group.id
+
+    # Create new product group as root (parent_id=NULL)
+    new_product_group = ProductGroup(
+        creator_id=creator_id,
+        name=product_group_name,
+        parent_id=None,  # Create as root group
+        is_active=True,
+    )
+    session.add(new_product_group)
+    await session.flush()  # Flush to get ID before commit
+
+    # Add to cache
+    product_groups_cache[product_group_name] = new_product_group.id
+    return new_product_group.id
+
+
 def detect_duplicates(rows: list[dict[str, Any]]) -> list[ValidationError]:
     """
     Detect duplicate rows (same product_name in same store and product_group).
