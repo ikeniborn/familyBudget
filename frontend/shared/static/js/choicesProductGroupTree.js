@@ -103,6 +103,49 @@ class ChoicesProductGroupTree {
     }
 
     /**
+     * Build a map of group ID to group data
+     */
+    buildGroupMap(groups) {
+        const map = {};
+        groups.forEach(group => {
+            map[group.id] = group;
+        });
+        return map;
+    }
+
+    /**
+     * Get full path (breadcrumbs) for a product group
+     * Returns array from root to the given group: [Root, Parent, Child]
+     */
+    getBreadcrumbs(groupId, groupMap) {
+        const path = [];
+        let currentId = groupId;
+
+        while (currentId && groupMap[currentId]) {
+            path.unshift(groupMap[currentId]);
+            currentId = groupMap[currentId].parent_id;
+        }
+
+        return path;
+    }
+
+    /**
+     * Find all leaf groups (groups without children)
+     */
+    findLeafGroups(groups) {
+        // Set of IDs that are parents
+        const parentIds = new Set();
+        groups.forEach(group => {
+            if (group.parent_id) {
+                parentIds.add(group.parent_id);
+            }
+        });
+
+        // Leaves are groups that are not in parentIds
+        return groups.filter(group => !parentIds.has(group.id));
+    }
+
+    /**
      * Flatten tree with level information
      */
     flattenTree(nodes, level = 0) {
@@ -121,6 +164,8 @@ class ChoicesProductGroupTree {
 
     /**
      * Build hierarchical options for select element
+     * Shows only leaf groups with full path in parentheses
+     * Example: "Кислое (Молочные → Кислое)"
      */
     buildHierarchicalOptions() {
         if (!this.selectElement) return;
@@ -132,25 +177,34 @@ class ChoicesProductGroupTree {
             this.selectElement.appendChild(firstOption);
         }
 
-        // Build tree
-        const tree = this.buildTree(this.productGroups);
+        // Build group map for breadcrumbs lookup
+        const groupMap = this.buildGroupMap(this.productGroups);
 
-        // Flatten tree with levels
-        const flatGroups = this.flattenTree(tree);
+        // Find only leaf groups (groups without children)
+        const leafGroups = this.findLeafGroups(this.productGroups);
 
-        // Add options with indentation
-        flatGroups
+        // Sort leaves alphabetically
+        leafGroups.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+        // Add options - only leaves with full path
+        leafGroups
             .filter(pg => pg.is_active)
             .forEach(pg => {
                 const option = document.createElement('option');
                 option.value = pg.id;
 
-                // Indentation: 4 spaces per level
-                const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(pg.level);
-                const prefix = pg.level > 0 ? '↳ ' : '';
+                // Get breadcrumbs path
+                const breadcrumbs = this.getBreadcrumbs(pg.id, groupMap);
 
-                option.innerHTML = `${indent}${prefix}${this.escapeHtml(pg.name)}`;
-                option.dataset.level = pg.level;
+                // Format: "Name (Path → To → Name)" or just "Name" if root
+                let label = this.escapeHtml(pg.name);
+                if (breadcrumbs.length > 1) {
+                    const pathStr = breadcrumbs.map(g => this.escapeHtml(g.name)).join(' → ');
+                    label = `${this.escapeHtml(pg.name)} (${pathStr})`;
+                }
+
+                option.innerHTML = label;
+                option.dataset.path = breadcrumbs.map(g => g.name).join(' → ');
 
                 this.selectElement.appendChild(option);
             });

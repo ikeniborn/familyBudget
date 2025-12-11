@@ -369,6 +369,8 @@ class ListsManager {
 
     /**
      * Populate product group select dropdown
+     * Shows only leaf groups with full path in parentheses
+     * Example: "Кислое (Молочные → Кислое)"
      */
     populateProductGroupSelect() {
         const select = document.getElementById('item-product-group');
@@ -379,32 +381,54 @@ class ListsManager {
         select.innerHTML = '';
         if (firstOption) select.appendChild(firstOption);
 
-        // Build hierarchy tree
-        const tree = this.buildProductGroupTree(this.productGroups);
+        // Build group map for breadcrumbs lookup
+        const groupMap = {};
+        this.productGroups.forEach(group => {
+            groupMap[group.id] = group;
+        });
 
-        // Flatten tree with indentation
-        const flattenTree = (nodes, level = 0) => {
-            let result = [];
-            nodes.forEach(node => {
-                result.push({ ...node, level });
-                if (node.children && node.children.length > 0) {
-                    result = result.concat(flattenTree(node.children, level + 1));
-                }
-            });
-            return result;
+        // Find leaf groups (groups that have no children)
+        const parentIds = new Set();
+        this.productGroups.forEach(group => {
+            if (group.parent_id) {
+                parentIds.add(group.parent_id);
+            }
+        });
+        const leafGroups = this.productGroups.filter(group => !parentIds.has(group.id));
+
+        // Sort leaves alphabetically
+        leafGroups.sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+        // Helper to get breadcrumbs path
+        const getBreadcrumbs = (groupId) => {
+            const path = [];
+            let currentId = groupId;
+            while (currentId && groupMap[currentId]) {
+                path.unshift(groupMap[currentId]);
+                currentId = groupMap[currentId].parent_id;
+            }
+            return path;
         };
 
-        const flatGroups = flattenTree(tree);
-
-        // Add product group options with indentation
-        flatGroups
+        // Add product group options - only leaves with full path
+        leafGroups
             .filter(pg => pg.is_active)
             .forEach(pg => {
                 const option = document.createElement('option');
                 option.value = pg.id;
-                const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(pg.level);
-                const prefix = pg.level > 0 ? '↳ ' : '';
-                option.innerHTML = `${indent}${prefix}${this.escapeHtml(pg.name)}`;
+
+                // Get breadcrumbs path
+                const breadcrumbs = getBreadcrumbs(pg.id);
+
+                // Format: "Name (Path → To → Name)" or just "Name" if root
+                let label = this.escapeHtml(pg.name);
+                if (breadcrumbs.length > 1) {
+                    const pathStr = breadcrumbs.map(g => this.escapeHtml(g.name)).join(' → ');
+                    label = `${this.escapeHtml(pg.name)} (${pathStr})`;
+                }
+
+                option.innerHTML = label;
+                option.dataset.path = breadcrumbs.map(g => g.name).join(' → ');
                 select.appendChild(option);
             });
     }
