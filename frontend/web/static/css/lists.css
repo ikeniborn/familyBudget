@@ -609,6 +609,8 @@
         width: calc(100% - 2rem);
         max-width: none;
         padding: 1rem;
+        /* IMPORTANT: Rounded bottom corners on mobile (DaisyUI modal-bottom has square bottom by default) */
+        border-radius: 1rem !important;
     }
 
     /* Compact modal header */
