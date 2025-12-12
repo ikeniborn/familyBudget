@@ -103,8 +103,8 @@
 | `/analytics` | Required | 5 типов графиков (ECharts) |
 | `/facts` | Required | Просмотр своих фактов (user) или всех (admin) |
 | `/admin/articles` | Admin | CRUD статей (дерево) |
-| `/admin/cost_centers` | Admin | CRUD МВЗ |
-| `/admin/financial_centers` | Admin | CRUD ЦФО |
+| `/admin/cost_centers` | Admin | CRUD мест затрат |
+| `/admin/financial_centers` | Admin | CRUD счетов |
 | `/admin/periods` | Admin | CRUD периодов |
 
 **Типы графиков:**
@@ -131,8 +131,8 @@
 **Dimension Tables:**
 - `t_d_user` (пользователи)
 - `t_d_article` (статьи расходов, SCD2, иерархия)
-- `t_d_financial_center` (ЦФО, SCD2)
-- `t_d_cost_center` (МВЗ, SCD2)
+- `t_d_financial_center` (счета, SCD2)
+- `t_d_cost_center` (места затрат, SCD2)
 - `t_d_period` (периоды, SCD2)
 - `t_d_article_hierarchy` (Closure Table)
 
