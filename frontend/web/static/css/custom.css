@@ -280,7 +280,7 @@ select.category-filter option[data-type="credit"] {
  *
  * Note:
  * - Choices.js category selects already have 16px (choices-tailwind.css:211)
- * - This rule applies to DaisyUI native selects (ЦФО, МВЗ), inputs (amount, date), and textareas (description)
+ * - This rule applies to DaisyUI native selects (account, cost location), inputs (amount, date), and textareas (description)
  *
  * @see https://stackoverflow.com/questions/2989263/disable-auto-zoom-in-input-text-tag-safari-on-iphone
  * @see frontend/web/static/css/choices-tailwind.css:209-217 (Choices.js mobile optimization)

@@ -104,24 +104,24 @@
                         </select>
                     </div>
 
-                    <!-- Финансовый центр (ЦФО) -->
+                    <!-- Счет -->
                     <div class="form-control">
                         <label class="label">
-                            <span class="label-text font-medium">🏦 Финансовый центр</span>
+                            <span class="label-text font-medium">🏦 Счет</span>
                         </label>
-                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать плановые записи по финансовому центру">
-                            <option value="">Все ЦФО</option>
+                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать плановые записи по счету">
+                            <option value="">Все счета</option>
                             <!-- Populated dynamically -->
                         </select>
                     </div>
 
-                    <!-- Центр затрат (МВЗ) -->
+                    <!-- Место затрат -->
                     <div class="form-control">
                         <label class="label">
-                            <span class="label-text font-medium">💼 Центр затрат</span>
+                            <span class="label-text font-medium">💼 Место затрат</span>
                         </label>
-                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать плановые записи по центру затрат">
-                            <option value="">Все МВЗ</option>
+                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать плановые записи по МЗ">
+                            <option value="">Все МЗ</option>
                             <!-- Populated dynamically -->
                         </select>
                     </div>
@@ -204,10 +204,10 @@
                 <!-- CFO Filter for Analytics -->
                 <div class="form-control">
                     <label class="label">
-                        <span class="label-text font-medium">🏦 Финансовый центр</span>
+                        <span class="label-text font-medium">🏦 Счет</span>
                     </label>
                     <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="loadPlanAnalytics()">
-                        <option value="">Все ЦФО</option>
+                        <option value="">Все счета</option>
                         <!-- Options populated dynamically -->
                     </select>
                 </div>
@@ -342,16 +342,16 @@
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">🏦 Финансовый центр (ЦФО)*</span>
+                    <span class="label-text">🏦 Счет *</span>
                 </label>
                 <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите ЦФО --</option>
+                    <option value="">-- Выберите счет --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">💼 Центр затрат (МВЗ)</span>
+                    <span class="label-text">💼 Место затрат</span>
                 </label>
                 <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не указано --</option>
@@ -743,7 +743,7 @@ async function loadPlanHints(category = null) {
             const typeInput = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked');
             const articleType = typeInput ? typeInput.value : 'expense';
 
-            // Get current financial center (ЦФО)
+            // Get current account
             const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
             const financialCenterId = cfoSelect ? cfoSelect.value : null;
 
@@ -1242,7 +1242,7 @@ async function loadFinancialCenters() {
                 createSelect.appendChild(option);
             });
 
-            // Add change listener to filter categories AND reload plan hints when ЦФО changes
+            // Add change listener to filter categories AND reload plan hints when account changes
             createSelect.addEventListener('change', async () => {
                 // Filter categories by selected FC
                 if (createCategoryTreeSelect) {
@@ -1278,7 +1278,7 @@ async function loadFinancialCenters() {
         }
     } catch (error) {
         console.error('Error loading financial centers:', error);
-        showToast('Ошибка загрузки ЦФО: ' + error.message, 'error');
+        showToast('Ошибка загрузки счетов: ' + error.message, 'error');
     }
 }
 
@@ -1331,7 +1331,7 @@ async function loadCostCenters() {
         }
     } catch (error) {
         console.error('Error loading cost centers:', error);
-        showToast('Ошибка загрузки МВЗ: ' + error.message, 'error');
+        showToast('Ошибка загрузки МЗ: ' + error.message, 'error');
     }
 }
 
@@ -1493,8 +1493,8 @@ function renderFactsTable(facts) {
                         <th><input type="checkbox" class="checkbox checkbox-sm" id="select-all" onchange="toggleSelectAll(this)"></th>
                         <th>ID</th>
                         <th>📅 Дата</th>
-                        <th>🏦 ЦФО</th>
-                        <th>💼 МВЗ</th>
+                        <th>🏦 Счет</th>
+                        <th>💼 МЗ</th>
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>

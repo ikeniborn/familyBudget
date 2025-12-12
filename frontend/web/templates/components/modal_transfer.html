@@ -53,10 +53,10 @@
             <div class="border border-error/20 rounded-lg p-3 bg-error/5">
                 <h4 class="font-semibold text-error text-sm mb-2">Откуда (списание)</h4>
 
-                <!-- From Financial Center -->
+                <!-- From Account -->
                 <div class="form-control mb-2">
                     <label class="label py-0.5">
-                        <span class="label-text text-xs">ЦФО *</span>
+                        <span class="label-text text-xs">Счет *</span>
                     </label>
                     <select
                         name="from_financial_center_id"
@@ -64,7 +64,7 @@
                         class="select select-bordered"
                         required
                     >
-                        <option value="">Выберите ЦФО...</option>
+                        <option value="">Выберите счет...</option>
                         <!-- Populated dynamically by loadTransferData() -->
                     </select>
                 </div>
@@ -85,10 +85,10 @@
                     </select>
                 </div>
 
-                <!-- From Cost Center (Optional) -->
+                <!-- From Cost Location (Optional) -->
                 <div class="form-control mb-2">
                     <label class="label py-0.5">
-                        <span class="label-text text-xs">МВЗ</span>
+                        <span class="label-text text-xs">Место затрат</span>
                     </label>
                     <select
                         name="from_cost_center_id"
@@ -100,7 +100,7 @@
                     </select>
                 </div>
 
-                <!-- Plan Hints for FROM (expense) - AFTER МВЗ, shown only for plan transfers -->
+                <!-- Plan Hints for FROM (expense) - AFTER cost location, shown only for plan transfers -->
                 <div id="transfer-from-hints" class="grid grid-cols-2 gap-1 hidden">
                     <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-plan" disabled>
                         План: --
@@ -115,10 +115,10 @@
             <div class="border border-success/20 rounded-lg p-3 bg-success/5">
                 <h4 class="font-semibold text-success text-sm mb-2">Куда (пополнение)</h4>
 
-                <!-- To Financial Center -->
+                <!-- To Account -->
                 <div class="form-control mb-2">
                     <label class="label py-0.5">
-                        <span class="label-text text-xs">ЦФО *</span>
+                        <span class="label-text text-xs">Счет *</span>
                     </label>
                     <select
                         name="to_financial_center_id"
@@ -126,7 +126,7 @@
                         class="select select-bordered"
                         required
                     >
-                        <option value="">Выберите ЦФО...</option>
+                        <option value="">Выберите счет...</option>
                         <!-- Populated dynamically by loadTransferData() -->
                     </select>
                 </div>
@@ -147,10 +147,10 @@
                     </select>
                 </div>
 
-                <!-- To Cost Center (Optional) -->
+                <!-- To Cost Location (Optional) -->
                 <div class="form-control mb-2">
                     <label class="label py-0.5">
-                        <span class="label-text text-xs">МВЗ</span>
+                        <span class="label-text text-xs">Место затрат</span>
                     </label>
                     <select
                         name="to_cost_center_id"
@@ -162,7 +162,7 @@
                     </select>
                 </div>
 
-                <!-- Plan Hints for TO (income) - AFTER МВЗ, shown only for plan transfers -->
+                <!-- Plan Hints for TO (income) - AFTER cost location, shown only for plan transfers -->
                 <div id="transfer-to-hints" class="grid grid-cols-2 gap-1 hidden">
                     <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-plan" disabled>
                         План: --

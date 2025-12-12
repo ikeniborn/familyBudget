@@ -10,7 +10,7 @@
  * - offline_shopping_list_items: Offline items списков покупок
  * - sync_queue: Очередь синхронизации
  * - sync_queue_shopping: Очередь синхронизации для shopping lists
- * - data_cache: Кеш reference data (articles, financial centers, cost centers)
+ * - data_cache: Кеш reference data (articles, accounts, cost locations)
  * - cached_stores: Кеш магазинов (для offline)
  * - cached_product_groups: Кеш групп товаров (для offline)
  *

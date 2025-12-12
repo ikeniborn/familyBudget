@@ -1,6 +1,6 @@
 /**
  * Transfer Modal Logic
- * Handles transfer creation between financial centers
+ * Handles transfer creation between accounts
  * Supports both fact and plan record types
  */
 
@@ -9,7 +9,7 @@ let transferDateWidget = null;
 let fromCategoryTree = null;
 let toCategoryTree = null;
 let transferRecordType = 'fact'; // Default to fact, can be 'plan' for planned transfers
-let allFinancialCenters = []; // Store all financial centers for filtering
+let allFinancialCenters = []; // Store all accounts for filtering
 
 // Debounce state for transfer plan hints
 let transferHintsFromTimeout = null;
@@ -373,7 +373,7 @@ function setupPeriodButtons() {
 }
 
 /**
- * Load Financial Centers and Cost Centers for Transfer Modal
+ * Load Accounts and Cost Locations for Transfer Modal
  * Populates dropdowns with data from API or cache
  * Uses cache for offline mode and as fallback
  */
@@ -580,7 +580,7 @@ function setupCFOFiltering() {
                 const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
                 await fromCategoryTree.updateFinancialCenter(fcId);
             }
-            // Reload FROM hints when ЦФО changes (only for plan transfers)
+            // Reload FROM hints when account changes (only for plan transfers)
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('from');
             }
@@ -595,7 +595,7 @@ function setupCFOFiltering() {
                 const fcId = toFCSelect.value ? parseInt(toFCSelect.value) : null;
                 await toCategoryTree.updateFinancialCenter(fcId);
             }
-            // Reload TO hints when ЦФО changes (only for plan transfers)
+            // Reload TO hints when account changes (only for plan transfers)
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('to');
             }
@@ -710,10 +710,9 @@ async function openTransferModal() {
         }
 
         // Set today as default date (only for fact transfers, plan uses period buttons)
+        // today() already returns DD.MM.YYYY format, no need for formatForDisplay()
         if (transferRecordType === 'fact') {
-            const today = BudgetShared.DateFormatter.today();
-            document.querySelector('#transfer_date').value =
-                BudgetShared.DateFormatter.formatForDisplay(today);
+            document.querySelector('#transfer_date').value = BudgetShared.DateFormatter.today();
         }
 
         modal.showModal();

@@ -286,18 +286,18 @@
             <span class="error-message" id="category-error"></span>
         </div>
 
-        <!-- Financial Center Select -->
+        <!-- Account Select -->
         <div class="form-group">
-            <label class="form-label form-label-required">Центр финансовой ответственности (ЦФО)</label>
+            <label class="form-label form-label-required">Счет</label>
             <select id="financial-center" class="form-input" required>
                 <option value="">Загрузка...</option>
             </select>
             <span class="error-message" id="financial-center-error"></span>
         </div>
 
-        <!-- Cost Center Select -->
+        <!-- Cost Location Select -->
         <div class="form-group">
-            <label class="form-label">Место возникновения затрат (МВЗ)</label>
+            <label class="form-label">Место затрат</label>
             <select id="cost-center" class="form-input">
                 <option value="">-- Не выбрано --</option>
             </select>
@@ -761,7 +761,7 @@
                     return;
                 }
 
-                select.innerHTML = '<option value="">Выберите ЦФО</option>';
+                select.innerHTML = '<option value="">Выберите счет</option>';
                 financialCenters.forEach(fc => {
                     const option = document.createElement('option');
                     option.value = fc.id;
@@ -776,8 +776,8 @@
                 });
 
             } catch (error) {
-                console.error('Failed to load financial centers:', error);
-                select.innerHTML = '<option value="">Ошибка загрузки ЦФО</option>';
+                console.error('Failed to load accounts:', error);
+                select.innerHTML = '<option value="">Ошибка загрузки счетов</option>';
             }
         }
 
@@ -885,10 +885,10 @@
                 document.getElementById('category-error').textContent = 'Выберите категорию';
             }
 
-            // Financial Center validation
+            // Account validation
             if (!formState.financialCenterId) {
-                errors.financialCenter = 'Выберите ЦФО';
-                document.getElementById('financial-center-error').textContent = 'Выберите ЦФО';
+                errors.financialCenter = 'Выберите счет';
+                document.getElementById('financial-center-error').textContent = 'Выберите счет';
             }
 
             // Period validation - ensure dates are set

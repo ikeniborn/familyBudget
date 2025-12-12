@@ -17,13 +17,13 @@
                 <input type="hidden" name="plan_month" required />
             </div>
 
-            <!-- Центр финансовой ответственности (ЦФО) - moved above operation type for FC filtering -->
+            <!-- Счет - moved above operation type for account filtering -->
             <div class="form-control">
                 <label class="label py-1">
-                    <span class="label-text">ЦФО *</span>
+                    <span class="label-text">Счет *</span>
                 </label>
                 <select name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите ЦФО --</option>
+                    <option value="">-- Выберите счет --</option>
                 </select>
             </div>
 
@@ -54,17 +54,17 @@
                 </select>
             </div>
 
-            <!-- Место возникновения затрат (МВЗ) -->
+            <!-- Место затрат -->
             <div class="form-control">
                 <label class="label py-1">
-                    <span class="label-text">МВЗ</span>
+                    <span class="label-text">Место затрат</span>
                 </label>
                 <select name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не выбрано --</option>
                 </select>
             </div>
 
-            <!-- Plan Hints (after ЦФО and МВЗ selection) -->
+            <!-- Plan Hints (after account and cost location selection) -->
             <div id="plan-hints-container" class="grid grid-cols-2 gap-1">
                 <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-prev-plan" disabled>
                     План пред. мес: --

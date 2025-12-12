@@ -8,7 +8,7 @@
  * - Full path display below field after selection
  * - Hierarchical breadcrumb navigation
  * - Dual authentication support: Bearer token (WebApp) or cookies (web interface)
- * - Financial center filtering (whitelist pattern)
+ * - Account filtering (whitelist pattern)
  *
  * Usage (Telegram WebApp with Bearer token):
  *   const categoryTree = new ChoicesCategoryTree('#article_id', {
@@ -23,20 +23,20 @@
  *     onCategoryChange: (category) => console.log(category)
  *   });
  *
- * Usage (with financial center filtering):
+ * Usage (with account filtering):
  *   const categoryTree = new ChoicesCategoryTree('#article_id', {
  *     type: 'expense',
- *     financialCenterId: 5,  // Show only categories available for FC 5
+ *     financialCenterId: 5,  // Show only categories available for account 5
  *     onCategoryChange: (category) => console.log(category)
  *   });
- *   // Update FC filter dynamically
- *   await categoryTree.updateFinancialCenter(10);  // Reload with new FC
+ *   // Update account filter dynamically
+ *   await categoryTree.updateFinancialCenter(10);  // Reload with new account
  *
  * API Requirements:
  * - GET /api/v1/articles?type={type}&sort_by=usage_count&financial_center_id={fc_id}
  * - GET /api/v1/articles/{id}/ancestors
  *
- * @version 2.1.0 (Added financial center filtering)
+ * @version 2.1.0 (Added account filtering)
  * @requires Choices.js v11.1.0
  */
 

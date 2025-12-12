@@ -151,7 +151,7 @@
                                     <tr>
                                         <th>Тип</th>
                                         <th>Дата</th>
-                                        <th>ЦФО</th>
+                                        <th>Счет</th>
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
@@ -285,11 +285,10 @@ function openFactTransferModal() {
     // Open transfer modal
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
-        // Set today as default date
-        const today = BudgetShared.DateFormatter.today();
+        // Set today as default date (today() already returns DD.MM.YYYY format)
         const dateInput = document.querySelector('#transfer_date');
         if (dateInput) {
-            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(today);
+            dateInput.value = BudgetShared.DateFormatter.today();
         }
         modal.showModal();
     }
@@ -304,11 +303,10 @@ function openPlanTransferModal() {
     // Open transfer modal
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
-        // Set today as default date
-        const today = BudgetShared.DateFormatter.today();
+        // Set today as default date (today() already returns DD.MM.YYYY format)
         const dateInput = document.querySelector('#transfer_date');
         if (dateInput) {
-            dateInput.value = BudgetShared.DateFormatter.formatForDisplay(today);
+            dateInput.value = BudgetShared.DateFormatter.today();
         }
         modal.showModal();
     }
@@ -316,12 +314,11 @@ function openPlanTransferModal() {
 
 // Открыть модальное окно добавления факта с инициализацией даты
 function openAddTransactionModal() {
-    // Установить текущую дату перед открытием модального окна
+    // Установить текущую дату перед открытием модального окна (today() already returns DD.MM.YYYY)
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
-        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
-        factDateInput.value = todayFormatted;
-        debugLog('[openAddTransactionModal] Установлена текущая дата:', todayFormatted);
+        factDateInput.value = BudgetShared.DateFormatter.today();
+        debugLog('[openAddTransactionModal] Установлена текущая дата:', factDateInput.value);
     }
 
     // Открыть модальное окно
@@ -427,7 +424,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Загрузить категории, ЦФО и МВЗ для обеих форм
+    // Загрузить категории, счета и МЗ для обеих форм
     loadCategories();
     loadFinancialCenters();
     loadCostCenters();
@@ -435,12 +432,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок типа факта (Расход/Доход)
     setupTransactionTypeButtons();
 
-    // Установить текущую дату ДО инициализации CalendarWidget (DD.MM.YYYY формат)
+    // Установить текущую дату ДО инициализации CalendarWidget
+    // today() already returns DD.MM.YYYY format
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
-        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
-        factDateInput.value = todayFormatted;
-        debugLog('[DOMContentLoaded] Установлена дата ДО инициализации CalendarWidget:', todayFormatted);
+        factDateInput.value = BudgetShared.DateFormatter.today();
+        debugLog('[DOMContentLoaded] Установлена дата ДО инициализации CalendarWidget:', factDateInput.value);
     }
 
     // Инициализация CalendarWidget для create modal
@@ -453,10 +450,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ВАЖНО: Установить дату ПОСЛЕ инициализации CalendarWidget (для синхронизации)
+    // today() already returns DD.MM.YYYY format
     if (factDateInput) {
-        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
-        factDateInput.value = todayFormatted;
-        debugLog('[DOMContentLoaded] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
+        factDateInput.value = BudgetShared.DateFormatter.today();
+        debugLog('[DOMContentLoaded] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', factDateInput.value);
     }
 
     // Инициализация кнопок периода планирования
@@ -515,10 +512,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 modal_add_transaction.close();
                 e.target.reset();
 
-                // Set date back to today
+                // Set date back to today (today() already returns DD.MM.YYYY)
                 const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
                 if (transactionDateInput) {
-                    transactionDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+                    transactionDateInput.value = BudgetShared.DateFormatter.today();
                 }
 
                 if (result._offline) {
@@ -569,9 +566,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     modal_add_transaction.close();
                     e.target.reset();
 
+                    // Set date back to today (today() already returns DD.MM.YYYY)
                     const transactionDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
                     if (transactionDateInput) {
-                        transactionDateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+                        transactionDateInput.value = BudgetShared.DateFormatter.today();
                     }
 
                     showToast('Факт успешно сохранен!', 'success');
@@ -823,20 +821,20 @@ async function loadPlanCategories() {
     }
 }
 
-// Загрузить список ЦФО (Центров финансовой ответственности)
+// Load accounts (financial centers)
 async function loadFinancialCenters() {
     try {
         const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true');
         if (!response.ok) {
             // Graceful degradation for 401 Unauthorized (user not authenticated)
             if (response.status === 401) {
-                debugLog('[loadFinancialCenters] User not authenticated - financial centers not loaded');
+                debugLog('[loadFinancialCenters] User not authenticated - accounts not loaded');
                 return;  // Silent fail - don't show error toast
             }
 
             // For other errors, show error toast
-            console.warn('Failed to fetch financial centers: HTTP', response.status);
-            showToast('Не удалось загрузить список ЦФО', 'error');
+            console.warn('Failed to fetch accounts: HTTP', response.status);
+            showToast('Не удалось загрузить список счетов', 'error');
             return;
         }
 
@@ -844,8 +842,8 @@ async function loadFinancialCenters() {
         const centers = data.financial_centers || [];
 
         if (centers.length === 0) {
-            console.warn('No financial centers returned from API');
-            showToast('Список ЦФО пуст. Пожалуйста, создайте ЦФО в справочнике.', 'warning');
+            console.warn('No accounts returned from API');
+            showToast('Список счетов пуст. Создайте счет в справочнике.', 'warning');
             return;
         }
 
@@ -863,7 +861,7 @@ async function loadFinancialCenters() {
                 select.remove(1);
             }
 
-            // Добавить ЦФО
+            // Add accounts
             centers.forEach(fc => {
                 const option = document.createElement('option');
                 option.value = fc.id;
@@ -872,7 +870,7 @@ async function loadFinancialCenters() {
             });
         });
 
-        // Add change listeners to filter categories AND reload hints when ЦФО changes
+        // Add change listeners to filter categories AND reload hints when account changes
         const transactionFcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
         if (transactionFcSelect) {
             transactionFcSelect.addEventListener('change', async () => {
@@ -901,18 +899,18 @@ async function loadFinancialCenters() {
             });
         }
     } catch (error) {
-        console.error('Failed to load financial centers:', error);
-        showToast('Ошибка при загрузке ЦФО', 'error');
+        console.error('Failed to load accounts:', error);
+        showToast('Ошибка при загрузке счетов', 'error');
     }
 }
 
-// Загрузить список МВЗ (Мест возникновения затрат)
+// Load cost locations
 async function loadCostCenters() {
     try {
         const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true');
         if (!response.ok) {
             console.warn('Failed to fetch cost centers: HTTP', response.status);
-            // МВЗ опциональное поле, не показываем error toast
+            // МЗ опциональное поле, не показываем error toast
             debugLog('Cost centers not loaded - this is optional');
             return;
         }
@@ -920,7 +918,7 @@ async function loadCostCenters() {
         const data = await response.json();
         const centers = data.cost_centers || [];
 
-        // МВЗ опциональное, пустой список не критичен
+        // МЗ опциональное, пустой список не критичен
         if (centers.length === 0) {
             debugLog('No cost centers available - this is optional');
             return;
@@ -940,7 +938,7 @@ async function loadCostCenters() {
                 select.remove(1);
             }
 
-            // Добавить МВЗ
+            // Add cost locations
             centers.forEach(cc => {
                 const option = document.createElement('option');
                 option.value = cc.id;
@@ -950,7 +948,7 @@ async function loadCostCenters() {
         });
     } catch (error) {
         console.error('Failed to load cost centers:', error);
-        // Не показываем error toast, т.к. МВЗ опциональное поле
+        // Не показываем error toast, т.к. МЗ опциональное поле
         debugLog('Cost centers error is non-critical');
     }
 }
@@ -1059,7 +1057,7 @@ async function loadPlanHints(category = null) {
             const typeInput = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked');
             const articleType = typeInput ? typeInput.value : 'expense';
 
-            // Get current financial center (ЦФО)
+            // Get current account
             const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
             const financialCenterId = cfoSelect ? cfoSelect.value : null;
 
@@ -1233,7 +1231,7 @@ async function loadRecommendedAmounts(formId, recordType = 'fact', category = nu
             // Get current category (from callback parameter or fallback to DOM)
             const articleId = category ? category.id : null;
 
-            // Get current financial center (ЦФО)
+            // Get current account
             const fcSelect = form.querySelector('select[name="financial_center_id"]');
             const financialCenterId = fcSelect ? fcSelect.value : null;
 
@@ -2050,10 +2048,10 @@ async function saveTransactionOffline(button) {
             modal.close();
             form.reset();
 
-            // Reset date to today
+            // Reset date to today (today() already returns DD.MM.YYYY)
             const dateInput = form.querySelector('input[name="fact_date"]');
             if (dateInput) {
-                dateInput.value = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+                dateInput.value = BudgetShared.DateFormatter.today();
             }
 
             showToast('Факт сохранен локально (синхронизируется при подключении)', 'warning');

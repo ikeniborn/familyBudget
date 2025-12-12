@@ -19,7 +19,7 @@
                 <button class="btn btn-sm btn-success gap-1" onclick="openCreateModal()" title="Добавить новый факт">
                     ➕ Добавить факт
                 </button>
-                <button class="btn btn-sm btn-warning gap-1" onclick="openTransferModal()" title="Перевод между финансовыми центрами">
+                <button class="btn btn-sm btn-warning gap-1" onclick="openTransferModal()" title="Перевод между счетами">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                     </svg>
@@ -101,24 +101,24 @@
                         </select>
                     </div>
 
-                    <!-- Финансовый центр -->
+                    <!-- Счет -->
                     <div class="form-control">
                         <label class="label">
-                            <span class="label-text font-medium">🏦 Финансовый центр</span>
+                            <span class="label-text font-medium">🏦 Счет</span>
                         </label>
-                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать факты по ЦФО">
-                            <option value="">Все ЦФО</option>
+                        <select id="filter-financial-center" class="select select-bordered w-full" title="Фильтровать факты по счету">
+                            <option value="">Все счета</option>
                             <!-- Populated dynamically -->
                         </select>
                     </div>
 
-                    <!-- Центр затрат -->
+                    <!-- Место затрат -->
                     <div class="form-control">
                         <label class="label">
-                            <span class="label-text font-medium">💼 Центр затрат</span>
+                            <span class="label-text font-medium">💼 Место затрат</span>
                         </label>
-                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать факты по МВЗ">
-                            <option value="">Все МВЗ</option>
+                        <select id="filter-cost-center" class="select select-bordered w-full" title="Фильтровать факты по МЗ">
+                            <option value="">Все МЗ</option>
                             <!-- Populated dynamically -->
                         </select>
                     </div>
@@ -254,16 +254,16 @@
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">🏦 Финансовый центр (ЦФО)*</span>
+                    <span class="label-text">🏦 Счет *</span>
                 </label>
                 <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите ЦФО --</option>
+                    <option value="">-- Выберите счет --</option>
                     <!-- Populated dynamically -->
                 </select>
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">💼 Центр затрат (МВЗ)</span>
+                    <span class="label-text">💼 Место затрат</span>
                 </label>
                 <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не указано --</option>
@@ -940,7 +940,7 @@ async function loadFinancialCenters() {
         }
     } catch (error) {
         console.error('Error loading financial centers:', error);
-        showToast('Ошибка загрузки ЦФО: ' + error.message, 'error');
+        showToast('Ошибка загрузки счетов: ' + error.message, 'error');
     }
 }
 
@@ -995,7 +995,7 @@ async function loadCostCenters() {
         }
     } catch (error) {
         console.error('Error loading cost centers:', error);
-        showToast('Ошибка загрузки МВЗ: ' + error.message, 'error');
+        showToast('Ошибка загрузки МЗ: ' + error.message, 'error');
     }
 }
 
@@ -1148,8 +1148,8 @@ function renderFactsTable(facts) {
                         <th><input type="checkbox" class="checkbox checkbox-sm" id="select-all" onchange="toggleSelectAll(this)"></th>
                         <th>ID</th>
                         <th>📅 Дата</th>
-                        <th>🏦 ЦФО</th>
-                        <th>💼 МВЗ</th>
+                        <th>🏦 Счет</th>
+                        <th>💼 МЗ</th>
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>
@@ -1872,12 +1872,11 @@ function openCreateModal() {
     const hasFCOptions = fcSelect && fcSelect.options.length > 1;
 
     // Вспомогательная функция: установить текущую дату и открыть модальное окно
+    // today() already returns DD.MM.YYYY format, no need for formatForDisplay()
     const openModalWithDate = () => {
         const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
         if (factDateInput) {
-            factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(
-                BudgetShared.DateFormatter.today()
-            );
+            factDateInput.value = BudgetShared.DateFormatter.today();
             debugLog('[openCreateModal] Установлена текущая дата:', factDateInput.value);
         }
         modal_add_transaction.showModal();

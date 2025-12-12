@@ -4,7 +4,7 @@
 <div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold mb-2">🏦 Управление финансовыми центрами (ЦФО)</h1>
+        <h1 class="text-3xl font-bold mb-2">🏦 Управление счетами</h1>
         <p class="text-base-content/70">Управляйте банковскими счетами, кошельками, наличными и другими финансовыми активами</p>
     </div>
 
@@ -12,13 +12,13 @@
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">🏦 Финансовые центры</h2>
+                <h2 class="card-title text-2xl">🏦 Счета</h2>
                 {% if user.is_admin %}
                 <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    Новый ЦФО
+                    Новый счет
                 </button>
                 {% endif %}
             </div>
@@ -46,7 +46,7 @@
 <!-- Create Financial Center Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новый ЦФО</h3>
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новый счет</h3>
         <form id="create-form" onsubmit="createCenter(event)" class="space-y-2 sm:space-y-4">
             <div class="form-control">
                 <label class="label">
@@ -74,7 +74,7 @@
 <!-- Edit Financial Center Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать ЦФО</h3>
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать счет</h3>
         <form id="edit-form" onsubmit="updateCenter(event)" class="space-y-2 sm:space-y-4">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-control">
@@ -155,8 +155,8 @@ async function loadCenters() {
 
         renderCentersTable(centersData);
     } catch (error) {
-        console.error('Error loading financial centers:', error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки ЦФО: ${error.message}</span></div>`;
+        console.error('Error loading accounts:', error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки счетов: ${error.message}</span></div>`;
     }
 }
 
@@ -173,7 +173,7 @@ function renderCentersTable(centers) {
     }
 
     if (filteredCenters.length === 0) {
-        container.innerHTML = '<div class="text-center py-8 text-base-content/60">🏦 ЦФО не найдены. Нажмите "➕ Новый ЦФО" для создания.</div>';
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">🏦 Счета не найдены. Нажмите "➕ Новый счет" для создания.</div>';
         return;
     }
 
@@ -276,9 +276,9 @@ async function createCenter(event) {
         // Success
         closeCreateModal();
         await loadCenters();
-        showNotification('✅ ЦФО успешно создан!', 'success');
+        showNotification('✅ Счет успешно создан!', 'success');
     } catch (error) {
-        console.error('Error creating financial center:', error);
+        console.error('Error creating account:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
@@ -331,9 +331,9 @@ async function updateCenter(event) {
         // Success
         closeEditModal();
         await loadCenters();
-        showNotification('✅ ЦФО успешно обновлен (создана новая версия SCD2)!', 'success');
+        showNotification('✅ Счет успешно обновлен (создана новая версия SCD2)!', 'success');
     } catch (error) {
-        console.error('Error updating financial center:', error);
+        console.error('Error updating account:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
@@ -343,10 +343,10 @@ async function updateCenter(event) {
 async function deleteCenter(centerId) {
     // First confirmation - warning about cascade deletion
     const firstConfirm = await showConfirmDialog(
-        '⚠️ ВНИМАНИЕ: Удаление ЦФО приведёт к каскадному удалению!\n\n' +
+        '⚠️ ВНИМАНИЕ: Удаление счета приведёт к каскадному удалению!\n\n' +
         '❌ Будут ФИЗИЧЕСКИ УДАЛЕНЫ:\n' +
-        '  • Сам ЦФО\n' +
-        '  • ВСЕ бюджетные записи (факты), связанные с этим ЦФО\n\n' +
+        '  • Сам счет\n' +
+        '  • ВСЕ бюджетные записи (факты), связанные с этим счетом\n\n' +
         '✅ Будет СОХРАНЕНО для аудита:\n' +
         '  • История изменений (с меткой DELETE)\n\n' +
         'Это действие НЕОБРАТИМО!\n\n' +
@@ -361,7 +361,7 @@ async function deleteCenter(centerId) {
     // Second confirmation - final check
     const secondConfirm = await showConfirmDialog(
         '🔴 ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ!\n\n' +
-        'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ этот ЦФО\n' +
+        'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ этот счет\n' +
         'и ВСЕ связанные с ним записи?\n\n' +
         'Это действие НЕВОЗМОЖНО отменить!\n\n' +
         'Нажмите OK для окончательного подтверждения.',
@@ -392,12 +392,12 @@ async function deleteCenter(centerId) {
         await loadCenters();
 
         const successMessage = factsDeleted > 0
-            ? `✅ ЦФО успешно удален!\n🗑️ Каскадно удалено записей: ${factsDeleted}`
-            : '✅ ЦФО успешно удален!';
+            ? `✅ Счет успешно удален!\n🗑️ Каскадно удалено записей: ${factsDeleted}`
+            : '✅ Счет успешно удален!';
 
         showNotification(successMessage, 'success');
     } catch (error) {
-        console.error('Error deleting financial center:', error);
+        console.error('Error deleting account:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
@@ -435,11 +435,11 @@ function updateStatusFilter(status) {
     renderCentersTable(centersData);
 }
 
-// Archive financial center
+// Archive account
 async function archiveCenter(centerId) {
     const confirmed = await showConfirmDialog(
-        '📦 Вы уверены, что хотите архивировать этот ЦФО? Запись будет скрыта из выпадающих списков.',
-        '📦 Архивация ЦФО'
+        '📦 Вы уверены, что хотите архивировать этот счет? Запись будет скрыта из выпадающих списков.',
+        '📦 Архивация счета'
     );
 
     if (!confirmed) {
@@ -459,9 +459,9 @@ async function archiveCenter(centerId) {
 
         // Success
         await loadCenters();
-        showNotification('✅ ЦФО успешно архивирован!', 'success');
+        showNotification('✅ Счет успешно архивирован!', 'success');
     } catch (error) {
-        console.error('Error archiving financial center:', error);
+        console.error('Error archiving account:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
@@ -482,9 +482,9 @@ async function restoreCenter(centerId) {
 
         // Success
         await loadCenters();
-        showNotification('✅ ЦФО успешно восстановлен!', 'success');
+        showNotification('✅ Счет успешно восстановлен!', 'success');
     } catch (error) {
-        console.error('Error restoring financial center:', error);
+        console.error('Error restoring account:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
