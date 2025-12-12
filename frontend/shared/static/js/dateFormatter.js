@@ -20,6 +20,7 @@ class DateFormatter {
    *
    * @example
    * DateFormatter.formatForAPI('27.10.2025') // => '2025-10-27'
+   * DateFormatter.formatForAPI('7.2.2025') // => '2025-02-07'
    */
   static formatForAPI(displayDate) {
     if (!displayDate) return '';
@@ -28,7 +29,10 @@ class DateFormatter {
     if (parts.length !== 3) return '';
 
     const [day, month, year] = parts;
-    return `${year}-${month}-${day}`;
+    // Ensure leading zeros for day and month
+    const paddedMonth = month.padStart(2, '0');
+    const paddedDay = day.padStart(2, '0');
+    return `${year}-${paddedMonth}-${paddedDay}`;
   }
 
   /**

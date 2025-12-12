@@ -1409,15 +1409,20 @@ async function updateFact(event) {
 
     // VALIDATION: Check date format BEFORE calling formatForAPI
     const factDateInput = formData.get('fact_date');
+    console.log('[updateFact] Date input value:', factDateInput);
+
     if (!factDateInput || !BudgetShared.DateFormatter.isValidDisplayFormat(factDateInput)) {
         showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
         return;
     }
 
+    const formattedDate = BudgetShared.DateFormatter.formatForAPI(factDateInput);
+    console.log('[updateFact] Formatted date for API:', formattedDate);
+
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
-        fact_date: BudgetShared.DateFormatter.formatForAPI(factDateInput),
+        fact_date: formattedDate,
         article_id: parseInt(formData.get('article_id')),
         description: formData.get('description') || null
     };
@@ -1434,6 +1439,8 @@ async function updateFact(event) {
         data.cost_center_id = parseInt(costCenterId);
     }
 
+    console.log('[updateFact] Sending data to API:', data);
+
     try {
         const response = await fetch(`/api/v1/facts/${factId}`, {
             method: 'PUT',
@@ -1442,16 +1449,23 @@ async function updateFact(event) {
             body: JSON.stringify(data)
         });
 
+        console.log('[updateFact] Response status:', response.status);
+
         if (!response.ok) {
             const error = await response.json();
-            console.error('Validation errors:', error);
+            console.error('[updateFact] Validation errors:', error);
+            console.error('[updateFact] Error detail type:', typeof error.detail);
+            console.error('[updateFact] Error detail:', error.detail);
 
             // Parse Pydantic validation errors for better UX
             let errorMsg = 'Ошибка сохранения';
             if (Array.isArray(error.detail)) {
                 errorMsg = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
-            } else if (error.detail) {
+            } else if (typeof error.detail === 'string') {
                 errorMsg = error.detail;
+            } else if (typeof error.detail === 'object' && error.detail !== null) {
+                // Handle object detail (e.g., {msg: "...", type: "..."})
+                errorMsg = JSON.stringify(error.detail);
             } else {
                 errorMsg = `HTTP error! status: ${response.status}`;
             }
