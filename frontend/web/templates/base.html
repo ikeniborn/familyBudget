@@ -104,33 +104,45 @@
                 top: 4rem !important; /* Под navbar */
                 right: 0.5rem !important;
                 left: auto !important;
-                /* Максимальная высота с учётом navbar и отступов */
+                /* Фиксированная ширина */
+                width: 14rem !important; /* 224px */
+                min-width: 14rem !important;
+                /* Высота по содержимому, но не больше экрана */
                 max-height: calc(100dvh - 5rem) !important;
                 max-height: calc(var(--real-vh, 1vh) * 100 - 5rem) !important;
-                /* Вертикальный скролл */
+                /* Вертикальный скролл, без горизонтального */
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
             }
+
+            /* Предотвращаем перенос текста в элементах меню */
+            #mobile-menu-content li a,
+            #mobile-menu-content li button {
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
         }
 
-        /* Очень маленькие экраны (< 400px высоты) - компактный режим */
+        /* Очень маленькие экраны по высоте - компактный режим */
         @media (max-height: 500px) {
             #mobile-menu-content {
-                max-height: calc(100dvh - 4.5rem) !important;
-                max-height: calc(var(--real-vh, 1vh) * 100 - 4.5rem) !important;
+                top: 3.5rem !important;
+                max-height: calc(100dvh - 4rem) !important;
+                max-height: calc(var(--real-vh, 1vh) * 100 - 4rem) !important;
                 padding: 0.25rem !important;
             }
             #mobile-menu-content li a,
             #mobile-menu-content li button {
-                padding: 0.4rem 0.75rem !important;
-                font-size: 0.875rem !important;
+                padding: 0.375rem 0.5rem !important;
+                font-size: 0.8125rem !important;
             }
             #mobile-menu-content .menu-title {
                 padding: 0.25rem 0.5rem !important;
-                font-size: 0.75rem !important;
+                font-size: 0.6875rem !important;
             }
             #mobile-menu-content .divider {
-                margin: 0.25rem 0 !important;
+                margin: 0.125rem 0 !important;
             }
             /* Скрыть аватар на очень маленьких экранах */
             #mobile-menu-content .avatar {
@@ -373,7 +385,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
-                <ul id="mobile-menu-content" class="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-56 max-h-[calc(100dvh-6rem)] overflow-y-auto overflow-x-hidden overscroll-contain">
+                <ul id="mobile-menu-content" class="menu menu-sm dropdown-content z-50 p-2 shadow-xl bg-base-100 rounded-box overscroll-contain">
                     {% if user %}
                         <!-- User info with avatar -->
                         <li class="menu-title">
