@@ -385,7 +385,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
-                <ul id="mobile-menu-content" class="menu menu-sm dropdown-content z-50 p-2 shadow-xl bg-base-100 rounded-box overscroll-contain">
+                <ul id="mobile-menu-content" class="menu menu-sm z-50 p-2 shadow-xl bg-base-100 rounded-box overscroll-contain" style="position: fixed; top: 4rem; right: 0.5rem; width: 14rem; max-height: calc(100dvh - 5rem); overflow-y: auto; overflow-x: hidden; display: none;">
                     {% if user %}
                         <!-- User info with avatar -->
                         <li class="menu-title">
@@ -849,16 +849,17 @@
 
             function openMenu() {
                 isOpen = true;
-                menuDropdown.classList.add('dropdown-open');
+                // Показываем меню через display
+                menuContent.style.display = 'block';
                 menuBtn.setAttribute('aria-expanded', 'true');
                 debugLog('[Mobile Menu] Opened');
             }
 
             function closeMenu() {
                 isOpen = false;
-                menuDropdown.classList.remove('dropdown-open');
+                // Скрываем меню через display
+                menuContent.style.display = 'none';
                 menuBtn.setAttribute('aria-expanded', 'false');
-                // Remove focus to ensure CSS dropdown also closes
                 menuBtn.blur();
                 debugLog('[Mobile Menu] Closed');
             }
