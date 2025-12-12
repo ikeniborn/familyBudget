@@ -1823,11 +1823,28 @@ async function updateFact(event) {
             const error = await response.json();
             console.error('Validation errors:', error);
 
-            // Parse Pydantic validation errors for better UX
+            // Parse validation errors for better UX
             let errorMsg = 'Ошибка сохранения';
-            if (Array.isArray(error.detail)) {
-                errorMsg = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
-            } else if (error.detail) {
+
+            // Handle custom error format: {detail: {message: "...", errors: [...]}}
+            if (error.detail && typeof error.detail === 'object') {
+                if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
+                    // Custom validation error format
+                    errorMsg = error.detail.errors
+                        .map(e => e.message || e.msg || 'Unknown error')
+                        .join('; ');
+                } else if (typeof error.detail.message === 'string') {
+                    errorMsg = error.detail.message;
+                } else if (typeof error.detail === 'string') {
+                    errorMsg = error.detail;
+                } else if (Array.isArray(error.detail)) {
+                    // Pydantic format: [{loc: [...], msg: "...", type: "..."}]
+                    errorMsg = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                } else {
+                    // Fallback: stringify unknown object
+                    errorMsg = JSON.stringify(error.detail);
+                }
+            } else if (typeof error.detail === 'string') {
                 errorMsg = error.detail;
             } else {
                 errorMsg = `HTTP error! status: ${response.status}`;
