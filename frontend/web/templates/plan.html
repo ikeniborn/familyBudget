@@ -1397,8 +1397,9 @@ async function loadRemindersForFacts(factIds) {
     if (!factIds || factIds.length === 0) return;
 
     try {
-        // Use batch endpoint to get all pending reminders for user
-        const response = await fetch('/api/v1/reminders/?status=pending&limit=100', { credentials: 'include' });
+        // Use batch endpoint to get all reminders for user (not just pending)
+        // This includes sent/failed reminders so we know they exist for updates
+        const response = await fetch('/api/v1/reminders/?limit=100', { credentials: 'include' });
         if (!response.ok) {
             console.warn('Failed to load reminders:', response.status);
             return;
