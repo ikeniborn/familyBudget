@@ -865,18 +865,17 @@ class ListsManager {
      * Populate product group select dropdown
      * Note: This method prepares the select element for Choices.js
      * The actual options are populated via buildProductGroupChoices() in initProductGroupChoices()
+     *
+     * IMPORTANT: Do NOT create <option> elements here!
+     * Choices.js reads both existing <option> elements AND the choices[] parameter,
+     * which causes duplicates. We use choices[] parameter only.
      */
     populateProductGroupSelect() {
         const select = document.getElementById('item-product-group');
         if (!select) return;
 
-        // Clear select and add placeholder option
-        // Choices.js will use buildProductGroupChoices() to populate the dropdown
+        // Clear select completely - Choices.js will populate via choices[] parameter
         select.innerHTML = '';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.textContent = 'Группа';
-        select.appendChild(placeholder);
     }
 
     /**
