@@ -316,20 +316,16 @@ function openPlanTransferModal() {
 
 // Открыть модальное окно добавления факта с инициализацией даты
 function openAddTransactionModal() {
-    // Открыть модальное окно сначала
-    modal_add_transaction.showModal();
+    // Установить текущую дату перед открытием модального окна
+    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    if (factDateInput) {
+        const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
+        factDateInput.value = todayFormatted;
+        debugLog('[openAddTransactionModal] Установлена текущая дата:', todayFormatted);
+    }
 
-    // Проверить и установить дату, если поле пустое (например, после сброса формы)
-    setTimeout(() => {
-        const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
-        if (factDateInput && !factDateInput.value) {
-            const todayFormatted = BudgetShared.DateFormatter.formatForDisplay(BudgetShared.DateFormatter.today());
-            factDateInput.value = todayFormatted;
-            debugLog('[openAddTransactionModal] Поле даты пустое, установлена текущая дата:', todayFormatted);
-        } else if (factDateInput) {
-            debugLog('[openAddTransactionModal] Поле даты уже заполнено:', factDateInput.value);
-        }
-    }, 50); // Увеличил delay до 50ms для надёжности
+    // Открыть модальное окно
+    modal_add_transaction.showModal();
 }
 
 // Welcome Section Management

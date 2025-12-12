@@ -1871,6 +1871,18 @@ function openCreateModal() {
     const hasCategoryOptions = categorySelect && categorySelect.options.length > 1;
     const hasFCOptions = fcSelect && fcSelect.options.length > 1;
 
+    // Вспомогательная функция: установить текущую дату и открыть модальное окно
+    const openModalWithDate = () => {
+        const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+        if (factDateInput) {
+            factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(
+                BudgetShared.DateFormatter.today()
+            );
+            debugLog('[openCreateModal] Установлена текущая дата:', factDateInput.value);
+        }
+        modal_add_transaction.showModal();
+    };
+
     if (!hasCategoryOptions || !hasFCOptions) {
         // Data not loaded - check if offline
         if (!navigator.onLine) {
@@ -1882,7 +1894,7 @@ function openCreateModal() {
         Promise.all([loadFinancialCenters(), loadCostCenters()]).then(() => {
             // Re-check after loading
             if (categorySelect.options.length > 1 && fcSelect.options.length > 1) {
-                modal_add_transaction.showModal();
+                openModalWithDate();
             } else {
                 showToast('Ошибка загрузки данных. Попробуйте обновить страницу.', 'error');
             }
@@ -1890,18 +1902,7 @@ function openCreateModal() {
         return;
     }
 
-    modal_add_transaction.showModal();
-
-    // Проверить и установить дату, если поле пустое (после сброса формы)
-    setTimeout(() => {
-        const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
-        if (factDateInput && !factDateInput.value) {
-            factDateInput.value = BudgetShared.DateFormatter.formatForDisplay(
-                BudgetShared.DateFormatter.today()
-            );
-            debugLog('[openCreateModal] Установлена текущая дата:', factDateInput.value);
-        }
-    }, 50);
+    openModalWithDate();
 }
 
 // ==================== FACTS PAGE SPECIFIC ====================
