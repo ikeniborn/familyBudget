@@ -99,10 +99,42 @@
         /* Mobile menu - fix для iOS Safari и мелких экранов */
         @media (max-width: 1023px) {
             #mobile-menu-content {
-                /* Fallback для браузеров без dvh */
-                max-height: calc(var(--real-vh, 1vh) * 100 - 6rem);
-                /* Предпочтительно: dvh учитывает адресную строку */
-                max-height: calc(100dvh - 6rem);
+                /* Fixed position для гарантированного отображения на экране */
+                position: fixed !important;
+                top: 4rem !important; /* Под navbar */
+                right: 0.5rem !important;
+                left: auto !important;
+                /* Максимальная высота с учётом navbar и отступов */
+                max-height: calc(100dvh - 5rem) !important;
+                max-height: calc(var(--real-vh, 1vh) * 100 - 5rem) !important;
+                /* Вертикальный скролл */
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+            }
+        }
+
+        /* Очень маленькие экраны (< 400px высоты) - компактный режим */
+        @media (max-height: 500px) {
+            #mobile-menu-content {
+                max-height: calc(100dvh - 4.5rem) !important;
+                max-height: calc(var(--real-vh, 1vh) * 100 - 4.5rem) !important;
+                padding: 0.25rem !important;
+            }
+            #mobile-menu-content li a,
+            #mobile-menu-content li button {
+                padding: 0.4rem 0.75rem !important;
+                font-size: 0.875rem !important;
+            }
+            #mobile-menu-content .menu-title {
+                padding: 0.25rem 0.5rem !important;
+                font-size: 0.75rem !important;
+            }
+            #mobile-menu-content .divider {
+                margin: 0.25rem 0 !important;
+            }
+            /* Скрыть аватар на очень маленьких экранах */
+            #mobile-menu-content .avatar {
+                display: none !important;
             }
         }
     </style>
