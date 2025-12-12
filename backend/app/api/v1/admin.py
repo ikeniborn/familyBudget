@@ -1936,6 +1936,8 @@ class FactUpdateRequest(BaseModel):
     fact_date: str | None = None  # ISO date string
     description: str | None = None
     article_id: int | None = None
+    financial_center_id: int | None = None
+    cost_center_id: int | None = None
 
 
 @router.get("/facts", response_model=List[FactResponse])
@@ -2186,6 +2188,12 @@ async def update_fact(
 
     if update_data.article_id is not None:
         fact.article_id = update_data.article_id
+
+    if update_data.financial_center_id is not None:
+        fact.financial_center_id = update_data.financial_center_id
+
+    if update_data.cost_center_id is not None:
+        fact.cost_center_id = update_data.cost_center_id
 
     session.add(fact)
     await session.commit()

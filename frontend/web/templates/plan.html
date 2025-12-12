@@ -1782,6 +1782,12 @@ async function updateFact(event) {
     const factId = formData.get('id');
     const displayDate = formData.get('fact_date');
 
+    // VALIDATION: Check date format BEFORE calling formatForAPI
+    if (!displayDate || !BudgetShared.DateFormatter.isValidDisplayFormat(displayDate)) {
+        showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
+        return;
+    }
+
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
@@ -1815,7 +1821,19 @@ async function updateFact(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            console.error('Validation errors:', error);
+
+            // Parse Pydantic validation errors for better UX
+            let errorMsg = 'Ошибка сохранения';
+            if (Array.isArray(error.detail)) {
+                errorMsg = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+            } else if (error.detail) {
+                errorMsg = error.detail;
+            } else {
+                errorMsg = `HTTP error! status: ${response.status}`;
+            }
+
+            throw new Error(errorMsg);
         }
 
         // Handle reminder update (use pre-loaded map instead of fetching)
