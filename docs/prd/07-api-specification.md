@@ -301,8 +301,8 @@ curl -X POST http://localhost:8000/api/v1/auth/telegram \
 | `date_from` | string | Нет | Фильтр по дате от (ISO format: YYYY-MM-DD) |
 | `date_to` | string | Нет | Фильтр по дате до (ISO format: YYYY-MM-DD) |
 | `record_type` | string | Нет | Фильтр по типу: "fact", "plan", null (все) |
-| `financial_center_id` | integer | Нет | Фильтр по финансовому центру (ЦФО) |
-| `cost_center_id` | integer | Нет | Фильтр по центру затрат (МВЗ) |
+| `financial_center_id` | integer | Нет | Фильтр по счету |
+| `cost_center_id` | integer | Нет | Фильтр по месту затрат |
 | `search` | string | Нет | Поиск по описанию (case-insensitive substring, max_length: 200) |
 | `limit` | integer | Нет | Записей на страницу (default: 50, max: 500) |
 | `offset` | integer | Нет | Offset для пагинации (default: 0) |
@@ -695,7 +695,7 @@ curl -X GET "http://localhost:8000/api/v1/notifications?notification_type=budget
 
 #### POST /api/v1/transfers
 
-**Описание:** Создание перевода между финансовыми центрами (ЦФО)
+**Описание:** Создание перевода между счетами
 
 **Назначение:**
 Создает 2 связанные транзакции (списание с источника + пополнение получателя) для отражения движения средств между счетами. Обе транзакции объединены через `transfer_id` и создаются атомарно.
@@ -736,7 +736,7 @@ curl -X GET "http://localhost:8000/api/v1/notifications?notification_type=budget
 
 1. **Different CFOs:**
    - `from_cfo_id != to_cfo_id`
-   - Нельзя переводить в тот же самый ЦФО
+   - Нельзя переводить в тот же самый счет
    - Error: HTTP 400 "Cannot transfer to the same financial center"
 
 2. **Positive Amount:**
@@ -947,7 +947,7 @@ async def create_transfer(
 - ChoicesCategoryTree фильтрует категории по типу (debit/credit)
 
 **Related Documents:**
-- docs/prd/04-functional-requirements.md - FR-080: Переводы между ЦФО
+- docs/prd/04-functional-requirements.md - FR-080: Переводы между счетами
 - docs/prd/06-database-design.md - секция 6.3.1 Transfer Support Fields
 - docs/prd/08-ui-design.md - Transfer modal UI specification
 - CLAUDE.md - Shared Family Budget Model
@@ -955,6 +955,6 @@ async def create_transfer(
 **См. также:**
 - GET `/api/v1/facts` - для получения списка транзакций (включая transfers)
 - GET `/api/v1/articles` - для получения списка категорий (включая debit/credit)
-- GET `/api/v1/financial_centers` - для получения списка ЦФО
+- GET `/api/v1/financial_centers` - для получения списка счетов
 
 ---

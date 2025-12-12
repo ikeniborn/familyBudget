@@ -198,7 +198,7 @@ CREATE INDEX idx_registry_analytics ON t_f_registry(user_id, period_id, article_
 **Статус:** ✅ IMPLEMENTED
 
 **Описание:**
-Поддержка переводов между финансовыми центрами (ЦФО) реализована через дополнительное поле `transfer_id` в таблице фактов и расширение типов статей.
+Поддержка переводов между Счетами реализована через дополнительное поле `transfer_id` в таблице фактов и расширение типов статей.
 
 #### transfer_id (t_f_budget_fact)
 
@@ -454,11 +454,11 @@ ORDER BY h.depth DESC;
 CREATE VIEW v_d_article_current AS
 SELECT * FROM t_d_article WHERE is_current = true;
 
--- View для актуальных ЦФО
+-- View для актуальных Счетов (FinancialCenter)
 CREATE VIEW v_d_financial_center_current AS
 SELECT * FROM t_d_financial_center WHERE is_current = true;
 
--- View для актуальных МВЗ
+-- View для актуальных Мест затрат (CostCenter)
 CREATE VIEW v_d_cost_center_current AS
 SELECT * FROM t_d_cost_center WHERE is_current = true;
 
@@ -562,7 +562,7 @@ CREATE INDEX idx_registry_analytics ON t_f_registry(user_id, period_id, article_
 -- Индекс для запросов по типу записи
 CREATE INDEX idx_registry_type_date ON t_f_registry(record_type, transaction_date);
 
--- Индекс для фильтрации по ЦФО/МВЗ
+-- Индекс для фильтрации по Счету/Месту затрат
 CREATE INDEX idx_registry_centers ON t_f_registry(financial_center_id, cost_center_id);
 ```
 
@@ -600,11 +600,11 @@ GROUP BY p.name, a.name;
 | 7 | idx_hierarchy_ancestor_depth_covering | Covering | t_d_article_hierarchy | Subtree queries (O(1)) |
 | 8 | idx_hierarchy_descendant_depth_covering | Covering | t_d_article_hierarchy | Breadcrumbs navigation |
 | 9 | idx_budget_fact_user_article_date_covering | Covering | t_f_budget_fact | Trends по категории |
-| 10 | idx_budget_fact_centers_date_covering | Covering | t_f_budget_fact | ЦФО/МВЗ analytics |
+| 10 | idx_budget_fact_centers_date_covering | Covering | t_f_budget_fact | Счет/Место затрат analytics |
 | 11 | idx_budget_fact_recent | Partial | t_f_budget_fact | Dashboard widget (30 дней) |
 | 12 | idx_budget_fact_expensive | Partial | t_f_budget_fact | Auditing (amount > 10000) |
-| 13 | idx_fc_current_covering | Partial | t_d_financial_center | ЦФО dropdown |
-| 14 | idx_cc_current_covering | Partial | t_d_cost_center | МВЗ dropdown |
+| 13 | idx_fc_current_covering | Partial | t_d_financial_center | Счет dropdown |
+| 14 | idx_cc_current_covering | Partial | t_d_cost_center | Место затрат dropdown |
 | 15 | idx_t_f_budget_fact_*_description_trgm | GIN Trigram | t_f_budget_fact (96 партиций) | Full-text поиск по описанию (ILIKE) |
 
 **Критичные индексы (детальные примеры):**

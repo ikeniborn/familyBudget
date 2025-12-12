@@ -353,13 +353,13 @@ async function loadFinancialCenters() {
 
             // For other errors, show error toast
             console.warn('Failed to fetch: HTTP', response.status);
-            showToast('Не удалось загрузить список ЦФО', 'error');
+            showToast('Не удалось загрузить список Счетов', 'error');
             return;
         }
         // ... обработка данных
     } catch (error) {
         console.error('Failed to load financial centers:', error);
-        showToast('Ошибка при загрузке ЦФО', 'error');
+        showToast('Ошибка при загрузке Счетов', 'error');
     }
 }
 ```
@@ -408,8 +408,8 @@ async loadCategories() {
 
 **Protected endpoints (требуют CurrentUser dependency):**
 - `/api/v1/articles` - список категорий бюджета
-- `/api/v1/financial-centers` - список ЦФО
-- `/api/v1/cost-centers` - список МВЗ
+- `/api/v1/financial-centers` - список Счетов
+- `/api/v1/cost-centers` - список Мест затрат
 - `/api/v1/facts/*` - CRUD транзакций
 
 **ВАЖНО:** Справочники намеренно защищены авторизацией, так как содержат бизнес-логику и категории семейного бюджета (не public data).

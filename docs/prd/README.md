@@ -51,7 +51,7 @@
 | Фаза | Версия | Описание | FR Count |
 |------|--------|----------|----------|
 | Phase 1 | v1.0-v4.4.0 | Backend API, Web Analytics, Admin, Deployment | 18 |
-| Phase 2 | v5.0.0-beta | Telegram Bot, ЦФО/МВЗ, Advanced Analytics | 6 |
+| Phase 2 | v5.0.0-beta | Telegram Bot, Счет/Место затрат, Advanced Analytics | 6 |
 | Phase 3 | v5.1.0-beta | Telegram Web Apps (8 форм через Menu Button) | 9 |
 
 **Всего:** 33 FR реализовано (100%)

@@ -62,14 +62,14 @@
 5. **Telegram Bot Commands для оперативного ввода**
    - 8 текстовых команд: /add, /addplan, /summary, /edit, /today, /stats, /settings
    - ConversationHandler для multi-step dialogs
-   - Inline keyboards для категорий, дат, ЦФО/МВЗ
+   - Inline keyboards для категорий, дат, счетов/мест затрат
 
 6. **Автоматические уведомления**
    - Предупреждения о превышении бюджета (при 90%+)
    - Еженедельные отчеты (каждое воскресенье 20:00)
    - История уведомлений (no duplicates)
 
-7. **ЦФО/МВЗ Integration**
+7. **Счета/Места затрат Integration**
    - 10 новых API endpoints (Full CRUD)
    - SCD Type 2 support
    - Интеграция в Bot и Web UI

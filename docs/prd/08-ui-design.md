@@ -43,11 +43,11 @@ Bot: 📝 Уточните категорию:
      [Еда] [Напитки] [Хозтовары] [⬅️ Назад]
 
 User: [Еда]
-Bot: 🏢 Выберите ЦФО:
+Bot: 🏦 Выберите Счет:
      [Семья] [Дети]
 
 User: [Семья]
-Bot: 🏭 Выберите МВЗ:
+Bot: 📍 Выберите Место затрат:
      [Дом] [Транспорт] [Образование]
 
 User: [Дом]
@@ -61,8 +61,8 @@ User: /skip
 Bot: ✅ Расход добавлен:
      Сумма: 1500 руб
      Статья: Еда (Продукты)
-     ЦФО: Семья
-     МВЗ: Дом
+     Счет: Сбербанк
+     Место затрат: Дом
      Период: Октябрь 2025
      
      ⚠️ Внимание! Бюджет по статье "Продукты" выполнен на 85%
@@ -136,8 +136,8 @@ Bot: ✅ Расход добавлен:
 #### Admin Pages
 
 - `/admin/articles` - CRUD статей с визуализацией дерева
-- `/admin/cost_centers` - CRUD МВЗ
-- `/admin/financial_centers` - CRUD ЦФО
+- `/admin/cost_centers` - CRUD мест затрат
+- `/admin/financial_centers` - CRUD счетов
 - `/admin/periods` - CRUD периодов
 - `/admin/users` - Управление пользователями (опционально)
 
@@ -158,8 +158,8 @@ Bot: ✅ Расход добавлен:
 - **Категория** - иерархический dropdown (Choices.js) с визуальными индикаторами:
   - Родительские категории (📂): disabled, bold, italic, background highlight
   - Дочерние категории (▸): доступны для выбора, с отступами `⤷`
-- **Финансовый центр (ЦФО)** - dropdown со всеми ЦФО
-- **Центр затрат (МВЗ)** - dropdown со всеми МВЗ
+- **Счет** - dropdown со всеми счетами
+- **Место затрат** - dropdown со всеми местами затрат
 - Layout: grid-cols-4
 
 **Уровень 3 - Дополнительные:**
@@ -172,8 +172,8 @@ Bot: ✅ Расход добавлен:
 - Уровень 2: Основные фильтры (grid-cols-1 sm:grid-cols-2 lg:grid-cols-4)
   - Тип категории (Все типы категорий/Расходы/Доходы) - с динамической фильтрацией категорий
   - Категория
-  - Финансовый центр (ЦФО)
-  - Центр затрат (МВЗ)
+  - Счет
+  - Место затрат
 - Уровень 3: Дополнительно (grid-cols-1)
   - Пользователь
   - **Примечание:** Фильтр "Тип записи" удален, так как страница /plan показывает только плановые записи (record_type='plan' hardcoded в API запросе)
@@ -566,7 +566,7 @@ const heatmapOption = {
 ```
 
 **JavaScript:**
-- `loadCFOList()` - загружает список ЦФО из `/api/v1/financial-centers/list`
+- `loadCFOList()` - загружает список счетов из `/api/v1/financial-centers/list`
 - `updateCFOFilter()` - обновляет глобальную переменную `currentCFOId`
 - **Применяется:** Ко ВСЕМ графикам (при полной интеграции с backend)
 
@@ -957,8 +957,8 @@ function setupTransactionTypeButtons() {
    - План: 5000, 10000, 20000, 50000
 3. **Сумма** - number input (step=0.01, min=0.01)
 4. **Категория** - CategoryTreeSelect с фильтрацией
-5. **ЦФО** - select (required)
-6. **МВЗ** - select (optional)
+5. **Счет** - select (required)
+6. **Место затрат** - select (optional)
 7. **Описание** - textarea (optional)
 
 **Уникальные компоненты:**
@@ -1040,16 +1040,16 @@ function showToast(message, type = 'info') {
 
 **2025-11-10 (v3 - Edit Modal Improvements):**
 - ✅ **UX:** Исправлена ширина поля даты в modal_transaction.html (flex вместо grid-cols-2)
-- ✅ **Загрузка данных:** Добавлена загрузка ЦФО/МВЗ в create modal для facts.html и plan.html
+- ✅ **Загрузка данных:** Добавлена загрузка Счетов/Мест затрат в create modal для facts.html и plan.html
 - ✅ **Edit Modal (facts.html):**
   - Добавлен переключатель типа категории (Доход/Расход) с динамической перезагрузкой списка
   - Заменен плоский список категорий на иерархический ChoicesCategoryTree
   - Добавлен CalendarWidget для выбора даты с иконкой
-  - Переремещено поле "Описание" в конец формы (после ЦФО/МВЗ)
+  - Переремещено поле "Описание" в конец формы (после Счет/Место затрат)
 - ✅ **Edit Modal (plan.html):**
   - Заменен плоский список категорий на иерархический ChoicesCategoryTree
   - Порядок полей не изменен (как запрошено)
-- ✅ **Обработка ошибок:** Toast уведомления при ошибках загрузки ЦФО/МВЗ
+- ✅ **Обработка ошибок:** Toast уведомления при ошибках загрузки Счетов/Мест затрат
 
 **2025-11-01 (v2 - Bug Fixes):**
 - ✅ **CRITICAL FIX:** Исправлена ошибка `Cannot read properties of null (reading 'addEventListener')`
@@ -1200,7 +1200,7 @@ window.addEventListener('orientationchange', () => {
 
 #### 8.8.10 Transfer Modal (Added 2025-11-24)
 
-**Назначение:** Модальное окно для создания переводов между финансовыми центрами (ЦФО).
+**Назначение:** Модальное окно для создания переводов между счетами.
 
 **Статус реализации:** ✅ FULLY IMPLEMENTED (v5.1.4+)
 
@@ -1256,10 +1256,10 @@ window.addEventListener('orientationchange', () => {
 
       <div class="form-control">
         <label class="label">
-          <span class="label-text">ЦФО списания</span>
+          <span class="label-text">Счет списания</span>
         </label>
         <select name="from_cfo_id" class="select select-bordered" required>
-          <option value="">Выберите ЦФО...</option>
+          <option value="">Выберите счет...</option>
         </select>
       </div>
 
@@ -1277,10 +1277,10 @@ window.addEventListener('orientationchange', () => {
 
       <div class="form-control">
         <label class="label">
-          <span class="label-text">ЦФО пополнения</span>
+          <span class="label-text">Счет пополнения</span>
         </label>
         <select name="to_cfo_id" class="select select-bordered" required>
-          <option value="">Выберите ЦФО...</option>
+          <option value="">Выберите счет...</option>
         </select>
       </div>
 
@@ -1397,7 +1397,7 @@ function setupTransferForm() {
 
         // Client-side validation
         if (data.from_cfo_id === data.to_cfo_id) {
-            showToast('ЦФО "Откуда" и "Куда" должны быть разными', 'error');
+            showToast('Счета "Откуда" и "Куда" должны быть разными', 'error');
             return;
         }
 
@@ -1462,7 +1462,7 @@ function setupTransferForm() {
 **Validation Rules:**
 
 **Client-side (JavaScript):**
-1. `from_cfo_id != to_cfo_id` - ЦФО должны быть разными
+1. `from_cfo_id != to_cfo_id` - Счета должны быть разными
 2. `amount > 0` - Сумма больше нуля
 3. `fact_date <= today()` - Дата не в будущем (handled by `<input type="date" max="...">`)
 
@@ -1495,7 +1495,7 @@ function setupTransferForm() {
 **Backend:**
 - POST /api/v1/transfers endpoint
 - GET /api/v1/articles?type=debit/credit для загрузки категорий
-- GET /api/v1/financial-centers для загрузки ЦФО
+- GET /api/v1/financial-centers для загрузки счетов
 
 ---
 
@@ -1508,12 +1508,12 @@ function setupTransferForm() {
 2. **Заполнение формы:**
    - Выбор даты (вручную или через quick buttons)
    - Ввод суммы
-   - Выбор ЦФО "Откуда" и категории списания (type='debit')
-   - Выбор ЦФО "Куда" и категории пополнения (type='credit')
+   - Выбор Счета "Откуда" и категории списания (type='debit')
+   - Выбор Счета "Куда" и категории пополнения (type='credit')
    - Опционально: комментарий
 
 3. **Валидация:**
-   - Client-side: ЦФО разные, сумма > 0
+   - Client-side: Счета разные, сумма > 0
    - Server-side: типы категорий корректны (debit/credit)
 
 4. **Создание перевода:**
@@ -1925,7 +1925,7 @@ new CalendarWidget({
 **2025-11-05 (Filters Layout Refactoring + CalendarWidget Range Fix):**
 - ✅ **UX IMPROVEMENT:** Реорганизация фильтров на трех уровнях с визуальным разделением
   - **Уровень 1 - Период:** Дата с/по (grid-cols-2, side by side)
-  - **Уровень 2 - Основные фильтры:** Тип категории, Категория, ЦФО, МВЗ (grid-cols-4)
+  - **Уровень 2 - Основные фильтры:** Тип категории, Категория, Счет, Место затрат (grid-cols-4)
   - **Уровень 3 - Дополнительные:** Пользователь (grid-cols-1)
   - Визуальное разделение через borders, backgrounds и section titles
 - ✅ **BUG FIX:** Исправлено дублирование DateFormatter в base.html
