@@ -1936,6 +1936,8 @@ class FactUpdateRequest(BaseModel):
     fact_date: str | None = None  # ISO date string
     description: str | None = None
     article_id: int | None = None
+    financial_center_id: int | None = None
+    cost_center_id: int | None = None
 
 
 @router.get("/facts", response_model=List[FactResponse])
@@ -2021,8 +2023,8 @@ async def get_all_facts(
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date_to format. Use ISO format (YYYY-MM-DD)")
 
-    # Order and paginate (newest by updated_at first, then by id as tiebreaker)
-    query = query.order_by(Fact.updated_at.desc(), Fact.id.desc()).limit(limit).offset(offset)
+    # Order and paginate (newest by updated_at first, then by created_at, then by id as tiebreaker)
+    query = query.order_by(Fact.updated_at.desc(), Fact.created_at.desc(), Fact.id.desc()).limit(limit).offset(offset)
 
     result = await session.execute(query)
     rows = result.all()
@@ -2186,6 +2188,15 @@ async def update_fact(
 
     if update_data.article_id is not None:
         fact.article_id = update_data.article_id
+
+    if update_data.financial_center_id is not None:
+        fact.financial_center_id = update_data.financial_center_id
+
+    if update_data.cost_center_id is not None:
+        fact.cost_center_id = update_data.cost_center_id
+
+    # Update timestamp (model doesn't have onupdate, so must do manually)
+    fact.updated_at = datetime.utcnow()
 
     session.add(fact)
     await session.commit()

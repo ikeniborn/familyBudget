@@ -1407,10 +1407,30 @@ async function updateFact(event) {
     const formData = new FormData(event.target);
     const factId = formData.get('id');
 
+    // VALIDATION: Check date format BEFORE calling formatForAPI
+    const factDateInput = formData.get('fact_date');
+
+    if (!factDateInput || !BudgetShared.DateFormatter.isValidDisplayFormat(factDateInput)) {
+        showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
+        return;
+    }
+
+    const formattedDate = BudgetShared.DateFormatter.formatForAPI(factDateInput);
+
+    // VALIDATION: Факты не могут иметь дату в будущем (plans могут)
+    const selectedDate = new Date(formattedDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Сбросить время для сравнения только даты
+
+    if (selectedDate > today) {
+        showNotification('❌ Факты не могут иметь дату в будущем. Для планирования будущих транзакций используйте раздел "План".', 'error');
+        return;
+    }
+
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
-        fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')),
+        fact_date: formattedDate,
         article_id: parseInt(formData.get('article_id')),
         description: formData.get('description') || null
     };
@@ -1437,7 +1457,38 @@ async function updateFact(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            console.error('[updateFact] Validation errors:', error);
+            console.error('[updateFact] Error detail type:', typeof error.detail);
+            console.error('[updateFact] Error detail:', error.detail);
+
+            // Parse validation errors for better UX
+            let errorMsg = 'Ошибка сохранения';
+
+            // Handle custom error format: {detail: {message: "...", errors: [...]}}
+            if (error.detail && typeof error.detail === 'object') {
+                if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
+                    // Custom validation error format
+                    errorMsg = error.detail.errors
+                        .map(e => e.message || e.msg || 'Unknown error')
+                        .join('; ');
+                } else if (typeof error.detail.message === 'string') {
+                    errorMsg = error.detail.message;
+                } else if (typeof error.detail === 'string') {
+                    errorMsg = error.detail;
+                } else if (Array.isArray(error.detail)) {
+                    // Pydantic format: [{loc: [...], msg: "...", type: "..."}]
+                    errorMsg = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                } else {
+                    // Fallback: stringify unknown object
+                    errorMsg = JSON.stringify(error.detail);
+                }
+            } else if (typeof error.detail === 'string') {
+                errorMsg = error.detail;
+            } else {
+                errorMsg = `HTTP error! status: ${response.status}`;
+            }
+
+            throw new Error(errorMsg);
         }
 
         closeEditModal();
@@ -1760,6 +1811,20 @@ async function createFact(event) {
     setSubmitLoading(event.target, true);
 
     const formData = new FormData(event.target);
+
+    // VALIDATION: Факты не могут иметь дату в будущем
+    const factDateInput = formData.get('fact_date');
+    const formattedDate = BudgetShared.DateFormatter.formatForAPI(factDateInput);
+    const selectedDate = new Date(formattedDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate > today) {
+        showNotification('❌ Факты не могут иметь дату в будущем. Для планирования будущих транзакций используйте раздел "План".', 'error');
+        setSubmitLoading(event.target, false);
+        return;
+    }
+
     const data = {
         record_type: 'fact',
         fact_type: formData.get('record_type'), // 'expense' или 'income'
@@ -1767,7 +1832,7 @@ async function createFact(event) {
         article_id: parseInt(formData.get('article_id')),
         financial_center_id: parseInt(formData.get('financial_center_id')),
         cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-        fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')),
+        fact_date: formattedDate,
         description: formData.get('description') || null
     };
 

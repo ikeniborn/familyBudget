@@ -53,16 +53,20 @@ start_services() {
     #
     # Without --no-cache: Docker may use cached pip install layer → missing new dependencies
     # With --no-cache: Forces fresh pip install → all dependencies correctly installed
+    #
+    # FIX (2025-12-12): ALWAYS use --build to detect source code changes (backend/app/, bot/)
+    # Docker layer cache makes this fast when nothing changed, but ensures code updates
+    # are picked up even when Dockerfile/requirements.txt didn't change
     local needs_fresh_build=false
-    local build_flag=""
+    local build_flag="--build"
 
     if [[ "${DOCKER_REBUILD_NEEDED:-true}" == "true" ]]; then
         needs_fresh_build=true
         info "Docker images will be rebuilt with --no-cache (trigger files changed)"
         info "This ensures new dependencies are correctly installed"
     else
-        build_flag="--build"
-        info "Docker images will use cached build (no trigger files changed)"
+        info "Docker images will be rebuilt with layer cache (source code may have changed)"
+        info "Layer cache makes rebuild fast when unchanged"
     fi
 
     # If fresh build needed (trigger files changed), build with --no-cache first

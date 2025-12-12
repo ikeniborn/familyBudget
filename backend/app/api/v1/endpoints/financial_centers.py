@@ -81,7 +81,7 @@ async def list_financial_centers(
     query = (
         select(FinancialCenter)
         .where(*conditions)
-        .order_by(FinancialCenter.name)
+        .order_by(FinancialCenter.updated_at.desc())
         .limit(limit)
         .offset(offset)
     )
@@ -202,6 +202,12 @@ async def update_financial_center(
 
     Shared references architecture: Only admins can update financial centers.
     """
+    # LOG: Request received
+    logger.info(
+        f"[UPDATE_FC] Request received: fc_id={financial_center_id}, "
+        f"user_id={current_user.id}, data={update_data.model_dump(exclude_unset=True)}"
+    )
+
     # Check: Only admins can update financial centers
     if not current_user.is_admin:
         raise HTTPException(
@@ -223,14 +229,21 @@ async def update_financial_center(
             detail=f"Financial center {financial_center_id} not found",
         )
 
+    # LOG: Found record
+    logger.info(f"[UPDATE_FC] Found: id={financial_center.id}, name='{financial_center.name}'")
+
     # Get update dict
     update_dict = update_data.model_dump(exclude_unset=True)
 
     # Check if anything changed
     changed, changed_fields = has_changes(financial_center, update_dict)
     if not changed:
+        logger.info(f"[UPDATE_FC] No changes detected for fc_id={financial_center_id}")
         # No changes, return existing financial center
         return FinancialCenterResponse.model_validate(financial_center)
+
+    # LOG: Detected changes
+    logger.info(f"[UPDATE_FC] Detected changes: {changed_fields}")
 
     # Use SCD1+History service for update
     updated_financial_center = await update_financial_center_profile(
@@ -239,6 +252,12 @@ async def update_financial_center(
         updates=update_dict,
         changed_by_user_id=current_user.id,
         change_type="UPDATE",
+    )
+
+    # LOG: Success
+    logger.info(
+        f"[UPDATE_FC] Successfully updated fc_id={financial_center_id}, "
+        f"new_values: {update_dict}"
     )
 
     return FinancialCenterResponse.model_validate(updated_financial_center)

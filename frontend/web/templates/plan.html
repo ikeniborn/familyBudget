@@ -1397,8 +1397,9 @@ async function loadRemindersForFacts(factIds) {
     if (!factIds || factIds.length === 0) return;
 
     try {
-        // Use batch endpoint to get all pending reminders for user
-        const response = await fetch('/api/v1/reminders/?status=pending&limit=100', { credentials: 'include' });
+        // Use batch endpoint to get all reminders for user (not just pending)
+        // This includes sent/failed reminders so we know they exist for updates
+        const response = await fetch('/api/v1/reminders/?limit=100', { credentials: 'include' });
         if (!response.ok) {
             console.warn('Failed to load reminders:', response.status);
             return;
@@ -1782,6 +1783,12 @@ async function updateFact(event) {
     const factId = formData.get('id');
     const displayDate = formData.get('fact_date');
 
+    // VALIDATION: Check date format BEFORE calling formatForAPI
+    if (!displayDate || !BudgetShared.DateFormatter.isValidDisplayFormat(displayDate)) {
+        showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
+        return;
+    }
+
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
@@ -1815,7 +1822,36 @@ async function updateFact(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            console.error('Validation errors:', error);
+
+            // Parse validation errors for better UX
+            let errorMsg = 'Ошибка сохранения';
+
+            // Handle custom error format: {detail: {message: "...", errors: [...]}}
+            if (error.detail && typeof error.detail === 'object') {
+                if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
+                    // Custom validation error format
+                    errorMsg = error.detail.errors
+                        .map(e => e.message || e.msg || 'Unknown error')
+                        .join('; ');
+                } else if (typeof error.detail.message === 'string') {
+                    errorMsg = error.detail.message;
+                } else if (typeof error.detail === 'string') {
+                    errorMsg = error.detail;
+                } else if (Array.isArray(error.detail)) {
+                    // Pydantic format: [{loc: [...], msg: "...", type: "..."}]
+                    errorMsg = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                } else {
+                    // Fallback: stringify unknown object
+                    errorMsg = JSON.stringify(error.detail);
+                }
+            } else if (typeof error.detail === 'string') {
+                errorMsg = error.detail;
+            } else {
+                errorMsg = `HTTP error! status: ${response.status}`;
+            }
+
+            throw new Error(errorMsg);
         }
 
         // Handle reminder update (use pre-loaded map instead of fetching)
