@@ -1409,7 +1409,6 @@ async function updateFact(event) {
 
     // VALIDATION: Check date format BEFORE calling formatForAPI
     const factDateInput = formData.get('fact_date');
-    console.log('[updateFact] Date input value:', factDateInput);
 
     if (!factDateInput || !BudgetShared.DateFormatter.isValidDisplayFormat(factDateInput)) {
         showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
@@ -1417,7 +1416,6 @@ async function updateFact(event) {
     }
 
     const formattedDate = BudgetShared.DateFormatter.formatForAPI(factDateInput);
-    console.log('[updateFact] Formatted date for API:', formattedDate);
 
     // VALIDATION: Факты не могут иметь дату в будущем (plans могут)
     const selectedDate = new Date(formattedDate);
@@ -1449,8 +1447,6 @@ async function updateFact(event) {
         data.cost_center_id = parseInt(costCenterId);
     }
 
-    console.log('[updateFact] Sending data to API:', data);
-
     try {
         const response = await fetch(`/api/v1/facts/${factId}`, {
             method: 'PUT',
@@ -1458,8 +1454,6 @@ async function updateFact(event) {
             credentials: 'include',
             body: JSON.stringify(data)
         });
-
-        console.log('[updateFact] Response status:', response.status);
 
         if (!response.ok) {
             const error = await response.json();
