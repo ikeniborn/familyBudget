@@ -10,6 +10,7 @@ let fromCategoryTree = null;
 let toCategoryTree = null;
 let transferRecordType = 'fact'; // Default to fact, can be 'plan' for planned transfers
 let allFinancialCenters = []; // Store all accounts for filtering
+let allCostCenters = []; // Store all cost centers for filtering
 
 // Debounce state for transfer plan hints
 let transferHintsFromTimeout = null;
@@ -441,6 +442,9 @@ async function loadTransferData() {
         allFinancialCenters = financialCenters;
         populateFinancialCenterDropdowns();
 
+        // Save all cost centers for filtering
+        allCostCenters = costCenters;
+
         // Populate Cost Centers
         // Populate FROM dropdown
         const fromCCSelect = document.querySelector('#from_cost_center');
@@ -564,6 +568,83 @@ function populateFinancialCenterDropdowns() {
 }
 
 /**
+ * Filter cost center dropdown by financial center ID
+ * Whitelist pattern: show cost centers without FC restrictions OR linked to this FC
+ * @param {string} selectId - ID of the select element (e.g., 'from_cost_center')
+ * @param {number|null} financialCenterId - Selected financial center ID
+ */
+async function filterCostCenterDropdown(selectId, financialCenterId) {
+    const select = document.querySelector(`#${selectId}`);
+    if (!select) return;
+
+    // Save currently selected value
+    const currentValue = select.value;
+
+    // Clear existing options (keep placeholder)
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    if (!financialCenterId) {
+        // No FC selected - show all cost centers
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            if (String(cc.id) === currentValue) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+        return;
+    }
+
+    // Fetch filtered cost centers from API
+    try {
+        const response = await fetch(
+            `/api/v1/cost-centers?limit=1000&financial_center_id=${financialCenterId}`,
+            { credentials: 'include' }
+        );
+        if (response.ok) {
+            const data = await response.json();
+            const filteredCostCenters = data.cost_centers || [];
+            filteredCostCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                if (String(cc.id) === currentValue) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+        } else {
+            // Fallback to showing all
+            allCostCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                if (String(cc.id) === currentValue) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('[Transfer] Error filtering cost centers:', error);
+        // Fallback to showing all
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            if (String(cc.id) === currentValue) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    }
+}
+
+/**
  * Setup CFO filtering event listeners
  * When one CFO is selected, remove it from the opposite dropdown
  * Also triggers hint reload for plan transfers
@@ -575,11 +656,13 @@ function setupCFOFiltering() {
     if (fromFCSelect) {
         fromFCSelect.addEventListener('change', async () => {
             populateFinancialCenterDropdowns();
+            const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
             // Filter FROM categories by selected FC
             if (fromCategoryTree) {
-                const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
                 await fromCategoryTree.updateFinancialCenter(fcId);
             }
+            // Filter FROM cost center dropdown
+            await filterCostCenterDropdown('from_cost_center', fcId);
             // Reload FROM hints when account changes (only for plan transfers)
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('from');
@@ -590,11 +673,13 @@ function setupCFOFiltering() {
     if (toFCSelect) {
         toFCSelect.addEventListener('change', async () => {
             populateFinancialCenterDropdowns();
+            const fcId = toFCSelect.value ? parseInt(toFCSelect.value) : null;
             // Filter TO categories by selected FC
             if (toCategoryTree) {
-                const fcId = toFCSelect.value ? parseInt(toFCSelect.value) : null;
                 await toCategoryTree.updateFinancialCenter(fcId);
             }
+            // Filter TO cost center dropdown
+            await filterCostCenterDropdown('to_cost_center', fcId);
             // Reload TO hints when account changes (only for plan transfers)
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('to');

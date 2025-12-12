@@ -44,6 +44,13 @@ class CostCenterCreate(BaseModel):
         examples=[True]
     )
 
+    financial_center_ids: Optional[list[int]] = Field(
+        default=None,
+        description="List of financial center IDs this cost center is available for. "
+                    "NULL/empty = available for all.",
+        examples=[[1, 2, 3], None]
+    )
+
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str) -> str:
@@ -104,6 +111,13 @@ class CostCenterUpdate(BaseModel):
         default=None,
         description="Active status (True = visible in UI, False = archived)",
         examples=[True, False]
+    )
+
+    financial_center_ids: Optional[list[int]] = Field(
+        default=None,
+        description="List of financial center IDs. Pass empty list [] to clear all links "
+                    "(available for all).",
+        examples=[[1, 2], []]
     )
 
     @field_validator("name")
@@ -180,6 +194,13 @@ class CostCenterResponse(BaseModel):
         examples=["2025-10-14T12:00:00Z"]
     )
 
+    financial_center_ids: list[int] = Field(
+        default_factory=list,
+        description="List of financial center IDs this cost center is linked to. "
+                    "Empty list = available for all financial centers.",
+        examples=[[1, 2], []]
+    )
+
     model_config = {
         "from_attributes": True,  # Allow ORM mode for SQLModel compatibility
         "json_schema_extra": {
@@ -191,7 +212,8 @@ class CostCenterResponse(BaseModel):
                 "description": "Kitchen and bathroom renovation",
                 "is_active": True,
                 "created_at": "2025-10-14T12:00:00Z",
-                "updated_at": "2025-10-14T12:00:00Z"
+                "updated_at": "2025-10-14T12:00:00Z",
+                "financial_center_ids": [1, 2]
             }
         }
     }
