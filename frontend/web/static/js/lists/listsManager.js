@@ -644,12 +644,11 @@ class ListsManager {
      */
     renderMobileCard(item) {
         const store = this.stores.find(s => s.id === item.store_id);
-        const group = this.productGroups.find(g => g.id === item.product_group_id);
         const isCompleted = item.is_completed;
 
-        // Build path: Store → Group → Product
+        // Build path: Store → Full Group Hierarchy → Product
         const storeName = store ? this.escapeHtml(store.name) : '?';
-        const groupName = group ? this.escapeHtml(group.name) : '?';
+        const groupPath = this.getProductGroupBreadcrumbs(item.product_group_id);
         const productName = this.escapeHtml(item.product_name);
 
         // Format quantity
@@ -671,7 +670,7 @@ class ListsManager {
                     <div class="mobile-card-path">
                         <span class="mobile-card-store">${storeName}</span>
                         <span class="mobile-card-separator">→</span>
-                        <span class="mobile-card-group">${groupName}</span>
+                        <span class="mobile-card-group">${groupPath ? this.escapeHtml(groupPath) : '?'}</span>
                         <span class="mobile-card-separator">→</span>
                         <span class="mobile-card-product">${productName}</span>
                     </div>
@@ -941,8 +940,8 @@ class ListsManager {
 
     /**
      * Build choices array for product groups with HTML labels
-     * Format: "Name (Parent)" where Parent is styled gray and smaller
-     * Shows only immediate parent, not full hierarchy
+     * Format: "Name (Full → Hierarchy → Path)" where path is styled gray and smaller
+     * Shows FULL hierarchy chain from root to parent
      * @returns {Array} Choices array for Choices.js
      */
     buildProductGroupChoices() {
@@ -951,6 +950,19 @@ class ListsManager {
         this.productGroups.forEach(group => {
             groupMap[group.id] = group;
         });
+
+        // Helper to get full parent chain (excluding leaf itself)
+        const getParentChain = (groupId) => {
+            const path = [];
+            let currentId = groupMap[groupId]?.parent_id;
+
+            while (currentId && groupMap[currentId]) {
+                path.unshift(groupMap[currentId].name);
+                currentId = groupMap[currentId].parent_id;
+            }
+
+            return path;
+        };
 
         // Find leaf groups (groups that have no children)
         const parentIds = new Set();
@@ -969,13 +981,14 @@ class ListsManager {
         leafGroups
             .filter(pg => pg.is_active)
             .forEach(pg => {
-                // Get immediate parent only (not full hierarchy)
-                const parent = pg.parent_id ? groupMap[pg.parent_id] : null;
+                // Get FULL parent chain
+                const parentChain = getParentChain(pg.id);
 
-                // Format: "Name (Parent)" with HTML styling for parent
+                // Format: "Name (Full → Hierarchy)" with HTML styling for hierarchy path
                 let label = this.escapeHtml(pg.name);
-                if (parent) {
-                    label = `${this.escapeHtml(pg.name)} <span class="product-group-parents">(${this.escapeHtml(parent.name)})</span>`;
+                if (parentChain.length > 0) {
+                    const hierarchyPath = parentChain.map(p => this.escapeHtml(p)).join(' → ');
+                    label = `${this.escapeHtml(pg.name)} <span class="product-group-parents">(${hierarchyPath})</span>`;
                 }
 
                 choices.push({
