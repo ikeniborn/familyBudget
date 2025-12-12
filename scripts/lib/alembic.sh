@@ -21,9 +21,10 @@
 # =============================================================================
 
 # Alembic command wrapper (runs inside backend container)
+# Must specify config file path and run from /app directory
 alembic_cmd() {
     local alembic_args="$*"
-    compose_cmd exec -T backend alembic $alembic_args
+    compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini $alembic_args"
 }
 
 # =============================================================================

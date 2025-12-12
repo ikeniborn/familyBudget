@@ -554,8 +554,8 @@ check_database_details() {
 
     if [ -n "$backend_container" ]; then
         # Get current Alembic version
-        local current_version=$(docker exec "$backend_container" bash -c "cd /app/backend/db/migrations && alembic current 2>/dev/null" | grep -oP '[a-f0-9]{12}' | head -1 || echo "unknown")
-        local head_version=$(docker exec "$backend_container" bash -c "cd /app/backend/db/migrations && alembic heads 2>/dev/null" | grep -oP '[a-f0-9]{12}' | head -1 || echo "unknown")
+        local current_version=$(docker exec "$backend_container" bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null" | tail -1 | grep -oP '^[a-zA-Z0-9]{12}' || echo "unknown")
+        local head_version=$(docker exec "$backend_container" bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini heads 2>/dev/null" | tail -1 | grep -oP '^[a-zA-Z0-9]{12}' || echo "unknown")
 
         if [ "$current_version" != "unknown" ]; then
             print_status "  Current Version:" "$current_version" "$WHITE"
