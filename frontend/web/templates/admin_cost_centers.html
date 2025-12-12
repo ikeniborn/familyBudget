@@ -255,9 +255,9 @@ function renderCentersTable(centers) {
                 <thead>
                     <tr>
                         <th>📝 Название</th>
+                        <th>🏦 Счета</th>
                         <th>🔢 Код</th>
                         <th>📄 Описание</th>
-                        <th>🏦 Счета</th>
                         <th>📅 Создан</th>
                         ${isAdmin ? '<th>⚙️ Действия</th>' : ''}
                     </tr>
@@ -293,9 +293,9 @@ function renderCentersTable(centers) {
         html += `
             <tr data-center-id="${center.id}">
                 <td class="font-medium">${center.name}${archivedBadge}</td>
+                <td>${getFCNamesLabel(center.financial_center_ids)}</td>
                 <td class="font-mono text-sm">${center.code || '—'}</td>
                 <td>${description}</td>
-                <td>${getFCNamesLabel(center.financial_center_ids)}</td>
                 <td>${createdDate}</td>
                 ${actionsCell}
             </tr>
