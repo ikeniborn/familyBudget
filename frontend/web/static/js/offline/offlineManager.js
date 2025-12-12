@@ -24,6 +24,7 @@ class OfflineManager {
         this.isInitialized = false;
         this.lastToastTime = 0;
         this.toastDebounceMs = 3000; // Prevent toast spam
+        this.lastOfflineToastTime = 0; // For debounce offline save toast
 
         // SmartNetworkDetector для надежного определения состояния сети
         this.networkDetector = null;
@@ -89,6 +90,15 @@ class OfflineManager {
                 }
             });
         }
+
+        // Listen for auto-offline recovery events
+        window.addEventListener('auto-offline-recovered', () => {
+            this._handleAutoOfflineRecovery();
+        });
+
+        window.addEventListener('server-recovered', (event) => {
+            console.log('[OfflineManager] Server recovered at:', new Date(event.detail.timestamp));
+        });
 
         // Check initial network status
         if (this.isOnline) {
@@ -184,6 +194,44 @@ class OfflineManager {
     }
 
     /**
+     * Show toast about offline save with option to enable auto-offline mode
+     * @private
+     */
+    _showOfflineSaveToast() {
+        // Debounce - don't show too frequently
+        const now = Date.now();
+        if (now - this.lastOfflineToastTime < 10000) {
+            return; // Not more than once per 10 seconds
+        }
+        this.lastOfflineToastTime = now;
+
+        // Check: is auto-offline already enabled?
+        if (this.networkDetector && this.networkDetector.autoOfflineMode) {
+            // Already in auto-offline mode - don't show action button
+            this._showToastDebounced('Сохранено локально (офлайн режим)', 'info');
+            return;
+        }
+
+        // Toast with action button (NOT blocking!)
+        if (typeof showToastWithAction === 'function') {
+            showToastWithAction({
+                message: 'Сервер недоступен. Данные сохранены локально.',
+                type: 'warning',
+                duration: 8000,
+                action: {
+                    label: 'Включить офлайн режим',
+                    onClick: () => {
+                        this.enableAutoOfflineMode();
+                    }
+                }
+            });
+        } else {
+            // Fallback: simple toast without action
+            this._showToastDebounced('Сервер недоступен. Сохранено локально.', 'warning');
+        }
+    }
+
+    /**
      * Check if Background Sync API is supported
      * @returns {boolean}
      */
@@ -208,36 +256,53 @@ class OfflineManager {
     // ==================== FACTS ====================
 
     /**
-     * Create Fact (online or offline)
+     * Create Fact (optimistic save)
+     * Try to send online → on error automatically save offline
      * @param {Object} data - Fact data
      * @returns {Promise<Object>} Created fact
      */
     async createFact(data) {
-        // Use navigator.onLine directly as it's more reliable on iOS PWA
-        // this.isOnline may not update quickly enough when network changes
-        const actuallyOnline = navigator.onLine && this.isOnline;
-
-        if (actuallyOnline) {
-            try {
-                return await this.createFactOnline(data);
-            } catch (error) {
-                // Update internal state
-                this.isOnline = false;
-                return await this.createFactOffline(data);
-            }
-        } else {
+        // If explicitly offline - save locally immediately
+        if (!this.isOnline) {
             return await this.createFactOffline(data);
+        }
+
+        // Try to send online with short timeout (2 sec)
+        try {
+            return await this.createFactOnline(data, 2000);
+        } catch (error) {
+            // Error - automatically save offline
+            console.warn('[OfflineManager] Online create failed, falling back to offline:', error);
+
+            const offlineItem = await this.createFactOffline(data);
+
+            // Show toast with option to enable auto-offline
+            this._showOfflineSaveToast();
+
+            return offlineItem;
         }
     }
 
-    async createFactOnline(data) {
+    /**
+     * Create fact online with short timeout
+     * @param {Object} data - Fact data
+     * @param {number} timeout - Timeout in ms (default 2000ms)
+     * @returns {Promise<Object>} Created fact
+     */
+    async createFactOnline(data, timeout = 2000) {
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
             const response = await fetch('/api/v1/facts', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
-                credentials: 'include'
+                credentials: 'include',
+                signal: controller.signal
             });
+
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 // Try to parse error response, with fallback
@@ -988,6 +1053,46 @@ class OfflineManager {
      */
     async clearAll() {
         await this.db.clearAll();
+    }
+
+    /**
+     * Enable auto-offline mode
+     * Called when server is unavailable while trying to send data
+     */
+    async enableAutoOfflineMode() {
+        if (this.networkDetector) {
+            this.networkDetector.enableAutoOfflineMode();
+        }
+
+        // Show toast
+        this._showToastDebounced('Включен офлайн режим (автоматически)', 'info');
+    }
+
+    /**
+     * Handle auto-offline recovery
+     * Called when server becomes available after auto-offline mode
+     * @private
+     */
+    async _handleAutoOfflineRecovery() {
+        console.log('[OfflineManager] Auto offline recovery detected');
+
+        // Show toast
+        this._showToastDebounced('Связь с сервером восстановлена', 'success');
+
+        // Start synchronization
+        if (this.supportsBackgroundSync()) {
+            navigator.serviceWorker.ready.then(registration => {
+                return registration.sync.register('sync-budget-data');
+            }).catch(e => {
+                this.sync();
+            });
+        } else {
+            this.sync().then(results => {
+                if (results.synced > 0) {
+                    this._showToastDebounced(`Синхронизировано: ${results.synced} записей`, 'success');
+                }
+            });
+        }
     }
 }
 

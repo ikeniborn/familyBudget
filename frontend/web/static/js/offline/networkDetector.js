@@ -17,7 +17,11 @@ class SmartNetworkDetector {
 
         // Manual offline mode (user-controlled)
         this.manualOfflineMode = false;
-        this._loadManualOfflineState();
+
+        // Auto offline mode (server unavailable)
+        this.autoOfflineMode = false;
+
+        this._loadOfflineState();
 
         // Счетчик последовательных ошибок
         this.consecutiveFailures = 0;
@@ -62,8 +66,8 @@ class SmartNetworkDetector {
             navigator.connection.addEventListener('change', this._handleConnectionChange);
         }
 
-        // Запуск heartbeat (only if not in manual offline mode)
-        if (!this.manualOfflineMode) {
+        // Запуск heartbeat (only if not in any offline mode)
+        if (!this.manualOfflineMode && !this.autoOfflineMode) {
             this._startHeartbeat();
             // Первичная проверка
             this.checkConnectivity();
@@ -100,8 +104,8 @@ class SmartNetworkDetector {
      * Обработка события online
      */
     async _handleOnline() {
-        // Skip if manual offline mode is enabled
-        if (this.manualOfflineMode) {
+        // Skip if any offline mode is enabled
+        if (this.manualOfflineMode || this.autoOfflineMode) {
             return;
         }
         // navigator.onLine стал true, но нужно проверить реальное соединение
@@ -119,8 +123,8 @@ class SmartNetworkDetector {
      * Обработка изменения качества соединения
      */
     async _handleConnectionChange() {
-        // Skip if manual offline mode is enabled
-        if (this.manualOfflineMode) {
+        // Skip if any offline mode is enabled
+        if (this.manualOfflineMode || this.autoOfflineMode) {
             return;
         }
 
@@ -167,12 +171,29 @@ class SmartNetworkDetector {
     }
 
     /**
+     * Get adaptive timeout based on RTT (Round-Trip Time)
+     * @returns {number} Timeout in ms
+     * @private
+     */
+    _getAdaptiveTimeout() {
+        const info = this.getConnectionInfo();
+
+        if (info && info.rtt) {
+            // RTT * 2 or minimum 2sec, maximum 5sec
+            return Math.max(Math.min(info.rtt * 2, 5000), 2000);
+        }
+
+        // Fallback: 3000ms (compromise between 2 and 5 sec)
+        return 3000;
+    }
+
+    /**
      * Проверить реальную доступность API
      * @param {boolean} force - Игнорировать минимальный интервал
      */
     async checkConnectivity(force = false) {
-        // Skip network checks if manual offline mode is enabled
-        if (this.manualOfflineMode) {
+        // Skip network checks if any offline mode is enabled
+        if (this.manualOfflineMode || this.autoOfflineMode) {
             return 'offline';
         }
 
@@ -189,8 +210,10 @@ class SmartNetworkDetector {
         this.lastCheck = now;
 
         try {
+            // Use adaptive timeout based on RTT
+            const timeout = this._getAdaptiveTimeout();
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), this.heartbeatTimeout);
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
 
             const response = await fetch(this.heartbeatUrl, {
                 method: 'GET',
@@ -259,8 +282,8 @@ class SmartNetworkDetector {
             clearTimeout(this.heartbeatTimer);
         }
 
-        // Skip if manual offline mode is enabled
-        if (this.manualOfflineMode) {
+        // Skip if any offline mode is enabled
+        if (this.manualOfflineMode || this.autoOfflineMode) {
             return;
         }
 
@@ -373,35 +396,42 @@ class SmartNetworkDetector {
         }
 
         this.stopHeartbeat();
+        this._stopAutoRecoveryCheck();
     }
 
     // ==================== MANUAL OFFLINE MODE ====================
 
     /**
-     * Load manual offline state from localStorage
+     * Load offline state from localStorage (both manual and auto)
      * @private
      */
-    _loadManualOfflineState() {
+    _loadOfflineState() {
         try {
-            const saved = localStorage.getItem('budget_manual_offline_mode');
-            this.manualOfflineMode = saved === 'true';
-            if (this.manualOfflineMode) {
+            const manual = localStorage.getItem('budget_manual_offline_mode');
+            const auto = localStorage.getItem('budget_auto_offline_mode');
+
+            this.manualOfflineMode = manual === 'true';
+            this.autoOfflineMode = auto === 'true';
+
+            if (this.manualOfflineMode || this.autoOfflineMode) {
                 this.status = 'offline';
             }
         } catch (e) {
             this.manualOfflineMode = false;
+            this.autoOfflineMode = false;
         }
     }
 
     /**
-     * Save manual offline state to localStorage
+     * Save offline state to localStorage (both manual and auto)
      * @private
      */
-    _saveManualOfflineState() {
+    _saveOfflineState() {
         try {
             localStorage.setItem('budget_manual_offline_mode', this.manualOfflineMode.toString());
+            localStorage.setItem('budget_auto_offline_mode', this.autoOfflineMode.toString());
         } catch (e) {
-            console.warn('[NetworkDetector] Failed to save manual offline state');
+            console.warn('[NetworkDetector] Failed to save offline state');
         }
     }
 
@@ -414,7 +444,7 @@ class SmartNetworkDetector {
 
         const oldStatus = this.status;
         this.manualOfflineMode = true;
-        this._saveManualOfflineState();
+        this._saveOfflineState();
         this.stopHeartbeat();
         this.status = 'offline';
 
@@ -453,7 +483,7 @@ class SmartNetworkDetector {
         if (!this.manualOfflineMode) return;
 
         this.manualOfflineMode = false;
-        this._saveManualOfflineState();
+        this._saveOfflineState();
         this._startHeartbeat();
 
         console.log('[NetworkDetector] Manual offline mode DISABLED');
@@ -493,6 +523,142 @@ class SmartNetworkDetector {
      */
     isManualOfflineModeEnabled() {
         return this.manualOfflineMode;
+    }
+
+    // ==================== AUTO OFFLINE MODE ====================
+
+    /**
+     * Enable auto offline mode
+     * Activated when server is unavailable when trying to send data
+     */
+    enableAutoOfflineMode() {
+        if (this.autoOfflineMode) return;
+
+        // Manual mode has priority
+        if (this.manualOfflineMode) {
+            console.log('[NetworkDetector] Manual offline mode active, skipping auto offline');
+            return;
+        }
+
+        const oldStatus = this.status;
+        this.autoOfflineMode = true;
+        this._saveOfflineState();
+        this.stopHeartbeat();
+        this.status = 'offline';
+
+        console.log('[NetworkDetector] Auto offline mode ENABLED');
+
+        // Start periodic recovery check (progressive backoff: 30s → 60s → 120s)
+        this._startAutoRecoveryCheck();
+
+        // Dispatch events
+        window.dispatchEvent(new CustomEvent('network-status-change', {
+            detail: {
+                status: 'offline',
+                previousStatus: oldStatus,
+                timestamp: Date.now(),
+                auto: true
+            }
+        }));
+
+        window.dispatchEvent(new CustomEvent('offline-status-change', {
+            detail: { online: false, status: 'offline', auto: true }
+        }));
+    }
+
+    /**
+     * Disable auto offline mode
+     * Called when connection to server is restored
+     */
+    async disableAutoOfflineMode() {
+        if (!this.autoOfflineMode) return;
+
+        this.autoOfflineMode = false;
+        this._saveOfflineState();
+        this._stopAutoRecoveryCheck();
+        this._startHeartbeat();
+
+        console.log('[NetworkDetector] Auto offline mode DISABLED');
+
+        // Check actual network state
+        await this.checkConnectivity(true);
+    }
+
+    /**
+     * Start periodic recovery check with progressive backoff
+     * Checks every 30s → 60s → 120s when in auto-offline mode
+     * @private
+     */
+    _startAutoRecoveryCheck() {
+        this._stopAutoRecoveryCheck(); // Clear previous
+
+        let checkCount = 0;
+        const intervals = [30000, 60000, 120000]; // 30s, 60s, 120s
+
+        const scheduleNext = () => {
+            const interval = intervals[Math.min(checkCount, intervals.length - 1)];
+
+            console.log(`[NetworkDetector] Scheduling next auto recovery check in ${interval / 1000}s (check #${checkCount + 1})`);
+
+            this.autoRecoveryTimer = setTimeout(async () => {
+                console.log(`[NetworkDetector] Auto recovery check #${checkCount + 1}...`);
+
+                // Temporarily disable auto offline mode to allow real connectivity check
+                const wasAutoOffline = this.autoOfflineMode;
+                this.autoOfflineMode = false;
+
+                try {
+                    // Check actual server connectivity
+                    await this.checkConnectivity(true);
+
+                    if (this.status !== 'offline') {
+                        // Recovered!
+                        console.log('[NetworkDetector] Server recovered, disabling auto offline mode');
+                        await this.disableAutoOfflineMode();
+
+                    // Show notification
+                    window.dispatchEvent(new CustomEvent('server-recovered', {
+                        detail: { timestamp: Date.now() }
+                    }));
+
+                        // Trigger sync
+                        window.dispatchEvent(new CustomEvent('auto-offline-recovered'));
+                    } else {
+                        // Not recovered - restore auto offline mode and schedule next check
+                        this.autoOfflineMode = wasAutoOffline;
+                        checkCount++;
+                        scheduleNext();
+                    }
+                } catch (error) {
+                    // Error during check - restore auto offline mode and schedule next check
+                    console.error('[NetworkDetector] Error during recovery check:', error);
+                    this.autoOfflineMode = wasAutoOffline;
+                    checkCount++;
+                    scheduleNext();
+                }
+            }, interval);
+        };
+
+        scheduleNext();
+    }
+
+    /**
+     * Stop auto recovery check
+     * @private
+     */
+    _stopAutoRecoveryCheck() {
+        if (this.autoRecoveryTimer) {
+            clearTimeout(this.autoRecoveryTimer);
+            this.autoRecoveryTimer = null;
+        }
+    }
+
+    /**
+     * Check if any offline mode is enabled (manual or auto)
+     * @returns {boolean}
+     */
+    isOfflineModeEnabled() {
+        return this.manualOfflineMode || this.autoOfflineMode;
     }
 }
 

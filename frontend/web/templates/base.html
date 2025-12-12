@@ -667,6 +667,103 @@
             }, duration);
         }
 
+        // Toast with action button (for offline mode prompts)
+        function showToastWithAction({ message, type = 'info', duration = 5000, action }) {
+            // Use main toast container (or modal container if dialog is open)
+            const openModal = document.querySelector('dialog[open]');
+            let container;
+
+            if (openModal) {
+                // Modal is open - create/get toast container inside modal
+                container = openModal.querySelector('.modal-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.className = 'modal-toast-container fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
+                    openModal.appendChild(container);
+                }
+            } else {
+                // No modal open - use main toast container
+                container = document.getElementById('toast-container');
+            }
+
+            if (!container) return;
+
+            // Create toast element
+            const toast = document.createElement('div');
+            const alertClass = type === 'success' ? 'alert-success' :
+                              type === 'error' ? 'alert-error' :
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
+
+            toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
+            toast.style.cssText = `
+                max-width: min(90vw, 400px);
+                width: auto;
+                min-width: 200px;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                hyphens: auto;
+            `;
+
+            // Alert icon based on type
+            let iconHTML = '';
+            switch (type) {
+                case 'success':
+                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+                    break;
+                case 'error':
+                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+                    break;
+                case 'warning':
+                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>';
+                    break;
+                case 'info':
+                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                    break;
+            }
+
+            toast.innerHTML = `
+                <div class="flex items-center gap-2 flex-1">
+                    ${iconHTML}
+                    <span class="break-words whitespace-normal leading-tight text-sm sm:text-base">${message}</span>
+                </div>
+                ${action ? `
+                    <button class="btn btn-sm btn-ghost" data-toast-action>
+                        ${action.label}
+                    </button>
+                ` : ''}
+            `;
+
+            // Add to container
+            container.appendChild(toast);
+
+            // Обработчик action button
+            if (action && action.onClick) {
+                const actionBtn = toast.querySelector('[data-toast-action]');
+                if (actionBtn) {
+                    actionBtn.addEventListener('click', () => {
+                        action.onClick();
+                        toast.remove(); // Закрыть toast после клика
+                    });
+                }
+            }
+
+            // Auto-dismiss
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.3s, transform 0.3s';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                setTimeout(() => {
+                    if (toast.parentNode === container) {
+                        container.removeChild(toast);
+                    }
+                    // Clean up empty modal container
+                    if (container.classList.contains('modal-toast-container') && container.children.length === 0) {
+                        container.remove();
+                    }
+                }, 300);
+            }, duration);
+        }
+
         // Submit button loading state management (prevents double submit)
         function setSubmitLoading(form, isLoading) {
             const submitBtn = form.querySelector('button[type="submit"]');
@@ -914,8 +1011,31 @@
 
         // Also listen for network-status-change (from SmartNetworkDetector directly)
         window.addEventListener('network-status-change', async (event) => {
-            const { status, previousStatus } = event.detail || {};
-            debugLog('[Offline] Network status change:', previousStatus, '→', status);
+            const { status, previousStatus, manual, auto } = event.detail || {};
+            debugLog('[Offline] Network status change:', previousStatus, '→', status, 'manual:', manual, 'auto:', auto);
+
+            // Update offline indicator based on mode
+            const offlineIcon = document.getElementById('offline-icon');
+            if (offlineIcon) {
+                if (status === 'offline') {
+                    if (manual) {
+                        // Manual offline - cloud with pause icon (already shown by manual toggle)
+                        offlineIcon.classList.add('hidden');
+                    } else if (auto) {
+                        // Auto offline - cloud with X icon (red/warning)
+                        offlineIcon.classList.remove('hidden');
+                        offlineIcon.title = 'Сервер недоступен (автоматически)';
+                    } else {
+                        // Network offline - cloud with X icon
+                        offlineIcon.classList.remove('hidden');
+                        offlineIcon.title = 'Нет подключения к интернету';
+                    }
+                } else {
+                    // Online - hide offline icon
+                    offlineIcon.classList.add('hidden');
+                }
+            }
+
             // Update UI based on actual backend availability
             updateOfflineUI();
 
