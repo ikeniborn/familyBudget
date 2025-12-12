@@ -2195,6 +2195,9 @@ async def update_fact(
     if update_data.cost_center_id is not None:
         fact.cost_center_id = update_data.cost_center_id
 
+    # Update timestamp (model doesn't have onupdate, so must do manually)
+    fact.updated_at = datetime.now(timezone.utc)
+
     session.add(fact)
     await session.commit()
     await session.refresh(fact)
