@@ -81,7 +81,7 @@ async def list_cost_centers(
     query = (
         select(CostCenter)
         .where(*conditions)
-        .order_by(CostCenter.name)
+        .order_by(CostCenter.updated_at.desc())
         .limit(limit)
         .offset(offset)
     )
@@ -202,6 +202,12 @@ async def update_cost_center(
 
     Shared references architecture: Only admins can update cost centers.
     """
+    # LOG: Request received
+    logger.info(
+        f"[UPDATE_CC] Request received: cc_id={cost_center_id}, "
+        f"user_id={current_user.id}, data={update_data.model_dump(exclude_unset=True)}"
+    )
+
     # Check: Only admins can update cost centers
     if not current_user.is_admin:
         raise HTTPException(
@@ -223,14 +229,21 @@ async def update_cost_center(
             detail=f"Cost center {cost_center_id} not found",
         )
 
+    # LOG: Found record
+    logger.info(f"[UPDATE_CC] Found: id={cost_center.id}, name='{cost_center.name}'")
+
     # Get update dict
     update_dict = update_data.model_dump(exclude_unset=True)
 
     # Check if anything changed
     changed, changed_fields = has_changes(cost_center, update_dict)
     if not changed:
+        logger.info(f"[UPDATE_CC] No changes detected for cc_id={cost_center_id}")
         # No changes, return existing cost center
         return CostCenterResponse.model_validate(cost_center)
+
+    # LOG: Detected changes
+    logger.info(f"[UPDATE_CC] Detected changes: {changed_fields}")
 
     # Use SCD1+History service for update
     updated_cost_center = await update_cost_center_profile(
@@ -239,6 +252,12 @@ async def update_cost_center(
         updates=update_dict,
         changed_by_user_id=current_user.id,
         change_type="UPDATE",
+    )
+
+    # LOG: Success
+    logger.info(
+        f"[UPDATE_CC] Successfully updated cc_id={cost_center_id}, "
+        f"new_values: {update_dict}"
     )
 
     return CostCenterResponse.model_validate(updated_cost_center)

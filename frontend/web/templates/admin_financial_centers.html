@@ -313,6 +313,13 @@ async function updateCenter(event) {
         description: formData.get('description') || null
     };
 
+    // LOG: Frontend data before sending
+    console.log('[FRONTEND] Updating financial center:', {
+        centerId,
+        data,
+        url: `/api/v1/financial-centers/${centerId}`
+    });
+
     try {
         const response = await fetch(`/api/v1/financial-centers/${centerId}`, {
             method: 'PUT',
@@ -323,10 +330,16 @@ async function updateCenter(event) {
             body: JSON.stringify(data)
         });
 
+        console.log('[FRONTEND] Response status:', response.status);
+
         if (!response.ok) {
             const error = await response.json();
+            console.error('[FRONTEND] Error response:', error);
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
+
+        const result = await response.json();
+        console.log('[FRONTEND] Success response:', result);
 
         // Success
         closeEditModal();

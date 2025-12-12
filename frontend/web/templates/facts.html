@@ -1407,10 +1407,17 @@ async function updateFact(event) {
     const formData = new FormData(event.target);
     const factId = formData.get('id');
 
+    // VALIDATION: Check date format BEFORE calling formatForAPI
+    const factDateInput = formData.get('fact_date');
+    if (!factDateInput || !BudgetShared.DateFormatter.isValidDisplayFormat(factDateInput)) {
+        showNotification('❌ Неверный формат даты. Используйте формат ДД.ММ.ГГГГ (например, 12.12.2025)', 'error');
+        return;
+    }
+
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
-        fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')),
+        fact_date: BudgetShared.DateFormatter.formatForAPI(factDateInput),
         article_id: parseInt(formData.get('article_id')),
         description: formData.get('description') || null
     };
@@ -1437,7 +1444,19 @@ async function updateFact(event) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            console.error('Validation errors:', error);
+
+            // Parse Pydantic validation errors for better UX
+            let errorMsg = 'Ошибка сохранения';
+            if (Array.isArray(error.detail)) {
+                errorMsg = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+            } else if (error.detail) {
+                errorMsg = error.detail;
+            } else {
+                errorMsg = `HTTP error! status: ${response.status}`;
+            }
+
+            throw new Error(errorMsg);
         }
 
         closeEditModal();
