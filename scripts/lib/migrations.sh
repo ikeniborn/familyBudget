@@ -54,7 +54,7 @@ run_alembic_migrations() {
     # Check current Alembic revision
     info "Checking current migration status..."
     local current_revision
-    current_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | head -1 | grep -oP '^[a-f0-9]{12}'" || echo "none")
+    current_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}'" || echo "none")
 
     if [[ "$current_revision" == "none" ]]; then
         info "No migrations applied yet - fresh database detected"
@@ -91,7 +91,7 @@ run_alembic_migrations() {
 
         # Show new current revision
         local new_revision
-        new_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | head -1 | grep -oP '^[a-f0-9]{12}'" || echo "unknown")
+        new_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}'" || echo "unknown")
         if [[ "$new_revision" != "unknown" && "$new_revision" != "$current_revision" ]]; then
             info "Database updated: $current_revision → $new_revision"
         elif [[ "$new_revision" == "$current_revision" ]]; then
@@ -127,7 +127,7 @@ verify_database_schema() {
     # Check Alembic migration status
     info "Checking Alembic migration status..."
     local current_revision
-    current_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | head -1 | grep -oP '^[a-f0-9]{12}'" || echo "none")
+    current_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}'" || echo "none")
 
     if [[ "$current_revision" == "none" ]]; then
         warning "No Alembic migrations applied - database may be empty"
