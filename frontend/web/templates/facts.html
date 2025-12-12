@@ -1419,6 +1419,16 @@ async function updateFact(event) {
     const formattedDate = BudgetShared.DateFormatter.formatForAPI(factDateInput);
     console.log('[updateFact] Formatted date for API:', formattedDate);
 
+    // VALIDATION: Факты не могут иметь дату в будущем (plans могут)
+    const selectedDate = new Date(formattedDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Сбросить время для сравнения только даты
+
+    if (selectedDate > today) {
+        showNotification('❌ Факты не могут иметь дату в будущем. Для планирования будущих транзакций используйте раздел "План".', 'error');
+        return;
+    }
+
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
@@ -1807,6 +1817,20 @@ async function createFact(event) {
     setSubmitLoading(event.target, true);
 
     const formData = new FormData(event.target);
+
+    // VALIDATION: Факты не могут иметь дату в будущем
+    const factDateInput = formData.get('fact_date');
+    const formattedDate = BudgetShared.DateFormatter.formatForAPI(factDateInput);
+    const selectedDate = new Date(formattedDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate > today) {
+        showNotification('❌ Факты не могут иметь дату в будущем. Для планирования будущих транзакций используйте раздел "План".', 'error');
+        setSubmitLoading(event.target, false);
+        return;
+    }
+
     const data = {
         record_type: 'fact',
         fact_type: formData.get('record_type'), // 'expense' или 'income'
@@ -1814,7 +1838,7 @@ async function createFact(event) {
         article_id: parseInt(formData.get('article_id')),
         financial_center_id: parseInt(formData.get('financial_center_id')),
         cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-        fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date')),
+        fact_date: formattedDate,
         description: formData.get('description') || null
     };
 
