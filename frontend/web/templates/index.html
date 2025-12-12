@@ -276,6 +276,9 @@
 let transactionCategoryTreeSelect = null;
 let planCategoryTreeSelect = null;
 
+// Store all cost centers for filtering
+let allCostCenters = [];
+
 // Открыть модальное окно фактического перевода
 function openFactTransferModal() {
     // Set transfer type to 'fact'
@@ -870,15 +873,17 @@ async function loadFinancialCenters() {
             });
         });
 
-        // Add change listeners to filter categories AND reload hints when account changes
+        // Add change listeners to filter categories AND cost centers when account changes
         const transactionFcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
         if (transactionFcSelect) {
             transactionFcSelect.addEventListener('change', async () => {
+                const fcId = transactionFcSelect.value ? parseInt(transactionFcSelect.value) : null;
                 // Filter categories by selected FC
                 if (transactionCategoryTreeSelect) {
-                    const fcId = transactionFcSelect.value ? parseInt(transactionFcSelect.value) : null;
                     await transactionCategoryTreeSelect.updateFinancialCenter(fcId);
                 }
+                // Filter cost centers by selected FC
+                await filterCostCenterDropdown('#form_modal_add_transaction', fcId);
                 // Update recommended amounts
                 const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
                 loadRecommendedAmounts('form_modal_add_transaction', 'fact', selectedCategory);
@@ -888,11 +893,13 @@ async function loadFinancialCenters() {
         const planFcSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
         if (planFcSelect) {
             planFcSelect.addEventListener('change', async () => {
+                const fcId = planFcSelect.value ? parseInt(planFcSelect.value) : null;
                 // Filter categories by selected FC
                 if (planCategoryTreeSelect) {
-                    const fcId = planFcSelect.value ? parseInt(planFcSelect.value) : null;
                     await planCategoryTreeSelect.updateFinancialCenter(fcId);
                 }
+                // Filter cost centers by selected FC
+                await filterCostCenterDropdown('#form_modal_add_plan', fcId);
                 // Update plan hints
                 const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
                 loadPlanHints(selectedCategory);
@@ -917,6 +924,9 @@ async function loadCostCenters() {
 
         const data = await response.json();
         const centers = data.cost_centers || [];
+
+        // Save to global for filtering
+        allCostCenters = centers;
 
         // МЗ опциональное, пустой список не критичен
         if (centers.length === 0) {
@@ -950,6 +960,77 @@ async function loadCostCenters() {
         console.error('Failed to load cost centers:', error);
         // Не показываем error toast, т.к. МЗ опциональное поле
         debugLog('Cost centers error is non-critical');
+    }
+}
+
+/**
+ * Filter cost center dropdown by financial center ID.
+ * Whitelist pattern: show cost centers without FC restrictions OR linked to this FC.
+ * @param {string} formSelector - CSS selector for the form (e.g., '#form_modal_add_transaction')
+ * @param {number|null} financialCenterId - Selected financial center ID
+ */
+async function filterCostCenterDropdown(formSelector, financialCenterId) {
+    const select = document.querySelector(`${formSelector} select[name="cost_center_id"]`);
+    if (!select) return;
+
+    const currentValue = select.value;
+
+    // Clear all options except the first one ("-- Не выбрано --")
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    if (!financialCenterId) {
+        // No FC selected - show all cost centers
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            select.appendChild(option);
+        });
+        // Restore previous selection if still available
+        if (currentValue) select.value = currentValue;
+        return;
+    }
+
+    // Fetch filtered cost centers from API
+    try {
+        const response = await fetch(
+            `/api/v1/cost-centers?limit=1000&financial_center_id=${financialCenterId}`,
+            { credentials: 'include' }
+        );
+        if (response.ok) {
+            const data = await response.json();
+            const filteredCenters = data.cost_centers || [];
+            filteredCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            // Restore previous selection if still available
+            if (currentValue) {
+                const exists = filteredCenters.some(cc => cc.id == currentValue);
+                if (exists) select.value = currentValue;
+            }
+        } else {
+            // Fallback to showing all
+            allCostCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error filtering cost centers:', error);
+        // Fallback to showing all
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            select.appendChild(option);
+        });
     }
 }
 

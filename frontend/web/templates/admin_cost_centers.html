@@ -401,13 +401,6 @@ async function updateCenter(event) {
         financial_center_ids: financialCenterIds  // даже если пустой массив - означает "очистить"
     };
 
-    // LOG: Frontend data before sending
-    console.log('[FRONTEND] Updating cost center:', {
-        centerId,
-        data,
-        url: `/api/v1/cost-centers/${centerId}`
-    });
-
     try {
         const response = await fetch(`/api/v1/cost-centers/${centerId}`, {
             method: 'PUT',
@@ -418,21 +411,15 @@ async function updateCenter(event) {
             body: JSON.stringify(data)
         });
 
-        console.log('[FRONTEND] Response status:', response.status);
-
         if (!response.ok) {
             const error = await response.json();
-            console.error('[FRONTEND] Error response:', error);
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
-
-        const result = await response.json();
-        console.log('[FRONTEND] Success response:', result);
 
         // Success
         closeEditModal();
         await loadCenters();
-        showNotification('✅ МЗ успешно обновлено (создана новая версия SCD2)!', 'success');
+        showNotification('✅ МЗ успешно обновлено!', 'success');
     } catch (error) {
         console.error('Error updating cost center:', error);
         const errorMessage = error?.message || String(error);
