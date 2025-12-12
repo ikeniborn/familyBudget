@@ -162,9 +162,9 @@
             <div class="page-title">Добавить факт</div>
         </div>
 
-        <!-- Financial Center Select - ПЕРВЫМ для фильтрации категорий -->
+        <!-- Account Select - ПЕРВЫМ для фильтрации категорий -->
         <div class="form-group">
-            <label class="form-label form-label-required">Центр финансовой ответственности (ЦФО)</label>
+            <label class="form-label form-label-required">Счет</label>
             <select id="financial-center" class="form-input" required>
                 <option value="">Загрузка...</option>
             </select>
@@ -211,7 +211,7 @@
             <span class="error-message" id="amount-error"></span>
         </div>
 
-        <!-- Category Select (фильтруется по выбранному ЦФО) -->
+        <!-- Category Select (фильтруется по выбранному счету) -->
         <div class="form-group">
             <label class="form-label form-label-required">Категория</label>
             <select id="category-select" class="form-input" required>
@@ -221,9 +221,9 @@
             <span class="error-message" id="category-error"></span>
         </div>
 
-        <!-- Cost Center Select -->
+        <!-- Cost Location Select -->
         <div class="form-group">
-            <label class="form-label">Место возникновения затрат (МВЗ)</label>
+            <label class="form-label">Место затрат</label>
             <select id="cost-center" class="form-input">
                 <option value="">-- Не выбрано --</option>
             </select>
@@ -641,7 +641,7 @@
                 }
 
                 // Clear and populate select
-                select.innerHTML = '<option value="">Выберите ЦФО</option>';
+                select.innerHTML = '<option value="">Выберите счет</option>';
                 financialCenters.forEach(fc => {
                     const option = document.createElement('option');
                     option.value = fc.id;
@@ -664,9 +664,9 @@
                 });
 
             } catch (error) {
-                console.error('Failed to load financial centers:', error);
-                select.innerHTML = '<option value="">Ошибка загрузки ЦФО</option>';
-                app.ui.showError('Не удалось загрузить список ЦФО. Попробуйте перезагрузить страницу.');
+                console.error('Failed to load accounts:', error);
+                select.innerHTML = '<option value="">Ошибка загрузки счетов</option>';
+                app.ui.showError('Не удалось загрузить список счетов. Попробуйте перезагрузить страницу.');
             }
         }
 
@@ -701,7 +701,7 @@
             } catch (error) {
                 console.error('Failed to load cost centers:', error);
                 select.innerHTML = '<option value="">-- Не выбрано --</option>';
-                // МВЗ опциональны, поэтому ошибку не показываем пользователю
+                // МЗ опциональны, поэтому ошибку не показываем пользователю
                 console.warn('Cost centers are optional - continuing without them');
             }
         }
@@ -812,10 +812,10 @@
                 document.getElementById('category-error').textContent = 'Выберите категорию';
             }
 
-            // Financial Center validation
+            // Account validation
             if (!formState.financialCenterId || formState.financialCenterId <= 0) {
-                errors.financialCenter = 'Выберите ЦФО';
-                document.getElementById('financial-center-error').textContent = 'Выберите ЦФО';
+                errors.financialCenter = 'Выберите счет';
+                document.getElementById('financial-center-error').textContent = 'Выберите счет';
             }
 
             // Date validation

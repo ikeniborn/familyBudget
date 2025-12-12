@@ -21,13 +21,13 @@
                        autocomplete="off" />
             </div>
 
-            <!-- Центр финансовой ответственности (ЦФО) - ПЕРВЫМ для фильтрации категорий -->
+            <!-- Счет - ПЕРВЫМ для фильтрации категорий -->
             <div class="form-control">
                 <label class="label py-1">
-                    <span class="label-text">ЦФО *</span>
+                    <span class="label-text">Счет *</span>
                 </label>
                 <select name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите ЦФО --</option>
+                    <option value="">-- Выберите счет --</option>
                 </select>
             </div>
 
@@ -48,7 +48,7 @@
                 </div>
             </div>
 
-            <!-- Категория (фильтруется по выбранному ЦФО) -->
+            <!-- Категория (фильтруется по выбранному счету) -->
             <div class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Категория *</span>
@@ -58,17 +58,17 @@
                 </select>
             </div>
 
-            <!-- Место возникновения затрат (МВЗ) -->
+            <!-- Место затрат -->
             <div class="form-control">
                 <label class="label py-1">
-                    <span class="label-text">МВЗ</span>
+                    <span class="label-text">Место затрат</span>
                 </label>
                 <select name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не выбрано --</option>
                 </select>
             </div>
 
-            <!-- Quick Amount Buttons (after ЦФО and МВЗ selection) -->
+            <!-- Quick Amount Buttons (after account and cost location selection) -->
             <div class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Сумма *</span>

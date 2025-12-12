@@ -161,16 +161,16 @@
         <div class="card bg-base-100 shadow-lg">
             <div class="card-body">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="card-title">🏢 ЦФО and МВЗ Usage Statistics</h2>
+                    <h2 class="card-title">🏢 Счета и Места затрат</h2>
                     <button class="btn btn-secondary btn-sm gap-1" onclick="refreshCentersUsage()">🔄 Refresh</button>
                 </div>
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div>
-                        <h3 class="text-center font-semibold text-lg mb-4">Financial Centers (ЦФО)</h3>
+                        <h3 class="text-center font-semibold text-lg mb-4">Счета</h3>
                         <div id="chart-financial-centers" style="width: 100%; height: 400px;"></div>
                     </div>
                     <div>
-                        <h3 class="text-center font-semibold text-lg mb-4">Cost Centers (МВЗ)</h3>
+                        <h3 class="text-center font-semibold text-lg mb-4">Места затрат</h3>
                         <div id="chart-cost-centers" style="width: 100%; height: 400px;"></div>
                     </div>
                 </div>
@@ -259,14 +259,14 @@ function renderOverview(data) {
         <div class="stats shadow-sm">
             <div class="stat">
                 <div class="stat-figure text-info text-3xl">🏢</div>
-                <div class="stat-title">ЦФО</div>
+                <div class="stat-title">Счета</div>
                 <div class="stat-value text-info">${data.total_financial_centers}</div>
             </div>
         </div>
         <div class="stats shadow-sm">
             <div class="stat">
                 <div class="stat-figure text-success text-3xl">💼</div>
-                <div class="stat-title">МВЗ</div>
+                <div class="stat-title">МЗ</div>
                 <div class="stat-value text-success">${data.total_cost_centers}</div>
             </div>
         </div>
@@ -863,7 +863,7 @@ function updateCentersCharts(data) {
 
     const fcOption = {
         title: {
-            text: 'ЦФО Usage',
+            text: 'Счета',
             left: 'center',
             textStyle: { fontSize: 14, fontWeight: 'normal' }
         },
@@ -919,7 +919,7 @@ function updateCentersCharts(data) {
 
     const ccOption = {
         title: {
-            text: 'МВЗ Usage',
+            text: 'МЗ',
             left: 'center',
             textStyle: { fontSize: 14, fontWeight: 'normal' }
         },

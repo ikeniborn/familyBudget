@@ -172,24 +172,120 @@ cd ~/familyBudget  # Репозиторий
 
 ## Опции деплоя
 
+### Базовые опции
+
 ```bash
 # Базовый деплой (PostgreSQL + Backend)
-./deploy.sh
+sudo bash deploy.sh
 
 # Полный деплой (+ Bot + Nginx + Certbot)
-./deploy.sh --profile full
+sudo bash deploy.sh --profile full
 
 # Пересборка образов
-./deploy.sh --build
+sudo bash deploy.sh --build
 
 # Просмотр логов в реальном времени
-./deploy.sh --foreground
-
-# Чистый деплой (УДАЛЯЕТ ВСЕ ДАННЫЕ!)
-./deploy.sh --clean
+sudo bash deploy.sh --foreground
 
 # Без миграций БД
-./deploy.sh --no-migrate
+sudo bash deploy.sh --no-migrate
+
+# Показать справку
+sudo bash deploy.sh --help
+```
+
+### 🔄 Режимы синхронизации (--sync-mode)
+
+Управление синхронизацией кода из репозитория в `/opt/budget`:
+
+| Режим | Описание | Когда использовать |
+|-------|----------|-------------------|
+| `mirror` | Полная зеркальная копия, удаляет лишние файлы | Первый деплой, чистая установка |
+| `update` | Обновляет только изменённые файлы | Регулярные обновления (по умолчанию) |
+| `clean` | Полная очистка `/opt/budget` + копирование | После крупных рефакторингов |
+| `skip` | Пропускает синхронизацию | Тестирование локальных изменений |
+
+```bash
+# Примеры
+sudo bash deploy.sh --sync-mode mirror    # Первый деплой
+sudo bash deploy.sh --sync-mode update    # Обычное обновление
+sudo bash deploy.sh --sync-mode clean     # После рефакторинга
+sudo bash deploy.sh --sync-mode skip      # Без синхронизации
+```
+
+### 🧹 Режимы очистки (--cleanup-mode)
+
+Управление очисткой Docker ресурсов:
+
+| Режим | Описание | Данные БД |
+|-------|----------|-----------|
+| `skip` | Пропускает очистку | ✅ Сохраняются |
+| `smart` | Удаляет контейнеры + сети, сохраняет volumes | ✅ Сохраняются |
+| `full` | Удаляет ВСЁ включая volumes | ❌ **УДАЛЯЮТСЯ!** |
+
+```bash
+# Примеры
+sudo bash deploy.sh --cleanup-mode skip   # Пропустить очистку
+sudo bash deploy.sh --cleanup-mode smart  # Безопасная очистка
+sudo bash deploy.sh --cleanup-mode full   # Полная очистка (УДАЛИТ ДАННЫЕ!)
+```
+
+⚠️ **ВНИМАНИЕ:** `--cleanup-mode full` безвозвратно удаляет все данные БД!
+
+### 📦 Управление версиями
+
+Автоматическое обновление версии приложения:
+
+```bash
+# Автоинкремент версии
+sudo bash deploy.sh --major              # 5.3.0 → 6.0.0
+sudo bash deploy.sh --minor              # 5.3.0 → 5.4.0
+sudo bash deploy.sh --patch              # 5.3.0 → 5.3.1
+
+# Установить конкретную версию
+sudo bash deploy.sh --version 5.4.0
+
+# Пропустить изменение версии
+sudo bash deploy.sh --no-version
+```
+
+### 🛠 Дополнительные опции
+
+```bash
+# Повторно применить конкретную миграцию
+sudo bash deploy.sh --reapply-migration abc123def
+
+# Указать директорию репозитория
+sudo bash deploy.sh --repo-dir /path/to/repo
+
+# Чистый деплой (УДАЛЯЕТ ВСЕ ДАННЫЕ!)
+sudo bash deploy.sh --clean
+```
+
+### 💡 Типичные сценарии обновления
+
+**Обычное обновление кода:**
+```bash
+cd ~/familyBudget
+git pull origin main
+sudo bash deploy.sh --sync-mode update --profile full
+```
+
+**Обновление с пересборкой образов:**
+```bash
+cd ~/familyBudget
+git pull origin main
+sudo bash deploy.sh --build --profile full
+```
+
+**Устранение проблем с сетями Docker:**
+```bash
+sudo bash deploy.sh --cleanup-mode smart --profile full
+```
+
+**Полный сброс (новая установка):**
+```bash
+sudo bash deploy.sh --cleanup-mode full --sync-mode clean --profile full
 ```
 
 ---

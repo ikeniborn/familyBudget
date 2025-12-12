@@ -4,21 +4,21 @@
 <div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
-        <h1 class="text-3xl font-bold mb-2">📊 Управление центрами затрат (МВЗ)</h1>
-        <p class="text-base-content/70">Управляйте проектами, отделами, бюджетными группами и другими центрами распределения затрат</p>
+        <h1 class="text-3xl font-bold mb-2">📊 Управление местами затрат</h1>
+        <p class="text-base-content/70">Управляйте проектами, отделами, бюджетными группами и другими местами распределения затрат</p>
     </div>
 
     <!-- Cost Centers Table -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                <h2 class="card-title text-2xl">📊 Центры затрат</h2>
+                <h2 class="card-title text-2xl">📊 Места затрат</h2>
                 {% if user.is_admin %}
                 <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    Новый МВЗ
+                    Новое МЗ
                 </button>
                 {% endif %}
             </div>
@@ -46,7 +46,7 @@
 <!-- Create Cost Center Modal -->
 <dialog id="create-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новый МВЗ</h3>
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новое МЗ</h3>
         <form id="create-form" onsubmit="createCenter(event)" class="space-y-2 sm:space-y-4">
             <div class="form-control">
                 <label class="label">
@@ -74,7 +74,7 @@
 <!-- Edit Cost Center Modal -->
 <dialog id="edit-modal" class="modal">
     <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать МВЗ</h3>
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать МЗ</h3>
         <form id="edit-form" onsubmit="updateCenter(event)" class="space-y-2 sm:space-y-4">
             <input type="hidden" id="edit-id" name="id">
             <div class="form-control">
@@ -156,7 +156,7 @@ async function loadCenters() {
         renderCentersTable(centersData);
     } catch (error) {
         console.error('Error loading cost centers:', error);
-        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки МВЗ: ${error.message}</span></div>`;
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки МЗ: ${error.message}</span></div>`;
     }
 }
 
@@ -173,7 +173,7 @@ function renderCentersTable(centers) {
     }
 
     if (filteredCenters.length === 0) {
-        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📊 МВЗ не найдены. Нажмите "➕ Новый МВЗ" для создания.</div>';
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">📊 МЗ не найдены. Нажмите "➕ Новое МЗ" для создания.</div>';
         return;
     }
 
@@ -276,7 +276,7 @@ async function createCenter(event) {
         // Success
         closeCreateModal();
         await loadCenters();
-        showNotification('✅ МВЗ успешно создан!', 'success');
+        showNotification('✅ МЗ успешно создано!', 'success');
     } catch (error) {
         console.error('Error creating cost center:', error);
         const errorMessage = error?.message || String(error);
@@ -331,7 +331,7 @@ async function updateCenter(event) {
         // Success
         closeEditModal();
         await loadCenters();
-        showNotification('✅ МВЗ успешно обновлен (создана новая версия SCD2)!', 'success');
+        showNotification('✅ МЗ успешно обновлено (создана новая версия SCD2)!', 'success');
     } catch (error) {
         console.error('Error updating cost center:', error);
         const errorMessage = error?.message || String(error);
@@ -343,10 +343,10 @@ async function updateCenter(event) {
 async function deleteCenter(centerId) {
     // First confirmation - warning about cascade deletion
     const firstConfirm = await showConfirmDialog(
-        '⚠️ ВНИМАНИЕ: Удаление МВЗ приведёт к каскадному удалению!\n\n' +
+        '⚠️ ВНИМАНИЕ: Удаление МЗ приведёт к каскадному удалению!\n\n' +
         '❌ Будут ФИЗИЧЕСКИ УДАЛЕНЫ:\n' +
-        '  • Сам МВЗ\n' +
-        '  • ВСЕ бюджетные записи (факты), связанные с этим МВЗ\n\n' +
+        '  • Само МЗ\n' +
+        '  • ВСЕ бюджетные записи (факты), связанные с этим МЗ\n\n' +
         '✅ Будет СОХРАНЕНО для аудита:\n' +
         '  • История изменений (с меткой DELETE)\n\n' +
         'Это действие НЕОБРАТИМО!\n\n' +
@@ -361,7 +361,7 @@ async function deleteCenter(centerId) {
     // Second confirmation - final check
     const secondConfirm = await showConfirmDialog(
         '🔴 ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ!\n\n' +
-        'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ этот МВЗ\n' +
+        'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ это МЗ\n' +
         'и ВСЕ связанные с ним записи?\n\n' +
         'Это действие НЕВОЗМОЖНО отменить!\n\n' +
         'Нажмите OK для окончательного подтверждения.',
@@ -392,8 +392,8 @@ async function deleteCenter(centerId) {
         await loadCenters();
 
         const successMessage = factsDeleted > 0
-            ? `✅ МВЗ успешно удален!\n🗑️ Каскадно удалено записей: ${factsDeleted}`
-            : '✅ МВЗ успешно удален!';
+            ? `✅ МЗ успешно удалено!\n🗑️ Каскадно удалено записей: ${factsDeleted}`
+            : '✅ МЗ успешно удалено!';
 
         showNotification(successMessage, 'success');
     } catch (error) {
@@ -435,11 +435,11 @@ function updateStatusFilter(status) {
     renderCentersTable(centersData);
 }
 
-// Archive cost center
+// Archive cost location
 async function archiveCenter(centerId) {
     const confirmed = await showConfirmDialog(
-        '📦 Вы уверены, что хотите архивировать этот МВЗ? Запись будет скрыта из выпадающих списков.',
-        '📦 Архивация МВЗ'
+        '📦 Вы уверены, что хотите архивировать это МЗ? Запись будет скрыта из выпадающих списков.',
+        '📦 Архивация МЗ'
     );
 
     if (!confirmed) {
@@ -459,15 +459,15 @@ async function archiveCenter(centerId) {
 
         // Success
         await loadCenters();
-        showNotification('✅ МВЗ успешно архивирован!', 'success');
+        showNotification('✅ МЗ успешно архивировано!', 'success');
     } catch (error) {
-        console.error('Error archiving cost center:', error);
+        console.error('Error archiving cost location:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }
 }
 
-// Restore cost center
+// Restore cost location
 async function restoreCenter(centerId) {
     try {
         const response = await fetch(`/api/v1/cost-centers/${centerId}/restore`, {
@@ -482,9 +482,9 @@ async function restoreCenter(centerId) {
 
         // Success
         await loadCenters();
-        showNotification('✅ МВЗ успешно восстановлен!', 'success');
+        showNotification('✅ МЗ успешно восстановлено!', 'success');
     } catch (error) {
-        console.error('Error restoring cost center:', error);
+        console.error('Error restoring cost location:', error);
         const errorMessage = error?.message || String(error);
         showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
     }

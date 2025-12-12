@@ -282,8 +282,9 @@ pytest -m unit
 # Только integration тесты
 pytest -m integration
 
-# E2E тесты
-pytest -m e2e
+# E2E тесты (Playwright)
+npx playwright test
+npx playwright test --ui  # Interactive mode
 
 # С покрытием
 pytest --cov=backend --cov=bot --cov-report=html
@@ -293,6 +294,24 @@ pytest tests/unit/test_article_service.py::test_create_article
 
 # Verbose режим
 pytest -v -s
+```
+
+### Code Quality
+
+```bash
+# Linting (ruff)
+ruff check backend/
+ruff check --fix backend/  # Auto-fix
+
+# Formatting (black)
+black backend/
+black --check backend/  # Check only
+
+# Type checking (mypy)
+mypy backend/
+
+# Все проверки сразу
+ruff check backend/ && black --check backend/ && mypy backend/
 ```
 
 ### Docker (Деплой)
@@ -396,17 +415,23 @@ ancestors = await article_service.get_ancestors(article_id)
 breadcrumbs = await article_service.get_breadcrumbs(article_id)
 ```
 
-### User Data Isolation
+### Shared Family Budget Model
 
-**ВАЖНО**: Все модели должны изолировать данные по user_id:
+**Модель данных:** Проект использует "Shared Family Budget" - все пользователи видят ВСЕ данные.
+
+**Важные особенности:**
 - **Articles**: Shared across all users (READ for all, WRITE for admin only)
-- **BudgetFact**: User-specific (каждый видит только свои транзакции)
-- **FinancialCenter, CostCenter**: User-specific
+- **BudgetFact**: Shared - все пользователи видят все транзакции семьи
+- **FinancialCenter, CostCenter**: Shared - общие справочники для всей семьи
+- **user_id в BudgetFact**: Указывает КТО создал запись, но НЕ ограничивает доступ
 
-**Примеры фильтрации:**
+**Примеры:**
 ```python
-# В service слое всегда фильтруем по user_id
-facts = await session.exec(
+# ✅ ПРАВИЛЬНО - Shared Budget (все видят всё)
+facts = await session.exec(select(BudgetFact))
+
+# ✅ ПРАВИЛЬНО - фильтр по автору (необязательный)
+my_facts = await session.exec(
     select(BudgetFact)
     .where(BudgetFact.user_id == current_user.id)
 )
@@ -414,6 +439,8 @@ facts = await session.exec(
 # Articles - shared (no filter needed for READ)
 articles = await session.exec(select(Article))
 ```
+
+**При написании тестов:** НЕ ожидать 404 для чужих записей - в Shared Budget все записи доступны всем.
 
 ### JWT Authentication
 
@@ -890,80 +917,6 @@ SELECT schemaname, tablename, indexname
 FROM pg_stat_user_indexes
 WHERE idx_scan = 0
 AND indexrelname NOT LIKE 'pg_toast%';
-```
-
-## Troubleshooting
-
-### Backend не запускается
-
-```bash
-# Проверить логи
-docker compose logs backend
-
-# Проверить health endpoint
-curl http://localhost:8000/health
-
-# Проверить переменные окружения
-docker compose exec backend env | grep DATABASE_URL
-
-# Проверить миграции
-docker compose exec backend alembic current
-```
-
-### База данных недоступна
-
-```bash
-# Проверить статус PostgreSQL
-docker compose ps postgres
-docker compose logs postgres
-
-# Проверить подключение
-docker compose exec postgres psql -U familybudget -d familybudget -c "SELECT 1;"
-
-# Восстановить volume (УДАЛИТ ДАННЫЕ!)
-./deploy.sh --clean
-```
-
-### Telegram бот не отвечает
-
-```bash
-# Проверить логи
-docker compose logs bot
-
-# Проверить TELEGRAM_BOT_TOKEN
-docker compose exec bot env | grep TELEGRAM_BOT_TOKEN
-
-# Проверить Backend API доступность
-docker compose exec bot curl http://backend:8000/health
-```
-
-### Frontend не обновляется
-
-```bash
-# Пересобрать Tailwind CSS
-npm run build:css
-
-# Очистить кеш браузера (Ctrl+Shift+R)
-
-# Проверить что файлы смонтированы в контейнер
-docker compose exec backend ls -la /app/frontend/web/static/css/
-```
-
-### Миграции не применяются
-
-```bash
-# Проверить текущую версию
-docker compose exec backend alembic current
-
-# Показать историю
-docker compose exec backend alembic history
-
-# Применить вручную
-docker compose exec backend alembic upgrade head
-
-# Откатить и применить заново
-docker compose exec backend alembic downgrade -1
-docker compose exec backend alembic upgrade head
 ```
 
 ## API Endpoints

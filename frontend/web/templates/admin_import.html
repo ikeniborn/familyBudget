@@ -268,7 +268,7 @@
 
                     <div class="form-control w-48">
                         <label class="label py-0">
-                            <span class="label-text text-xs">ЦФО</span>
+                            <span class="label-text text-xs">Счет</span>
                         </label>
                         <select id="bulk-fc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
                             <option value="">-- Не выбрано --</option>
@@ -277,7 +277,7 @@
 
                     <div class="form-control w-48">
                         <label class="label py-0">
-                            <span class="label-text text-xs">МВЗ</span>
+                            <span class="label-text text-xs">МЗ</span>
                         </label>
                         <select id="bulk-cc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
                             <option value="">-- Не выбрано --</option>
@@ -322,8 +322,8 @@
                             <th>Комментарий</th>
                             <th>Тип</th>
                             <th>Категория</th>
-                            <th>ЦФО</th>
-                            <th>МВЗ</th>
+                            <th>Счет</th>
+                            <th>МЗ</th>
                             <th>Тип записи</th>
                             <th>Действия</th>
                         </tr>
@@ -2065,7 +2065,7 @@ function translateImportError(message) {
     // Missing financial_center_id
     const fcMatch = message.match(/Staging record (\d+) missing financial_center_id/);
     if (fcMatch) {
-        return `Запись #${fcMatch[1]}: не выбран ЦФО. Назначьте финансовый центр перед импортом.`;
+        return `Запись #${fcMatch[1]}: не выбран счет. Назначьте счет перед импортом.`;
     }
 
     // Invalid amount format

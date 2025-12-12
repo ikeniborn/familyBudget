@@ -95,6 +95,60 @@
                 max-height: calc(var(--real-vh, 1vh) * 95) !important;
             }
         }
+
+        /* Mobile menu - fix для iOS Safari и мелких экранов */
+        @media (max-width: 1023px) {
+            #mobile-menu-content {
+                /* Fixed position для гарантированного отображения на экране */
+                position: fixed !important;
+                top: 4rem !important; /* Под navbar */
+                right: 0.5rem !important;
+                left: auto !important;
+                /* Фиксированная ширина */
+                width: 14rem !important; /* 224px */
+                min-width: 14rem !important;
+                /* Высота по содержимому, но не больше экрана */
+                max-height: calc(100dvh - 5rem) !important;
+                max-height: calc(var(--real-vh, 1vh) * 100 - 5rem) !important;
+                /* Вертикальный скролл, без горизонтального */
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+            }
+
+            /* Предотвращаем перенос текста в элементах меню */
+            #mobile-menu-content li a,
+            #mobile-menu-content li button {
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+        }
+
+        /* Очень маленькие экраны по высоте - компактный режим */
+        @media (max-height: 500px) {
+            #mobile-menu-content {
+                top: 3.5rem !important;
+                max-height: calc(100dvh - 4rem) !important;
+                max-height: calc(var(--real-vh, 1vh) * 100 - 4rem) !important;
+                padding: 0.25rem !important;
+            }
+            #mobile-menu-content li a,
+            #mobile-menu-content li button {
+                padding: 0.375rem 0.5rem !important;
+                font-size: 0.8125rem !important;
+            }
+            #mobile-menu-content .menu-title {
+                padding: 0.25rem 0.5rem !important;
+                font-size: 0.6875rem !important;
+            }
+            #mobile-menu-content .divider {
+                margin: 0.125rem 0 !important;
+            }
+            /* Скрыть аватар на очень маленьких экранах */
+            #mobile-menu-content .avatar {
+                display: none !important;
+            }
+        }
     </style>
 
     <!-- Choices.js -->
@@ -153,8 +207,8 @@
                             <li><a href="/import" class="{% if '/import' in request.url.path %}active{% endif %}">📥 Импорт</a></li>
                             <li class="menu-title"><span>Справочники</span></li>
                             <li><a href="/admin/articles" class="{% if '/admin/articles' in request.url.path %}active{% endif %}">📁 Категории</a></li>
-                            <li><a href="/admin/cost-centers" class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 МВЗ</a></li>
-                            <li><a href="/admin/financial-centers" class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 ЦФО</a></li>
+                            <li><a href="/admin/cost-centers" class="{% if '/admin/cost-centers' in request.url.path %}active{% endif %}">💼 Места затрат</a></li>
+                            <li><a href="/admin/financial-centers" class="{% if '/admin/financial-centers' in request.url.path %}active{% endif %}">🏢 Счета</a></li>
                             <li><a href="/admin/stores" class="{% if '/admin/stores' in request.url.path %}active{% endif %}">🏪 Магазины</a></li>
                             <li><a href="/admin/product-groups" class="{% if '/admin/product-groups' in request.url.path %}active{% endif %}">📦 Группы товаров</a></li>
                         </ul>
@@ -331,7 +385,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                     </svg>
                 </button>
-                <ul id="mobile-menu-content" class="menu menu-sm dropdown-content mt-3 z-50 p-2 shadow-xl bg-base-100 rounded-box w-52 max-h-[70vh] overflow-y-auto overscroll-contain">
+                <ul id="mobile-menu-content" class="menu menu-sm z-50 p-2 shadow-xl bg-base-100 rounded-box overscroll-contain" style="position: fixed; top: 4rem; right: 0.5rem; width: 14rem; max-height: calc(100dvh - 5rem); overflow-y: auto; overflow-x: hidden; display: none;">
                     {% if user %}
                         <!-- User info with avatar -->
                         <li class="menu-title">
@@ -383,8 +437,8 @@
                     <li data-offline-hidden="true"><a href="/import">📥 Импорт</a></li>
                     <li class="menu-title" data-offline-hidden="true"><span>Справочники</span></li>
                     <li data-offline-hidden="true"><a href="/admin/articles">📁 Категории</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/cost-centers">💼 МВЗ</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/financial-centers">🏢 ЦФО</a></li>
+                    <li data-offline-hidden="true"><a href="/admin/cost-centers">💼 Места затрат</a></li>
+                    <li data-offline-hidden="true"><a href="/admin/financial-centers">🏢 Счета</a></li>
                     <li data-offline-hidden="true"><a href="/admin/stores">🏪 Магазины</a></li>
                     <li data-offline-hidden="true"><a href="/admin/product-groups">📦 Группы товаров</a></li>
                     {% endif %}
@@ -613,6 +667,103 @@
             }, duration);
         }
 
+        // Toast with action button (for offline mode prompts)
+        function showToastWithAction({ message, type = 'info', duration = 5000, action }) {
+            // Use main toast container (or modal container if dialog is open)
+            const openModal = document.querySelector('dialog[open]');
+            let container;
+
+            if (openModal) {
+                // Modal is open - create/get toast container inside modal
+                container = openModal.querySelector('.modal-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.className = 'modal-toast-container fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
+                    openModal.appendChild(container);
+                }
+            } else {
+                // No modal open - use main toast container
+                container = document.getElementById('toast-container');
+            }
+
+            if (!container) return;
+
+            // Create toast element
+            const toast = document.createElement('div');
+            const alertClass = type === 'success' ? 'alert-success' :
+                              type === 'error' ? 'alert-error' :
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
+
+            toast.className = `alert ${alertClass} shadow-xl pointer-events-auto`;
+            toast.style.cssText = `
+                max-width: min(90vw, 400px);
+                width: auto;
+                min-width: 200px;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
+                hyphens: auto;
+            `;
+
+            // Alert icon based on type
+            let iconHTML = '';
+            switch (type) {
+                case 'success':
+                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+                    break;
+                case 'error':
+                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+                    break;
+                case 'warning':
+                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>';
+                    break;
+                case 'info':
+                    iconHTML = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                    break;
+            }
+
+            toast.innerHTML = `
+                <div class="flex items-center gap-2 flex-1">
+                    ${iconHTML}
+                    <span class="break-words whitespace-normal leading-tight text-sm sm:text-base">${message}</span>
+                </div>
+                ${action ? `
+                    <button class="btn btn-sm btn-ghost" data-toast-action>
+                        ${action.label}
+                    </button>
+                ` : ''}
+            `;
+
+            // Add to container
+            container.appendChild(toast);
+
+            // Обработчик action button
+            if (action && action.onClick) {
+                const actionBtn = toast.querySelector('[data-toast-action]');
+                if (actionBtn) {
+                    actionBtn.addEventListener('click', () => {
+                        action.onClick();
+                        toast.remove(); // Закрыть toast после клика
+                    });
+                }
+            }
+
+            // Auto-dismiss
+            setTimeout(() => {
+                toast.style.transition = 'opacity 0.3s, transform 0.3s';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px)';
+                setTimeout(() => {
+                    if (toast.parentNode === container) {
+                        container.removeChild(toast);
+                    }
+                    // Clean up empty modal container
+                    if (container.classList.contains('modal-toast-container') && container.children.length === 0) {
+                        container.remove();
+                    }
+                }, 300);
+            }, duration);
+        }
+
         // Submit button loading state management (prevents double submit)
         function setSubmitLoading(form, isLoading) {
             const submitBtn = form.querySelector('button[type="submit"]');
@@ -698,16 +849,17 @@
 
             function openMenu() {
                 isOpen = true;
-                menuDropdown.classList.add('dropdown-open');
+                // Показываем меню через display
+                menuContent.style.display = 'block';
                 menuBtn.setAttribute('aria-expanded', 'true');
                 debugLog('[Mobile Menu] Opened');
             }
 
             function closeMenu() {
                 isOpen = false;
-                menuDropdown.classList.remove('dropdown-open');
+                // Скрываем меню через display
+                menuContent.style.display = 'none';
                 menuBtn.setAttribute('aria-expanded', 'false');
-                // Remove focus to ensure CSS dropdown also closes
                 menuBtn.blur();
                 debugLog('[Mobile Menu] Closed');
             }
@@ -860,8 +1012,31 @@
 
         // Also listen for network-status-change (from SmartNetworkDetector directly)
         window.addEventListener('network-status-change', async (event) => {
-            const { status, previousStatus } = event.detail || {};
-            debugLog('[Offline] Network status change:', previousStatus, '→', status);
+            const { status, previousStatus, manual, auto } = event.detail || {};
+            debugLog('[Offline] Network status change:', previousStatus, '→', status, 'manual:', manual, 'auto:', auto);
+
+            // Update offline indicator based on mode
+            const offlineIcon = document.getElementById('offline-icon');
+            if (offlineIcon) {
+                if (status === 'offline') {
+                    if (manual) {
+                        // Manual offline - cloud with pause icon (already shown by manual toggle)
+                        offlineIcon.classList.add('hidden');
+                    } else if (auto) {
+                        // Auto offline - cloud with X icon (red/warning)
+                        offlineIcon.classList.remove('hidden');
+                        offlineIcon.title = 'Сервер недоступен (автоматически)';
+                    } else {
+                        // Network offline - cloud with X icon
+                        offlineIcon.classList.remove('hidden');
+                        offlineIcon.title = 'Нет подключения к интернету';
+                    }
+                } else {
+                    // Online - hide offline icon
+                    offlineIcon.classList.add('hidden');
+                }
+            }
+
             // Update UI based on actual backend availability
             updateOfflineUI();
 
