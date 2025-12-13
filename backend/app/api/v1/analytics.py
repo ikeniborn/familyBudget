@@ -637,23 +637,28 @@ async def get_account_balances_html(
     """
     Get account balances for all Financial Centers (HTML formatted).
 
-    Returns PREVIOUS FULL MONTH balances with:
-    - Opening balance (as of previous month start)
-    - Closing balance (as of previous month end = current month start)
+    Logic (example: today is Dec 13, 2025):
+    - Opening balance: movements for PREVIOUS FULL MONTH (Nov 1-30)
+    - Month movement: movements for CURRENT MONTH to date (Dec 1-13)
+    - Current balance: Opening + Movement
 
     Only shows active Financial Centers (is_active=True).
     Shared family budget - all users see all accounts.
     """
     from backend.app.models.financial_center import FinancialCenter
+    from datetime import timedelta
 
     today = date.today()
     current_month_start = date(today.year, today.month, 1)
 
-    # Calculate first day of PREVIOUS month
+    # Calculate PREVIOUS month boundaries
     if today.month == 1:
         prev_month_start = date(today.year - 1, 12, 1)
+        prev_month_end = date(today.year - 1, 12, 31)
     else:
         prev_month_start = date(today.year, today.month - 1, 1)
+        # Last day of previous month = day before current month start
+        prev_month_end = current_month_start - timedelta(days=1)
 
     # Step 1: Get all active Financial Centers
     fc_query = select(FinancialCenter).where(
@@ -663,8 +668,9 @@ async def get_account_balances_html(
     fc_result = await session.execute(fc_query)
     financial_centers = fc_result.scalars().all()
 
-    # Step 2: Calculate opening balance (all transactions BEFORE previous month)
+    # Step 2: Calculate opening balance (ONLY transactions for PREVIOUS FULL MONTH)
     # Formula: (income + credit) - (expense + debit)
+    # Example: if today is Dec 13, this calculates movements for Nov 1-30
     opening_balance_query = select(
         Fact.financial_center_id,
         (
@@ -674,7 +680,8 @@ async def get_account_balances_html(
     ).select_from(Fact).join(
         Article, Fact.article_id == Article.id
     ).where(
-        Fact.fact_date < prev_month_start,
+        Fact.fact_date >= prev_month_start,
+        Fact.fact_date <= prev_month_end,
         Fact.record_type == "fact",
         Fact.financial_center_id.is_not(None)
     ).group_by(Fact.financial_center_id)
@@ -682,8 +689,9 @@ async def get_account_balances_html(
     opening_result = await session.execute(opening_balance_query)
     opening_balances = {row.financial_center_id: float(row.balance) for row in opening_result.all()}
 
-    # Step 3: Calculate PREVIOUS month movements
-    # Formula: (income + credit) - (expense + debit) for previous full month
+    # Step 3: Calculate CURRENT month movements (from month start to today)
+    # Formula: (income + credit) - (expense + debit)
+    # Example: if today is Dec 13, this calculates movements for Dec 1-13
     month_movements_query = select(
         Fact.financial_center_id,
         (
@@ -693,8 +701,8 @@ async def get_account_balances_html(
     ).select_from(Fact).join(
         Article, Fact.article_id == Article.id
     ).where(
-        Fact.fact_date >= prev_month_start,
-        Fact.fact_date < current_month_start,
+        Fact.fact_date >= current_month_start,
+        Fact.fact_date <= today,
         Fact.record_type == "fact",
         Fact.financial_center_id.is_not(None)
     ).group_by(Fact.financial_center_id)
@@ -703,19 +711,19 @@ async def get_account_balances_html(
     month_movements = {row.financial_center_id: float(row.balance) for row in movements_result.all()}
 
     # Step 4: Combine results
-    # closing_balance = opening + movements for PREVIOUS month
+    # current_balance = opening (prev month movements) + movements (current month to today)
     balances = []
     for fc in financial_centers:
-        opening = opening_balances.get(fc.id, 0.0)
-        movement = month_movements.get(fc.id, 0.0)
-        closing = opening + movement  # Closing balance at end of previous month
+        opening = opening_balances.get(fc.id, 0.0)  # Previous month movements
+        movement = month_movements.get(fc.id, 0.0)   # Current month movements to today
+        current = opening + movement  # Combined balance
 
         balances.append({
             "id": fc.id,
             "name": fc.name,
             "opening_balance": opening,
-            "current_balance": closing,  # Actually closing balance of previous month
-            "is_negative": closing < 0
+            "current_balance": current,
+            "is_negative": current < 0
         })
 
     # Format money without decimals (integer display with space separator)
