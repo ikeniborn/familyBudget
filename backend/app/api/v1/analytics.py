@@ -629,6 +629,183 @@ async def get_quick_stats_html(
     return html
 
 
+@router.get("/account-balances-html", response_class=HTMLResponse)
+async def get_account_balances_html(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session)
+) -> str:
+    """
+    Get account balances for all Financial Centers (HTML formatted).
+
+    Returns current month balances with:
+    - Opening balance (as of month start)
+    - Current balance (opening + month movements)
+
+    Only shows active Financial Centers (is_active=True).
+    Shared family budget - all users see all accounts.
+    """
+    from backend.app.models.financial_center import FinancialCenter
+
+    today = date.today()
+    month_start = date(today.year, today.month, 1)
+
+    # Step 1: Get all active Financial Centers
+    fc_query = select(FinancialCenter).where(
+        FinancialCenter.is_active == True
+    ).order_by(FinancialCenter.name)
+
+    fc_result = await session.execute(fc_query)
+    financial_centers = fc_result.scalars().all()
+
+    # Step 2: Calculate opening balance (all transactions BEFORE current month)
+    # Formula: (income + credit) - (expense + debit)
+    opening_balance_query = select(
+        Fact.financial_center_id,
+        (
+            func.sum(case((Article.type.in_(["income", "credit"]), Fact.amount), else_=0)) -
+            func.sum(case((Article.type.in_(["expense", "debit"]), Fact.amount), else_=0))
+        ).label("balance")
+    ).select_from(Fact).join(
+        Article, Fact.article_id == Article.id
+    ).where(
+        Fact.fact_date < month_start,
+        Fact.record_type == "fact",
+        Fact.financial_center_id.is_not(None)
+    ).group_by(Fact.financial_center_id)
+
+    opening_result = await session.execute(opening_balance_query)
+    opening_balances = {row.financial_center_id: float(row.balance) for row in opening_result.all()}
+
+    # Step 3: Calculate current month movements
+    # Formula: (income + credit) - (expense + debit) for current month
+    month_movements_query = select(
+        Fact.financial_center_id,
+        (
+            func.sum(case((Article.type.in_(["income", "credit"]), Fact.amount), else_=0)) -
+            func.sum(case((Article.type.in_(["expense", "debit"]), Fact.amount), else_=0))
+        ).label("balance")
+    ).select_from(Fact).join(
+        Article, Fact.article_id == Article.id
+    ).where(
+        Fact.fact_date >= month_start,
+        Fact.fact_date <= today,
+        Fact.record_type == "fact",
+        Fact.financial_center_id.is_not(None)
+    ).group_by(Fact.financial_center_id)
+
+    movements_result = await session.execute(month_movements_query)
+    month_movements = {row.financial_center_id: float(row.balance) for row in movements_result.all()}
+
+    # Step 4: Combine results
+    balances = []
+    for fc in financial_centers:
+        opening = opening_balances.get(fc.id, 0.0)
+        movement = month_movements.get(fc.id, 0.0)
+        current = opening + movement
+
+        balances.append({
+            "id": fc.id,
+            "name": fc.name,
+            "opening_balance": opening,
+            "current_balance": current,
+            "is_negative": current < 0
+        })
+
+    # Format money without decimals (integer display with space separator)
+    def format_money(amount: float) -> str:
+        return f"{int(amount):,}".replace(",", " ")
+
+    # Get color class based on balance sign
+    def get_balance_color(balance: float) -> str:
+        if balance > 0:
+            return "text-success"
+        elif balance < 0:
+            return "text-error"
+        else:
+            return "text-base-content"
+
+    # Generate HTML - responsive design
+    # Desktop: horizontal table, Mobile: stacked cards
+
+    # Handle case: no active financial centers
+    if not balances:
+        html = """
+        <div class="alert alert-info">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span>Нет активных счетов</span>
+        </div>
+        """
+        return html
+
+    # Generate rows for desktop table
+    desktop_rows = ""
+    for bal in balances:
+        desktop_rows += f"""
+                <tr>
+                    <td>{bal['name']}</td>
+                    <td class="text-right {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</td>
+                    <td class="text-right font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</td>
+                </tr>"""
+
+    # Generate cards for mobile layout
+    mobile_cards = ""
+    for bal in balances:
+        mobile_cards += f"""
+        <div class="bg-base-200 rounded-lg p-3">
+            <div class="font-semibold mb-2">{bal['name']}</div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                    <div class="opacity-60">Начало месяца</div>
+                    <div class="{get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</div>
+                </div>
+                <div>
+                    <div class="opacity-60">Текущий баланс</div>
+                    <div class="font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</div>
+                </div>
+            </div>
+        </div>"""
+
+    html = f"""
+    <style>
+        @media (min-width: 768px) {{
+            #desktop-balances {{ display: block !important; }}
+            #mobile-balances {{ display: none !important; }}
+        }}
+        @media (max-width: 767px) {{
+            #desktop-balances {{ display: none !important; }}
+            #mobile-balances {{ display: grid !important; }}
+        }}
+    </style>
+
+    <!-- Desktop: Table layout -->
+    <div id="desktop-balances">
+        <div class="overflow-x-auto">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Счет</th>
+                        <th class="text-right">Остаток на начало месяца</th>
+                        <th class="text-right">Текущий баланс</th>
+                    </tr>
+                </thead>
+                <tbody>
+{desktop_rows}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mobile: Card grid -->
+    <div id="mobile-balances" class="grid grid-cols-1 gap-2">
+{mobile_cards}
+    </div>
+    """
+
+    return html
+
+
 @router.get("/plan-fact")
 async def get_plan_fact_data(
     current_user: CurrentUser,
