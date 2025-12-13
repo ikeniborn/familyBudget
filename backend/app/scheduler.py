@@ -34,6 +34,7 @@ LOCK_ID_RECOMMENDED_AMOUNTS = 1002
 LOCK_ID_WEEKLY_REPORTS = 1003
 LOCK_ID_BUDGET_THRESHOLDS = 1004
 LOCK_ID_PLAN_REMINDERS = 1005
+LOCK_ID_BALANCE_AGGREGATES = 1006
 
 
 async def try_advisory_lock(session, lock_id: int) -> bool:
@@ -241,6 +242,58 @@ async def check_budget_thresholds_job():
         raise
 
 
+async def refresh_balance_aggregates_job():
+    """
+    Job: Refresh monthly balance aggregates for financial centers.
+
+    Calculates and stores monthly closing balances in t_agg_financial_center_balance_monthly
+    to optimize balance calculation queries in analytics.
+
+    Process:
+    1. For each active financial center
+    2. For each month from earliest transaction to current month
+    3. Calculate cumulative closing balance at end of month
+    4. Count transactions in that month
+    5. Upsert into aggregate table
+
+    Schedule: Daily at 01:00 UTC (between article stats at 00:00 and recommended amounts at 02:00)
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
+    """
+    logger.info("[SCHEDULER] Starting balance aggregates refresh job")
+
+    try:
+        async with get_session_context() as session:
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_BALANCE_AGGREGATES):
+                logger.info(
+                    "[SCHEDULER] Balance aggregates job skipped - "
+                    "another worker is already executing"
+                )
+                return
+
+            try:
+                from backend.app.services.balance_aggregation_service import refresh_monthly_balances
+
+                # Refresh all aggregates (full refresh daily)
+                result = await refresh_monthly_balances(session=session)
+
+                logger.info(
+                    f"[SCHEDULER] Balance aggregates refreshed successfully: "
+                    f"{result['updated_count']} records updated, "
+                    f"{result['financial_centers']} financial centers, "
+                    f"{result['months_processed']} months processed"
+                )
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_BALANCE_AGGREGATES)
+
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error refreshing balance aggregates: {e}", exc_info=True)
+        raise
+
+
 async def send_plan_reminders_job():
     """
     Job: Send due plan reminders via Telegram and Web Push.
@@ -354,6 +407,16 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info("[SCHEDULER] Registered job: recalculate_recommended_amounts (daily at 02:00 UTC)")
+
+    # Job 2.5: Refresh balance aggregates (daily at 01:00 UTC)
+    scheduler.add_job(
+        refresh_balance_aggregates_job,
+        trigger=CronTrigger(hour=1, minute=0),
+        id="refresh_balance_aggregates",
+        name="Refresh Monthly Balance Aggregates",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: refresh_balance_aggregates (daily at 01:00 UTC)")
 
     # Job 3: Send weekly budget reports (every Monday at 09:00 UTC)
     scheduler.add_job(

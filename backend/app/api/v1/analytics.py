@@ -659,24 +659,20 @@ async def get_account_balances_html(
     financial_centers = fc_result.scalars().all()
 
     # Step 2: Calculate opening balance (ALL transactions BEFORE current month)
+    # Uses aggregate table if available (fast path), falls back to full scan if not
     # Formula: (income + credit) - (expense + debit)
-    # Example: if today is Dec 13, this calculates cumulative balance before Dec 1
-    opening_balance_query = select(
-        Fact.financial_center_id,
-        (
-            func.sum(case((Article.type.in_(["income", "credit"]), Fact.amount), else_=0)) -
-            func.sum(case((Article.type.in_(["expense", "debit"]), Fact.amount), else_=0))
-        ).label("balance")
-    ).select_from(Fact).join(
-        Article, Fact.article_id == Article.id
-    ).where(
-        Fact.fact_date < current_month_start,
-        Fact.record_type == "fact",
-        Fact.financial_center_id.is_not(None)
-    ).group_by(Fact.financial_center_id)
+    # Example: if today is Dec 13, this retrieves closing balance of November
+    from backend.app.services.balance_aggregation_service import get_opening_balances_bulk
 
-    opening_result = await session.execute(opening_balance_query)
-    opening_balances = {row.financial_center_id: float(row.balance) for row in opening_result.all()}
+    fc_ids = [fc.id for fc in financial_centers]
+    opening_balances_decimal = await get_opening_balances_bulk(
+        session=session,
+        year=today.year,
+        month=today.month,
+        financial_center_ids=fc_ids
+    )
+    # Convert Decimal to float for compatibility with existing code
+    opening_balances = {fc_id: float(balance) for fc_id, balance in opening_balances_decimal.items()}
 
     # Step 3: Calculate CURRENT month movements (from month start to today)
     # Formula: (income + credit) - (expense + debit)

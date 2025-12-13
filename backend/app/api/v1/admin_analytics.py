@@ -433,3 +433,87 @@ async def get_centers_usage(
         "cost_centers": cost_centers,
         "timestamp": datetime.utcnow().isoformat()
     }
+
+
+@router.post("/refresh-balance-aggregates")
+async def refresh_balance_aggregates(
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session),
+    year: int = Query(None, ge=2000, le=2100, description="Specific year to refresh (optional)"),
+    month: int = Query(None, ge=1, le=12, description="Specific month to refresh (requires year)"),
+    financial_center_id: int = Query(None, description="Specific financial center ID to refresh (optional)")
+):
+    """
+    Manually refresh monthly balance aggregates.
+
+    This endpoint triggers calculation and storage of monthly closing balances
+    for financial centers in the aggregate table (t_agg_financial_center_balance_monthly).
+
+    Admin-only operation - requires admin privileges.
+
+    Query Parameters:
+        - year (optional): Specific year to refresh (e.g., 2025). If not provided, refresh all historical data.
+        - month (optional): Specific month to refresh (1-12). Requires year parameter.
+        - financial_center_id (optional): Specific financial center to refresh. If not provided, refresh all FCs.
+
+    Returns:
+        - updated_count: Number of aggregate records created/updated
+        - financial_centers: Number of financial centers processed
+        - months_processed: Number of unique months processed
+        - execution_time_seconds: How long the operation took
+
+    Examples:
+        - POST /admin/analytics/refresh-balance-aggregates
+          → Refresh all aggregates for all financial centers and all time
+
+        - POST /admin/analytics/refresh-balance-aggregates?year=2025&month=11
+          → Refresh only November 2025 aggregates
+
+        - POST /admin/analytics/refresh-balance-aggregates?financial_center_id=1
+          → Refresh all aggregates for specific financial center
+
+    Notes:
+        - This is a heavy operation for full refresh (scans all transactions)
+        - Consider running during off-peak hours for production systems
+        - Safe to call multiple times (uses UPSERT for idempotency)
+        - After refresh, analytics queries will use optimized aggregates
+    """
+    from backend.app.services.balance_aggregation_service import refresh_monthly_balances
+
+    # Validate: if month is provided, year must also be provided
+    if month is not None and year is None:
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=400,
+            detail="Parameter 'month' requires 'year' to be specified"
+        )
+
+    # Record start time
+    start_time = datetime.utcnow()
+
+    # Call service function
+    result = await refresh_monthly_balances(
+        session=session,
+        year=year,
+        month=month,
+        financial_center_id=financial_center_id
+    )
+
+    # Calculate execution time
+    end_time = datetime.utcnow()
+    execution_time = (end_time - start_time).total_seconds()
+
+    return {
+        "success": True,
+        "message": "Balance aggregates refreshed successfully",
+        "updated_count": result["updated_count"],
+        "financial_centers": result["financial_centers"],
+        "months_processed": result["months_processed"],
+        "execution_time_seconds": round(execution_time, 2),
+        "timestamp": end_time.isoformat(),
+        "parameters": {
+            "year": year,
+            "month": month,
+            "financial_center_id": financial_center_id
+        }
+    }
