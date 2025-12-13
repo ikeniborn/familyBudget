@@ -641,6 +641,9 @@ async function syncCreate(item) {
     delete cleanData.to_article_name;
   }
 
+  // Mark as offline sync (for all entity types: fact, plan, transfer)
+  cleanData.is_offline_sync = true;
+
   if (DEBUG) console.log(`[SW] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
   const response = await fetch(endpoint, {

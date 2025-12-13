@@ -867,6 +867,9 @@ class OfflineManager {
             delete cleanData.to_article_name;
         }
 
+        // Mark as offline sync (for all entity types: fact, plan, transfer)
+        cleanData.is_offline_sync = true;
+
         debugLog(`[OfflineManager] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
         const response = await fetch(endpoint, {

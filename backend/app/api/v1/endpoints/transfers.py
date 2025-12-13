@@ -178,6 +178,7 @@ async def create_transfer(
         description=expense_description,
         transfer_id=transfer_id,
         record_type=transfer.record_type,  # Use record_type from request
+        is_offline_sync=transfer.is_offline_sync,  # Preserve offline sync flag
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -193,6 +194,7 @@ async def create_transfer(
         description=income_description,
         transfer_id=transfer_id,
         record_type=transfer.record_type,  # Use record_type from request
+        is_offline_sync=transfer.is_offline_sync,  # Preserve offline sync flag
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
