@@ -1228,6 +1228,7 @@ function renderFactsTable(facts) {
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>
                         <th>👤 Пользователь</th>
+                        <th></th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -1259,6 +1260,7 @@ function renderFactsTable(facts) {
                 <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td>${fact.user_name || '—'}</td>
+                <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
                 <td>
                     <div class="flex gap-1">
                         <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>

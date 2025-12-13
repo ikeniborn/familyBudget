@@ -1577,6 +1577,7 @@ function renderFactsTable(facts) {
                         <th>📝 Описание</th>
                         <th>🔔</th>
                         <th>👤 Пользователь</th>
+                        <th></th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -1617,6 +1618,7 @@ function renderFactsTable(facts) {
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">✓</span>' : ''}</td>
                 <td>${fact.user_name || '—'}</td>
+                <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
                 <td>
                     <div class="flex gap-1">
                         <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
