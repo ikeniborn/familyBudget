@@ -56,6 +56,7 @@ from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
+from backend.app.models.financial_center_balance_monthly import FinancialCenterBalanceMonthly
 from backend.app.models.hierarchy import ArticleHierarchy
 from backend.app.models.import_column_mapping import ImportColumnMapping
 from backend.app.models.import_file_upload import ImportFileUpload
@@ -83,6 +84,7 @@ __all__ = [
     "CostCenterFinancialCenter",
     "ArticleUsageStats",
     "FinancialCenter",
+    "FinancialCenterBalanceMonthly",
     "CostCenter",
     "BudgetFact",
     "BudgetFactHistory",

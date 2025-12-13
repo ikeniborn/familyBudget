@@ -438,3 +438,116 @@ install_systemd_service() {
     success "Systemd service installed and enabled"
     info "Containers will auto-start after server reboot"
 }
+
+# Start services in phases to avoid race conditions
+# Phase 1: Start only PostgreSQL
+start_postgres_only() {
+    step "Starting PostgreSQL (Phase 1/2)"
+
+    info "Starting postgres container..."
+    local start_result=0
+
+    # Always use --build to ensure latest image
+    compose_cmd up --build -d postgres >> "$LOG_FILE" 2>&1
+    start_result=$?
+
+    if [[ $start_result -eq 0 ]]; then
+        success "PostgreSQL container started"
+
+        # Wait for PostgreSQL to become healthy
+        info "Waiting for PostgreSQL to be ready..."
+        if wait_for_service "postgres" 60; then
+            success "PostgreSQL is healthy and ready"
+            return 0
+        else
+            error "PostgreSQL failed to become healthy"
+            return 1
+        fi
+    else
+        error "Failed to start PostgreSQL container. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
+# Phase 2: Start application services (backend, bot, nginx)
+start_application_services() {
+    step "Starting Application Services (Phase 2/2)"
+
+    # Load .env to get DEPLOYMENT_PROFILE
+    if [[ -f "$DEPLOY_DIR/.env" ]]; then
+        set -a
+        source "$DEPLOY_DIR/.env" 2>/dev/null || true
+        set +a
+    fi
+
+    info "Starting backend/bot/nginx containers..."
+    local start_result=0
+
+    # Determine build strategy based on DOCKER_REBUILD_NEEDED
+    local needs_fresh_build=false
+    local build_flag="--build"
+
+    if [[ "${DOCKER_REBUILD_NEEDED:-true}" == "true" ]]; then
+        needs_fresh_build=true
+        info "Docker images will be rebuilt with --no-cache (trigger files changed)"
+    else
+        info "Docker images will be rebuilt with layer cache (source code may have changed)"
+    fi
+
+    # If fresh build needed, build with --no-cache first
+    if [[ "$needs_fresh_build" == "true" ]]; then
+        info "Building Docker images with --no-cache..."
+        echo ""
+
+        local services_to_build="backend"
+        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            services_to_build="backend bot"
+        fi
+
+        for service in $services_to_build; do
+            info "Building $service with --no-cache..."
+            if compose_cmd build --no-cache "$service" >> "$LOG_FILE" 2>&1; then
+                success "$service built successfully"
+            else
+                error "Failed to build $service with --no-cache"
+                return 1
+            fi
+        done
+        echo ""
+    fi
+
+    # Start backend/bot/nginx (postgres already running)
+    if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+        compose_cmd --profile full up $build_flag -d backend bot nginx >> "$LOG_FILE" 2>&1
+        start_result=$?
+    else
+        compose_cmd up $build_flag -d backend >> "$LOG_FILE" 2>&1
+        start_result=$?
+    fi
+
+    # Show container status
+    info "Checking container status..."
+    echo "" | tee -a "$LOG_FILE"
+    compose_cmd ps -a | tee -a "$LOG_FILE"
+    echo "" | tee -a "$LOG_FILE"
+
+    # Wait for containers to stabilize
+    info "Waiting for containers to stabilize (10 seconds)..."
+    sleep 10
+
+    if [[ $start_result -eq 0 ]]; then
+        success "Application services started successfully"
+
+        # Save Docker build checksums after successful start
+        if [[ "$build_flag" == "--build" ]] || [[ "$needs_fresh_build" == "true" ]]; then
+            info "Saving Docker build checksums..."
+            if save_docker_build_checksums "$SCRIPT_DIR"; then
+                success "Docker build checksums saved"
+            fi
+        fi
+        return 0
+    else
+        error "Failed to start application services. Check $LOG_FILE for details."
+        return 1
+    fi
+}
