@@ -128,6 +128,10 @@ REAPPLY_MIGRATION=false  # Manual reapply specific migration (downgrade/upgrade)
 REAPPLY_MIGRATION_FILE=""  # Revision ID to reapply (e.g., "b2232d851007")
 AUTO_REAPPLY_MIGRATIONS="${AUTO_REAPPLY_MIGRATIONS:-false}"  # Auto-detect changed migrations (disabled by default)
 
+# Docker daemon optimization options
+FORCE_DOCKERD_RESTART=false  # Force Docker daemon restart at end of deployment
+SKIP_DOCKERD_RESTART=false   # Skip automatic Docker daemon restart optimization
+
 # PostgreSQL state tracking (prevent race conditions)
 POSTGRES_WAS_STOPPED=true  # Track if PostgreSQL was stopped during cleanup
 # false = PostgreSQL kept running (selective restart) - skip integrity checks
@@ -370,6 +374,14 @@ parse_args() {
                 ;;
             --no-version)
                 VERSION_BUMP_TYPE="none"
+                shift
+                ;;
+            --restart-dockerd)
+                FORCE_DOCKERD_RESTART=true
+                shift
+                ;;
+            --no-restart-dockerd)
+                SKIP_DOCKERD_RESTART=true
                 shift
                 ;;
             *)
@@ -1372,6 +1384,14 @@ main() {
         # This is a soft alternative to dockerd restart for reducing high CPU
         cleanup_docker_system_soft
         echo ""
+
+        # Final Docker daemon optimization (after all cleanup)
+        # Restarts dockerd if CPU still elevated (>50%) to clear accumulated state
+        # Can be forced with --restart-dockerd or skipped with --no-restart-dockerd
+        if [[ "$SKIP_DOCKERD_RESTART" != "true" ]]; then
+            final_dockerd_optimization "$FORCE_DOCKERD_RESTART"
+            echo ""
+        fi
 
         # Save deployed version for next deployment comparison
         if [[ -n "${NEW_VERSION:-}" ]]; then

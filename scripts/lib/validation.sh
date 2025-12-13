@@ -43,6 +43,12 @@ Version Control:
   --version X.Y.Z                 Set explicit version (e.g., --version 6.0.0)
   --no-version                    Skip version bump (keep current version)
 
+Docker Optimization:
+  --restart-dockerd               Force Docker daemon restart at end of deployment
+                                  (clears accumulated state, reduces CPU)
+  --no-restart-dockerd            Skip automatic Docker daemon restart optimization
+                                  (default: auto-restart if CPU >50% after cleanup)
+
 Sync Modes:
   mirror   - Full sync with --delete (removes files not in repository)
              Protected: .env, backups/, data/, logs/, .git/

@@ -1124,6 +1124,126 @@ cleanup_docker_system_soft() {
 }
 export -f cleanup_docker_system_soft
 
+# Final Docker daemon optimization after deployment
+# Restarts dockerd if CPU is still high after soft cleanup
+# Should be called as the LAST step of deployment
+# Args:
+#   $1 - force_restart: "true" to force restart regardless of CPU (default: "false")
+# Returns: 0 on success, 1 on failure
+final_dockerd_optimization() {
+    local force_restart="${1:-false}"
+    local cpu_threshold=50
+
+    step "Final Docker daemon optimization"
+
+    # Get dockerd PID
+    local dockerd_pid=$(pgrep -x dockerd 2>/dev/null | head -1)
+    if [[ -z "$dockerd_pid" ]]; then
+        warning "dockerd process not found"
+        return 0
+    fi
+
+    # Check instantaneous CPU using top (not ps which shows lifetime average)
+    local cpu=$(top -bn2 -d1 -p "$dockerd_pid" 2>/dev/null | grep -E "^\s*$dockerd_pid" | tail -1 | awk '{print int($9)}')
+
+    if [[ -z "$cpu" || ! "$cpu" =~ ^[0-9]+$ ]]; then
+        warning "Could not measure dockerd CPU usage"
+        return 0
+    fi
+
+    info "dockerd CPU after soft cleanup: ${cpu}%"
+
+    # Check if restart is needed
+    local needs_restart=false
+    if [[ "$force_restart" == "true" ]]; then
+        info "Force Docker daemon restart requested"
+        needs_restart=true
+    elif [[ "$cpu" -gt "$cpu_threshold" ]]; then
+        warning "dockerd CPU still high: ${cpu}% (threshold: ${cpu_threshold}%)"
+        needs_restart=true
+    fi
+
+    if [[ "$needs_restart" == "true" ]]; then
+        # Check root privileges
+        if [[ $EUID -ne 0 ]]; then
+            warning "Cannot restart Docker daemon without root privileges"
+            warning "Run deploy.sh with sudo to enable automatic daemon restart"
+            return 0
+        fi
+
+        info "Performing final Docker daemon restart..."
+
+        # 1. Stop all containers gracefully (60s timeout)
+        if compose_cmd ps -q 2>/dev/null | grep -q .; then
+            info "Stopping containers before daemon restart..."
+            compose_cmd stop --timeout 60 >> "$LOG_FILE" 2>&1 || true
+        fi
+
+        # 2. Aggressive prune before restart (clears more state)
+        info "Aggressive Docker cleanup before restart..."
+        docker builder prune -f >> "$LOG_FILE" 2>&1 || true
+        docker system prune -f >> "$LOG_FILE" 2>&1 || true
+
+        # 3. Restart Docker daemon
+        info "Restarting Docker daemon..."
+        if ! systemctl restart docker 2>/dev/null; then
+            error "Failed to restart Docker daemon"
+            return 1
+        fi
+
+        # 4. Wait for Docker daemon to be ready
+        local wait_count=0
+        while ! docker info >/dev/null 2>&1; do
+            ((wait_count++))
+            if [[ $wait_count -gt 30 ]]; then
+                error "Docker daemon failed to start within 30 seconds"
+                return 1
+            fi
+            sleep 1
+        done
+        success "Docker daemon is ready"
+
+        # 5. Restart services
+        info "Restarting services after daemon restart..."
+        if ! compose_cmd up -d >> "$LOG_FILE" 2>&1; then
+            error "Failed to restart services after daemon restart"
+            return 1
+        fi
+
+        # 6. Wait for containers to stabilize
+        info "Waiting for services to become healthy..."
+        sleep 10
+
+        # Wait for health checks
+        local health_wait=0
+        local max_health_wait=60
+        while [[ $health_wait -lt $max_health_wait ]]; do
+            local unhealthy=$(docker ps --filter "health=unhealthy" -q 2>/dev/null | wc -l)
+            local starting=$(docker ps --filter "health=starting" -q 2>/dev/null | wc -l)
+            if [[ $unhealthy -eq 0 && $starting -eq 0 ]]; then
+                break
+            fi
+            ((health_wait++))
+            sleep 1
+        done
+
+        # 7. Report new CPU usage
+        sleep 2
+        local new_pid=$(pgrep -x dockerd 2>/dev/null | head -1)
+        local new_cpu=$(top -bn2 -d1 -p "$new_pid" 2>/dev/null | grep -E "^\s*$new_pid" | tail -1 | awk '{print int($9)}')
+        success "Docker daemon restarted. New CPU: ${new_cpu:-unknown}%"
+
+        # 8. Show container status
+        info "Container status after restart:"
+        compose_cmd ps 2>/dev/null || true
+    else
+        success "dockerd CPU is normal: ${cpu}% - no restart needed"
+    fi
+
+    echo ""
+}
+export -f final_dockerd_optimization
+
 # Find free subnets in range 172.20-172.30
 
 # Check if port is used by our docker-compose services
