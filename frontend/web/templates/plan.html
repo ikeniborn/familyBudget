@@ -582,6 +582,8 @@ function openPlanTransferModal() {
         modal.showModal();
     }
 }
+// Ensure function is globally accessible for onclick handlers
+window.openPlanTransferModal = openPlanTransferModal;
 
 /**
  * Load recommended amounts from API and update quick amount buttons.
@@ -2584,6 +2586,8 @@ function openAddPlanModal() {
         modal.showModal();
     }
 }
+// Ensure function is globally accessible for onclick handlers
+window.openAddPlanModal = openAddPlanModal;
 
 // Toggle reminder settings visibility (for create modal)
 function toggleReminderSettings(modalId) {

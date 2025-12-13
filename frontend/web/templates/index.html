@@ -296,6 +296,8 @@ function openFactTransferModal() {
         modal.showModal();
     }
 }
+// Ensure function is globally accessible for onclick handlers
+window.openFactTransferModal = openFactTransferModal;
 
 // Открыть модальное окно планового перевода
 function openPlanTransferModal() {
@@ -314,6 +316,8 @@ function openPlanTransferModal() {
         modal.showModal();
     }
 }
+// Ensure function is globally accessible for onclick handlers
+window.openPlanTransferModal = openPlanTransferModal;
 
 // Открыть модальное окно добавления факта с инициализацией даты
 function openAddTransactionModal() {
@@ -321,12 +325,14 @@ function openAddTransactionModal() {
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
         factDateInput.value = BudgetShared.DateFormatter.today();
-        debugLog('[openAddTransactionModal] Установлена текущая дата:', factDateInput.value);
+        debugLog('[openAddTransactionModal] Установлена текущая дату:', factDateInput.value);
     }
 
     // Открыть модальное окно
     modal_add_transaction.showModal();
 }
+// Ensure function is globally accessible for onclick handlers
+window.openAddTransactionModal = openAddTransactionModal;
 
 // Welcome Section Management
 function checkWelcomeSectionVisibility() {
@@ -1903,6 +1909,8 @@ function openAddPlanModal() {
         modal.showModal();
     }
 }
+// Ensure function is globally accessible for onclick handlers
+window.openAddPlanModal = openAddPlanModal;
 
 /**
  * Toggle reminder settings visibility in plan modal.

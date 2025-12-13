@@ -2042,6 +2042,8 @@ function openCreateModal() {
 
     openModalWithDate();
 }
+// Ensure function is globally accessible for onclick handlers
+window.openCreateModal = openCreateModal;
 
 // ==================== FACTS PAGE SPECIFIC ====================
 // On facts page, hide the "save offline" buttons - show only "save and upload"
