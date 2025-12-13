@@ -1096,6 +1096,23 @@ class OfflineManager {
     }
 
     /**
+     * Get all unsynced items (pending + failed) for display
+     * @returns {Promise<{items: Array, hasRetryable: boolean}>}
+     */
+    async getAllUnsyncedItems() {
+        const pending = await this.db.getSyncQueue('pending');
+        const failed = await this.db.getSyncQueue('failed');
+        const items = [...pending, ...failed];
+
+        // Items are retryable if they have errors or are failed
+        const hasRetryable = items.some(item =>
+            item.status === 'failed' || (item.retryCount && item.retryCount > 0)
+        );
+
+        return { items, hasRetryable };
+    }
+
+    /**
      * Sync all pending items in queue
      * @returns {Promise<Object>} Sync results {synced, failed, items}
      */
