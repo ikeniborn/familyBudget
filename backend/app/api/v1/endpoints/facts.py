@@ -433,7 +433,7 @@ async def get_recent_facts_html(
                         <th>Категория</th>
                         <th>Сумма</th>
                         <th>Описание</th>
-                        <th></th>
+                        <th title="Создано offline">☁️</th>
                     </tr>
                 </thead>
                 <tbody>
