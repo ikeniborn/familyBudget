@@ -729,7 +729,7 @@ async def get_account_balances_html(
             return "text-base-content"
 
     # Generate HTML - responsive design
-    # Desktop: horizontal table, Mobile: stacked cards
+    # Desktop: adaptive grid layout (1-4 columns), Mobile: 2-column grid
 
     # Handle case: no active financial centers
     if not balances:
@@ -743,15 +743,34 @@ async def get_account_balances_html(
         """
         return html
 
-    # Generate rows for desktop table
-    desktop_rows = ""
+    # Determine grid columns based on number of accounts (max 4 columns)
+    num_accounts = len(balances)
+    if num_accounts == 1:
+        grid_cols_class = "grid-cols-1"
+    elif num_accounts == 2:
+        grid_cols_class = "grid-cols-2"
+    elif num_accounts == 3:
+        grid_cols_class = "grid-cols-3"
+    else:
+        grid_cols_class = "grid-cols-4"
+
+    # Generate cards for desktop layout
+    desktop_cards = ""
     for bal in balances:
-        desktop_rows += f"""
-                <tr class="hover">
-                    <td class="py-1 px-2">{bal['name']}</td>
-                    <td class="py-1 px-2 text-right {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</td>
-                    <td class="py-1 px-2 text-right font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</td>
-                </tr>"""
+        desktop_cards += f"""
+        <div class="bg-base-200 rounded-lg p-3 hover:bg-base-300 transition-colors">
+            <div class="font-semibold text-sm mb-2 truncate" title="{bal['name']}">{bal['name']}</div>
+            <div class="space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs opacity-70">На начало месяца</span>
+                    <span class="text-sm font-medium {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</span>
+                </div>
+                <div class="flex justify-between items-center pt-2 border-t border-base-300">
+                    <span class="text-xs opacity-70">Текущий</span>
+                    <span class="text-sm font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</span>
+                </div>
+            </div>
+        </div>"""
 
     # Generate cards for mobile layout (2 columns grid)
     mobile_cards = ""
@@ -783,21 +802,10 @@ async def get_account_balances_html(
         }}
     </style>
 
-    <!-- Desktop: Compact table layout -->
+    <!-- Desktop: Adaptive grid layout (1-4 columns) -->
     <div id="desktop-balances">
-        <div class="overflow-x-auto">
-            <table class="table table-xs w-full">
-                <thead>
-                    <tr class="border-b border-base-300">
-                        <th class="py-1 px-2 text-xs">Счет</th>
-                        <th class="py-1 px-2 text-xs text-right">На начало месяца</th>
-                        <th class="py-1 px-2 text-xs text-right">Текущий баланс</th>
-                    </tr>
-                </thead>
-                <tbody>
-{desktop_rows}
-                </tbody>
-            </table>
+        <div class="grid {grid_cols_class} gap-3">
+{desktop_cards}
         </div>
     </div>
 
