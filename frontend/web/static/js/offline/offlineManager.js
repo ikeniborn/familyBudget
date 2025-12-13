@@ -393,6 +393,8 @@ class OfflineManager {
         });
 
         // 2. Add to sync queue
+        // Track if created in manual mode (user-initiated offline) vs true offline
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'fact',
@@ -401,7 +403,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // Note: No automatic Background Sync registration here
@@ -478,6 +481,7 @@ class OfflineManager {
         });
 
         // 2. Add to sync queue
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'update',
             entity: 'fact',
@@ -486,7 +490,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // 3. Register Background Sync
@@ -553,6 +558,7 @@ class OfflineManager {
         const tempId = `offline_fact_delete_${id}_${Date.now()}`;
 
         // Add to sync queue
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'delete',
             entity: 'fact',
@@ -561,7 +567,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // Register Background Sync
@@ -614,6 +621,7 @@ class OfflineManager {
             serverId: null
         });
 
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'transfer',
@@ -622,7 +630,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // Note: No automatic Background Sync registration here
@@ -681,6 +690,7 @@ class OfflineManager {
             serverId: null
         });
 
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'plan',
@@ -689,7 +699,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // Note: No automatic Background Sync registration here
@@ -708,9 +719,13 @@ class OfflineManager {
 
     /**
      * Sync all pending items
+     * @param {Object} options - Sync options
+     * @param {boolean} options.includeManualModeItems - Include items created in manual mode (default: false for auto-sync)
      * @returns {Promise<Object>} Sync results
      */
-    async sync() {
+    async sync(options = {}) {
+        const { includeManualModeItems = false } = options;
+
         if (this.syncInProgress) {
             return { skipped: true };
         }
@@ -724,11 +739,22 @@ class OfflineManager {
         const results = {
             synced: 0,
             failed: 0,
+            skippedManualMode: 0,
             items: []
         };
 
         try {
-            const queue = await this.db.getSyncQueue('pending');
+            let queue = await this.db.getSyncQueue('pending');
+
+            // Filter out manual mode items if not explicitly requested
+            if (!includeManualModeItems) {
+                const originalCount = queue.length;
+                queue = queue.filter(item => !item.createdInManualMode);
+                results.skippedManualMode = originalCount - queue.length;
+                if (results.skippedManualMode > 0) {
+                    console.log(`[OfflineManager] Skipping ${results.skippedManualMode} manual mode items (use manual sync button)`);
+                }
+            }
 
             for (const item of queue) {
                 try {
@@ -1122,7 +1148,7 @@ class OfflineManager {
 
     /**
      * Get all unsynced items (pending + failed) for display
-     * @returns {Promise<{items: Array, hasRetryable: boolean}>}
+     * @returns {Promise<{items: Array, hasRetryable: boolean, hasManualModeItems: boolean, manualModeCount: number}>}
      */
     async getAllUnsyncedItems() {
         const pending = await this.db.getSyncQueue('pending');
@@ -1134,15 +1160,28 @@ class OfflineManager {
             item.status === 'failed' || (item.retryCount && item.retryCount > 0)
         );
 
-        return { items, hasRetryable };
+        // Check for manual mode items (pending only, not failed)
+        const manualModeItems = pending.filter(item => item.createdInManualMode);
+        const hasManualModeItems = manualModeItems.length > 0;
+        const manualModeCount = manualModeItems.length;
+
+        return { items, hasRetryable, hasManualModeItems, manualModeCount };
     }
 
     /**
-     * Sync all pending items in queue
+     * Sync all pending items in queue (auto-sync, excludes manual mode items)
      * @returns {Promise<Object>} Sync results {synced, failed, items}
      */
     async syncQueue() {
         return await this.sync();
+    }
+
+    /**
+     * Sync items created in manual mode (user-initiated sync)
+     * @returns {Promise<Object>} Sync results {synced, failed, items}
+     */
+    async syncManualModeItems() {
+        return await this.sync({ includeManualModeItems: true });
     }
 
     /**

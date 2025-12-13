@@ -183,13 +183,21 @@
                             </table>
                         </div>
                     </div>
-                    <!-- Retry sync button - only visible when there are failed/retry items -->
+                    <!-- Action buttons for pending records -->
                     <div id="pending-records-actions" class="card-actions justify-end mt-4 hidden">
-                        <button id="retry-sync-btn" onclick="syncPendingRecords()" class="btn btn-sm btn-warning gap-2" disabled>
+                        <!-- Sync button - for manual mode items -->
+                        <button id="sync-manual-btn" onclick="syncManualModeItems()" class="btn btn-sm btn-primary gap-2 hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            Синхронизировать
+                        </button>
+                        <!-- Retry button - for failed items -->
+                        <button id="retry-sync-btn" onclick="retryFailedItems()" class="btn btn-sm btn-warning gap-2 hidden">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
-                            Повторить синхронизацию
+                            Повторить
                         </button>
                     </div>
                 </div>
@@ -1618,6 +1626,7 @@ async function loadPendingRecords() {
     const countBadge = document.getElementById('pending-count-badge');
     const actionsDiv = document.getElementById('pending-records-actions');
     const retryBtn = document.getElementById('retry-sync-btn');
+    const syncManualBtn = document.getElementById('sync-manual-btn');
 
     debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
 
@@ -1636,8 +1645,8 @@ async function loadPendingRecords() {
 
     try {
         // Get all unsynced items (pending + failed)
-        const { items: pendingItems, hasRetryable } = await window.offlineManager.getAllUnsyncedItems();
-        debugLog('[loadPendingRecords] Found unsynced items:', pendingItems.length, 'hasRetryable:', hasRetryable);
+        const { items: pendingItems, hasRetryable, hasManualModeItems } = await window.offlineManager.getAllUnsyncedItems();
+        debugLog('[loadPendingRecords] Found unsynced items:', pendingItems.length, 'hasRetryable:', hasRetryable, 'hasManualModeItems:', hasManualModeItems);
 
         if (pendingItems.length === 0) {
             card.classList.add('hidden');
@@ -1649,14 +1658,31 @@ async function loadPendingRecords() {
         // Show the card
         card.classList.remove('hidden');
 
-        // Show/hide and enable/disable retry button based on hasRetryable
-        if (actionsDiv && retryBtn) {
-            if (hasRetryable) {
+        // Show/hide buttons based on item types
+        const showActions = hasRetryable || hasManualModeItems;
+        if (actionsDiv) {
+            if (showActions) {
                 actionsDiv.classList.remove('hidden');
-                retryBtn.disabled = false;
             } else {
                 actionsDiv.classList.add('hidden');
-                retryBtn.disabled = true;
+            }
+        }
+
+        // Sync manual button - show when there are manual mode items
+        if (syncManualBtn) {
+            if (hasManualModeItems) {
+                syncManualBtn.classList.remove('hidden');
+            } else {
+                syncManualBtn.classList.add('hidden');
+            }
+        }
+
+        // Retry button - show when there are failed items
+        if (retryBtn) {
+            if (hasRetryable) {
+                retryBtn.classList.remove('hidden');
+            } else {
+                retryBtn.classList.add('hidden');
             }
         }
 
@@ -1795,8 +1821,8 @@ function getStatusBadge(item) {
     return '<span class="badge badge-info badge-sm">Ожидает</span>';
 }
 
-// Sync pending records manually
-async function syncPendingRecords() {
+// Sync items created in manual mode (user clicks "Синхронизировать" button)
+async function syncManualModeItems() {
     if (!window.offlineManager) {
         showToast('Менеджер синхронизации недоступен', 'error');
         return;
@@ -1810,50 +1836,88 @@ async function syncPendingRecords() {
 
     try {
         showToast('Синхронизация...', 'info');
-        const results = await window.offlineManager.syncQueue();
+        // Sync ALL items including manual mode items
+        const results = await window.offlineManager.syncManualModeItems();
         await loadPendingRecords();
 
-        // Show appropriate message based on results
-        if (results.synced > 0 && results.failed === 0) {
-            showToast(`Синхронизировано: ${results.synced} записей`, 'success');
-            // Reload recent records and metrics only if something was synced
-            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-                target: '#recent-transactions',
-                swap: 'innerHTML'
-            });
-            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-                target: '#quick-stats',
-                swap: 'innerHTML'
-            });
-            htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
-                target: '#account-balances',
-                swap: 'innerHTML'
-            });
-        } else if (results.synced > 0 && results.failed > 0) {
-            showToast(`Синхронизировано: ${results.synced}, ошибок: ${results.failed}`, 'warning');
-            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-                target: '#recent-transactions',
-                swap: 'innerHTML'
-            });
-            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-                target: '#quick-stats',
-                swap: 'innerHTML'
-            });
-            htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
-                target: '#account-balances',
-                swap: 'innerHTML'
-            });
-        } else if (results.failed > 0) {
-            showToast(`Ошибка синхронизации: ${results.failed} записей`, 'error');
-        } else if (results.skipped) {
-            showToast('Нечего синхронизировать', 'info');
-        } else {
-            showToast('Синхронизация завершена', 'success');
-        }
+        // Show appropriate message and refresh UI
+        await handleSyncResults(results);
     } catch (error) {
-        console.error('[Sync] Error:', error);
+        console.error('[Sync Manual] Error:', error);
         showToast('Ошибка синхронизации: ' + error.message, 'error');
     }
+}
+
+// Retry failed items (user clicks "Повторить" button)
+async function retryFailedItems() {
+    if (!window.offlineManager) {
+        showToast('Менеджер синхронизации недоступен', 'error');
+        return;
+    }
+
+    const isOnline = navigator.onLine && window.offlineManager.isOnline;
+    if (!isOnline) {
+        showToast('Нет подключения к серверу', 'warning');
+        return;
+    }
+
+    try {
+        showToast('Повторная синхронизация...', 'info');
+        // Sync ALL items including manual mode (to retry failed ones)
+        const results = await window.offlineManager.syncManualModeItems();
+        await loadPendingRecords();
+
+        // Show appropriate message and refresh UI
+        await handleSyncResults(results);
+    } catch (error) {
+        console.error('[Retry Sync] Error:', error);
+        showToast('Ошибка синхронизации: ' + error.message, 'error');
+    }
+}
+
+// Handle sync results - show toast and refresh UI
+async function handleSyncResults(results) {
+    if (results.synced > 0 && results.failed === 0) {
+        showToast(`Синхронизировано: ${results.synced} записей`, 'success');
+        // Reload recent records and metrics only if something was synced
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+            target: '#quick-stats',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+            target: '#account-balances',
+            swap: 'innerHTML'
+        });
+    } else if (results.synced > 0 && results.failed > 0) {
+        showToast(`Синхронизировано: ${results.synced}, ошибок: ${results.failed}`, 'warning');
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+            target: '#quick-stats',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+            target: '#account-balances',
+            swap: 'innerHTML'
+        });
+    } else if (results.failed > 0) {
+        showToast(`Ошибка синхронизации: ${results.failed} записей`, 'error');
+    } else if (results.skipped) {
+        showToast('Нечего синхронизировать', 'info');
+    } else {
+        showToast('Синхронизация завершена', 'success');
+    }
+}
+
+// Legacy function for backward compatibility
+async function syncPendingRecords() {
+    return await syncManualModeItems();
 }
 
 // Update pending count badge (called from other modules)
@@ -1862,13 +1926,14 @@ async function updatePendingCount() {
     const card = document.getElementById('pending-records-card');
     const actionsDiv = document.getElementById('pending-records-actions');
     const retryBtn = document.getElementById('retry-sync-btn');
+    const syncManualBtn = document.getElementById('sync-manual-btn');
 
     if (!countBadge || !window.offlineManager) {
         return 0;
     }
 
     try {
-        const { items: pendingItems, hasRetryable } = await window.offlineManager.getAllUnsyncedItems();
+        const { items: pendingItems, hasRetryable, hasManualModeItems } = await window.offlineManager.getAllUnsyncedItems();
         countBadge.textContent = pendingItems.length;
 
         // Update card visibility
@@ -1880,14 +1945,31 @@ async function updatePendingCount() {
             }
         }
 
-        // Update retry button state
-        if (actionsDiv && retryBtn) {
-            if (hasRetryable && pendingItems.length > 0) {
+        // Show/hide action buttons based on item types
+        const showActions = (hasRetryable || hasManualModeItems) && pendingItems.length > 0;
+        if (actionsDiv) {
+            if (showActions) {
                 actionsDiv.classList.remove('hidden');
-                retryBtn.disabled = false;
             } else {
                 actionsDiv.classList.add('hidden');
-                retryBtn.disabled = true;
+            }
+        }
+
+        // Sync manual button - show when there are manual mode items
+        if (syncManualBtn) {
+            if (hasManualModeItems) {
+                syncManualBtn.classList.remove('hidden');
+            } else {
+                syncManualBtn.classList.add('hidden');
+            }
+        }
+
+        // Retry button - show when there are failed items
+        if (retryBtn) {
+            if (hasRetryable) {
+                retryBtn.classList.remove('hidden');
+            } else {
+                retryBtn.classList.add('hidden');
             }
         }
 
