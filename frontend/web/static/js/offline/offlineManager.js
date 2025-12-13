@@ -126,6 +126,12 @@ class OfflineManager {
         // Clear expired cache periodically
         setInterval(() => this.db.clearExpiredCache(), 60000); // Every minute
 
+        // Dispatch restored state events AFTER all listeners are registered
+        // This ensures UI updates correctly on page navigation
+        if (this.networkDetector && this.networkDetector.dispatchRestoredState) {
+            this.networkDetector.dispatchRestoredState();
+        }
+
         this.isInitialized = true;
     }
 

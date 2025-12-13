@@ -55,40 +55,51 @@ class SmartNetworkDetector {
         // Инициализация
         this._init();
 
-        // Dispatch initial state if offline mode was loaded from localStorage
-        // This ensures UI updates correctly on page navigation
-        if (this.manualOfflineMode || this.autoOfflineMode) {
-            // Use setTimeout to ensure listeners are registered before dispatch
-            setTimeout(() => {
-                // Dispatch network status change event
-                window.dispatchEvent(new CustomEvent('network-status-change', {
-                    detail: {
-                        status: 'offline',
-                        previousStatus: 'online',
-                        timestamp: Date.now(),
-                        manual: this.manualOfflineMode,
-                        auto: this.autoOfflineMode,
-                        restored: true  // Indicates state was restored from localStorage
-                    }
-                }));
+        // Store reference for dispatching events after init
+        // Events are dispatched via dispatchRestoredState() called explicitly
+        // This ensures listeners are registered before dispatch
+        this._hasRestoredState = this.manualOfflineMode || this.autoOfflineMode;
+    }
 
-                // Dispatch offline status change for UI updates
-                window.dispatchEvent(new CustomEvent('offline-status-change', {
-                    detail: {
-                        online: false,
-                        status: 'offline',
-                        manual: this.manualOfflineMode,
-                        auto: this.autoOfflineMode
-                    }
-                }));
+    /**
+     * Dispatch events for restored offline state from localStorage.
+     * Should be called after event listeners are registered (e.g., after init completes).
+     * This method is safe to call multiple times - it only dispatches once.
+     */
+    dispatchRestoredState() {
+        if (!this._hasRestoredState || this._stateDispatched) {
+            return;
+        }
 
-                // Also dispatch manual mode event for toggle button
-                if (this.manualOfflineMode) {
-                    window.dispatchEvent(new CustomEvent('manual-offline-mode-change', {
-                        detail: { enabled: true }
-                    }));
-                }
-            }, 0);
+        this._stateDispatched = true;
+
+        // Dispatch network status change event
+        window.dispatchEvent(new CustomEvent('network-status-change', {
+            detail: {
+                status: 'offline',
+                previousStatus: 'online',
+                timestamp: Date.now(),
+                manual: this.manualOfflineMode,
+                auto: this.autoOfflineMode,
+                restored: true  // Indicates state was restored from localStorage
+            }
+        }));
+
+        // Dispatch offline status change for UI updates
+        window.dispatchEvent(new CustomEvent('offline-status-change', {
+            detail: {
+                online: false,
+                status: 'offline',
+                manual: this.manualOfflineMode,
+                auto: this.autoOfflineMode
+            }
+        }));
+
+        // Also dispatch manual mode event for toggle button
+        if (this.manualOfflineMode) {
+            window.dispatchEvent(new CustomEvent('manual-offline-mode-change', {
+                detail: { enabled: true }
+            }));
         }
     }
 
