@@ -196,10 +196,12 @@ class ChoicesProductGroupTree {
                 // Get breadcrumbs path
                 const breadcrumbs = this.getBreadcrumbs(pg.id, groupMap);
 
-                // Format: "Name (Path → To → Name)" or just "Name" if root
+                // Format: "Name (Parent Path)" or just "Name" if root
+                // IMPORTANT: Exclude current node from path to avoid duplication
                 let label = this.escapeHtml(pg.name);
                 if (breadcrumbs.length > 1) {
-                    const pathStr = breadcrumbs.map(g => this.escapeHtml(g.name)).join(' → ');
+                    // slice(0, -1) removes current node from breadcrumbs
+                    const pathStr = breadcrumbs.slice(0, -1).map(g => this.escapeHtml(g.name)).join(' → ');
                     label = `${this.escapeHtml(pg.name)} (${pathStr})`;
                 }
 

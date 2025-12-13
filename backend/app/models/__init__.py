@@ -50,6 +50,7 @@ Usage:
 
 from backend.app.models.article import Article, ArticleUsageStats
 from backend.app.models.article_financial_center import ArticleFinancialCenter
+from backend.app.models.cost_center_financial_center import CostCenterFinancialCenter
 from backend.app.models.bank_provider import BankProvider
 from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.cost_center import CostCenter
@@ -79,6 +80,7 @@ __all__ = [
     "User",
     "Article",
     "ArticleFinancialCenter",
+    "CostCenterFinancialCenter",
     "ArticleUsageStats",
     "FinancialCenter",
     "CostCenter",

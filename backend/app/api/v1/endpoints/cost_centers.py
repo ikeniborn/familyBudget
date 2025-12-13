@@ -24,7 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import or_, select
 
 from backend.app.core.dependencies import get_current_user, get_session
-from backend.app.models import CostCenter, User
+from backend.app.models import CostCenter, FinancialCenter, User
+from backend.app.models.cost_center_financial_center import CostCenterFinancialCenter
 from backend.app.schemas.cost_center import (
     CostCenterCreate,
     CostCenterListResponse,
@@ -58,12 +59,21 @@ async def list_cost_centers(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of results"),
     offset: int = Query(0, ge=0, description="Number of results to skip"),
     include_inactive: bool = Query(False, description="Include archived cost centers"),
+    financial_center_id: int | None = Query(
+        default=None,
+        description="Filter cost centers by financial center ID. "
+                    "Returns cost centers with NO FC restrictions OR linked to this specific FC."
+    ),
 ) -> CostCenterListResponse:
     """
     List cost centers for current user.
 
     Shared references architecture: All users see all cost centers.
     By default, only active cost centers (is_active=True) are returned.
+
+    Filter by financial_center_id (whitelist pattern):
+    - If provided: Returns cost centers with NO FC restrictions OR linked to this FC
+    - If not provided: Returns all cost centers (no FC filtering)
     """
     # Build query - all cost centers (shared references)
     conditions = []
@@ -71,6 +81,28 @@ async def list_cost_centers(
     # Filter archived if not explicitly requested
     if not include_inactive:
         conditions.append(CostCenter.is_active == True)
+
+    # Filter by financial_center_id (whitelist pattern)
+    if financial_center_id is not None:
+        # Subquery: cost_center IDs that have ANY FC restriction
+        cc_with_fc_restrictions = select(
+            CostCenterFinancialCenter.cost_center_id
+        ).distinct()
+
+        # Subquery: cost_center IDs linked to the specified FC
+        cc_linked_to_fc = select(
+            CostCenterFinancialCenter.cost_center_id
+        ).where(
+            CostCenterFinancialCenter.financial_center_id == financial_center_id
+        )
+
+        # Filter: cost_center has NO restrictions OR is linked to this FC
+        conditions.append(
+            or_(
+                CostCenter.id.not_in(cc_with_fc_restrictions),
+                CostCenter.id.in_(cc_linked_to_fc)
+            )
+        )
 
     # Count total
     count_query = select(CostCenter).where(*conditions)
@@ -89,9 +121,38 @@ async def list_cost_centers(
     result = await session.execute(query)
     cost_centers = result.scalars().all()
 
+    # Load financial_center_ids for all cost centers
+    cc_ids = [cc.id for cc in cost_centers]
+    if cc_ids:
+        fc_links_query = select(CostCenterFinancialCenter).where(
+            CostCenterFinancialCenter.cost_center_id.in_(cc_ids)
+        )
+        fc_links_result = await session.execute(fc_links_query)
+        fc_links = fc_links_result.scalars().all()
+
+        # Build mapping: cost_center_id -> list of financial_center_ids
+        fc_map: dict[int, list[int]] = {}
+        for link in fc_links:
+            if link.cost_center_id not in fc_map:
+                fc_map[link.cost_center_id] = []
+            fc_map[link.cost_center_id].append(link.financial_center_id)
+    else:
+        fc_map = {}
+
     return CostCenterListResponse(
         cost_centers=[
-            CostCenterResponse.model_validate(cc) for cc in cost_centers
+            CostCenterResponse(
+                id=cc.id,
+                user_id=cc.user_id,
+                name=cc.name,
+                code=cc.code,
+                description=cc.description,
+                is_active=cc.is_active,
+                created_at=cc.created_at,
+                updated_at=cc.updated_at,
+                financial_center_ids=fc_map.get(cc.id, [])
+            )
+            for cc in cost_centers
         ],
         total=total,
         limit=limit,
@@ -143,7 +204,40 @@ async def create_cost_center(
     # Create initial history record (SCD Type 2 for history)
     await create_initial_history(session=session, cost_center=cost_center, change_type="CREATE")
 
-    return CostCenterResponse.model_validate(cost_center)
+    # Handle financial center links
+    financial_center_ids: list[int] = []
+    if cost_center_data.financial_center_ids:
+        for fc_id in cost_center_data.financial_center_ids:
+            # Validate FC exists
+            fc_query = select(FinancialCenter).where(FinancialCenter.id == fc_id)
+            fc_result = await session.execute(fc_query)
+            fc = fc_result.scalar_one_or_none()
+            if not fc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Финансовый центр с id={fc_id} не найден"
+                )
+
+            link = CostCenterFinancialCenter(
+                cost_center_id=cost_center.id,
+                financial_center_id=fc_id
+            )
+            session.add(link)
+
+        await session.commit()
+        financial_center_ids = cost_center_data.financial_center_ids
+
+    return CostCenterResponse(
+        id=cost_center.id,
+        user_id=cost_center.user_id,
+        name=cost_center.name,
+        code=cost_center.code,
+        description=cost_center.description,
+        is_active=cost_center.is_active,
+        created_at=cost_center.created_at,
+        updated_at=cost_center.updated_at,
+        financial_center_ids=financial_center_ids
+    )
 
 
 @router.get(
@@ -177,7 +271,24 @@ async def get_cost_center(
 
     # NO access restrictions - all users can read all cost centers
 
-    return CostCenterResponse.model_validate(cost_center)
+    # Load financial_center_ids
+    fc_links_query = select(CostCenterFinancialCenter.financial_center_id).where(
+        CostCenterFinancialCenter.cost_center_id == cost_center_id
+    )
+    fc_links_result = await session.execute(fc_links_query)
+    financial_center_ids = [row[0] for row in fc_links_result.all()]
+
+    return CostCenterResponse(
+        id=cost_center.id,
+        user_id=cost_center.user_id,
+        name=cost_center.name,
+        code=cost_center.code,
+        description=cost_center.description,
+        is_active=cost_center.is_active,
+        created_at=cost_center.created_at,
+        updated_at=cost_center.updated_at,
+        financial_center_ids=financial_center_ids
+    )
 
 
 @router.put(
@@ -232,35 +343,102 @@ async def update_cost_center(
     # LOG: Found record
     logger.info(f"[UPDATE_CC] Found: id={cost_center.id}, name='{cost_center.name}'")
 
-    # Get update dict
-    update_dict = update_data.model_dump(exclude_unset=True)
+    # Get update dict (exclude financial_center_ids - handled separately)
+    update_dict = update_data.model_dump(exclude_unset=True, exclude={"financial_center_ids"})
 
-    # Check if anything changed
+    # Check if base fields changed
     changed, changed_fields = has_changes(cost_center, update_dict)
-    if not changed:
+
+    # Handle financial_center_ids update
+    financial_center_ids: list[int] = []
+    fc_ids_changed = False
+
+    if update_data.financial_center_ids is not None:
+        fc_ids_changed = True
+        # Delete existing links
+        delete_links_query = select(CostCenterFinancialCenter).where(
+            CostCenterFinancialCenter.cost_center_id == cost_center_id
+        )
+        links_result = await session.execute(delete_links_query)
+        for link in links_result.scalars().all():
+            await session.delete(link)
+
+        # Create new links
+        for fc_id in update_data.financial_center_ids:
+            fc_query = select(FinancialCenter).where(FinancialCenter.id == fc_id)
+            fc_result = await session.execute(fc_query)
+            fc = fc_result.scalar_one_or_none()
+            if not fc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Финансовый центр с id={fc_id} не найден"
+                )
+
+            link = CostCenterFinancialCenter(
+                cost_center_id=cost_center_id,
+                financial_center_id=fc_id
+            )
+            session.add(link)
+
+        financial_center_ids = update_data.financial_center_ids
+    else:
+        # Load existing financial_center_ids
+        existing_links_query = select(CostCenterFinancialCenter.financial_center_id).where(
+            CostCenterFinancialCenter.cost_center_id == cost_center_id
+        )
+        existing_links_result = await session.execute(existing_links_query)
+        financial_center_ids = [row[0] for row in existing_links_result.all()]
+
+    if not changed and not fc_ids_changed:
         logger.info(f"[UPDATE_CC] No changes detected for cc_id={cost_center_id}")
         # No changes, return existing cost center
-        return CostCenterResponse.model_validate(cost_center)
+        return CostCenterResponse(
+            id=cost_center.id,
+            user_id=cost_center.user_id,
+            name=cost_center.name,
+            code=cost_center.code,
+            description=cost_center.description,
+            is_active=cost_center.is_active,
+            created_at=cost_center.created_at,
+            updated_at=cost_center.updated_at,
+            financial_center_ids=financial_center_ids
+        )
 
     # LOG: Detected changes
-    logger.info(f"[UPDATE_CC] Detected changes: {changed_fields}")
+    logger.info(f"[UPDATE_CC] Detected changes: {changed_fields}, fc_ids_changed={fc_ids_changed}")
 
-    # Use SCD1+History service for update
-    updated_cost_center = await update_cost_center_profile(
-        session=session,
-        cost_center=cost_center,
-        updates=update_dict,
-        changed_by_user_id=current_user.id,
-        change_type="UPDATE",
-    )
+    # Use SCD1+History service for update (only if base fields changed)
+    if changed:
+        updated_cost_center = await update_cost_center_profile(
+            session=session,
+            cost_center=cost_center,
+            updates=update_dict,
+            changed_by_user_id=current_user.id,
+            change_type="UPDATE",
+        )
+    else:
+        updated_cost_center = cost_center
+        # Commit FC link changes if any
+        await session.commit()
+        await session.refresh(updated_cost_center)
 
     # LOG: Success
     logger.info(
         f"[UPDATE_CC] Successfully updated cc_id={cost_center_id}, "
-        f"new_values: {update_dict}"
+        f"new_values: {update_dict}, fc_ids_changed={fc_ids_changed}"
     )
 
-    return CostCenterResponse.model_validate(updated_cost_center)
+    return CostCenterResponse(
+        id=updated_cost_center.id,
+        user_id=updated_cost_center.user_id,
+        name=updated_cost_center.name,
+        code=updated_cost_center.code,
+        description=updated_cost_center.description,
+        is_active=updated_cost_center.is_active,
+        created_at=updated_cost_center.created_at,
+        updated_at=updated_cost_center.updated_at,
+        financial_center_ids=financial_center_ids
+    )
 
 
 @router.put(

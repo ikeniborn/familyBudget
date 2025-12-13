@@ -521,6 +521,7 @@ let allCategories = [];
 let createCategoryTreeSelect = null;
 let editCategoryTreeSelect = null;
 let editDateCalendar = null; // CalendarWidget instance for edit modal
+// allCostCenters is declared in transfer.js - DO NOT redeclare here to avoid conflicts
 
 // Global state
 let currentPage = 0;
@@ -581,6 +582,8 @@ function openPlanTransferModal() {
         modal.showModal();
     }
 }
+// Ensure function is globally accessible for onclick handlers
+window.openPlanTransferModal = openPlanTransferModal;
 
 /**
  * Load recommended amounts from API and update quick amount buttons.
@@ -1242,13 +1245,15 @@ async function loadFinancialCenters() {
                 createSelect.appendChild(option);
             });
 
-            // Add change listener to filter categories AND reload plan hints when account changes
+            // Add change listener to filter categories, cost centers AND reload plan hints when account changes
             createSelect.addEventListener('change', async () => {
+                const fcId = createSelect.value ? parseInt(createSelect.value) : null;
                 // Filter categories by selected FC
                 if (createCategoryTreeSelect) {
-                    const fcId = createSelect.value ? parseInt(createSelect.value) : null;
                     await createCategoryTreeSelect.updateFinancialCenter(fcId);
                 }
+                // Filter cost centers by selected FC
+                await filterCostCenterDropdown('#form_modal_add_plan', fcId);
                 // Update plan hints
                 const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
                 loadPlanHints(selectedCategory);
@@ -1293,6 +1298,9 @@ async function loadCostCenters() {
         const data = await response.json();
         const centers = data.cost_centers || [];
 
+        // Save to global for filtering
+        allCostCenters = centers;
+
         // Populate create modal dropdown
         const createSelect = document.querySelector('#form_modal_add_plan select[name="cost_center_id"]');
         if (createSelect) {
@@ -1332,6 +1340,74 @@ async function loadCostCenters() {
     } catch (error) {
         console.error('Error loading cost centers:', error);
         showToast('Ошибка загрузки МЗ: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Filter cost center dropdown by financial center ID.
+ * Whitelist pattern: show cost centers without FC restrictions OR linked to this FC.
+ * @param {string} formSelector - CSS selector for the form (e.g., '#form_modal_add_plan')
+ * @param {number|null} financialCenterId - Selected financial center ID
+ */
+async function filterCostCenterDropdown(formSelector, financialCenterId) {
+    const select = document.querySelector(`${formSelector} select[name="cost_center_id"]`);
+    if (!select) return;
+
+    const currentValue = select.value;
+
+    // Clear all options except the first one ("-- Не выбрано --")
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    if (!financialCenterId) {
+        // No FC selected - show all cost centers
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            select.appendChild(option);
+        });
+        if (currentValue) select.value = currentValue;
+        return;
+    }
+
+    // Fetch filtered cost centers from API
+    try {
+        const response = await fetch(
+            `/api/v1/cost-centers?limit=1000&financial_center_id=${financialCenterId}`,
+            { credentials: 'include' }
+        );
+        if (response.ok) {
+            const data = await response.json();
+            const filteredCenters = data.cost_centers || [];
+            filteredCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            if (currentValue) {
+                const exists = filteredCenters.some(cc => cc.id == currentValue);
+                if (exists) select.value = currentValue;
+            }
+        } else {
+            // Fallback to showing all
+            allCostCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error filtering cost centers:', error);
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            select.appendChild(option);
+        });
     }
 }
 
@@ -2510,6 +2586,8 @@ function openAddPlanModal() {
         modal.showModal();
     }
 }
+// Ensure function is globally accessible for onclick handlers
+window.openAddPlanModal = openAddPlanModal;
 
 // Toggle reminder settings visibility (for create modal)
 function toggleReminderSettings(modalId) {

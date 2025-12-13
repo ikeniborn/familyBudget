@@ -60,6 +60,17 @@
                 </label>
                 <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
             </div>
+            <div class="form-control" id="create-fc-container">
+                <label class="label">
+                    <span class="label-text">🏦 Финансовые центры</span>
+                </label>
+                <select id="create-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
+                    <!-- Will be populated dynamically -->
+                </select>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Не выбрано = МЗ доступно для всех счетов. Удерживайте Ctrl для выбора нескольких.
+                </p>
+            </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-primary">✅ Создать</button>
@@ -88,6 +99,17 @@
                     <span class="label-text">📄 Описание</span>
                 </label>
                 <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
+            </div>
+            <div class="form-control" id="edit-fc-container">
+                <label class="label">
+                    <span class="label-text">🏦 Финансовые центры</span>
+                </label>
+                <select id="edit-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
+                    <!-- Will be populated dynamically -->
+                </select>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Не выбрано = МЗ доступно для всех счетов. Удерживайте Ctrl для выбора нескольких.
+                </p>
             </div>
             <div class="modal-action">
                 <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
@@ -122,12 +144,14 @@
 <script>
 // Global state
 let centersData = [];
+let financialCentersData = [];
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 const isAdmin = {{ 'true' if user.is_admin else 'false' }};
 
 // Load centers on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadCenters();
+    loadFinancialCenters();
 });
 
 // Load cost centers from API
@@ -160,6 +184,54 @@ async function loadCenters() {
     }
 }
 
+// Load financial centers for multiselect
+async function loadFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/financial-centers', {
+            credentials: 'include',
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        financialCentersData = data.financial_centers || [];
+        populateFinancialCenterSelect('create-financial-centers', []);
+        populateFinancialCenterSelect('edit-financial-centers', []);
+    } catch (error) {
+        console.error('Error loading financial centers:', error);
+    }
+}
+
+// Populate financial center multiselect
+function populateFinancialCenterSelect(selectId, selectedIds) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    select.innerHTML = '';
+
+    const normalizedSelectedIds = (selectedIds || []).map(id => parseInt(id, 10));
+
+    financialCentersData.forEach(fc => {
+        const option = document.createElement('option');
+        option.value = fc.id;
+        option.textContent = fc.name;
+        option.selected = normalizedSelectedIds.includes(parseInt(fc.id, 10));
+        select.appendChild(option);
+    });
+}
+
+// Get FC names label for table
+function getFCNamesLabel(fcIds) {
+    if (!fcIds || fcIds.length === 0) {
+        return '<span class="badge badge-ghost">Все</span>';
+    }
+    const names = fcIds.map(id => {
+        const fc = financialCentersData.find(f => f.id === id);
+        return fc ? fc.name : `#${id}`;
+    });
+    if (names.length > 2) {
+        return `<span class="badge badge-info badge-sm">${names.slice(0, 2).join(', ')} +${names.length - 2}</span>`;
+    }
+    return `<span class="badge badge-info badge-sm">${names.join(', ')}</span>`;
+}
+
 // Render centers table
 function renderCentersTable(centers) {
     const container = document.getElementById('centers-table-container');
@@ -183,6 +255,7 @@ function renderCentersTable(centers) {
                 <thead>
                     <tr>
                         <th>📝 Название</th>
+                        <th>🏦 Счета</th>
                         <th>🔢 Код</th>
                         <th>📄 Описание</th>
                         <th>📅 Создан</th>
@@ -220,6 +293,7 @@ function renderCentersTable(centers) {
         html += `
             <tr data-center-id="${center.id}">
                 <td class="font-medium">${center.name}${archivedBadge}</td>
+                <td>${getFCNamesLabel(center.financial_center_ids)}</td>
                 <td class="font-mono text-sm">${center.code || '—'}</td>
                 <td>${description}</td>
                 <td>${createdDate}</td>
@@ -253,9 +327,14 @@ async function createCenter(event) {
     event.preventDefault();
 
     const formData = new FormData(event.target);
+    const fcSelect = document.getElementById('create-financial-centers');
+    const financialCenterIds = Array.from(fcSelect.selectedOptions)
+        .map(opt => parseInt(opt.value));
+
     const data = {
         name: formData.get('name'),
-        description: formData.get('description') || null
+        description: formData.get('description') || null,
+        financial_center_ids: financialCenterIds.length > 0 ? financialCenterIds : null
     };
 
     try {
@@ -293,6 +372,10 @@ function showEditModal(centerId) {
     document.getElementById('edit-name').value = center.name;
     document.getElementById('edit-description').value = center.description || '';
 
+    // Populate financial centers multiselect
+    const fcIds = center.financial_center_ids || [];
+    populateFinancialCenterSelect('edit-financial-centers', fcIds);
+
     document.getElementById('edit-modal').showModal();
 }
 
@@ -308,17 +391,15 @@ async function updateCenter(event) {
 
     const formData = new FormData(event.target);
     const centerId = formData.get('id');
+    const fcSelect = document.getElementById('edit-financial-centers');
+    const financialCenterIds = Array.from(fcSelect.selectedOptions)
+        .map(opt => parseInt(opt.value));
+
     const data = {
         name: formData.get('name'),
-        description: formData.get('description') || null
+        description: formData.get('description') || null,
+        financial_center_ids: financialCenterIds  // даже если пустой массив - означает "очистить"
     };
-
-    // LOG: Frontend data before sending
-    console.log('[FRONTEND] Updating cost center:', {
-        centerId,
-        data,
-        url: `/api/v1/cost-centers/${centerId}`
-    });
 
     try {
         const response = await fetch(`/api/v1/cost-centers/${centerId}`, {
@@ -330,21 +411,15 @@ async function updateCenter(event) {
             body: JSON.stringify(data)
         });
 
-        console.log('[FRONTEND] Response status:', response.status);
-
         if (!response.ok) {
             const error = await response.json();
-            console.error('[FRONTEND] Error response:', error);
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
-
-        const result = await response.json();
-        console.log('[FRONTEND] Success response:', result);
 
         // Success
         closeEditModal();
         await loadCenters();
-        showNotification('✅ МЗ успешно обновлено (создана новая версия SCD2)!', 'success');
+        showNotification('✅ МЗ успешно обновлено!', 'success');
     } catch (error) {
         console.error('Error updating cost center:', error);
         const errorMessage = error?.message || String(error);

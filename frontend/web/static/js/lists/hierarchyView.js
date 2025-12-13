@@ -185,10 +185,10 @@ class HierarchyView {
 
     /**
      * Render product group tree recursively (supports nested product groups)
-     * Compact design: minimal indentation, groups only show hierarchy structure
+     * Compact design: dynamic indentation based on depth, supports unlimited nesting
      * @param {Object} pgTree - Tree of product groups (keys are IDs)
      * @param {string} parentNodeId - Parent node ID for building unique node IDs
-     * @param {number} depth - Current depth level for indentation (max 2 levels visible)
+     * @param {number} depth - Current depth level for indentation (supports any depth)
      */
     renderProductGroupTree(pgTree, parentNodeId, depth) {
         let html = '<div class="hierarchy-group-list">';
@@ -209,12 +209,13 @@ class HierarchyView {
             // Check if has nested content (items or child product groups)
             const hasNestedContent = productGroup.items.length > 0 || Object.keys(productGroup.children).length > 0;
 
-            // Compact indentation - use CSS classes instead of repeating elements
-            // depth 1 = under store, depth 2+ = nested groups
-            const indentClass = depth === 1 ? 'indent-1' : 'indent-2';
+            // Dynamic indentation based on depth (0.5rem per level)
+            // depth 1 = 0.75rem, depth 2 = 1.25rem, depth 3 = 1.75rem, etc.
+            const indentRem = 0.25 + (depth * 0.5);
+            const indentStyle = `padding-left: ${indentRem}rem;`;
 
             html += `
-                <div class="hierarchy-group ${indentClass}" data-node-id="${pgNodeId}">
+                <div class="hierarchy-group" style="${indentStyle}" data-node-id="${pgNodeId}">
                     ${hasNestedContent ? `
                         <span class="hierarchy-toggle" onclick="window.hierarchyView.toggleNode('${pgNodeId}')">
                             ${isExpanded ? '▼' : '▶'}
