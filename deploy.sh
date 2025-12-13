@@ -1300,22 +1300,59 @@ main() {
     }
     echo ""
 
-    start_services
+    # PHASED STARTUP: PostgreSQL → Migrations → Application Services
+    # This eliminates race condition where backend starts before migrations complete
+
+    # Phase 1: Start PostgreSQL only
+    if ! start_postgres_only; then
+        error "Deployment failed: PostgreSQL failed to start"
+        error "Log file: $LOG_FILE"
+        exit 1
+    fi
     echo ""
 
     if [[ "$DETACH_MODE" == "true" ]]; then
-        wait_for_services
-        echo ""
-
-        # CRITICAL SAFEGUARD: Verify PostgreSQL health after service start
-        # This catches corruption early, even during selective restarts
-        # Runs ALWAYS regardless of POSTGRES_WAS_STOPPED to ensure data integrity
+        # CRITICAL SAFEGUARD: Verify PostgreSQL health after start
+        # This catches corruption early, before running migrations
         if ! verify_postgres_health_post_start; then
             error "Deployment failed: PostgreSQL health verification failed"
             error "Database may be corrupted - see recovery options above"
             error "Log file: $LOG_FILE"
             exit 1
         fi
+        echo ""
+
+        # Run Alembic migrations BEFORE starting application services
+        # This ensures database schema is ready when backend starts
+        # Admin user is created automatically during migration
+        if ! run_alembic_migrations; then
+            error "Deployment failed: Database migrations did not complete successfully"
+            error "Please check the logs and fix any migration issues before redeploying"
+            error "Log file: $LOG_FILE"
+            exit 1
+        fi
+        echo ""
+
+        # Verify database schema after migrations (before starting backend)
+        if ! verify_database_schema; then
+            error "Deployment failed: Database schema verification failed"
+            error "Critical tables are missing - migrations may have failed partially"
+            error "Please check migration logs and database state"
+            error "Log file: $LOG_FILE"
+            exit 1
+        fi
+        echo ""
+
+        # Phase 2: Start application services (backend, bot, nginx)
+        if ! start_application_services; then
+            error "Deployment failed: Application services failed to start"
+            error "Log file: $LOG_FILE"
+            exit 1
+        fi
+        echo ""
+
+        # Wait for all services to become healthy
+        wait_for_services
         echo ""
 
         # Configure Docker firewall (DOCKER-USER chain)
@@ -1328,26 +1365,6 @@ main() {
         else
             warning "Failed to configure Docker firewall - ports may be exposed!"
             warning "Run manually: source scripts/lib/firewall.sh && configure_docker_firewall"
-        fi
-        echo ""
-
-        # Run Alembic migrations
-        # Admin user is created automatically during migration
-        if ! run_alembic_migrations; then
-            error "Deployment failed: Database migrations did not complete successfully"
-            error "Please check the logs and fix any migration issues before redeploying"
-            error "Log file: $LOG_FILE"
-            exit 1
-        fi
-        echo ""
-
-        # Verify database schema after migrations
-        if ! verify_database_schema; then
-            error "Deployment failed: Database schema verification failed"
-            error "Critical tables are missing - migrations may have failed partially"
-            error "Please check migration logs and database state"
-            error "Log file: $LOG_FILE"
-            exit 1
         fi
         echo ""
 
