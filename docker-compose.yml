@@ -17,7 +17,10 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: familybudget-postgres
-    restart: unless-stopped
+    # Restart policy: "always" ensures PostgreSQL starts even after manual stop or Docker daemon restart
+    # Unlike "unless-stopped", "always" will restart the container after Docker daemon restarts,
+    # regardless of the container's previous state (running, stopped, or exited)
+    restart: always
     stop_grace_period: 60s  # Allow PostgreSQL time for graceful shutdown
     stop_signal: SIGINT     # Preferred signal for PostgreSQL clean shutdown
     environment:
