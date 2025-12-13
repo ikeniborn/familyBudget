@@ -151,6 +151,25 @@
         }
     </style>
 
+    <!-- Offline mode detection BEFORE body renders (prevents flash) -->
+    <script>
+        (function() {
+            try {
+                var manual = localStorage.getItem('budget_manual_offline_mode') === 'true';
+                var auto = localStorage.getItem('budget_auto_offline_mode') === 'true';
+                if (manual || auto) {
+                    document.documentElement.classList.add('offline-mode');
+                }
+            } catch(e) {}
+        })();
+    </script>
+    <style>
+        /* Hide offline elements BEFORE JavaScript runs */
+        html.offline-mode [data-offline-hidden="true"] {
+            display: none !important;
+        }
+    </style>
+
     <!-- Choices.js -->
     <link rel="stylesheet" href="/static/css/vendor/choices.min.css">
     <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
@@ -264,7 +283,8 @@
             <a id="telegram-link" href="https://t.me/ikenibornbudgetbot" target="_blank" rel="noopener noreferrer"
                class="btn btn-ghost btn-circle btn-sm sm:btn-md"
                aria-label="Open Telegram Bot"
-               title="Открыть Telegram бота">
+               title="Открыть Telegram бота"
+               data-offline-hidden="true">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
                 </svg>
@@ -281,7 +301,7 @@
 
             {% if user %}
                 <!-- User Dropdown Menu (hidden on mobile, visible on desktop) -->
-                <div id="user-dropdown" class="dropdown dropdown-end hidden lg:flex">
+                <div id="user-dropdown" class="dropdown dropdown-end hidden lg:flex" data-offline-hidden="true">
                     <label tabindex="0" class="btn btn-ghost btn-sm gap-1 sm:gap-2 px-1 sm:px-3" aria-label="User menu">
                         <!-- Avatar -->
                         {# SECURITY: Validate photo URL protocol to prevent javascript: or data: XSS #}
@@ -1085,6 +1105,13 @@
                 isOnline = false;
             }
 
+            // Sync offline-mode class on <html> (for CSS-based hiding)
+            if (isOnline) {
+                document.documentElement.classList.remove('offline-mode');
+            } else {
+                document.documentElement.classList.add('offline-mode');
+            }
+
             // Update offline badge (cloud with X) - show for AUTO offline only, hide for manual
             const offlineBadge = document.getElementById('offline-icon');
             if (offlineBadge) {
@@ -1110,49 +1137,12 @@
                 }
             }
 
-            // Mobile menu - show/hide individual items with data-offline-hidden
-            const mobileMenuContent = document.getElementById('mobile-menu-content');
-            if (mobileMenuContent) {
-                const offlineHiddenItems = mobileMenuContent.querySelectorAll('[data-offline-hidden="true"]');
-                offlineHiddenItems.forEach(item => {
-                    item.style.display = isOnline ? '' : 'none';
-                });
-            }
-
-            // Navbar center menu - show/hide individual items with data-offline-hidden
-            const navbarCenterMenu = document.getElementById('navbar-center-menu');
-            if (navbarCenterMenu) {
-                const offlineHiddenItems = navbarCenterMenu.querySelectorAll('[data-offline-hidden="true"]');
-                offlineHiddenItems.forEach(item => {
-                    item.style.display = isOnline ? '' : 'none';
-                });
-            }
-
-            // Hide Telegram link when offline (both mobile and desktop)
-            const telegramLink = document.getElementById('telegram-link');
-            if (telegramLink) {
-                telegramLink.style.display = isOnline ? '' : 'none';
-            }
-
-            // Hide user dropdown (desktop) when offline
-            const userDropdown = document.getElementById('user-dropdown');
-            if (userDropdown) {
-                userDropdown.style.display = isOnline ? '' : 'none';
-            }
-
-            // In analytics-group (now "Прочее") - hide only items with data-offline-hidden
-            const analyticsGroup = document.getElementById('analytics-group');
-            if (analyticsGroup) {
-                const offlineHiddenItems = analyticsGroup.querySelectorAll('[data-offline-hidden="true"]');
-                offlineHiddenItems.forEach(item => {
-                    item.style.display = isOnline ? '' : 'none';
-                });
-            }
-
-            const recentTransactionsCard = document.getElementById('recent-transactions-card');
-            if (recentTransactionsCard) {
-                recentTransactionsCard.style.display = isOnline ? '' : 'none';
-            }
+            // Search ENTIRE document for offline-hidden elements
+            // This handles all pages and containers (mobile menu, navbar, content areas)
+            const allOfflineHiddenItems = document.querySelectorAll('[data-offline-hidden="true"]');
+            allOfflineHiddenItems.forEach(item => {
+                item.style.display = isOnline ? '' : 'none';
+            });
 
             // Update pending count
             updatePendingCount();

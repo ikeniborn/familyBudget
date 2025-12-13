@@ -95,7 +95,7 @@
                         </div>
 
                         <!-- Прочее (Аналитика + Списки) -->
-                        <div id="analytics-group" class="border border-primary/30 rounded-lg p-3 bg-primary/5">
+                        <div id="quick-actions-group" class="border border-primary/30 rounded-lg p-3 bg-primary/5">
                             <h3 class="text-sm font-semibold text-primary mb-2 flex items-center gap-1">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
@@ -122,7 +122,7 @@
             </div>
 
             <!-- Recent Records (hidden when offline) -->
-            <div id="recent-transactions-card" class="card bg-base-100 shadow-xl">
+            <div id="recent-transactions-card" class="card bg-base-100 shadow-xl" data-offline-hidden="true">
                 <div class="card-body">
                     <h2 class="card-title text-xl mb-4">📈 Последние записи</h2>
                     <div id="recent-transactions"
