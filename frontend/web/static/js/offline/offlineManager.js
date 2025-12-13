@@ -143,7 +143,7 @@ class OfflineManager {
      * @param {boolean} options.manual - True if this is a manual mode transition
      */
     async _handleNetworkStatusChange(newStatus, oldStatus, options = {}) {
-        console.log(`[OfflineManager] Network status: ${oldStatus} → ${newStatus}`, options.manual ? '(manual)' : '');
+        // Note: NetworkDetector already logs status changes, so we don't duplicate here
 
         // Skip toasts for manual mode transitions - base.html handles those
         const skipToast = options.manual === true;
@@ -160,34 +160,42 @@ class OfflineManager {
                 this._showToastDebounced('Соединение восстановлено', 'success');
             }
 
-            let syncResults = { synced: 0, failed: 0 };
-
             // Запустить синхронизацию
             if (this.supportsBackgroundSync()) {
                 try {
                     const registration = await navigator.serviceWorker.ready;
                     await registration.sync.register('sync-budget-data');
-                    // Note: Background Sync doesn't return results, so counts stay 0
+                    // Background Sync will dispatch offline-sync-complete via handleSyncComplete()
+                    // when Service Worker finishes - no need to dispatch here
                 } catch (e) {
-                    syncResults = await this.sync();
+                    // Fallback to main thread sync if Background Sync fails
+                    const syncResults = await this.sync();
+                    // Dispatch event with sync results for UI update
+                    window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+                        detail: {
+                            status: newStatus,
+                            synced: syncResults.synced,
+                            failed: syncResults.failed
+                        }
+                    }));
                 }
             } else {
-                syncResults = await this.sync();
+                // No Background Sync support (Safari) - sync from main thread
+                const syncResults = await this.sync();
                 // Show sync result toast only for non-manual transitions
                 if (syncResults.synced > 0 && !skipToast) {
                     this.lastToastTime = 0;
                     this._showToastDebounced(`Синхронизировано: ${syncResults.synced} записей`, 'success');
                 }
+                // Dispatch event with sync results for UI update
+                window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+                    detail: {
+                        status: newStatus,
+                        synced: syncResults.synced,
+                        failed: syncResults.failed
+                    }
+                }));
             }
-
-            // Dispatch event with sync results for UI update
-            window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-                detail: {
-                    status: newStatus,
-                    synced: syncResults.synced,
-                    failed: syncResults.failed
-                }
-            }));
         } else if (newStatus === 'degraded' && oldStatus === 'online') {
             // Соединение ухудшилось
             this._showToastDebounced('Медленное соединение', 'warning');
