@@ -147,24 +147,32 @@ class OfflineManager {
             // Восстановление соединения
             this._showToastDebounced('Соединение восстановлено', 'success');
 
+            let syncResults = { synced: 0, failed: 0 };
+
             // Запустить синхронизацию
             if (this.supportsBackgroundSync()) {
                 try {
                     const registration = await navigator.serviceWorker.ready;
                     await registration.sync.register('sync-budget-data');
+                    // Note: Background Sync doesn't return results, so counts stay 0
                 } catch (e) {
-                    await this.sync();
+                    syncResults = await this.sync();
                 }
             } else {
-                const results = await this.sync();
-                if (results.synced > 0) {
+                syncResults = await this.sync();
+                if (syncResults.synced > 0) {
                     this.lastToastTime = 0;
-                    this._showToastDebounced(`Синхронизировано: ${results.synced} записей`, 'success');
+                    this._showToastDebounced(`Синхронизировано: ${syncResults.synced} записей`, 'success');
                 }
             }
 
+            // Dispatch event with sync results for UI update
             window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-                detail: { status: newStatus }
+                detail: {
+                    status: newStatus,
+                    synced: syncResults.synced,
+                    failed: syncResults.failed
+                }
             }));
         } else if (newStatus === 'degraded' && oldStatus === 'online') {
             // Соединение ухудшилось
@@ -333,12 +341,29 @@ class OfflineManager {
     }
 
     async createFactOffline(data) {
+        // Generate content hash for duplicate detection
+        const contentHash = this.db.generateContentHash(data);
+
+        // Check for duplicate (unsynced record with same content)
+        const existing = await this.db.checkDuplicateByHash(contentHash);
+        if (existing && !existing.synced) {
+            console.log('[OfflineManager] Duplicate detected, skipping:', contentHash);
+            return {
+                ...existing.data,
+                tempId: existing.tempId,
+                _offline: true,
+                _synced: false,
+                _duplicate: true
+            };
+        }
+
         const tempId = `offline_fact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // 1. Save to IndexedDB
+        // 1. Save to IndexedDB with contentHash
         await this.db.addFact({
             tempId,
             data,
+            contentHash,
             synced: false,
             createdAt: Date.now(),
             error: null,
@@ -746,7 +771,15 @@ class OfflineManager {
                 throw new Error(`Unknown operation: ${item.operation}`);
         }
 
-        // Mark as completed
+        // Verify record exists on server (only for CREATE operations)
+        if (item.operation === 'create') {
+            const verified = await this.verifyOnServer(item, response);
+            if (!verified) {
+                throw new Error('Verification failed - record not found on server');
+            }
+        }
+
+        // Mark as completed (only after verification passed)
         await this.db.updateSyncQueueItem(item.id, { status: 'completed' });
 
         // Update offline record
@@ -911,6 +944,29 @@ class OfflineManager {
 
         // DELETE returns 204 No Content
         return { success: true };
+    }
+
+    /**
+     * Verify that a record exists on the server after sync
+     * @param {Object} item - Sync queue item
+     * @param {Object} syncResponse - Response from POST/PUT request
+     * @returns {Promise<boolean>} True if record exists
+     */
+    async verifyOnServer(item, syncResponse) {
+        // Facts and Plans use /api/v1/facts, Transfers use /api/v1/transfers
+        const endpoint = item.entity === 'transfer'
+            ? `/api/v1/transfers/${syncResponse.transfer_id}`
+            : `/api/v1/facts/${syncResponse.id || syncResponse.fact_id}`;
+
+        try {
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+            return response.ok;
+        } catch (e) {
+            console.warn('[OfflineManager] Verification request failed:', e);
+            return false;
+        }
     }
 
     // ==================== EVENT HANDLERS ====================

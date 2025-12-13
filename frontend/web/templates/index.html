@@ -183,14 +183,6 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card-actions justify-end mt-4">
-                        <button onclick="syncPendingRecords()" class="btn btn-sm btn-primary gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Синхронизировать
-                        </button>
-                    </div>
                 </div>
             </div>
         </div>
@@ -1876,6 +1868,34 @@ document.addEventListener('DOMContentLoaded', function() {
     // Also listen for online/offline events
     window.addEventListener('online', loadPendingRecords);
     window.addEventListener('offline', loadPendingRecords);
+
+    // Listen for offline-sync-complete event (auto-sync when exiting offline mode)
+    window.addEventListener('offline-sync-complete', async (event) => {
+        console.log('[index.html] Sync complete event received:', event.detail);
+
+        // Reload pending records table
+        await loadPendingRecords();
+
+        // If something was synced or we're back online - refresh UI
+        const synced = event.detail?.synced || 0;
+        if (synced > 0 || event.detail?.status === 'online') {
+            // Refresh recent transactions
+            htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                target: '#recent-transactions',
+                swap: 'innerHTML'
+            });
+            // Refresh quick stats
+            htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                target: '#quick-stats',
+                swap: 'innerHTML'
+            });
+            // Refresh account balances
+            htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                target: '#account-balances',
+                swap: 'innerHTML'
+            });
+        }
+    });
 });
 
 // ============ Plan Reminder Functions ============
