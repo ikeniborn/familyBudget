@@ -93,7 +93,9 @@ services:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.11}
     image: familybudget-backend:${VERSION:-latest}
     container_name: familybudget-backend
-    restart: unless-stopped
+    # Restart policy: "always" ensures backend is always available after Docker daemon restarts
+    # Critical service - entire application depends on backend (API, auth, business logic)
+    restart: always
     depends_on:
       postgres:
         condition: service_healthy
@@ -201,7 +203,9 @@ services:
         PYTHON_VERSION: ${PYTHON_VERSION:-3.11}
     image: familybudget-bot:${VERSION:-latest}
     container_name: familybudget-bot
-    restart: unless-stopped
+    # Restart policy: "always" ensures Telegram bot is always available for users
+    # Critical service - primary user interface for Telegram users (polling mode requires 24/7 uptime)
+    restart: always
     depends_on:
       backend:
         condition: service_healthy
@@ -249,7 +253,9 @@ services:
   nginx:
     image: nginx:alpine
     container_name: familybudget-nginx
-    restart: unless-stopped
+    # Restart policy: "always" ensures nginx (entry point for all HTTPS traffic) is always available
+    # CRITICAL service - without nginx, application is completely inaccessible from internet
+    restart: always
     depends_on:
       backend:
         condition: service_healthy
