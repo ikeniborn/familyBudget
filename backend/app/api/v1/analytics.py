@@ -638,7 +638,7 @@ async def get_account_balances_html(
     Get account balances for all Financial Centers (HTML formatted).
 
     Logic (example: today is Dec 13, 2025):
-    - Opening balance: movements for PREVIOUS FULL MONTH (Nov 1-30)
+    - Opening balance: CUMULATIVE balance at end of previous month (all transactions before Dec 1)
     - Month movement: movements for CURRENT MONTH to date (Dec 1-13)
     - Current balance: Opening + Movement
 
@@ -646,19 +646,9 @@ async def get_account_balances_html(
     Shared family budget - all users see all accounts.
     """
     from backend.app.models.financial_center import FinancialCenter
-    from datetime import timedelta
 
     today = date.today()
     current_month_start = date(today.year, today.month, 1)
-
-    # Calculate PREVIOUS month boundaries
-    if today.month == 1:
-        prev_month_start = date(today.year - 1, 12, 1)
-        prev_month_end = date(today.year - 1, 12, 31)
-    else:
-        prev_month_start = date(today.year, today.month - 1, 1)
-        # Last day of previous month = day before current month start
-        prev_month_end = current_month_start - timedelta(days=1)
 
     # Step 1: Get all active Financial Centers
     fc_query = select(FinancialCenter).where(
@@ -668,9 +658,9 @@ async def get_account_balances_html(
     fc_result = await session.execute(fc_query)
     financial_centers = fc_result.scalars().all()
 
-    # Step 2: Calculate opening balance (ONLY transactions for PREVIOUS FULL MONTH)
+    # Step 2: Calculate opening balance (ALL transactions BEFORE current month)
     # Formula: (income + credit) - (expense + debit)
-    # Example: if today is Dec 13, this calculates movements for Nov 1-30
+    # Example: if today is Dec 13, this calculates cumulative balance before Dec 1
     opening_balance_query = select(
         Fact.financial_center_id,
         (
@@ -680,8 +670,7 @@ async def get_account_balances_html(
     ).select_from(Fact).join(
         Article, Fact.article_id == Article.id
     ).where(
-        Fact.fact_date >= prev_month_start,
-        Fact.fact_date <= prev_month_end,
+        Fact.fact_date < current_month_start,
         Fact.record_type == "fact",
         Fact.financial_center_id.is_not(None)
     ).group_by(Fact.financial_center_id)
@@ -711,12 +700,16 @@ async def get_account_balances_html(
     month_movements = {row.financial_center_id: float(row.balance) for row in movements_result.all()}
 
     # Step 4: Combine results
-    # current_balance = opening (prev month movements) + movements (current month to today)
+    # current_balance = opening (cumulative to end of prev month) + movements (current month to today)
+    # Example: if today is Dec 13:
+    #   opening = cumulative balance from all time until Nov 30
+    #   movement = Dec 1-13 movements
+    #   current = opening + movement
     balances = []
     for fc in financial_centers:
-        opening = opening_balances.get(fc.id, 0.0)  # Previous month movements
+        opening = opening_balances.get(fc.id, 0.0)  # Cumulative balance until end of previous month
         movement = month_movements.get(fc.id, 0.0)   # Current month movements to today
-        current = opening + movement  # Combined balance
+        current = opening + movement  # Total current balance
 
         balances.append({
             "id": fc.id,
