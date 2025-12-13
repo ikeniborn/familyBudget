@@ -743,26 +743,26 @@ async def get_account_balances_html(
     desktop_rows = ""
     for bal in balances:
         desktop_rows += f"""
-                <tr>
-                    <td>{bal['name']}</td>
-                    <td class="text-right {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</td>
-                    <td class="text-right font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</td>
+                <tr class="hover">
+                    <td class="py-1 px-2">{bal['name']}</td>
+                    <td class="py-1 px-2 text-right {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</td>
+                    <td class="py-1 px-2 text-right font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</td>
                 </tr>"""
 
-    # Generate cards for mobile layout
+    # Generate cards for mobile layout (2 columns grid)
     mobile_cards = ""
     for bal in balances:
         mobile_cards += f"""
-        <div class="bg-base-200 rounded-lg p-3">
-            <div class="font-semibold mb-2">{bal['name']}</div>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-                <div>
-                    <div class="opacity-60">Начало месяца</div>
-                    <div class="{get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</div>
+        <div class="bg-base-200 rounded-lg p-2">
+            <div class="font-semibold text-xs mb-1 truncate" title="{bal['name']}">{bal['name']}</div>
+            <div class="space-y-1">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] opacity-60">Начало</span>
+                    <span class="text-xs {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</span>
                 </div>
-                <div>
-                    <div class="opacity-60">Текущий баланс</div>
-                    <div class="font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] opacity-60">Текущий</span>
+                    <span class="text-xs font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</span>
                 </div>
             </div>
         </div>"""
@@ -779,15 +779,15 @@ async def get_account_balances_html(
         }}
     </style>
 
-    <!-- Desktop: Table layout -->
+    <!-- Desktop: Compact table layout -->
     <div id="desktop-balances">
         <div class="overflow-x-auto">
-            <table class="table table-sm">
+            <table class="table table-xs w-full">
                 <thead>
-                    <tr>
-                        <th>Счет</th>
-                        <th class="text-right">Остаток на начало месяца</th>
-                        <th class="text-right">Текущий баланс</th>
+                    <tr class="border-b border-base-300">
+                        <th class="py-1 px-2 text-xs">Счет</th>
+                        <th class="py-1 px-2 text-xs text-right">На начало месяца</th>
+                        <th class="py-1 px-2 text-xs text-right">Текущий баланс</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -797,8 +797,8 @@ async def get_account_balances_html(
         </div>
     </div>
 
-    <!-- Mobile: Card grid -->
-    <div id="mobile-balances" class="grid grid-cols-1 gap-2">
+    <!-- Mobile: 2-column grid -->
+    <div id="mobile-balances" class="grid grid-cols-2 gap-2">
 {mobile_cards}
     </div>
     """
