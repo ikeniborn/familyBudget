@@ -1,5 +1,6 @@
 """Add monthly balance aggregation table
 
+
 Revision ID: t5f6g7h8i9j0
 Revises: s4e5f6g7h8i9
 Create Date: 2025-12-13
