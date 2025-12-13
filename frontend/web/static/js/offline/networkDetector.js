@@ -179,16 +179,24 @@ class SmartNetworkDetector {
 
     /**
      * Установить новый статус и уведомить слушателей
+     * @param {string} newStatus - New status
+     * @param {Object} options - Optional parameters
+     * @param {boolean} options.manual - True if this is a manual mode transition
+     * @param {boolean} options.skipToast - True to skip toast notifications
      */
-    _setStatus(newStatus) {
+    _setStatus(newStatus, options = {}) {
         const oldStatus = this.status;
+
+        // Check if we're in a manual transition (from disableManualOfflineMode)
+        const isManualTransition = this._manualTransitionInProgress || options.manual;
+        const effectiveOptions = isManualTransition ? { ...options, manual: true } : options;
 
         if (oldStatus !== newStatus) {
             this.status = newStatus;
 
-            // Уведомить через callback
+            // Уведомить через callback with options
             if (this.onStatusChange) {
-                this.onStatusChange(newStatus, oldStatus);
+                this.onStatusChange(newStatus, oldStatus, effectiveOptions);
             }
 
             // Dispatch custom event
@@ -196,11 +204,12 @@ class SmartNetworkDetector {
                 detail: {
                     status: newStatus,
                     previousStatus: oldStatus,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    manual: effectiveOptions.manual || false
                 }
             }));
 
-            console.log(`[NetworkDetector] Status changed: ${oldStatus} → ${newStatus}`);
+            console.log(`[NetworkDetector] Status changed: ${oldStatus} → ${newStatus}${isManualTransition ? ' (manual)' : ''}`);
         }
 
         return newStatus;
@@ -505,9 +514,9 @@ class SmartNetworkDetector {
             detail: { enabled: true }
         }));
 
-        // Notify callback if set
+        // Notify callback if set (pass manual: true to skip duplicate toasts)
         if (this.onStatusChange) {
-            this.onStatusChange('offline', oldStatus);
+            this.onStatusChange('offline', oldStatus, { manual: true });
         }
     }
 
@@ -529,14 +538,21 @@ class SmartNetworkDetector {
             detail: { enabled: false }
         }));
 
+        // Set flag to mark this as manual transition
+        // This allows _setStatus() to pass manual: true to callback
+        this._manualTransitionInProgress = true;
+
         // Check actual connectivity and update status
         // This will trigger network-status-change and offline-status-change events
         await this.checkConnectivity(true);
 
+        // Reset the flag
+        this._manualTransitionInProgress = false;
+
         // If status changed back to online, ensure UI is updated
         const currentStatus = this.status;
         window.dispatchEvent(new CustomEvent('offline-status-change', {
-            detail: { online: currentStatus !== 'offline', status: currentStatus, manual: false }
+            detail: { online: currentStatus !== 'offline', status: currentStatus, manual: true }
         }));
     }
 

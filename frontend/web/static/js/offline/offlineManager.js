@@ -71,8 +71,8 @@ class OfflineManager {
                 heartbeatTimeout: 5000,    // 5 сек timeout
                 maxFailures: 3,            // 3 ошибки подряд → offline
                 minCheckInterval: 1000,    // Защита от спама (1 сек)
-                onStatusChange: (newStatus, oldStatus) => {
-                    this._handleNetworkStatusChange(newStatus, oldStatus);
+                onStatusChange: (newStatus, oldStatus, options = {}) => {
+                    this._handleNetworkStatusChange(newStatus, oldStatus, options);
                 }
             });
         } else {
@@ -133,19 +133,26 @@ class OfflineManager {
      * Обработчик изменения статуса сети от SmartNetworkDetector
      * @param {'online'|'offline'|'degraded'} newStatus
      * @param {'online'|'offline'|'degraded'} oldStatus
+     * @param {Object} options - Optional parameters from _setStatus
+     * @param {boolean} options.manual - True if this is a manual mode transition
      */
-    async _handleNetworkStatusChange(newStatus, oldStatus) {
-        console.log(`[OfflineManager] Network status: ${oldStatus} → ${newStatus}`);
+    async _handleNetworkStatusChange(newStatus, oldStatus, options = {}) {
+        console.log(`[OfflineManager] Network status: ${oldStatus} → ${newStatus}`, options.manual ? '(manual)' : '');
+
+        // Skip toasts for manual mode transitions - base.html handles those
+        const skipToast = options.manual === true;
 
         if (newStatus === 'offline') {
             // Переход в offline
-            this._showToastDebounced('Работаем оффлайн', 'warning');
-            window.dispatchEvent(new CustomEvent('offline-status-change', {
-                detail: { online: false, status: newStatus }
-            }));
+            if (!skipToast) {
+                this._showToastDebounced('Работаем оффлайн', 'warning');
+            }
+            // Note: offline-status-change is dispatched at the end of function for all cases
         } else if (oldStatus === 'offline' && (newStatus === 'online' || newStatus === 'degraded')) {
             // Восстановление соединения
-            this._showToastDebounced('Соединение восстановлено', 'success');
+            if (!skipToast) {
+                this._showToastDebounced('Соединение восстановлено', 'success');
+            }
 
             let syncResults = { synced: 0, failed: 0 };
 
@@ -160,7 +167,8 @@ class OfflineManager {
                 }
             } else {
                 syncResults = await this.sync();
-                if (syncResults.synced > 0) {
+                // Show sync result toast only for non-manual transitions
+                if (syncResults.synced > 0 && !skipToast) {
                     this.lastToastTime = 0;
                     this._showToastDebounced(`Синхронизировано: ${syncResults.synced} записей`, 'success');
                 }
