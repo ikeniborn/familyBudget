@@ -2598,6 +2598,9 @@ async function saveTransferOffline(button) {
 /**
  * Update save button visibility based on offline mode
  * Called when manual or auto offline mode changes
+ *
+ * - save-upload-btn: enabled when ONLINE (direct upload to server)
+ * - save-offline-btn: enabled when OFFLINE mode is ON (save locally)
  */
 function updateSaveButtonsVisibility() {
     let isOffline = false;
@@ -2626,6 +2629,22 @@ function updateSaveButtonsVisibility() {
             btn.disabled = false;
             btn.classList.remove('btn-disabled');
             btn.title = 'Сохранить и загрузить на сервер';
+        }
+    });
+
+    // Get all save-offline buttons (offline mode only)
+    const offlineButtons = document.querySelectorAll('.save-offline-btn');
+    offlineButtons.forEach(btn => {
+        if (isOffline) {
+            // Offline mode enabled - enable the button
+            btn.disabled = false;
+            btn.classList.remove('btn-disabled');
+            btn.title = 'Сохранить локально (синхронизируется при подключении)';
+        } else {
+            // Online mode - disable the button
+            btn.disabled = true;
+            btn.classList.add('btn-disabled');
+            btn.title = 'Доступно только в оффлайн режиме';
         }
     });
 }

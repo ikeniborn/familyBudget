@@ -3376,16 +3376,63 @@ window.addEventListener('resize', function() {
 });
 
 // ==================== PLAN PAGE SPECIFIC ====================
-// On plan page, hide the "save offline" buttons - show only "save and upload"
-// This is because plan page is meant for direct operations, not offline queuing
+// Update save button visibility based on offline mode
+// - save-upload-btn: enabled when ONLINE (direct upload to server)
+// - save-offline-btn: enabled when OFFLINE mode is ON (save locally)
+
+function updateSaveButtonsVisibility() {
+    let isOffline = false;
+
+    if (window.offlineManager && window.offlineManager.networkDetector) {
+        const isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
+        const networkStatus = window.offlineManager.networkDetector.getStatus();
+        const isAutoOffline = networkStatus === 'offline';
+        isOffline = isManualOffline || isAutoOffline;
+    } else {
+        isOffline = !navigator.onLine;
+    }
+
+    // Get all save-upload buttons (online only)
+    const uploadButtons = document.querySelectorAll('.save-upload-btn');
+    uploadButtons.forEach(btn => {
+        if (isOffline) {
+            btn.disabled = true;
+            btn.classList.add('btn-disabled');
+            btn.title = 'Недоступно в оффлайн режиме';
+        } else {
+            btn.disabled = false;
+            btn.classList.remove('btn-disabled');
+            btn.title = 'Сохранить и загрузить на сервер';
+        }
+    });
+
+    // Get all save-offline buttons (offline mode only)
+    const offlineButtons = document.querySelectorAll('.save-offline-btn');
+    offlineButtons.forEach(btn => {
+        if (isOffline) {
+            btn.disabled = false;
+            btn.classList.remove('btn-disabled');
+            btn.title = 'Сохранить локально (синхронизируется при подключении)';
+        } else {
+            btn.disabled = true;
+            btn.classList.add('btn-disabled');
+            btn.title = 'Доступно только в оффлайн режиме';
+        }
+    });
+
+    debugLog('[plan.html] Updated button visibility, isOffline:', isOffline);
+}
+
+// Listen for offline mode changes
+window.addEventListener('manual-offline-mode-change', updateSaveButtonsVisibility);
+window.addEventListener('network-status-change', updateSaveButtonsVisibility);
+window.addEventListener('offline-status-change', updateSaveButtonsVisibility);
+window.addEventListener('online', updateSaveButtonsVisibility);
+window.addEventListener('offline', updateSaveButtonsVisibility);
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Hide all save-offline buttons on plan page
-    const saveOfflineButtons = document.querySelectorAll('.save-offline-btn');
-    saveOfflineButtons.forEach(btn => {
-        btn.style.display = 'none';
-    });
-    debugLog('[plan.html] Hidden save-offline buttons - using save-upload only');
+    // Initial update with delay to ensure offlineManager is initialized
+    setTimeout(updateSaveButtonsVisibility, 1000);
 });
 </script>
 {% endblock %}
