@@ -77,6 +77,12 @@ class FactCreate(BaseModel):
         examples=["fact", "plan"]
     )
 
+    is_offline_sync: bool = Field(
+        default=False,
+        description="True if record created via offline synchronization",
+        examples=[False, True]
+    )
+
     @field_validator("record_type")
     @classmethod
     def record_type_validation(cls, v: str) -> str:
@@ -226,6 +232,12 @@ class FactUpdate(BaseModel):
         max_length=10,
         description="Record type: 'fact' or 'plan'",
         examples=["fact", "plan"]
+    )
+
+    is_offline_sync: Optional[bool] = Field(
+        default=None,
+        description="Offline sync flag (usually not updated)",
+        examples=[None, True, False]
     )
 
     @field_validator("record_type")
@@ -380,6 +392,12 @@ class FactResponse(BaseModel):
     record_type: str = Field(
         description="Record type: 'fact' for actual transactions, 'plan' for budget plans",
         examples=["fact", "plan"]
+    )
+
+    is_offline_sync: bool = Field(
+        default=False,
+        description="True if record was created via offline synchronization",
+        examples=[False, True]
     )
 
     # Audit fields

@@ -71,8 +71,8 @@ class OfflineManager {
                 heartbeatTimeout: 5000,    // 5 сек timeout
                 maxFailures: 3,            // 3 ошибки подряд → offline
                 minCheckInterval: 1000,    // Защита от спама (1 сек)
-                onStatusChange: (newStatus, oldStatus) => {
-                    this._handleNetworkStatusChange(newStatus, oldStatus);
+                onStatusChange: (newStatus, oldStatus, options = {}) => {
+                    this._handleNetworkStatusChange(newStatus, oldStatus, options);
                 }
             });
         } else {
@@ -126,6 +126,12 @@ class OfflineManager {
         // Clear expired cache periodically
         setInterval(() => this.db.clearExpiredCache(), 60000); // Every minute
 
+        // Dispatch restored state events AFTER all listeners are registered
+        // This ensures UI updates correctly on page navigation
+        if (this.networkDetector && this.networkDetector.dispatchRestoredState) {
+            this.networkDetector.dispatchRestoredState();
+        }
+
         this.isInitialized = true;
     }
 
@@ -133,39 +139,63 @@ class OfflineManager {
      * Обработчик изменения статуса сети от SmartNetworkDetector
      * @param {'online'|'offline'|'degraded'} newStatus
      * @param {'online'|'offline'|'degraded'} oldStatus
+     * @param {Object} options - Optional parameters from _setStatus
+     * @param {boolean} options.manual - True if this is a manual mode transition
      */
-    async _handleNetworkStatusChange(newStatus, oldStatus) {
-        console.log(`[OfflineManager] Network status: ${oldStatus} → ${newStatus}`);
+    async _handleNetworkStatusChange(newStatus, oldStatus, options = {}) {
+        // Note: NetworkDetector already logs status changes, so we don't duplicate here
+
+        // Skip toasts for manual mode transitions - base.html handles those
+        const skipToast = options.manual === true;
 
         if (newStatus === 'offline') {
             // Переход в offline
-            this._showToastDebounced('Работаем оффлайн', 'warning');
-            window.dispatchEvent(new CustomEvent('offline-status-change', {
-                detail: { online: false, status: newStatus }
-            }));
+            if (!skipToast) {
+                this._showToastDebounced('Работаем оффлайн', 'warning');
+            }
+            // Note: offline-status-change is dispatched at the end of function for all cases
         } else if (oldStatus === 'offline' && (newStatus === 'online' || newStatus === 'degraded')) {
             // Восстановление соединения
-            this._showToastDebounced('Соединение восстановлено', 'success');
+            if (!skipToast) {
+                this._showToastDebounced('Соединение восстановлено', 'success');
+            }
 
             // Запустить синхронизацию
             if (this.supportsBackgroundSync()) {
                 try {
                     const registration = await navigator.serviceWorker.ready;
                     await registration.sync.register('sync-budget-data');
+                    // Background Sync will dispatch offline-sync-complete via handleSyncComplete()
+                    // when Service Worker finishes - no need to dispatch here
                 } catch (e) {
-                    await this.sync();
+                    // Fallback to main thread sync if Background Sync fails
+                    const syncResults = await this.sync();
+                    // Dispatch event with sync results for UI update
+                    window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+                        detail: {
+                            status: newStatus,
+                            synced: syncResults.synced,
+                            failed: syncResults.failed
+                        }
+                    }));
                 }
             } else {
-                const results = await this.sync();
-                if (results.synced > 0) {
+                // No Background Sync support (Safari) - sync from main thread
+                const syncResults = await this.sync();
+                // Show sync result toast only for non-manual transitions
+                if (syncResults.synced > 0 && !skipToast) {
                     this.lastToastTime = 0;
-                    this._showToastDebounced(`Синхронизировано: ${results.synced} записей`, 'success');
+                    this._showToastDebounced(`Синхронизировано: ${syncResults.synced} записей`, 'success');
                 }
+                // Dispatch event with sync results for UI update
+                window.dispatchEvent(new CustomEvent('offline-sync-complete', {
+                    detail: {
+                        status: newStatus,
+                        synced: syncResults.synced,
+                        failed: syncResults.failed
+                    }
+                }));
             }
-
-            window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-                detail: { status: newStatus }
-            }));
         } else if (newStatus === 'degraded' && oldStatus === 'online') {
             // Соединение ухудшилось
             this._showToastDebounced('Медленное соединение', 'warning');
@@ -333,12 +363,29 @@ class OfflineManager {
     }
 
     async createFactOffline(data) {
+        // Generate content hash for duplicate detection
+        const contentHash = this.db.generateContentHash(data);
+
+        // Check for duplicate (unsynced record with same content)
+        const existing = await this.db.checkDuplicateByHash(contentHash);
+        if (existing && !existing.synced) {
+            console.log('[OfflineManager] Duplicate detected, skipping:', contentHash);
+            return {
+                ...existing.data,
+                tempId: existing.tempId,
+                _offline: true,
+                _synced: false,
+                _duplicate: true
+            };
+        }
+
         const tempId = `offline_fact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // 1. Save to IndexedDB
+        // 1. Save to IndexedDB with contentHash
         await this.db.addFact({
             tempId,
             data,
+            contentHash,
             synced: false,
             createdAt: Date.now(),
             error: null,
@@ -346,6 +393,8 @@ class OfflineManager {
         });
 
         // 2. Add to sync queue
+        // Track if created in manual mode (user-initiated offline) vs true offline
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'fact',
@@ -354,7 +403,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // Note: No automatic Background Sync registration here
@@ -431,6 +481,7 @@ class OfflineManager {
         });
 
         // 2. Add to sync queue
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'update',
             entity: 'fact',
@@ -439,7 +490,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // 3. Register Background Sync
@@ -506,6 +558,7 @@ class OfflineManager {
         const tempId = `offline_fact_delete_${id}_${Date.now()}`;
 
         // Add to sync queue
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'delete',
             entity: 'fact',
@@ -514,7 +567,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // Register Background Sync
@@ -567,6 +621,7 @@ class OfflineManager {
             serverId: null
         });
 
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'transfer',
@@ -575,7 +630,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // Note: No automatic Background Sync registration here
@@ -634,6 +690,7 @@ class OfflineManager {
             serverId: null
         });
 
+        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'plan',
@@ -642,7 +699,8 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null
+            error: null,
+            createdInManualMode
         });
 
         // Note: No automatic Background Sync registration here
@@ -661,9 +719,13 @@ class OfflineManager {
 
     /**
      * Sync all pending items
+     * @param {Object} options - Sync options
+     * @param {boolean} options.includeManualModeItems - Include items created in manual mode (default: false for auto-sync)
      * @returns {Promise<Object>} Sync results
      */
-    async sync() {
+    async sync(options = {}) {
+        const { includeManualModeItems = false } = options;
+
         if (this.syncInProgress) {
             return { skipped: true };
         }
@@ -677,11 +739,22 @@ class OfflineManager {
         const results = {
             synced: 0,
             failed: 0,
+            skippedManualMode: 0,
             items: []
         };
 
         try {
-            const queue = await this.db.getSyncQueue('pending');
+            let queue = await this.db.getSyncQueue('pending');
+
+            // Filter out manual mode items if not explicitly requested
+            if (!includeManualModeItems) {
+                const originalCount = queue.length;
+                queue = queue.filter(item => !item.createdInManualMode);
+                results.skippedManualMode = originalCount - queue.length;
+                if (results.skippedManualMode > 0) {
+                    console.log(`[OfflineManager] Skipping ${results.skippedManualMode} manual mode items (use manual sync button)`);
+                }
+            }
 
             for (const item of queue) {
                 try {
@@ -746,7 +819,15 @@ class OfflineManager {
                 throw new Error(`Unknown operation: ${item.operation}`);
         }
 
-        // Mark as completed
+        // Verify record exists on server (only for CREATE operations)
+        if (item.operation === 'create') {
+            const verified = await this.verifyOnServer(item, response);
+            if (!verified) {
+                throw new Error('Verification failed - record not found on server');
+            }
+        }
+
+        // Mark as completed (only after verification passed)
         await this.db.updateSyncQueueItem(item.id, { status: 'completed' });
 
         // Update offline record
@@ -811,6 +892,9 @@ class OfflineManager {
             delete cleanData.from_article_name;
             delete cleanData.to_article_name;
         }
+
+        // Mark as offline sync (for all entity types: fact, plan, transfer)
+        cleanData.is_offline_sync = true;
 
         debugLog(`[OfflineManager] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
@@ -911,6 +995,29 @@ class OfflineManager {
 
         // DELETE returns 204 No Content
         return { success: true };
+    }
+
+    /**
+     * Verify that a record exists on the server after sync
+     * @param {Object} item - Sync queue item
+     * @param {Object} syncResponse - Response from POST/PUT request
+     * @returns {Promise<boolean>} True if record exists
+     */
+    async verifyOnServer(item, syncResponse) {
+        // Facts and Plans use /api/v1/facts, Transfers use /api/v1/transfers
+        const endpoint = item.entity === 'transfer'
+            ? `/api/v1/transfers/${syncResponse.transfer_id}`
+            : `/api/v1/facts/${syncResponse.id || syncResponse.fact_id}`;
+
+        try {
+            const response = await fetch(endpoint, {
+                credentials: 'include'
+            });
+            return response.ok;
+        } catch (e) {
+            console.warn('[OfflineManager] Verification request failed:', e);
+            return false;
+        }
     }
 
     // ==================== EVENT HANDLERS ====================
@@ -1040,11 +1147,41 @@ class OfflineManager {
     }
 
     /**
-     * Sync all pending items in queue
+     * Get all unsynced items (pending + failed) for display
+     * @returns {Promise<{items: Array, hasRetryable: boolean, hasManualModeItems: boolean, manualModeCount: number}>}
+     */
+    async getAllUnsyncedItems() {
+        const pending = await this.db.getSyncQueue('pending');
+        const failed = await this.db.getSyncQueue('failed');
+        const items = [...pending, ...failed];
+
+        // Items are retryable if they have errors or are failed
+        const hasRetryable = items.some(item =>
+            item.status === 'failed' || (item.retryCount && item.retryCount > 0)
+        );
+
+        // Check for manual mode items (pending only, not failed)
+        const manualModeItems = pending.filter(item => item.createdInManualMode);
+        const hasManualModeItems = manualModeItems.length > 0;
+        const manualModeCount = manualModeItems.length;
+
+        return { items, hasRetryable, hasManualModeItems, manualModeCount };
+    }
+
+    /**
+     * Sync all pending items in queue (auto-sync, excludes manual mode items)
      * @returns {Promise<Object>} Sync results {synced, failed, items}
      */
     async syncQueue() {
         return await this.sync();
+    }
+
+    /**
+     * Sync items created in manual mode (user-initiated sync)
+     * @returns {Promise<Object>} Sync results {synced, failed, items}
+     */
+    async syncManualModeItems() {
+        return await this.sync({ includeManualModeItems: true });
     }
 
     /**

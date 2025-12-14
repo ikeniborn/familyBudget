@@ -60,6 +60,11 @@ class TransferCreate(BaseModel):
         description="Transfer description"
     )
 
+    is_offline_sync: bool = Field(
+        default=False,
+        description="True if transfer created via offline synchronization"
+    )
+
     @field_validator('from_financial_center_id', 'to_financial_center_id')
     @classmethod
     def validate_financial_centers_different(cls, v, info):

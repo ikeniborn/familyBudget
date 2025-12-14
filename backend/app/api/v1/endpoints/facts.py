@@ -148,6 +148,7 @@ async def create_fact(
         "cost_center_id": fact.cost_center_id,
         "cost_center_name": cost_center_name,
         "record_type": fact.record_type,
+        "is_offline_sync": fact.is_offline_sync,
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
@@ -432,6 +433,7 @@ async def get_recent_facts_html(
                         <th>Категория</th>
                         <th>Сумма</th>
                         <th>Описание</th>
+                        <th title="Создано offline">☁️</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -487,6 +489,10 @@ async def get_recent_facts_html(
             if len(description) > 30:
                 description = description[:30] + "..."
 
+            # Offline sync indicator
+            offline_icon = "☁️" if fact.is_offline_sync else ""
+            offline_title = "Создано offline" if fact.is_offline_sync else ""
+
             html += f"""
                     <tr>
                         <td>{record_type_badge}</td>
@@ -495,6 +501,7 @@ async def get_recent_facts_html(
                         <td>{article_icon} {article.name}</td>
                         <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount)} ₽</td>
                         <td class="max-w-xs truncate" title="{description_full}">{description}</td>
+                        <td class="text-center" title="{offline_title}">{offline_icon}</td>
                     </tr>
             """
 
@@ -890,6 +897,7 @@ async def delete_fact(
         description=fact.description,
         record_type=fact.record_type,
         transfer_id=fact.transfer_id,
+        is_offline_sync=fact.is_offline_sync,
         valid_from=now,
         valid_to=FAR_FUTURE_DATETIME,
         is_current=False,  # Deleted records are never current
@@ -984,6 +992,7 @@ async def batch_delete_facts(
             description=fact.description,
             record_type=fact.record_type,
             transfer_id=fact.transfer_id,
+            is_offline_sync=fact.is_offline_sync,
             valid_from=now,
             valid_to=FAR_FUTURE_DATETIME,
             is_current=False,  # Deleted records are never current

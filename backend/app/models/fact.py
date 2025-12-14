@@ -122,6 +122,13 @@ class BudgetFact(SQLModel, table=True):
         description="Links paired expense/income transactions for transfers between financial centers"
     )
 
+    # Offline sync flag
+    is_offline_sync: bool = Field(
+        default=False,
+        nullable=False,
+        description="True if record was created via offline synchronization"
+    )
+
     # Audit fields
     created_at: datetime = Field(
         default_factory=datetime.utcnow,
