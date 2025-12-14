@@ -189,6 +189,11 @@
     z-index: 30 !important;
 }
 
+/* Add spacing between search input and dropdown list (UX improvement for mobile) */
+.choices-tailwind .choices__list--dropdown .choices__list {
+    @apply mt-2;
+}
+
 .dark .choices-tailwind .choices__list--dropdown {
     @apply bg-gray-800 border-gray-600 shadow-2xl;
     /* Force solid background in dark mode */
