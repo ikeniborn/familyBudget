@@ -13,7 +13,7 @@ Features:
 """
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated, Optional
 
@@ -65,7 +65,7 @@ async def create_fact(
     session: AsyncSession = Depends(get_session),
 ) -> BudgetFact:
     """
-    Create a new budget fact (transaction).
+    Create a new budget fact (transaction) with offline sync deduplication.
 
     **User Isolation:**
     - Fact is created with current user as owner
@@ -77,11 +77,83 @@ async def create_fact(
     - fact_date cannot be in future
     - amount must be > 0
 
+    **Deduplication (Offline Sync):**
+    - When is_offline_sync=true and sync_hash provided:
+      - Checks if same sync_hash exists within last 24 hours
+      - If found, returns existing record (idempotent operation)
+      - Prevents duplicate creation from repeated sync button clicks
+    - Same transaction next day = different sync_hash (legitimate duplicate)
+
     **Returns:**
     - 201 Created: Fact created successfully
+    - 200 OK: Duplicate skipped, returns existing fact
     - 404 Not Found: Article not found
     - 403 Forbidden: Article not accessible
     """
+    # ✅ DEDUPLICATION: Check for duplicate offline sync within 24 hours
+    if fact_data.is_offline_sync and fact_data.sync_hash:
+        duplicate_stmt = select(BudgetFact).where(
+            BudgetFact.sync_hash == fact_data.sync_hash,
+            BudgetFact.is_offline_sync == True,
+            BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
+        ).order_by(BudgetFact.created_at.desc())
+
+        duplicate_result = await session.execute(duplicate_stmt)
+        existing_fact = duplicate_result.scalar_one_or_none()
+
+        if existing_fact:
+            logger.info(
+                f"[DEDUP] Sync duplicate detected: sync_hash={fact_data.sync_hash}, "
+                f"existing_fact_id={existing_fact.id}, user_id={current_user.id}, "
+                f"skipping creation (idempotent)"
+            )
+
+            # Load article for response
+            article_stmt = select(Article).where(Article.id == existing_fact.article_id)
+            article_result = await session.execute(article_stmt)
+            article = article_result.scalar_one()
+
+            # Load financial center if present
+            financial_center_name = None
+            if existing_fact.financial_center_id:
+                fc_stmt = select(FinancialCenter).where(
+                    FinancialCenter.id == existing_fact.financial_center_id
+                )
+                fc_result = await session.execute(fc_stmt)
+                fc = fc_result.scalar_one_or_none()
+                financial_center_name = fc.name if fc else None
+
+            # Load cost center if present
+            cost_center_name = None
+            if existing_fact.cost_center_id:
+                cc_stmt = select(CostCenter).where(
+                    CostCenter.id == existing_fact.cost_center_id
+                )
+                cc_result = await session.execute(cc_stmt)
+                cc = cc_result.scalar_one_or_none()
+                cost_center_name = cc.name if cc else None
+
+            # Return existing fact (idempotent response)
+            return {
+                "id": existing_fact.id,
+                "user_id": existing_fact.user_id,
+                "article_id": existing_fact.article_id,
+                "article_type": article.type,
+                "article_name": article.name,
+                "fact_date": existing_fact.fact_date,
+                "amount": existing_fact.amount,
+                "description": existing_fact.description,
+                "financial_center_id": existing_fact.financial_center_id,
+                "financial_center_name": financial_center_name,
+                "cost_center_id": existing_fact.cost_center_id,
+                "cost_center_name": cost_center_name,
+                "record_type": existing_fact.record_type,
+                "is_offline_sync": existing_fact.is_offline_sync,
+                "created_at": existing_fact.created_at,
+                "updated_at": existing_fact.updated_at,
+                "_duplicate_skipped": True,  # ✅ Indicates duplicate was skipped
+            }
+
     # Validate: Article must exist and be accessible
     article_stmt = select(Article).where(
         Article.id == fact_data.article_id

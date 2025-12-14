@@ -129,6 +129,23 @@ class BudgetFact(SQLModel, table=True):
         description="True if record was created via offline synchronization"
     )
 
+    # Deduplication support for offline sync
+    content_hash: Optional[str] = Field(
+        default=None,
+        max_length=32,
+        nullable=True,
+        index=True,
+        description="MD5 hash of content (article_id|amount|fact_date|description|record_type) for duplicate detection"
+    )
+
+    sync_hash: Optional[str] = Field(
+        default=None,
+        max_length=32,
+        nullable=True,
+        index=True,
+        description="MD5 hash for offline sync deduplication (content_hash|user_id|created_date). Prevents duplicate records during repeated sync attempts."
+    )
+
     # Audit fields
     created_at: datetime = Field(
         default_factory=datetime.utcnow,

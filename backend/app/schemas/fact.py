@@ -83,6 +83,20 @@ class FactCreate(BaseModel):
         examples=[False, True]
     )
 
+    content_hash: Optional[str] = Field(
+        default=None,
+        max_length=32,
+        description="MD5 hash of content (article_id|amount|fact_date|description|record_type) for duplicate detection",
+        examples=[None, "a1b2c3d4e5f6789012345678901234"]
+    )
+
+    sync_hash: Optional[str] = Field(
+        default=None,
+        max_length=32,
+        description="MD5 hash for offline sync deduplication (content_hash|user_id|created_date). Prevents duplicate records during repeated sync attempts.",
+        examples=[None, "x7y8z9w1v2u3t4s5r6q7p8o9n0m1l2"]
+    )
+
     @field_validator("record_type")
     @classmethod
     def record_type_validation(cls, v: str) -> str:

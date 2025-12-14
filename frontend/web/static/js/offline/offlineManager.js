@@ -286,6 +286,37 @@ class OfflineManager {
         }, 30000); // Check every 30 seconds
     }
 
+    /**
+     * Get current user ID from backend
+     * @returns {Promise<number>} User ID
+     */
+    async getCurrentUserId() {
+        // Option 1: From global window.currentUser (если доступно)
+        if (window.currentUser && window.currentUser.id) {
+            return window.currentUser.id;
+        }
+
+        // Option 2: Fetch from /api/v1/users/me
+        try {
+            const response = await fetch('/api/v1/users/me', {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const user = await response.json();
+                // Cache for future use
+                if (!window.currentUser) {
+                    window.currentUser = user;
+                }
+                return user.id;
+            }
+        } catch (error) {
+            console.error('[OfflineManager] Failed to get user ID:', error);
+        }
+
+        // Fallback: return 0 (backend will set correct user_id from JWT)
+        return 0;
+    }
+
     // ==================== FACTS ====================
 
     /**
@@ -926,6 +957,29 @@ class OfflineManager {
         // Mark as offline sync (for all entity types: fact, plan, transfer)
         cleanData.is_offline_sync = true;
 
+        // ✅ NEW: Add deduplication hashes for facts and plans
+        if (item.entity === 'fact' || item.entity === 'plan') {
+            const idbRecord = await this.db.getFact(item.tempId);
+            if (idbRecord && idbRecord.contentHash) {
+                cleanData.content_hash = idbRecord.contentHash;
+
+                // Generate sync_hash = MD5(content_hash|user_id|created_date)
+                const userId = await this.getCurrentUserId();
+                const createdDate = new Date(idbRecord.createdAt).toISOString().split('T')[0];  // YYYY-MM-DD
+                const syncHashContent = `${idbRecord.contentHash}|${userId}|${createdDate}`;
+                cleanData.sync_hash = this.db._md5(syncHashContent);
+
+                debugLog('[OfflineManager] Adding deduplication hashes:', {
+                    content_hash: cleanData.content_hash,
+                    sync_hash: cleanData.sync_hash,
+                    user_id: userId,
+                    created_date: createdDate
+                });
+            } else {
+                console.warn('[OfflineManager] No contentHash found for item:', item.tempId);
+            }
+        }
+
         debugLog(`[OfflineManager] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
         const response = await fetch(endpoint, {
@@ -946,7 +1000,17 @@ class OfflineManager {
             throw new Error(errorDetail);
         }
 
-        return await response.json();
+        const result = await response.json();
+
+        // ✅ NEW: Log if duplicate was skipped by backend
+        if (result._duplicate_skipped) {
+            console.log('[OfflineManager] Duplicate skipped by server (idempotent):', {
+                fact_id: result.id,
+                sync_hash: cleanData.sync_hash
+            });
+        }
+
+        return result;
     }
 
     async syncUpdate(item) {
