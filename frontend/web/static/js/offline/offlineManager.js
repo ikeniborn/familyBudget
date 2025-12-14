@@ -26,6 +26,9 @@ class OfflineManager {
         this.toastDebounceMs = 3000; // Prevent toast spam
         this.lastOfflineToastTime = 0; // For debounce offline save toast
 
+        // ✅ Request-level deduplication cache (prevent concurrent duplicate creates)
+        this.pendingCreates = new Map(); // operationKey → Promise
+
         // SmartNetworkDetector для надежного определения состояния сети
         this.networkDetector = null;
 
@@ -363,6 +366,33 @@ class OfflineManager {
     }
 
     async createFactOffline(data) {
+        // ✅ Check if same operation already in progress (request-level deduplication)
+        const operationKey = this.db.generateContentHash(data);
+        if (this.pendingCreates.has(operationKey)) {
+            console.log('[OfflineManager] Duplicate operation detected, reusing existing promise');
+            return await this.pendingCreates.get(operationKey);
+        }
+
+        // ✅ Create promise and cache it
+        const createPromise = this._createFactOfflineInternal(data);
+        this.pendingCreates.set(operationKey, createPromise);
+
+        try {
+            const result = await createPromise;
+            return result;
+        } finally {
+            // ✅ Cleanup after 5 seconds (allow for rapid successive calls)
+            setTimeout(() => {
+                this.pendingCreates.delete(operationKey);
+            }, 5000);
+        }
+    }
+
+    /**
+     * Internal implementation of createFactOffline (with duplicate detection)
+     * @private
+     */
+    async _createFactOfflineInternal(data) {
         // Generate content hash for duplicate detection
         const contentHash = this.db.generateContentHash(data);
 
@@ -1148,7 +1178,7 @@ class OfflineManager {
 
     /**
      * Get all unsynced items (pending + failed) for display
-     * @returns {Promise<{items: Array, hasRetryable: boolean, hasManualModeItems: boolean, manualModeCount: number}>}
+     * @returns {Promise<{items: Array, hasRetryable: boolean, hasManualModeItems: boolean, manualModeCount: number, createdInManualModeCount: number}>}
      */
     async getAllUnsyncedItems() {
         const pending = await this.db.getSyncQueue('pending');
@@ -1162,10 +1192,12 @@ class OfflineManager {
 
         // Check for manual mode items (pending only, not failed)
         const manualModeItems = pending.filter(item => item.createdInManualMode);
-        const hasManualModeItems = manualModeItems.length > 0;
-        const manualModeCount = manualModeItems.length;
+        // ✅ FIX: Show sync button for ALL pending items (not just manual mode)
+        const hasManualModeItems = pending.length > 0;
+        const manualModeCount = pending.length;
+        const createdInManualModeCount = manualModeItems.length; // Analytics
 
-        return { items, hasRetryable, hasManualModeItems, manualModeCount };
+        return { items, hasRetryable, hasManualModeItems, manualModeCount, createdInManualModeCount };
     }
 
     /**

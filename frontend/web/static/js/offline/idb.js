@@ -365,7 +365,37 @@ class IndexedDBManager {
 
             const index = store.index('contentHash');
             const request = index.get(hash);
-            request.onsuccess = () => resolve(request.result || null);
+
+            request.onsuccess = () => {
+                const result = request.result;
+
+                if (!result) {
+                    resolve(null);
+                    return;
+                }
+
+                // ✅ Synced records are NOT duplicates (already on server)
+                if (result.synced) {
+                    console.log('[IDB] Found synced record, not considering duplicate');
+                    resolve(null);
+                    return;
+                }
+
+                // ✅ Unsynced - check staleness (time window)
+                const timeDiff = Date.now() - (result.createdAt || 0);
+                const TIME_WINDOW = 5 * 60 * 1000; // 5 minutes
+
+                if (timeDiff > TIME_WINDOW) {
+                    console.log('[IDB] Stale unsynced record (>5min), not considering duplicate');
+                    resolve(null);
+                    return;
+                }
+
+                // Recent unsynced duplicate - reject
+                console.log('[IDB] Recent unsynced duplicate detected');
+                resolve(result);
+            };
+
             request.onerror = () => {
                 console.warn('[IDB] Error checking duplicate:', request.error);
                 resolve(null);
