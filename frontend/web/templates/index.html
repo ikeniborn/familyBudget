@@ -199,6 +199,13 @@
                             </svg>
                             Повторить
                         </button>
+                        <!-- Delete button - for failed items -->
+                        <button id="delete-failed-btn" onclick="deleteFailedRecords()" class="btn btn-sm btn-error gap-2 hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Удалить ошибочные
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1627,6 +1634,7 @@ async function loadPendingRecords() {
     const actionsDiv = document.getElementById('pending-records-actions');
     const retryBtn = document.getElementById('retry-sync-btn');
     const syncManualBtn = document.getElementById('sync-manual-btn');
+    const deleteFailedBtn = document.getElementById('delete-failed-btn');
 
     debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
 
@@ -1678,11 +1686,21 @@ async function loadPendingRecords() {
         }
 
         // Retry button - show when there are failed items
+        const hasFailed = pendingItems.some(item => item.status === 'failed');
         if (retryBtn) {
             if (hasRetryable) {
                 retryBtn.classList.remove('hidden');
             } else {
                 retryBtn.classList.add('hidden');
+            }
+        }
+
+        // Delete failed button - show when there are failed items
+        if (deleteFailedBtn) {
+            if (hasFailed) {
+                deleteFailedBtn.classList.remove('hidden');
+            } else {
+                deleteFailedBtn.classList.add('hidden');
             }
         }
 
@@ -1918,6 +1936,51 @@ async function handleSyncResults(results) {
 // Legacy function for backward compatibility
 async function syncPendingRecords() {
     return await syncManualModeItems();
+}
+
+// Delete failed records (user clicks "Удалить ошибочные" button)
+async function deleteFailedRecords() {
+    if (!window.offlineManager) {
+        showToast('Менеджер синхронизации недоступен', 'error');
+        return;
+    }
+
+    // Confirm deletion
+    if (!confirm('Удалить все записи с ошибками? Это действие нельзя отменить.')) {
+        return;
+    }
+
+    try {
+        const { items } = await window.offlineManager.getAllUnsyncedItems();
+        const failedItems = items.filter(item => item.status === 'failed');
+
+        if (failedItems.length === 0) {
+            showToast('Нет ошибочных записей для удаления', 'info');
+            return;
+        }
+
+        let deletedCount = 0;
+        for (const item of failedItems) {
+            // Delete from sync queue
+            await window.offlineManager.db.deleteSyncQueueItem(item.id);
+
+            // Delete from IndexedDB facts/transfers/plans store
+            if (item.tempId) {
+                if (item.entity === 'fact' || item.entity === 'plan') {
+                    await window.offlineManager.db.deleteFact(item.tempId);
+                } else if (item.entity === 'transfer') {
+                    await window.offlineManager.db.deleteTransfer(item.tempId);
+                }
+            }
+            deletedCount++;
+        }
+
+        showToast(`Удалено ${deletedCount} ошибочных записей`, 'success');
+        await loadPendingRecords();
+    } catch (error) {
+        console.error('[Delete Failed] Error:', error);
+        showToast('Ошибка удаления: ' + error.message, 'error');
+    }
 }
 
 // Update pending count badge (called from other modules)

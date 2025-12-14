@@ -160,14 +160,34 @@ class BudgetFact(SQLModel, table=True):
     )
 
     def __repr__(self) -> str:
-        """String representation for debugging."""
-        return (
-            f"BudgetFact("
-            f"id={self.id}, "
-            f"user_id={self.user_id}, "
-            f"article_id={self.article_id}, "
-            f"fact_date={self.fact_date}, "
-            f"amount={self.amount}, "
-            f"record_type={self.record_type}"
-            f")"
-        )
+        """
+        String representation for debugging.
+
+        Uses __dict__ to avoid DetachedInstanceError when object is not bound to session.
+        This is important for logging middleware that may try to repr() detached objects.
+        """
+        try:
+            # Try normal attribute access first (works if object is attached to session)
+            return (
+                f"BudgetFact("
+                f"id={self.id}, "
+                f"user_id={self.user_id}, "
+                f"article_id={self.article_id}, "
+                f"fact_date={self.fact_date}, "
+                f"amount={self.amount}, "
+                f"record_type={self.record_type}"
+                f")"
+            )
+        except Exception:
+            # Fallback to __dict__ if object is detached from session
+            d = self.__dict__
+            return (
+                f"BudgetFact("
+                f"id={d.get('id', '?')}, "
+                f"user_id={d.get('user_id', '?')}, "
+                f"article_id={d.get('article_id', '?')}, "
+                f"fact_date={d.get('fact_date', '?')}, "
+                f"amount={d.get('amount', '?')}, "
+                f"record_type={d.get('record_type', '?')}"
+                f")"
+            )
