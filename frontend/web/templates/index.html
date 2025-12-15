@@ -2119,8 +2119,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Listen for offline-sync-complete event (auto-sync when exiting offline mode)
     window.addEventListener('offline-sync-complete', async (event) => {
-        console.log('[index.html] Sync complete event received:', event.detail);
-
         // Reload pending records table
         await loadPendingRecords();
 
