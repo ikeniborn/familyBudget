@@ -185,13 +185,6 @@
                     </div>
                     <!-- Action buttons for pending records -->
                     <div id="pending-records-actions" class="card-actions justify-end mt-4 hidden">
-                        <!-- Sync button - for manual mode items -->
-                        <button id="sync-manual-btn" onclick="syncManualModeItems()" class="btn btn-sm btn-primary gap-2 hidden">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
-                            Синхронизировать
-                        </button>
                         <!-- Retry button - for failed items -->
                         <button id="retry-sync-btn" onclick="retryFailedItems()" class="btn btn-sm btn-warning gap-2 hidden">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1633,7 +1626,6 @@ async function loadPendingRecords() {
     const countBadge = document.getElementById('pending-count-badge');
     const actionsDiv = document.getElementById('pending-records-actions');
     const retryBtn = document.getElementById('retry-sync-btn');
-    const syncManualBtn = document.getElementById('sync-manual-btn');
     const deleteFailedBtn = document.getElementById('delete-failed-btn');
 
     debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
@@ -1667,21 +1659,12 @@ async function loadPendingRecords() {
         card.classList.remove('hidden');
 
         // Show/hide buttons based on item types
-        const showActions = hasRetryable || hasManualModeItems;
+        const showActions = hasRetryable;
         if (actionsDiv) {
             if (showActions) {
                 actionsDiv.classList.remove('hidden');
             } else {
                 actionsDiv.classList.add('hidden');
-            }
-        }
-
-        // Sync manual button - show when there are manual mode items
-        if (syncManualBtn) {
-            if (hasManualModeItems) {
-                syncManualBtn.classList.remove('hidden');
-            } else {
-                syncManualBtn.classList.add('hidden');
             }
         }
 
@@ -1842,33 +1825,6 @@ function getStatusBadge(item) {
     return '<span class="badge badge-info badge-sm">Ожидает</span>';
 }
 
-// Sync items created in manual mode (user clicks "Синхронизировать" button)
-async function syncManualModeItems() {
-    if (!window.offlineManager) {
-        showToast('Менеджер синхронизации недоступен', 'error');
-        return;
-    }
-
-    const isOnline = navigator.onLine && window.offlineManager.isOnline;
-    if (!isOnline) {
-        showToast('Нет подключения к серверу', 'warning');
-        return;
-    }
-
-    try {
-        showToast('Синхронизация...', 'info');
-        // Sync ALL items including manual mode items
-        const results = await window.offlineManager.syncManualModeItems();
-        await loadPendingRecords();
-
-        // Show appropriate message and refresh UI
-        await handleSyncResults(results);
-    } catch (error) {
-        console.error('[Sync Manual] Error:', error);
-        showToast('Ошибка синхронизации: ' + error.message, 'error');
-    }
-}
-
 // Retry failed items (user clicks "Повторить" button)
 async function retryFailedItems() {
     if (!window.offlineManager) {
@@ -1884,8 +1840,8 @@ async function retryFailedItems() {
 
     try {
         showToast('Повторная синхронизация...', 'info');
-        // Sync ALL items including manual mode (to retry failed ones)
-        const results = await window.offlineManager.syncManualModeItems();
+        // Sync ALL items (including failed ones for retry)
+        const results = await window.offlineManager.sync({ includeManualModeItems: true });
         await loadPendingRecords();
 
         // Show appropriate message and refresh UI
@@ -1938,7 +1894,8 @@ async function handleSyncResults(results) {
 
 // Legacy function for backward compatibility
 async function syncPendingRecords() {
-    return await syncManualModeItems();
+    if (!window.offlineManager) return;
+    return await window.offlineManager.sync({ includeManualModeItems: true });
 }
 
 // Delete failed records (user clicks "Удалить ошибочные" button)
@@ -1992,14 +1949,13 @@ async function updatePendingCount() {
     const card = document.getElementById('pending-records-card');
     const actionsDiv = document.getElementById('pending-records-actions');
     const retryBtn = document.getElementById('retry-sync-btn');
-    const syncManualBtn = document.getElementById('sync-manual-btn');
 
     if (!countBadge || !window.offlineManager) {
         return 0;
     }
 
     try {
-        const { items: pendingItems, hasRetryable, hasManualModeItems } = await window.offlineManager.getAllUnsyncedItems();
+        const { items: pendingItems, hasRetryable } = await window.offlineManager.getAllUnsyncedItems();
         countBadge.textContent = pendingItems.length;
 
         // Update card visibility
@@ -2012,21 +1968,12 @@ async function updatePendingCount() {
         }
 
         // Show/hide action buttons based on item types
-        const showActions = (hasRetryable || hasManualModeItems) && pendingItems.length > 0;
+        const showActions = hasRetryable && pendingItems.length > 0;
         if (actionsDiv) {
             if (showActions) {
                 actionsDiv.classList.remove('hidden');
             } else {
                 actionsDiv.classList.add('hidden');
-            }
-        }
-
-        // Sync manual button - show when there are manual mode items
-        if (syncManualBtn) {
-            if (hasManualModeItems) {
-                syncManualBtn.classList.remove('hidden');
-            } else {
-                syncManualBtn.classList.add('hidden');
             }
         }
 

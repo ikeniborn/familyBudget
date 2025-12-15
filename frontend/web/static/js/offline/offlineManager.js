@@ -1000,8 +1000,14 @@ class OfflineManager {
                 throw new Error(`Unknown operation: ${item.operation}`);
         }
 
-        // Verify record exists on server (only for CREATE operations)
-        if (item.operation === 'create') {
+        // Handle case where SW already synced this item
+        // (offline record was deleted, so we couldn't get sync_hash)
+        if (response && response._already_synced_by_sw) {
+            console.log(`[OfflineManager] Item ${item.id} was already synced by SW - marking as completed`);
+            // Skip verification - SW already did it
+            // Just mark as completed and clean up
+        } else if (item.operation === 'create') {
+            // Verify record exists on server (only for CREATE operations that we actually sent)
             const verified = await this.verifyOnServer(item, response);
             if (!verified) {
                 throw new Error('Verification failed - record not found on server');
@@ -1070,26 +1076,33 @@ class OfflineManager {
         // Mark as offline sync (for all entity types: fact, plan, transfer)
         cleanData.is_offline_sync = true;
 
-        // ✅ NEW: Add deduplication hashes for facts and plans
+        // Add deduplication hashes for facts and plans
         if (item.entity === 'fact' || item.entity === 'plan') {
             const idbRecord = await this.db.getFact(item.tempId);
             if (idbRecord && idbRecord.contentHash) {
                 cleanData.content_hash = idbRecord.contentHash;
 
-                // Generate sync_hash = MD5(content_hash|user_id|created_date)
-                const userId = await this.getCurrentUserId();
-                const createdDate = new Date(idbRecord.createdAt).toISOString().split('T')[0];  // YYYY-MM-DD
-                const syncHashContent = `${idbRecord.contentHash}|${userId}|${createdDate}`;
-                cleanData.sync_hash = this.db._md5(syncHashContent);
+                // Use pre-generated syncHash if available (from _createFactOfflineInternal)
+                // Otherwise generate it (for backward compatibility with older offline records)
+                if (idbRecord.syncHash) {
+                    cleanData.sync_hash = idbRecord.syncHash;
+                } else {
+                    // Generate sync_hash = MD5(content_hash|user_id|created_date)
+                    const userId = await this.getCurrentUserId();
+                    const createdDate = new Date(idbRecord.createdAt).toISOString().split('T')[0];  // YYYY-MM-DD
+                    const syncHashContent = `${idbRecord.contentHash}|${userId}|${createdDate}`;
+                    cleanData.sync_hash = this.db._md5(syncHashContent);
+                }
 
                 debugLog('[OfflineManager] Adding deduplication hashes:', {
                     content_hash: cleanData.content_hash,
-                    sync_hash: cleanData.sync_hash,
-                    user_id: userId,
-                    created_date: createdDate
+                    sync_hash: cleanData.sync_hash
                 });
             } else {
-                console.warn('[OfflineManager] No contentHash found for item:', item.tempId);
+                // Offline record not found - SW already processed and deleted it
+                // Return special marker to indicate item was already synced
+                console.log(`[OfflineManager] Offline record not found for ${item.tempId} - already synced by SW`);
+                return { _already_synced_by_sw: true, id: null };
             }
         }
 
