@@ -795,11 +795,11 @@ async def get_account_balances_html(
         <div class="bg-base-200 rounded-lg p-2">
             <div class="font-semibold text-xs mb-1 truncate" title="{bal['name']}">{bal['name']}</div>
             <div class="space-y-1">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center gap-2">
                     <span class="text-[10px] opacity-60">Начало</span>
                     <span class="text-xs {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])}</span>
                 </div>
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center gap-2">
                     <span class="text-[10px] opacity-60">Текущий</span>
                     <span class="text-xs font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])}</span>
                 </div>
@@ -826,7 +826,7 @@ async def get_account_balances_html(
     </div>
 
     <!-- Mobile: 2-column grid -->
-    <div id="mobile-balances" class="grid grid-cols-2 gap-2">
+    <div id="mobile-balances" class="grid grid-cols-2 gap-3">
 {mobile_cards}
     </div>
     """
