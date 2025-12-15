@@ -147,7 +147,7 @@ services:
       SYSTEM_TIMEZONE: ${SYSTEM_TIMEZONE:-UTC}
 
       # Performance
-      WORKERS: ${WORKERS:-2}
+      # WORKERS removed - fixed to 1 for SSE compatibility (in-memory ConnectionManager)
       MAX_CONNECTIONS: ${MAX_CONNECTIONS:-100}
 
       # S3 Backup (optional)
@@ -176,11 +176,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Workers fixed to 1 for SSE compatibility (in-memory ConnectionManager)
+    # See: backend/app/api/v1/endpoints/budget_sse.py:9
     command: >
       uvicorn backend.app.main:app
       --host 0.0.0.0
       --port 8000
-      --workers ${WORKERS:-2}
+      --workers 1
       --log-level ${LOG_LEVEL:-info}
       --access-log
       --proxy-headers

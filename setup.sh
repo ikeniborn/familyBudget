@@ -707,7 +707,11 @@ collect_configuration() {
     prompt "Environment (development/staging/production)" "APP_ENV" "production"
     # Domain will be set based on deployment profile (localhost for basic, prompted for full)
     prompt "Backend port" "BACKEND_PORT" "8000"
-    prompt "Number of Uvicorn workers" "WORKERS" "2"
+    # WORKERS fixed to 1 for SSE compatibility
+    # SSE uses in-memory ConnectionManager which requires single-instance deployment
+    # See: backend/app/api/v1/endpoints/budget_sse.py:9
+    CONFIG["WORKERS"]=1
+    info "Uvicorn workers: 1 (fixed for SSE compatibility)"
     prompt "Log level (debug/info/warning/error)" "LOG_LEVEL" "info"
 
     success "Configuration collected"

@@ -540,6 +540,29 @@ await session.commit()  # Коммит пустой транзакции - ни�
 
 ---
 
+### SSE Single Worker Requirement
+
+**CRITICAL:** This application MUST run with WORKERS=1 (single uvicorn worker).
+
+The SSE implementation uses in-memory BudgetConnectionManager which does NOT share state between workers. Running with multiple workers will cause SSE events to be lost (users on different workers won't receive each other's events).
+
+**Почему это критично:**
+- SSE используется для real-time обновлений на главной странице (метрики, последние записи)
+- Каждый uvicorn worker имеет СВОЙ экземпляр `BudgetConnectionManager`
+- При multi-worker: пользователь A на worker 1 создает транзакцию → broadcast идет только клиентам worker 1
+- Пользователь B на worker 2 НЕ получает событие → не видит изменения без перезагрузки
+
+**Конфигурация:**
+- `docker-compose.yml`: `--workers 1` (захардкожено)
+- `setup.sh`: WORKERS=1 (без возможности изменения)
+- Dockerfile: `--workers 1` (дефолт)
+
+**Для масштабирования:** Необходимо внедрение Redis Pub/Sub для синхронизации SSE событий между воркерами.
+
+**Reference:** `backend/app/api/v1/endpoints/budget_sse.py:9-11`
+
+---
+
 ### History Tables: Полное копирование полей
 
 **Правило:** При создании записей в History tables (`BudgetFactHistory`, `ArticleHistory`, etc.) ОБЯЗАТЕЛЬНО копировать ВСЕ поля из основной таблицы, включая nullable поля.
