@@ -465,11 +465,16 @@ async def get_quick_stats_html(
             #desktop-stats {{ display: none !important; }}
             #mobile-stats {{ display: grid !important; }}
         }}
-        /* Responsive font sizing - balanced for no wrapping */
-        .stat-title {{ font-size: clamp(0.625rem, 2.5vw, 0.875rem); }}
-        .stat-label {{ font-size: clamp(0.5rem, 2vw, 0.75rem); }}
-        .stat-value {{ font-size: clamp(0.5rem, 2vw, 0.75rem); }}
-        .stat-pct {{ font-size: clamp(0.5rem, 1.8vw, 0.625rem); }}
+        /* Mobile - оптимизировано для 375-430px */
+        #mobile-stats .stat-title {{ font-size: clamp(0.75rem, calc(0.5rem + 1.5vw), 0.9375rem); }}
+        #mobile-stats .stat-label {{ font-size: clamp(0.6875rem, calc(0.4375rem + 1.2vw), 0.8125rem); }}
+        #mobile-stats .stat-value {{ font-size: clamp(0.6875rem, calc(0.4375rem + 1.2vw), 0.8125rem); }}
+        #mobile-stats .stat-pct {{ font-size: clamp(0.625rem, calc(0.375rem + 1vw), 0.75rem); }}
+        /* Desktop */
+        #desktop-stats .stat-title {{ font-size: clamp(0.8125rem, calc(0.5rem + 0.8vw), 1rem); }}
+        #desktop-stats .stat-label {{ font-size: clamp(0.6875rem, calc(0.5rem + 0.5vw), 0.8125rem); }}
+        #desktop-stats .stat-value {{ font-size: clamp(0.75rem, calc(0.5rem + 0.6vw), 0.9375rem); }}
+        #desktop-stats .stat-pct {{ font-size: clamp(0.625rem, calc(0.375rem + 0.5vw), 0.75rem); }}
         /* Prevent text wrapping */
         .stat-row {{ white-space: nowrap; }}
     </style>
@@ -837,10 +842,14 @@ async def get_account_balances_html(
             #desktop-balances {{ display: none !important; }}
             #mobile-balances {{ display: grid !important; }}
         }}
-        /* Responsive font sizing for balances - balanced for no wrapping */
-        .balance-title {{ font-size: clamp(0.625rem, 2.5vw, 0.875rem); }}
-        .balance-label {{ font-size: clamp(0.5rem, 2vw, 0.75rem); }}
-        .balance-value {{ font-size: clamp(0.5rem, 2vw, 0.75rem); }}
+        /* Mobile - оптимизировано для 375-430px */
+        #mobile-balances .balance-title {{ font-size: clamp(0.75rem, calc(0.5rem + 1.5vw), 0.9375rem); }}
+        #mobile-balances .balance-label {{ font-size: clamp(0.6875rem, calc(0.4375rem + 1.2vw), 0.8125rem); }}
+        #mobile-balances .balance-value {{ font-size: clamp(0.6875rem, calc(0.4375rem + 1.2vw), 0.8125rem); }}
+        /* Desktop */
+        #desktop-balances .balance-title {{ font-size: clamp(0.8125rem, calc(0.5rem + 0.8vw), 1rem); }}
+        #desktop-balances .balance-label {{ font-size: clamp(0.6875rem, calc(0.5rem + 0.5vw), 0.8125rem); }}
+        #desktop-balances .balance-value {{ font-size: clamp(0.75rem, calc(0.5rem + 0.6vw), 0.9375rem); }}
         /* Prevent text wrapping */
         .balance-row {{ white-space: nowrap; }}
     </style>
