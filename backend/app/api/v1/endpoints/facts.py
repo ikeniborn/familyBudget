@@ -518,15 +518,16 @@ async def get_recent_facts_html(
         def format_money(amount: Decimal) -> str:
             return f"{float(amount):,.2f}".replace(",", " ")
 
-        # Build HTML table with Type column as first column
-        html = """
-        <div class="overflow-x-auto">
+        # Build HTML: desktop table + mobile list
+        # Desktop table (hidden on mobile)
+        table_html = """
+        <div class="hidden md:block overflow-x-auto">
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
                         <th>Тип</th>
                         <th>Дата</th>
-                        <th>ЦФО</th>
+                        <th>Счёт</th>
                         <th>Категория</th>
                         <th>Сумма</th>
                         <th>Описание</th>
@@ -536,6 +537,11 @@ async def get_recent_facts_html(
                 <tbody>
         """
 
+        # Mobile list (hidden on desktop)
+        mobile_html = """
+        <div class="block md:hidden divide-y divide-base-200">
+        """
+
         for fact in facts:
             article = articles.get(fact.article_id)
             if not article:
@@ -543,12 +549,15 @@ async def get_recent_facts_html(
 
             # Record type badge (Факт or План)
             if fact.record_type == "plan":
-                record_type_badge = '<span class="badge badge-info badge-sm">План</span>'
+                record_type_badge = '<span class="badge badge-info badge-xs">План</span>'
+                record_type_badge_sm = '<span class="badge badge-info badge-sm">План</span>'
             else:
-                record_type_badge = '<span class="badge badge-success badge-sm">Факт</span>'
+                record_type_badge = '<span class="badge badge-success badge-xs">Факт</span>'
+                record_type_badge_sm = '<span class="badge badge-success badge-sm">Факт</span>'
 
-            # Format date
-            fact_date_str = fact.fact_date.strftime("%d.%m.%Y")
+            # Format date (full for desktop, short for mobile)
+            fact_date_full = fact.fact_date.strftime("%d.%m.%Y")
+            fact_date_short = fact.fact_date.strftime("%d.%m")
 
             # Determine color based on article type
             # expense (расход) = red, income (доход) = green
@@ -564,51 +573,72 @@ async def get_recent_facts_html(
             else:
                 amount_class = "font-bold"
 
-            # Article icon based on type (income=💰, credit=📥, expense=💸, debit=📤)
-            if article.type == "income":
-                article_icon = "💰"
-            elif article.type == "credit":
-                article_icon = "📥"
-            elif article.type == "expense":
-                article_icon = "💸"
-            elif article.type == "debit":
-                article_icon = "📤"
-            else:
-                article_icon = "❓"
-
             # Financial center name
             financial_center = financial_centers.get(fact.financial_center_id)
             fc_name = financial_center.name if financial_center else "—"
 
-            # Description (truncate if too long)
+            # Description
             description = fact.description if fact.description else "—"
             description_full = description  # For title attribute
             if len(description) > 30:
-                description = description[:30] + "..."
+                description_truncated = description[:30] + "..."
+            else:
+                description_truncated = description
 
             # Offline sync indicator
             offline_icon = "☁️" if fact.is_offline_sync else ""
             offline_title = "Создано offline" if fact.is_offline_sync else ""
 
-            html += f"""
+            # Desktop table row
+            table_html += f"""
                     <tr>
-                        <td>{record_type_badge}</td>
-                        <td class="whitespace-nowrap">{fact_date_str}</td>
+                        <td>{record_type_badge_sm}</td>
+                        <td class="whitespace-nowrap">{fact_date_full}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
-                        <td>{article_icon} {article.name}</td>
+                        <td>{article.name}</td>
                         <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount)} ₽</td>
-                        <td class="max-w-xs truncate" title="{description_full}">{description}</td>
+                        <td class="max-w-xs truncate" title="{description_full}">{description_truncated}</td>
                         <td class="text-center" title="{offline_title}">{offline_icon}</td>
                     </tr>
             """
 
-        html += """
+            # Mobile list item
+            # Line 2 parts: date, account, description (joined with •)
+            line2_parts = [fact_date_short]
+            if fc_name != "—":
+                line2_parts.append(fc_name)
+            if description != "—":
+                line2_parts.append(description)
+            line2_text = " • ".join(line2_parts)
+
+            # Offline icon for mobile (in line 1)
+            offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
+
+            mobile_html += f"""
+            <div class="py-2">
+                <div class="flex items-center gap-2">
+                    {record_type_badge}
+                    <span class="flex-1 font-medium truncate">{article.name}</span>
+                    <span class="{amount_class} whitespace-nowrap">{format_money(fact.amount)} ₽</span>
+                    {offline_span}
+                </div>
+                <div class="text-xs text-base-content/60 mt-1 truncate">
+                    {line2_text}
+                </div>
+            </div>
+            """
+
+        table_html += """
                 </tbody>
             </table>
         </div>
         """
 
-        return html
+        mobile_html += """
+        </div>
+        """
+
+        return table_html + mobile_html
 
     except Exception as e:
         logger.error(f"Error loading recent records: {str(e)}", exc_info=True)

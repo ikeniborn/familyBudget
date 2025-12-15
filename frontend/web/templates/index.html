@@ -159,13 +159,14 @@
                         <span id="pending-count-badge" class="badge badge-warning badge-sm">0</span>
                     </h2>
                     <div id="pending-records-container">
-                        <div class="overflow-x-auto">
+                        <!-- Desktop table (hidden on mobile) -->
+                        <div id="pending-records-desktop" class="hidden md:block overflow-x-auto">
                             <table class="table table-zebra table-sm">
                                 <thead>
                                     <tr>
                                         <th>Тип</th>
                                         <th>Дата</th>
-                                        <th>Счет</th>
+                                        <th>Счёт</th>
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
@@ -181,6 +182,10 @@
                                     <!-- Populated by JavaScript -->
                                 </tbody>
                             </table>
+                        </div>
+                        <!-- Mobile list (hidden on desktop) -->
+                        <div id="pending-records-mobile" class="block md:hidden divide-y divide-base-200">
+                            <!-- Populated by JavaScript -->
                         </div>
                     </div>
                     <!-- Action buttons for pending records -->
@@ -1623,15 +1628,16 @@ async function loadPendingRecords() {
     debugLog('[loadPendingRecords] Starting...');
     const card = document.getElementById('pending-records-card');
     const tbody = document.getElementById('pending-records-tbody');
+    const mobileList = document.getElementById('pending-records-mobile');
     const countBadge = document.getElementById('pending-count-badge');
     const actionsDiv = document.getElementById('pending-records-actions');
     const retryBtn = document.getElementById('retry-sync-btn');
     const deleteFailedBtn = document.getElementById('delete-failed-btn');
 
-    debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
+    debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody, 'Mobile found:', !!mobileList);
 
-    if (!card || !tbody) {
-        debugLog('[loadPendingRecords] Card or tbody not found');
+    if (!card || !tbody || !mobileList) {
+        debugLog('[loadPendingRecords] Card, tbody or mobileList not found');
         return;
     }
 
@@ -1687,14 +1693,28 @@ async function loadPendingRecords() {
             }
         }
 
-        // Generate rows - transfers generate two rows (debit + credit)
-        const rows = [];
+        // Generate rows (desktop) and list items (mobile)
+        // Transfers generate two entries (debit + credit)
+        const tableRows = [];
+        const mobileItems = [];
         let totalRecords = 0;
+
+        // Helper: format short date (dd.mm)
+        const formatShortDate = (dateStr) => {
+            if (!dateStr || dateStr === '—') return '—';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}.${parts[1]}`;
+            }
+            return dateStr;
+        };
 
         pendingItems.forEach(item => {
             const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
+            const shortDate = formatShortDate(date);
             const amount = item.data.amount ? parseFloat(item.data.amount).toFixed(2) : '—';
             const statusBadge = getStatusBadge(item);
+            const statusBadgeMobile = getStatusBadgeMobile(item);
             const description = item.data.description || '—';
 
             // Notification indicator (only for plans)
@@ -1704,23 +1724,28 @@ async function loadPendingRecords() {
                 ? `<td class="text-center text-success" title="Уведомление включено">${bellIcon}</td>`
                 : '<td class="text-center opacity-30">—</td>';
 
-            // For transfers, create two rows (debit and credit)
+            // For transfers, create two entries (debit and credit)
             if (item.entity === 'transfer') {
                 // Record type for transfer: fact or plan (badge HTML)
                 const isPlanTransfer = item.data.record_type === 'plan';
                 const typeLabel = isPlanTransfer
                     ? '<span class="badge badge-info badge-sm">План</span>'
                     : '<span class="badge badge-success badge-sm">Факт</span>';
+                const typeLabelXs = isPlanTransfer
+                    ? '<span class="badge badge-info badge-xs">План</span>'
+                    : '<span class="badge badge-success badge-xs">Факт</span>';
 
-                // Debit row (списание) - amount in blue, icon 📤
+                // Debit row (списание) - amount in blue
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
-                rows.push(`
+
+                // Desktop table row
+                tableRows.push(`
                     <tr>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
-                        <td class="max-w-[100px] truncate" title="${fromCategory}">📤 ${fromCategory}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
                         <td class="text-info font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         ${notificationCell}
@@ -1728,74 +1753,122 @@ async function loadPendingRecords() {
                     </tr>
                 `);
 
-                // Credit row (пополнение) - amount in orange, icon 📥
+                // Mobile list item (debit)
+                const debitLine2Parts = [shortDate, fromCfo, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${fromCategory}</span>
+                            <span class="text-info font-bold whitespace-nowrap">${amount} ₽</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${debitLine2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
+                // Credit row (пополнение) - amount in orange
                 const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
-                rows.push(`
+
+                // Desktop table row
+                tableRows.push(`
                     <tr>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
-                        <td class="max-w-[100px] truncate" title="${toCategory}">📥 ${toCategory}</td>
+                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
                         <td class="text-warning font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td class="text-center opacity-30">—</td>
                         <td>${statusBadge}</td>
                     </tr>
                 `);
+
+                // Mobile list item (credit)
+                const creditLine2Parts = [shortDate, toCfo, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${toCategory}</span>
+                            <span class="text-warning font-bold whitespace-nowrap">${amount} ₽</span>
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${creditLine2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
                 totalRecords += 2;
             } else {
-                // Regular fact or plan - single row
+                // Regular fact or plan - single entry
                 const typeLabel = getRecordTypeLabel(item.entity);
+                const typeLabelXs = getRecordTypeLabelXs(item.entity);
                 const cfoName = item.data.financial_center_name ||
                     (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
                 const categoryName = item.data.article_name ||
                     (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
 
-                // Determine icon and color based on fact_type (expense/income for facts)
-                // expense = 💸 red, income = 💰 green, debit = 📤 blue, credit = 📥 orange
+                // Determine color based on fact_type (expense/income for facts)
                 const factType = item.data.fact_type || item.data.article_type || '';
-                let categoryIcon, colorClass;
+                let colorClass;
                 switch (factType) {
                     case 'expense':
-                        categoryIcon = '💸';
                         colorClass = 'text-error';
                         break;
                     case 'income':
-                        categoryIcon = '💰';
                         colorClass = 'text-success';
                         break;
                     case 'debit':
-                        categoryIcon = '📤';
                         colorClass = 'text-info';
                         break;
                     case 'credit':
-                        categoryIcon = '📥';
                         colorClass = 'text-warning';
                         break;
                     default:
-                        categoryIcon = '❓';
                         colorClass = '';
                 }
 
-                rows.push(`
+                // Desktop table row
+                tableRows.push(`
                     <tr>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
-                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryIcon} ${categoryName}</td>
+                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
                         <td class="${colorClass} font-medium">${amount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
                 `);
+
+                // Mobile list item
+                const line2Parts = [shortDate, cfoName, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${categoryName}</span>
+                            <span class="${colorClass} font-bold whitespace-nowrap">${amount} ₽</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${line2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
                 totalRecords += 1;
             }
         });
 
         countBadge.textContent = totalRecords;
-        tbody.innerHTML = rows.join('');
+        tbody.innerHTML = tableRows.join('');
+        mobileList.innerHTML = mobileItems.join('');
     } catch (error) {
         console.error('[Pending Records] Error loading:', error);
     }
@@ -1811,6 +1884,16 @@ function getRecordTypeLabel(entity) {
     return badges[entity] || `<span class="badge badge-ghost badge-sm">${entity || '—'}</span>`;
 }
 
+// Get record type badge HTML (xs size for mobile)
+function getRecordTypeLabelXs(entity) {
+    const badges = {
+        'fact': '<span class="badge badge-success badge-xs">Факт</span>',
+        'plan': '<span class="badge badge-info badge-xs">План</span>',
+        'transfer': '<span class="badge badge-neutral badge-xs">Перевод</span>'
+    };
+    return badges[entity] || `<span class="badge badge-ghost badge-xs">${entity || '—'}</span>`;
+}
+
 // Get status badge HTML
 function getStatusBadge(item) {
     if (item.status === 'failed') {
@@ -1823,6 +1906,18 @@ function getStatusBadge(item) {
         return `<span class="badge badge-warning badge-sm" title="Повторная попытка синхронизации">Повтор ${item.retryCount}/${maxRetries}</span>`;
     }
     return '<span class="badge badge-info badge-sm">Ожидает</span>';
+}
+
+// Get status indicator for mobile (compact icon-based)
+function getStatusBadgeMobile(item) {
+    if (item.status === 'failed') {
+        return '<span class="text-error text-xs" title="Ошибка синхронизации">⚠️</span>';
+    }
+    if (item.retryCount > 0) {
+        return '<span class="text-warning text-xs" title="Повторная попытка">🔄</span>';
+    }
+    // For pending items, no icon (clean look)
+    return '';
 }
 
 // Retry failed items (user clicks "Повторить" button)
