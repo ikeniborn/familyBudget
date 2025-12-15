@@ -341,7 +341,7 @@
                 <div class="total-row">
                     <span class="total-label">📉 Расходы</span>
                     <div class="total-values">
-                        <div class="total-value" id="total-expense-fact">0 ₽</div>
+                        <div class="total-value" id="total-expense-fact">0</div>
                         <div class="total-diff" id="total-expense-diff"></div>
                     </div>
                 </div>
@@ -349,7 +349,7 @@
                 <div class="total-row">
                     <span class="total-label">📈 Доходы</span>
                     <div class="total-values">
-                        <div class="total-value" id="total-income-fact">0 ₽</div>
+                        <div class="total-value" id="total-income-fact">0</div>
                         <div class="total-diff" id="total-income-diff"></div>
                     </div>
                 </div>
@@ -703,17 +703,17 @@
 
         function updateTotals(totals) {
             // Expenses
-            document.getElementById('total-expense-fact').textContent = `${app.ui.formatAmount(totals.expense.fact)} ₽`;
+            document.getElementById('total-expense-fact').textContent = `${app.ui.formatAmount(totals.expense.fact)}`;
             const expenseDiffEl = document.getElementById('total-expense-diff');
             const expenseSign = totals.expense.diff >= 0 ? '+' : '';
-            expenseDiffEl.textContent = `План: ${app.ui.formatAmount(totals.expense.plan)} ₽ (${expenseSign}${app.ui.formatAmount(totals.expense.diff)} ₽)`;
+            expenseDiffEl.textContent = `План: ${app.ui.formatAmount(totals.expense.plan)} (${expenseSign}${app.ui.formatAmount(totals.expense.diff)})`;
             expenseDiffEl.className = `total-diff ${totals.expense.diff >= 0 ? 'positive' : 'negative'}`;
 
             // Income
-            document.getElementById('total-income-fact').textContent = `${app.ui.formatAmount(totals.income.fact)} ₽`;
+            document.getElementById('total-income-fact').textContent = `${app.ui.formatAmount(totals.income.fact)}`;
             const incomeDiffEl = document.getElementById('total-income-diff');
             const incomeSign = totals.income.diff >= 0 ? '+' : '';
-            incomeDiffEl.textContent = `План: ${app.ui.formatAmount(totals.income.plan)} ₽ (${incomeSign}${app.ui.formatAmount(totals.income.diff)} ₽)`;
+            incomeDiffEl.textContent = `План: ${app.ui.formatAmount(totals.income.plan)} (${incomeSign}${app.ui.formatAmount(totals.income.diff)})`;
             incomeDiffEl.className = `total-diff ${totals.income.diff >= 0 ? 'positive' : 'negative'}`;
         }
 
@@ -779,7 +779,7 @@
             const diffText = type === 'expense'
                 ? (data.diff >= 0 ? 'Экономия' : 'Превышение')
                 : (data.diff >= 0 ? 'Превышение' : 'Недобор');
-            diffEl.textContent = `${diffSign}${diffText}: ${app.ui.formatAmount(Math.abs(data.diff))} ₽`;
+            diffEl.textContent = `${diffSign}${diffText}: ${app.ui.formatAmount(Math.abs(data.diff))}`;
             diffEl.classList.add(data.diff >= 0 ? 'positive' : 'negative');
 
             header.appendChild(categoryName);
@@ -793,14 +793,14 @@
             planBox.className = 'value-box';
             planBox.innerHTML = `
                 <div class="value-label">План</div>
-                <div class="value-amount">${app.ui.formatAmount(data.plan)} ₽</div>
+                <div class="value-amount">${app.ui.formatAmount(data.plan)}</div>
             `;
 
             const factBox = document.createElement('div');
             factBox.className = 'value-box';
             factBox.innerHTML = `
                 <div class="value-label">Факт</div>
-                <div class="value-amount">${app.ui.formatAmount(data.fact)} ₽</div>
+                <div class="value-amount">${app.ui.formatAmount(data.fact)}</div>
             `;
 
             values.appendChild(planBox);

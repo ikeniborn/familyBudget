@@ -367,7 +367,7 @@ function createNotificationRow(notification) {
     if (notification.notification_type === 'plan_reminder') {
         const categoryName = notification.article_name || `Категория #${notification.article_id || '—'}`;
         const amount = notification.amount
-            ? parseFloat(notification.amount).toLocaleString('ru-RU', {minimumFractionDigits: 2}) + ' ₽'
+            ? parseFloat(notification.amount).toLocaleString('ru-RU', {minimumFractionDigits: 2})
             : '—';
         const reminderDate = notification.reminder_datetime
             ? new Date(notification.reminder_datetime).toLocaleDateString('ru-RU')
@@ -445,8 +445,8 @@ function createNotificationRow(notification) {
         <td>${typeDisplay}</td>
         <td>${categoryName}</td>
         <td class="whitespace-nowrap">${period}</td>
-        <td class="text-right">${planAmount} ₽</td>
-        <td class="text-right">${actualAmount} ₽</td>
+        <td class="text-right">${planAmount}</td>
+        <td class="text-right">${actualAmount}</td>
         <td class="text-right font-semibold">${percentage}%</td>
         <td><span class="badge ${statusBadge} badge-sm">${statusText}</span></td>
     `;

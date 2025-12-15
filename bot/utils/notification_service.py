@@ -237,13 +237,13 @@ class NotificationService:
                 f"Статус: {status_text}",
                 "---",
                 "*Статистика:*",
-                f"План: {format_amount(plan_total)} ₽",
-                f"Факт: {format_amount(actual_total)} ₽",
+                f"План: {format_amount(plan_total)}",
+                f"Факт: {format_amount(actual_total)}",
                 f"Использовано: {percent_used:.0f}%",
             ]
 
             if percent_used >= 100:
-                message_parts.append(f"Превышение: +{format_amount(abs(difference))} ₽")
+                message_parts.append(f"Превышение: +{format_amount(abs(difference))}")
 
             message = "\n".join(message_parts)
 

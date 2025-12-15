@@ -257,7 +257,7 @@ function updateTransferHintButtons(direction, data) {
     // Plan button
     const planAmt = data.prev_period_plan_sum;
     if (planAmt && parseFloat(planAmt) > 0) {
-        planBtn.innerHTML = `План ${prevMonth}: ${formatAmount(planAmt)}₽`;
+        planBtn.innerHTML = `План ${prevMonth}: ${formatAmount(planAmt)}`;
         planBtn.disabled = false;
         planBtn.className = 'btn btn-xs btn-outline btn-info';
         planBtn.onclick = () => setTransferAmount(parseFloat(planAmt));
@@ -271,7 +271,7 @@ function updateTransferHintButtons(direction, data) {
     // Fact button
     const factAmt = data.prev_period_fact_sum;
     if (factAmt && parseFloat(factAmt) > 0) {
-        factBtn.innerHTML = `Факт ${prevMonth}: ${formatAmount(factAmt)}₽`;
+        factBtn.innerHTML = `Факт ${prevMonth}: ${formatAmount(factAmt)}`;
         factBtn.disabled = false;
         factBtn.className = 'btn btn-xs btn-outline btn-success';
         factBtn.onclick = () => setTransferAmount(parseFloat(factAmt));

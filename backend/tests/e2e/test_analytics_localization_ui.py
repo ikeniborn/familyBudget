@@ -2,10 +2,10 @@
 E2E Test: Analytics UI Localization (Russian labels).
 
 Tests verify that all analytics charts display Russian labels in the UI:
-- Plan-Fact Chart: Y-axis "Сумма (₽)", tooltips "Разница:"
-- Trends Chart: Y-axis "Сумма (₽)", tooltips "Чистый доход:"
+- Plan-Fact Chart: Y-axis "Сумма", tooltips "Разница:"
+- Trends Chart: Y-axis "Сумма", tooltips "Чистый доход:"
 - Category Breakdown: Tooltip "Сумма:", "Процент:"
-- Waterfall Chart: Y-axis "Сумма (₽)", tooltips "Доходы:", "Расходы:", "Накопительный итог:"
+- Waterfall Chart: Y-axis "Сумма", tooltips "Доходы:", "Расходы:", "Накопительный итог:"
 - Heatmap: Visualmap "Высокий", "Низкий", series "Расходы"
 
 This test suite requires Playwright for browser automation.
@@ -191,7 +191,7 @@ class TestAnalyticsLocalizationUI:
         manually check that:
         1. Y-axis shows: "Н1, Н2, Н3, Н4" (not "W1, W2, W3, W4")
         2. Tooltip shows: "Чт, Неделя 2" (not "Thu, Week 2")
-        3. Tooltip shows: "Расход: 100.00 ₽" (not "Expense: 100.00 ₽")
+        3. Tooltip shows: "Расход: 100.00" (not "Expense: 100.00")
 
         Checks:
         1. Backend returns Russian day_labels
@@ -294,7 +294,7 @@ class TestAnalyticsLocalizationUI:
         print("После deploy, проверьте в браузере:")
         print("  1. ✓ Ось Y: 'Н1, Н2, Н3, Н4' (НЕ 'W1, W2, W3, W4')")
         print("  2. ✓ Tooltip: 'Чт, Неделя 2' (НЕ 'Thu, Week 2')")
-        print("  3. ✓ Tooltip: 'Расход: 100.00 ₽' (НЕ 'Expense: 100.00 ₽')")
+        print("  3. ✓ Tooltip: 'Расход: 100.00' (НЕ 'Expense: 100.00')")
         print("=" * 60)
 
         # STEP 8: Summary
@@ -306,7 +306,7 @@ class TestAnalyticsLocalizationUI:
         print(f"  - Данные для {heatmap_data['period_days']} дней")
         print("\nFrontend должен использовать эти данные для отображения:")
         print("  - Y-axis labels: 'Н1, Н2, Н3, Н4'")
-        print("  - Tooltip: 'День, Неделя N' и 'Расход: XXX ₽'")
+        print("  - Tooltip: 'День, Неделя N' и 'Расход: XXX'")
         print("=" * 60)
 
 
@@ -327,7 +327,7 @@ class TestAnalyticsLocalizationPlaywright:
     3. pytest --run-playwright flag
 
     Tests verify:
-    - Y-axis labels show "Сумма (₽)" (not "Amount (₽)")
+    - Y-axis labels show "Сумма" (not "Amount")
     - Tooltips show Russian labels
     - Visualmap shows "Высокий", "Низкий" (not "High", "Low")
     - No JavaScript errors in console
@@ -338,7 +338,7 @@ class TestAnalyticsLocalizationPlaywright:
         Test Plan-Fact chart displays Russian labels in browser.
 
         Verifies:
-        - Y-axis: "Сумма (₽)"
+        - Y-axis: "Сумма"
         - X-axis: "Пн, Вт, Ср..." (not "Mon, Tue, Wed")
         - Tooltip: "Разница:" (not "Difference:")
         """

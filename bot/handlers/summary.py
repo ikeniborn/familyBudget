@@ -371,18 +371,18 @@ def format_plan_vs_fact_summary(
 
     # Totals section
     message_parts.append("💰 *ИТОГО:*")
-    message_parts.append(f"План:  {format_amount(plan_balance)} ₽")
-    message_parts.append(f"Факт:  {format_amount(actual_balance)} ₽")
+    message_parts.append(f"План:  {format_amount(plan_balance)}")
+    message_parts.append(f"Факт:  {format_amount(actual_balance)}")
 
     if plan_balance != 0:
         balance_percent = (actual_balance / plan_balance * 100)
         balance_sign = "+" if balance_diff >= 0 else ""
         message_parts.append(
-            f"Остаток: {balance_sign}{format_amount(balance_diff)} ₽ ({balance_percent:.0f}%)"
+            f"Остаток: {balance_sign}{format_amount(balance_diff)} ({balance_percent:.0f}%)"
         )
     else:
         balance_sign = "+" if balance_diff >= 0 else ""
-        message_parts.append(f"Остаток: {balance_sign}{format_amount(balance_diff)} ₽")
+        message_parts.append(f"Остаток: {balance_sign}{format_amount(balance_diff)}")
 
     # Income breakdown
     if plan_summary["income"] or actual_summary["income"]:
@@ -399,8 +399,8 @@ def format_plan_vs_fact_summary(
             actual_amount = actual_summary["income"].get(article_name, Decimal("0"))
 
             message_parts.append(f"• *{article_name}*")
-            message_parts.append(f"  План:  {format_amount(plan_amount)} ₽")
-            message_parts.append(f"  Факт:  {format_amount(actual_amount)} ₽")
+            message_parts.append(f"  План:  {format_amount(plan_amount)}")
+            message_parts.append(f"  Факт:  {format_amount(actual_amount)}")
 
             # Calculate percentage and status
             if plan_amount > 0:
@@ -411,17 +411,17 @@ def format_plan_vs_fact_summary(
                     status = "✅"
                     diff_sign = "+" if diff > 0 else ""
                     message_parts.append(
-                        f"  {status} {percent:.0f}% (перевыполнение: {diff_sign}{format_amount(diff)} ₽)"
+                        f"  {status} {percent:.0f}% (перевыполнение: {diff_sign}{format_amount(diff)})"
                     )
                 else:
                     status = "⚠️"
                     message_parts.append(
-                        f"  {status} {percent:.0f}% (недостаток: {format_amount(abs(diff))} ₽)"
+                        f"  {status} {percent:.0f}% (недостаток: {format_amount(abs(diff))})"
                     )
             else:
                 if actual_amount > 0:
                     message_parts.append(
-                        f"  ℹ️ Доход без плана: {format_amount(actual_amount)} ₽"
+                        f"  ℹ️ Доход без плана: {format_amount(actual_amount)}"
                     )
 
     # Expense breakdown
@@ -439,8 +439,8 @@ def format_plan_vs_fact_summary(
             actual_amount = actual_summary["expense"].get(article_name, Decimal("0"))
 
             message_parts.append(f"• *{article_name}*")
-            message_parts.append(f"  План:  {format_amount(plan_amount)} ₽")
-            message_parts.append(f"  Факт:  {format_amount(actual_amount)} ₽")
+            message_parts.append(f"  План:  {format_amount(plan_amount)}")
+            message_parts.append(f"  Факт:  {format_amount(actual_amount)}")
 
             # Calculate percentage and status
             if plan_amount > 0:
@@ -450,18 +450,18 @@ def format_plan_vs_fact_summary(
                 if percent <= 100:
                     status = "✅"
                     message_parts.append(
-                        f"  {status} {percent:.0f}% (экономия: {format_amount(abs(diff))} ₽)"
+                        f"  {status} {percent:.0f}% (экономия: {format_amount(abs(diff))})"
                     )
                 else:
                     status = "⚠️"
                     diff_sign = "+" if diff > 0 else ""
                     message_parts.append(
-                        f"  {status} {percent:.0f}% (превышение: {diff_sign}{format_amount(diff)} ₽)"
+                        f"  {status} {percent:.0f}% (превышение: {diff_sign}{format_amount(diff)})"
                     )
             else:
                 if actual_amount > 0:
                     message_parts.append(
-                        f"  ℹ️ Расход без плана: {format_amount(actual_amount)} ₽"
+                        f"  ℹ️ Расход без плана: {format_amount(actual_amount)}"
                     )
 
     # Footer
