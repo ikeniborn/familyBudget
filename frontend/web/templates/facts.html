@@ -2056,10 +2056,8 @@ function updateSaveButtonsVisibility() {
     let isOffline = false;
 
     if (window.offlineManager && window.offlineManager.networkDetector) {
-        const isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
         const networkStatus = window.offlineManager.networkDetector.getStatus();
-        const isAutoOffline = networkStatus === 'offline';
-        isOffline = isManualOffline || isAutoOffline;
+        isOffline = networkStatus === 'offline';
     } else {
         isOffline = !navigator.onLine;
     }
@@ -2096,7 +2094,6 @@ function updateSaveButtonsVisibility() {
 }
 
 // Listen for offline mode changes
-window.addEventListener('manual-offline-mode-change', updateSaveButtonsVisibility);
 window.addEventListener('network-status-change', updateSaveButtonsVisibility);
 window.addEventListener('offline-status-change', updateSaveButtonsVisibility);
 window.addEventListener('online', updateSaveButtonsVisibility);

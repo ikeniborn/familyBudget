@@ -15,9 +15,6 @@ class SmartNetworkDetector {
         // Состояние: 'online' | 'offline' | 'degraded'
         this.status = navigator.onLine ? 'online' : 'offline';
 
-        // Manual offline mode (user-controlled)
-        this.manualOfflineMode = false;
-
         // Auto offline mode (server unavailable)
         this.autoOfflineMode = false;
 
@@ -58,7 +55,7 @@ class SmartNetworkDetector {
         // Store reference for dispatching events after init
         // Events are dispatched via dispatchRestoredState() called explicitly
         // This ensures listeners are registered before dispatch
-        this._hasRestoredState = this.manualOfflineMode || this.autoOfflineMode;
+        this._hasRestoredState = this.autoOfflineMode;
     }
 
     /**
@@ -79,7 +76,6 @@ class SmartNetworkDetector {
                 status: 'offline',
                 previousStatus: 'online',
                 timestamp: Date.now(),
-                manual: this.manualOfflineMode,
                 auto: this.autoOfflineMode,
                 restored: true  // Indicates state was restored from localStorage
             }
@@ -90,17 +86,9 @@ class SmartNetworkDetector {
             detail: {
                 online: false,
                 status: 'offline',
-                manual: this.manualOfflineMode,
                 auto: this.autoOfflineMode
             }
         }));
-
-        // Also dispatch manual mode event for toggle button
-        if (this.manualOfflineMode) {
-            window.dispatchEvent(new CustomEvent('manual-offline-mode-change', {
-                detail: { enabled: true }
-            }));
-        }
     }
 
     _init() {
@@ -113,8 +101,8 @@ class SmartNetworkDetector {
             navigator.connection.addEventListener('change', this._handleConnectionChange);
         }
 
-        // Запуск heartbeat (only if not in any offline mode)
-        if (!this.manualOfflineMode && !this.autoOfflineMode) {
+        // Запуск heartbeat (only if not in auto offline mode)
+        if (!this.autoOfflineMode) {
             this._startHeartbeat();
             // Первичная проверка
             this.checkConnectivity();
@@ -151,8 +139,8 @@ class SmartNetworkDetector {
      * Обработка события online
      */
     async _handleOnline() {
-        // Skip if any offline mode is enabled
-        if (this.manualOfflineMode || this.autoOfflineMode) {
+        // Skip if auto offline mode is enabled
+        if (this.autoOfflineMode) {
             return;
         }
         // navigator.onLine стал true, но нужно проверить реальное соединение
@@ -170,8 +158,8 @@ class SmartNetworkDetector {
      * Обработка изменения качества соединения
      */
     async _handleConnectionChange() {
-        // Skip if any offline mode is enabled
-        if (this.manualOfflineMode || this.autoOfflineMode) {
+        // Skip if auto offline mode is enabled
+        if (this.autoOfflineMode) {
             return;
         }
 
@@ -191,23 +179,17 @@ class SmartNetworkDetector {
     /**
      * Установить новый статус и уведомить слушателей
      * @param {string} newStatus - New status
-     * @param {Object} options - Optional parameters
-     * @param {boolean} options.manual - True if this is a manual mode transition
-     * @param {boolean} options.skipToast - True to skip toast notifications
+     * @param {Object} options - Optional parameters (reserved for future use)
      */
     _setStatus(newStatus, options = {}) {
         const oldStatus = this.status;
 
-        // Check if we're in a manual transition (from disableManualOfflineMode)
-        const isManualTransition = this._manualTransitionInProgress || options.manual;
-        const effectiveOptions = isManualTransition ? { ...options, manual: true } : options;
-
         if (oldStatus !== newStatus) {
             this.status = newStatus;
 
-            // Уведомить через callback with options
+            // Уведомить через callback
             if (this.onStatusChange) {
-                this.onStatusChange(newStatus, oldStatus, effectiveOptions);
+                this.onStatusChange(newStatus, oldStatus, options);
             }
 
             // Dispatch custom event
@@ -215,12 +197,11 @@ class SmartNetworkDetector {
                 detail: {
                     status: newStatus,
                     previousStatus: oldStatus,
-                    timestamp: Date.now(),
-                    manual: effectiveOptions.manual || false
+                    timestamp: Date.now()
                 }
             }));
 
-            console.log(`[NetworkDetector] Status changed: ${oldStatus} → ${newStatus}${isManualTransition ? ' (manual)' : ''}`);
+            console.log(`[NetworkDetector] Status changed: ${oldStatus} → ${newStatus}`);
         }
 
         return newStatus;
@@ -248,8 +229,8 @@ class SmartNetworkDetector {
      * @param {boolean} force - Игнорировать минимальный интервал
      */
     async checkConnectivity(force = false) {
-        // Skip network checks if any offline mode is enabled
-        if (this.manualOfflineMode || this.autoOfflineMode) {
+        // Skip network checks if auto offline mode is enabled
+        if (this.autoOfflineMode) {
             return 'offline';
         }
 
@@ -338,8 +319,8 @@ class SmartNetworkDetector {
             clearTimeout(this.heartbeatTimer);
         }
 
-        // Skip if any offline mode is enabled
-        if (this.manualOfflineMode || this.autoOfflineMode) {
+        // Skip if auto offline mode is enabled
+        if (this.autoOfflineMode) {
             return;
         }
 
@@ -370,8 +351,8 @@ class SmartNetworkDetector {
      * (для интеграции с OfflineManager)
      */
     onRequestSuccess() {
-        // Skip if manual offline mode is enabled
-        if (this.manualOfflineMode) {
+        // Skip if auto offline mode is enabled
+        if (this.autoOfflineMode) {
             return;
         }
 
@@ -391,8 +372,8 @@ class SmartNetworkDetector {
      * (для интеграции с OfflineManager)
      */
     onRequestFailure() {
-        // Skip if manual offline mode is enabled
-        if (this.manualOfflineMode) {
+        // Skip if auto offline mode is enabled
+        if (this.autoOfflineMode) {
             return;
         }
 
@@ -455,36 +436,34 @@ class SmartNetworkDetector {
         this._stopAutoRecoveryCheck();
     }
 
-    // ==================== MANUAL OFFLINE MODE ====================
+    // ==================== AUTO OFFLINE MODE ====================
 
     /**
-     * Load offline state from localStorage (both manual and auto)
+     * Load offline state from localStorage
      * @private
      */
     _loadOfflineState() {
         try {
-            const manual = localStorage.getItem('budget_manual_offline_mode');
             const auto = localStorage.getItem('budget_auto_offline_mode');
-
-            this.manualOfflineMode = manual === 'true';
             this.autoOfflineMode = auto === 'true';
 
-            if (this.manualOfflineMode || this.autoOfflineMode) {
+            if (this.autoOfflineMode) {
                 this.status = 'offline';
             }
+
+            // Cleanup legacy manual mode state
+            localStorage.removeItem('budget_manual_offline_mode');
         } catch (e) {
-            this.manualOfflineMode = false;
             this.autoOfflineMode = false;
         }
     }
 
     /**
-     * Save offline state to localStorage (both manual and auto)
+     * Save offline state to localStorage
      * @private
      */
     _saveOfflineState() {
         try {
-            localStorage.setItem('budget_manual_offline_mode', this.manualOfflineMode.toString());
             localStorage.setItem('budget_auto_offline_mode', this.autoOfflineMode.toString());
         } catch (e) {
             console.warn('[NetworkDetector] Failed to save offline state');
@@ -492,130 +471,11 @@ class SmartNetworkDetector {
     }
 
     /**
-     * Enable manual offline mode
-     * When enabled, network checks are skipped and status is forced to 'offline'
-     */
-    enableManualOfflineMode() {
-        if (this.manualOfflineMode) return;
-
-        const oldStatus = this.status;
-        this.manualOfflineMode = true;
-        this._saveOfflineState();
-        this.stopHeartbeat();
-        this.status = 'offline';
-
-        console.log('[NetworkDetector] Manual offline mode ENABLED');
-
-        // Always dispatch events for UI updates (even if status was already offline)
-        // This ensures UI is updated when user manually enables offline mode
-        window.dispatchEvent(new CustomEvent('network-status-change', {
-            detail: {
-                status: 'offline',
-                previousStatus: oldStatus,
-                timestamp: Date.now(),
-                manual: true
-            }
-        }));
-
-        window.dispatchEvent(new CustomEvent('offline-status-change', {
-            detail: { online: false, status: 'offline', manual: true }
-        }));
-
-        window.dispatchEvent(new CustomEvent('manual-offline-mode-change', {
-            detail: { enabled: true }
-        }));
-
-        // Notify callback if set (pass manual: true to skip duplicate toasts)
-        if (this.onStatusChange) {
-            this.onStatusChange('offline', oldStatus, { manual: true });
-        }
-    }
-
-    /**
-     * Disable manual offline mode
-     * Network checks resume and status is determined by actual connectivity
-     */
-    async disableManualOfflineMode() {
-        if (!this.manualOfflineMode) return;
-
-        this.manualOfflineMode = false;
-        this._saveOfflineState();
-        this._startHeartbeat();
-
-        console.log('[NetworkDetector] Manual offline mode DISABLED');
-
-        // Dispatch event for UI updates first
-        window.dispatchEvent(new CustomEvent('manual-offline-mode-change', {
-            detail: { enabled: false }
-        }));
-
-        // Set flag to mark this as manual transition
-        // This allows _setStatus() to pass manual: true to callback
-        this._manualTransitionInProgress = true;
-
-        // Check actual connectivity and update status
-        // This will trigger network-status-change and offline-status-change events
-        await this.checkConnectivity(true);
-
-        // Reset the flag
-        this._manualTransitionInProgress = false;
-
-        // ✅ NEW: Trigger auto-sync for manual mode items when exiting offline mode
-        if (this.status !== 'offline') {
-            // We're online now - trigger sync
-            console.log('[NetworkDetector] Exiting manual offline mode - triggering auto-sync');
-
-            // Dispatch event for OfflineManager to handle sync
-            window.dispatchEvent(new CustomEvent('manual-offline-exit-sync', {
-                detail: {
-                    status: this.status,
-                    timestamp: Date.now()
-                }
-            }));
-        }
-
-        // If status changed back to online, ensure UI is updated
-        const currentStatus = this.status;
-        window.dispatchEvent(new CustomEvent('offline-status-change', {
-            detail: { online: currentStatus !== 'offline', status: currentStatus, manual: true }
-        }));
-    }
-
-    /**
-     * Toggle manual offline mode
-     * @returns {Promise<boolean>} New state (true = offline mode enabled)
-     */
-    async toggleManualOfflineMode() {
-        if (this.manualOfflineMode) {
-            await this.disableManualOfflineMode();
-        } else {
-            this.enableManualOfflineMode();
-        }
-        return this.manualOfflineMode;
-    }
-
-    /**
-     * Check if manual offline mode is enabled
-     * @returns {boolean}
-     */
-    isManualOfflineModeEnabled() {
-        return this.manualOfflineMode;
-    }
-
-    // ==================== AUTO OFFLINE MODE ====================
-
-    /**
      * Enable auto offline mode
      * Activated when server is unavailable when trying to send data
      */
     enableAutoOfflineMode() {
         if (this.autoOfflineMode) return;
-
-        // Manual mode has priority
-        if (this.manualOfflineMode) {
-            console.log('[NetworkDetector] Manual offline mode active, skipping auto offline');
-            return;
-        }
 
         const oldStatus = this.status;
         this.autoOfflineMode = true;
@@ -731,11 +591,11 @@ class SmartNetworkDetector {
     }
 
     /**
-     * Check if any offline mode is enabled (manual or auto)
+     * Check if auto offline mode is enabled
      * @returns {boolean}
      */
     isOfflineModeEnabled() {
-        return this.manualOfflineMode || this.autoOfflineMode;
+        return this.autoOfflineMode;
     }
 }
 

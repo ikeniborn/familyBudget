@@ -1840,8 +1840,8 @@ async function retryFailedItems() {
 
     try {
         showToast('Повторная синхронизация...', 'info');
-        // Sync ALL items (including failed ones for retry)
-        const results = await window.offlineManager.sync({ includeManualModeItems: true });
+        // Sync ALL pending items
+        const results = await window.offlineManager.sync();
         await loadPendingRecords();
 
         // Show appropriate message and refresh UI
@@ -1895,7 +1895,7 @@ async function handleSyncResults(results) {
 // Legacy function for backward compatibility
 async function syncPendingRecords() {
     if (!window.offlineManager) return;
-    return await window.offlineManager.sync({ includeManualModeItems: true });
+    return await window.offlineManager.sync();
 }
 
 // Delete failed records (user clicks "Удалить ошибочные" button)
@@ -2547,7 +2547,7 @@ async function saveTransferOffline(button) {
 
 /**
  * Update save button visibility based on offline mode
- * Called when manual or auto offline mode changes
+ * Called when auto offline mode changes
  *
  * - save-upload-btn: enabled when ONLINE (direct upload to server)
  * - save-offline-btn: enabled when OFFLINE mode is ON (save locally)
@@ -2556,13 +2556,8 @@ function updateSaveButtonsVisibility() {
     let isOffline = false;
 
     if (window.offlineManager && window.offlineManager.networkDetector) {
-        // Check manual offline mode
-        const isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
-        // Check auto offline mode (network status)
         const networkStatus = window.offlineManager.networkDetector.getStatus();
-        const isAutoOffline = networkStatus === 'offline';
-
-        isOffline = isManualOffline || isAutoOffline;
+        isOffline = networkStatus === 'offline';
     } else {
         // Fallback to navigator.onLine
         isOffline = !navigator.onLine;
@@ -2600,7 +2595,6 @@ function updateSaveButtonsVisibility() {
 }
 
 // Listen for offline mode changes to update buttons
-window.addEventListener('manual-offline-mode-change', updateSaveButtonsVisibility);
 window.addEventListener('network-status-change', updateSaveButtonsVisibility);
 window.addEventListener('offline-status-change', updateSaveButtonsVisibility);
 window.addEventListener('online', updateSaveButtonsVisibility);

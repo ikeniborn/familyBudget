@@ -108,10 +108,6 @@ class OfflineManager {
             console.log('[OfflineManager] Server recovered at:', new Date(event.detail.timestamp));
         });
 
-        // Listen for manual offline exit sync event
-        window.addEventListener('manual-offline-exit-sync', async (event) => {
-            await this._handleManualOfflineExitSync(event.detail);
-        });
 
         // Check initial network status
         if (this.isOnline) {
@@ -152,20 +148,14 @@ class OfflineManager {
      * Обработчик изменения статуса сети от SmartNetworkDetector
      * @param {'online'|'offline'|'degraded'} newStatus
      * @param {'online'|'offline'|'degraded'} oldStatus
-     * @param {Object} options - Optional parameters from _setStatus
-     * @param {boolean} options.manual - True if this is a manual mode transition
+     * @param {Object} options - Optional parameters from _setStatus (reserved for future use)
      */
     async _handleNetworkStatusChange(newStatus, oldStatus, options = {}) {
         // Note: NetworkDetector already logs status changes, so we don't duplicate here
 
-        // Skip toasts for manual mode transitions - base.html handles those
-        const skipToast = options.manual === true;
-
         if (newStatus === 'offline') {
             // Переход в offline
-            if (!skipToast) {
-                this._showToastDebounced('Работаем оффлайн', 'warning');
-            }
+            this._showToastDebounced('Работаем оффлайн', 'warning');
             // Disconnect SSE - нет смысла держать соединение в offline режиме
             this.disconnectSSE();
             console.log('[OfflineManager] SSE disconnected (offline mode)');
@@ -179,17 +169,6 @@ class OfflineManager {
             this.reconnectSSE();
             console.log('[OfflineManager] SSE reconnected (online mode)');
 
-            // Skip sync for manual transitions - manual-offline-exit-sync event handles it
-            // This prevents race condition between multiple sync processes
-            if (options.manual === true) {
-                console.log('[OfflineManager] Skipping sync in _handleNetworkStatusChange (manual transition)');
-                // Just dispatch status change event for UI update, then return
-                window.dispatchEvent(new CustomEvent('offline-status-change', {
-                    detail: { online: newStatus !== 'offline', status: newStatus }
-                }));
-                return;
-            }
-
             // Запустить синхронизацию
             if (this.supportsBackgroundSync()) {
                 try {
@@ -197,20 +176,16 @@ class OfflineManager {
                     await registration.sync.register('sync-budget-data');
                     // Background Sync will dispatch offline-sync-complete via handleSyncComplete()
                     // when Service Worker finishes - show simple toast here since sync result comes later
-                    if (!skipToast) {
-                        this._showToastDebounced('Соединение восстановлено', 'success');
-                    }
+                    this._showToastDebounced('Соединение восстановлено', 'success');
                 } catch (e) {
                     // Fallback to main thread sync if Background Sync fails
                     const syncResults = await this.sync();
                     // Показать объединенный toast с результатами sync
-                    if (!skipToast) {
-                        this.lastToastTime = 0;
-                        if (syncResults.synced > 0) {
-                            this._showToastDebounced(`Онлайн. Синхронизировано: ${syncResults.synced} записей`, 'success');
-                        } else {
-                            this._showToastDebounced('Соединение восстановлено', 'success');
-                        }
+                    this.lastToastTime = 0;
+                    if (syncResults.synced > 0) {
+                        this._showToastDebounced(`Онлайн. Синхронизировано: ${syncResults.synced} записей`, 'success');
+                    } else {
+                        this._showToastDebounced('Соединение восстановлено', 'success');
                     }
                     // Dispatch event with sync results for UI update
                     window.dispatchEvent(new CustomEvent('offline-sync-complete', {
@@ -225,13 +200,11 @@ class OfflineManager {
                 // No Background Sync support (Safari) - sync from main thread
                 const syncResults = await this.sync();
                 // Показать объединенный toast с результатами sync
-                if (!skipToast) {
-                    this.lastToastTime = 0;
-                    if (syncResults.synced > 0) {
-                        this._showToastDebounced(`Онлайн. Синхронизировано: ${syncResults.synced} записей`, 'success');
-                    } else {
-                        this._showToastDebounced('Соединение восстановлено', 'success');
-                    }
+                this.lastToastTime = 0;
+                if (syncResults.synced > 0) {
+                    this._showToastDebounced(`Онлайн. Синхронизировано: ${syncResults.synced} записей`, 'success');
+                } else {
+                    this._showToastDebounced('Соединение восстановлено', 'success');
                 }
                 // Dispatch event with sync results for UI update
                 window.dispatchEvent(new CustomEvent('offline-sync-complete', {
@@ -253,84 +226,6 @@ class OfflineManager {
         }));
     }
 
-    /**
-     * Handle manual offline mode exit - auto-sync pending records
-     * @param {Object} detail - Event detail {status, timestamp}
-     * @private
-     */
-    async _handleManualOfflineExitSync(detail) {
-        console.log('[OfflineManager] === Manual offline mode exited ===');
-        console.log('[OfflineManager] Detail:', JSON.stringify(detail));
-
-        // Check if we have pending items to sync
-        const pending = await this.db.getSyncQueue('pending');
-        console.log(`[OfflineManager] Pending items in queue: ${pending.length}`);
-
-        if (pending.length > 0) {
-            console.log('[OfflineManager] Pending items:', pending.map(i => ({
-                id: i.id,
-                tempId: i.tempId,
-                status: i.status,
-                createdInManualMode: i.createdInManualMode
-            })));
-        }
-
-        if (pending.length === 0) {
-            console.log('[OfflineManager] No pending items to sync - returning early');
-            return;
-        }
-
-        console.log(`[OfflineManager] Starting sync with includeManualModeItems: true...`);
-
-        // Trigger sync with includeManualModeItems: true
-        // This will sync ALL pending items (both manual and auto)
-        const syncResults = await this.sync({ includeManualModeItems: true });
-
-        console.log('[OfflineManager] Sync results:', JSON.stringify(syncResults));
-
-        // Дополнительная задержка чтобы IndexedDB indexes успели обновиться
-        // (решает race condition при manual offline mode exit)
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // ВАЖНО: Принудительная очистка после sync для гарантии удаления
-        const completedCount = await this.db.clearCompletedSyncQueue();
-        console.log(`[OfflineManager] Cleared ${completedCount} completed items from queue`);
-
-        // Проверить что осталось в queue после очистки
-        const remainingPending = await this.db.getSyncQueue('pending');
-        const remainingCompleted = await this.db.getSyncQueue('completed');
-        console.log(`[OfflineManager] After sync - pending: ${remainingPending.length}, completed: ${remainingCompleted.length}`);
-
-        if (remainingPending.length > 0) {
-            console.log('[OfflineManager] Remaining pending items:', remainingPending.map(i => ({
-                id: i.id,
-                status: i.status,
-                createdInManualMode: i.createdInManualMode
-            })));
-        }
-
-        // Show result toast
-        if (syncResults.synced > 0 && syncResults.failed === 0) {
-            this._showToastDebounced(`Синхронизировано: ${syncResults.synced} записей`, 'success');
-        } else if (syncResults.synced > 0 && syncResults.failed > 0) {
-            this._showToastDebounced(
-                `Синхронизировано: ${syncResults.synced}, ошибок: ${syncResults.failed}`,
-                'warning'
-            );
-        } else if (syncResults.failed > 0) {
-            this._showToastDebounced(`Ошибка синхронизации: ${syncResults.failed} записей`, 'error');
-        }
-
-        // Dispatch event for UI update
-        window.dispatchEvent(new CustomEvent('offline-sync-complete', {
-            detail: {
-                status: detail.status,
-                synced: syncResults.synced,
-                failed: syncResults.failed,
-                source: 'manual-offline-exit'
-            }
-        }));
-    }
 
     /**
      * Show toast with debounce to prevent spam
@@ -584,8 +479,6 @@ class OfflineManager {
         });
 
         // 2. Add to sync queue
-        // Track if created in manual mode (user-initiated offline) vs true offline
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'fact',
@@ -594,8 +487,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // Note: No automatic Background Sync registration here
@@ -672,7 +564,6 @@ class OfflineManager {
         });
 
         // 2. Add to sync queue
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'update',
             entity: 'fact',
@@ -681,8 +572,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // 3. Register Background Sync
@@ -749,7 +639,6 @@ class OfflineManager {
         const tempId = `offline_fact_delete_${id}_${Date.now()}`;
 
         // Add to sync queue
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'delete',
             entity: 'fact',
@@ -758,8 +647,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // Register Background Sync
@@ -812,7 +700,6 @@ class OfflineManager {
             serverId: null
         });
 
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'transfer',
@@ -821,8 +708,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // Note: No automatic Background Sync registration here
@@ -881,7 +767,6 @@ class OfflineManager {
             serverId: null
         });
 
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'plan',
@@ -890,8 +775,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // Note: No automatic Background Sync registration here
@@ -910,13 +794,9 @@ class OfflineManager {
 
     /**
      * Sync all pending items
-     * @param {Object} options - Sync options
-     * @param {boolean} options.includeManualModeItems - Include items created in manual mode (default: false for auto-sync)
      * @returns {Promise<Object>} Sync results
      */
-    async sync(options = {}) {
-        const { includeManualModeItems = false } = options;
-
+    async sync() {
         if (this.syncInProgress) {
             return { skipped: true };
         }
@@ -930,23 +810,12 @@ class OfflineManager {
         const results = {
             synced: 0,
             failed: 0,
-            skippedManualMode: 0,
-            needsRetry: false,  // ✅ NEW: Initialize needsRetry flag
+            needsRetry: false,
             items: []
         };
 
         try {
-            let queue = await this.db.getSyncQueue('pending');
-
-            // Filter out manual mode items if not explicitly requested
-            if (!includeManualModeItems) {
-                const originalCount = queue.length;
-                queue = queue.filter(item => !item.createdInManualMode);
-                results.skippedManualMode = originalCount - queue.length;
-                if (results.skippedManualMode > 0) {
-                    console.log(`[OfflineManager] Skipping ${results.skippedManualMode} manual mode items (use manual sync button)`);
-                }
-            }
+            const queue = await this.db.getSyncQueue('pending');
 
             for (const item of queue) {
                 try {
@@ -1011,8 +880,7 @@ class OfflineManager {
             if (remainingQueue.length > 0) {
                 console.log('[OfflineManager] Remaining items:', remainingQueue.map(i => ({
                     id: i.id,
-                    status: i.status,
-                    createdInManualMode: i.createdInManualMode
+                    status: i.status
                 })));
             }
 
@@ -1025,10 +893,10 @@ class OfflineManager {
                     clearTimeout(this.retryTimeout);
                 }
 
-                // Schedule next sync with same options after delay
+                // Schedule next sync after delay
                 this.retryTimeout = setTimeout(async () => {
                     console.log('[OfflineManager] Starting scheduled retry sync...');
-                    await this.sync(options);
+                    await this.sync();
                 }, this.retryDelay);
             }
 
@@ -1443,7 +1311,7 @@ class OfflineManager {
 
     /**
      * Get all unsynced items (pending + failed) for display
-     * @returns {Promise<{items: Array, hasRetryable: boolean, hasManualModeItems: boolean, manualModeCount: number, createdInManualModeCount: number}>}
+     * @returns {Promise<{items: Array, hasRetryable: boolean}>}
      */
     async getAllUnsyncedItems() {
         const pending = await this.db.getSyncQueue('pending');
@@ -1455,30 +1323,15 @@ class OfflineManager {
             item.status === 'failed' || (item.retryCount && item.retryCount > 0)
         );
 
-        // Check for manual mode items (pending only, not failed)
-        const manualModeItems = pending.filter(item => item.createdInManualMode);
-        // ✅ FIX: Show sync button for ALL pending items (not just manual mode)
-        const hasManualModeItems = pending.length > 0;
-        const manualModeCount = pending.length;
-        const createdInManualModeCount = manualModeItems.length; // Analytics
-
-        return { items, hasRetryable, hasManualModeItems, manualModeCount, createdInManualModeCount };
+        return { items, hasRetryable };
     }
 
     /**
-     * Sync all pending items in queue (auto-sync, excludes manual mode items)
+     * Sync all pending items in queue
      * @returns {Promise<Object>} Sync results {synced, failed, items}
      */
     async syncQueue() {
         return await this.sync();
-    }
-
-    /**
-     * Sync items created in manual mode (user-initiated sync)
-     * @returns {Promise<Object>} Sync results {synced, failed, items}
-     */
-    async syncManualModeItems() {
-        return await this.sync({ includeManualModeItems: true });
     }
 
     /**
