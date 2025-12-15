@@ -560,6 +560,20 @@ class SmartNetworkDetector {
         // Reset the flag
         this._manualTransitionInProgress = false;
 
+        // ✅ NEW: Trigger auto-sync for manual mode items when exiting offline mode
+        if (this.status !== 'offline') {
+            // We're online now - trigger sync
+            console.log('[NetworkDetector] Exiting manual offline mode - triggering auto-sync');
+
+            // Dispatch event for OfflineManager to handle sync
+            window.dispatchEvent(new CustomEvent('manual-offline-exit-sync', {
+                detail: {
+                    status: this.status,
+                    timestamp: Date.now()
+                }
+            }));
+        }
+
         // If status changed back to online, ensure UI is updated
         const currentStatus = this.status;
         window.dispatchEvent(new CustomEvent('offline-status-change', {
