@@ -1433,25 +1433,15 @@ class OfflineManager {
      * @private
      */
     async _handleAutoOfflineRecovery() {
-        console.log('[OfflineManager] Auto offline recovery detected');
-
-        // Show toast
-        this._showToastDebounced('Связь с сервером восстановлена', 'success');
-
-        // Start synchronization
-        if (this.supportsBackgroundSync()) {
-            navigator.serviceWorker.ready.then(registration => {
-                return registration.sync.register('sync-budget-data');
-            }).catch(e => {
-                this.sync();
-            });
-        } else {
-            this.sync().then(results => {
-                if (results.synced > 0) {
-                    this._showToastDebounced(`Синхронизировано: ${results.synced} записей`, 'success');
-                }
-            });
-        }
+        // NOTE: Toast and sync are already handled by _handleNetworkStatusChange()
+        // which is called BEFORE this event is dispatched (see networkDetector.js:689-702)
+        // Flow: checkConnectivity() → _setStatus('online') → onStatusChange() → _handleNetworkStatusChange()
+        //       → THEN dispatch('auto-offline-recovered') → this handler
+        //
+        // This handler is kept for:
+        // 1. Logging for debugging
+        // 2. Future auto-recovery specific logic (if needed)
+        console.log('[OfflineManager] Auto offline recovery event received (toast/sync already handled by status change)');
     }
 }
 
