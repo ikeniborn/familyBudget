@@ -83,22 +83,21 @@
             </div>
 
             <!-- Кнопки -->
-            <div class="modal-action mt-3 flex-wrap gap-2">
+            <div class="modal-action mt-3 flex flex-row gap-2">
                 <!-- Кнопка удаления - видна только на мобильных (где нет чекбоксов) -->
-                <button type="button" class="btn btn-sm btn-error md:hidden" onclick="deleteFromEditModal()">
+                <button type="button" class="btn btn-sm btn-error flex-1 md:hidden" onclick="deleteFromEditModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                     Удалить
                 </button>
-                <div class="flex-1 md:hidden"></div>
-                <button type="button" class="btn btn-sm btn-ghost" onclick="closeEditModal()">
+                <button type="button" class="btn btn-sm btn-ghost flex-1 md:flex-none" onclick="closeEditModal()">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                     Отмена
                 </button>
-                <button type="submit" class="btn btn-sm save-btn">
+                <button type="submit" class="btn btn-sm save-btn flex-1 md:flex-none">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                     </svg>
