@@ -186,7 +186,7 @@
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="card-title text-2xl">📋 Факты</h2>
-                <button class="btn btn-sm btn-error gap-1" id="batch-delete-btn" onclick="batchDelete()" disabled>
+                <button class="btn btn-sm btn-error gap-1 hidden md:flex" id="batch-delete-btn" onclick="batchDelete()" disabled>
                     🗑️ Удалить выбранные
                 </button>
             </div>
@@ -1187,11 +1187,11 @@ function getMobileAmountClass(type) {
     return colorMap[type] || 'amount-expense';
 }
 
-// Format amount with sign for mobile view
+// Format amount with sign for mobile view (without currency symbol for compact display)
 function formatMobileAmount(amount, type) {
-    const value = parseFloat(amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const value = parseFloat(amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
     const sign = (type === 'income' || type === 'credit') ? '+' : '-';
-    return `${sign}${value} ₽`;
+    return `${sign}${value}`;
 }
 
 // Render facts table
@@ -1255,7 +1255,7 @@ function renderFactsTable(facts) {
                     <span class="${getArticleTypeColor(fact.article_type)}">${fact.article_name || '—'}</span>
                     ${fact.transfer_id ? `<span class="badge badge-info badge-sm ml-2" title="Перевод ID: ${fact.transfer_id}">🔁 Перевод</span>` : ''}
                 </td>
-                <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
+                <td class="${amountClass}">${parseFloat(fact.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td>${fact.user_name || '—'}</td>
                 <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
@@ -1497,6 +1497,15 @@ async function showEditModal(factId) {
 function closeEditModal() {
     document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
+}
+
+// Delete fact from edit modal (for mobile users without batch delete)
+async function deleteFromEditModal() {
+    const factId = document.getElementById('edit-id').value;
+    if (!factId) return;
+
+    closeEditModal();
+    await deleteFact(parseInt(factId));
 }
 
 // Update fact
