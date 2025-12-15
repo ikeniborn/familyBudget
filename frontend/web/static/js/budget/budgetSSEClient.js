@@ -29,6 +29,9 @@ class BudgetSSEClient {
         this.fetchController = null;    // AbortController for fetch
         this.connectionTimer = null;    // Timer for connection timeout
 
+        // Flag for limit reached state
+        this.limitReached = false;
+
         // Reconnect when tab becomes visible
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' &&
@@ -37,9 +40,37 @@ class BudgetSSEClient {
                 !this.reconnectTimeout) {
                 debugLog('[BudgetSSE] Tab visible, reconnecting');
                 this.reconnectAttempts = 0;
+                this.limitReached = false;  // Reset limit flag on visibility change
                 this._createConnection();
             }
         });
+    }
+
+    /**
+     * Check connection limit before attempting to connect
+     * @returns {Promise<{canConnect: boolean, user_connections?: number, limits?: object}>}
+     * @private
+     */
+    async _checkConnectionLimit() {
+        try {
+            const response = await fetch('/api/v1/budget/events/status', {
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                debugLog('[BudgetSSE] Status check failed, allowing connection');
+                return { canConnect: true };
+            }
+            const data = await response.json();
+            const canConnect = data.user_connections < data.limits.max_per_user;
+
+            if (!canConnect) {
+                console.warn('[BudgetSSE] Connection limit reached:', data);
+            }
+            return { canConnect, ...data };
+        } catch (e) {
+            debugLog('[BudgetSSE] Status check error, allowing connection:', e);
+            return { canConnect: true };
+        }
     }
 
     /**
@@ -64,11 +95,23 @@ class BudgetSSEClient {
      * Create EventSource connection with Safari iOS fallback
      * @private
      */
-    _createConnection() {
+    async _createConnection() {
         if (!this.enabled) {
             return;
         }
 
+        // Precheck connection limit before attempting connection
+        const { canConnect, user_connections, limits } = await this._checkConnectionLimit();
+        if (!canConnect) {
+            console.warn(`[BudgetSSE] Limit reached: ${user_connections}/${limits.max_per_user}`);
+            this.limitReached = true;
+            this.reconnectAttempts = this.maxReconnectAttempts;  // Stop reconnect loop
+            this._updateStatusIndicator();
+            this._notifyHandlers('limit_reached', { user_connections, limits });
+            return;
+        }
+
+        this.limitReached = false;
         const url = '/api/v1/budget/events';
         debugLog('[BudgetSSE] Connecting to:', url);
 
@@ -247,10 +290,20 @@ class BudgetSSEClient {
             });
 
             if (!response.ok) {
+                // Special handling for 429 - connection limit reached
+                if (response.status === 429) {
+                    console.error('[BudgetSSE] 429: Connection limit reached');
+                    this.limitReached = true;
+                    this.reconnectAttempts = this.maxReconnectAttempts;  // Stop reconnect loop
+                    this._updateStatusIndicator();
+                    this._notifyHandlers('limit_reached', {});
+                    return;  // Don't reconnect - it will just fail again
+                }
                 throw new Error(`HTTP ${response.status}`);
             }
 
             this.isConnected = true;
+            this.limitReached = false;
             this.reconnectAttempts = 0;
             this._updateStatusIndicator();
             this._notifyHandlers('connect', {});
@@ -423,6 +476,7 @@ class BudgetSSEClient {
 
         this.isConnected = false;
         this.reconnectAttempts = 0;
+        this.limitReached = false;  // Reset limit flag on disconnect
         this._updateStatusIndicator();
         this._notifyHandlers('disconnect', {});
     }
@@ -719,7 +773,8 @@ class BudgetSSEClient {
         return {
             isConnected: this.isConnected,
             enabled: this.enabled,
-            reconnectAttempts: this.reconnectAttempts
+            reconnectAttempts: this.reconnectAttempts,
+            limitReached: this.limitReached
         };
     }
 
@@ -743,6 +798,11 @@ class BudgetSSEClient {
             indicator.className = `badge badge-success ${sizeClasses}`;
             indicator.innerHTML = '🟢';
             indicator.title = 'Real-time синхронизация активна';
+        } else if (this.limitReached) {
+            // Connection limit reached - different from general error
+            indicator.className = `badge badge-error ${sizeClasses}`;
+            indicator.innerHTML = '🔴';
+            indicator.title = 'Превышен лимит соединений. Закройте другие вкладки или обновите страницу';
         } else if (this.reconnectAttempts > 0 && this.reconnectAttempts < this.maxReconnectAttempts) {
             indicator.className = `badge badge-warning ${sizeClasses}`;
             indicator.innerHTML = '<span class="loading loading-ring loading-xs sm:loading-sm"></span>';

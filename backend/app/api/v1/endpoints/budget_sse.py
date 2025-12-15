@@ -41,7 +41,7 @@ from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 
 # Security constants
-MAX_CONNECTIONS_PER_USER = 3  # Max SSE connections per user (lower than lists - one per tab)
+MAX_CONNECTIONS_PER_USER = 5  # Max SSE connections per user (increased from 3 to handle multiple devices/tabs)
 MAX_TOTAL_CONNECTIONS = 500  # Max total SSE connections system-wide
 USER_STATUS_CHECK_INTERVAL = timedelta(minutes=5)  # How often to verify user is active
 
@@ -96,10 +96,17 @@ class BudgetConnectionManager:
         async with self._lock:
             # Check per-user limit
             user_conn_count = self._count_user_connections(user_id)
+
+            # Log connection attempt for diagnostics
+            logger.info(
+                f"Budget SSE connect attempt: user={user_id}, "
+                f"current_connections={user_conn_count}/{MAX_CONNECTIONS_PER_USER}"
+            )
+
             if user_conn_count >= MAX_CONNECTIONS_PER_USER:
                 logger.warning(
-                    f"Budget SSE connection rejected: user {user_id} exceeded limit "
-                    f"({user_conn_count}/{MAX_CONNECTIONS_PER_USER})"
+                    f"Budget SSE 429: user={user_id}, "
+                    f"connections={user_conn_count}/{MAX_CONNECTIONS_PER_USER} - limit exceeded"
                 )
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -128,21 +135,27 @@ class BudgetConnectionManager:
         )
         return queue
 
-    async def disconnect(self, user_id: int, queue: asyncio.Queue):
+    async def disconnect(self, user_id: int, queue: asyncio.Queue, reason: str = "normal"):
         """
         Remove a SSE connection.
 
         Args:
             user_id: User ID
             queue: The queue associated with this connection
+            reason: Disconnect reason for diagnostics (normal, client_disconnect, user_inactive, error)
         """
         async with self._lock:
+            prev_count = len(self.connections)
             self.connections = [
                 (uid, q) for uid, q in self.connections
                 if q is not queue
             ]
+            new_count = len(self.connections)
 
-        logger.info(f"Budget SSE disconnected: user {user_id}")
+        logger.info(
+            f"Budget SSE disconnected: user={user_id}, reason={reason}, "
+            f"connections_before={prev_count}, connections_after={new_count}"
+        )
 
     async def broadcast(
         self,
@@ -263,6 +276,7 @@ async def budget_events(
     async def event_generator():
         """Generate SSE events from queue with security checks."""
         last_user_check = datetime.utcnow()
+        disconnect_reason = "normal"
 
         try:
             # Send initial connection event
@@ -277,6 +291,7 @@ async def budget_events(
             while True:
                 # Check if client disconnected
                 if await request.is_disconnected():
+                    disconnect_reason = "client_disconnect"
                     break
 
                 # Periodic user status check (security: disconnect deactivated users)
@@ -288,6 +303,7 @@ async def budget_events(
                             logger.warning(
                                 f"Budget SSE disconnecting inactive user {user_id}"
                             )
+                            disconnect_reason = "user_inactive"
                             break
                         last_user_check = now
                     except Exception as e:
@@ -311,9 +327,12 @@ async def budget_events(
                     }
 
         except asyncio.CancelledError:
-            pass
+            disconnect_reason = "cancelled"
+        except Exception as e:
+            disconnect_reason = f"error:{type(e).__name__}"
+            logger.error(f"Budget SSE error for user {user_id}: {e}")
         finally:
-            await manager.disconnect(user_id, queue)
+            await manager.disconnect(user_id, queue, reason=disconnect_reason)
 
     # Return SSE response with security headers
     return EventSourceResponse(

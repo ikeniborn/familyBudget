@@ -514,9 +514,15 @@ async def get_recent_facts_html(
         else:
             financial_centers = {}
 
-        # Format money helper
-        def format_money(amount: Decimal) -> str:
-            return f"{float(amount):,.2f}".replace(",", " ")
+        # Format money helper (without decimals and currency, with +/- sign)
+        def format_money(amount: Decimal, article_type: str) -> str:
+            value = int(float(amount))  # Remove decimals
+            formatted = f"{value:,}".replace(",", " ")
+            if article_type in ("expense", "debit"):
+                return f"-{formatted}"
+            elif article_type in ("income", "credit"):
+                return f"+{formatted}"
+            return formatted
 
         # Build HTML: desktop table + mobile list
         # Desktop table (hidden on mobile)
@@ -596,7 +602,7 @@ async def get_recent_facts_html(
                         <td class="whitespace-nowrap">{fact_date_full}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
                         <td>{article.name}</td>
-                        <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount)} ₽</td>
+                        <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</td>
                         <td class="max-w-xs truncate" title="{description_full}">{description_truncated}</td>
                         <td class="text-center" title="{offline_title}">{offline_icon}</td>
                     </tr>
@@ -611,7 +617,7 @@ async def get_recent_facts_html(
                 line2_parts.append(description)
             line2_text = " • ".join(line2_parts)
 
-            # Offline icon for mobile (in line 1)
+            # Offline icon for mobile (next to category name)
             offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
 
             mobile_html += f"""
@@ -619,8 +625,8 @@ async def get_recent_facts_html(
                 <div class="flex items-center gap-2">
                     {record_type_badge}
                     <span class="flex-1 font-medium truncate">{article.name}</span>
-                    <span class="{amount_class} whitespace-nowrap">{format_money(fact.amount)} ₽</span>
                     {offline_span}
+                    <span class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</span>
                 </div>
                 <div class="text-xs text-base-content/60 mt-1 truncate">
                     {line2_text}

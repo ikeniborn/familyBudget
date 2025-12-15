@@ -175,8 +175,7 @@ class OfflineManager {
                     const registration = await navigator.serviceWorker.ready;
                     await registration.sync.register('sync-budget-data');
                     // Background Sync will dispatch offline-sync-complete via handleSyncComplete()
-                    // when Service Worker finishes - show simple toast here since sync result comes later
-                    this._showToastDebounced('Соединение восстановлено', 'success');
+                    // when Service Worker finishes - toast покажется там с результатами sync
                 } catch (e) {
                     // Fallback to main thread sync if Background Sync fails
                     const syncResults = await this.sync();
@@ -1245,11 +1244,15 @@ class OfflineManager {
     handleSyncComplete(data) {
         const { synced, failed } = data;
 
-        // Show toast with sync results
+        // Показать объединённый toast о восстановлении связи с результатами sync
+        this.lastToastTime = 0; // Reset debounce для гарантированного показа
         if (synced > 0) {
-            this.lastToastTime = 0; // Reset debounce
-            this._showToastDebounced(`Синхронизировано: ${synced} записей`, 'success');
+            this._showToastDebounced(`Соединение восстановлено. Синхронизировано: ${synced}`, 'success');
+        } else if (failed === 0) {
+            // Нет pending данных для синхронизации
+            this._showToastDebounced('Соединение восстановлено', 'success');
         }
+        // Если failed > 0 без synced - показать только ошибку
 
         if (failed > 0) {
             this._showToastDebounced(`Не удалось синхронизировать: ${failed} записей`, 'error');
