@@ -356,6 +356,53 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
+
+/* Mobile Facts List Styles (Two-Line List) */
+.amount-expense { color: #ef4444; }
+.amount-income { color: #22c55e; }
+.amount-debit { color: #3b82f6; }
+.amount-credit { color: #f59e0b; }
+
+.facts-mobile-list {
+    display: none;
+}
+
+.transaction-item:not(:last-child) {
+    border-bottom: 1px solid hsl(var(--b3));
+}
+
+.transaction-item {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.transaction-item:hover {
+    background-color: hsl(var(--b2));
+}
+
+.transaction-item:active {
+    background-color: hsl(var(--b3));
+}
+
+/* Mobile: show list, hide table */
+@media (max-width: 768px) {
+    .facts-desktop-table {
+        display: none !important;
+    }
+    .facts-mobile-list {
+        display: block !important;
+    }
+}
+
+/* Desktop: show table, hide list */
+@media (min-width: 769px) {
+    .facts-desktop-table {
+        display: block;
+    }
+    .facts-mobile-list {
+        display: none;
+    }
+}
 </style>
 {% endblock %}
 
@@ -1203,6 +1250,24 @@ function getArticleTypeColor(type) {
     return colorMap[type] || '';
 }
 
+// Get mobile amount color class based on article type
+function getMobileAmountClass(type) {
+    const colorMap = {
+        'expense': 'amount-expense',
+        'income': 'amount-income',
+        'debit': 'amount-debit',
+        'credit': 'amount-credit'
+    };
+    return colorMap[type] || 'amount-expense';
+}
+
+// Format amount with sign for mobile view
+function formatMobileAmount(amount, type) {
+    const value = parseFloat(amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    const sign = (type === 'income' || type === 'credit') ? '+' : '-';
+    return `${sign}${value} ₽`;
+}
+
 // Render facts table
 function renderFactsTable(facts) {
     const container = document.getElementById('facts-table-container');
@@ -1214,8 +1279,9 @@ function renderFactsTable(facts) {
         return;
     }
 
-    let html = `
-        <div class="overflow-x-auto">
+    // Desktop table HTML
+    let tableHtml = `
+        <div class="facts-desktop-table overflow-x-auto">
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
@@ -1235,6 +1301,9 @@ function renderFactsTable(facts) {
                 <tbody>
     `;
 
+    // Mobile list HTML (Two-Line List format)
+    let mobileHtml = `<div class="facts-mobile-list divide-y divide-base-200">`;
+
     facts.forEach(fact => {
         // income + credit (пополнение) = зеленый, expense + debit (списание) = красный
         const amountClass = (fact.article_type === 'income' || fact.article_type === 'credit')
@@ -1245,8 +1314,11 @@ function renderFactsTable(facts) {
         const financialCenter = fact.financial_center_name || '—';
         const costCenter = fact.cost_center_name || '—';
         const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
+        // Short date for mobile (DD.MM without year)
+        const shortDate = formattedDate.slice(0, 5);
 
-        html += `
+        // Desktop table row
+        tableHtml += `
             <tr data-fact-id="${fact.id}">
                 <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
                 <td><code class="badge badge-ghost">${fact.id}</code></td>
@@ -1269,15 +1341,40 @@ function renderFactsTable(facts) {
                 </td>
             </tr>
         `;
+
+        // Mobile list item (Two-Line List format from variant-2-list.html)
+        const mobileAmountClass = getMobileAmountClass(fact.article_type);
+        const mobileAmount = formatMobileAmount(fact.amount, fact.article_type);
+        const transferBadge = fact.transfer_id ? '🔁' : '';
+        const offlineIcon = fact.is_offline_sync ? '<span class="text-xs" title="Создано offline">☁️</span>' : '';
+
+        mobileHtml += `
+            <div class="transaction-item py-2" data-fact-id="${fact.id}" onclick="showEditModal(${fact.id})">
+                <!-- Line 1: Badge + Category + Amount -->
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-success badge-xs shrink-0">Факт</span>
+                    <span class="flex-1 font-medium truncate">${fact.article_name || '—'}${transferBadge}</span>
+                    <span class="${mobileAmountClass} font-bold whitespace-nowrap">${mobileAmount}</span>
+                    ${offlineIcon}
+                </div>
+                <!-- Line 2: Date • Account • Description -->
+                <div class="text-xs text-base-content/60 mt-1 truncate">
+                    ${shortDate} • ${financialCenter} • ${description}
+                </div>
+            </div>
+        `;
     });
 
-    html += `
+    tableHtml += `
                 </tbody>
             </table>
         </div>
     `;
 
-    container.innerHTML = html;
+    mobileHtml += `</div>`;
+
+    // Combine both views
+    container.innerHTML = tableHtml + mobileHtml;
 }
 
 // Toggle select all checkboxes
