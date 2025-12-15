@@ -778,7 +778,7 @@ async def get_account_balances_html(
             <div class="font-semibold text-sm mb-2 truncate" title="{bal['name']}">{bal['name']}</div>
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs opacity-70">На начало месяца</span>
+                    <span class="text-xs opacity-70">Начало</span>
                     <span class="text-sm font-medium {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])}</span>
                 </div>
                 <div class="flex justify-between items-center pt-2 border-t border-base-300">
