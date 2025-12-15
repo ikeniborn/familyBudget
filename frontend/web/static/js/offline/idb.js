@@ -749,8 +749,9 @@ class IndexedDBManager {
      * @returns {Promise<number>} Number of deleted items
      */
     async clearCompletedSyncQueue() {
-        // Небольшая задержка чтобы IndexedDB успел обновить indexes после status update
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Увеличенная задержка чтобы IndexedDB успел обновить indexes после status update
+        // (50ms было недостаточно для надежной работы при manual offline mode exit)
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         const completed = await this.getSyncQueue('completed');
         console.log(`[IDB] clearCompletedSyncQueue: found ${completed.length} completed items`);

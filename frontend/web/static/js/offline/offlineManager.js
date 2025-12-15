@@ -172,9 +172,8 @@ class OfflineManager {
             // Note: offline-status-change is dispatched at the end of function for all cases
         } else if (oldStatus === 'offline' && (newStatus === 'online' || newStatus === 'degraded')) {
             // Восстановление соединения
-            if (!skipToast) {
-                this._showToastDebounced('Соединение восстановлено', 'success');
-            }
+            // НЕ показываем toast "Соединение восстановлено" сразу
+            // Объединенный toast покажется после sync с результатами
 
             // Reconnect SSE - восстановить real-time соединение
             this.reconnectSSE();
@@ -197,10 +196,22 @@ class OfflineManager {
                     const registration = await navigator.serviceWorker.ready;
                     await registration.sync.register('sync-budget-data');
                     // Background Sync will dispatch offline-sync-complete via handleSyncComplete()
-                    // when Service Worker finishes - no need to dispatch here
+                    // when Service Worker finishes - show simple toast here since sync result comes later
+                    if (!skipToast) {
+                        this._showToastDebounced('Соединение восстановлено', 'success');
+                    }
                 } catch (e) {
                     // Fallback to main thread sync if Background Sync fails
                     const syncResults = await this.sync();
+                    // Показать объединенный toast с результатами sync
+                    if (!skipToast) {
+                        this.lastToastTime = 0;
+                        if (syncResults.synced > 0) {
+                            this._showToastDebounced(`Онлайн. Синхронизировано: ${syncResults.synced} записей`, 'success');
+                        } else {
+                            this._showToastDebounced('Соединение восстановлено', 'success');
+                        }
+                    }
                     // Dispatch event with sync results for UI update
                     window.dispatchEvent(new CustomEvent('offline-sync-complete', {
                         detail: {
@@ -213,10 +224,14 @@ class OfflineManager {
             } else {
                 // No Background Sync support (Safari) - sync from main thread
                 const syncResults = await this.sync();
-                // Show sync result toast only for non-manual transitions
-                if (syncResults.synced > 0 && !skipToast) {
+                // Показать объединенный toast с результатами sync
+                if (!skipToast) {
                     this.lastToastTime = 0;
-                    this._showToastDebounced(`Синхронизировано: ${syncResults.synced} записей`, 'success');
+                    if (syncResults.synced > 0) {
+                        this._showToastDebounced(`Онлайн. Синхронизировано: ${syncResults.synced} записей`, 'success');
+                    } else {
+                        this._showToastDebounced('Соединение восстановлено', 'success');
+                    }
                 }
                 // Dispatch event with sync results for UI update
                 window.dispatchEvent(new CustomEvent('offline-sync-complete', {
@@ -272,6 +287,10 @@ class OfflineManager {
         const syncResults = await this.sync({ includeManualModeItems: true });
 
         console.log('[OfflineManager] Sync results:', JSON.stringify(syncResults));
+
+        // Дополнительная задержка чтобы IndexedDB indexes успели обновиться
+        // (решает race condition при manual offline mode exit)
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         // ВАЖНО: Принудительная очистка после sync для гарантии удаления
         const completedCount = await this.db.clearCompletedSyncQueue();
