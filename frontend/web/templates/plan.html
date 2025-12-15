@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/modal_plan.html" import plan_modal %}
+{% from "components/modal_edit_plan.html" import edit_plan_modal %}
 
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
@@ -313,116 +314,8 @@
 <!-- Transfer Modal -->
 {% include "components/modal_transfer.html" %}
 
-<!-- Edit Fact Modal -->
-<dialog id="edit-modal" class="modal">
-    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать плановую запись</h3>
-        <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2 sm:space-y-4">
-            <input type="hidden" id="edit-id" name="id">
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">💵 Сумма*</span>
-                </label>
-                <input type="number" id="edit-amount" name="amount" step="0.01" required class="input input-bordered" />
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📅 Дата*</span>
-                </label>
-                <input type="text" id="edit-date" name="fact_date" required class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" />
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📁 Категория*</span>
-                </label>
-                <select id="edit-article" name="article_id" required class="select select-bordered">
-                    <option value="" disabled hidden>-- Выберите категорию --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">🏦 Счет *</span>
-                </label>
-                <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите счет --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">💼 Место затрат</span>
-                </label>
-                <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
-                    <option value="">-- Не указано --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📝 Описание</span>
-                </label>
-                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
-            </div>
-            <!-- Напоминание (редактирование) -->
-            <div class="form-control">
-                <label class="label py-1 cursor-pointer justify-start gap-2">
-                    <input type="checkbox" id="edit-enable-reminder" name="enable_reminder" class="checkbox checkbox-sm checkbox-primary"
-                           onchange="toggleEditReminderSettings()" />
-                    <span class="label-text">Напоминание</span>
-                    <span id="edit-reminder-status" class="badge badge-sm badge-ghost hidden"></span>
-                </label>
-            </div>
-            <div id="edit-reminder-settings" class="hidden space-y-2">
-                <div class="form-control">
-                    <label class="label py-1">
-                        <span class="label-text">Дата и время напоминания</span>
-                    </label>
-                    <!-- Desktop-friendly datetime picker: date + time -->
-                    <div class="flex gap-2">
-                        <!-- Date input with CalendarWidget -->
-                        <input
-                            type="text"
-                            name="edit_reminder_date"
-                            id="edit-reminder-date"
-                            class="input input-bordered flex-1 h-12"
-                            placeholder="ДД.ММ.ГГГГ"
-                            autocomplete="off"
-                        />
-                        <!-- Time dropdowns -->
-                        <div class="flex items-center gap-1">
-                            <select name="edit_reminder_hour" id="edit-reminder-hour" class="select select-bordered w-20 h-12">
-                                <option value="">--</option>
-                                {% for h in range(24) %}
-                                <option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>
-                                {% endfor %}
-                            </select>
-                            <span class="text-lg font-bold">:</span>
-                            <select name="edit_reminder_minute" id="edit-reminder-minute" class="select select-bordered w-20 h-12">
-                                <option value="">--</option>
-                                {% for m in range(0, 60, 5) %}
-                                <option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <!-- Hidden field for combined datetime -->
-                    <input type="hidden" name="reminder_datetime" id="edit-reminder-datetime" />
-                </div>
-                <p class="text-xs text-base-content/70">
-                    Уведомление придет в Telegram и как push в браузер
-                </p>
-            </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
-            </div>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
+<!-- Edit Plan Modal -->
+{{ edit_plan_modal('edit-modal') }}
 
 <!-- Custom Confirmation Dialog -->
 <dialog id="confirm-modal" class="modal">

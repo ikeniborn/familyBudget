@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/modal_transaction.html" import transaction_modal %}
+{% from "components/modal_edit_fact.html" import edit_fact_modal %}
 
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
@@ -210,82 +211,7 @@
 {{ transaction_modal('modal_add_transaction') }}
 
 <!-- Edit Fact Modal -->
-<dialog id="edit-modal" class="modal">
-    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать факт</h3>
-        <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2 sm:space-y-4">
-            <input type="hidden" id="edit-id" name="id">
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">💵 Сумма*</span>
-                </label>
-                <input type="number" id="edit-amount" name="amount" step="0.01" required class="input input-bordered" />
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📅 Дата*</span>
-                </label>
-                <input type="text" id="edit-date" name="fact_date" required class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" />
-            </div>
-            <!-- Тип категории -->
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text font-semibold">Тип категории *</span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="btn btn-outline btn-error edit-category-type-btn btn-active" data-type="expense">
-                        <input type="radio" name="edit_category_type" value="expense" class="hidden" checked />
-                        Расход
-                    </label>
-                    <label class="btn btn-outline btn-success edit-category-type-btn" data-type="income">
-                        <input type="radio" name="edit_category_type" value="income" class="hidden" />
-                        Доход
-                    </label>
-                </div>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📁 Категория*</span>
-                </label>
-                <select id="edit-article" name="article_id" required class="select select-bordered">
-                    <option value="" disabled hidden>-- Выберите категорию --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">🏦 Счет *</span>
-                </label>
-                <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите счет --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">💼 Место затрат</span>
-                </label>
-                <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
-                    <option value="">-- Не указано --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📝 Описание</span>
-                </label>
-                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
-            </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
-            </div>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
+{{ edit_fact_modal('edit-modal') }}
 
 <!-- Transfer Modal -->
 {% include "components/modal_transfer.html" %}
