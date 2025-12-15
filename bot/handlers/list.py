@@ -193,7 +193,7 @@ def format_transactions_list(facts: list, articles_map: dict, page: int, total: 
         type_emoji = "💵" if article_type == "income" else "💸"
 
         # Build transaction line
-        transaction_line = f"{type_emoji} **{formatted_date}** | {article_name} | {format_amount(amount)} ₽"
+        transaction_line = f"{type_emoji} **{formatted_date}** | {article_name} | {format_amount(amount)}"
 
         if description:
             transaction_line += f"\n   _{description}_"

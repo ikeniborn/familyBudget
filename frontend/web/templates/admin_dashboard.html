@@ -300,21 +300,21 @@ function renderOverview(data) {
                 <div class="stat">
                     <div class="stat-figure text-success text-3xl">📈</div>
                     <div class="stat-title">Total Income</div>
-                    <div class="stat-value text-success">${income.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+                    <div class="stat-value text-success">${income.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                 </div>
             </div>
             <div class="stats shadow-md bg-error/10">
                 <div class="stat">
                     <div class="stat-figure text-error text-3xl">📉</div>
                     <div class="stat-title">Total Expense</div>
-                    <div class="stat-value text-error">${expense.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+                    <div class="stat-value text-error">${expense.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                 </div>
             </div>
             <div class="stats shadow-md ${balance >= 0 ? 'bg-success/10' : 'bg-error/10'}">
                 <div class="stat">
                     <div class="stat-figure ${balanceClass} text-3xl">💰</div>
                     <div class="stat-title">Net Balance</div>
-                    <div class="stat-value ${balanceClass}">${balance.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})} ₽</div>
+                    <div class="stat-value ${balanceClass}">${balance.toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
                 </div>
             </div>
         </div>
@@ -489,7 +489,7 @@ function updateTransactionsTrendsChart(data) {
     const option = {
         title: {
             text: `Transaction Volume (${data.period_days} days)`,
-            subtext: `Total: ${data.total_transactions} transactions | Income: ${data.total_income.toFixed(2)} ₽ | Expense: ${data.total_expense.toFixed(2)} ₽`,
+            subtext: `Total: ${data.total_transactions} transactions | Income: ${data.total_income.toFixed(2)} | Expense: ${data.total_expense.toFixed(2)}`,
             left: 'center',
             textStyle: { fontSize: 16, fontWeight: 'normal' }
         },
@@ -518,7 +518,7 @@ function updateTransactionsTrendsChart(data) {
         },
         yAxis: {
             type: 'value',
-            name: 'Amount (₽)',
+            name: 'Amount',
             axisLabel: {
                 formatter: value => value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value
             }
@@ -621,7 +621,7 @@ function updateTopUsersChart(data) {
         data.metric === 'transactions' ? u.transaction_count : u.total_amount
     );
 
-    const metricLabel = data.metric === 'transactions' ? 'Transactions' : 'Total Amount (₽)';
+    const metricLabel = data.metric === 'transactions' ? 'Transactions' : 'Total Amount';
 
     const option = {
         title: {
@@ -637,7 +637,7 @@ function updateTopUsersChart(data) {
                 const user = data.data[index];
                 let tooltip = `<strong>${params[0].axisValue}</strong><br/>`;
                 tooltip += `Transactions: ${user.transaction_count}<br/>`;
-                tooltip += `Total Amount: ${user.total_amount.toFixed(2)} ₽`;
+                tooltip += `Total Amount: ${user.total_amount.toFixed(2)}`;
                 return tooltip;
             }
         },
@@ -670,7 +670,7 @@ function updateTopUsersChart(data) {
                 label: {
                     show: true,
                     position: 'right',
-                    formatter: data.metric === 'transactions' ? '{c}' : '{c} ₽'
+                    formatter: '{c}'
                 }
             }
         ]
@@ -739,7 +739,7 @@ function updateCategoriesChart(data) {
     const option = {
         title: {
             text: `Top ${data.limit} ${typeLabel} Categories`,
-            subtext: `Total: ${data.total_amount.toFixed(2)} ₽`,
+            subtext: `Total: ${data.total_amount.toFixed(2)}`,
             left: 'center',
             textStyle: { fontSize: 16, fontWeight: 'normal' }
         },
@@ -748,7 +748,7 @@ function updateCategoriesChart(data) {
             formatter: function(params) {
                 const cat = data.data[params.dataIndex];
                 return `<strong>${params.name}</strong><br/>` +
-                       `Amount: ${params.value.toFixed(2)} ₽<br/>` +
+                       `Amount: ${params.value.toFixed(2)}<br/>` +
                        `Transactions: ${cat.transaction_count}<br/>` +
                        `Percentage: ${cat.percentage.toFixed(1)}%`;
             }
@@ -875,7 +875,7 @@ function updateCentersCharts(data) {
                 const fc = data.financial_centers[index];
                 return `<strong>${fc.code} - ${fc.name}</strong><br/>` +
                        `Transactions: ${fc.transaction_count}<br/>` +
-                       `Total Amount: ${fc.total_amount.toFixed(2)} ₽`;
+                       `Total Amount: ${fc.total_amount.toFixed(2)}`;
             }
         },
         grid: {
@@ -887,7 +887,7 @@ function updateCentersCharts(data) {
         },
         xAxis: {
             type: 'value',
-            name: 'Amount (₽)'
+            name: 'Amount'
         },
         yAxis: {
             type: 'category',
@@ -905,7 +905,7 @@ function updateCentersCharts(data) {
                 label: {
                     show: true,
                     position: 'right',
-                    formatter: '{c} ₽'
+                    formatter: '{c}'
                 }
             }
         ]
@@ -931,7 +931,7 @@ function updateCentersCharts(data) {
                 const cc = data.cost_centers[index];
                 return `<strong>${cc.code} - ${cc.name}</strong><br/>` +
                        `Transactions: ${cc.transaction_count}<br/>` +
-                       `Total Amount: ${cc.total_amount.toFixed(2)} ₽`;
+                       `Total Amount: ${cc.total_amount.toFixed(2)}`;
             }
         },
         grid: {
@@ -943,7 +943,7 @@ function updateCentersCharts(data) {
         },
         xAxis: {
             type: 'value',
-            name: 'Amount (₽)'
+            name: 'Amount'
         },
         yAxis: {
             type: 'category',
@@ -961,7 +961,7 @@ function updateCentersCharts(data) {
                 label: {
                     show: true,
                     position: 'right',
-                    formatter: '{c} ₽'
+                    formatter: '{c}'
                 }
             }
         ]

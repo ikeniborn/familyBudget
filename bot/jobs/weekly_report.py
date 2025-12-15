@@ -210,8 +210,8 @@ def format_weekly_report(
 
     # Weekly summary
     message_parts.append("💰 *Итоги недели:*")
-    message_parts.append(f"План: {format_amount(plan_balance)} ₽")
-    message_parts.append(f"Факт: {format_amount(actual_balance)} ₽")
+    message_parts.append(f"План: {format_amount(plan_balance)}")
+    message_parts.append(f"Факт: {format_amount(actual_balance)}")
 
     if plan_balance != 0:
         percent = abs(difference / plan_balance * 100)
@@ -222,11 +222,11 @@ def format_weekly_report(
             status = "⚠️ Перерасход"
             sign = ""
         message_parts.append(
-            f"{status}: {sign}{format_amount(abs(difference))} ₽ ({percent:.0f}%)"
+            f"{status}: {sign}{format_amount(abs(difference))} ({percent:.0f}%)"
         )
     else:
         sign = "+" if difference >= 0 else ""
-        message_parts.append(f"Разница: {sign}{format_amount(difference)} ₽")
+        message_parts.append(f"Разница: {sign}{format_amount(difference)}")
 
     # Top expenses
     top_expenses = actual_summary.get("top_expenses", [])
@@ -234,7 +234,7 @@ def format_weekly_report(
         message_parts.append("")
         message_parts.append("📊 *Топ-3 расхода:*")
         for i, (category, amount) in enumerate(top_expenses, 1):
-            message_parts.append(f"{i}. {category}: {format_amount(amount)} ₽")
+            message_parts.append(f"{i}. {category}: {format_amount(amount)}")
 
     # No data message
     if not plan_summary["total_income"] and not plan_summary["total_expense"]:

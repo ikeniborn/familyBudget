@@ -255,7 +255,7 @@ class ConflictResolver {
             html.push(`
                 <div class="${isDiff ? 'text-warning font-bold' : ''}">
                     <span class="opacity-60">Сумма:</span>
-                    <span>${fields.amount} ₽</span>
+                    <span>${fields.amount}</span>
                     ${isDiff ? '<span class="badge badge-warning badge-xs ml-1">!</span>' : ''}
                 </div>
             `);

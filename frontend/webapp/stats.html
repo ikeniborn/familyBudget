@@ -311,17 +311,17 @@
 
                 <div class="summary-row">
                     <span class="summary-label">📉 Расходы</span>
-                    <span class="summary-value expense" id="summary-expense">0.00 ₽</span>
+                    <span class="summary-value expense" id="summary-expense">0.00</span>
                 </div>
 
                 <div class="summary-row">
                     <span class="summary-label">📈 Доходы</span>
-                    <span class="summary-value income" id="summary-income">0.00 ₽</span>
+                    <span class="summary-value income" id="summary-income">0.00</span>
                 </div>
 
                 <div class="summary-row">
                     <span class="summary-label">💰 Баланс</span>
-                    <span class="summary-value balance" id="summary-balance">0.00 ₽</span>
+                    <span class="summary-value balance" id="summary-balance">0.00</span>
                 </div>
             </div>
 
@@ -682,13 +682,13 @@
         }
 
         function updateSummary(summary) {
-            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)} ₽`;
-            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)} ₽`;
+            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)}`;
+            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)}`;
 
             const balanceElement = document.getElementById('summary-balance');
             const balanceFormatted = app.ui.formatAmount(Math.abs(summary.balance));
             const sign = summary.balance >= 0 ? '+' : '-';
-            balanceElement.textContent = `${sign}${balanceFormatted} ₽`;
+            balanceElement.textContent = `${sign}${balanceFormatted}`;
         }
 
         function calculateCategoryBreakdown(facts, type) {
@@ -787,7 +787,7 @@
 
             const amountEl = document.createElement('div');
             amountEl.className = `category-amount ${type}`;
-            amountEl.textContent = `${type === 'expense' ? '-' : '+'}${app.ui.formatAmount(amount)} ₽`;
+            amountEl.textContent = `${type === 'expense' ? '-' : '+'}${app.ui.formatAmount(amount)}`;
 
             item.appendChild(icon);
             item.appendChild(info);

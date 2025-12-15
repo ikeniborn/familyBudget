@@ -184,7 +184,7 @@ def format_delete_confirmation(fact: dict, article: dict) -> str:
 
 {type_emoji} **{type_text}**
 Категория: {article_name}
-Сумма: {format_amount(amount)} ₽
+Сумма: {format_amount(amount)}
 Дата: {formatted_date}{description_display}
 ID: `{fact_id}`
 
