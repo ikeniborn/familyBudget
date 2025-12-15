@@ -441,8 +441,8 @@ document.addEventListener('DOMContentLoaded', function() {
             target: '#recent-transactions',
             swap: 'innerHTML'
         });
-        // Показать уведомление о pending записях (без авто-синхронизации)
-        await notifyPendingRecords();
+        // Note: notifyPendingRecords() вызывается из network-status-change listener
+        // чтобы избежать дублирования уведомлений
     });
     // Listen for network-status-change from SmartNetworkDetector (includes manual mode)
     window.addEventListener('network-status-change', async (event) => {
