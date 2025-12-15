@@ -5,23 +5,16 @@
 {% block content %}
 <div class="space-y-6">
     {% if user %}
-        <!-- Welcome Section (manual close with localStorage) -->
-        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500 relative">
-            <div class="hero-content text-center py-6">
+        <!-- Welcome Section (tap to close with localStorage) -->
+        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500 relative cursor-pointer">
+            <div class="hero-content text-center py-6 pb-8">
                 <div class="max-w-md">
                     <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
                     <p class="opacity-80">Отслеживайте расходы, анализируйте траты и управляйте семейным бюджетом.</p>
                 </div>
             </div>
-            <!-- Close Button (bottom-right corner) -->
-            <button onclick="showWelcomeCloseConfirmation()"
-                    class="btn btn-sm btn-ghost absolute bottom-2 right-2 gap-1"
-                    title="Скрыть секцию приветствия">
-                <span class="hidden sm:inline">Скрыть</span>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
+            <!-- Hint text at the bottom -->
+            <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">для скрытия нажмите на секцию приветствия</p>
         </div>
 
         <!-- Quick Stats Section -->
@@ -159,13 +152,14 @@
                         <span id="pending-count-badge" class="badge badge-warning badge-sm">0</span>
                     </h2>
                     <div id="pending-records-container">
-                        <div class="overflow-x-auto">
+                        <!-- Desktop table (hidden on mobile) -->
+                        <div id="pending-records-desktop" class="hidden md:block overflow-x-auto">
                             <table class="table table-zebra table-sm">
                                 <thead>
                                     <tr>
                                         <th>Тип</th>
                                         <th>Дата</th>
-                                        <th>Счет</th>
+                                        <th>Счёт</th>
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
@@ -182,22 +176,26 @@
                                 </tbody>
                             </table>
                         </div>
+                        <!-- Mobile list (hidden on desktop) -->
+                        <div id="pending-records-mobile" class="block md:hidden divide-y divide-base-200">
+                            <!-- Populated by JavaScript -->
+                        </div>
                     </div>
                     <!-- Action buttons for pending records -->
                     <div id="pending-records-actions" class="card-actions justify-end mt-4 hidden">
-                        <!-- Sync button - for manual mode items -->
-                        <button id="sync-manual-btn" onclick="syncManualModeItems()" class="btn btn-sm btn-primary gap-2 hidden">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                            </svg>
-                            Синхронизировать
-                        </button>
                         <!-- Retry button - for failed items -->
                         <button id="retry-sync-btn" onclick="retryFailedItems()" class="btn btn-sm btn-warning gap-2 hidden">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                             </svg>
                             Повторить
+                        </button>
+                        <!-- Delete button - for failed items -->
+                        <button id="delete-failed-btn" onclick="deleteFailedRecords()" class="btn btn-sm btn-error gap-2 hidden">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Удалить ошибочные
                         </button>
                     </div>
                 </div>
@@ -414,6 +412,14 @@ function confirmWelcomeClose() {
 document.addEventListener('DOMContentLoaded', function() {
     // Check if welcome section should be hidden based on localStorage
     checkWelcomeSectionVisibility();
+
+    // Add click handler for welcome section (tap to close)
+    const welcomeSection = document.getElementById('welcome-section');
+    if (welcomeSection) {
+        welcomeSection.addEventListener('click', function() {
+            showWelcomeCloseConfirmation();
+        });
+    }
 
     // NOTE: updateOfflineUI() is now handled by base.html
     // It considers both navigator.onLine, SmartNetworkDetector status, AND manual offline mode
@@ -1623,15 +1629,16 @@ async function loadPendingRecords() {
     debugLog('[loadPendingRecords] Starting...');
     const card = document.getElementById('pending-records-card');
     const tbody = document.getElementById('pending-records-tbody');
+    const mobileList = document.getElementById('pending-records-mobile');
     const countBadge = document.getElementById('pending-count-badge');
     const actionsDiv = document.getElementById('pending-records-actions');
     const retryBtn = document.getElementById('retry-sync-btn');
-    const syncManualBtn = document.getElementById('sync-manual-btn');
+    const deleteFailedBtn = document.getElementById('delete-failed-btn');
 
-    debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody);
+    debugLog('[loadPendingRecords] Card found:', !!card, 'Tbody found:', !!tbody, 'Mobile found:', !!mobileList);
 
-    if (!card || !tbody) {
-        debugLog('[loadPendingRecords] Card or tbody not found');
+    if (!card || !tbody || !mobileList) {
+        debugLog('[loadPendingRecords] Card, tbody or mobileList not found');
         return;
     }
 
@@ -1659,7 +1666,7 @@ async function loadPendingRecords() {
         card.classList.remove('hidden');
 
         // Show/hide buttons based on item types
-        const showActions = hasRetryable || hasManualModeItems;
+        const showActions = hasRetryable;
         if (actionsDiv) {
             if (showActions) {
                 actionsDiv.classList.remove('hidden');
@@ -1668,16 +1675,8 @@ async function loadPendingRecords() {
             }
         }
 
-        // Sync manual button - show when there are manual mode items
-        if (syncManualBtn) {
-            if (hasManualModeItems) {
-                syncManualBtn.classList.remove('hidden');
-            } else {
-                syncManualBtn.classList.add('hidden');
-            }
-        }
-
         // Retry button - show when there are failed items
+        const hasFailed = pendingItems.some(item => item.status === 'failed');
         if (retryBtn) {
             if (hasRetryable) {
                 retryBtn.classList.remove('hidden');
@@ -1686,14 +1685,49 @@ async function loadPendingRecords() {
             }
         }
 
-        // Generate rows - transfers generate two rows (debit + credit)
-        const rows = [];
+        // Delete failed button - show when there are failed items
+        if (deleteFailedBtn) {
+            if (hasFailed) {
+                deleteFailedBtn.classList.remove('hidden');
+            } else {
+                deleteFailedBtn.classList.add('hidden');
+            }
+        }
+
+        // Generate rows (desktop) and list items (mobile)
+        // Transfers generate two entries (debit + credit)
+        const tableRows = [];
+        const mobileItems = [];
         let totalRecords = 0;
+
+        // Helper: format short date (dd.mm)
+        const formatShortDate = (dateStr) => {
+            if (!dateStr || dateStr === '—') return '—';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}.${parts[1]}`;
+            }
+            return dateStr;
+        };
+
+        // Format amount with +/- sign (without decimals and currency)
+        const formatAmount = (amount, articleType) => {
+            if (!amount) return '—';
+            const value = Math.floor(parseFloat(amount));
+            const formatted = value.toLocaleString('ru-RU').replace(/\s/g, ' ');
+            if (articleType === 'expense' || articleType === 'debit') {
+                return `-${formatted}`;
+            } else if (articleType === 'income' || articleType === 'credit') {
+                return `+${formatted}`;
+            }
+            return formatted;
+        };
 
         pendingItems.forEach(item => {
             const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
-            const amount = item.data.amount ? parseFloat(item.data.amount).toFixed(2) : '—';
+            const shortDate = formatShortDate(date);
             const statusBadge = getStatusBadge(item);
+            const statusBadgeMobile = getStatusBadgeMobile(item);
             const description = item.data.description || '—';
 
             // Notification indicator (only for plans)
@@ -1703,98 +1737,156 @@ async function loadPendingRecords() {
                 ? `<td class="text-center text-success" title="Уведомление включено">${bellIcon}</td>`
                 : '<td class="text-center opacity-30">—</td>';
 
-            // For transfers, create two rows (debit and credit)
+            // For transfers, create two entries (debit and credit)
             if (item.entity === 'transfer') {
                 // Record type for transfer: fact or plan (badge HTML)
                 const isPlanTransfer = item.data.record_type === 'plan';
                 const typeLabel = isPlanTransfer
                     ? '<span class="badge badge-info badge-sm">План</span>'
                     : '<span class="badge badge-success badge-sm">Факт</span>';
+                const typeLabelXs = isPlanTransfer
+                    ? '<span class="badge badge-info badge-xs">План</span>'
+                    : '<span class="badge badge-success badge-xs">Факт</span>';
 
-                // Debit row (списание) - amount in blue, icon 📤
+                // Debit row (списание) - amount in blue with minus
                 const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
                 const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
-                rows.push(`
+                const debitAmount = formatAmount(item.data.amount, 'debit');
+
+                // Desktop table row
+                tableRows.push(`
                     <tr>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
-                        <td class="max-w-[100px] truncate" title="${fromCategory}">📤 ${fromCategory}</td>
-                        <td class="text-info font-medium">${amount}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
+                        <td class="text-info font-medium">${debitAmount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
                 `);
 
-                // Credit row (пополнение) - amount in orange, icon 📥
+                // Mobile list item (debit)
+                const debitLine2Parts = [shortDate, fromCfo, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${fromCategory}</span>
+                            <span class="text-info font-bold whitespace-nowrap">${debitAmount}</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${debitLine2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
+                // Credit row (пополнение) - amount in orange with plus
                 const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
                 const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
-                rows.push(`
+                const creditAmount = formatAmount(item.data.amount, 'credit');
+
+                // Desktop table row
+                tableRows.push(`
                     <tr>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
-                        <td class="max-w-[100px] truncate" title="${toCategory}">📥 ${toCategory}</td>
-                        <td class="text-warning font-medium">${amount}</td>
+                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
+                        <td class="text-warning font-medium">${creditAmount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         <td class="text-center opacity-30">—</td>
                         <td>${statusBadge}</td>
                     </tr>
                 `);
+
+                // Mobile list item (credit)
+                const creditLine2Parts = [shortDate, toCfo, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${toCategory}</span>
+                            <span class="text-warning font-bold whitespace-nowrap">${creditAmount}</span>
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${creditLine2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
                 totalRecords += 2;
             } else {
-                // Regular fact or plan - single row
+                // Regular fact or plan - single entry
                 const typeLabel = getRecordTypeLabel(item.entity);
+                const typeLabelXs = getRecordTypeLabelXs(item.entity);
                 const cfoName = item.data.financial_center_name ||
                     (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
                 const categoryName = item.data.article_name ||
                     (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
 
-                // Determine icon and color based on fact_type (expense/income for facts)
-                // expense = 💸 red, income = 💰 green, debit = 📤 blue, credit = 📥 orange
+                // Determine color based on fact_type (expense/income for facts)
                 const factType = item.data.fact_type || item.data.article_type || '';
-                let categoryIcon, colorClass;
+                let colorClass;
                 switch (factType) {
                     case 'expense':
-                        categoryIcon = '💸';
                         colorClass = 'text-error';
                         break;
                     case 'income':
-                        categoryIcon = '💰';
                         colorClass = 'text-success';
                         break;
                     case 'debit':
-                        categoryIcon = '📤';
                         colorClass = 'text-info';
                         break;
                     case 'credit':
-                        categoryIcon = '📥';
                         colorClass = 'text-warning';
                         break;
                     default:
-                        categoryIcon = '❓';
                         colorClass = '';
                 }
 
-                rows.push(`
+                // Format amount with +/- sign based on type
+                const formattedAmount = formatAmount(item.data.amount, factType);
+
+                // Desktop table row
+                tableRows.push(`
                     <tr>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
-                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryIcon} ${categoryName}</td>
-                        <td class="${colorClass} font-medium">${amount}</td>
+                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
+                        <td class="${colorClass} font-medium">${formattedAmount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
                         ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
                 `);
+
+                // Mobile list item
+                const line2Parts = [shortDate, cfoName, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${categoryName}</span>
+                            <span class="${colorClass} font-bold whitespace-nowrap">${formattedAmount}</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${line2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
                 totalRecords += 1;
             }
         });
 
         countBadge.textContent = totalRecords;
-        tbody.innerHTML = rows.join('');
+        tbody.innerHTML = tableRows.join('');
+        mobileList.innerHTML = mobileItems.join('');
     } catch (error) {
         console.error('[Pending Records] Error loading:', error);
     }
@@ -1810,42 +1902,40 @@ function getRecordTypeLabel(entity) {
     return badges[entity] || `<span class="badge badge-ghost badge-sm">${entity || '—'}</span>`;
 }
 
+// Get record type badge HTML (xs size for mobile)
+function getRecordTypeLabelXs(entity) {
+    const badges = {
+        'fact': '<span class="badge badge-success badge-xs">Факт</span>',
+        'plan': '<span class="badge badge-info badge-xs">План</span>',
+        'transfer': '<span class="badge badge-neutral badge-xs">Перевод</span>'
+    };
+    return badges[entity] || `<span class="badge badge-ghost badge-xs">${entity || '—'}</span>`;
+}
+
 // Get status badge HTML
 function getStatusBadge(item) {
     if (item.status === 'failed') {
-        return '<span class="badge badge-error badge-sm">Ошибка</span>';
+        const maxRetries = window.offlineManager?.maxRetries || 5;
+        const retryInfo = item.retryCount ? ` (${item.retryCount}/${maxRetries})` : '';
+        return `<span class="badge badge-error badge-sm" title="${item.error || 'Превышено количество попыток'}">Ошибка${retryInfo}</span>`;
     }
     if (item.retryCount > 0) {
-        return `<span class="badge badge-warning badge-sm">Повтор ${item.retryCount}</span>`;
+        const maxRetries = window.offlineManager?.maxRetries || 5;
+        return `<span class="badge badge-warning badge-sm" title="Повторная попытка синхронизации">Повтор ${item.retryCount}/${maxRetries}</span>`;
     }
     return '<span class="badge badge-info badge-sm">Ожидает</span>';
 }
 
-// Sync items created in manual mode (user clicks "Синхронизировать" button)
-async function syncManualModeItems() {
-    if (!window.offlineManager) {
-        showToast('Менеджер синхронизации недоступен', 'error');
-        return;
+// Get status indicator for mobile (compact icon-based)
+function getStatusBadgeMobile(item) {
+    if (item.status === 'failed') {
+        return '<span class="text-error text-xs" title="Ошибка синхронизации">⚠️</span>';
     }
-
-    const isOnline = navigator.onLine && window.offlineManager.isOnline;
-    if (!isOnline) {
-        showToast('Нет подключения к серверу', 'warning');
-        return;
+    if (item.retryCount > 0) {
+        return '<span class="text-warning text-xs" title="Повторная попытка">🔄</span>';
     }
-
-    try {
-        showToast('Синхронизация...', 'info');
-        // Sync ALL items including manual mode items
-        const results = await window.offlineManager.syncManualModeItems();
-        await loadPendingRecords();
-
-        // Show appropriate message and refresh UI
-        await handleSyncResults(results);
-    } catch (error) {
-        console.error('[Sync Manual] Error:', error);
-        showToast('Ошибка синхронизации: ' + error.message, 'error');
-    }
+    // For pending items, no icon (clean look)
+    return '';
 }
 
 // Retry failed items (user clicks "Повторить" button)
@@ -1863,8 +1953,8 @@ async function retryFailedItems() {
 
     try {
         showToast('Повторная синхронизация...', 'info');
-        // Sync ALL items including manual mode (to retry failed ones)
-        const results = await window.offlineManager.syncManualModeItems();
+        // Sync ALL pending items
+        const results = await window.offlineManager.sync();
         await loadPendingRecords();
 
         // Show appropriate message and refresh UI
@@ -1917,7 +2007,53 @@ async function handleSyncResults(results) {
 
 // Legacy function for backward compatibility
 async function syncPendingRecords() {
-    return await syncManualModeItems();
+    if (!window.offlineManager) return;
+    return await window.offlineManager.sync();
+}
+
+// Delete failed records (user clicks "Удалить ошибочные" button)
+async function deleteFailedRecords() {
+    if (!window.offlineManager) {
+        showToast('Менеджер синхронизации недоступен', 'error');
+        return;
+    }
+
+    // Confirm deletion
+    if (!confirm('Удалить все записи с ошибками? Это действие нельзя отменить.')) {
+        return;
+    }
+
+    try {
+        const { items } = await window.offlineManager.getAllUnsyncedItems();
+        const failedItems = items.filter(item => item.status === 'failed');
+
+        if (failedItems.length === 0) {
+            showToast('Нет ошибочных записей для удаления', 'info');
+            return;
+        }
+
+        let deletedCount = 0;
+        for (const item of failedItems) {
+            // Delete from sync queue
+            await window.offlineManager.db.deleteSyncQueueItem(item.id);
+
+            // Delete from IndexedDB facts/transfers/plans store
+            if (item.tempId) {
+                if (item.entity === 'fact' || item.entity === 'plan') {
+                    await window.offlineManager.db.deleteFact(item.tempId);
+                } else if (item.entity === 'transfer') {
+                    await window.offlineManager.db.deleteTransfer(item.tempId);
+                }
+            }
+            deletedCount++;
+        }
+
+        showToast(`Удалено ${deletedCount} ошибочных записей`, 'success');
+        await loadPendingRecords();
+    } catch (error) {
+        console.error('[Delete Failed] Error:', error);
+        showToast('Ошибка удаления: ' + error.message, 'error');
+    }
 }
 
 // Update pending count badge (called from other modules)
@@ -1926,14 +2062,13 @@ async function updatePendingCount() {
     const card = document.getElementById('pending-records-card');
     const actionsDiv = document.getElementById('pending-records-actions');
     const retryBtn = document.getElementById('retry-sync-btn');
-    const syncManualBtn = document.getElementById('sync-manual-btn');
 
     if (!countBadge || !window.offlineManager) {
         return 0;
     }
 
     try {
-        const { items: pendingItems, hasRetryable, hasManualModeItems } = await window.offlineManager.getAllUnsyncedItems();
+        const { items: pendingItems, hasRetryable } = await window.offlineManager.getAllUnsyncedItems();
         countBadge.textContent = pendingItems.length;
 
         // Update card visibility
@@ -1946,21 +2081,12 @@ async function updatePendingCount() {
         }
 
         // Show/hide action buttons based on item types
-        const showActions = (hasRetryable || hasManualModeItems) && pendingItems.length > 0;
+        const showActions = hasRetryable && pendingItems.length > 0;
         if (actionsDiv) {
             if (showActions) {
                 actionsDiv.classList.remove('hidden');
             } else {
                 actionsDiv.classList.add('hidden');
-            }
-        }
-
-        // Sync manual button - show when there are manual mode items
-        if (syncManualBtn) {
-            if (hasManualModeItems) {
-                syncManualBtn.classList.remove('hidden');
-            } else {
-                syncManualBtn.classList.add('hidden');
             }
         }
 
@@ -1993,8 +2119,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Listen for offline-sync-complete event (auto-sync when exiting offline mode)
     window.addEventListener('offline-sync-complete', async (event) => {
-        console.log('[index.html] Sync complete event received:', event.detail);
-
         // Reload pending records table
         await loadPendingRecords();
 
@@ -2248,6 +2372,46 @@ async function createReminder(factId, reminderDatetime) {
         return null;
     }
 }
+
+// ==================== UNIFIED SAVE FUNCTIONS ====================
+// These functions automatically choose between online (form submit) and offline (local queue) mode
+
+/**
+ * Unified save function - automatically chooses online/offline mode
+ * @param {HTMLButtonElement} button - Save button with data-form-id and data-modal-id
+ * @param {string} type - 'transaction' | 'plan' | 'transfer'
+ */
+async function unifiedSave(button, type) {
+    const isOnline = window.offlineManager?.networkDetector?.isOnline() ?? navigator.onLine;
+
+    if (isOnline) {
+        // Online: submit form to server
+        const form = document.getElementById(button.dataset.formId);
+        if (form && form.checkValidity()) {
+            form.requestSubmit();  // Triggers form submit with validation
+        } else {
+            form?.reportValidity();
+        }
+    } else {
+        // Offline: save locally
+        switch (type) {
+            case 'transaction':
+                await saveTransactionOffline(button);
+                break;
+            case 'plan':
+                await savePlanOffline(button);
+                break;
+            case 'transfer':
+                await saveTransferOffline(button);
+                break;
+        }
+    }
+}
+
+// Wrapper functions for each modal type
+function saveTransaction(button) { unifiedSave(button, 'transaction'); }
+function savePlan(button) { unifiedSave(button, 'plan'); }
+function saveTransfer(button) { unifiedSave(button, 'transfer'); }
 
 // ==================== OFFLINE SAVE FUNCTIONS ====================
 // These functions save records to the local queue WITHOUT immediately uploading to server
@@ -2533,42 +2697,33 @@ async function saveTransferOffline(button) {
 }
 
 /**
- * Update save button visibility based on offline mode
- * Called when manual or auto offline mode changes
+ * Update save button title based on offline mode
+ * Called when auto offline mode changes
+ *
+ * The unified .save-btn button color is controlled via CSS (html.offline-mode)
+ * This function just updates the tooltip/title for better UX
  */
 function updateSaveButtonsVisibility() {
     let isOffline = false;
 
     if (window.offlineManager && window.offlineManager.networkDetector) {
-        // Check manual offline mode
-        const isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
-        // Check auto offline mode (network status)
         const networkStatus = window.offlineManager.networkDetector.getStatus();
-        const isAutoOffline = networkStatus === 'offline';
-
-        isOffline = isManualOffline || isAutoOffline;
+        isOffline = networkStatus === 'offline';
     } else {
         // Fallback to navigator.onLine
         isOffline = !navigator.onLine;
     }
 
-    // Get all save-upload buttons (online only)
-    const uploadButtons = document.querySelectorAll('.save-upload-btn');
-    uploadButtons.forEach(btn => {
-        if (isOffline) {
-            btn.disabled = true;
-            btn.classList.add('btn-disabled');
-            btn.title = 'Недоступно в оффлайн режиме';
-        } else {
-            btn.disabled = false;
-            btn.classList.remove('btn-disabled');
-            btn.title = 'Сохранить и загрузить на сервер';
-        }
+    // Update unified save buttons (.save-btn)
+    const saveButtons = document.querySelectorAll('.save-btn');
+    saveButtons.forEach(btn => {
+        btn.title = isOffline
+            ? 'Сохранить локально (синхронизируется при подключении)'
+            : 'Сохранить на сервер';
     });
 }
 
 // Listen for offline mode changes to update buttons
-window.addEventListener('manual-offline-mode-change', updateSaveButtonsVisibility);
 window.addEventListener('network-status-change', updateSaveButtonsVisibility);
 window.addEventListener('offline-status-change', updateSaveButtonsVisibility);
 window.addEventListener('online', updateSaveButtonsVisibility);
@@ -2578,6 +2733,85 @@ window.addEventListener('offline', updateSaveButtonsVisibility);
 document.addEventListener('DOMContentLoaded', () => {
     setTimeout(updateSaveButtonsVisibility, 1000); // Delay to ensure offlineManager is initialized
 });
+</script>
+
+<!-- SSE Event Handlers for index page (Budget SSE Client loaded in base.html) -->
+<script>
+// Register SSE event handlers for index page UI updates
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for budgetSSEClient to be available
+    setTimeout(() => {
+        if (window.budgetSSEClient) {
+            // Handler for fact events - refresh dashboard
+            window.budgetSSEClient.on('fact_created', (data) => {
+                debugLog('[SSE] Fact created, refreshing dashboard');
+                refreshDashboard();
+            });
+            window.budgetSSEClient.on('fact_updated', (data) => {
+                debugLog('[SSE] Fact updated, refreshing dashboard');
+                refreshDashboard();
+            });
+            window.budgetSSEClient.on('fact_deleted', (data) => {
+                debugLog('[SSE] Fact deleted, refreshing dashboard');
+                refreshDashboard();
+            });
+
+            // Handler for plan events - refresh stats
+            window.budgetSSEClient.on('plan_created', (data) => {
+                debugLog('[SSE] Plan created, refreshing stats');
+                refreshQuickStats();
+            });
+            window.budgetSSEClient.on('plan_updated', (data) => {
+                debugLog('[SSE] Plan updated, refreshing stats');
+                refreshQuickStats();
+            });
+            window.budgetSSEClient.on('plan_deleted', (data) => {
+                debugLog('[SSE] Plan deleted, refreshing stats');
+                refreshQuickStats();
+            });
+
+            // Handler for transfer events - refresh balances
+            window.budgetSSEClient.on('transfer_created', (data) => {
+                debugLog('[SSE] Transfer created, refreshing balances');
+                refreshRecentTransactions();
+                refreshAccountBalances();
+            });
+            window.budgetSSEClient.on('transfer_deleted', (data) => {
+                debugLog('[SSE] Transfer deleted, refreshing balances');
+                refreshRecentTransactions();
+                refreshAccountBalances();
+            });
+        }
+    }, 1000);
+});
+
+// Dashboard refresh helpers
+function refreshDashboard() {
+    refreshRecentTransactions();
+    refreshQuickStats();
+    refreshAccountBalances();
+}
+
+function refreshRecentTransactions() {
+    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+        target: '#recent-transactions',
+        swap: 'innerHTML'
+    });
+}
+
+function refreshQuickStats() {
+    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+        target: '#quick-stats',
+        swap: 'innerHTML'
+    });
+}
+
+function refreshAccountBalances() {
+    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+        target: '#account-balances',
+        swap: 'innerHTML'
+    });
+}
 </script>
 
 <!-- Include Transfer Modal -->

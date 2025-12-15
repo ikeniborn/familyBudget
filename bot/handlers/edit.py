@@ -83,7 +83,7 @@ def format_fact_summary(fact: Dict, article: Dict) -> str:
     # Format amount (show absolute value for display)
     amount_display = format_amount(abs(amount))
 
-    return f"{record_marker}{type_emoji} {formatted_date} | {article_name}: {amount_display} ₽"
+    return f"{record_marker}{type_emoji} {formatted_date} | {article_name}: {amount_display}"
 
 
 def build_facts_keyboard(facts: List[Dict], articles_map: Dict[int, Dict]) -> InlineKeyboardMarkup:
@@ -318,7 +318,7 @@ async def show_action_selection(
 
 {type_emoji} *{type_text}* ({record_type_text})
 Категория: {article_name}
-Сумма: {format_amount(abs(amount))} ₽
+Сумма: {format_amount(abs(amount))}
 Дата: {formatted_date}
 Описание: {description_display}
 
@@ -403,7 +403,7 @@ async def action_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             f"🗑 *Удаление транзакции*\n\n"
             f"Вы уверены, что хотите удалить эту транзакцию?\n\n"
             f"Категория: {article_name}\n"
-            f"Сумма: {format_amount(abs(amount))} ₽\n"
+            f"Сумма: {format_amount(abs(amount))}\n"
             f"Дата: {formatted_date}\n\n"
             f"⚠️ *Это действие нельзя отменить!*",
             reply_markup=InlineKeyboardMarkup(
@@ -666,7 +666,7 @@ async def show_action_selection_for_message(
 
 {type_emoji} *{type_text}* ({record_type_text})
 Категория: {article_name}
-Сумма: {format_amount(abs(amount))} ₽
+Сумма: {format_amount(abs(amount))}
 Дата: {formatted_date}
 Описание: {description_display}
 

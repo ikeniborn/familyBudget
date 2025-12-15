@@ -153,15 +153,15 @@ def format_today_statistics(today: date, summary: Dict, facts: List[Dict], artic
         f"📅 {date_str}",
         "",
         "💰 **Итоги:**",
-        f"💵 Доходы: **{format_amount(total_income)}** ₽ ({count_income} шт)",
-        f"💸 Расходы: **{format_amount(total_expense)}** ₽ ({count_expense} шт)",
+        f"💵 Доходы: **{format_amount(total_income)}** ({count_income} шт)",
+        f"💸 Расходы: **{format_amount(total_expense)}** ({count_expense} шт)",
     ]
 
     # Format balance with +/- sign
     balance_sign = "+" if balance >= 0 else ""
     balance_emoji = "📈" if balance >= 0 else "📉"
     message_parts.append(
-        f"{balance_emoji} Баланс: **{balance_sign}{format_amount(balance)}** ₽"
+        f"{balance_emoji} Баланс: **{balance_sign}{format_amount(balance)}**"
     )
 
     # If no transactions, show message and return
@@ -205,7 +205,7 @@ def format_today_statistics(today: date, summary: Dict, facts: List[Dict], artic
         message_parts.append("")
         message_parts.append("💵 **ДОХОДЫ:**")
         for fact in income_facts:
-            fact_line = f"• **{fact['article_name']}**: {format_amount(fact['amount'])} ₽"
+            fact_line = f"• **{fact['article_name']}**: {format_amount(fact['amount'])}"
             if fact['description']:
                 fact_line += f" - _{fact['description']}_"
             message_parts.append(fact_line)
@@ -215,7 +215,7 @@ def format_today_statistics(today: date, summary: Dict, facts: List[Dict], artic
         message_parts.append("")
         message_parts.append("💸 **РАСХОДЫ:**")
         for fact in expense_facts:
-            fact_line = f"• **{fact['article_name']}**: {format_amount(fact['amount'])} ₽"
+            fact_line = f"• **{fact['article_name']}**: {format_amount(fact['amount'])}"
             if fact['description']:
                 fact_line += f" - _{fact['description']}_"
             message_parts.append(fact_line)

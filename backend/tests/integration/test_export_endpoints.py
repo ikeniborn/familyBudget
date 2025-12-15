@@ -1,12 +1,9 @@
 """
 Integration tests for Export endpoints.
 
-Tests all 5 export endpoints:
+Tests CSV export endpoints:
 - /export/facts/csv
-- /export/facts/excel
-- /export/facts/pdf
 - /export/analytics/trends/csv
-- /export/analytics/trends/excel
 
 Verifies file downloads, content types, and data integrity.
 """
@@ -72,87 +69,6 @@ class TestExportFactsEndpoints:
         csv_reader = csv.reader(io.StringIO(content))
         headers = next(csv_reader)
         assert len(headers) == 6  # ID, Date, Category, Type, Amount, Description
-
-    async def test_export_facts_excel(self, auth_client: AsyncClient):
-        """Test exporting facts to Excel format."""
-        response = await auth_client.get("/api/v1/export/facts/excel")
-
-        assert response.status_code == 200
-
-        # Check Content-Type header for Excel
-        assert response.headers["content-type"] == \
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", \
-            f"Expected Excel content type, got {response.headers['content-type']}"
-
-        # Check Content-Disposition header
-        assert "content-disposition" in response.headers
-        disposition = response.headers["content-disposition"]
-        assert "attachment" in disposition
-        assert ".xlsx" in disposition
-
-        # Check that content is not empty and is binary
-        content = response.content
-        assert len(content) > 0, "Excel content is empty"
-        assert isinstance(content, bytes), "Excel content should be bytes"
-
-        # Verify it starts with Excel file signature (PK for ZIP-based formats)
-        assert content[:2] == b'PK', "Excel file should start with PK signature"
-
-    async def test_export_facts_excel_with_date_filter(self, auth_client: AsyncClient):
-        """Test exporting facts to Excel with date range filter."""
-        start_date = (date.today() - timedelta(days=60)).isoformat()
-        end_date = date.today().isoformat()
-
-        response = await auth_client.get(
-            f"/api/v1/export/facts/excel?start_date={start_date}&end_date={end_date}"
-        )
-
-        assert response.status_code == 200
-        assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in \
-            response.headers["content-type"]
-
-        content = response.content
-        assert len(content) > 0
-        assert content[:2] == b'PK'
-
-    async def test_export_facts_pdf(self, auth_client: AsyncClient):
-        """Test exporting facts to PDF format."""
-        response = await auth_client.get("/api/v1/export/facts/pdf")
-
-        assert response.status_code == 200
-
-        # Check Content-Type header for PDF
-        assert response.headers["content-type"] == "application/pdf", \
-            f"Expected application/pdf, got {response.headers['content-type']}"
-
-        # Check Content-Disposition header
-        assert "content-disposition" in response.headers
-        disposition = response.headers["content-disposition"]
-        assert "attachment" in disposition
-        assert ".pdf" in disposition
-
-        # Check that content is not empty and is binary
-        content = response.content
-        assert len(content) > 0, "PDF content is empty"
-        assert isinstance(content, bytes), "PDF content should be bytes"
-
-        # Verify it starts with PDF file signature
-        assert content[:4] == b'%PDF', "PDF file should start with %PDF signature"
-
-    async def test_export_facts_pdf_with_date_filter(self, auth_client: AsyncClient):
-        """Test exporting facts to PDF with date range filter."""
-        start_date = (date.today() - timedelta(days=90)).isoformat()
-
-        response = await auth_client.get(
-            f"/api/v1/export/facts/pdf?start_date={start_date}"
-        )
-
-        assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
-
-        content = response.content
-        assert len(content) > 0
-        assert content[:4] == b'%PDF'
 
     async def test_export_facts_empty_result(self, auth_client: AsyncClient):
         """Test exporting facts when no data matches filters."""
@@ -226,38 +142,6 @@ class TestExportAnalyticsTrendsEndpoints:
         response = await auth_client.get("/api/v1/export/analytics/trends/csv?days=400")
         assert response.status_code == 422  # Validation error
 
-    async def test_export_trends_excel_default(self, auth_client: AsyncClient):
-        """Test exporting trends to Excel with default period."""
-        response = await auth_client.get("/api/v1/export/analytics/trends/excel")
-
-        assert response.status_code == 200
-        assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in \
-            response.headers["content-type"]
-
-        # Check Content-Disposition
-        disposition = response.headers["content-disposition"]
-        assert "attachment" in disposition
-        assert ".xlsx" in disposition
-
-        # Verify Excel file
-        content = response.content
-        assert len(content) > 0
-        assert content[:2] == b'PK'
-
-    async def test_export_trends_excel_custom_days(self, auth_client: AsyncClient):
-        """Test exporting trends to Excel with custom days."""
-        response = await auth_client.get(
-            "/api/v1/export/analytics/trends/excel?days=60"
-        )
-
-        assert response.status_code == 200
-        assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in \
-            response.headers["content-type"]
-
-        content = response.content
-        assert len(content) > 0
-        assert content[:2] == b'PK'
-
 
 class TestExportAuthentication:
     """Test suite for export endpoint authentication."""
@@ -266,10 +150,7 @@ class TestExportAuthentication:
         """Test that export endpoints require authentication."""
         endpoints = [
             "/api/v1/export/facts/csv",
-            "/api/v1/export/facts/excel",
-            "/api/v1/export/facts/pdf",
             "/api/v1/export/analytics/trends/csv",
-            "/api/v1/export/analytics/trends/excel",
         ]
 
         for endpoint in endpoints:
@@ -333,22 +214,6 @@ class TestExportFileNaming:
         assert "transactions_" in disposition
         assert ".csv" in disposition
 
-    async def test_excel_filename_format(self, auth_client: AsyncClient):
-        """Test that Excel files have proper naming format."""
-        response = await auth_client.get("/api/v1/export/facts/excel")
-
-        disposition = response.headers["content-disposition"]
-        assert "transactions_" in disposition
-        assert ".xlsx" in disposition
-
-    async def test_pdf_filename_format(self, auth_client: AsyncClient):
-        """Test that PDF files have proper naming format."""
-        response = await auth_client.get("/api/v1/export/facts/pdf")
-
-        disposition = response.headers["content-disposition"]
-        assert "transactions_report_" in disposition
-        assert ".pdf" in disposition
-
     async def test_trends_csv_filename_format(self, auth_client: AsyncClient):
         """Test that trends CSV files have proper naming format."""
         response = await auth_client.get("/api/v1/export/analytics/trends/csv")
@@ -356,14 +221,6 @@ class TestExportFileNaming:
         disposition = response.headers["content-disposition"]
         assert "trends_" in disposition
         assert ".csv" in disposition
-
-    async def test_trends_excel_filename_format(self, auth_client: AsyncClient):
-        """Test that trends Excel files have proper naming format."""
-        response = await auth_client.get("/api/v1/export/analytics/trends/excel")
-
-        disposition = response.headers["content-disposition"]
-        assert "trends_" in disposition
-        assert ".xlsx" in disposition
 
 
 class TestAdminExportEndpoints:
@@ -394,43 +251,6 @@ class TestAdminExportEndpoints:
         assert "Amount" in headers
         assert "Description" in headers
 
-    async def test_admin_export_all_facts_excel(self, admin_client: AsyncClient):
-        """Test admin export of all facts to Excel."""
-        response = await admin_client.get("/api/v1/admin/export/all-facts/excel")
-
-        assert response.status_code == 200
-        assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in \
-            response.headers["content-type"]
-
-        # Check Content-Disposition
-        disposition = response.headers["content-disposition"]
-        assert "attachment" in disposition
-        assert "admin_all_facts_" in disposition
-        assert ".xlsx" in disposition
-
-        # Verify Excel file
-        content = response.content
-        assert len(content) > 0
-        assert content[:2] == b'PK'
-
-    async def test_admin_export_all_facts_pdf(self, admin_client: AsyncClient):
-        """Test admin export of all facts to PDF."""
-        response = await admin_client.get("/api/v1/admin/export/all-facts/pdf")
-
-        assert response.status_code == 200
-        assert response.headers["content-type"] == "application/pdf"
-
-        # Check Content-Disposition
-        disposition = response.headers["content-disposition"]
-        assert "attachment" in disposition
-        assert "admin_all_facts_report_" in disposition
-        assert ".pdf" in disposition
-
-        # Verify PDF file
-        content = response.content
-        assert len(content) > 0
-        assert content[:4] == b'%PDF'
-
     async def test_admin_export_with_user_filter(self, admin_client: AsyncClient, test_user):
         """Test admin export with user_id filter."""
         response = await admin_client.get(
@@ -455,24 +275,10 @@ class TestAdminExportEndpoints:
         assert response.status_code == 200
         assert "text/csv" in response.headers["content-type"]
 
-    async def test_admin_export_with_multiple_filters(self, admin_client: AsyncClient, test_user):
-        """Test admin export with multiple filters combined."""
-        start_date = (date.today() - timedelta(days=90)).isoformat()
-
-        response = await admin_client.get(
-            f"/api/v1/admin/export/all-facts/excel?user_id={test_user.id}&start_date={start_date}"
-        )
-
-        assert response.status_code == 200
-        assert "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" in \
-            response.headers["content-type"]
-
     async def test_admin_export_requires_admin_access(self, auth_client: AsyncClient):
         """Test that non-admin users cannot access admin export endpoints."""
         endpoints = [
             "/api/v1/admin/export/all-facts/csv",
-            "/api/v1/admin/export/all-facts/excel",
-            "/api/v1/admin/export/all-facts/pdf",
         ]
 
         for endpoint in endpoints:

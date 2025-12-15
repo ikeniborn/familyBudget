@@ -13,7 +13,7 @@ Features:
 """
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated, Optional
 
@@ -44,6 +44,18 @@ from backend.app.schemas.fact import (
     FactUpdate,
 )
 
+# SSE broadcast functions (lazy import to avoid circular dependencies)
+_budget_sse_module = None
+
+
+def _get_budget_sse_broadcast():
+    """Lazy import Budget SSE module to avoid circular dependencies."""
+    global _budget_sse_module
+    if _budget_sse_module is None:
+        from backend.app.api.v1.endpoints import budget_sse
+        _budget_sse_module = budget_sse
+    return _budget_sse_module
+
 
 # Far future datetime constant for SCD Type 2 valid_to field
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
@@ -65,7 +77,7 @@ async def create_fact(
     session: AsyncSession = Depends(get_session),
 ) -> BudgetFact:
     """
-    Create a new budget fact (transaction).
+    Create a new budget fact (transaction) with offline sync deduplication.
 
     **User Isolation:**
     - Fact is created with current user as owner
@@ -77,11 +89,83 @@ async def create_fact(
     - fact_date cannot be in future
     - amount must be > 0
 
+    **Deduplication (Offline Sync):**
+    - When is_offline_sync=true and sync_hash provided:
+      - Checks if same sync_hash exists within last 24 hours
+      - If found, returns existing record (idempotent operation)
+      - Prevents duplicate creation from repeated sync button clicks
+    - Same transaction next day = different sync_hash (legitimate duplicate)
+
     **Returns:**
     - 201 Created: Fact created successfully
+    - 200 OK: Duplicate skipped, returns existing fact
     - 404 Not Found: Article not found
     - 403 Forbidden: Article not accessible
     """
+    # ✅ DEDUPLICATION: Check for duplicate offline sync within 24 hours
+    if fact_data.is_offline_sync and fact_data.sync_hash:
+        duplicate_stmt = select(BudgetFact).where(
+            BudgetFact.sync_hash == fact_data.sync_hash,
+            BudgetFact.is_offline_sync == True,
+            BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
+        ).order_by(BudgetFact.created_at.desc())
+
+        duplicate_result = await session.execute(duplicate_stmt)
+        existing_fact = duplicate_result.scalar_one_or_none()
+
+        if existing_fact:
+            logger.info(
+                f"[DEDUP] Sync duplicate detected: sync_hash={fact_data.sync_hash}, "
+                f"existing_fact_id={existing_fact.id}, user_id={current_user.id}, "
+                f"skipping creation (idempotent)"
+            )
+
+            # Load article for response
+            article_stmt = select(Article).where(Article.id == existing_fact.article_id)
+            article_result = await session.execute(article_stmt)
+            article = article_result.scalar_one()
+
+            # Load financial center if present
+            financial_center_name = None
+            if existing_fact.financial_center_id:
+                fc_stmt = select(FinancialCenter).where(
+                    FinancialCenter.id == existing_fact.financial_center_id
+                )
+                fc_result = await session.execute(fc_stmt)
+                fc = fc_result.scalar_one_or_none()
+                financial_center_name = fc.name if fc else None
+
+            # Load cost center if present
+            cost_center_name = None
+            if existing_fact.cost_center_id:
+                cc_stmt = select(CostCenter).where(
+                    CostCenter.id == existing_fact.cost_center_id
+                )
+                cc_result = await session.execute(cc_stmt)
+                cc = cc_result.scalar_one_or_none()
+                cost_center_name = cc.name if cc else None
+
+            # Return existing fact (idempotent response)
+            return {
+                "id": existing_fact.id,
+                "user_id": existing_fact.user_id,
+                "article_id": existing_fact.article_id,
+                "article_type": article.type,
+                "article_name": article.name,
+                "fact_date": existing_fact.fact_date,
+                "amount": existing_fact.amount,
+                "description": existing_fact.description,
+                "financial_center_id": existing_fact.financial_center_id,
+                "financial_center_name": financial_center_name,
+                "cost_center_id": existing_fact.cost_center_id,
+                "cost_center_name": cost_center_name,
+                "record_type": existing_fact.record_type,
+                "is_offline_sync": existing_fact.is_offline_sync,
+                "created_at": existing_fact.created_at,
+                "updated_at": existing_fact.updated_at,
+                "_duplicate_skipped": True,  # ✅ Indicates duplicate was skipped
+            }
+
     # Validate: Article must exist and be accessible
     article_stmt = select(Article).where(
         Article.id == fact_data.article_id
@@ -133,8 +217,8 @@ async def create_fact(
         cc = cc_result.scalar_one_or_none()
         cost_center_name = cc.name if cc else None
 
-    # Return enriched response with article and center data
-    return {
+    # SSE Broadcast: Notify connected clients about new fact
+    response_data = {
         "id": fact.id,
         "user_id": fact.user_id,
         "article_id": fact.article_id,
@@ -152,6 +236,19 @@ async def create_fact(
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
+
+    # SSE Broadcast: Notify all connected clients about new fact
+    try:
+        sse = _get_budget_sse_broadcast()
+        if fact.record_type == "plan":
+            await sse.broadcast_plan_created(response_data)
+        else:
+            await sse.broadcast_fact_created(response_data)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for fact {fact.id}: {e}")
+        # Don't fail the request if broadcast fails
+
+    return response_data
 
 
 @router.get(
@@ -417,19 +514,26 @@ async def get_recent_facts_html(
         else:
             financial_centers = {}
 
-        # Format money helper
-        def format_money(amount: Decimal) -> str:
-            return f"{float(amount):,.2f}".replace(",", " ")
+        # Format money helper (without decimals and currency, with +/- sign)
+        def format_money(amount: Decimal, article_type: str) -> str:
+            value = int(float(amount))  # Remove decimals
+            formatted = f"{value:,}".replace(",", " ")
+            if article_type in ("expense", "debit"):
+                return f"-{formatted}"
+            elif article_type in ("income", "credit"):
+                return f"+{formatted}"
+            return formatted
 
-        # Build HTML table with Type column as first column
-        html = """
-        <div class="overflow-x-auto">
+        # Build HTML: desktop table + mobile list
+        # Desktop table (hidden on mobile)
+        table_html = """
+        <div class="hidden md:block overflow-x-auto">
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
                         <th>Тип</th>
                         <th>Дата</th>
-                        <th>ЦФО</th>
+                        <th>Счёт</th>
                         <th>Категория</th>
                         <th>Сумма</th>
                         <th>Описание</th>
@@ -439,6 +543,11 @@ async def get_recent_facts_html(
                 <tbody>
         """
 
+        # Mobile list (hidden on desktop)
+        mobile_html = """
+        <div class="block md:hidden divide-y divide-base-200">
+        """
+
         for fact in facts:
             article = articles.get(fact.article_id)
             if not article:
@@ -446,12 +555,15 @@ async def get_recent_facts_html(
 
             # Record type badge (Факт or План)
             if fact.record_type == "plan":
-                record_type_badge = '<span class="badge badge-info badge-sm">План</span>'
+                record_type_badge = '<span class="badge badge-info badge-xs">План</span>'
+                record_type_badge_sm = '<span class="badge badge-info badge-sm">План</span>'
             else:
-                record_type_badge = '<span class="badge badge-success badge-sm">Факт</span>'
+                record_type_badge = '<span class="badge badge-success badge-xs">Факт</span>'
+                record_type_badge_sm = '<span class="badge badge-success badge-sm">Факт</span>'
 
-            # Format date
-            fact_date_str = fact.fact_date.strftime("%d.%m.%Y")
+            # Format date (full for desktop, short for mobile)
+            fact_date_full = fact.fact_date.strftime("%d.%m.%Y")
+            fact_date_short = fact.fact_date.strftime("%d.%m")
 
             # Determine color based on article type
             # expense (расход) = red, income (доход) = green
@@ -467,51 +579,72 @@ async def get_recent_facts_html(
             else:
                 amount_class = "font-bold"
 
-            # Article icon based on type (income=💰, credit=📥, expense=💸, debit=📤)
-            if article.type == "income":
-                article_icon = "💰"
-            elif article.type == "credit":
-                article_icon = "📥"
-            elif article.type == "expense":
-                article_icon = "💸"
-            elif article.type == "debit":
-                article_icon = "📤"
-            else:
-                article_icon = "❓"
-
             # Financial center name
             financial_center = financial_centers.get(fact.financial_center_id)
             fc_name = financial_center.name if financial_center else "—"
 
-            # Description (truncate if too long)
+            # Description
             description = fact.description if fact.description else "—"
             description_full = description  # For title attribute
             if len(description) > 30:
-                description = description[:30] + "..."
+                description_truncated = description[:30] + "..."
+            else:
+                description_truncated = description
 
             # Offline sync indicator
             offline_icon = "☁️" if fact.is_offline_sync else ""
             offline_title = "Создано offline" if fact.is_offline_sync else ""
 
-            html += f"""
+            # Desktop table row
+            table_html += f"""
                     <tr>
-                        <td>{record_type_badge}</td>
-                        <td class="whitespace-nowrap">{fact_date_str}</td>
+                        <td>{record_type_badge_sm}</td>
+                        <td class="whitespace-nowrap">{fact_date_full}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
-                        <td>{article_icon} {article.name}</td>
-                        <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount)} ₽</td>
-                        <td class="max-w-xs truncate" title="{description_full}">{description}</td>
+                        <td>{article.name}</td>
+                        <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</td>
+                        <td class="max-w-xs truncate" title="{description_full}">{description_truncated}</td>
                         <td class="text-center" title="{offline_title}">{offline_icon}</td>
                     </tr>
             """
 
-        html += """
+            # Mobile list item
+            # Line 2 parts: date, account, description (joined with •)
+            line2_parts = [fact_date_short]
+            if fc_name != "—":
+                line2_parts.append(fc_name)
+            if description != "—":
+                line2_parts.append(description)
+            line2_text = " • ".join(line2_parts)
+
+            # Offline icon for mobile (next to category name)
+            offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
+
+            mobile_html += f"""
+            <div class="py-2">
+                <div class="flex items-center gap-2">
+                    {record_type_badge}
+                    <span class="flex-1 font-medium truncate">{article.name}</span>
+                    {offline_span}
+                    <span class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</span>
+                </div>
+                <div class="text-xs text-base-content/60 mt-1 truncate">
+                    {line2_text}
+                </div>
+            </div>
+            """
+
+        table_html += """
                 </tbody>
             </table>
         </div>
         """
 
-        return html
+        mobile_html += """
+        </div>
+        """
+
+        return table_html + mobile_html
 
     except Exception as e:
         logger.error(f"Error loading recent records: {str(e)}", exc_info=True)
@@ -684,7 +817,7 @@ async def get_fact(
     fact_id: int,
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-) -> BudgetFact:
+) -> dict:
     """
     Get a single budget fact by ID.
 
@@ -697,21 +830,59 @@ async def get_fact(
     - 403 Forbidden: Fact belongs to another user
     - 404 Not Found: Fact not found
     """
-    # Load fact
-    statement = select(BudgetFact).where(BudgetFact.id == fact_id)
+    # Load fact with JOINs for enriched response (like list_facts)
+    statement = (
+        select(BudgetFact, Article, FinancialCenter, CostCenter, User)
+        .join(Article, BudgetFact.article_id == Article.id)
+        .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+        .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
+        .outerjoin(User, BudgetFact.user_id == User.id)
+        .where(BudgetFact.id == fact_id)
+    )
     result = await session.execute(statement)
-    fact = result.scalar_one_or_none()
+    row = result.one_or_none()
 
-    if not fact:
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Fact with id={fact_id} not found"
         )
 
+    fact, article, financial_center, cost_center, user = row
+
     # Shared family budget - NO ownership check
     # All authenticated users can access any transaction
 
-    return fact
+    # Build enriched response (same as list_facts)
+    user_name = None
+    if user:
+        user_name = (
+            user.first_name or
+            user.username or
+            user.last_name or
+            (f"User {user.telegram_id}" if user.telegram_id else None) or
+            f"Пользователь #{user.id}"
+        )
+
+    return {
+        "id": fact.id,
+        "user_id": fact.user_id,
+        "user_name": user_name,
+        "article_id": fact.article_id,
+        "article_type": article.type,
+        "article_name": article.name,
+        "fact_date": fact.fact_date,
+        "amount": fact.amount,
+        "description": fact.description,
+        "financial_center_id": fact.financial_center_id,
+        "financial_center_name": financial_center.name if financial_center else None,
+        "cost_center_id": fact.cost_center_id,
+        "cost_center_name": cost_center.name if cost_center else None,
+        "record_type": fact.record_type,
+        "is_offline_sync": fact.is_offline_sync,
+        "created_at": fact.created_at,
+        "updated_at": fact.updated_at,
+    }
 
 
 @router.put(
@@ -823,8 +994,8 @@ async def update_fact(
         cc = cc_result.scalar_one_or_none()
         cost_center_name = cc.name if cc else None
 
-    # Return enriched response with article and center data
-    return {
+    # SSE Broadcast: Notify connected clients about updated fact
+    response_data = {
         "id": fact.id,
         "user_id": fact.user_id,
         "article_id": fact.article_id,
@@ -841,6 +1012,19 @@ async def update_fact(
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
+
+    # SSE Broadcast: Notify all connected clients about updated fact
+    try:
+        sse = _get_budget_sse_broadcast()
+        if fact.record_type == "plan":
+            await sse.broadcast_plan_updated(response_data)
+        else:
+            await sse.broadcast_fact_updated(response_data)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for updated fact {fact.id}: {e}")
+        # Don't fail the request if broadcast fails
+
+    return response_data
 
 
 @router.delete(
@@ -908,6 +1092,9 @@ async def delete_fact(
     )
     session.add(delete_history)
 
+    # Save record_type before deletion for broadcast
+    fact_record_type = fact.record_type
+
     # 2. Delete fact
     await session.delete(fact)
     await session.commit()
@@ -916,6 +1103,17 @@ async def delete_fact(
         f"Deleted fact {fact_id} (amount={fact.amount}, date={fact.fact_date}) "
         f"by user {current_user.id}"
     )
+
+    # SSE Broadcast: Notify connected clients about deleted fact
+    try:
+        sse = _get_budget_sse_broadcast()
+        if fact_record_type == "plan":
+            await sse.broadcast_plan_deleted(fact_id)
+        else:
+            await sse.broadcast_fact_deleted(fact_id)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for deleted fact {fact_id}: {e}")
+        # Don't fail the request if broadcast fails
 
     return None
 
@@ -1011,6 +1209,18 @@ async def batch_delete_facts(
 
     deleted_count = len(facts_to_delete)
     logger.info(f"Batch deleted {deleted_count} facts by user {current_user.id}")
+
+    # 5. SSE broadcast for each deleted fact (non-blocking)
+    try:
+        sse = _get_budget_sse_broadcast()
+        for fact in facts_to_delete:
+            if fact.record_type == "plan":
+                await sse.broadcast_plan_deleted(fact.id)
+            else:
+                await sse.broadcast_fact_deleted(fact.id)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for batch delete: {e}")
+        # Don't fail the request if broadcast fails
 
     return {
         "message": f"Deleted {deleted_count} facts",

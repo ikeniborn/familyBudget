@@ -249,10 +249,10 @@
         <div class="form-group">
             <label class="form-label">Быстрый выбор суммы</label>
             <div class="quick-amount-buttons">
-                <button type="button" class="quick-amount-btn" data-amount="5000">5000 ₽</button>
-                <button type="button" class="quick-amount-btn" data-amount="10000">10k ₽</button>
-                <button type="button" class="quick-amount-btn" data-amount="20000">20k ₽</button>
-                <button type="button" class="quick-amount-btn" data-amount="50000">50k ₽</button>
+                <button type="button" class="quick-amount-btn" data-amount="5000">5000</button>
+                <button type="button" class="quick-amount-btn" data-amount="10000">10k</button>
+                <button type="button" class="quick-amount-btn" data-amount="20000">20k</button>
+                <button type="button" class="quick-amount-btn" data-amount="50000">50k</button>
             </div>
         </div>
 
@@ -562,7 +562,7 @@
                     buttons[index].dataset.amount = parseFloat(amount);
 
                     // Update button text with formatted amount
-                    buttons[index].textContent = formatAmountForButton(amount) + ' ₽';
+                    buttons[index].textContent = formatAmountForButton(amount);
                 }
             });
         }

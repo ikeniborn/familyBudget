@@ -6,7 +6,20 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<!-- Mobile-only message: page not available on small screens -->
+<div class="md:hidden">
+    <div class="alert alert-info shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <div>
+            <h3 class="font-bold">Страница недоступна на мобильных</h3>
+            <div class="text-sm">Эта страница доступна только на планшетах и ПК.</div>
+        </div>
+        <a href="/" class="btn btn-sm btn-primary">На главную</a>
+    </div>
+</div>
+
+<!-- Main content (hidden on mobile) -->
+<div class="hidden md:block space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -165,6 +178,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 
@@ -367,7 +381,7 @@ function createNotificationRow(notification) {
     if (notification.notification_type === 'plan_reminder') {
         const categoryName = notification.article_name || `Категория #${notification.article_id || '—'}`;
         const amount = notification.amount
-            ? parseFloat(notification.amount).toLocaleString('ru-RU', {minimumFractionDigits: 2}) + ' ₽'
+            ? parseFloat(notification.amount).toLocaleString('ru-RU', {minimumFractionDigits: 2})
             : '—';
         const reminderDate = notification.reminder_datetime
             ? new Date(notification.reminder_datetime).toLocaleDateString('ru-RU')
@@ -445,8 +459,8 @@ function createNotificationRow(notification) {
         <td>${typeDisplay}</td>
         <td>${categoryName}</td>
         <td class="whitespace-nowrap">${period}</td>
-        <td class="text-right">${planAmount} ₽</td>
-        <td class="text-right">${actualAmount} ₽</td>
+        <td class="text-right">${planAmount}</td>
+        <td class="text-right">${actualAmount}</td>
         <td class="text-right font-semibold">${percentage}%</td>
         <td><span class="badge ${statusBadge} badge-sm">${statusText}</span></td>
     `;

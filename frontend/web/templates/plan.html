@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/modal_plan.html" import plan_modal %}
+{% from "components/modal_edit_plan.html" import edit_plan_modal %}
 
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
@@ -30,12 +31,6 @@
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
-                </button>
-                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('excel')" title="Экспорт отфильтрованных транзакций в Excel">
-                    📊 Excel
-                </button>
-                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('pdf')" title="Экспорт отфильтрованных транзакций в PDF">
-                    📑 PDF
                 </button>
             </div>
         </div>
@@ -286,7 +281,7 @@
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="card-title text-2xl">📋 Плановые записи</h2>
-                <button class="btn btn-sm btn-error gap-1" id="batch-delete-btn" onclick="batchDelete()" disabled>
+                <button class="btn btn-sm btn-error gap-1 hidden md:flex" id="batch-delete-btn" onclick="batchDelete()" disabled>
                     🗑️ Удалить выбранные
                 </button>
             </div>
@@ -313,116 +308,8 @@
 <!-- Transfer Modal -->
 {% include "components/modal_transfer.html" %}
 
-<!-- Edit Fact Modal -->
-<dialog id="edit-modal" class="modal">
-    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать плановую запись</h3>
-        <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2 sm:space-y-4">
-            <input type="hidden" id="edit-id" name="id">
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">💵 Сумма*</span>
-                </label>
-                <input type="number" id="edit-amount" name="amount" step="0.01" required class="input input-bordered" />
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📅 Дата*</span>
-                </label>
-                <input type="text" id="edit-date" name="fact_date" required class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" />
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📁 Категория*</span>
-                </label>
-                <select id="edit-article" name="article_id" required class="select select-bordered">
-                    <option value="" disabled hidden>-- Выберите категорию --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">🏦 Счет *</span>
-                </label>
-                <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите счет --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">💼 Место затрат</span>
-                </label>
-                <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
-                    <option value="">-- Не указано --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📝 Описание</span>
-                </label>
-                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
-            </div>
-            <!-- Напоминание (редактирование) -->
-            <div class="form-control">
-                <label class="label py-1 cursor-pointer justify-start gap-2">
-                    <input type="checkbox" id="edit-enable-reminder" name="enable_reminder" class="checkbox checkbox-sm checkbox-primary"
-                           onchange="toggleEditReminderSettings()" />
-                    <span class="label-text">Напоминание</span>
-                    <span id="edit-reminder-status" class="badge badge-sm badge-ghost hidden"></span>
-                </label>
-            </div>
-            <div id="edit-reminder-settings" class="hidden space-y-2">
-                <div class="form-control">
-                    <label class="label py-1">
-                        <span class="label-text">Дата и время напоминания</span>
-                    </label>
-                    <!-- Desktop-friendly datetime picker: date + time -->
-                    <div class="flex gap-2">
-                        <!-- Date input with CalendarWidget -->
-                        <input
-                            type="text"
-                            name="edit_reminder_date"
-                            id="edit-reminder-date"
-                            class="input input-bordered flex-1 h-12"
-                            placeholder="ДД.ММ.ГГГГ"
-                            autocomplete="off"
-                        />
-                        <!-- Time dropdowns -->
-                        <div class="flex items-center gap-1">
-                            <select name="edit_reminder_hour" id="edit-reminder-hour" class="select select-bordered w-20 h-12">
-                                <option value="">--</option>
-                                {% for h in range(24) %}
-                                <option value="{{ '%02d'|format(h) }}">{{ '%02d'|format(h) }}</option>
-                                {% endfor %}
-                            </select>
-                            <span class="text-lg font-bold">:</span>
-                            <select name="edit_reminder_minute" id="edit-reminder-minute" class="select select-bordered w-20 h-12">
-                                <option value="">--</option>
-                                {% for m in range(0, 60, 5) %}
-                                <option value="{{ '%02d'|format(m) }}">{{ '%02d'|format(m) }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                    </div>
-                    <!-- Hidden field for combined datetime -->
-                    <input type="hidden" name="reminder_datetime" id="edit-reminder-datetime" />
-                </div>
-                <p class="text-xs text-base-content/70">
-                    Уведомление придет в Telegram и как push в браузер
-                </p>
-            </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
-            </div>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
+<!-- Edit Plan Modal -->
+{{ edit_plan_modal('edit-modal') }}
 
 <!-- Custom Confirmation Dialog -->
 <dialog id="confirm-modal" class="modal">
@@ -505,6 +392,53 @@
     margin-bottom: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+/* Mobile Facts List Styles (Two-Line List) */
+.amount-expense { color: #ef4444; }
+.amount-income { color: #22c55e; }
+.amount-debit { color: #3b82f6; }
+.amount-credit { color: #f59e0b; }
+
+.facts-mobile-list {
+    display: none;
+}
+
+.transaction-item:not(:last-child) {
+    border-bottom: 1px solid hsl(var(--b3));
+}
+
+.transaction-item {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.transaction-item:hover {
+    background-color: hsl(var(--b2));
+}
+
+.transaction-item:active {
+    background-color: hsl(var(--b3));
+}
+
+/* Mobile: show list, hide table */
+@media (max-width: 768px) {
+    .facts-desktop-table {
+        display: none !important;
+    }
+    .facts-mobile-list {
+        display: block !important;
+    }
+}
+
+/* Desktop: show table, hide list */
+@media (min-width: 769px) {
+    .facts-desktop-table {
+        display: block;
+    }
+    .facts-mobile-list {
+        display: none;
+    }
 }
 </style>
 {% endblock %}
@@ -1551,7 +1485,24 @@ async function loadFacts() {
     }
 }
 
-// Render facts table
+// Get mobile amount color class based on article type
+function getMobileAmountClass(type) {
+    const colorMap = {
+        'expense': 'amount-expense',
+        'income': 'amount-income',
+        'debit': 'amount-debit',
+        'credit': 'amount-credit'
+    };
+    return colorMap[type] || 'amount-expense';
+}
+
+// Format amount with sign for mobile view (without currency symbol for compact display)
+function formatMobileAmount(amount, type) {
+    const value = parseFloat(amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const sign = (type === 'income' || type === 'credit') ? '+' : '-';
+    return `${sign}${value}`;
+}
+
 function renderFactsTable(facts) {
     const container = document.getElementById('facts-table-container');
     selectedFactIds.clear();
@@ -1562,8 +1513,9 @@ function renderFactsTable(facts) {
         return;
     }
 
-    let html = `
-        <div class="overflow-x-auto">
+    // Desktop table HTML
+    let tableHtml = `
+        <div class="facts-desktop-table overflow-x-auto">
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
@@ -1583,6 +1535,9 @@ function renderFactsTable(facts) {
                 </thead>
                 <tbody>
     `;
+
+    // Mobile list HTML (Two-Line List format)
+    let mobileHtml = `<div class="facts-mobile-list divide-y divide-base-200">`;
 
     facts.forEach(fact => {
         const amountClass = fact.article_type === 'income' ? 'text-success font-bold' : 'text-error font-bold';
@@ -1604,9 +1559,12 @@ function renderFactsTable(facts) {
         const financialCenter = fact.financial_center_name || '—';
         const costCenter = fact.cost_center_name || '—';
         const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
+        // Short date for mobile (DD.MM without year)
+        const shortDate = formattedDate.slice(0, 5);
         const articleName = fact.article_name || '—';
 
-        html += `
+        // Desktop table row
+        tableHtml += `
             <tr data-plan-id="${fact.id}">
                 <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
                 <td><code class="badge badge-ghost">${fact.id}</code></td>
@@ -1614,7 +1572,7 @@ function renderFactsTable(facts) {
                 <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
                 <td><span class="${articleColorClass}">${articleName}</span></td>
-                <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
+                <td class="${amountClass}">${parseFloat(fact.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">✓</span>' : ''}</td>
                 <td>${fact.user_name || '—'}</td>
@@ -1627,15 +1585,41 @@ function renderFactsTable(facts) {
                 </td>
             </tr>
         `;
+
+        // Mobile list item (Two-Line List format)
+        const mobileAmountClass = getMobileAmountClass(fact.article_type);
+        const mobileAmount = formatMobileAmount(fact.amount, fact.article_type);
+        const reminderIcon = remindersMap.has(fact.id) ? '<span class="text-info text-xs" title="Напоминание">🔔</span>' : '';
+        const offlineIcon = fact.is_offline_sync ? '<span class="text-xs" title="Создано offline">☁️</span>' : '';
+
+        mobileHtml += `
+            <div class="transaction-item py-2" data-plan-id="${fact.id}" onclick="showEditModal(${fact.id})">
+                <!-- Line 1: Badge + Category + Amount -->
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-info badge-xs shrink-0">План</span>
+                    <span class="flex-1 font-medium truncate">${articleName}</span>
+                    <span class="${mobileAmountClass} font-bold whitespace-nowrap">${mobileAmount}</span>
+                    ${reminderIcon}
+                    ${offlineIcon}
+                </div>
+                <!-- Line 2: Date • Account • Description -->
+                <div class="text-xs text-base-content/60 mt-1 truncate">
+                    ${shortDate} • ${financialCenter} • ${description}
+                </div>
+            </div>
+        `;
     });
 
-    html += `
+    tableHtml += `
                 </tbody>
             </table>
         </div>
     `;
 
-    container.innerHTML = html;
+    mobileHtml += `</div>`;
+
+    // Combine both views
+    container.innerHTML = tableHtml + mobileHtml;
 }
 
 // Toggle select all checkboxes
@@ -1851,6 +1835,15 @@ async function showEditModal(factId) {
 function closeEditModal() {
     document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
+}
+
+// Delete plan from edit modal (for mobile users without batch delete)
+async function deleteFromEditModal() {
+    const factId = document.getElementById('edit-id').value;
+    if (!factId) return;
+
+    closeEditModal();
+    await deleteFact(parseInt(factId));
 }
 
 // Update fact
@@ -3376,16 +3369,53 @@ window.addEventListener('resize', function() {
 });
 
 // ==================== PLAN PAGE SPECIFIC ====================
-// On plan page, hide the "save offline" buttons - show only "save and upload"
-// This is because plan page is meant for direct operations, not offline queuing
+// Update save button title based on offline mode
+// The unified .save-btn button color is controlled via CSS (html.offline-mode)
+
+function updateSaveButtonsVisibility() {
+    let isOffline = false;
+
+    if (window.offlineManager && window.offlineManager.networkDetector) {
+        const networkStatus = window.offlineManager.networkDetector.getStatus();
+        isOffline = networkStatus === 'offline';
+    } else {
+        isOffline = !navigator.onLine;
+    }
+
+    // Update unified save buttons (.save-btn)
+    const saveButtons = document.querySelectorAll('.save-btn');
+    saveButtons.forEach(btn => {
+        btn.title = isOffline
+            ? 'Сохранить локально (синхронизируется при подключении)'
+            : 'Сохранить на сервер';
+    });
+
+    debugLog('[plan.html] Updated button visibility, isOffline:', isOffline);
+}
+
+/**
+ * Unified save function for plan.html - submits form to server
+ * Note: Offline save functionality is only available on the main page (index.html)
+ * @param {HTMLButtonElement} button - Save button with data-form-id
+ */
+function savePlan(button) {
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        form?.reportValidity();
+    }
+}
+
+// Listen for offline mode changes
+window.addEventListener('network-status-change', updateSaveButtonsVisibility);
+window.addEventListener('offline-status-change', updateSaveButtonsVisibility);
+window.addEventListener('online', updateSaveButtonsVisibility);
+window.addEventListener('offline', updateSaveButtonsVisibility);
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Hide all save-offline buttons on plan page
-    const saveOfflineButtons = document.querySelectorAll('.save-offline-btn');
-    saveOfflineButtons.forEach(btn => {
-        btn.style.display = 'none';
-    });
-    debugLog('[plan.html] Hidden save-offline buttons - using save-upload only');
+    // Initial update with delay to ensure offlineManager is initialized
+    setTimeout(updateSaveButtonsVisibility, 1000);
 });
 </script>
 {% endblock %}

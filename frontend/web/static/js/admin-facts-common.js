@@ -86,7 +86,7 @@ function updateQuickAmountButtons(formId, amounts) {
             const amountValue = parseFloat(amount);
 
             // Update button text with formatted amount
-            buttons[index].textContent = formatAmountForButton(amountValue) + ' ₽';
+            buttons[index].textContent = formatAmountForButton(amountValue);
 
             // Update onclick handler
             const funcName = formId.includes('transaction') ? 'setTransactionAmount' : 'setPlanAmount';

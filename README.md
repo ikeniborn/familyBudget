@@ -104,6 +104,18 @@ sudo bash deploy.sh --profile full
 | Инфра | Docker Compose, Nginx, Let's Encrypt |
 | Бот | python-telegram-bot, Web Apps |
 
+## ⚠️ Архитектурные ограничения
+
+### SSE и Single Worker
+
+Приложение использует SSE (Server-Sent Events) для real-time обновлений с in-memory ConnectionManager. Это требует single-instance deployment (**WORKERS=1**).
+
+**Причина:** Каждый uvicorn воркер имеет собственный экземпляр BudgetConnectionManager. При multi-worker deployment события не доходят до клиентов на других воркерах.
+
+**Ограничение:** Масштабирование через увеличение workers НЕ поддерживается. Для масштабирования необходимо внедрение Redis Pub/Sub для синхронизации событий.
+
+> 📖 См. `backend/app/api/v1/endpoints/budget_sse.py:9`
+
 ## 📚 Документация
 
 | Документ | Для кого |

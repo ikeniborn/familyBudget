@@ -156,6 +156,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip health endpoints - используются NetworkDetector для определения offline статуса
+  // NetworkDetector ожидает реальные network errors, а не кешированные/HTML ответы
+  if (url.pathname === '/health' ||
+      url.pathname === '/ping' ||
+      url.pathname === '/ready' ||
+      url.pathname.startsWith('/health/')) {
+    return; // Пропустить без обработки - fetch пойдет напрямую к серверу
+  }
+
   // Стратегия 1: API endpoints - Network First (всегда актуальные данные)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
@@ -433,7 +442,7 @@ self.addEventListener('message', (event) => {
  * Схема управляется в frontend/web/static/js/offline/idb.js
  */
 const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 2;  // ✅ Синхронизировано с idb.js (v2.0.0 - Shopping Lists support)
+const DB_VERSION = 4;  // ✅ Синхронизировано с idb.js (v4 - Current version)
 
 async function openIndexedDB() {
   return new Promise((resolve, reject) => {
@@ -494,6 +503,82 @@ async function updateSyncQueueItem(id, updates) {
 }
 
 /**
+ * Clear completed items from sync_queue
+ * Called after successful synchronization
+ */
+async function clearCompletedSyncQueue() {
+  const db = await openIndexedDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['sync_queue'], 'readwrite');
+    const store = transaction.objectStore('sync_queue');
+    const index = store.index('status');
+    const request = index.getAll('completed');
+
+    request.onsuccess = () => {
+      const completed = request.result || [];
+      completed.forEach(item => store.delete(item.id));
+      transaction.oncomplete = () => {
+        if (DEBUG && completed.length > 0) {
+          console.log(`[SW] Cleared ${completed.length} completed items from sync_queue`);
+        }
+        resolve(completed.length);
+      };
+      transaction.onerror = () => reject(transaction.error);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Delete record from offline store after successful sync
+ * @param {string} entity - Entity type: 'fact', 'plan', 'transfer'
+ * @param {string|number} tempId - Temporary ID of the offline record
+ */
+async function deleteFromOfflineStore(entity, tempId) {
+  const db = await openIndexedDB();
+  const storeName = entity === 'transfer' ? 'offline_transfers' :
+                    entity === 'plan' ? 'offline_plans' : 'offline_facts';
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([storeName], 'readwrite');
+    const store = transaction.objectStore(storeName);
+    const request = store.delete(tempId);
+
+    request.onsuccess = () => {
+      if (DEBUG) console.log(`[SW] Deleted ${entity} ${tempId} from ${storeName}`);
+      resolve();
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
+ * Get record from offline store (for retrieving contentHash and syncHash)
+ * @param {string} entity - Entity type: 'fact', 'plan', 'transfer'
+ * @param {string|number} tempId - Temporary ID of the offline record
+ * @returns {Promise<Object|null>} Offline record or null if not found
+ */
+async function getOfflineRecord(entity, tempId) {
+  const db = await openIndexedDB();
+  const storeName = entity === 'transfer' ? 'offline_transfers' :
+                    entity === 'plan' ? 'offline_plans' : 'offline_facts';
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.get(tempId);
+
+    request.onsuccess = () => {
+      if (DEBUG && request.result) {
+        console.log(`[SW] Found offline record for ${entity} ${tempId}:`, request.result);
+      }
+      resolve(request.result || null);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
  * Background Sync Event Handler
  * Синхронизирует offline данные при восстановлении сети
  * Support: Chrome, Edge, Яндекс.Браузер (Safari не поддерживает)
@@ -528,7 +613,7 @@ async function syncBudgetData() {
 
         const retryCount = (item.retryCount || 0) + 1;
         try {
-          if (retryCount >= 3) {
+          if (retryCount >= 5) {
             await updateSyncQueueItem(item.id, { status: 'failed', error: error.message, retryCount });
             results.failed++;
           } else {
@@ -541,8 +626,10 @@ async function syncBudgetData() {
     }
 
     // Notify all clients about sync completion
+    let hasActiveClients = false;
     try {
       const clients = await self.clients.matchAll({ type: 'window' });
+      hasActiveClients = clients.length > 0;
       clients.forEach(client => {
         client.postMessage({
           action: 'syncComplete',
@@ -554,8 +641,10 @@ async function syncBudgetData() {
       // Ignore postMessage errors
     }
 
-    // Show notification if synced items
-    if (results.synced > 0) {
+    // Show push notification ONLY if no active clients (user not using app)
+    // If user is active, they already receive toast from handleSyncComplete()
+    // This prevents duplicate notifications (push + toast)
+    if (results.synced > 0 && !hasActiveClients) {
       try {
         await self.registration.showNotification('Синхронизация завершена', {
           body: `Синхронизировано записей: ${results.synced}`,
@@ -567,6 +656,14 @@ async function syncBudgetData() {
       } catch (e) {
         // Notification permission denied - ignore
       }
+    }
+
+    // Clear completed items from sync_queue
+    try {
+      await clearCompletedSyncQueue();
+    } catch (e) {
+      // Ignore cleanup errors
+      if (DEBUG) console.error('[SW] Failed to clear completed sync queue:', e);
     }
 
     return results;
@@ -611,6 +708,16 @@ async function syncItem(item) {
     // Already processed
   }
 
+  // Delete record from offline store after successful sync
+  if (item.operation === 'create' && item.tempId) {
+    try {
+      await deleteFromOfflineStore(item.entity, item.tempId);
+    } catch (e) {
+      // Ignore - may already be deleted by main thread
+      if (DEBUG) console.log('[SW] Failed to delete from offline store (may already be deleted):', e.message);
+    }
+  }
+
   return response;
 }
 
@@ -643,6 +750,29 @@ async function syncCreate(item) {
 
   // Mark as offline sync (for all entity types: fact, plan, transfer)
   cleanData.is_offline_sync = true;
+
+  // Add content_hash and sync_hash for backend deduplication (prevents duplicate records)
+  // These hashes were generated when the offline record was created and stored in IndexedDB
+  if ((item.entity === 'fact' || item.entity === 'plan') && item.tempId) {
+    try {
+      const offlineRecord = await getOfflineRecord(item.entity, item.tempId);
+      if (offlineRecord) {
+        if (offlineRecord.contentHash) {
+          cleanData.content_hash = offlineRecord.contentHash;
+        }
+        if (offlineRecord.syncHash) {
+          cleanData.sync_hash = offlineRecord.syncHash;
+        }
+        if (DEBUG) console.log(`[SW] Added deduplication hashes for ${item.tempId}:`, {
+          content_hash: cleanData.content_hash,
+          sync_hash: cleanData.sync_hash
+        });
+      }
+    } catch (e) {
+      // Ignore - record may already be deleted by main thread
+      if (DEBUG) console.log(`[SW] Could not get offline record for ${item.tempId}:`, e.message);
+    }
+  }
 
   if (DEBUG) console.log(`[SW] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 

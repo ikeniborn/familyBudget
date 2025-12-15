@@ -422,9 +422,17 @@ async def get_quick_stats_html(
     plan_execution_credit_pct = (month_credit / month_plan_credit * 100.0) if month_plan_credit > 0 else 0.0
     plan_execution_debit_pct = (month_debit / month_plan_debit * 100.0) if month_plan_debit > 0 else 0.0
 
-    # Format money without decimals (integer display with space separator)
+    # Format money with abbreviations: 1k, 1M, etc.
     def format_money(amount: float) -> str:
-        return f"{int(amount):,}".replace(",", " ")
+        abs_amount = abs(amount)
+        sign = "-" if amount < 0 else ""
+        if abs_amount >= 1_000_000:
+            val = abs_amount / 1_000_000
+            return f"{sign}{val:.1f}M".rstrip('0').rstrip('.')
+        elif abs_amount >= 1_000:
+            val = abs_amount / 1_000
+            return f"{sign}{val:.1f}k".rstrip('0').rstrip('.')
+        return f"{sign}{int(abs_amount)}"
 
     # Format percentage
     def format_pct(pct: float) -> str:
@@ -715,9 +723,17 @@ async def get_account_balances_html(
             "is_negative": current < 0
         })
 
-    # Format money without decimals (integer display with space separator)
+    # Format money with abbreviations: 1k, 1M, etc.
     def format_money(amount: float) -> str:
-        return f"{int(amount):,}".replace(",", " ")
+        abs_amount = abs(amount)
+        sign = "-" if amount < 0 else ""
+        if abs_amount >= 1_000_000:
+            val = abs_amount / 1_000_000
+            return f"{sign}{val:.1f}M".rstrip('0').rstrip('.')
+        elif abs_amount >= 1_000:
+            val = abs_amount / 1_000
+            return f"{sign}{val:.1f}k".rstrip('0').rstrip('.')
+        return f"{sign}{int(abs_amount)}"
 
     # Get color class based on balance sign
     def get_balance_color(balance: float) -> str:
@@ -762,12 +778,12 @@ async def get_account_balances_html(
             <div class="font-semibold text-sm mb-2 truncate" title="{bal['name']}">{bal['name']}</div>
             <div class="space-y-2">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs opacity-70">На начало месяца</span>
-                    <span class="text-sm font-medium {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</span>
+                    <span class="text-xs opacity-70">Начало</span>
+                    <span class="text-sm font-medium {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])}</span>
                 </div>
                 <div class="flex justify-between items-center pt-2 border-t border-base-300">
                     <span class="text-xs opacity-70">Текущий</span>
-                    <span class="text-sm font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</span>
+                    <span class="text-sm font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])}</span>
                 </div>
             </div>
         </div>"""
@@ -779,13 +795,13 @@ async def get_account_balances_html(
         <div class="bg-base-200 rounded-lg p-2">
             <div class="font-semibold text-xs mb-1 truncate" title="{bal['name']}">{bal['name']}</div>
             <div class="space-y-1">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center gap-2">
                     <span class="text-[10px] opacity-60">Начало</span>
-                    <span class="text-xs {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])} ₽</span>
+                    <span class="text-xs {get_balance_color(bal['opening_balance'])}">{format_money(bal['opening_balance'])}</span>
                 </div>
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center gap-2">
                     <span class="text-[10px] opacity-60">Текущий</span>
-                    <span class="text-xs font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])} ₽</span>
+                    <span class="text-xs font-bold {get_balance_color(bal['current_balance'])}">{format_money(bal['current_balance'])}</span>
                 </div>
             </div>
         </div>"""
@@ -810,7 +826,7 @@ async def get_account_balances_html(
     </div>
 
     <!-- Mobile: 2-column grid -->
-    <div id="mobile-balances" class="grid grid-cols-2 gap-2">
+    <div id="mobile-balances" class="grid grid-cols-2 gap-3">
 {mobile_cards}
     </div>
     """

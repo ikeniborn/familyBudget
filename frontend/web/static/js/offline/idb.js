@@ -365,7 +365,37 @@ class IndexedDBManager {
 
             const index = store.index('contentHash');
             const request = index.get(hash);
-            request.onsuccess = () => resolve(request.result || null);
+
+            request.onsuccess = () => {
+                const result = request.result;
+
+                if (!result) {
+                    resolve(null);
+                    return;
+                }
+
+                // ✅ Synced records are NOT duplicates (already on server)
+                if (result.synced) {
+                    console.log('[IDB] Found synced record, not considering duplicate');
+                    resolve(null);
+                    return;
+                }
+
+                // ✅ Unsynced - check staleness (time window)
+                const timeDiff = Date.now() - (result.createdAt || 0);
+                const TIME_WINDOW = 5 * 60 * 1000; // 5 minutes
+
+                if (timeDiff > TIME_WINDOW) {
+                    console.log('[IDB] Stale unsynced record (>5min), not considering duplicate');
+                    resolve(null);
+                    return;
+                }
+
+                // Recent unsynced duplicate - reject
+                console.log('[IDB] Recent unsynced duplicate detected');
+                resolve(result);
+            };
+
             request.onerror = () => {
                 console.warn('[IDB] Error checking duplicate:', request.error);
                 resolve(null);
@@ -719,14 +749,25 @@ class IndexedDBManager {
      * @returns {Promise<number>} Number of deleted items
      */
     async clearCompletedSyncQueue() {
-        const completed = await this.getSyncQueue('completed');
-        let count = 0;
+        // Увеличенная задержка чтобы IndexedDB успел обновить indexes после status update
+        // (50ms было недостаточно для надежной работы при manual offline mode exit)
+        await new Promise(resolve => setTimeout(resolve, 100));
 
+        const completed = await this.getSyncQueue('completed');
+        console.log(`[IDB] clearCompletedSyncQueue: found ${completed.length} completed items`);
+
+        let count = 0;
         for (const item of completed) {
-            await this.deleteSyncQueueItem(item.id);
-            count++;
+            try {
+                await this.deleteSyncQueueItem(item.id);
+                count++;
+                console.log(`[IDB] Deleted sync queue item ${item.id} (tempId: ${item.tempId})`);
+            } catch (e) {
+                console.error(`[IDB] Failed to delete item ${item.id}:`, e);
+            }
         }
 
+        console.log(`[IDB] clearCompletedSyncQueue: deleted ${count} items`);
         return count;
     }
 

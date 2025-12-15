@@ -20,11 +20,17 @@ class OfflineManager {
         this.db = new IndexedDBManager();
         this.syncInProgress = false;
         this.retryDelay = 5000; // 5 seconds
-        this.maxRetries = 3;
+        this.maxRetries = 5;
         this.isInitialized = false;
         this.lastToastTime = 0;
         this.toastDebounceMs = 3000; // Prevent toast spam
         this.lastOfflineToastTime = 0; // For debounce offline save toast
+
+        // ✅ Request-level deduplication cache (prevent concurrent duplicate creates)
+        this.pendingCreates = new Map(); // operationKey → Promise
+
+        // ✅ NEW: Timeout ID for scheduled retry sync
+        this.retryTimeout = null;
 
         // SmartNetworkDetector для надежного определения состояния сети
         this.networkDetector = null;
@@ -67,10 +73,12 @@ class OfflineManager {
         if (typeof SmartNetworkDetector !== 'undefined') {
             this.networkDetector = new SmartNetworkDetector({
                 heartbeatUrl: '/health',
-                heartbeatIntervals: [2000, 4000, 20000],  // Прогрессивные интервалы: 2s, 4s, 20s
+                // Интервалы увеличены после внедрения SSE (real-time updates через SSE,
+                // health check нужен только для определения offline режима)
+                heartbeatIntervals: [5000, 10000, 30000],  // Прогрессивные интервалы: 5s, 10s, 30s
                 heartbeatTimeout: 5000,    // 5 сек timeout
                 maxFailures: 3,            // 3 ошибки подряд → offline
-                minCheckInterval: 1000,    // Защита от спама (1 сек)
+                minCheckInterval: 2000,    // Защита от спама (2 сек)
                 onStatusChange: (newStatus, oldStatus, options = {}) => {
                     this._handleNetworkStatusChange(newStatus, oldStatus, options);
                 }
@@ -99,6 +107,7 @@ class OfflineManager {
         window.addEventListener('server-recovered', (event) => {
             console.log('[OfflineManager] Server recovered at:', new Date(event.detail.timestamp));
         });
+
 
         // Check initial network status
         if (this.isOnline) {
@@ -139,26 +148,26 @@ class OfflineManager {
      * Обработчик изменения статуса сети от SmartNetworkDetector
      * @param {'online'|'offline'|'degraded'} newStatus
      * @param {'online'|'offline'|'degraded'} oldStatus
-     * @param {Object} options - Optional parameters from _setStatus
-     * @param {boolean} options.manual - True if this is a manual mode transition
+     * @param {Object} options - Optional parameters from _setStatus (reserved for future use)
      */
     async _handleNetworkStatusChange(newStatus, oldStatus, options = {}) {
         // Note: NetworkDetector already logs status changes, so we don't duplicate here
 
-        // Skip toasts for manual mode transitions - base.html handles those
-        const skipToast = options.manual === true;
-
         if (newStatus === 'offline') {
             // Переход в offline
-            if (!skipToast) {
-                this._showToastDebounced('Работаем оффлайн', 'warning');
-            }
+            this._showToastDebounced('Работаем оффлайн', 'warning');
+            // Disconnect SSE - нет смысла держать соединение в offline режиме
+            this.disconnectSSE();
+            console.log('[OfflineManager] SSE disconnected (offline mode)');
             // Note: offline-status-change is dispatched at the end of function for all cases
         } else if (oldStatus === 'offline' && (newStatus === 'online' || newStatus === 'degraded')) {
             // Восстановление соединения
-            if (!skipToast) {
-                this._showToastDebounced('Соединение восстановлено', 'success');
-            }
+            // НЕ показываем toast "Соединение восстановлено" сразу
+            // Объединенный toast покажется после sync с результатами
+
+            // Reconnect SSE - восстановить real-time соединение
+            this.reconnectSSE();
+            console.log('[OfflineManager] SSE reconnected (online mode)');
 
             // Запустить синхронизацию
             if (this.supportsBackgroundSync()) {
@@ -166,10 +175,17 @@ class OfflineManager {
                     const registration = await navigator.serviceWorker.ready;
                     await registration.sync.register('sync-budget-data');
                     // Background Sync will dispatch offline-sync-complete via handleSyncComplete()
-                    // when Service Worker finishes - no need to dispatch here
+                    // when Service Worker finishes - toast покажется там с результатами sync
                 } catch (e) {
                     // Fallback to main thread sync if Background Sync fails
                     const syncResults = await this.sync();
+                    // Показать объединенный toast с результатами sync
+                    this.lastToastTime = 0;
+                    if (syncResults.synced > 0) {
+                        this._showToastDebounced(`Онлайн. Синхронизировано: ${syncResults.synced} записей`, 'success');
+                    } else {
+                        this._showToastDebounced('Соединение восстановлено', 'success');
+                    }
                     // Dispatch event with sync results for UI update
                     window.dispatchEvent(new CustomEvent('offline-sync-complete', {
                         detail: {
@@ -182,10 +198,12 @@ class OfflineManager {
             } else {
                 // No Background Sync support (Safari) - sync from main thread
                 const syncResults = await this.sync();
-                // Show sync result toast only for non-manual transitions
-                if (syncResults.synced > 0 && !skipToast) {
-                    this.lastToastTime = 0;
-                    this._showToastDebounced(`Синхронизировано: ${syncResults.synced} записей`, 'success');
+                // Показать объединенный toast с результатами sync
+                this.lastToastTime = 0;
+                if (syncResults.synced > 0) {
+                    this._showToastDebounced(`Онлайн. Синхронизировано: ${syncResults.synced} записей`, 'success');
+                } else {
+                    this._showToastDebounced('Соединение восстановлено', 'success');
                 }
                 // Dispatch event with sync results for UI update
                 window.dispatchEvent(new CustomEvent('offline-sync-complete', {
@@ -206,6 +224,7 @@ class OfflineManager {
             detail: { online: newStatus !== 'offline', status: newStatus }
         }));
     }
+
 
     /**
      * Show toast with debounce to prevent spam
@@ -281,6 +300,37 @@ class OfflineManager {
                 }
             }
         }, 30000); // Check every 30 seconds
+    }
+
+    /**
+     * Get current user ID from backend
+     * @returns {Promise<number>} User ID
+     */
+    async getCurrentUserId() {
+        // Option 1: From global window.currentUser (если доступно)
+        if (window.currentUser && window.currentUser.id) {
+            return window.currentUser.id;
+        }
+
+        // Option 2: Fetch from /api/v1/users/me
+        try {
+            const response = await fetch('/api/v1/users/me', {
+                credentials: 'include'
+            });
+            if (response.ok) {
+                const user = await response.json();
+                // Cache for future use
+                if (!window.currentUser) {
+                    window.currentUser = user;
+                }
+                return user.id;
+            }
+        } catch (error) {
+            console.error('[OfflineManager] Failed to get user ID:', error);
+        }
+
+        // Fallback: return 0 (backend will set correct user_id from JWT)
+        return 0;
     }
 
     // ==================== FACTS ====================
@@ -363,6 +413,33 @@ class OfflineManager {
     }
 
     async createFactOffline(data) {
+        // ✅ Check if same operation already in progress (request-level deduplication)
+        const operationKey = this.db.generateContentHash(data);
+        if (this.pendingCreates.has(operationKey)) {
+            console.log('[OfflineManager] Duplicate operation detected, reusing existing promise');
+            return await this.pendingCreates.get(operationKey);
+        }
+
+        // ✅ Create promise and cache it
+        const createPromise = this._createFactOfflineInternal(data);
+        this.pendingCreates.set(operationKey, createPromise);
+
+        try {
+            const result = await createPromise;
+            return result;
+        } finally {
+            // ✅ Cleanup after 5 seconds (allow for rapid successive calls)
+            setTimeout(() => {
+                this.pendingCreates.delete(operationKey);
+            }, 5000);
+        }
+    }
+
+    /**
+     * Internal implementation of createFactOffline (with duplicate detection)
+     * @private
+     */
+    async _createFactOfflineInternal(data) {
         // Generate content hash for duplicate detection
         const contentHash = this.db.generateContentHash(data);
 
@@ -381,11 +458,19 @@ class OfflineManager {
 
         const tempId = `offline_fact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // 1. Save to IndexedDB with contentHash
+        // Generate syncHash for backend deduplication (same format as in syncItem)
+        // syncHash = MD5(content_hash|user_id|created_date)
+        const userId = await this.getCurrentUserId();
+        const createdDate = new Date().toISOString().split('T')[0];  // YYYY-MM-DD
+        const syncHashContent = `${contentHash}|${userId}|${createdDate}`;
+        const syncHash = this.db._md5(syncHashContent);
+
+        // 1. Save to IndexedDB with contentHash and syncHash
         await this.db.addFact({
             tempId,
             data,
             contentHash,
+            syncHash,  // Save syncHash for SW to use during sync
             synced: false,
             createdAt: Date.now(),
             error: null,
@@ -393,8 +478,6 @@ class OfflineManager {
         });
 
         // 2. Add to sync queue
-        // Track if created in manual mode (user-initiated offline) vs true offline
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'fact',
@@ -403,8 +486,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // Note: No automatic Background Sync registration here
@@ -481,7 +563,6 @@ class OfflineManager {
         });
 
         // 2. Add to sync queue
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'update',
             entity: 'fact',
@@ -490,8 +571,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // 3. Register Background Sync
@@ -558,7 +638,6 @@ class OfflineManager {
         const tempId = `offline_fact_delete_${id}_${Date.now()}`;
 
         // Add to sync queue
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'delete',
             entity: 'fact',
@@ -567,8 +646,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // Register Background Sync
@@ -621,7 +699,6 @@ class OfflineManager {
             serverId: null
         });
 
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'transfer',
@@ -630,8 +707,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // Note: No automatic Background Sync registration here
@@ -690,7 +766,6 @@ class OfflineManager {
             serverId: null
         });
 
-        const createdInManualMode = this.networkDetector?.isManualOfflineModeEnabled() || false;
         await this.db.addToSyncQueue({
             operation: 'create',
             entity: 'plan',
@@ -699,8 +774,7 @@ class OfflineManager {
             status: 'pending',
             timestamp: Date.now(),
             retryCount: 0,
-            error: null,
-            createdInManualMode
+            error: null
         });
 
         // Note: No automatic Background Sync registration here
@@ -719,13 +793,9 @@ class OfflineManager {
 
     /**
      * Sync all pending items
-     * @param {Object} options - Sync options
-     * @param {boolean} options.includeManualModeItems - Include items created in manual mode (default: false for auto-sync)
      * @returns {Promise<Object>} Sync results
      */
-    async sync(options = {}) {
-        const { includeManualModeItems = false } = options;
-
+    async sync() {
         if (this.syncInProgress) {
             return { skipped: true };
         }
@@ -739,55 +809,95 @@ class OfflineManager {
         const results = {
             synced: 0,
             failed: 0,
-            skippedManualMode: 0,
+            needsRetry: false,
             items: []
         };
 
         try {
-            let queue = await this.db.getSyncQueue('pending');
-
-            // Filter out manual mode items if not explicitly requested
-            if (!includeManualModeItems) {
-                const originalCount = queue.length;
-                queue = queue.filter(item => !item.createdInManualMode);
-                results.skippedManualMode = originalCount - queue.length;
-                if (results.skippedManualMode > 0) {
-                    console.log(`[OfflineManager] Skipping ${results.skippedManualMode} manual mode items (use manual sync button)`);
-                }
-            }
+            const queue = await this.db.getSyncQueue('pending');
 
             for (const item of queue) {
                 try {
-                    await this.syncItem(item);
+                    const syncResult = await this.syncItem(item);
+                    // Check if item was skipped (already processed by SW)
+                    if (syncResult === null) {
+                        console.log(`[OfflineManager] Item ${item.id} was skipped (already processed)`);
+                        continue;
+                    }
                     results.synced++;
                     results.items.push({ ...item, status: 'synced' });
                 } catch (error) {
-
                     const retryCount = (item.retryCount || 0) + 1;
 
-                    if (retryCount >= this.maxRetries) {
-                        // Max retries reached, mark as failed
-                        await this.db.updateSyncQueueItem(item.id, {
-                            status: 'failed',
-                            error: error.message,
-                            retryCount
-                        });
-                        results.failed++;
-                        results.items.push({ ...item, status: 'failed', error: error.message });
-                    } else {
-                        // Retry later
-                        await this.db.updateSyncQueueItem(item.id, {
-                            status: 'pending',
-                            error: error.message,
-                            retryCount
-                        });
-                        results.items.push({ ...item, status: 'retry', retryCount });
+                    // Wrap in try-catch to handle race conditions with SW
+                    try {
+                        if (retryCount >= this.maxRetries) {
+                            // Max retries reached, mark as failed
+                            await this.db.updateSyncQueueItem(item.id, {
+                                status: 'failed',
+                                error: error.message,
+                                retryCount
+                            });
+                            results.failed++;
+                            results.items.push({ ...item, status: 'failed', error: error.message });
+                        } else {
+                            // NON-BLOCKING RETRY: Mark for retry but don't wait here
+                            console.log(`[OfflineManager] Item ${item.id} failed (attempt ${retryCount}/${this.maxRetries}), marking for retry`);
+
+                            // Update retry count and keep status as 'pending' for next sync session
+                            await this.db.updateSyncQueueItem(item.id, {
+                                status: 'pending',
+                                error: error.message,
+                                retryCount,
+                                lastRetryAttempt: Date.now()
+                            });
+
+                            // Mark that we need to schedule a retry sync
+                            results.needsRetry = true;
+                            results.items.push({ ...item, status: 'retry', retryCount });
+                        }
+                    } catch (updateError) {
+                        // Item was already deleted by SW or another process - just log and continue
+                        if (updateError.message && updateError.message.includes('not found')) {
+                            console.log(`[OfflineManager] Item ${item.id} already processed by another sync - skipping`);
+                        } else {
+                            console.warn(`[OfflineManager] Could not update item ${item.id}: ${updateError.message}`);
+                            results.failed++;
+                        }
                     }
                 }
             }
 
             // Clear completed items
-            await this.db.clearCompletedSyncQueue();
+            console.log(`[OfflineManager] sync() completed. Synced: ${results.synced}, Failed: ${results.failed}`);
+            const clearedCount = await this.db.clearCompletedSyncQueue();
+            console.log(`[OfflineManager] Cleared ${clearedCount} completed items from sync queue`);
+
+            // Verify queue state after cleanup
+            const remainingQueue = await this.db.getSyncQueue();
+            console.log(`[OfflineManager] Remaining items in queue: ${remainingQueue.length}`);
+            if (remainingQueue.length > 0) {
+                console.log('[OfflineManager] Remaining items:', remainingQueue.map(i => ({
+                    id: i.id,
+                    status: i.status
+                })));
+            }
+
+            // ✅ NEW: Schedule retry sync if there are items that need retry
+            if (results.needsRetry) {
+                console.log(`[OfflineManager] Scheduling retry sync in ${this.retryDelay}ms...`);
+
+                // Cancel any existing retry timeout to avoid duplicates
+                if (this.retryTimeout) {
+                    clearTimeout(this.retryTimeout);
+                }
+
+                // Schedule next sync after delay
+                this.retryTimeout = setTimeout(async () => {
+                    console.log('[OfflineManager] Starting scheduled retry sync...');
+                    await this.sync();
+                }, this.retryDelay);
+            }
 
             return results;
         } finally {
@@ -800,8 +910,17 @@ class OfflineManager {
      * @private
      */
     async syncItem(item) {
-        // Update status to syncing
-        await this.db.updateSyncQueueItem(item.id, { status: 'syncing' });
+        // Update status to syncing - wrap in try-catch to handle race condition with SW
+        try {
+            await this.db.updateSyncQueueItem(item.id, { status: 'syncing' });
+        } catch (e) {
+            // Item already processed by SW - skip
+            if (e.message && e.message.includes('not found')) {
+                console.log(`[OfflineManager] Item ${item.id} already processed by SW - skipping`);
+                return null;  // Signal to caller that item was skipped
+            }
+            throw e;
+        }
 
         let response;
 
@@ -819,8 +938,14 @@ class OfflineManager {
                 throw new Error(`Unknown operation: ${item.operation}`);
         }
 
-        // Verify record exists on server (only for CREATE operations)
-        if (item.operation === 'create') {
+        // Handle case where SW already synced this item
+        // (offline record was deleted, so we couldn't get sync_hash)
+        if (response && response._already_synced_by_sw) {
+            console.log(`[OfflineManager] Item ${item.id} was already synced by SW - marking as completed`);
+            // Skip verification - SW already did it
+            // Just mark as completed and clean up
+        } else if (item.operation === 'create') {
+            // Verify record exists on server (only for CREATE operations that we actually sent)
             const verified = await this.verifyOnServer(item, response);
             if (!verified) {
                 throw new Error('Verification failed - record not found on server');
@@ -828,37 +953,34 @@ class OfflineManager {
         }
 
         // Mark as completed (only after verification passed)
-        await this.db.updateSyncQueueItem(item.id, { status: 'completed' });
+        // Wrap in try-catch to handle race condition with SW
+        console.log(`[OfflineManager] syncItem ${item.id} - updating status to 'completed'`);
+        try {
+            await this.db.updateSyncQueueItem(item.id, { status: 'completed' });
+            console.log(`[OfflineManager] syncItem ${item.id} - status updated successfully`);
+        } catch (e) {
+            // Item already processed by SW - ignore
+            if (e.message && e.message.includes('not found')) {
+                console.log(`[OfflineManager] Item ${item.id} already marked completed by SW`);
+            } else {
+                console.error(`[OfflineManager] Failed to update status for item ${item.id}:`, e);
+            }
+        }
 
-        // Update offline record
+        // Delete offline record after successful sync (it's now on server)
         if (item.operation === 'create') {
-            if (item.entity === 'fact') {
-                const fact = await this.db.getFact(item.tempId);
-                if (fact) {
-                    await this.db.updateFact({
-                        ...fact,
-                        synced: true,
-                        serverId: response.id || response.fact_id
-                    });
+            try {
+                if (item.entity === 'fact') {
+                    await this.db.deleteFact(item.tempId);
+                } else if (item.entity === 'transfer') {
+                    await this.db.deleteTransfer(item.tempId);
+                } else if (item.entity === 'plan') {
+                    await this.db.deletePlan(item.tempId);
                 }
-            } else if (item.entity === 'transfer') {
-                const transfer = await this.db.getTransfer(item.tempId);
-                if (transfer) {
-                    await this.db.updateTransfer({
-                        ...transfer,
-                        synced: true,
-                        serverId: response.transfer_id
-                    });
-                }
-            } else if (item.entity === 'plan') {
-                const plan = await this.db.getPlan(item.tempId);
-                if (plan) {
-                    await this.db.updatePlan({
-                        ...plan,
-                        synced: true,
-                        serverId: response.id || response.plan_id
-                    });
-                }
+                console.log(`[OfflineManager] Deleted synced ${item.entity} ${item.tempId} from offline store`);
+            } catch (e) {
+                // Ignore - may already be deleted by SW
+                console.log(`[OfflineManager] Failed to delete ${item.entity} ${item.tempId} (may already be deleted):`, e.message);
             }
         }
 
@@ -896,6 +1018,36 @@ class OfflineManager {
         // Mark as offline sync (for all entity types: fact, plan, transfer)
         cleanData.is_offline_sync = true;
 
+        // Add deduplication hashes for facts and plans
+        if (item.entity === 'fact' || item.entity === 'plan') {
+            const idbRecord = await this.db.getFact(item.tempId);
+            if (idbRecord && idbRecord.contentHash) {
+                cleanData.content_hash = idbRecord.contentHash;
+
+                // Use pre-generated syncHash if available (from _createFactOfflineInternal)
+                // Otherwise generate it (for backward compatibility with older offline records)
+                if (idbRecord.syncHash) {
+                    cleanData.sync_hash = idbRecord.syncHash;
+                } else {
+                    // Generate sync_hash = MD5(content_hash|user_id|created_date)
+                    const userId = await this.getCurrentUserId();
+                    const createdDate = new Date(idbRecord.createdAt).toISOString().split('T')[0];  // YYYY-MM-DD
+                    const syncHashContent = `${idbRecord.contentHash}|${userId}|${createdDate}`;
+                    cleanData.sync_hash = this.db._md5(syncHashContent);
+                }
+
+                debugLog('[OfflineManager] Adding deduplication hashes:', {
+                    content_hash: cleanData.content_hash,
+                    sync_hash: cleanData.sync_hash
+                });
+            } else {
+                // Offline record not found - SW already processed and deleted it
+                // Return special marker to indicate item was already synced
+                console.log(`[OfflineManager] Offline record not found for ${item.tempId} - already synced by SW`);
+                return { _already_synced_by_sw: true, id: null };
+            }
+        }
+
         debugLog(`[OfflineManager] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
         const response = await fetch(endpoint, {
@@ -916,7 +1068,17 @@ class OfflineManager {
             throw new Error(errorDetail);
         }
 
-        return await response.json();
+        const result = await response.json();
+
+        // ✅ NEW: Log if duplicate was skipped by backend
+        if (result._duplicate_skipped) {
+            console.log('[OfflineManager] Duplicate skipped by server (idempotent):', {
+                fact_id: result.id,
+                sync_hash: cleanData.sync_hash
+            });
+        }
+
+        return result;
     }
 
     async syncUpdate(item) {
@@ -1082,11 +1244,15 @@ class OfflineManager {
     handleSyncComplete(data) {
         const { synced, failed } = data;
 
-        // Show toast with sync results
+        // Показать объединённый toast о восстановлении связи с результатами sync
+        this.lastToastTime = 0; // Reset debounce для гарантированного показа
         if (synced > 0) {
-            this.lastToastTime = 0; // Reset debounce
-            this._showToastDebounced(`Синхронизировано: ${synced} записей`, 'success');
+            this._showToastDebounced(`Соединение восстановлено. Синхронизировано: ${synced}`, 'success');
+        } else if (failed === 0) {
+            // Нет pending данных для синхронизации
+            this._showToastDebounced('Соединение восстановлено', 'success');
         }
+        // Если failed > 0 без synced - показать только ошибку
 
         if (failed > 0) {
             this._showToastDebounced(`Не удалось синхронизировать: ${failed} записей`, 'error');
@@ -1148,7 +1314,7 @@ class OfflineManager {
 
     /**
      * Get all unsynced items (pending + failed) for display
-     * @returns {Promise<{items: Array, hasRetryable: boolean, hasManualModeItems: boolean, manualModeCount: number}>}
+     * @returns {Promise<{items: Array, hasRetryable: boolean}>}
      */
     async getAllUnsyncedItems() {
         const pending = await this.db.getSyncQueue('pending');
@@ -1160,28 +1326,15 @@ class OfflineManager {
             item.status === 'failed' || (item.retryCount && item.retryCount > 0)
         );
 
-        // Check for manual mode items (pending only, not failed)
-        const manualModeItems = pending.filter(item => item.createdInManualMode);
-        const hasManualModeItems = manualModeItems.length > 0;
-        const manualModeCount = manualModeItems.length;
-
-        return { items, hasRetryable, hasManualModeItems, manualModeCount };
+        return { items, hasRetryable };
     }
 
     /**
-     * Sync all pending items in queue (auto-sync, excludes manual mode items)
+     * Sync all pending items in queue
      * @returns {Promise<Object>} Sync results {synced, failed, items}
      */
     async syncQueue() {
         return await this.sync();
-    }
-
-    /**
-     * Sync items created in manual mode (user-initiated sync)
-     * @returns {Promise<Object>} Sync results {synced, failed, items}
-     */
-    async syncManualModeItems() {
-        return await this.sync({ includeManualModeItems: true });
     }
 
     /**
@@ -1211,25 +1364,102 @@ class OfflineManager {
      * @private
      */
     async _handleAutoOfflineRecovery() {
-        console.log('[OfflineManager] Auto offline recovery detected');
+        // NOTE: Toast and sync are already handled by _handleNetworkStatusChange()
+        // which is called BEFORE this event is dispatched (see networkDetector.js:689-702)
+        // Flow: checkConnectivity() → _setStatus('online') → onStatusChange() → _handleNetworkStatusChange()
+        //       → THEN dispatch('auto-offline-recovered') → this handler
+        //
+        // This handler is kept for:
+        // 1. Logging for debugging
+        // 2. Future auto-recovery specific logic (if needed)
+        console.log('[OfflineManager] Auto offline recovery event received (toast/sync already handled by status change)');
+    }
 
-        // Show toast
-        this._showToastDebounced('Связь с сервером восстановлена', 'success');
+    // ==================== SSE INTEGRATION ====================
 
-        // Start synchronization
-        if (this.supportsBackgroundSync()) {
-            navigator.serviceWorker.ready.then(registration => {
-                return registration.sync.register('sync-budget-data');
-            }).catch(e => {
-                this.sync();
-            });
-        } else {
-            this.sync().then(results => {
-                if (results.synced > 0) {
-                    this._showToastDebounced(`Синхронизировано: ${results.synced} записей`, 'success');
+    /**
+     * Callback for SSE events to refresh UI
+     * Set this from the page to handle real-time updates
+     * @type {Function|null}
+     * @param {string} eventType - Event type (fact_created, fact_updated, fact_deleted, etc.)
+     * @param {Object} data - Event data
+     */
+    refreshUICallback = null;
+
+    /**
+     * Initialize Budget SSE client for real-time updates
+     * Call this after OfflineManager.init() on pages that need real-time updates
+     * @param {Object} options - SSE options
+     * @param {Function} options.onFact - Callback for fact events (created/updated/deleted)
+     * @param {Function} options.onPlan - Callback for plan events (created/updated/deleted)
+     * @param {Function} options.onTransfer - Callback for transfer events (created/deleted)
+     * @param {boolean} options.autoConnect - Whether to auto-connect (default: true)
+     */
+    initSSE(options = {}) {
+        const {
+            onFact = null,
+            onPlan = null,
+            onTransfer = null,
+            autoConnect = true
+        } = options;
+
+        // Set refresh callback if any handler provided
+        if (onFact || onPlan || onTransfer) {
+            this.refreshUICallback = (eventType, data) => {
+                // Route events to appropriate handlers
+                if (eventType.startsWith('fact_') && onFact) {
+                    onFact(eventType, data);
+                } else if (eventType.startsWith('plan_') && onPlan) {
+                    onPlan(eventType, data);
+                } else if (eventType.startsWith('transfer_') && onTransfer) {
+                    onTransfer(eventType, data);
                 }
-            });
+            };
         }
+
+        // Check if BudgetSSEClient is available
+        if (typeof window.budgetSSEClient === 'undefined') {
+            console.warn('[OfflineManager] BudgetSSEClient not loaded - SSE disabled');
+            return;
+        }
+
+        // Auto-connect if requested
+        if (autoConnect) {
+            window.budgetSSEClient.connect();
+        }
+
+        console.log('[OfflineManager] SSE integration initialized');
+    }
+
+    /**
+     * Disconnect SSE client (disables auto-reconnect)
+     */
+    disconnectSSE() {
+        if (typeof window.budgetSSEClient !== 'undefined') {
+            // Use setEnabled(false) to prevent auto-reconnect from visibility/online events
+            window.budgetSSEClient.setEnabled(false);
+        }
+    }
+
+    /**
+     * Reconnect SSE client (re-enables and connects)
+     */
+    reconnectSSE() {
+        if (typeof window.budgetSSEClient !== 'undefined') {
+            // Use setEnabled(true) to re-enable auto-reconnect and connect
+            window.budgetSSEClient.setEnabled(true);
+        }
+    }
+
+    /**
+     * Get SSE connection status
+     * @returns {Object|null} SSE status or null if not available
+     */
+    getSSEStatus() {
+        if (typeof window.budgetSSEClient !== 'undefined') {
+            return window.budgetSSEClient.getStatus();
+        }
+        return null;
     }
 }
 

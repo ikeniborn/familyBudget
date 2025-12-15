@@ -155,11 +155,12 @@
     <script>
         (function() {
             try {
-                var manual = localStorage.getItem('budget_manual_offline_mode') === 'true';
                 var auto = localStorage.getItem('budget_auto_offline_mode') === 'true';
-                if (manual || auto) {
+                if (auto) {
                     document.documentElement.classList.add('offline-mode');
                 }
+                // Cleanup legacy manual mode state
+                localStorage.removeItem('budget_manual_offline_mode');
             } catch(e) {}
         })();
     </script>
@@ -192,6 +193,7 @@
     <script src="/static/js/offline/offlineManager.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/conflictResolver.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/pushManager.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/budget/budgetSSEClient.js?v=PLACEHOLDER"></script>
 
     <!-- ECharts (for analytics pages) -->
     {% block extra_head %}{% endblock %}
@@ -250,6 +252,7 @@
         </div>
 
         <div class="navbar-end gap-1 sm:gap-2">
+            {% if user %}
             <!-- Offline Status Icon (shown only when offline) -->
             <div id="offline-icon" class="hidden" title="Нет подключения к интернету">
                 <div class="btn btn-ghost btn-circle btn-sm sm:btn-md text-warning">
@@ -261,23 +264,14 @@
                 </div>
             </div>
 
-            <!-- Manual Offline Mode Toggle -->
-            <button id="manual-offline-toggle"
-                    class="btn btn-ghost btn-circle btn-sm sm:btn-md"
-                    onclick="toggleManualOfflineMode()"
-                    aria-label="Toggle offline mode"
-                    title="Переключить оффлайн режим">
-                <!-- Online icon (cloud with check) - shown when NOT in manual offline mode -->
-                <svg id="offline-toggle-online-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4" />
-                </svg>
-                <!-- Offline icon (cloud with pause) - shown when in manual offline mode -->
-                <svg id="offline-toggle-offline-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6 text-warning hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 10v4M14 10v4" />
-                </svg>
-            </button>
+            <!-- Budget SSE Status Indicator (real-time sync status) -->
+            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center" data-tip="Real-time синхронизация">
+                <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус синхронизации">
+                    <span class="loading loading-ring loading-xs sm:loading-sm"></span>
+                </span>
+            </div>
+
+            {% endif %}
 
             <!-- Telegram Bot Link -->
             <a id="telegram-link" href="https://t.me/ikenibornbudgetbot" target="_blank" rel="noopener noreferrer"
@@ -451,21 +445,21 @@
                     <li><a href="/lists">🛒 Списки</a></li>
                     <li data-offline-hidden="true"><a href="/security">🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
 
-                    <!-- Секция "Прочее" - доступно всем пользователям -->
-                    <li class="menu-title" data-offline-hidden="true"><span>📂 Прочее</span></li>
-                    <li data-offline-hidden="true"><a href="/notifications">🔔 Уведомления</a></li>
-                    <li data-offline-hidden="true"><a href="/import">📥 Импорт</a></li>
-                    <li class="menu-title" data-offline-hidden="true"><span>Справочники</span></li>
-                    <li data-offline-hidden="true"><a href="/admin/articles">📁 Категории</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/cost-centers">💼 Места затрат</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/financial-centers">🏢 Счета</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/stores">🏪 Магазины</a></li>
-                    <li data-offline-hidden="true"><a href="/admin/product-groups">📦 Группы товаров</a></li>
+                    <!-- Секция "Прочее" - доступно на планшетах и ПК (hidden на мобильных < 768px) -->
+                    <li class="menu-title hidden md:block" data-offline-hidden="true"><span>📂 Прочее</span></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/notifications">🔔 Уведомления</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/import">📥 Импорт</a></li>
+                    <li class="menu-title hidden md:block" data-offline-hidden="true"><span>Справочники</span></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/articles">📁 Категории</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/cost-centers">💼 Места затрат</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/financial-centers">🏢 Счета</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/stores">🏪 Магазины</a></li>
+                    <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/product-groups">📦 Группы товаров</a></li>
                     {% endif %}
 
                     {% if user and user.is_admin %}
                         <li class="menu-title" data-offline-hidden="true"><span>⚙️ Администратор</span></li>
-                        <li data-offline-hidden="true"><a href="/admin/users">👥 Пользователи</a></li>
+                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/users">👥 Пользователи</a></li>
                         <li data-offline-hidden="true"><a href="/admin/monitoring">🔍 Мониторинг</a></li>
                     {% endif %}
                     {% if user %}
@@ -988,6 +982,13 @@
                 await window.pushManager.init();
                 debugLog('[Offline] PushManager initialized');
 
+                // Initialize Budget SSE for real-time updates
+                // SSE updates the indicator in navbar and triggers UI refreshes
+                if (window.budgetSSEClient) {
+                    window.budgetSSEClient.connect();
+                    debugLog('[Offline] BudgetSSEClient connected');
+                }
+
                 // Update UI
                 updateOfflineUI();
 
@@ -1056,25 +1057,15 @@
 
         // Also listen for network-status-change (from SmartNetworkDetector directly)
         window.addEventListener('network-status-change', async (event) => {
-            const { status, previousStatus, manual, auto } = event.detail || {};
-            debugLog('[Offline] Network status change:', previousStatus, '→', status, 'manual:', manual, 'auto:', auto);
+            const { status, previousStatus, auto } = event.detail || {};
+            debugLog('[Offline] Network status change:', previousStatus, '→', status, 'auto:', auto);
 
-            // Update offline indicator based on mode
+            // Update offline indicator
             const offlineIcon = document.getElementById('offline-icon');
             if (offlineIcon) {
                 if (status === 'offline') {
-                    if (manual) {
-                        // Manual offline - cloud with pause icon (already shown by manual toggle)
-                        offlineIcon.classList.add('hidden');
-                    } else if (auto) {
-                        // Auto offline - cloud with X icon (red/warning)
-                        offlineIcon.classList.remove('hidden');
-                        offlineIcon.title = 'Сервер недоступен (автоматически)';
-                    } else {
-                        // Network offline - cloud with X icon
-                        offlineIcon.classList.remove('hidden');
-                        offlineIcon.title = 'Нет подключения к интернету';
-                    }
+                    offlineIcon.classList.remove('hidden');
+                    offlineIcon.title = auto ? 'Сервер недоступен (автоматически)' : 'Нет подключения к интернету';
                 } else {
                     // Online - hide offline icon
                     offlineIcon.classList.add('hidden');
@@ -1083,8 +1074,6 @@
 
             // Update UI based on actual backend availability
             updateOfflineUI();
-
-            // Note: No auto-sync on network restore - user must click "Синхронизировать" button
         });
 
         // Update pending count
@@ -1111,22 +1100,14 @@
         // Considers both navigator.onLine AND SmartNetworkDetector status
         // Backend may be unreachable even if navigator.onLine is true
         function updateOfflineUI() {
-            // Check manual offline mode first
-            let isManualOffline = false;
             let isOnline = navigator.onLine;
 
             if (window.offlineManager && window.offlineManager.networkDetector) {
-                isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
                 const networkStatus = window.offlineManager.networkDetector.getStatus();
                 if (networkStatus === 'offline') {
                     isOnline = false;
                     debugLog('[Offline] Backend unreachable, switching to offline mode');
                 }
-            }
-
-            // If manual offline mode is enabled, treat as offline
-            if (isManualOffline) {
-                isOnline = false;
             }
 
             // Sync offline-mode class on <html> (for CSS-based hiding)
@@ -1136,28 +1117,13 @@
                 document.documentElement.classList.add('offline-mode');
             }
 
-            // Update offline badge (cloud with X) - show for AUTO offline only, hide for manual
+            // Update offline badge (cloud with X) - show when offline
             const offlineBadge = document.getElementById('offline-icon');
             if (offlineBadge) {
-                // Show only when auto-offline (not manual)
-                if (!isOnline && !isManualOffline) {
+                if (!isOnline) {
                     offlineBadge.classList.remove('hidden');
                 } else {
                     offlineBadge.classList.add('hidden');
-                }
-            }
-
-            // Update manual offline toggle button visibility
-            const manualOfflineToggle = document.getElementById('manual-offline-toggle');
-            if (manualOfflineToggle) {
-                // Hide toggle button when auto-offline (no network)
-                // Show only when online or manual offline mode
-                if (!isOnline && !isManualOffline) {
-                    // Auto-offline - hide toggle
-                    manualOfflineToggle.style.display = 'none';
-                } else {
-                    // Online or manual offline - show toggle
-                    manualOfflineToggle.style.display = '';
                 }
             }
 
@@ -1170,70 +1136,7 @@
 
             // Update pending count
             updatePendingCount();
-
-            // Update manual offline toggle button icon
-            updateManualOfflineToggleUI();
         }
-
-        // Toggle manual offline mode
-        async function toggleManualOfflineMode() {
-            if (!window.offlineManager || !window.offlineManager.networkDetector) {
-                console.warn('[Offline] NetworkDetector not available');
-                return;
-            }
-
-            const detector = window.offlineManager.networkDetector;
-            const wasEnabled = detector.isManualOfflineModeEnabled();
-            await detector.toggleManualOfflineMode();
-            const isEnabled = detector.isManualOfflineModeEnabled();
-
-            // Update UI (events from networkDetector will also trigger this, but call explicitly for safety)
-            updateManualOfflineToggleUI();
-            updateOfflineUI();
-
-            // Show toast notification
-            if (isEnabled) {
-                showToast('Оффлайн режим включен вручную', 'warning');
-            } else {
-                showToast('Оффлайн режим отключен', 'success');
-                // Note: No auto-sync - user must click "Синхронизировать" button
-            }
-        }
-
-        // Make function global for onclick handler
-        window.toggleManualOfflineMode = toggleManualOfflineMode;
-
-        // Update manual offline toggle button icon
-        function updateManualOfflineToggleUI() {
-            const onlineIcon = document.getElementById('offline-toggle-online-icon');
-            const offlineIcon = document.getElementById('offline-toggle-offline-icon');
-            const toggleButton = document.getElementById('manual-offline-toggle');
-
-            if (!onlineIcon || !offlineIcon || !toggleButton) return;
-
-            let isManualOffline = false;
-            if (window.offlineManager && window.offlineManager.networkDetector) {
-                isManualOffline = window.offlineManager.networkDetector.isManualOfflineModeEnabled();
-            }
-
-            if (isManualOffline) {
-                onlineIcon.classList.add('hidden');
-                offlineIcon.classList.remove('hidden');
-                toggleButton.title = 'Оффлайн режим включен (нажмите для отключения)';
-            } else {
-                onlineIcon.classList.remove('hidden');
-                offlineIcon.classList.add('hidden');
-                toggleButton.title = 'Переключить оффлайн режим';
-            }
-        }
-
-        // Listen for manual offline mode changes
-        window.addEventListener('manual-offline-mode-change', (event) => {
-            const { enabled } = event.detail || {};
-            debugLog('[Offline] Manual offline mode change:', enabled);
-            updateManualOfflineToggleUI();
-            updateOfflineUI();
-        });
 
         // Poll pending count every 5 seconds
         setInterval(updatePendingCount, 5000);

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "components/modal_transaction.html" import transaction_modal %}
+{% from "components/modal_edit_fact.html" import edit_fact_modal %}
 
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
@@ -27,12 +28,6 @@
                 </button>
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных фактов в CSV">
                     📄 CSV
-                </button>
-                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('excel')" title="Экспорт отфильтрованных фактов в Excel">
-                    📊 Excel
-                </button>
-                <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('pdf')" title="Экспорт отфильтрованных фактов в PDF">
-                    📑 PDF
                 </button>
             </div>
         </div>
@@ -185,7 +180,7 @@
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="card-title text-2xl">📋 Факты</h2>
-                <button class="btn btn-sm btn-error gap-1" id="batch-delete-btn" onclick="batchDelete()" disabled>
+                <button class="btn btn-sm btn-error gap-1 hidden md:flex" id="batch-delete-btn" onclick="batchDelete()" disabled>
                     🗑️ Удалить выбранные
                 </button>
             </div>
@@ -210,82 +205,7 @@
 {{ transaction_modal('modal_add_transaction') }}
 
 <!-- Edit Fact Modal -->
-<dialog id="edit-modal" class="modal">
-    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
-        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать факт</h3>
-        <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2 sm:space-y-4">
-            <input type="hidden" id="edit-id" name="id">
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">💵 Сумма*</span>
-                </label>
-                <input type="number" id="edit-amount" name="amount" step="0.01" required class="input input-bordered" />
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📅 Дата*</span>
-                </label>
-                <input type="text" id="edit-date" name="fact_date" required class="input input-bordered w-full" placeholder="ДД.ММ.ГГГГ" />
-            </div>
-            <!-- Тип категории -->
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text font-semibold">Тип категории *</span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="btn btn-outline btn-error edit-category-type-btn btn-active" data-type="expense">
-                        <input type="radio" name="edit_category_type" value="expense" class="hidden" checked />
-                        Расход
-                    </label>
-                    <label class="btn btn-outline btn-success edit-category-type-btn" data-type="income">
-                        <input type="radio" name="edit_category_type" value="income" class="hidden" />
-                        Доход
-                    </label>
-                </div>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📁 Категория*</span>
-                </label>
-                <select id="edit-article" name="article_id" required class="select select-bordered">
-                    <option value="" disabled hidden>-- Выберите категорию --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">🏦 Счет *</span>
-                </label>
-                <select id="edit-financial-center" name="financial_center_id" required class="select select-bordered">
-                    <option value="">-- Выберите счет --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">💼 Место затрат</span>
-                </label>
-                <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
-                    <option value="">-- Не указано --</option>
-                    <!-- Populated dynamically -->
-                </select>
-            </div>
-            <div class="form-control">
-                <label class="label">
-                    <span class="label-text">📝 Описание</span>
-                </label>
-                <textarea id="edit-description" name="description" rows="3" maxlength="500" class="textarea textarea-bordered"></textarea>
-            </div>
-            <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
-            </div>
-        </form>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
+{{ edit_fact_modal('edit-modal') }}
 
 <!-- Transfer Modal -->
 {% include "components/modal_transfer.html" %}
@@ -355,6 +275,53 @@
     margin-bottom: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+}
+
+/* Mobile Facts List Styles (Two-Line List) */
+.amount-expense { color: #ef4444; }
+.amount-income { color: #22c55e; }
+.amount-debit { color: #3b82f6; }
+.amount-credit { color: #f59e0b; }
+
+.facts-mobile-list {
+    display: none;
+}
+
+.transaction-item:not(:last-child) {
+    border-bottom: 1px solid hsl(var(--b3));
+}
+
+.transaction-item {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.transaction-item:hover {
+    background-color: hsl(var(--b2));
+}
+
+.transaction-item:active {
+    background-color: hsl(var(--b3));
+}
+
+/* Mobile: show list, hide table */
+@media (max-width: 768px) {
+    .facts-desktop-table {
+        display: none !important;
+    }
+    .facts-mobile-list {
+        display: block !important;
+    }
+}
+
+/* Desktop: show table, hide list */
+@media (min-width: 769px) {
+    .facts-desktop-table {
+        display: block;
+    }
+    .facts-mobile-list {
+        display: none;
+    }
 }
 </style>
 {% endblock %}
@@ -1203,6 +1170,24 @@ function getArticleTypeColor(type) {
     return colorMap[type] || '';
 }
 
+// Get mobile amount color class based on article type
+function getMobileAmountClass(type) {
+    const colorMap = {
+        'expense': 'amount-expense',
+        'income': 'amount-income',
+        'debit': 'amount-debit',
+        'credit': 'amount-credit'
+    };
+    return colorMap[type] || 'amount-expense';
+}
+
+// Format amount with sign for mobile view (without currency symbol for compact display)
+function formatMobileAmount(amount, type) {
+    const value = parseFloat(amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const sign = (type === 'income' || type === 'credit') ? '+' : '-';
+    return `${sign}${value}`;
+}
+
 // Render facts table
 function renderFactsTable(facts) {
     const container = document.getElementById('facts-table-container');
@@ -1214,8 +1199,9 @@ function renderFactsTable(facts) {
         return;
     }
 
-    let html = `
-        <div class="overflow-x-auto">
+    // Desktop table HTML
+    let tableHtml = `
+        <div class="facts-desktop-table overflow-x-auto">
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
@@ -1235,6 +1221,9 @@ function renderFactsTable(facts) {
                 <tbody>
     `;
 
+    // Mobile list HTML (Two-Line List format)
+    let mobileHtml = `<div class="facts-mobile-list divide-y divide-base-200">`;
+
     facts.forEach(fact => {
         // income + credit (пополнение) = зеленый, expense + debit (списание) = красный
         const amountClass = (fact.article_type === 'income' || fact.article_type === 'credit')
@@ -1245,8 +1234,11 @@ function renderFactsTable(facts) {
         const financialCenter = fact.financial_center_name || '—';
         const costCenter = fact.cost_center_name || '—';
         const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
+        // Short date for mobile (DD.MM without year)
+        const shortDate = formattedDate.slice(0, 5);
 
-        html += `
+        // Desktop table row
+        tableHtml += `
             <tr data-fact-id="${fact.id}">
                 <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="updateBatchDeleteButton()"></td>
                 <td><code class="badge badge-ghost">${fact.id}</code></td>
@@ -1257,7 +1249,7 @@ function renderFactsTable(facts) {
                     <span class="${getArticleTypeColor(fact.article_type)}">${fact.article_name || '—'}</span>
                     ${fact.transfer_id ? `<span class="badge badge-info badge-sm ml-2" title="Перевод ID: ${fact.transfer_id}">🔁 Перевод</span>` : ''}
                 </td>
-                <td class="${amountClass}">${parseFloat(fact.amount).toFixed(2)}</td>
+                <td class="${amountClass}">${parseFloat(fact.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td>${fact.user_name || '—'}</td>
                 <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
@@ -1269,15 +1261,40 @@ function renderFactsTable(facts) {
                 </td>
             </tr>
         `;
+
+        // Mobile list item (Two-Line List format from variant-2-list.html)
+        const mobileAmountClass = getMobileAmountClass(fact.article_type);
+        const mobileAmount = formatMobileAmount(fact.amount, fact.article_type);
+        const transferBadge = fact.transfer_id ? '🔁' : '';
+        const offlineIcon = fact.is_offline_sync ? '<span class="text-xs" title="Создано offline">☁️</span>' : '';
+
+        mobileHtml += `
+            <div class="transaction-item py-2" data-fact-id="${fact.id}" onclick="showEditModal(${fact.id})">
+                <!-- Line 1: Badge + Category + Amount -->
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-success badge-xs shrink-0">Факт</span>
+                    <span class="flex-1 font-medium truncate">${fact.article_name || '—'}${transferBadge}</span>
+                    <span class="${mobileAmountClass} font-bold whitespace-nowrap">${mobileAmount}</span>
+                    ${offlineIcon}
+                </div>
+                <!-- Line 2: Date • Account • Description -->
+                <div class="text-xs text-base-content/60 mt-1 truncate">
+                    ${shortDate} • ${financialCenter} • ${description}
+                </div>
+            </div>
+        `;
     });
 
-    html += `
+    tableHtml += `
                 </tbody>
             </table>
         </div>
     `;
 
-    container.innerHTML = html;
+    mobileHtml += `</div>`;
+
+    // Combine both views
+    container.innerHTML = tableHtml + mobileHtml;
 }
 
 // Toggle select all checkboxes
@@ -1474,6 +1491,15 @@ async function showEditModal(factId) {
 function closeEditModal() {
     document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
+}
+
+// Delete fact from edit modal (for mobile users without batch delete)
+async function deleteFromEditModal() {
+    const factId = document.getElementById('edit-id').value;
+    if (!factId) return;
+
+    closeEditModal();
+    await deleteFact(parseInt(factId));
 }
 
 // Update fact
@@ -2048,16 +2074,84 @@ function openCreateModal() {
 window.openCreateModal = openCreateModal;
 
 // ==================== FACTS PAGE SPECIFIC ====================
-// On facts page, hide the "save offline" buttons - show only "save and upload"
-// This is because facts page is meant for direct operations, not offline queuing
+// Update save button title based on offline mode
+// The unified .save-btn button color is controlled via CSS (html.offline-mode)
+
+function updateSaveButtonsVisibility() {
+    let isOffline = false;
+
+    if (window.offlineManager && window.offlineManager.networkDetector) {
+        const networkStatus = window.offlineManager.networkDetector.getStatus();
+        isOffline = networkStatus === 'offline';
+    } else {
+        isOffline = !navigator.onLine;
+    }
+
+    // Update unified save buttons (.save-btn)
+    const saveButtons = document.querySelectorAll('.save-btn');
+    saveButtons.forEach(btn => {
+        btn.title = isOffline
+            ? 'Сохранить локально (синхронизируется при подключении)'
+            : 'Сохранить на сервер';
+    });
+
+    debugLog('[facts.html] Updated button visibility, isOffline:', isOffline);
+}
+
+/**
+ * Unified save function for facts.html - submits form to server
+ * Note: Offline save functionality is only available on the main page (index.html)
+ * @param {HTMLButtonElement} button - Save button with data-form-id
+ */
+function saveTransaction(button) {
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        form?.reportValidity();
+    }
+}
+
+// Listen for offline mode changes
+window.addEventListener('network-status-change', updateSaveButtonsVisibility);
+window.addEventListener('offline-status-change', updateSaveButtonsVisibility);
+window.addEventListener('online', updateSaveButtonsVisibility);
+window.addEventListener('offline', updateSaveButtonsVisibility);
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Hide all save-offline buttons on facts page
-    const saveOfflineButtons = document.querySelectorAll('.save-offline-btn');
-    saveOfflineButtons.forEach(btn => {
-        btn.style.display = 'none';
-    });
-    debugLog('[facts.html] Hidden save-offline buttons - using save-upload only');
+    // Initial update with delay to ensure offlineManager is initialized
+    setTimeout(updateSaveButtonsVisibility, 1000);
+
+    // Register SSE event handlers for facts page (budgetSSEClient loaded in base.html)
+    setTimeout(() => {
+        if (window.budgetSSEClient) {
+            // Handler for fact events - refresh facts table
+            window.budgetSSEClient.on('fact_created', (data) => {
+                debugLog('[SSE] Fact created, refreshing table');
+                loadFacts();
+            });
+            window.budgetSSEClient.on('fact_updated', (data) => {
+                debugLog('[SSE] Fact updated, refreshing table');
+                loadFacts();
+            });
+            window.budgetSSEClient.on('fact_deleted', (data) => {
+                debugLog('[SSE] Fact deleted, refreshing table');
+                loadFacts();
+            });
+
+            // Handler for transfer events - transfers create facts, refresh table
+            window.budgetSSEClient.on('transfer_created', (data) => {
+                debugLog('[SSE] Transfer created, refreshing table');
+                loadFacts();
+            });
+            window.budgetSSEClient.on('transfer_deleted', (data) => {
+                debugLog('[SSE] Transfer deleted, refreshing table');
+                loadFacts();
+            });
+
+            debugLog('[SSE] Facts page handlers registered');
+        }
+    }, 1000);
 });
 </script>
 {% endblock %}

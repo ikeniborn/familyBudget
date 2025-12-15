@@ -664,7 +664,7 @@
             const amount = document.createElement('div');
             amount.className = `transaction-amount ${isExpense ? 'expense' : 'income'}`;
             const amountValue = Math.abs(fact.amount);
-            amount.textContent = `${isExpense ? '-' : '+'}${app.ui.formatAmount(amountValue)} ₽`;
+            amount.textContent = `${isExpense ? '-' : '+'}${app.ui.formatAmount(amountValue)}`;
 
             // Assemble
             item.appendChild(icon);

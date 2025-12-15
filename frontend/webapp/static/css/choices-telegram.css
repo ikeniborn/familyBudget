@@ -101,8 +101,10 @@
     z-index: 100;
 }
 
+/* Add spacing between search input and dropdown list (UX improvement for mobile) */
 .choices-telegram .choices__list--dropdown .choices__list {
     max-height: 280px;
+    margin-top: 8px;
 }
 
 /* Dropdown items */

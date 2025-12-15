@@ -1,7 +1,20 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-6">
+<!-- Mobile-only message: page not available on small screens -->
+<div class="md:hidden">
+    <div class="alert alert-info shadow-lg">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        <div>
+            <h3 class="font-bold">Страница недоступна на мобильных</h3>
+            <div class="text-sm">Эта страница доступна только на планшетах и ПК.</div>
+        </div>
+        <a href="/" class="btn btn-sm btn-primary">На главную</a>
+    </div>
+</div>
+
+<!-- Main content (hidden on mobile) -->
+<div class="hidden md:block space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-3xl font-bold mb-2">📥 Импорт фактов</h1>
@@ -237,15 +250,6 @@
             <!-- Bulk Operations Toolbar -->
             <div class="bg-base-200 p-4 rounded-lg mb-4" id="bulk-toolbar">
                 <div class="flex flex-wrap gap-4 items-end">
-                    <div class="form-control">
-                        <label class="label cursor-pointer gap-2">
-                            <input type="checkbox" id="select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll(this)" />
-                            <span class="label-text font-semibold">Выбрать все</span>
-                        </label>
-                    </div>
-
-                    <div class="divider divider-horizontal"></div>
-
                     <div class="form-control w-48">
                         <label class="label py-0">
                             <span class="label-text text-xs">Тип категории</span>
@@ -359,6 +363,7 @@
             <div id="import-result" class="mt-4"></div>
         </div>
     </div>
+</div>
 </div>
 
 <!-- Create Bank Modal -->
@@ -1765,8 +1770,7 @@ function toggleSelectAll(sourceCheckbox) {
         }
     });
 
-    // Sync both checkboxes to the same state
-    document.getElementById('select-all').checked = selectAll;
+    // Reset header checkbox state
     document.getElementById('header-select-all').checked = selectAll;
 
     updateStats();
@@ -1880,6 +1884,7 @@ async function applyBulkUpdate() {
 
         showNotification(`Обновлено ${selectedIds.length} записей`, 'success');
         await loadStagingTable();
+        document.getElementById('header-select-all').checked = false;
 
     } catch (error) {
         console.error('Bulk update error:', error);
@@ -1972,6 +1977,7 @@ async function deleteSelectedRecords() {
         const result = await response.json();
         showNotification(result.message || `Удалено ${selectedIds.length} записей`, 'success');
         await loadStagingTable();
+        document.getElementById('header-select-all').checked = false;
 
     } catch (error) {
         console.error('Bulk delete error:', error);

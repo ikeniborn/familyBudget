@@ -22,7 +22,7 @@ class ListsManager {
         this.hierarchyView = null; // HierarchyView instance
         this.db = null; // IndexedDBManager instance for offline support
         this.searchQuery = ''; // Search filter for items
-        this.sseClient = null; // SSE client for real-time updates
+        // Note: SSE updates now handled by global budgetSSEClient
     }
 
     /**
@@ -58,13 +58,8 @@ class ListsManager {
                 debugLog('[ListsManager] OfflineShoppingManager initialized');
             }
 
-            // Initialize SSE client for real-time updates
-            if (typeof ShoppingListSSEClient !== 'undefined') {
-                this.sseClient = new ShoppingListSSEClient();
-                debugLog('[ListsManager] SSE Client initialized');
-            } else {
-                console.warn('[ListsManager] ShoppingListSSEClient not available');
-            }
+            // Note: SSE updates now handled by global budgetSSEClient (consolidation)
+            // budgetSSEClient calls listsManager.addItemToUI, updateItemInUI, etc. directly
 
             // Listen for network status changes (sync when back online)
             window.addEventListener('offline-status-change', async (event) => {
@@ -72,12 +67,7 @@ class ListsManager {
                 this.updateOfflineUI(!online);
 
                 if (online) {
-                    // Reconnect SSE when back online
-                    if (this.sseClient && this.currentListId) {
-                        debugLog('[ListsManager] Back online, reconnecting SSE');
-                        this.sseClient.reconnectAttempts = 0; // Reset attempts
-                        this.sseClient.connect(this.currentListId);
-                    }
+                    // Note: SSE reconnection handled by global budgetSSEClient
 
                     if (this.offlineShopping) {
                         try {
@@ -98,13 +88,8 @@ class ListsManager {
                             console.error('[ListsManager] Sync error:', error);
                         }
                     }
-                } else {
-                    // Disconnect SSE when going offline
-                    if (this.sseClient) {
-                        debugLog('[ListsManager] Going offline, disconnecting SSE');
-                        this.sseClient.disconnect();
-                    }
                 }
+                // Note: SSE disconnect handled by global budgetSSEClient
             });
 
             // Load reference data
@@ -144,11 +129,7 @@ class ListsManager {
     async showLandingView() {
         debugLog('[ListsManager] Showing landing view');
 
-        // Disconnect from SSE when leaving detail view
-        if (this.sseClient) {
-            this.sseClient.disconnect();
-            debugLog('[ListsManager] Disconnected from SSE');
-        }
+        // Note: SSE stays connected globally via budgetSSEClient (no per-list disconnect needed)
 
         // Reset state
         this.currentListId = null;
@@ -230,11 +211,8 @@ class ListsManager {
         // Initialize Choices.js for product group selector in modal
         this.initProductGroupChoices();
 
-        // Connect to SSE for real-time updates (if online)
-        if (this.sseClient && this.isOnline) {
-            this.sseClient.connect(listId);
-            debugLog('[ListsManager] Connected to SSE for list:', listId);
-        }
+        // Note: SSE updates provided by global budgetSSEClient
+        // Filtering by shopping_list_id is done in addItemToUI, updateItemInUI, etc.
     }
 
     /**
@@ -1571,11 +1549,17 @@ class ListsManager {
 
     /**
      * Add item to UI (from SSE event)
-     * @param {Object} item - Item data from server
+     * @param {Object} item - Item data from server (must contain shopping_list_id)
      */
     addItemToUI(item) {
         if (!item || !item.id) {
             debugLog('[ListsManager] Invalid item for addItemToUI');
+            return;
+        }
+
+        // CRITICAL: Filter by current list to prevent cross-list item injection
+        if (item.shopping_list_id !== this.currentListId) {
+            debugLog('[ListsManager] Item from different list, ignoring:', item.shopping_list_id, 'current:', this.currentListId);
             return;
         }
 
@@ -1602,11 +1586,17 @@ class ListsManager {
 
     /**
      * Update item in UI (from SSE event)
-     * @param {Object} item - Updated item data from server
+     * @param {Object} item - Updated item data from server (must contain shopping_list_id)
      */
     updateItemInUI(item) {
         if (!item || !item.id) {
             debugLog('[ListsManager] Invalid item for updateItemInUI');
+            return;
+        }
+
+        // CRITICAL: Filter by current list to prevent cross-list item updates
+        if (item.shopping_list_id !== this.currentListId) {
+            debugLog('[ListsManager] Item from different list, ignoring update:', item.shopping_list_id, 'current:', this.currentListId);
             return;
         }
 
@@ -1631,10 +1621,17 @@ class ListsManager {
     /**
      * Remove item from UI (from SSE event)
      * @param {number} itemId - Item ID to remove
+     * @param {number} shoppingListId - Shopping list ID (for filtering)
      */
-    removeItemFromUI(itemId) {
+    removeItemFromUI(itemId, shoppingListId) {
         if (!itemId) {
             debugLog('[ListsManager] Invalid itemId for removeItemFromUI');
+            return;
+        }
+
+        // CRITICAL: Filter by current list to prevent cross-list item removal
+        if (shoppingListId !== undefined && shoppingListId !== this.currentListId) {
+            debugLog('[ListsManager] Item from different list, ignoring removal:', shoppingListId, 'current:', this.currentListId);
             return;
         }
 
@@ -1664,10 +1661,17 @@ class ListsManager {
      * Toggle item completed status in UI (from SSE event)
      * @param {number} itemId - Item ID
      * @param {boolean} isCompleted - New completed status
+     * @param {number} shoppingListId - Shopping list ID (for filtering)
      */
-    toggleItemCompletedInUI(itemId, isCompleted) {
+    toggleItemCompletedInUI(itemId, isCompleted, shoppingListId) {
         if (!itemId) {
             debugLog('[ListsManager] Invalid itemId for toggleItemCompletedInUI');
+            return;
+        }
+
+        // CRITICAL: Filter by current list to prevent cross-list item toggle
+        if (shoppingListId !== undefined && shoppingListId !== this.currentListId) {
+            debugLog('[ListsManager] Item from different list, ignoring toggle:', shoppingListId, 'current:', this.currentListId);
             return;
         }
 

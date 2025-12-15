@@ -60,8 +60,8 @@ def _get_sse_broadcast():
     """Lazy import SSE module to avoid circular dependencies."""
     global _sse_module
     if _sse_module is None:
-        from backend.app.api.v1.endpoints import shopping_list_sse
-        _sse_module = shopping_list_sse
+        from backend.app.api.v1.endpoints import budget_sse
+        _sse_module = budget_sse
     return _sse_module
 
 router = APIRouter(
@@ -205,14 +205,10 @@ async def create_shopping_list_item(
         f"for list {item.shopping_list_id} by user {current_user.id}"
     )
 
-    # Broadcast SSE event (exclude sender)
+    # Broadcast SSE event to all connected clients
     response = ShoppingListItemResponse.model_validate(item)
     sse = _get_sse_broadcast()
-    await sse.broadcast_item_created(
-        list_id=item.shopping_list_id,
-        item_data=response.model_dump(),
-        user_id=current_user.id,
-    )
+    await sse.broadcast_item_created(item_data=response.model_dump())
 
     return response
 
@@ -336,14 +332,10 @@ async def update_shopping_list_item(
         f"version: {item.version}, fields: {changed_fields} by user {current_user.id}"
     )
 
-    # Broadcast SSE event (exclude sender)
+    # Broadcast SSE event to all connected clients
     response = ShoppingListItemResponse.model_validate(item)
     sse = _get_sse_broadcast()
-    await sse.broadcast_item_updated(
-        list_id=item.shopping_list_id,
-        item_data=response.model_dump(),
-        user_id=current_user.id,
-    )
+    await sse.broadcast_item_updated(item_data=response.model_dump())
 
     return response
 
@@ -400,13 +392,9 @@ async def delete_shopping_list_item(
         f"version: {item.version} by user {current_user.id}"
     )
 
-    # Broadcast SSE event (exclude sender)
+    # Broadcast SSE event to all connected clients
     sse = _get_sse_broadcast()
-    await sse.broadcast_item_deleted(
-        list_id=list_id,
-        item_id=item_id,
-        user_id=current_user.id,
-    )
+    await sse.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
 
     return None  # 204 No Content
 
@@ -471,15 +459,14 @@ async def batch_complete_items(
         f"{count} items by user {current_user.id}"
     )
 
-    # Broadcast SSE events (exclude sender)
+    # Broadcast SSE events to all connected clients
     sse = _get_sse_broadcast()
     for list_id, item_ids in items_by_list.items():
         for item_id in item_ids:
             await sse.broadcast_item_completed(
-                list_id=list_id,
                 item_id=item_id,
+                shopping_list_id=list_id,
                 is_completed=request.is_completed,
-                user_id=current_user.id,
             )
 
     return {
@@ -549,15 +536,11 @@ async def batch_delete_items(
 
     logger.info(f"Batch deleted {count} items by user {current_user.id}")
 
-    # Broadcast SSE events (exclude sender)
+    # Broadcast SSE events to all connected clients
     sse = _get_sse_broadcast()
     for list_id, item_ids in items_by_list.items():
         for item_id in item_ids:
-            await sse.broadcast_item_deleted(
-                list_id=list_id,
-                item_id=item_id,
-                user_id=current_user.id,
-            )
+            await sse.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
 
     return {"message": f"Deleted {count} items", "count": count}
 

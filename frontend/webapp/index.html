@@ -272,15 +272,15 @@
                 <div class="quick-stats-title">Сегодня</div>
                 <div class="stats-row">
                     <span class="stats-label">Доходы</span>
-                    <span class="stats-value income" id="today-income">+0.00 ₽</span>
+                    <span class="stats-value income" id="today-income">+0.00</span>
                 </div>
                 <div class="stats-row">
                     <span class="stats-label">Расходы</span>
-                    <span class="stats-value expense" id="today-expense">-0.00 ₽</span>
+                    <span class="stats-value expense" id="today-expense">-0.00</span>
                 </div>
                 <div class="stats-row">
                     <span class="stats-label">Баланс</span>
-                    <span class="stats-value balance" id="today-balance">0.00 ₽</span>
+                    <span class="stats-value balance" id="today-balance">0.00</span>
                 </div>
             </div>
         </div>
@@ -461,12 +461,12 @@
                     const balance = income - expense;
 
                     // Update display
-                    document.getElementById('today-income').textContent = `+${app.ui.formatAmount(income)} ₽`;
-                    document.getElementById('today-expense').textContent = `-${app.ui.formatAmount(expense)} ₽`;
+                    document.getElementById('today-income').textContent = `+${app.ui.formatAmount(income)}`;
+                    document.getElementById('today-expense').textContent = `-${app.ui.formatAmount(expense)}`;
 
                     const balanceElement = document.getElementById('today-balance');
                     const sign = balance >= 0 ? '+' : '-';
-                    balanceElement.textContent = `${sign}${app.ui.formatAmount(Math.abs(balance))} ₽`;
+                    balanceElement.textContent = `${sign}${app.ui.formatAmount(Math.abs(balance))}`;
 
                     // Show stats
                     const statsContent = document.getElementById('stats-content');
