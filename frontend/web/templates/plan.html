@@ -1306,6 +1306,19 @@ async function filterCostCenterDropdown(formSelector, financialCenterId) {
         return;
     }
 
+    // If offline - use cached data, don't make API request
+    if (!navigator.onLine || (window.offlineManager && !window.offlineManager.isOnline)) {
+        console.debug('[CostCenter] Offline mode - using cached data');
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            select.appendChild(option);
+        });
+        if (currentValue) select.value = currentValue;
+        return;
+    }
+
     // Fetch filtered cost centers from API
     try {
         const response = await fetch(
@@ -1335,7 +1348,12 @@ async function filterCostCenterDropdown(formSelector, financialCenterId) {
             });
         }
     } catch (error) {
-        console.error('Error filtering cost centers:', error);
+        // Don't log as error in offline mode - this is expected behavior
+        if (!navigator.onLine || (window.offlineManager && !window.offlineManager.isOnline)) {
+            console.debug('[CostCenter] Network error in offline mode (expected):', error.message);
+        } else {
+            console.warn('[CostCenter] Error filtering cost centers:', error.message);
+        }
         allCostCenters.forEach(cc => {
             const option = document.createElement('option');
             option.value = cc.id;

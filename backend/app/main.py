@@ -20,6 +20,7 @@ from backend.app.middleware import JWTAuthMiddleware, limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from backend.app.scheduler import start_scheduler, stop_scheduler
+from backend.app.api.v1.endpoints.budget_sse import start_cleanup_task, stop_cleanup_task
 from backend.app.middleware.csp_middleware import CSPMiddleware
 from backend.app.middleware.error_handler import (
     api_exception_handler,
@@ -60,6 +61,10 @@ async def lifespan(app: FastAPI):
     await start_scheduler()
     logger.info("Background scheduler started successfully")
 
+    # Start SSE cleanup background task (zombie connection protection)
+    start_cleanup_task()
+    logger.info("SSE cleanup task started successfully")
+
     # Auto-fetch Telegram bot username if not configured
     if settings.TELEGRAM_BOT_USERNAME is None:
         logger.info("TELEGRAM_BOT_USERNAME not configured, fetching from Telegram API...")
@@ -88,6 +93,10 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Application shutting down")
+
+    # Stop SSE cleanup background task
+    stop_cleanup_task()
+    logger.info("SSE cleanup task stopped")
 
     # Stop background scheduler
     await stop_scheduler()

@@ -32,6 +32,9 @@ class BudgetSSEClient {
         // Flag for limit reached state
         this.limitReached = false;
 
+        // Connection ID for active disconnect notification (sendBeacon)
+        this.connectionId = null;
+
         // Close when tab hidden, reconnect when visible
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
@@ -176,6 +179,11 @@ class BudgetSSEClient {
             this.eventSource.addEventListener('connected', (event) => {
                 debugLog('[BudgetSSE] Connected event:', event.data);
                 const data = JSON.parse(event.data);
+                // Save connection_id for active disconnect notification
+                if (data.connection_id) {
+                    this.connectionId = data.connection_id;
+                    debugLog('[BudgetSSE] Connection ID:', this.connectionId);
+                }
                 this._notifyHandlers('connected', data);
             });
 
@@ -418,6 +426,11 @@ class BudgetSSEClient {
 
             switch (event.event) {
                 case 'connected':
+                    // Save connection_id for active disconnect notification (fetch-based SSE)
+                    if (data.connection_id) {
+                        this.connectionId = data.connection_id;
+                        debugLog('[BudgetSSE] Connection ID (fetch):', this.connectionId);
+                    }
                     this._notifyHandlers('connected', data);
                     break;
                 case 'ping':
@@ -497,6 +510,7 @@ class BudgetSSEClient {
         this.isConnected = false;
         this.reconnectAttempts = 0;
         this.limitReached = false;  // Reset limit flag on disconnect
+        this.connectionId = null;   // Clear connection ID
         this._updateStatusIndicator();
         this._notifyHandlers('disconnect', {});
     }
@@ -507,6 +521,28 @@ class BudgetSSEClient {
      * @private
      */
     _silentClose() {
+        // Actively notify server about disconnect via sendBeacon
+        // This allows instant connection slot release (even on page close)
+        if (this.connectionId) {
+            const payload = JSON.stringify({ connection_id: this.connectionId });
+            debugLog('[BudgetSSE] Sending disconnect beacon for:', this.connectionId);
+
+            if (navigator.sendBeacon) {
+                // sendBeacon works even during page unload
+                navigator.sendBeacon('/api/v1/budget/events/disconnect', payload);
+            } else {
+                // Fallback for older browsers
+                fetch('/api/v1/budget/events/disconnect', {
+                    method: 'POST',
+                    body: payload,
+                    headers: { 'Content-Type': 'application/json' },
+                    keepalive: true,  // Keeps request alive after page unload
+                    credentials: 'include'
+                }).catch(() => {});  // Ignore errors - best effort
+            }
+            this.connectionId = null;
+        }
+
         // Clear timers
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
