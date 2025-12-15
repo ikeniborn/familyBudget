@@ -32,17 +32,30 @@ class BudgetSSEClient {
         // Flag for limit reached state
         this.limitReached = false;
 
-        // Reconnect when tab becomes visible
+        // Close when tab hidden, reconnect when visible
         document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible' &&
+            if (document.visibilityState === 'hidden') {
+                // Close connection when tab is hidden to free up connection slot
+                debugLog('[BudgetSSE] Tab hidden, closing connection');
+                this._silentClose();
+            } else if (document.visibilityState === 'visible' &&
                 !this.isConnected &&
                 this.enabled &&
                 !this.reconnectTimeout) {
                 debugLog('[BudgetSSE] Tab visible, reconnecting');
                 this.reconnectAttempts = 0;
-                this.limitReached = false;  // Reset limit flag on visibility change
+                this.limitReached = false;
                 this._createConnection();
             }
+        });
+
+        // Close connection on page unload
+        window.addEventListener('beforeunload', () => {
+            this._silentClose();
+        });
+
+        window.addEventListener('pagehide', () => {
+            this._silentClose();
         });
     }
 
@@ -254,6 +267,13 @@ class BudgetSSEClient {
                     clearTimeout(this.connectionTimer);
                     this.connectionTimer = null;
                 }
+
+                // Close and clear reference to EventSource
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
+
                 this.isConnected = false;
                 this._updateStatusIndicator();
                 this._notifyHandlers('error', error);
@@ -479,6 +499,39 @@ class BudgetSSEClient {
         this.limitReached = false;  // Reset limit flag on disconnect
         this._updateStatusIndicator();
         this._notifyHandlers('disconnect', {});
+    }
+
+    /**
+     * Close connection silently without notifying handlers
+     * Used for tab hidden/page unload scenarios where we don't want UI updates
+     * @private
+     */
+    _silentClose() {
+        // Clear timers
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+        if (this.connectionTimer) {
+            clearTimeout(this.connectionTimer);
+            this.connectionTimer = null;
+        }
+
+        // Close EventSource
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+
+        // Abort fetch
+        if (this.fetchController) {
+            this.fetchController.abort();
+            this.fetchController = null;
+        }
+
+        this.isConnected = false;
+        // Don't call _notifyHandlers or _updateStatusIndicator
+        // because tab is hidden/closing
     }
 
     /**
