@@ -2262,6 +2262,46 @@ async function createReminder(factId, reminderDatetime) {
     }
 }
 
+// ==================== UNIFIED SAVE FUNCTIONS ====================
+// These functions automatically choose between online (form submit) and offline (local queue) mode
+
+/**
+ * Unified save function - automatically chooses online/offline mode
+ * @param {HTMLButtonElement} button - Save button with data-form-id and data-modal-id
+ * @param {string} type - 'transaction' | 'plan' | 'transfer'
+ */
+async function unifiedSave(button, type) {
+    const isOnline = window.offlineManager?.networkDetector?.isOnline() ?? navigator.onLine;
+
+    if (isOnline) {
+        // Online: submit form to server
+        const form = document.getElementById(button.dataset.formId);
+        if (form && form.checkValidity()) {
+            form.requestSubmit();  // Triggers form submit with validation
+        } else {
+            form?.reportValidity();
+        }
+    } else {
+        // Offline: save locally
+        switch (type) {
+            case 'transaction':
+                await saveTransactionOffline(button);
+                break;
+            case 'plan':
+                await savePlanOffline(button);
+                break;
+            case 'transfer':
+                await saveTransferOffline(button);
+                break;
+        }
+    }
+}
+
+// Wrapper functions for each modal type
+function saveTransaction(button) { unifiedSave(button, 'transaction'); }
+function savePlan(button) { unifiedSave(button, 'plan'); }
+function saveTransfer(button) { unifiedSave(button, 'transfer'); }
+
 // ==================== OFFLINE SAVE FUNCTIONS ====================
 // These functions save records to the local queue WITHOUT immediately uploading to server
 // Used when user wants to save locally (or when in manual offline mode)
@@ -2546,11 +2586,11 @@ async function saveTransferOffline(button) {
 }
 
 /**
- * Update save button visibility based on offline mode
+ * Update save button title based on offline mode
  * Called when auto offline mode changes
  *
- * - save-upload-btn: enabled when ONLINE (direct upload to server)
- * - save-offline-btn: enabled when OFFLINE mode is ON (save locally)
+ * The unified .save-btn button color is controlled via CSS (html.offline-mode)
+ * This function just updates the tooltip/title for better UX
  */
 function updateSaveButtonsVisibility() {
     let isOffline = false;
@@ -2563,34 +2603,12 @@ function updateSaveButtonsVisibility() {
         isOffline = !navigator.onLine;
     }
 
-    // Get all save-upload buttons (online only)
-    const uploadButtons = document.querySelectorAll('.save-upload-btn');
-    uploadButtons.forEach(btn => {
-        if (isOffline) {
-            btn.disabled = true;
-            btn.classList.add('btn-disabled');
-            btn.title = 'Недоступно в оффлайн режиме';
-        } else {
-            btn.disabled = false;
-            btn.classList.remove('btn-disabled');
-            btn.title = 'Сохранить и загрузить на сервер';
-        }
-    });
-
-    // Get all save-offline buttons (offline mode only)
-    const offlineButtons = document.querySelectorAll('.save-offline-btn');
-    offlineButtons.forEach(btn => {
-        if (isOffline) {
-            // Offline mode enabled - enable the button
-            btn.disabled = false;
-            btn.classList.remove('btn-disabled');
-            btn.title = 'Сохранить локально (синхронизируется при подключении)';
-        } else {
-            // Online mode - disable the button
-            btn.disabled = true;
-            btn.classList.add('btn-disabled');
-            btn.title = 'Доступно только в оффлайн режиме';
-        }
+    // Update unified save buttons (.save-btn)
+    const saveButtons = document.querySelectorAll('.save-btn');
+    saveButtons.forEach(btn => {
+        btn.title = isOffline
+            ? 'Сохранить локально (синхронизируется при подключении)'
+            : 'Сохранить на сервер';
     });
 }
 

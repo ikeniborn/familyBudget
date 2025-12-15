@@ -444,3 +444,27 @@
 .dark .choices__item .product-group-parents {
     color: rgb(156 163 175) !important; /* gray-400 */
 }
+
+/* ============================================================================
+ * MOBILE: Spacing between search input and dropdown list
+ * Improves touch navigation by adding visual gap
+ * ============================================================================ */
+@media (max-width: 640px) {
+    /* Add padding at top of dropdown list for touch-friendly gap */
+    .choices__list--dropdown .choices__list {
+        padding-top: 0.5rem;  /* 8px gap between search and first item */
+    }
+
+    /* Visual separator line */
+    .choices__list--dropdown .choices__list::before {
+        content: '';
+        display: block;
+        height: 1px;
+        background: rgba(0, 0, 0, 0.1);
+        margin: 0 1rem 0.5rem 1rem;
+    }
+
+    .dark .choices__list--dropdown .choices__list::before {
+        background: rgba(255, 255, 255, 0.1);
+    }
+}

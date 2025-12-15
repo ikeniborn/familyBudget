@@ -23,6 +23,12 @@ class BudgetSSEClient {
         this.handlers = {};
         this.enabled = true;  // Can be disabled if not needed
 
+        // Safari iOS fallback support
+        this.connectionTimeout = 5000;  // 5 seconds to connect
+        this.useFetchSSE = false;       // Flag for fetch-based SSE
+        this.fetchController = null;    // AbortController for fetch
+        this.connectionTimer = null;    // Timer for connection timeout
+
         // Reconnect when tab becomes visible
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' &&
@@ -55,7 +61,7 @@ class BudgetSSEClient {
     }
 
     /**
-     * Create EventSource connection
+     * Create EventSource connection with Safari iOS fallback
      * @private
      */
     _createConnection() {
@@ -63,14 +69,35 @@ class BudgetSSEClient {
             return;
         }
 
-        try {
-            const url = '/api/v1/budget/events';
-            debugLog('[BudgetSSE] Connecting to:', url);
+        const url = '/api/v1/budget/events';
+        debugLog('[BudgetSSE] Connecting to:', url);
 
-            this.eventSource = new EventSource(url);
+        // If we already know EventSource doesn't work - use fetch directly
+        if (this.useFetchSSE) {
+            this._useFetchEventSource();
+            return;
+        }
+
+        try {
+            this.eventSource = new EventSource(url, { withCredentials: true });
+
+            // Timeout - if onopen not called within 5 seconds, switch to fetch
+            this.connectionTimer = setTimeout(() => {
+                if (!this.isConnected && this.eventSource) {
+                    debugLog('[BudgetSSE] EventSource timeout, trying fetch-based SSE');
+                    this.eventSource.close();
+                    this.eventSource = null;
+                    this.useFetchSSE = true;
+                    this._useFetchEventSource();
+                }
+            }, this.connectionTimeout);
 
             // Connection opened
             this.eventSource.onopen = () => {
+                if (this.connectionTimer) {
+                    clearTimeout(this.connectionTimer);
+                    this.connectionTimer = null;
+                }
                 debugLog('[BudgetSSE] Connection opened');
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
@@ -180,6 +207,10 @@ class BudgetSSEClient {
             // Error handler
             this.eventSource.onerror = (error) => {
                 console.error('[BudgetSSE] Connection error:', error);
+                if (this.connectionTimer) {
+                    clearTimeout(this.connectionTimer);
+                    this.connectionTimer = null;
+                }
                 this.isConnected = false;
                 this._updateStatusIndicator();
                 this._notifyHandlers('error', error);
@@ -187,8 +218,179 @@ class BudgetSSEClient {
             };
 
         } catch (error) {
-            console.error('[BudgetSSE] Failed to create connection:', error);
+            console.error('[BudgetSSE] EventSource failed:', error);
+            this.useFetchSSE = true;
+            this._useFetchEventSource();
+        }
+    }
+
+    /**
+     * Fetch-based SSE implementation for Safari iOS
+     * Uses fetch API with ReadableStream instead of EventSource
+     * @private
+     */
+    async _useFetchEventSource() {
+        const url = '/api/v1/budget/events';
+        debugLog('[BudgetSSE] Using fetch-based SSE');
+
+        this.fetchController = new AbortController();
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'include',  // Send cookies!
+                headers: {
+                    'Accept': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
+                },
+                signal: this.fetchController.signal,
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            this.isConnected = true;
+            this.reconnectAttempts = 0;
+            this._updateStatusIndicator();
+            this._notifyHandlers('connect', {});
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) {
+                    debugLog('[BudgetSSE] Stream ended');
+                    break;
+                }
+
+                buffer += decoder.decode(value, { stream: true });
+                const events = this._parseSSEBuffer(buffer);
+                buffer = events.remaining;
+
+                for (const event of events.parsed) {
+                    this._dispatchSSEEvent(event);
+                }
+            }
+
+            // Stream ended - schedule reconnect
+            this.isConnected = false;
+            this._updateStatusIndicator();
             this._scheduleReconnect();
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                debugLog('[BudgetSSE] Fetch aborted');
+                return;
+            }
+            console.error('[BudgetSSE] Fetch SSE error:', error);
+            this.isConnected = false;
+            this._updateStatusIndicator();
+            this._notifyHandlers('error', error);
+            this._scheduleReconnect();
+        }
+    }
+
+    /**
+     * Parse SSE events from buffer
+     * @param {string} buffer - Raw SSE data
+     * @returns {Object} - { parsed: Event[], remaining: string }
+     * @private
+     */
+    _parseSSEBuffer(buffer) {
+        const events = [];
+        const lines = buffer.split('\n');
+        let remaining = '';
+        let currentEvent = { event: 'message', data: '' };
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+
+            // Incomplete line at end - save for next chunk
+            if (i === lines.length - 1 && line !== '') {
+                remaining = line;
+                continue;
+            }
+
+            if (line === '') {
+                // Empty line = end of event
+                if (currentEvent.data) {
+                    events.push(currentEvent);
+                }
+                currentEvent = { event: 'message', data: '' };
+            } else if (line.startsWith('event:')) {
+                currentEvent.event = line.slice(6).trim();
+            } else if (line.startsWith('data:')) {
+                currentEvent.data += line.slice(5).trim();
+            } else if (line.startsWith('id:')) {
+                currentEvent.id = line.slice(3).trim();
+            }
+        }
+
+        return { parsed: events, remaining };
+    }
+
+    /**
+     * Dispatch parsed SSE event to handlers
+     * @param {Object} event - Parsed SSE event { event, data, id }
+     * @private
+     */
+    _dispatchSSEEvent(event) {
+        debugLog('[BudgetSSE] Event:', event.event, event.data);
+
+        try {
+            const data = event.data ? JSON.parse(event.data) : {};
+
+            switch (event.event) {
+                case 'connected':
+                    this._notifyHandlers('connected', data);
+                    break;
+                case 'ping':
+                    // Keepalive - ignore
+                    break;
+                case 'fact_created':
+                    this._handleFactCreated(data);
+                    break;
+                case 'fact_updated':
+                    this._handleFactUpdated(data);
+                    break;
+                case 'fact_deleted':
+                    this._handleFactDeleted(data);
+                    break;
+                case 'plan_created':
+                    this._handlePlanCreated(data);
+                    break;
+                case 'plan_updated':
+                    this._handlePlanUpdated(data);
+                    break;
+                case 'plan_deleted':
+                    this._handlePlanDeleted(data);
+                    break;
+                case 'transfer_created':
+                    this._handleTransferCreated(data);
+                    break;
+                case 'transfer_deleted':
+                    this._handleTransferDeleted(data);
+                    break;
+                case 'item_created':
+                    this._handleItemCreated(data);
+                    break;
+                case 'item_updated':
+                    this._handleItemUpdated(data);
+                    break;
+                case 'item_deleted':
+                    this._handleItemDeleted(data);
+                    break;
+                case 'item_completed':
+                    this._handleItemCompleted(data);
+                    break;
+                default:
+                    this._handleEvent(event.event, data);
+            }
+        } catch (e) {
+            console.error('[BudgetSSE] Parse error:', e);
         }
     }
 
@@ -201,10 +403,22 @@ class BudgetSSEClient {
             this.reconnectTimeout = null;
         }
 
+        if (this.connectionTimer) {
+            clearTimeout(this.connectionTimer);
+            this.connectionTimer = null;
+        }
+
         if (this.eventSource) {
-            debugLog('[BudgetSSE] Disconnecting');
+            debugLog('[BudgetSSE] Disconnecting EventSource');
             this.eventSource.close();
             this.eventSource = null;
+        }
+
+        // Abort fetch if active
+        if (this.fetchController) {
+            debugLog('[BudgetSSE] Aborting fetch');
+            this.fetchController.abort();
+            this.fetchController = null;
         }
 
         this.isConnected = false;

@@ -2048,9 +2048,8 @@ function openCreateModal() {
 window.openCreateModal = openCreateModal;
 
 // ==================== FACTS PAGE SPECIFIC ====================
-// Update save button visibility based on offline mode
-// - save-upload-btn: enabled when ONLINE (direct upload to server)
-// - save-offline-btn: enabled when OFFLINE mode is ON (save locally)
+// Update save button title based on offline mode
+// The unified .save-btn button color is controlled via CSS (html.offline-mode)
 
 function updateSaveButtonsVisibility() {
     let isOffline = false;
@@ -2062,35 +2061,29 @@ function updateSaveButtonsVisibility() {
         isOffline = !navigator.onLine;
     }
 
-    // Get all save-upload buttons (online only)
-    const uploadButtons = document.querySelectorAll('.save-upload-btn');
-    uploadButtons.forEach(btn => {
-        if (isOffline) {
-            btn.disabled = true;
-            btn.classList.add('btn-disabled');
-            btn.title = 'Недоступно в оффлайн режиме';
-        } else {
-            btn.disabled = false;
-            btn.classList.remove('btn-disabled');
-            btn.title = 'Сохранить и загрузить на сервер';
-        }
-    });
-
-    // Get all save-offline buttons (offline mode only)
-    const offlineButtons = document.querySelectorAll('.save-offline-btn');
-    offlineButtons.forEach(btn => {
-        if (isOffline) {
-            btn.disabled = false;
-            btn.classList.remove('btn-disabled');
-            btn.title = 'Сохранить локально (синхронизируется при подключении)';
-        } else {
-            btn.disabled = true;
-            btn.classList.add('btn-disabled');
-            btn.title = 'Доступно только в оффлайн режиме';
-        }
+    // Update unified save buttons (.save-btn)
+    const saveButtons = document.querySelectorAll('.save-btn');
+    saveButtons.forEach(btn => {
+        btn.title = isOffline
+            ? 'Сохранить локально (синхронизируется при подключении)'
+            : 'Сохранить на сервер';
     });
 
     debugLog('[facts.html] Updated button visibility, isOffline:', isOffline);
+}
+
+/**
+ * Unified save function for facts.html - submits form to server
+ * Note: Offline save functionality is only available on the main page (index.html)
+ * @param {HTMLButtonElement} button - Save button with data-form-id
+ */
+function saveTransaction(button) {
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        form?.reportValidity();
+    }
 }
 
 // Listen for offline mode changes

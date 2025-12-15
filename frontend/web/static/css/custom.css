@@ -303,3 +303,50 @@ select.category-filter option[data-type="credit"] {
         font-size: 14px;
     }
 }
+
+/* ==================================
+   Mobile: Larger Modal Action Buttons
+   15% increase for better touch targets
+   ================================== */
+@media (max-width: 640px) {
+    .modal-action .btn {
+        min-height: 2.875rem;       /* 46px vs default 40px (~15% larger) */
+        padding-left: 1.15rem;      /* ~15% increase from 1rem */
+        padding-right: 1.15rem;
+        font-size: 0.9375rem;       /* 15px vs default 13px */
+    }
+
+    /* Ensure icons scale proportionally */
+    .modal-action .btn svg {
+        width: 1.125rem;            /* 18px vs default 16px */
+        height: 1.125rem;
+    }
+}
+
+/* ==================================
+   Unified Save Button (Online/Offline)
+   ================================== */
+
+/* Default state: online - green */
+.save-btn {
+    background-color: oklch(var(--su));
+    border-color: oklch(var(--su));
+    color: oklch(var(--suc));
+}
+
+.save-btn:hover {
+    background-color: oklch(var(--su) / 0.9);
+    border-color: oklch(var(--su) / 0.9);
+}
+
+/* Offline mode: orange/warning */
+html.offline-mode .save-btn {
+    background-color: oklch(var(--wa)) !important;
+    border-color: oklch(var(--wa)) !important;
+    color: oklch(var(--wac)) !important;
+}
+
+html.offline-mode .save-btn:hover {
+    background-color: oklch(var(--wa) / 0.9) !important;
+    border-color: oklch(var(--wa) / 0.9) !important;
+}
