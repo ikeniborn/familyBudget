@@ -2612,6 +2612,85 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+<!-- SSE Event Handlers for index page (Budget SSE Client loaded in base.html) -->
+<script>
+// Register SSE event handlers for index page UI updates
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for budgetSSEClient to be available
+    setTimeout(() => {
+        if (window.budgetSSEClient) {
+            // Handler for fact events - refresh dashboard
+            window.budgetSSEClient.on('fact_created', (data) => {
+                debugLog('[SSE] Fact created, refreshing dashboard');
+                refreshDashboard();
+            });
+            window.budgetSSEClient.on('fact_updated', (data) => {
+                debugLog('[SSE] Fact updated, refreshing dashboard');
+                refreshDashboard();
+            });
+            window.budgetSSEClient.on('fact_deleted', (data) => {
+                debugLog('[SSE] Fact deleted, refreshing dashboard');
+                refreshDashboard();
+            });
+
+            // Handler for plan events - refresh stats
+            window.budgetSSEClient.on('plan_created', (data) => {
+                debugLog('[SSE] Plan created, refreshing stats');
+                refreshQuickStats();
+            });
+            window.budgetSSEClient.on('plan_updated', (data) => {
+                debugLog('[SSE] Plan updated, refreshing stats');
+                refreshQuickStats();
+            });
+            window.budgetSSEClient.on('plan_deleted', (data) => {
+                debugLog('[SSE] Plan deleted, refreshing stats');
+                refreshQuickStats();
+            });
+
+            // Handler for transfer events - refresh balances
+            window.budgetSSEClient.on('transfer_created', (data) => {
+                debugLog('[SSE] Transfer created, refreshing balances');
+                refreshRecentTransactions();
+                refreshAccountBalances();
+            });
+            window.budgetSSEClient.on('transfer_deleted', (data) => {
+                debugLog('[SSE] Transfer deleted, refreshing balances');
+                refreshRecentTransactions();
+                refreshAccountBalances();
+            });
+        }
+    }, 1000);
+});
+
+// Dashboard refresh helpers
+function refreshDashboard() {
+    refreshRecentTransactions();
+    refreshQuickStats();
+    refreshAccountBalances();
+}
+
+function refreshRecentTransactions() {
+    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+        target: '#recent-transactions',
+        swap: 'innerHTML'
+    });
+}
+
+function refreshQuickStats() {
+    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+        target: '#quick-stats',
+        swap: 'innerHTML'
+    });
+}
+
+function refreshAccountBalances() {
+    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+        target: '#account-balances',
+        swap: 'innerHTML'
+    });
+}
+</script>
+
 <!-- Include Transfer Modal -->
 {% include "components/modal_transfer.html" %}
 

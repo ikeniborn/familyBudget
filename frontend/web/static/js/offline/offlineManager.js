@@ -73,10 +73,12 @@ class OfflineManager {
         if (typeof SmartNetworkDetector !== 'undefined') {
             this.networkDetector = new SmartNetworkDetector({
                 heartbeatUrl: '/health',
-                heartbeatIntervals: [2000, 4000, 20000],  // Прогрессивные интервалы: 2s, 4s, 20s
+                // Интервалы увеличены после внедрения SSE (real-time updates через SSE,
+                // health check нужен только для определения offline режима)
+                heartbeatIntervals: [5000, 10000, 30000],  // Прогрессивные интервалы: 5s, 10s, 30s
                 heartbeatTimeout: 5000,    // 5 сек timeout
                 maxFailures: 3,            // 3 ошибки подряд → offline
-                minCheckInterval: 1000,    // Защита от спама (1 сек)
+                minCheckInterval: 2000,    // Защита от спама (2 сек)
                 onStatusChange: (newStatus, oldStatus, options = {}) => {
                     this._handleNetworkStatusChange(newStatus, oldStatus, options);
                 }
@@ -1442,6 +1444,82 @@ class OfflineManager {
         // 1. Logging for debugging
         // 2. Future auto-recovery specific logic (if needed)
         console.log('[OfflineManager] Auto offline recovery event received (toast/sync already handled by status change)');
+    }
+
+    // ==================== SSE INTEGRATION ====================
+
+    /**
+     * Callback for SSE events to refresh UI
+     * Set this from the page to handle real-time updates
+     * @type {Function|null}
+     * @param {string} eventType - Event type (fact_created, fact_updated, fact_deleted, etc.)
+     * @param {Object} data - Event data
+     */
+    refreshUICallback = null;
+
+    /**
+     * Initialize Budget SSE client for real-time updates
+     * Call this after OfflineManager.init() on pages that need real-time updates
+     * @param {Object} options - SSE options
+     * @param {Function} options.onFact - Callback for fact events (created/updated/deleted)
+     * @param {Function} options.onPlan - Callback for plan events (created/updated/deleted)
+     * @param {Function} options.onTransfer - Callback for transfer events (created/deleted)
+     * @param {boolean} options.autoConnect - Whether to auto-connect (default: true)
+     */
+    initSSE(options = {}) {
+        const {
+            onFact = null,
+            onPlan = null,
+            onTransfer = null,
+            autoConnect = true
+        } = options;
+
+        // Set refresh callback if any handler provided
+        if (onFact || onPlan || onTransfer) {
+            this.refreshUICallback = (eventType, data) => {
+                // Route events to appropriate handlers
+                if (eventType.startsWith('fact_') && onFact) {
+                    onFact(eventType, data);
+                } else if (eventType.startsWith('plan_') && onPlan) {
+                    onPlan(eventType, data);
+                } else if (eventType.startsWith('transfer_') && onTransfer) {
+                    onTransfer(eventType, data);
+                }
+            };
+        }
+
+        // Check if BudgetSSEClient is available
+        if (typeof window.budgetSSEClient === 'undefined') {
+            console.warn('[OfflineManager] BudgetSSEClient not loaded - SSE disabled');
+            return;
+        }
+
+        // Auto-connect if requested
+        if (autoConnect) {
+            window.budgetSSEClient.connect();
+        }
+
+        console.log('[OfflineManager] SSE integration initialized');
+    }
+
+    /**
+     * Disconnect SSE client
+     */
+    disconnectSSE() {
+        if (typeof window.budgetSSEClient !== 'undefined') {
+            window.budgetSSEClient.disconnect();
+        }
+    }
+
+    /**
+     * Get SSE connection status
+     * @returns {Object|null} SSE status or null if not available
+     */
+    getSSEStatus() {
+        if (typeof window.budgetSSEClient !== 'undefined') {
+            return window.budgetSSEClient.getStatus();
+        }
+        return null;
     }
 }
 

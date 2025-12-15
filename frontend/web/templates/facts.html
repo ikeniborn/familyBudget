@@ -2105,6 +2105,37 @@ window.addEventListener('offline', updateSaveButtonsVisibility);
 document.addEventListener('DOMContentLoaded', function() {
     // Initial update with delay to ensure offlineManager is initialized
     setTimeout(updateSaveButtonsVisibility, 1000);
+
+    // Register SSE event handlers for facts page (budgetSSEClient loaded in base.html)
+    setTimeout(() => {
+        if (window.budgetSSEClient) {
+            // Handler for fact events - refresh facts table
+            window.budgetSSEClient.on('fact_created', (data) => {
+                debugLog('[SSE] Fact created, refreshing table');
+                loadFacts();
+            });
+            window.budgetSSEClient.on('fact_updated', (data) => {
+                debugLog('[SSE] Fact updated, refreshing table');
+                loadFacts();
+            });
+            window.budgetSSEClient.on('fact_deleted', (data) => {
+                debugLog('[SSE] Fact deleted, refreshing table');
+                loadFacts();
+            });
+
+            // Handler for transfer events - transfers create facts, refresh table
+            window.budgetSSEClient.on('transfer_created', (data) => {
+                debugLog('[SSE] Transfer created, refreshing table');
+                loadFacts();
+            });
+            window.budgetSSEClient.on('transfer_deleted', (data) => {
+                debugLog('[SSE] Transfer deleted, refreshing table');
+                loadFacts();
+            });
+
+            debugLog('[SSE] Facts page handlers registered');
+        }
+    }, 1000);
 });
 </script>
 {% endblock %}

@@ -14,6 +14,7 @@ from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
     auth_router,
+    budget_sse_router,
     consent_router,
     cost_centers_router,
     facts_router,
@@ -118,3 +119,6 @@ api_router.include_router(import_templates_router)
 
 # Shopping List SSE endpoints (Real-time Updates) ✅
 api_router.include_router(shopping_list_sse_router)
+
+# Budget SSE endpoints (Real-time Updates for Facts/Plans/Transfers) ✅
+api_router.include_router(budget_sse_router)

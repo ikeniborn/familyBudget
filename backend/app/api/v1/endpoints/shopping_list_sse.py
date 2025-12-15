@@ -6,6 +6,12 @@ Uses Server-Sent Events for one-way server-to-client communication.
 
 Single-instance deployment: Uses in-memory ConnectionManager.
 
+Security features:
+    - Connection limits per user and per list (DoS protection)
+    - Periodic user status validation (deactivated users disconnected)
+    - Security headers for SSE responses
+    - Filtered data in broadcasts (no sensitive fields)
+
 Events:
     - item_created: New item added to list
     - item_updated: Item modified (including completion)
@@ -16,15 +22,22 @@ Events:
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
 
 from backend.app.core.dependencies import get_current_user
+from backend.app.db.session import get_session
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
+
+# Security constants
+MAX_CONNECTIONS_PER_USER = 5  # Max SSE connections per user across all lists
+MAX_CONNECTIONS_PER_LIST = 100  # Max SSE connections per shopping list
+USER_STATUS_CHECK_INTERVAL = timedelta(minutes=5)  # How often to verify user is active
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +50,16 @@ router = APIRouter(
 
 class ConnectionManager:
     """
-    In-memory connection manager for SSE.
+    In-memory connection manager for SSE with security limits.
 
     Single-instance deployment: All connections stored in memory.
 
     Structure:
         connections[list_id] = [(user_id, queue), ...]
+
+    Security features:
+        - MAX_CONNECTIONS_PER_USER: Limit connections per user (DoS protection)
+        - MAX_CONNECTIONS_PER_LIST: Limit connections per list (resource protection)
 
     Each client gets an asyncio.Queue for receiving events.
     """
@@ -52,9 +69,16 @@ class ConnectionManager:
         self.connections: dict[int, list[tuple[int, asyncio.Queue]]] = {}
         self._lock = asyncio.Lock()
 
+    def _count_user_connections(self, user_id: int) -> int:
+        """Count total connections for a user across all lists."""
+        count = 0
+        for conns in self.connections.values():
+            count += sum(1 for uid, _ in conns if uid == user_id)
+        return count
+
     async def connect(self, list_id: int, user_id: int) -> asyncio.Queue:
         """
-        Register a new SSE connection.
+        Register a new SSE connection with security limits.
 
         Args:
             list_id: Shopping list ID to subscribe to
@@ -62,16 +86,47 @@ class ConnectionManager:
 
         Returns:
             asyncio.Queue for receiving events
-        """
-        queue: asyncio.Queue = asyncio.Queue()
 
+        Raises:
+            HTTPException: If connection limits exceeded
+        """
         async with self._lock:
+            # Check per-user limit
+            user_conn_count = self._count_user_connections(user_id)
+            if user_conn_count >= MAX_CONNECTIONS_PER_USER:
+                logger.warning(
+                    f"SSE connection rejected: user {user_id} exceeded limit "
+                    f"({user_conn_count}/{MAX_CONNECTIONS_PER_USER})"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Too many SSE connections. Maximum {MAX_CONNECTIONS_PER_USER} allowed per user.",
+                )
+
+            # Check per-list limit
+            list_conn_count = len(self.connections.get(list_id, []))
+            if list_conn_count >= MAX_CONNECTIONS_PER_LIST:
+                logger.warning(
+                    f"SSE connection rejected: list {list_id} exceeded limit "
+                    f"({list_conn_count}/{MAX_CONNECTIONS_PER_LIST})"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=f"Too many SSE connections for this list. Please try again later.",
+                )
+
+            # Create queue and register connection
+            queue: asyncio.Queue = asyncio.Queue(maxsize=100)  # Limit queue size
+
             if list_id not in self.connections:
                 self.connections[list_id] = []
 
             self.connections[list_id].append((user_id, queue))
 
-        logger.info(f"SSE connected: user {user_id} to list {list_id}")
+        logger.info(
+            f"SSE connected: user {user_id} to list {list_id} "
+            f"(user_total={user_conn_count + 1}, list_total={list_conn_count + 1})"
+        )
         return queue
 
     async def disconnect(self, list_id: int, user_id: int, queue: asyncio.Queue):
@@ -173,6 +228,7 @@ async def shopping_list_events(
     list_id: int,
     request: Request,
     current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
     last_event_id: str | None = Query(None, alias="Last-Event-ID"),
 ):
     """
@@ -183,6 +239,11 @@ async def shopping_list_events(
     - item_updated: Item modified
     - item_deleted: Item soft-deleted
     - item_completed: Item marked as completed
+
+    **Security:**
+    - Requires valid JWT authentication
+    - Connection limits enforced (per-user and per-list)
+    - Periodic user status validation (disconnects deactivated users)
 
     **Reconnection:**
     - Client should reconnect on connection loss
@@ -199,16 +260,19 @@ async def shopping_list_events(
     ```
     """
     queue = await manager.connect(list_id, current_user.id)
+    user_id = current_user.id  # Capture for use in generator
 
     async def event_generator():
-        """Generate SSE events from queue."""
+        """Generate SSE events from queue with security checks."""
+        last_user_check = datetime.utcnow()
+
         try:
             # Send initial connection event
             yield {
                 "event": "connected",
                 "data": json.dumps({
                     "list_id": list_id,
-                    "user_id": current_user.id,
+                    "user_id": user_id,
                     "timestamp": datetime.utcnow().isoformat(),
                 }),
             }
@@ -217,6 +281,21 @@ async def shopping_list_events(
                 # Check if client disconnected
                 if await request.is_disconnected():
                     break
+
+                # Periodic user status check (security: disconnect deactivated users)
+                now = datetime.utcnow()
+                if now - last_user_check > USER_STATUS_CHECK_INTERVAL:
+                    try:
+                        user = await session.get(User, user_id)
+                        if not user or not getattr(user, "is_active", True):
+                            logger.warning(
+                                f"SSE disconnecting inactive user {user_id} from list {list_id}"
+                            )
+                            break
+                        last_user_check = now
+                    except Exception as e:
+                        logger.error(f"SSE user status check failed: {e}")
+                        # Continue on DB errors, don't disconnect
 
                 try:
                     # Wait for event with timeout (for keepalive)
@@ -237,9 +316,17 @@ async def shopping_list_events(
         except asyncio.CancelledError:
             pass
         finally:
-            await manager.disconnect(list_id, current_user.id, queue)
+            await manager.disconnect(list_id, user_id, queue)
 
-    return EventSourceResponse(event_generator())
+    # Return SSE response with security headers
+    return EventSourceResponse(
+        event_generator(),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "X-Content-Type-Options": "nosniff",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering for SSE
+        },
+    )
 
 
 @router.get(
@@ -265,18 +352,53 @@ async def get_sse_status(
 
 # Helper functions for broadcasting from other endpoints
 
+# Fields safe to broadcast (no sensitive data)
+SAFE_ITEM_FIELDS = {
+    "id",
+    "shopping_list_id",
+    "product_name",
+    "quantity",
+    "unit",
+    "is_completed",
+    "store_id",
+    "product_group_id",
+    "sort_order",
+    # Exclude: created_by_id, comment (personal), created_at, updated_at (internal)
+}
+
+
+def _filter_item_data(item_data: dict) -> dict:
+    """
+    Filter item data to include only safe fields for broadcast.
+
+    Security: Prevents information disclosure of sensitive fields
+    like creator_id, personal comments, and internal timestamps.
+
+    Args:
+        item_data: Full item data dictionary
+
+    Returns:
+        Filtered dictionary with only safe fields
+    """
+    return {k: v for k, v in item_data.items() if k in SAFE_ITEM_FIELDS}
+
 
 async def broadcast_item_created(
     list_id: int,
     item_data: dict,
     user_id: int | None = None,
 ):
-    """Broadcast item created event."""
+    """
+    Broadcast item created event with filtered data.
+
+    Security: Only safe fields are broadcast to prevent information disclosure.
+    """
+    filtered_data = _filter_item_data(item_data)
     logger.debug(f"broadcast_item_created: list={list_id}, item_id={item_data.get('id')}")
     await manager.broadcast(
         list_id=list_id,
         event_type="item_created",
-        data=item_data,
+        data=filtered_data,
         exclude_user_id=user_id,
     )
 
@@ -286,12 +408,17 @@ async def broadcast_item_updated(
     item_data: dict,
     user_id: int | None = None,
 ):
-    """Broadcast item updated event."""
+    """
+    Broadcast item updated event with filtered data.
+
+    Security: Only safe fields are broadcast to prevent information disclosure.
+    """
+    filtered_data = _filter_item_data(item_data)
     logger.debug(f"broadcast_item_updated: list={list_id}, item_id={item_data.get('id')}")
     await manager.broadcast(
         list_id=list_id,
         event_type="item_updated",
-        data=item_data,
+        data=filtered_data,
         exclude_user_id=user_id,
     )
 

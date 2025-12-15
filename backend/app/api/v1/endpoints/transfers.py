@@ -1,5 +1,6 @@
 """Transfer endpoints for managing transfers between financial centers."""
 
+import logging
 from datetime import datetime
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,8 +12,22 @@ from backend.app.models.fact import BudgetFact
 from backend.app.models.article import Article
 from backend.app.models.financial_center import FinancialCenter
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/transfers", tags=["Transfers"])
+
+
+# Lazy import for SSE broadcast to avoid circular dependencies
+_budget_sse_module = None
+
+
+def _get_budget_sse_broadcast():
+    """Get budget SSE module lazily to avoid circular imports."""
+    global _budget_sse_module
+    if _budget_sse_module is None:
+        from backend.app.api.v1.endpoints import budget_sse
+        _budget_sse_module = budget_sse
+    return _budget_sse_module
 
 
 async def generate_transfer_id(session: AsyncSession) -> int:
@@ -213,7 +228,23 @@ async def create_transfer(
             detail=f"Failed to create transfer: {str(e)}"
         )
 
-    # 8. Return response
+    # 8. SSE broadcast for transfer created (non-blocking)
+    try:
+        sse = _get_budget_sse_broadcast()
+        transfer_data = {
+            "id": transfer_id,
+            "source_fact_id": expense_fact.id,
+            "target_fact_id": income_fact.id,
+            "amount": float(transfer.amount),
+            "transfer_date": str(transfer.transfer_date),
+            "description": transfer.description,
+        }
+        await sse.broadcast_transfer_created(transfer_data, user_id=current_user.id)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for transfer {transfer_id}: {e}")
+        # Don't fail the request if broadcast fails
+
+    # 9. Return response
     return TransferResponse(
         transfer_id=transfer_id,
         expense_fact_id=expense_fact.id,

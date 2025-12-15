@@ -44,6 +44,18 @@ from backend.app.schemas.fact import (
     FactUpdate,
 )
 
+# SSE broadcast functions (lazy import to avoid circular dependencies)
+_budget_sse_module = None
+
+
+def _get_budget_sse_broadcast():
+    """Lazy import Budget SSE module to avoid circular dependencies."""
+    global _budget_sse_module
+    if _budget_sse_module is None:
+        from backend.app.api.v1.endpoints import budget_sse
+        _budget_sse_module = budget_sse
+    return _budget_sse_module
+
 
 # Far future datetime constant for SCD Type 2 valid_to field
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
@@ -205,8 +217,8 @@ async def create_fact(
         cc = cc_result.scalar_one_or_none()
         cost_center_name = cc.name if cc else None
 
-    # Return enriched response with article and center data
-    return {
+    # SSE Broadcast: Notify connected clients about new fact
+    response_data = {
         "id": fact.id,
         "user_id": fact.user_id,
         "article_id": fact.article_id,
@@ -224,6 +236,19 @@ async def create_fact(
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
+
+    # Broadcast to SSE clients (exclude sender to avoid duplicates)
+    try:
+        sse = _get_budget_sse_broadcast()
+        if fact.record_type == "plan":
+            await sse.broadcast_plan_created(response_data, user_id=current_user.id)
+        else:
+            await sse.broadcast_fact_created(response_data, user_id=current_user.id)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for fact {fact.id}: {e}")
+        # Don't fail the request if broadcast fails
+
+    return response_data
 
 
 @router.get(
@@ -895,8 +920,8 @@ async def update_fact(
         cc = cc_result.scalar_one_or_none()
         cost_center_name = cc.name if cc else None
 
-    # Return enriched response with article and center data
-    return {
+    # SSE Broadcast: Notify connected clients about updated fact
+    response_data = {
         "id": fact.id,
         "user_id": fact.user_id,
         "article_id": fact.article_id,
@@ -913,6 +938,19 @@ async def update_fact(
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
+
+    # Broadcast to SSE clients (exclude sender to avoid duplicates)
+    try:
+        sse = _get_budget_sse_broadcast()
+        if fact.record_type == "plan":
+            await sse.broadcast_plan_updated(response_data, user_id=current_user.id)
+        else:
+            await sse.broadcast_fact_updated(response_data, user_id=current_user.id)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for updated fact {fact.id}: {e}")
+        # Don't fail the request if broadcast fails
+
+    return response_data
 
 
 @router.delete(
@@ -980,6 +1018,9 @@ async def delete_fact(
     )
     session.add(delete_history)
 
+    # Save record_type before deletion for broadcast
+    fact_record_type = fact.record_type
+
     # 2. Delete fact
     await session.delete(fact)
     await session.commit()
@@ -988,6 +1029,17 @@ async def delete_fact(
         f"Deleted fact {fact_id} (amount={fact.amount}, date={fact.fact_date}) "
         f"by user {current_user.id}"
     )
+
+    # SSE Broadcast: Notify connected clients about deleted fact
+    try:
+        sse = _get_budget_sse_broadcast()
+        if fact_record_type == "plan":
+            await sse.broadcast_plan_deleted(fact_id, user_id=current_user.id)
+        else:
+            await sse.broadcast_fact_deleted(fact_id, user_id=current_user.id)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for deleted fact {fact_id}: {e}")
+        # Don't fail the request if broadcast fails
 
     return None
 
@@ -1083,6 +1135,18 @@ async def batch_delete_facts(
 
     deleted_count = len(facts_to_delete)
     logger.info(f"Batch deleted {deleted_count} facts by user {current_user.id}")
+
+    # 5. SSE broadcast for each deleted fact (non-blocking)
+    try:
+        sse = _get_budget_sse_broadcast()
+        for fact in facts_to_delete:
+            if fact.record_type == "plan":
+                await sse.broadcast_plan_deleted(fact.id, user_id=current_user.id)
+            else:
+                await sse.broadcast_fact_deleted(fact.id, user_id=current_user.id)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for batch delete: {e}")
+        # Don't fail the request if broadcast fails
 
     return {
         "message": f"Deleted {deleted_count} facts",

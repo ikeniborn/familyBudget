@@ -192,6 +192,7 @@
     <script src="/static/js/offline/offlineManager.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/conflictResolver.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/pushManager.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/budget/budgetSSEClient.js?v=PLACEHOLDER"></script>
 
     <!-- ECharts (for analytics pages) -->
     {% block extra_head %}{% endblock %}
@@ -259,6 +260,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14 11l-4 4m0-4l4 4" />
                     </svg>
                 </div>
+            </div>
+
+            <!-- Budget SSE Status Indicator (real-time sync status) -->
+            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom" data-tip="Real-time синхронизация">
+                <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус синхронизации">
+                    <span class="loading loading-ring loading-xs sm:loading-sm"></span>
+                </span>
             </div>
 
             <!-- Manual Offline Mode Toggle -->
@@ -987,6 +995,13 @@
 
                 await window.pushManager.init();
                 debugLog('[Offline] PushManager initialized');
+
+                // Initialize Budget SSE for real-time updates
+                // SSE updates the indicator in navbar and triggers UI refreshes
+                if (window.budgetSSEClient) {
+                    window.budgetSSEClient.connect();
+                    debugLog('[Offline] BudgetSSEClient connected');
+                }
 
                 // Update UI
                 updateOfflineUI();
