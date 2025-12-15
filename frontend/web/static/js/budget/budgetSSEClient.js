@@ -147,6 +147,31 @@ class BudgetSSEClient {
                 this._handleTransferDeleted(data);
             });
 
+            // Shopping list item events (consolidated from shopping_list_sse)
+            this.eventSource.addEventListener('item_created', (event) => {
+                debugLog('[BudgetSSE] Item created:', event.data);
+                const data = JSON.parse(event.data);
+                this._handleItemCreated(data);
+            });
+
+            this.eventSource.addEventListener('item_updated', (event) => {
+                debugLog('[BudgetSSE] Item updated:', event.data);
+                const data = JSON.parse(event.data);
+                this._handleItemUpdated(data);
+            });
+
+            this.eventSource.addEventListener('item_deleted', (event) => {
+                debugLog('[BudgetSSE] Item deleted:', event.data);
+                const data = JSON.parse(event.data);
+                this._handleItemDeleted(data);
+            });
+
+            this.eventSource.addEventListener('item_completed', (event) => {
+                debugLog('[BudgetSSE] Item completed:', event.data);
+                const data = JSON.parse(event.data);
+                this._handleItemCompleted(data);
+            });
+
             // Keepalive ping
             this.eventSource.addEventListener('ping', (event) => {
                 debugLog('[BudgetSSE] Ping received');
@@ -357,6 +382,61 @@ class BudgetSSEClient {
 
         if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
             window.offlineManager.refreshUICallback('transfer_deleted', data);
+        }
+    }
+
+    // ==================== SHOPPING LIST ITEM HANDLERS ====================
+
+    /**
+     * Handle item_created event
+     * @param {Object} data - Item data (contains shopping_list_id for filtering)
+     * @private
+     */
+    _handleItemCreated(data) {
+        this._notifyHandlers('item_created', data);
+
+        // Trigger UI refresh if listsManager is available
+        if (typeof window.listsManager !== 'undefined') {
+            window.listsManager.addItemToUI(data);
+        }
+    }
+
+    /**
+     * Handle item_updated event
+     * @param {Object} data - Item data (contains shopping_list_id for filtering)
+     * @private
+     */
+    _handleItemUpdated(data) {
+        this._notifyHandlers('item_updated', data);
+
+        if (typeof window.listsManager !== 'undefined') {
+            window.listsManager.updateItemInUI(data);
+        }
+    }
+
+    /**
+     * Handle item_deleted event
+     * @param {Object} data - { id: itemId, shopping_list_id: listId }
+     * @private
+     */
+    _handleItemDeleted(data) {
+        this._notifyHandlers('item_deleted', data);
+
+        if (typeof window.listsManager !== 'undefined') {
+            window.listsManager.removeItemFromUI(data.id, data.shopping_list_id);
+        }
+    }
+
+    /**
+     * Handle item_completed event
+     * @param {Object} data - { id: itemId, shopping_list_id: listId, is_completed: bool }
+     * @private
+     */
+    _handleItemCompleted(data) {
+        this._notifyHandlers('item_completed', data);
+
+        if (typeof window.listsManager !== 'undefined') {
+            window.listsManager.toggleItemCompletedInUI(data.id, data.is_completed, data.shopping_list_id);
         }
     }
 

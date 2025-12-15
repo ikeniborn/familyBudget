@@ -525,3 +525,111 @@ async def broadcast_transfer_deleted(
         data={"id": transfer_id},
         exclude_user_id=user_id,
     )
+
+
+# ==================== Shopping List Item Broadcasts ====================
+# Consolidated from shopping_list_sse.py for unified SSE endpoint
+
+# Fields safe to broadcast for shopping list items (no sensitive data)
+SAFE_ITEM_FIELDS = {
+    "id",
+    "shopping_list_id",  # Needed for client-side filtering
+    "product_name",
+    "quantity",
+    "unit",
+    "is_completed",
+    "store_id",
+    "product_group_id",
+    "sort_order",
+    # Exclude: created_by_id (creator), comment (personal), created_at, updated_at (internal)
+}
+
+
+def _filter_item_data(item_data: dict) -> dict:
+    """
+    Filter item data to include only safe fields for broadcast.
+
+    Security: Prevents information disclosure of sensitive fields
+    like creator_id, personal comments, and internal timestamps.
+
+    Args:
+        item_data: Full item data dictionary
+
+    Returns:
+        Filtered dictionary with only safe fields
+    """
+    return {k: v for k, v in item_data.items() if k in SAFE_ITEM_FIELDS}
+
+
+async def broadcast_item_created(
+    item_data: dict,
+    user_id: int | None = None,
+):
+    """
+    Broadcast item created event with filtered data.
+
+    Security: Only safe fields are broadcast to prevent information disclosure.
+    Note: item_data must contain shopping_list_id for client-side filtering.
+    """
+    filtered_data = _filter_item_data(item_data)
+    logger.debug(f"broadcast_item_created: item_id={item_data.get('id')}, list_id={item_data.get('shopping_list_id')}")
+    await manager.broadcast(
+        event_type="item_created",
+        data=filtered_data,
+        exclude_user_id=user_id,
+    )
+
+
+async def broadcast_item_updated(
+    item_data: dict,
+    user_id: int | None = None,
+):
+    """
+    Broadcast item updated event with filtered data.
+
+    Security: Only safe fields are broadcast to prevent information disclosure.
+    """
+    filtered_data = _filter_item_data(item_data)
+    logger.debug(f"broadcast_item_updated: item_id={item_data.get('id')}, list_id={item_data.get('shopping_list_id')}")
+    await manager.broadcast(
+        event_type="item_updated",
+        data=filtered_data,
+        exclude_user_id=user_id,
+    )
+
+
+async def broadcast_item_deleted(
+    item_id: int,
+    shopping_list_id: int,
+    user_id: int | None = None,
+):
+    """
+    Broadcast item deleted event.
+
+    Note: shopping_list_id is required for client-side filtering.
+    """
+    logger.debug(f"broadcast_item_deleted: item_id={item_id}, list_id={shopping_list_id}")
+    await manager.broadcast(
+        event_type="item_deleted",
+        data={"id": item_id, "shopping_list_id": shopping_list_id},
+        exclude_user_id=user_id,
+    )
+
+
+async def broadcast_item_completed(
+    item_id: int,
+    shopping_list_id: int,
+    is_completed: bool,
+    user_id: int | None = None,
+):
+    """
+    Broadcast item completed event.
+
+    Note: shopping_list_id is required for client-side filtering.
+    """
+    logger.debug(f"broadcast_item_completed: item_id={item_id}, list_id={shopping_list_id}, completed={is_completed}")
+    await manager.broadcast(
+        event_type="item_completed",
+        data={"id": item_id, "shopping_list_id": shopping_list_id, "is_completed": is_completed},
+        exclude_user_id=user_id,
+    )
