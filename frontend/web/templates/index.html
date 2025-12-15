@@ -14,7 +14,7 @@
                 </div>
             </div>
             <!-- Hint text at the bottom -->
-            <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">для скрытия нажмите на секцию приветствия</p>
+            <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">для скрытия нажмите на область приветствия</p>
         </div>
 
         <!-- Quick Stats Section -->
@@ -441,8 +441,8 @@ document.addEventListener('DOMContentLoaded', function() {
             target: '#recent-transactions',
             swap: 'innerHTML'
         });
-        // Показать уведомление о pending записях (без авто-синхронизации)
-        await notifyPendingRecords();
+        // Note: notifyPendingRecords() вызывается из network-status-change listener
+        // чтобы избежать дублирования уведомлений
     });
     // Listen for network-status-change from SmartNetworkDetector (includes manual mode)
     window.addEventListener('network-status-change', async (event) => {
@@ -1047,6 +1047,19 @@ async function filterCostCenterDropdown(formSelector, financialCenterId) {
         return;
     }
 
+    // If offline - use cached data, don't make API request
+    if (!navigator.onLine || (window.offlineManager && !window.offlineManager.isOnline)) {
+        console.debug('[CostCenter] Offline mode - using cached data');
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            select.appendChild(option);
+        });
+        if (currentValue) select.value = currentValue;
+        return;
+    }
+
     // Fetch filtered cost centers from API
     try {
         const response = await fetch(
@@ -1077,7 +1090,12 @@ async function filterCostCenterDropdown(formSelector, financialCenterId) {
             });
         }
     } catch (error) {
-        console.error('Error filtering cost centers:', error);
+        // Don't log as error in offline mode - this is expected behavior
+        if (!navigator.onLine || (window.offlineManager && !window.offlineManager.isOnline)) {
+            console.debug('[CostCenter] Network error in offline mode (expected):', error.message);
+        } else {
+            console.warn('[CostCenter] Error filtering cost centers:', error.message);
+        }
         // Fallback to showing all
         allCostCenters.forEach(cc => {
             const option = document.createElement('option');

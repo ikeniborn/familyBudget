@@ -1306,6 +1306,19 @@ async function filterCostCenterDropdown(formSelector, financialCenterId) {
         return;
     }
 
+    // If offline - use cached data, don't make API request
+    if (!navigator.onLine || (window.offlineManager && !window.offlineManager.isOnline)) {
+        console.debug('[CostCenter] Offline mode - using cached data');
+        allCostCenters.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            select.appendChild(option);
+        });
+        if (currentValue) select.value = currentValue;
+        return;
+    }
+
     // Fetch filtered cost centers from API
     try {
         const response = await fetch(
@@ -1335,7 +1348,12 @@ async function filterCostCenterDropdown(formSelector, financialCenterId) {
             });
         }
     } catch (error) {
-        console.error('Error filtering cost centers:', error);
+        // Don't log as error in offline mode - this is expected behavior
+        if (!navigator.onLine || (window.offlineManager && !window.offlineManager.isOnline)) {
+            console.debug('[CostCenter] Network error in offline mode (expected):', error.message);
+        } else {
+            console.warn('[CostCenter] Error filtering cost centers:', error.message);
+        }
         allCostCenters.forEach(cc => {
             const option = document.createElement('option');
             option.value = cc.id;
@@ -1707,6 +1725,18 @@ async function showEditModal(factId) {
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
     const categoryType = selectedArticle ? selectedArticle.type : 'expense';
 
+    // Set category type radio buttons
+    document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
+        const radio = btn.querySelector('input[type="radio"]');
+        if (btn.dataset.type === categoryType) {
+            btn.classList.add('btn-active');
+            radio.checked = true;
+        } else {
+            btn.classList.remove('btn-active');
+            radio.checked = false;
+        }
+    });
+
     // Destroy previous ChoicesCategoryTree instance if exists
     if (editCategoryTreeSelect) {
         editCategoryTreeSelect.destroy();
@@ -1828,6 +1858,9 @@ async function showEditModal(factId) {
         }
     }
 
+    // Setup category type buttons handlers
+    setupEditCategoryTypeButtons();
+
     document.getElementById('edit-modal').showModal();
 }
 
@@ -1835,6 +1868,37 @@ async function showEditModal(factId) {
 function closeEditModal() {
     document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
+}
+
+// Setup category type buttons handlers for edit modal
+function setupEditCategoryTypeButtons() {
+    const typeButtons = document.querySelectorAll('.edit-category-type-btn');
+
+    typeButtons.forEach(button => {
+        button.addEventListener('click', async function() {
+            // Remove btn-active from all buttons
+            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Add btn-active to current button
+            this.classList.add('btn-active');
+
+            // Check corresponding radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+
+            // Reload categories with new type
+            const newType = this.dataset.type;
+            debugLog('Edit modal category type changed to:', newType);
+
+            if (editCategoryTreeSelect && allCategories.length > 0) {
+                // Use updateType() method instead of destroy + recreate
+                // This prevents Choices.js "multiple instances" error
+                editCategoryTreeSelect.updateType(newType);
+            }
+        });
+    });
 }
 
 // Delete plan from edit modal (for mobile users without batch delete)

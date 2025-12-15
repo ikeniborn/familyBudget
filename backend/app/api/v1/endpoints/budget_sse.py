@@ -28,6 +28,8 @@ Events:
 import asyncio
 import json
 import logging
+import time
+import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -41,9 +43,11 @@ from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 
 # Security constants
-MAX_CONNECTIONS_PER_USER = 5  # Max SSE connections per user (increased from 3 to handle multiple devices/tabs)
+MAX_CONNECTIONS_PER_USER = 10  # Max SSE connections per user (increased for multiple devices/tabs)
 MAX_TOTAL_CONNECTIONS = 500  # Max total SSE connections system-wide
 USER_STATUS_CHECK_INTERVAL = timedelta(minutes=5)  # How often to verify user is active
+STALE_CONNECTION_TIMEOUT = 60  # Seconds without activity before connection considered stale
+SSE_KEEPALIVE_TIMEOUT = 10.0  # Seconds between ping/event cycles (reduced from 30 for faster stale detection)
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +65,7 @@ class BudgetConnectionManager:
     Single-instance deployment: All connections stored in memory.
 
     Structure:
-        connections = [(user_id, queue), ...]
+        connections = [(user_id, queue, connection_id, last_activity_timestamp), ...]
 
     Unlike shopping lists, budget SSE is global (shared family budget model).
     All users receive ALL budget events (no per-entity filtering).
@@ -69,18 +73,20 @@ class BudgetConnectionManager:
     Security features:
         - MAX_CONNECTIONS_PER_USER: Limit connections per user (DoS protection)
         - MAX_TOTAL_CONNECTIONS: Limit total connections (resource protection)
+        - Periodic cleanup of stale connections (zombie protection)
+        - Active disconnect via connection_id (fast tab close handling)
     """
 
     def __init__(self):
-        # List of (user_id, queue) tuples - global, not per-entity
-        self.connections: list[tuple[int, asyncio.Queue]] = []
+        # List of (user_id, queue, connection_id, last_activity_timestamp) tuples
+        self.connections: list[tuple[int, asyncio.Queue, str, float]] = []
         self._lock = asyncio.Lock()
 
     def _count_user_connections(self, user_id: int) -> int:
         """Count total connections for a user."""
-        return sum(1 for uid, _ in self.connections if uid == user_id)
+        return sum(1 for uid, _, _, _ in self.connections if uid == user_id)
 
-    async def connect(self, user_id: int) -> asyncio.Queue:
+    async def connect(self, user_id: int) -> tuple[asyncio.Queue, str]:
         """
         Register a new SSE connection with security limits.
 
@@ -88,7 +94,7 @@ class BudgetConnectionManager:
             user_id: User ID making the connection
 
         Returns:
-            asyncio.Queue for receiving events
+            Tuple of (asyncio.Queue for receiving events, connection_id)
 
         Raises:
             HTTPException: If connection limits exceeded
@@ -125,19 +131,20 @@ class BudgetConnectionManager:
                     detail="Too many active connections. Please try again later.",
                 )
 
-            # Create queue and register connection
+            # Create queue and register connection with unique ID and timestamp
+            connection_id = str(uuid.uuid4())
             queue: asyncio.Queue = asyncio.Queue(maxsize=100)  # Limit queue size
-            self.connections.append((user_id, queue))
+            self.connections.append((user_id, queue, connection_id, time.time()))
 
         logger.info(
-            f"Budget SSE connected: user {user_id} "
+            f"Budget SSE connected: user={user_id}, conn_id={connection_id[:8]}... "
             f"(user_total={user_conn_count + 1}, system_total={total_conn_count + 1})"
         )
-        return queue
+        return queue, connection_id
 
     async def disconnect(self, user_id: int, queue: asyncio.Queue, reason: str = "normal"):
         """
-        Remove a SSE connection.
+        Remove a SSE connection by queue reference.
 
         Args:
             user_id: User ID
@@ -147,7 +154,7 @@ class BudgetConnectionManager:
         async with self._lock:
             prev_count = len(self.connections)
             self.connections = [
-                (uid, q) for uid, q in self.connections
+                (uid, q, cid, ts) for uid, q, cid, ts in self.connections
                 if q is not queue
             ]
             new_count = len(self.connections)
@@ -156,6 +163,78 @@ class BudgetConnectionManager:
             f"Budget SSE disconnected: user={user_id}, reason={reason}, "
             f"connections_before={prev_count}, connections_after={new_count}"
         )
+
+    async def disconnect_by_id(self, user_id: int, connection_id: str) -> bool:
+        """
+        Disconnect a specific connection by its ID (called from sendBeacon).
+
+        Args:
+            user_id: User ID (must match for security)
+            connection_id: The connection UUID to disconnect
+
+        Returns:
+            True if connection was found and removed, False otherwise
+        """
+        async with self._lock:
+            prev_count = len(self.connections)
+            self.connections = [
+                (uid, q, cid, ts) for uid, q, cid, ts in self.connections
+                if not (uid == user_id and cid == connection_id)
+            ]
+            removed = len(self.connections) < prev_count
+
+        if removed:
+            logger.info(
+                f"Budget SSE disconnect_by_id: user={user_id}, conn_id={connection_id[:8]}..."
+            )
+        else:
+            logger.debug(
+                f"Budget SSE disconnect_by_id: not found user={user_id}, conn_id={connection_id[:8]}..."
+            )
+        return removed
+
+    def update_activity(self, connection_id: str):
+        """
+        Update last activity timestamp for a connection (called on each ping).
+
+        Args:
+            connection_id: The connection UUID to update
+        """
+        for i, (uid, q, cid, ts) in enumerate(self.connections):
+            if cid == connection_id:
+                self.connections[i] = (uid, q, cid, time.time())
+                break
+
+    async def cleanup_stale_connections(self) -> int:
+        """
+        Remove connections that haven't had activity for > STALE_CONNECTION_TIMEOUT seconds.
+
+        This is the GUARANTEE that zombie connections will eventually be cleaned up,
+        even if the client didn't send a proper disconnect signal.
+
+        Returns:
+            Number of removed connections
+        """
+        now = time.time()
+        async with self._lock:
+            prev_count = len(self.connections)
+            stale = [
+                (uid, cid) for uid, q, cid, ts in self.connections
+                if now - ts > STALE_CONNECTION_TIMEOUT
+            ]
+            self.connections = [
+                conn for conn in self.connections
+                if now - conn[3] <= STALE_CONNECTION_TIMEOUT
+            ]
+            removed = prev_count - len(self.connections)
+
+        for uid, cid in stale:
+            logger.warning(
+                f"Budget SSE cleanup_stale: user={uid}, conn_id={cid[:8]}... "
+                f"(stale for >{STALE_CONNECTION_TIMEOUT}s)"
+            )
+
+        return removed
 
     async def broadcast(
         self,
@@ -191,7 +270,7 @@ class BudgetConnectionManager:
         )
 
         sent_count = 0
-        for user_id, queue in connections:
+        for user_id, queue, connection_id, last_activity in connections:
             try:
                 queue.put_nowait(event)
                 sent_count += 1
@@ -263,7 +342,7 @@ async def budget_events(
     });
     ```
     """
-    queue = await manager.connect(current_user.id)
+    queue, connection_id = await manager.connect(current_user.id)
     user_id = current_user.id  # Capture for use in generator
 
     async def event_generator():
@@ -272,11 +351,12 @@ async def budget_events(
         disconnect_reason = "normal"
 
         try:
-            # Send initial connection event
+            # Send initial connection event with connection_id for client to track
             yield {
                 "event": "connected",
                 "data": json.dumps({
                     "user_id": user_id,
+                    "connection_id": connection_id,
                     "timestamp": datetime.utcnow().isoformat(),
                 }),
             }
@@ -304,8 +384,8 @@ async def budget_events(
                         # Continue on DB errors, don't disconnect
 
                 try:
-                    # Wait for event with timeout (for keepalive)
-                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    # Wait for event with reduced timeout for faster stale detection
+                    event = await asyncio.wait_for(queue.get(), timeout=SSE_KEEPALIVE_TIMEOUT)
 
                     yield {
                         "event": event["type"],
@@ -313,7 +393,8 @@ async def budget_events(
                     }
 
                 except asyncio.TimeoutError:
-                    # Send keepalive ping
+                    # Send keepalive ping and update activity timestamp
+                    manager.update_activity(connection_id)
                     yield {
                         "event": "ping",
                         "data": json.dumps({"timestamp": datetime.utcnow().isoformat()}),
@@ -359,6 +440,92 @@ async def get_budget_sse_status(
             "max_total": MAX_TOTAL_CONNECTIONS,
         },
     }
+
+
+@router.post(
+    "/events/disconnect",
+    summary="Actively disconnect SSE connection",
+    description="Called by client via sendBeacon when tab is hidden/closed",
+)
+async def disconnect_sse_connection(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """
+    Actively disconnect an SSE connection by its ID.
+
+    Called by the client's sendBeacon() when the tab is hidden or closed.
+    This allows immediate cleanup of the connection slot, rather than
+    waiting for the server to detect the disconnect via timeout.
+
+    Request body:
+        {"connection_id": "uuid-string"}
+
+    Returns:
+        {"status": "disconnected"} if connection was found and removed
+        {"status": "not_found"} if connection was not found (already closed)
+    """
+    try:
+        body = await request.json()
+        connection_id = body.get("connection_id")
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid JSON body",
+        )
+
+    if not connection_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="connection_id required",
+        )
+
+    removed = await manager.disconnect_by_id(current_user.id, connection_id)
+    return {"status": "disconnected" if removed else "not_found"}
+
+
+# ==================== Background Cleanup Task ====================
+# Periodic cleanup of stale connections (zombie protection)
+
+_cleanup_task: asyncio.Task | None = None
+
+
+async def _periodic_cleanup():
+    """
+    Background task that cleans up stale SSE connections every 30 seconds.
+
+    This is the GUARANTEE that zombie connections will be cleaned up,
+    even in edge cases like:
+    - Browser force-quit
+    - Network drop without graceful close
+    - Client crash
+    """
+    logger.info("Budget SSE cleanup task started")
+    while True:
+        await asyncio.sleep(30)  # Run every 30 seconds
+        try:
+            removed = await manager.cleanup_stale_connections()
+            if removed > 0:
+                logger.info(f"Budget SSE cleanup: removed {removed} stale connections")
+        except Exception as e:
+            logger.error(f"Budget SSE cleanup error: {e}")
+
+
+def start_cleanup_task():
+    """Start the background cleanup task (call from app startup)."""
+    global _cleanup_task
+    if _cleanup_task is None:
+        _cleanup_task = asyncio.create_task(_periodic_cleanup())
+        logger.info("Budget SSE cleanup task scheduled")
+
+
+def stop_cleanup_task():
+    """Stop the background cleanup task (call from app shutdown)."""
+    global _cleanup_task
+    if _cleanup_task is not None:
+        _cleanup_task.cancel()
+        _cleanup_task = None
+        logger.info("Budget SSE cleanup task stopped")
 
 
 # Helper functions for broadcasting from other endpoints
