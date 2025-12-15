@@ -626,8 +626,10 @@ async function syncBudgetData() {
     }
 
     // Notify all clients about sync completion
+    let hasActiveClients = false;
     try {
       const clients = await self.clients.matchAll({ type: 'window' });
+      hasActiveClients = clients.length > 0;
       clients.forEach(client => {
         client.postMessage({
           action: 'syncComplete',
@@ -639,8 +641,10 @@ async function syncBudgetData() {
       // Ignore postMessage errors
     }
 
-    // Show notification if synced items
-    if (results.synced > 0) {
+    // Show push notification ONLY if no active clients (user not using app)
+    // If user is active, they already receive toast from handleSyncComplete()
+    // This prevents duplicate notifications (push + toast)
+    if (results.synced > 0 && !hasActiveClients) {
       try {
         await self.registration.showNotification('Синхронизация завершена', {
           body: `Синхронизировано записей: ${results.synced}`,
