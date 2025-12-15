@@ -237,13 +237,13 @@ async def create_fact(
         "updated_at": fact.updated_at,
     }
 
-    # Broadcast to SSE clients (exclude sender to avoid duplicates)
+    # SSE Broadcast: Notify all connected clients about new fact
     try:
         sse = _get_budget_sse_broadcast()
         if fact.record_type == "plan":
-            await sse.broadcast_plan_created(response_data, user_id=current_user.id)
+            await sse.broadcast_plan_created(response_data)
         else:
-            await sse.broadcast_fact_created(response_data, user_id=current_user.id)
+            await sse.broadcast_fact_created(response_data)
     except Exception as e:
         logger.warning(f"SSE broadcast failed for fact {fact.id}: {e}")
         # Don't fail the request if broadcast fails
@@ -1013,13 +1013,13 @@ async def update_fact(
         "updated_at": fact.updated_at,
     }
 
-    # Broadcast to SSE clients (exclude sender to avoid duplicates)
+    # SSE Broadcast: Notify all connected clients about updated fact
     try:
         sse = _get_budget_sse_broadcast()
         if fact.record_type == "plan":
-            await sse.broadcast_plan_updated(response_data, user_id=current_user.id)
+            await sse.broadcast_plan_updated(response_data)
         else:
-            await sse.broadcast_fact_updated(response_data, user_id=current_user.id)
+            await sse.broadcast_fact_updated(response_data)
     except Exception as e:
         logger.warning(f"SSE broadcast failed for updated fact {fact.id}: {e}")
         # Don't fail the request if broadcast fails
@@ -1108,9 +1108,9 @@ async def delete_fact(
     try:
         sse = _get_budget_sse_broadcast()
         if fact_record_type == "plan":
-            await sse.broadcast_plan_deleted(fact_id, user_id=current_user.id)
+            await sse.broadcast_plan_deleted(fact_id)
         else:
-            await sse.broadcast_fact_deleted(fact_id, user_id=current_user.id)
+            await sse.broadcast_fact_deleted(fact_id)
     except Exception as e:
         logger.warning(f"SSE broadcast failed for deleted fact {fact_id}: {e}")
         # Don't fail the request if broadcast fails
@@ -1215,9 +1215,9 @@ async def batch_delete_facts(
         sse = _get_budget_sse_broadcast()
         for fact in facts_to_delete:
             if fact.record_type == "plan":
-                await sse.broadcast_plan_deleted(fact.id, user_id=current_user.id)
+                await sse.broadcast_plan_deleted(fact.id)
             else:
-                await sse.broadcast_fact_deleted(fact.id, user_id=current_user.id)
+                await sse.broadcast_fact_deleted(fact.id)
     except Exception as e:
         logger.warning(f"SSE broadcast failed for batch delete: {e}")
         # Don't fail the request if broadcast fails

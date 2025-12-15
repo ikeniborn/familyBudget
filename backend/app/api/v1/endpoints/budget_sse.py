@@ -161,17 +161,16 @@ class BudgetConnectionManager:
         self,
         event_type: str,
         data: dict[str, Any],
-        exclude_user_id: int | None = None,
     ):
         """
         Broadcast event to all connected clients.
 
         Shared Family Budget model: ALL users receive ALL events.
+        No exclusions - all connected clients receive the event.
 
         Args:
             event_type: Event type (fact_created, fact_updated, etc.)
             data: Event data (will be JSON serialized)
-            exclude_user_id: Optional user ID to exclude (sender)
         """
         if not self.connections:
             logger.debug(f"Budget SSE broadcast skipped: no connections")
@@ -186,19 +185,13 @@ class BudgetConnectionManager:
         async with self._lock:
             connections = list(self.connections)
 
-        # Count recipients (excluding sender)
-        recipient_count = sum(1 for uid, _ in connections if uid != exclude_user_id)
         logger.info(
             f"Budget SSE broadcast: event={event_type}, "
-            f"total_connections={len(connections)}, recipients={recipient_count}, "
-            f"exclude_user={exclude_user_id}"
+            f"total_connections={len(connections)}"
         )
 
         sent_count = 0
         for user_id, queue in connections:
-            if exclude_user_id and user_id == exclude_user_id:
-                continue  # Don't send to sender
-
             try:
                 queue.put_nowait(event)
                 sent_count += 1
@@ -415,134 +408,107 @@ def _filter_transfer_data(transfer_data: dict) -> dict:
 
 # Fact broadcast functions
 
-async def broadcast_fact_created(
-    fact_data: dict,
-    user_id: int | None = None,
-):
+async def broadcast_fact_created(fact_data: dict):
     """
     Broadcast fact created event with filtered data.
 
     Security: Only safe fields are broadcast to prevent information disclosure.
+    All connected clients receive the event (shared family budget model).
     """
     filtered_data = _filter_fact_data(fact_data)
     logger.debug(f"broadcast_fact_created: fact_id={fact_data.get('id')}")
     await manager.broadcast(
         event_type="fact_created",
         data=filtered_data,
-        exclude_user_id=user_id,
     )
 
 
-async def broadcast_fact_updated(
-    fact_data: dict,
-    user_id: int | None = None,
-):
+async def broadcast_fact_updated(fact_data: dict):
     """
     Broadcast fact updated event with filtered data.
 
     Security: Only safe fields are broadcast to prevent information disclosure.
+    All connected clients receive the event (shared family budget model).
     """
     filtered_data = _filter_fact_data(fact_data)
     logger.debug(f"broadcast_fact_updated: fact_id={fact_data.get('id')}")
     await manager.broadcast(
         event_type="fact_updated",
         data=filtered_data,
-        exclude_user_id=user_id,
     )
 
 
-async def broadcast_fact_deleted(
-    fact_id: int,
-    user_id: int | None = None,
-):
-    """Broadcast fact deleted event."""
+async def broadcast_fact_deleted(fact_id: int):
+    """Broadcast fact deleted event to all connected clients."""
     logger.debug(f"broadcast_fact_deleted: fact_id={fact_id}")
     await manager.broadcast(
         event_type="fact_deleted",
         data={"id": fact_id},
-        exclude_user_id=user_id,
     )
 
 
 # Plan broadcast functions (same as facts, different event type)
 
-async def broadcast_plan_created(
-    plan_data: dict,
-    user_id: int | None = None,
-):
+async def broadcast_plan_created(plan_data: dict):
     """
     Broadcast plan created event with filtered data.
 
     Plans use the same BudgetFact model with record_type='plan'.
+    All connected clients receive the event (shared family budget model).
     """
     filtered_data = _filter_fact_data(plan_data)
     logger.debug(f"broadcast_plan_created: plan_id={plan_data.get('id')}")
     await manager.broadcast(
         event_type="plan_created",
         data=filtered_data,
-        exclude_user_id=user_id,
     )
 
 
-async def broadcast_plan_updated(
-    plan_data: dict,
-    user_id: int | None = None,
-):
+async def broadcast_plan_updated(plan_data: dict):
     """
     Broadcast plan updated event with filtered data.
+    All connected clients receive the event (shared family budget model).
     """
     filtered_data = _filter_fact_data(plan_data)
     logger.debug(f"broadcast_plan_updated: plan_id={plan_data.get('id')}")
     await manager.broadcast(
         event_type="plan_updated",
         data=filtered_data,
-        exclude_user_id=user_id,
     )
 
 
-async def broadcast_plan_deleted(
-    plan_id: int,
-    user_id: int | None = None,
-):
-    """Broadcast plan deleted event."""
+async def broadcast_plan_deleted(plan_id: int):
+    """Broadcast plan deleted event to all connected clients."""
     logger.debug(f"broadcast_plan_deleted: plan_id={plan_id}")
     await manager.broadcast(
         event_type="plan_deleted",
         data={"id": plan_id},
-        exclude_user_id=user_id,
     )
 
 
 # Transfer broadcast functions
 
-async def broadcast_transfer_created(
-    transfer_data: dict,
-    user_id: int | None = None,
-):
+async def broadcast_transfer_created(transfer_data: dict):
     """
     Broadcast transfer created event with filtered data.
 
     Security: Only safe fields are broadcast to prevent information disclosure.
+    All connected clients receive the event (shared family budget model).
     """
     filtered_data = _filter_transfer_data(transfer_data)
     logger.debug(f"broadcast_transfer_created: transfer_id={transfer_data.get('id')}")
     await manager.broadcast(
         event_type="transfer_created",
         data=filtered_data,
-        exclude_user_id=user_id,
     )
 
 
-async def broadcast_transfer_deleted(
-    transfer_id: int,
-    user_id: int | None = None,
-):
-    """Broadcast transfer deleted event."""
+async def broadcast_transfer_deleted(transfer_id: int):
+    """Broadcast transfer deleted event to all connected clients."""
     logger.debug(f"broadcast_transfer_deleted: transfer_id={transfer_id}")
     await manager.broadcast(
         event_type="transfer_deleted",
         data={"id": transfer_id},
-        exclude_user_id=user_id,
     )
 
 
@@ -580,50 +546,40 @@ def _filter_item_data(item_data: dict) -> dict:
     return {k: v for k, v in item_data.items() if k in SAFE_ITEM_FIELDS}
 
 
-async def broadcast_item_created(
-    item_data: dict,
-    user_id: int | None = None,
-):
+async def broadcast_item_created(item_data: dict):
     """
     Broadcast item created event with filtered data.
 
     Security: Only safe fields are broadcast to prevent information disclosure.
     Note: item_data must contain shopping_list_id for client-side filtering.
+    All connected clients receive the event (shared family budget model).
     """
     filtered_data = _filter_item_data(item_data)
     logger.debug(f"broadcast_item_created: item_id={item_data.get('id')}, list_id={item_data.get('shopping_list_id')}")
     await manager.broadcast(
         event_type="item_created",
         data=filtered_data,
-        exclude_user_id=user_id,
     )
 
 
-async def broadcast_item_updated(
-    item_data: dict,
-    user_id: int | None = None,
-):
+async def broadcast_item_updated(item_data: dict):
     """
     Broadcast item updated event with filtered data.
 
     Security: Only safe fields are broadcast to prevent information disclosure.
+    All connected clients receive the event (shared family budget model).
     """
     filtered_data = _filter_item_data(item_data)
     logger.debug(f"broadcast_item_updated: item_id={item_data.get('id')}, list_id={item_data.get('shopping_list_id')}")
     await manager.broadcast(
         event_type="item_updated",
         data=filtered_data,
-        exclude_user_id=user_id,
     )
 
 
-async def broadcast_item_deleted(
-    item_id: int,
-    shopping_list_id: int,
-    user_id: int | None = None,
-):
+async def broadcast_item_deleted(item_id: int, shopping_list_id: int):
     """
-    Broadcast item deleted event.
+    Broadcast item deleted event to all connected clients.
 
     Note: shopping_list_id is required for client-side filtering.
     """
@@ -631,18 +587,12 @@ async def broadcast_item_deleted(
     await manager.broadcast(
         event_type="item_deleted",
         data={"id": item_id, "shopping_list_id": shopping_list_id},
-        exclude_user_id=user_id,
     )
 
 
-async def broadcast_item_completed(
-    item_id: int,
-    shopping_list_id: int,
-    is_completed: bool,
-    user_id: int | None = None,
-):
+async def broadcast_item_completed(item_id: int, shopping_list_id: int, is_completed: bool):
     """
-    Broadcast item completed event.
+    Broadcast item completed event to all connected clients.
 
     Note: shopping_list_id is required for client-side filtering.
     """
@@ -650,5 +600,4 @@ async def broadcast_item_completed(
     await manager.broadcast(
         event_type="item_completed",
         data={"id": item_id, "shopping_list_id": shopping_list_id, "is_completed": is_completed},
-        exclude_user_id=user_id,
     )

@@ -3,12 +3,13 @@
 import logging
 from datetime import datetime
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import get_session, CurrentUser
 from backend.app.schemas.transfer import TransferCreate, TransferResponse
 from backend.app.models.fact import BudgetFact
+from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.article import Article
 from backend.app.models.financial_center import FinancialCenter
 
@@ -228,7 +229,7 @@ async def create_transfer(
             detail=f"Failed to create transfer: {str(e)}"
         )
 
-    # 8. SSE broadcast for transfer created (non-blocking)
+    # 8. SSE broadcast for transfer created (notify all connected clients)
     try:
         sse = _get_budget_sse_broadcast()
         transfer_data = {
@@ -239,7 +240,7 @@ async def create_transfer(
             "transfer_date": str(transfer.transfer_date),
             "description": transfer.description,
         }
-        await sse.broadcast_transfer_created(transfer_data, user_id=current_user.id)
+        await sse.broadcast_transfer_created(transfer_data)
     except Exception as e:
         logger.warning(f"SSE broadcast failed for transfer {transfer_id}: {e}")
         # Don't fail the request if broadcast fails
@@ -251,3 +252,85 @@ async def create_transfer(
         income_fact_id=income_fact.id,
         created_at=expense_fact.created_at.isoformat()
     )
+
+
+@router.delete(
+    "/{transfer_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete transfer",
+    description=(
+        "Delete a transfer by deleting both linked facts (debit and credit).\n"
+        "Creates DELETE history records for audit trail.\n"
+        "Broadcasts SSE event to all connected clients."
+    ),
+)
+async def delete_transfer(
+    transfer_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    current_user: CurrentUser,
+) -> None:
+    """Delete transfer by transfer_id.
+
+    Finds and deletes both linked facts (debit and credit).
+    Creates DELETE history records for audit trail.
+
+    Args:
+        transfer_id: Transfer ID to delete
+        session: Database session
+        current_user: Current authenticated user
+
+    Raises:
+        HTTPException: If transfer not found or database error
+    """
+    from sqlmodel import select
+
+    # Find all facts with this transfer_id
+    stmt = select(BudgetFact).where(BudgetFact.transfer_id == transfer_id)
+    result = await session.exec(stmt)
+    facts = result.all()
+
+    if not facts:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Transfer {transfer_id} not found",
+        )
+
+    # Create DELETE history for each fact and delete
+    now = datetime.utcnow()
+    for fact in facts:
+        # Create history record (SCD Type 2)
+        delete_history = BudgetFactHistory(
+            fact_id=fact.id,
+            user_id=fact.user_id,
+            article_id=fact.article_id,
+            financial_center_id=fact.financial_center_id,
+            cost_center_id=fact.cost_center_id,
+            fact_date=fact.fact_date,
+            amount=fact.amount,
+            description=fact.description,
+            record_type=fact.record_type,
+            transfer_id=fact.transfer_id,
+            is_offline_sync=fact.is_offline_sync,
+            valid_from=now,
+            is_current=False,
+            change_type="DELETE",
+            changed_by_user_id=current_user.id,
+        )
+        session.add(delete_history)
+        await session.delete(fact)
+
+    await session.commit()
+
+    logger.info(
+        f"Deleted transfer {transfer_id} ({len(facts)} facts) by user {current_user.id}"
+    )
+
+    # SSE broadcast for transfer deleted (notify all connected clients)
+    try:
+        sse = _get_budget_sse_broadcast()
+        await sse.broadcast_transfer_deleted(transfer_id)
+    except Exception as e:
+        logger.warning(f"SSE broadcast failed for deleted transfer {transfer_id}: {e}")
+        # Don't fail the request if broadcast fails
+
+    return None
