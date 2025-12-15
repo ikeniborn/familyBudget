@@ -237,15 +237,6 @@
             <!-- Bulk Operations Toolbar -->
             <div class="bg-base-200 p-4 rounded-lg mb-4" id="bulk-toolbar">
                 <div class="flex flex-wrap gap-4 items-end">
-                    <div class="form-control">
-                        <label class="label cursor-pointer gap-2">
-                            <input type="checkbox" id="select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll(this)" />
-                            <span class="label-text font-semibold">Выбрать все</span>
-                        </label>
-                    </div>
-
-                    <div class="divider divider-horizontal"></div>
-
                     <div class="form-control w-48">
                         <label class="label py-0">
                             <span class="label-text text-xs">Тип категории</span>
@@ -1765,8 +1756,7 @@ function toggleSelectAll(sourceCheckbox) {
         }
     });
 
-    // Sync both checkboxes to the same state
-    document.getElementById('select-all').checked = selectAll;
+    // Reset header checkbox state
     document.getElementById('header-select-all').checked = selectAll;
 
     updateStats();
@@ -1880,6 +1870,7 @@ async function applyBulkUpdate() {
 
         showNotification(`Обновлено ${selectedIds.length} записей`, 'success');
         await loadStagingTable();
+        document.getElementById('header-select-all').checked = false;
 
     } catch (error) {
         console.error('Bulk update error:', error);
@@ -1972,6 +1963,7 @@ async function deleteSelectedRecords() {
         const result = await response.json();
         showNotification(result.message || `Удалено ${selectedIds.length} записей`, 'success');
         await loadStagingTable();
+        document.getElementById('header-select-all').checked = false;
 
     } catch (error) {
         console.error('Bulk delete error:', error);
