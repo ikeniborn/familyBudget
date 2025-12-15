@@ -781,7 +781,7 @@ async def get_fact(
     fact_id: int,
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-) -> BudgetFact:
+) -> dict:
     """
     Get a single budget fact by ID.
 
@@ -794,21 +794,59 @@ async def get_fact(
     - 403 Forbidden: Fact belongs to another user
     - 404 Not Found: Fact not found
     """
-    # Load fact
-    statement = select(BudgetFact).where(BudgetFact.id == fact_id)
+    # Load fact with JOINs for enriched response (like list_facts)
+    statement = (
+        select(BudgetFact, Article, FinancialCenter, CostCenter, User)
+        .join(Article, BudgetFact.article_id == Article.id)
+        .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+        .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
+        .outerjoin(User, BudgetFact.user_id == User.id)
+        .where(BudgetFact.id == fact_id)
+    )
     result = await session.execute(statement)
-    fact = result.scalar_one_or_none()
+    row = result.one_or_none()
 
-    if not fact:
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Fact with id={fact_id} not found"
         )
 
+    fact, article, financial_center, cost_center, user = row
+
     # Shared family budget - NO ownership check
     # All authenticated users can access any transaction
 
-    return fact
+    # Build enriched response (same as list_facts)
+    user_name = None
+    if user:
+        user_name = (
+            user.first_name or
+            user.username or
+            user.last_name or
+            (f"User {user.telegram_id}" if user.telegram_id else None) or
+            f"Пользователь #{user.id}"
+        )
+
+    return {
+        "id": fact.id,
+        "user_id": fact.user_id,
+        "user_name": user_name,
+        "article_id": fact.article_id,
+        "article_type": article.type,
+        "article_name": article.name,
+        "fact_date": fact.fact_date,
+        "amount": fact.amount,
+        "description": fact.description,
+        "financial_center_id": fact.financial_center_id,
+        "financial_center_name": financial_center.name if financial_center else None,
+        "cost_center_id": fact.cost_center_id,
+        "cost_center_name": cost_center.name if cost_center else None,
+        "record_type": fact.record_type,
+        "is_offline_sync": fact.is_offline_sync,
+        "created_at": fact.created_at,
+        "updated_at": fact.updated_at,
+    }
 
 
 @router.put(
