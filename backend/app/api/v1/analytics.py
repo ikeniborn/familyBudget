@@ -458,17 +458,17 @@ async def get_quick_stats_html(
             #desktop-stats {{ display: none !important; }}
             #mobile-stats {{ display: grid !important; }}
         }}
-        /* Responsive font sizing */
-        .stat-title {{ font-size: clamp(0.625rem, 2vw, 0.875rem); }}
-        .stat-label {{ font-size: clamp(0.5rem, 1.5vw, 0.75rem); }}
-        .stat-value {{ font-size: clamp(0.5rem, 1.5vw, 0.75rem); }}
-        .stat-pct {{ font-size: clamp(0.5rem, 1.3vw, 0.625rem); }}
+        /* Responsive font sizing - increased by 2-4px for better readability */
+        .stat-title {{ font-size: clamp(0.75rem, 2.5vw, 1rem); }}
+        .stat-label {{ font-size: clamp(0.625rem, 2vw, 0.875rem); }}
+        .stat-value {{ font-size: clamp(0.625rem, 2vw, 0.875rem); }}
+        .stat-pct {{ font-size: clamp(0.625rem, 1.8vw, 0.75rem); }}
     </style>
     <!-- Desktop version: horizontal flex layout -->
-    <div id="desktop-stats" class="flex flex-row gap-4 w-full">
+    <div id="desktop-stats" class="flex flex-row gap-3 w-full">
         <!-- Доходы -->
-        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
-            <div class="mb-1">
+        <div class="bg-base-200 rounded-lg p-2 shadow flex-1">
+            <div class="mb-0.5">
                 <span class="font-semibold stat-title">💰 Доходы</span>
             </div>
             <div class="space-y-0.5">
@@ -488,8 +488,8 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Расходы -->
-        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
-            <div class="mb-1">
+        <div class="bg-base-200 rounded-lg p-2 shadow flex-1">
+            <div class="mb-0.5">
                 <span class="font-semibold stat-title">💸 Расходы</span>
             </div>
             <div class="space-y-0.5">
@@ -509,8 +509,8 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Пополнение -->
-        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
-            <div class="mb-1">
+        <div class="bg-base-200 rounded-lg p-2 shadow flex-1">
+            <div class="mb-0.5">
                 <span class="font-semibold stat-title">➕ Пополнение</span>
             </div>
             <div class="space-y-0.5">
@@ -530,8 +530,8 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Списание -->
-        <div class="bg-base-200 rounded-lg p-3 shadow flex-1">
-            <div class="mb-1">
+        <div class="bg-base-200 rounded-lg p-2 shadow flex-1">
+            <div class="mb-0.5">
                 <span class="font-semibold stat-title">➖ Списание</span>
             </div>
             <div class="space-y-0.5">
@@ -821,10 +821,10 @@ async def get_account_balances_html(
             #desktop-balances {{ display: none !important; }}
             #mobile-balances {{ display: grid !important; }}
         }}
-        /* Responsive font sizing for balances */
-        .balance-title {{ font-size: clamp(0.625rem, 2vw, 0.875rem); }}
-        .balance-label {{ font-size: clamp(0.5rem, 1.5vw, 0.75rem); }}
-        .balance-value {{ font-size: clamp(0.625rem, 1.8vw, 0.875rem); }}
+        /* Responsive font sizing for balances - increased by 2-4px for better readability */
+        .balance-title {{ font-size: clamp(0.75rem, 2.5vw, 1rem); }}
+        .balance-label {{ font-size: clamp(0.625rem, 2vw, 0.875rem); }}
+        .balance-value {{ font-size: clamp(0.75rem, 2.2vw, 1rem); }}
     </style>
 
     <!-- Desktop: Adaptive grid layout (1-4 columns) -->
