@@ -171,6 +171,17 @@ class OfflineManager {
                 this._showToastDebounced('Соединение восстановлено', 'success');
             }
 
+            // Skip sync for manual transitions - manual-offline-exit-sync event handles it
+            // This prevents race condition between multiple sync processes
+            if (options.manual === true) {
+                console.log('[OfflineManager] Skipping sync in _handleNetworkStatusChange (manual transition)');
+                // Just dispatch status change event for UI update, then return
+                window.dispatchEvent(new CustomEvent('offline-status-change', {
+                    detail: { online: newStatus !== 'offline', status: newStatus }
+                }));
+                return;
+            }
+
             // Запустить синхронизацию
             if (this.supportsBackgroundSync()) {
                 try {
@@ -495,11 +506,19 @@ class OfflineManager {
 
         const tempId = `offline_fact_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        // 1. Save to IndexedDB with contentHash
+        // Generate syncHash for backend deduplication (same format as in syncItem)
+        // syncHash = MD5(content_hash|user_id|created_date)
+        const userId = await this.getCurrentUserId();
+        const createdDate = new Date().toISOString().split('T')[0];  // YYYY-MM-DD
+        const syncHashContent = `${contentHash}|${userId}|${createdDate}`;
+        const syncHash = this.db._md5(syncHashContent);
+
+        // 1. Save to IndexedDB with contentHash and syncHash
         await this.db.addFact({
             tempId,
             data,
             contentHash,
+            syncHash,  // Save syncHash for SW to use during sync
             synced: false,
             createdAt: Date.now(),
             error: null,
@@ -873,37 +892,52 @@ class OfflineManager {
 
             for (const item of queue) {
                 try {
-                    await this.syncItem(item);
+                    const syncResult = await this.syncItem(item);
+                    // Check if item was skipped (already processed by SW)
+                    if (syncResult === null) {
+                        console.log(`[OfflineManager] Item ${item.id} was skipped (already processed)`);
+                        continue;
+                    }
                     results.synced++;
                     results.items.push({ ...item, status: 'synced' });
                 } catch (error) {
-
                     const retryCount = (item.retryCount || 0) + 1;
 
-                    if (retryCount >= this.maxRetries) {
-                        // Max retries reached, mark as failed
-                        await this.db.updateSyncQueueItem(item.id, {
-                            status: 'failed',
-                            error: error.message,
-                            retryCount
-                        });
-                        results.failed++;
-                        results.items.push({ ...item, status: 'failed', error: error.message });
-                    } else {
-                        // ✅ NON-BLOCKING RETRY: Mark for retry but don't wait here
-                        console.log(`[OfflineManager] Item ${item.id} failed (attempt ${retryCount}/${this.maxRetries}), marking for retry`);
+                    // Wrap in try-catch to handle race conditions with SW
+                    try {
+                        if (retryCount >= this.maxRetries) {
+                            // Max retries reached, mark as failed
+                            await this.db.updateSyncQueueItem(item.id, {
+                                status: 'failed',
+                                error: error.message,
+                                retryCount
+                            });
+                            results.failed++;
+                            results.items.push({ ...item, status: 'failed', error: error.message });
+                        } else {
+                            // NON-BLOCKING RETRY: Mark for retry but don't wait here
+                            console.log(`[OfflineManager] Item ${item.id} failed (attempt ${retryCount}/${this.maxRetries}), marking for retry`);
 
-                        // Update retry count and keep status as 'pending' for next sync session
-                        await this.db.updateSyncQueueItem(item.id, {
-                            status: 'pending',
-                            error: error.message,
-                            retryCount,
-                            lastRetryAttempt: Date.now()  // ✅ Track last attempt time
-                        });
+                            // Update retry count and keep status as 'pending' for next sync session
+                            await this.db.updateSyncQueueItem(item.id, {
+                                status: 'pending',
+                                error: error.message,
+                                retryCount,
+                                lastRetryAttempt: Date.now()
+                            });
 
-                        // Mark that we need to schedule a retry sync
-                        results.needsRetry = true;
-                        results.items.push({ ...item, status: 'retry', retryCount });
+                            // Mark that we need to schedule a retry sync
+                            results.needsRetry = true;
+                            results.items.push({ ...item, status: 'retry', retryCount });
+                        }
+                    } catch (updateError) {
+                        // Item was already deleted by SW or another process - just log and continue
+                        if (updateError.message && updateError.message.includes('not found')) {
+                            console.log(`[OfflineManager] Item ${item.id} already processed by another sync - skipping`);
+                        } else {
+                            console.warn(`[OfflineManager] Could not update item ${item.id}: ${updateError.message}`);
+                            results.failed++;
+                        }
                     }
                 }
             }
@@ -938,8 +972,17 @@ class OfflineManager {
      * @private
      */
     async syncItem(item) {
-        // Update status to syncing
-        await this.db.updateSyncQueueItem(item.id, { status: 'syncing' });
+        // Update status to syncing - wrap in try-catch to handle race condition with SW
+        try {
+            await this.db.updateSyncQueueItem(item.id, { status: 'syncing' });
+        } catch (e) {
+            // Item already processed by SW - skip
+            if (e.message && e.message.includes('not found')) {
+                console.log(`[OfflineManager] Item ${item.id} already processed by SW - skipping`);
+                return null;  // Signal to caller that item was skipped
+            }
+            throw e;
+        }
 
         let response;
 
@@ -966,7 +1009,15 @@ class OfflineManager {
         }
 
         // Mark as completed (only after verification passed)
-        await this.db.updateSyncQueueItem(item.id, { status: 'completed' });
+        // Wrap in try-catch to handle race condition with SW
+        try {
+            await this.db.updateSyncQueueItem(item.id, { status: 'completed' });
+        } catch (e) {
+            // Item already processed by SW - ignore
+            if (e.message && e.message.includes('not found')) {
+                console.log(`[OfflineManager] Item ${item.id} already marked completed by SW`);
+            }
+        }
 
         // Delete offline record after successful sync (it's now on server)
         if (item.operation === 'create') {

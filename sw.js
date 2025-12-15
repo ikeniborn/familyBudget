@@ -156,6 +156,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip health endpoints - используются NetworkDetector для определения offline статуса
+  // NetworkDetector ожидает реальные network errors, а не кешированные/HTML ответы
+  if (url.pathname === '/health' ||
+      url.pathname === '/ping' ||
+      url.pathname === '/ready' ||
+      url.pathname.startsWith('/health/')) {
+    return; // Пропустить без обработки - fetch пойдет напрямую к серверу
+  }
+
   // Стратегия 1: API endpoints - Network First (всегда актуальные данные)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
@@ -544,6 +553,32 @@ async function deleteFromOfflineStore(entity, tempId) {
 }
 
 /**
+ * Get record from offline store (for retrieving contentHash and syncHash)
+ * @param {string} entity - Entity type: 'fact', 'plan', 'transfer'
+ * @param {string|number} tempId - Temporary ID of the offline record
+ * @returns {Promise<Object|null>} Offline record or null if not found
+ */
+async function getOfflineRecord(entity, tempId) {
+  const db = await openIndexedDB();
+  const storeName = entity === 'transfer' ? 'offline_transfers' :
+                    entity === 'plan' ? 'offline_plans' : 'offline_facts';
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([storeName], 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.get(tempId);
+
+    request.onsuccess = () => {
+      if (DEBUG && request.result) {
+        console.log(`[SW] Found offline record for ${entity} ${tempId}:`, request.result);
+      }
+      resolve(request.result || null);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+/**
  * Background Sync Event Handler
  * Синхронизирует offline данные при восстановлении сети
  * Support: Chrome, Edge, Яндекс.Браузер (Safari не поддерживает)
@@ -711,6 +746,29 @@ async function syncCreate(item) {
 
   // Mark as offline sync (for all entity types: fact, plan, transfer)
   cleanData.is_offline_sync = true;
+
+  // Add content_hash and sync_hash for backend deduplication (prevents duplicate records)
+  // These hashes were generated when the offline record was created and stored in IndexedDB
+  if ((item.entity === 'fact' || item.entity === 'plan') && item.tempId) {
+    try {
+      const offlineRecord = await getOfflineRecord(item.entity, item.tempId);
+      if (offlineRecord) {
+        if (offlineRecord.contentHash) {
+          cleanData.content_hash = offlineRecord.contentHash;
+        }
+        if (offlineRecord.syncHash) {
+          cleanData.sync_hash = offlineRecord.syncHash;
+        }
+        if (DEBUG) console.log(`[SW] Added deduplication hashes for ${item.tempId}:`, {
+          content_hash: cleanData.content_hash,
+          sync_hash: cleanData.sync_hash
+        });
+      }
+    } catch (e) {
+      // Ignore - record may already be deleted by main thread
+      if (DEBUG) console.log(`[SW] Could not get offline record for ${item.tempId}:`, e.message);
+    }
+  }
 
   if (DEBUG) console.log(`[SW] Syncing ${item.entity} to ${endpoint}:`, cleanData);
 
