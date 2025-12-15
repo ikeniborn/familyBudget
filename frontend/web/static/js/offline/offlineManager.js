@@ -166,12 +166,19 @@ class OfflineManager {
             if (!skipToast) {
                 this._showToastDebounced('Работаем оффлайн', 'warning');
             }
+            // Disconnect SSE - нет смысла держать соединение в offline режиме
+            this.disconnectSSE();
+            console.log('[OfflineManager] SSE disconnected (offline mode)');
             // Note: offline-status-change is dispatched at the end of function for all cases
         } else if (oldStatus === 'offline' && (newStatus === 'online' || newStatus === 'degraded')) {
             // Восстановление соединения
             if (!skipToast) {
                 this._showToastDebounced('Соединение восстановлено', 'success');
             }
+
+            // Reconnect SSE - восстановить real-time соединение
+            this.reconnectSSE();
+            console.log('[OfflineManager] SSE reconnected (online mode)');
 
             // Skip sync for manual transitions - manual-offline-exit-sync event handles it
             // This prevents race condition between multiple sync processes
@@ -237,21 +244,51 @@ class OfflineManager {
      * @private
      */
     async _handleManualOfflineExitSync(detail) {
-        console.log('[OfflineManager] Manual offline mode exited, starting auto-sync...');
+        console.log('[OfflineManager] === Manual offline mode exited ===');
+        console.log('[OfflineManager] Detail:', JSON.stringify(detail));
 
         // Check if we have pending items to sync
         const pending = await this.db.getSyncQueue('pending');
+        console.log(`[OfflineManager] Pending items in queue: ${pending.length}`);
+
+        if (pending.length > 0) {
+            console.log('[OfflineManager] Pending items:', pending.map(i => ({
+                id: i.id,
+                tempId: i.tempId,
+                status: i.status,
+                createdInManualMode: i.createdInManualMode
+            })));
+        }
 
         if (pending.length === 0) {
-            console.log('[OfflineManager] No pending items to sync');
+            console.log('[OfflineManager] No pending items to sync - returning early');
             return;
         }
 
-        console.log(`[OfflineManager] Found ${pending.length} pending items - syncing...`);
+        console.log(`[OfflineManager] Starting sync with includeManualModeItems: true...`);
 
         // Trigger sync with includeManualModeItems: true
         // This will sync ALL pending items (both manual and auto)
         const syncResults = await this.sync({ includeManualModeItems: true });
+
+        console.log('[OfflineManager] Sync results:', JSON.stringify(syncResults));
+
+        // ВАЖНО: Принудительная очистка после sync для гарантии удаления
+        const completedCount = await this.db.clearCompletedSyncQueue();
+        console.log(`[OfflineManager] Cleared ${completedCount} completed items from queue`);
+
+        // Проверить что осталось в queue после очистки
+        const remainingPending = await this.db.getSyncQueue('pending');
+        const remainingCompleted = await this.db.getSyncQueue('completed');
+        console.log(`[OfflineManager] After sync - pending: ${remainingPending.length}, completed: ${remainingCompleted.length}`);
+
+        if (remainingPending.length > 0) {
+            console.log('[OfflineManager] Remaining pending items:', remainingPending.map(i => ({
+                id: i.id,
+                status: i.status,
+                createdInManualMode: i.createdInManualMode
+            })));
+        }
 
         // Show result toast
         if (syncResults.synced > 0 && syncResults.failed === 0) {
@@ -945,7 +982,20 @@ class OfflineManager {
             }
 
             // Clear completed items
-            await this.db.clearCompletedSyncQueue();
+            console.log(`[OfflineManager] sync() completed. Synced: ${results.synced}, Failed: ${results.failed}`);
+            const clearedCount = await this.db.clearCompletedSyncQueue();
+            console.log(`[OfflineManager] Cleared ${clearedCount} completed items from sync queue`);
+
+            // Verify queue state after cleanup
+            const remainingQueue = await this.db.getSyncQueue();
+            console.log(`[OfflineManager] Remaining items in queue: ${remainingQueue.length}`);
+            if (remainingQueue.length > 0) {
+                console.log('[OfflineManager] Remaining items:', remainingQueue.map(i => ({
+                    id: i.id,
+                    status: i.status,
+                    createdInManualMode: i.createdInManualMode
+                })));
+            }
 
             // ✅ NEW: Schedule retry sync if there are items that need retry
             if (results.needsRetry) {
@@ -1018,12 +1068,16 @@ class OfflineManager {
 
         // Mark as completed (only after verification passed)
         // Wrap in try-catch to handle race condition with SW
+        console.log(`[OfflineManager] syncItem ${item.id} - updating status to 'completed'`);
         try {
             await this.db.updateSyncQueueItem(item.id, { status: 'completed' });
+            console.log(`[OfflineManager] syncItem ${item.id} - status updated successfully`);
         } catch (e) {
             // Item already processed by SW - ignore
             if (e.message && e.message.includes('not found')) {
                 console.log(`[OfflineManager] Item ${item.id} already marked completed by SW`);
+            } else {
+                console.error(`[OfflineManager] Failed to update status for item ${item.id}:`, e);
             }
         }
 
@@ -1503,11 +1557,22 @@ class OfflineManager {
     }
 
     /**
-     * Disconnect SSE client
+     * Disconnect SSE client (disables auto-reconnect)
      */
     disconnectSSE() {
         if (typeof window.budgetSSEClient !== 'undefined') {
-            window.budgetSSEClient.disconnect();
+            // Use setEnabled(false) to prevent auto-reconnect from visibility/online events
+            window.budgetSSEClient.setEnabled(false);
+        }
+    }
+
+    /**
+     * Reconnect SSE client (re-enables and connects)
+     */
+    reconnectSSE() {
+        if (typeof window.budgetSSEClient !== 'undefined') {
+            // Use setEnabled(true) to re-enable auto-reconnect and connect
+            window.budgetSSEClient.setEnabled(true);
         }
     }
 

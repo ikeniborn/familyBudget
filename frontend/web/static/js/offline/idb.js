@@ -749,14 +749,24 @@ class IndexedDBManager {
      * @returns {Promise<number>} Number of deleted items
      */
     async clearCompletedSyncQueue() {
-        const completed = await this.getSyncQueue('completed');
-        let count = 0;
+        // Небольшая задержка чтобы IndexedDB успел обновить indexes после status update
+        await new Promise(resolve => setTimeout(resolve, 50));
 
+        const completed = await this.getSyncQueue('completed');
+        console.log(`[IDB] clearCompletedSyncQueue: found ${completed.length} completed items`);
+
+        let count = 0;
         for (const item of completed) {
-            await this.deleteSyncQueueItem(item.id);
-            count++;
+            try {
+                await this.deleteSyncQueueItem(item.id);
+                count++;
+                console.log(`[IDB] Deleted sync queue item ${item.id} (tempId: ${item.tempId})`);
+            } catch (e) {
+                console.error(`[IDB] Failed to delete item ${item.id}:`, e);
+            }
         }
 
+        console.log(`[IDB] clearCompletedSyncQueue: deleted ${count} items`);
         return count;
     }
 

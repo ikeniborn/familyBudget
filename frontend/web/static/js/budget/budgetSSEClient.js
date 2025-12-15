@@ -440,7 +440,12 @@ class BudgetSSEClient {
         // Badge size classes
         const sizeClasses = 'badge-sm sm:badge-md';
 
-        if (this.isConnected) {
+        // Check if SSE is disabled (offline mode)
+        if (!this.enabled) {
+            indicator.className = `badge badge-ghost ${sizeClasses}`;
+            indicator.innerHTML = '⚫';
+            indicator.title = 'Offline режим - SSE отключен';
+        } else if (this.isConnected) {
             indicator.className = `badge badge-success ${sizeClasses}`;
             indicator.innerHTML = '🟢';
             indicator.title = 'Real-time синхронизация активна';
