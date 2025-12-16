@@ -446,25 +446,31 @@
 }
 
 /* ============================================================================
- * MOBILE: Spacing between search input and dropdown list
- * Improves touch navigation by adding visual gap
+ * Visual separator lines - top and bottom of dropdown list
+ * Improves visual separation between search input and list items
  * ============================================================================ */
-@media (max-width: 640px) {
-    /* Add padding at top of dropdown list for touch-friendly gap */
-    .choices__list--dropdown .choices__list {
-        padding-top: 0.5rem;  /* 8px gap between search and first item */
-    }
+.choices__list--dropdown .choices__list {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
 
-    /* Visual separator line */
-    .choices__list--dropdown .choices__list::before {
-        content: '';
-        display: block;
-        height: 1px;
-        background: rgba(0, 0, 0, 0.1);
-        margin: 0 1rem 0.5rem 1rem;
-    }
+.choices__list--dropdown .choices__list::before {
+    content: '';
+    display: block;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0 1rem 0.5rem 1rem;
+}
 
-    .dark .choices__list--dropdown .choices__list::before {
-        background: rgba(255, 255, 255, 0.1);
-    }
+.choices__list--dropdown .choices__list::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0.5rem 1rem 0 1rem;
+}
+
+.dark .choices__list--dropdown .choices__list::before,
+.dark .choices__list--dropdown .choices__list::after {
+    background: rgba(255, 255, 255, 0.1);
 }
