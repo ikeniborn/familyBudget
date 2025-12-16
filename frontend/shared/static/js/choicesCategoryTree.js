@@ -501,10 +501,14 @@ class ChoicesCategoryTree {
     }
 
     /**
-     * Create templates for multi-select mode with DaisyUI badges.
+     * Create templates for multi-select mode.
+     * When showClearButton=false: badges with individual remove buttons
+     * When showClearButton=true: comma-separated text (use clear-all button)
      * @private
      */
     _createMultipleTemplates(template) {
+        const showRemoveButtons = !this.options.showClearButton;
+
         return {
             // Dropdown item template (same as single - shows parent chain)
             choice: (classNames, data) => {
@@ -526,18 +530,39 @@ class ChoicesCategoryTree {
                 `);
             },
 
-            // Selected item template - comma-separated text
+            // Selected item template
             item: (classNames, data) => {
-                return template(`
-                    <span class="${classNames.item} choices__item--comma"
-                          data-item
-                          data-id="${data.id}"
-                          data-value="${data.value}"
-                          ${data.active ? 'aria-selected="true"' : ''}
-                          ${data.disabled ? 'aria-disabled="true"' : ''}>
-                        ${data.label}
-                    </span>
-                `);
+                if (showRemoveButtons) {
+                    // Badge style with individual remove button
+                    return template(`
+                        <div class="${classNames.item} choices__item--badge"
+                             data-item
+                             data-id="${data.id}"
+                             data-value="${data.value}"
+                             ${data.active ? 'aria-selected="true"' : ''}
+                             ${data.disabled ? 'aria-disabled="true"' : ''}>
+                            <span class="choices__item--badge-text">${data.label}</span>
+                            <button type="button"
+                                    class="${classNames.button}"
+                                    data-button=""
+                                    aria-label="Удалить ${data.label}">
+                                ×
+                            </button>
+                        </div>
+                    `);
+                } else {
+                    // Comma-separated text (use clear-all button)
+                    return template(`
+                        <span class="${classNames.item} choices__item--comma"
+                              data-item
+                              data-id="${data.id}"
+                              data-value="${data.value}"
+                              ${data.active ? 'aria-selected="true"' : ''}
+                              ${data.disabled ? 'aria-disabled="true"' : ''}>
+                            ${data.label}
+                        </span>
+                    `);
+                }
             },
         };
     }
