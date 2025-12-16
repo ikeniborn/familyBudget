@@ -149,6 +149,7 @@ class ChoicesCategoryTree {
             // Multi-select support (for analytics page category filter)
             multiple: options.multiple || false,
             showPath: options.showPath !== false,  // Default true - show breadcrumb path
+            showClearButton: options.showClearButton !== false,  // Default true - show clear-all button for multiple mode
         };
 
         this.choices = null;
@@ -394,15 +395,17 @@ class ChoicesCategoryTree {
             placeholder: true,
             // Different placeholder for single/multiple modes
             placeholderValue: this.options.multiple
-                ? 'Выберите категории...'
+                ? ''  // Пустой placeholder для multi-select
                 : '— Выберите категорию —',
             noResultsText: 'Не найдено',
             noChoicesText: 'Нет доступных категорий',
             itemSelectText: '',
             shouldSort: false,  // Keep our API sorting (by usage_count)
 
-            // Enable remove button for multiple mode (allows removing individual items)
-            removeItemButton: this.options.multiple,
+            // Enable/disable individual remove buttons based on showClearButton option
+            // If showClearButton=true: use clear-all button, disable individual remove
+            // If showClearButton=false: enable individual remove buttons
+            removeItemButton: this.options.multiple && !this.options.showClearButton,
 
             // Fuzzy search configuration (built-in Fuse.js)
             fuseOptions: {
@@ -448,8 +451,8 @@ class ChoicesCategoryTree {
             this.handleCategoryChange(event);
         });
 
-        // Add clear-all button for multiple mode
-        if (this.options.multiple) {
+        // Add clear-all button for multiple mode (if enabled)
+        if (this.options.multiple && this.options.showClearButton) {
             this._addClearAllButton();
         }
     }
@@ -523,39 +526,35 @@ class ChoicesCategoryTree {
                 `);
             },
 
-            // Selected item template - DaisyUI badge style
+            // Selected item template - comma-separated text
             item: (classNames, data) => {
                 return template(`
-                    <div class="${classNames.item} choices__item--multiple badge badge-primary badge-lg gap-1"
-                         data-item
-                         data-id="${data.id}"
-                         data-value="${data.value}"
-                         ${data.active ? 'aria-selected="true"' : ''}
-                         ${data.disabled ? 'aria-disabled="true"' : ''}>
-                        <span class="truncate max-w-[120px]">${data.label}</span>
-                        <button type="button"
-                                class="${classNames.button} choices__button--remove"
-                                aria-label="Удалить ${data.label}"
-                                data-button>
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
+                    <span class="${classNames.item} choices__item--comma"
+                          data-item
+                          data-id="${data.id}"
+                          data-value="${data.value}"
+                          ${data.active ? 'aria-selected="true"' : ''}
+                          ${data.disabled ? 'aria-disabled="true"' : ''}>
+                        ${data.label}
+                    </span>
                 `);
             },
         };
     }
 
     /**
-     * Add "Clear All" button inside the input field (for multiple mode).
+     * Add "Clear All" button under the form (for multiple mode).
      * @private
      */
     _addClearAllButton() {
-        const inner = this.element.closest('.choices')?.querySelector('.choices__inner');
-        if (!inner) return;
+        const choicesContainer = this.element.closest('.choices');
+        if (!choicesContainer) return;
 
-        // Create clear-all button
+        // Create wrapper for clear button (positioned under form)
+        const wrapper = document.createElement('div');
+        wrapper.className = 'choices__clear-wrapper';
+
+        // Create clear-all button (только иконка X)
         const clearBtn = document.createElement('button');
         clearBtn.type = 'button';
         clearBtn.className = 'choices__clear-all';
@@ -567,7 +566,10 @@ class ChoicesCategoryTree {
         clearBtn.title = 'Очистить все';
         clearBtn.style.display = 'none';  // Hidden by default
 
-        inner.appendChild(clearBtn);
+        wrapper.appendChild(clearBtn);
+
+        // Insert AFTER choices container (под формой)
+        choicesContainer.parentElement.insertBefore(wrapper, choicesContainer.nextSibling);
 
         // Handle click
         clearBtn.addEventListener('click', (e) => {
