@@ -1906,8 +1906,49 @@ async function deleteFromEditModal() {
     const factId = document.getElementById('edit-id').value;
     if (!factId) return;
 
+    // Show confirm dialog while edit modal is still open
+    const confirmed = await showConfirmDialog(
+        'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
+        '🗑️ Удаление транзакции'
+    );
+
+    if (!confirmed) {
+        return; // User cancelled - stay in edit modal
+    }
+
+    // Close edit modal and perform deletion
     closeEditModal();
-    await deleteFact(parseInt(factId));
+
+    const parsedFactId = parseInt(factId);
+
+    // Prevent multiple simultaneous deletes
+    if (deletingFactIds.has(parsedFactId)) {
+        console.warn('Delete already in progress for fact:', parsedFactId);
+        return;
+    }
+
+    deletingFactIds.add(parsedFactId);
+
+    try {
+        const response = await fetch(`/api/v1/facts/${parsedFactId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        deletingFactIds.delete(parsedFactId);
+        await loadFacts();
+        showToast('Транзакция успешно удалена', 'success');
+    } catch (error) {
+        console.error('Error deleting fact:', error);
+        deletingFactIds.delete(parsedFactId);
+        await loadFacts();
+        showToast('Ошибка: ' + (error?.message || String(error)), 'error');
+    }
 }
 
 // Update fact

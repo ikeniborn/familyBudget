@@ -479,13 +479,13 @@ async def get_quick_stats_html(
         .stat-row {{ white-space: nowrap; }}
     </style>
     <!-- Desktop version: horizontal flex layout -->
-    <div id="desktop-stats" class="flex flex-row gap-3 w-full">
+    <div id="desktop-stats" class="flex flex-row gap-2 w-full">
         <!-- Доходы -->
-        <div class="bg-base-200 rounded-lg p-2 shadow flex-1">
-            <div class="mb-0.5">
+        <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
+            <div>
                 <span class="font-semibold stat-title">💰 Доходы</span>
             </div>
-            <div class="space-y-0.5">
+            <div class="space-y-px">
                 <div class="stat-row flex justify-between items-baseline gap-2">
                     <span class="stat-label opacity-60">План</span>
                     <span class="font-semibold stat-value">{format_money_desktop(month_plan_income)}</span>
@@ -502,11 +502,11 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Расходы -->
-        <div class="bg-base-200 rounded-lg p-2 shadow flex-1">
-            <div class="mb-0.5">
+        <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
+            <div>
                 <span class="font-semibold stat-title">💸 Расходы</span>
             </div>
-            <div class="space-y-0.5">
+            <div class="space-y-px">
                 <div class="stat-row flex justify-between items-baseline gap-2">
                     <span class="stat-label opacity-60">План</span>
                     <span class="font-semibold stat-value">{format_money_desktop(month_plan_expense)}</span>
@@ -523,11 +523,11 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Пополнение -->
-        <div class="bg-base-200 rounded-lg p-2 shadow flex-1">
-            <div class="mb-0.5">
+        <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
+            <div>
                 <span class="font-semibold stat-title">➕ Пополнение</span>
             </div>
-            <div class="space-y-0.5">
+            <div class="space-y-px">
                 <div class="stat-row flex justify-between items-baseline gap-2">
                     <span class="stat-label opacity-60">План</span>
                     <span class="font-semibold stat-value">{format_money_desktop(month_plan_credit)}</span>
@@ -544,11 +544,11 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Списание -->
-        <div class="bg-base-200 rounded-lg p-2 shadow flex-1">
-            <div class="mb-0.5">
+        <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
+            <div>
                 <span class="font-semibold stat-title">➖ Списание</span>
             </div>
-            <div class="space-y-0.5">
+            <div class="space-y-px">
                 <div class="stat-row flex justify-between items-baseline gap-2">
                     <span class="stat-label opacity-60">План</span>
                     <span class="font-semibold stat-value">{format_money_desktop(month_plan_debit)}</span>
@@ -566,13 +566,13 @@ async def get_quick_stats_html(
     </div>
 
     <!-- Mobile version: 2x2 grid with responsive font sizing -->
-    <div id="mobile-stats" class="grid grid-cols-2 gap-2">
+    <div id="mobile-stats" class="grid grid-cols-2 gap-1.5">
         <!-- Доходы -->
-        <div class="bg-base-200 rounded-lg p-2 shadow">
-            <div class="mb-0.5">
+        <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
+            <div>
                 <span class="font-semibold stat-title">💰 Доходы</span>
             </div>
-            <div class="space-y-0.5">
+            <div class="space-y-px">
                 <div class="stat-row flex justify-between items-baseline gap-1">
                     <span class="stat-label opacity-60">План</span>
                     <span class="font-semibold stat-value">{format_money_mobile(month_plan_income)}</span>
@@ -589,11 +589,11 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Расходы -->
-        <div class="bg-base-200 rounded-lg p-2 shadow">
-            <div class="mb-0.5">
+        <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
+            <div>
                 <span class="font-semibold stat-title">💸 Расходы</span>
             </div>
-            <div class="space-y-0.5">
+            <div class="space-y-px">
                 <div class="stat-row flex justify-between items-baseline gap-1">
                     <span class="stat-label opacity-60">План</span>
                     <span class="font-semibold stat-value">{format_money_mobile(month_plan_expense)}</span>
@@ -610,11 +610,11 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Пополнение -->
-        <div class="bg-base-200 rounded-lg p-2 shadow">
-            <div class="mb-0.5">
+        <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
+            <div>
                 <span class="font-semibold stat-title">➕ Пополнение</span>
             </div>
-            <div class="space-y-0.5">
+            <div class="space-y-px">
                 <div class="stat-row flex justify-between items-baseline gap-1">
                     <span class="stat-label opacity-60">План</span>
                     <span class="font-semibold stat-value">{format_money_mobile(month_plan_credit)}</span>
@@ -631,11 +631,11 @@ async def get_quick_stats_html(
         </div>
 
         <!-- Списание -->
-        <div class="bg-base-200 rounded-lg p-2 shadow">
-            <div class="mb-0.5">
+        <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
+            <div>
                 <span class="font-semibold stat-title">➖ Списание</span>
             </div>
-            <div class="space-y-0.5">
+            <div class="space-y-px">
                 <div class="stat-row flex justify-between items-baseline gap-1">
                     <span class="stat-label opacity-60">План</span>
                     <span class="font-semibold stat-value">{format_money_mobile(month_plan_debit)}</span>
