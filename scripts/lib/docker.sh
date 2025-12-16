@@ -917,17 +917,9 @@ cleanup_old_image_versions() {
 
             while IFS= read -r version; do
                 if [[ -n "$version" ]]; then
-                    # Check if image is in use by RUNNING container (not stopped)
-                    # Using 'docker ps' without '-a' to exclude stopped containers
-                    local in_use=$(docker ps --filter "ancestor=${image_name}:${version}" --format "{{.Names}}" 2>/dev/null | head -1)
-
-                    if [[ -n "$in_use" ]]; then
-                        warning "  Skipping ${image_name}:${version} (in use by $in_use)"
-                        continue
-                    fi
-
-                    # Also check if this exact image is referenced by our compose service
-                    # This prevents race conditions during container recreation
+                    # Check if this exact image is referenced by our compose service
+                    # Note: We don't use "ancestor" filter as it matches hierarchically
+                    # (all images sharing base layers would match, causing false positives)
                     local current_image=$(docker inspect "familybudget-${service}" --format '{{.Config.Image}}' 2>/dev/null || echo "")
                     if [[ "$current_image" == "${image_name}:${version}" ]]; then
                         warning "  Skipping ${image_name}:${version} (current compose image)"
