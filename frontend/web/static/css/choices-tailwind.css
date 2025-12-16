@@ -474,3 +474,81 @@
 .dark .choices__list--dropdown .choices__list::after {
     background: rgba(255, 255, 255, 0.1);
 }
+
+/* ============================================================================
+ * MULTI-SELECT MODE: DaisyUI Badge Styles
+ * ============================================================================ */
+
+/* Container for multiple selected items */
+.choices-tailwind .choices__list--multiple {
+    @apply flex flex-wrap gap-1.5 py-1;
+}
+
+/* Individual badge item - DaisyUI style */
+.choices-tailwind .choices__item--multiple,
+.choices-tailwind .choices__list--multiple .choices__item {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 text-sm font-medium rounded-full;
+    @apply bg-primary text-primary-content;
+    @apply transition-all duration-150;
+    margin: 2px;
+}
+
+.choices-tailwind .choices__item--multiple:hover {
+    @apply bg-primary-focus;
+}
+
+/* Remove button inside badge */
+.choices-tailwind .choices__button--remove,
+.choices-tailwind .choices__list--multiple .choices__button {
+    @apply flex items-center justify-center p-0.5 ml-1 rounded-full;
+    @apply bg-transparent hover:bg-white/20;
+    @apply transition-colors duration-150;
+    border: none !important;
+    cursor: pointer;
+    background-image: none !important;
+}
+
+.choices-tailwind .choices__button--remove svg {
+    @apply w-3 h-3;
+}
+
+/* Clear-all button positioning */
+.choices-tailwind .choices__clear-all {
+    @apply absolute right-2 top-1/2 -translate-y-1/2;
+    @apply flex items-center justify-center p-1 rounded-full;
+    @apply text-gray-400 hover:text-error hover:bg-error/10;
+    @apply transition-colors duration-150;
+    z-index: 5;
+}
+
+/* Inner container for multi-select */
+.choices-tailwind.is-multiple .choices__inner,
+.choices[data-type*="select-multiple"] .choices__inner {
+    @apply pr-10 min-h-[48px];
+    position: relative;
+}
+
+/* Dark mode */
+.dark .choices-tailwind .choices__item--multiple {
+    @apply bg-primary-focus;
+}
+
+.dark .choices-tailwind .choices__clear-all {
+    @apply text-gray-500 hover:text-error;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+    .choices-tailwind .choices__item--multiple,
+    .choices-tailwind .choices__list--multiple .choices__item {
+        @apply text-xs px-2 py-0.5;
+    }
+
+    .choices-tailwind .choices__button--remove svg {
+        @apply w-2.5 h-2.5;
+    }
+
+    .choices-tailwind.is-multiple .choices__inner {
+        @apply min-h-[52px];
+    }
+}

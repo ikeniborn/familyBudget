@@ -140,11 +140,15 @@ class ChoicesCategoryTree {
         this.auth = options.auth || null;  // Store auth instance (nullable)
         this.options = {
             type: options.type || 'expense',
-            onCategoryChange: options.onCategoryChange || null,
+            // Support both callback names for compatibility (onChange for analytics page)
+            onCategoryChange: options.onCategoryChange || options.onChange || null,
             apiBaseUrl: options.apiBaseUrl || '/api/v1',
             showLeafOnly: options.showLeafOnly !== false,  // Default true
             showInactive: options.showInactive || false,  // Default false - hide archived categories
             financialCenterId: options.financialCenterId || null,  // Filter by FC (null = all)
+            // Multi-select support (for analytics page category filter)
+            multiple: options.multiple || false,
+            showPath: options.showPath !== false,  // Default true - show breadcrumb path
         };
 
         this.choices = null;
@@ -388,11 +392,17 @@ class ChoicesCategoryTree {
             searchEnabled: true,
             searchPlaceholderValue: 'Поиск категории...',
             placeholder: true,
-            placeholderValue: '— Выберите категорию —',
+            // Different placeholder for single/multiple modes
+            placeholderValue: this.options.multiple
+                ? 'Выберите категории...'
+                : '— Выберите категорию —',
             noResultsText: 'Не найдено',
             noChoicesText: 'Нет доступных категорий',
             itemSelectText: '',
             shouldSort: false,  // Keep our API sorting (by usage_count)
+
+            // Enable remove button for multiple mode (allows removing individual items)
+            removeItemButton: this.options.multiple,
 
             // Fuzzy search configuration (built-in Fuse.js)
             fuseOptions: {
@@ -404,47 +414,14 @@ class ChoicesCategoryTree {
 
             // Custom templates for dropdown items (show parent chain)
             callbackOnCreateTemplates: (template) => {
-                return {
-                    // Dropdown item template (shown in dropdown list)
-                    choice: (classNames, data) => {
-                        const parentText = data.customProperties?.parent_text || '';
-                        const label = data.label;
-
-                        return template(`
-                            <div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}"
-                                 data-select-text=""
-                                 data-choice
-                                 ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}
-                                 data-id="${data.id}"
-                                 data-value="${data.value}"
-                                 ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}
-                                 style="padding-left: 0.75rem;">
-                                <span style="font-weight: 500;">${label}</span>
-                                ${parentText ? `<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${parentText})</span>` : ''}
-                            </div>
-                        `);
-                    },
-
-                    // Selected item template (shown after selection)
-                    item: (classNames, data) => {
-                        // For selected item, show only label (no parent chain)
-                        return template(`
-                            <div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}"
-                                 data-item
-                                 data-id="${data.id}"
-                                 data-value="${data.value}"
-                                 ${data.active ? 'aria-selected="true"' : ''}
-                                 ${data.disabled ? 'aria-disabled="true"' : ''}>
-                                ${data.label}
-                            </div>
-                        `);
-                    },
-                };
+                return this.options.multiple
+                    ? this._createMultipleTemplates(template)
+                    : this._createSingleTemplates(template);
             },
 
             // Styling
             classNames: {
-                containerOuter: ['choices', 'choices-telegram'],
+                containerOuter: ['choices', 'choices-tailwind', this.options.multiple ? 'is-multiple' : ''].filter(Boolean),
                 containerInner: ['choices__inner'],
                 input: ['choices__input'],
                 inputCloned: ['choices__input--cloned'],
@@ -470,22 +447,174 @@ class ChoicesCategoryTree {
         this.element.addEventListener('change', (event) => {
             this.handleCategoryChange(event);
         });
+
+        // Add clear-all button for multiple mode
+        if (this.options.multiple) {
+            this._addClearAllButton();
+        }
+    }
+
+    /**
+     * Create templates for single-select mode (existing behavior).
+     * @private
+     */
+    _createSingleTemplates(template) {
+        return {
+            // Dropdown item template (shown in dropdown list)
+            choice: (classNames, data) => {
+                const parentText = data.customProperties?.parent_text || '';
+                const label = data.label;
+
+                return template(`
+                    <div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}"
+                         data-select-text=""
+                         data-choice
+                         ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}
+                         data-id="${data.id}"
+                         data-value="${data.value}"
+                         ${data.groupId > 0 ? 'role="treeitem"' : 'role="option"'}
+                         style="padding-left: 0.75rem;">
+                        <span style="font-weight: 500;">${label}</span>
+                        ${parentText ? `<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${parentText})</span>` : ''}
+                    </div>
+                `);
+            },
+
+            // Selected item template (shown after selection)
+            item: (classNames, data) => {
+                // For selected item, show only label (no parent chain)
+                return template(`
+                    <div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}"
+                         data-item
+                         data-id="${data.id}"
+                         data-value="${data.value}"
+                         ${data.active ? 'aria-selected="true"' : ''}
+                         ${data.disabled ? 'aria-disabled="true"' : ''}>
+                        ${data.label}
+                    </div>
+                `);
+            },
+        };
+    }
+
+    /**
+     * Create templates for multi-select mode with DaisyUI badges.
+     * @private
+     */
+    _createMultipleTemplates(template) {
+        return {
+            // Dropdown item template (same as single - shows parent chain)
+            choice: (classNames, data) => {
+                const parentText = data.customProperties?.parent_text || '';
+                const label = data.label;
+
+                return template(`
+                    <div class="${classNames.item} ${classNames.itemChoice} ${data.disabled ? classNames.itemDisabled : classNames.itemSelectable}"
+                         data-select-text=""
+                         data-choice
+                         ${data.disabled ? 'data-choice-disabled aria-disabled="true"' : 'data-choice-selectable'}
+                         data-id="${data.id}"
+                         data-value="${data.value}"
+                         role="option"
+                         style="padding-left: 0.75rem;">
+                        <span style="font-weight: 500;">${label}</span>
+                        ${parentText ? `<span style="font-size: 0.85em; color: #999; margin-left: 0.5em;">(${parentText})</span>` : ''}
+                    </div>
+                `);
+            },
+
+            // Selected item template - DaisyUI badge style
+            item: (classNames, data) => {
+                return template(`
+                    <div class="${classNames.item} choices__item--multiple badge badge-primary badge-lg gap-1"
+                         data-item
+                         data-id="${data.id}"
+                         data-value="${data.value}"
+                         ${data.active ? 'aria-selected="true"' : ''}
+                         ${data.disabled ? 'aria-disabled="true"' : ''}>
+                        <span class="truncate max-w-[120px]">${data.label}</span>
+                        <button type="button"
+                                class="${classNames.button} choices__button--remove"
+                                aria-label="Удалить ${data.label}"
+                                data-button>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                `);
+            },
+        };
+    }
+
+    /**
+     * Add "Clear All" button inside the input field (for multiple mode).
+     * @private
+     */
+    _addClearAllButton() {
+        const inner = this.element.closest('.choices')?.querySelector('.choices__inner');
+        if (!inner) return;
+
+        // Create clear-all button
+        const clearBtn = document.createElement('button');
+        clearBtn.type = 'button';
+        clearBtn.className = 'choices__clear-all';
+        clearBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        `;
+        clearBtn.title = 'Очистить все';
+        clearBtn.style.display = 'none';  // Hidden by default
+
+        inner.appendChild(clearBtn);
+
+        // Handle click
+        clearBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.clearSelection();
+        });
+
+        // Store reference
+        this._clearAllBtn = clearBtn;
+    }
+
+    /**
+     * Update clear-all button visibility based on selection.
+     * @private
+     */
+    _updateClearAllVisibility() {
+        if (!this._clearAllBtn) return;
+
+        const hasItems = this.choices?.getValue()?.length > 0;
+        this._clearAllBtn.style.display = hasItems ? 'flex' : 'none';
     }
 
     /**
      * Handle category change event.
+     * Supports both single and multiple selection modes.
      *
      * @param {Event} event - Change event
      */
     async handleCategoryChange(event) {
-        const categoryId = parseInt(event.target.value);
+        if (!this.options.onCategoryChange) return;
 
-        if (!categoryId) {
-            return;
-        }
+        if (this.options.multiple) {
+            // Multi-select mode: get all selected items using Choices.js API
+            const selectedItems = this.choices?.getValue() || [];
+            const selectedCategories = selectedItems.map(item => {
+                const categoryId = parseInt(item.value);
+                return this.categoryMap.get(categoryId);
+            }).filter(Boolean);  // Remove nulls
 
-        // Call user callback
-        if (this.options.onCategoryChange) {
+            this.options.onCategoryChange(selectedCategories);
+            this._updateClearAllVisibility();
+        } else {
+            // Single-select mode (existing behavior)
+            const categoryId = parseInt(event.target.value);
+            if (!categoryId) return;
+
             const category = this.categoryMap.get(categoryId);
             this.options.onCategoryChange(category);
         }
@@ -535,7 +664,13 @@ class ChoicesCategoryTree {
         // Update type in options
         this.options.type = newType;
 
-        // Reset selection
+        // Clear selection for multiple mode (must use Choices.js API)
+        if (this.options.multiple && this.choices) {
+            this.choices.removeActiveItems();
+            this._updateClearAllVisibility();
+        }
+
+        // Reset selection (single mode fallback)
         if (this.element) {
             this.element.value = '';
         }
@@ -691,6 +826,44 @@ class ChoicesCategoryTree {
     getSelectedCategory() {
         const categoryId = parseInt(this.element.value);
         return categoryId ? this.categoryMap.get(categoryId) : null;
+    }
+
+    /**
+     * Get all selected categories (for multiple mode).
+     *
+     * @returns {Array} Array of selected category objects
+     */
+    getSelectedCategories() {
+        if (!this.choices || !this.options.multiple) {
+            // Single mode - return array with one item or empty
+            const cat = this.getSelectedCategory();
+            return cat ? [cat] : [];
+        }
+
+        const selectedItems = this.choices.getValue() || [];
+        return selectedItems.map(item => {
+            const categoryId = parseInt(item.value);
+            return this.categoryMap.get(categoryId);
+        }).filter(Boolean);
+    }
+
+    /**
+     * Clear all selected categories (for multiple mode).
+     * Triggers onCategoryChange callback with empty array.
+     */
+    clearSelection() {
+        if (!this.choices) return;
+
+        // Remove all selected items using Choices.js API
+        this.choices.removeActiveItems();
+
+        // Update clear-all button visibility
+        this._updateClearAllVisibility();
+
+        // Trigger callback with empty array
+        if (this.options.onCategoryChange) {
+            this.options.onCategoryChange([]);
+        }
     }
 
     /**
