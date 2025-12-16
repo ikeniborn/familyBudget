@@ -17,6 +17,10 @@
  * @version 2.0.0 - Added Shopping Lists support
  */
 
+// Silent logger - only errors in production
+const _idbLog = window.DEBUG_MODE ? console.log.bind(console) : function() {};
+const _idbWarn = window.DEBUG_MODE ? console.warn.bind(console) : function() {};
+
 const DB_NAME = 'FamilyBudgetDB';
 const DB_VERSION = 4;  // v4: Added contentHash index for duplicate detection
 
@@ -358,7 +362,7 @@ class IndexedDBManager {
 
             // Check if contentHash index exists
             if (!store.indexNames.contains('contentHash')) {
-                console.warn('[IDB] contentHash index not found, skipping duplicate check');
+                _idbWarn('[IDB] contentHash index not found, skipping duplicate check');
                 resolve(null);
                 return;
             }
@@ -376,7 +380,7 @@ class IndexedDBManager {
 
                 // ✅ Synced records are NOT duplicates (already on server)
                 if (result.synced) {
-                    console.log('[IDB] Found synced record, not considering duplicate');
+                    _idbLog('[IDB] Found synced record, not considering duplicate');
                     resolve(null);
                     return;
                 }
@@ -386,18 +390,18 @@ class IndexedDBManager {
                 const TIME_WINDOW = 5 * 60 * 1000; // 5 minutes
 
                 if (timeDiff > TIME_WINDOW) {
-                    console.log('[IDB] Stale unsynced record (>5min), not considering duplicate');
+                    _idbLog('[IDB] Stale unsynced record (>5min), not considering duplicate');
                     resolve(null);
                     return;
                 }
 
                 // Recent unsynced duplicate - reject
-                console.log('[IDB] Recent unsynced duplicate detected');
+                _idbLog('[IDB] Recent unsynced duplicate detected');
                 resolve(result);
             };
 
             request.onerror = () => {
-                console.warn('[IDB] Error checking duplicate:', request.error);
+                _idbWarn('[IDB] Error checking duplicate:', request.error);
                 resolve(null);
             };
         });
@@ -754,20 +758,20 @@ class IndexedDBManager {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         const completed = await this.getSyncQueue('completed');
-        console.log(`[IDB] clearCompletedSyncQueue: found ${completed.length} completed items`);
+        _idbLog(`[IDB] clearCompletedSyncQueue: found ${completed.length} completed items`);
 
         let count = 0;
         for (const item of completed) {
             try {
                 await this.deleteSyncQueueItem(item.id);
                 count++;
-                console.log(`[IDB] Deleted sync queue item ${item.id} (tempId: ${item.tempId})`);
+                _idbLog(`[IDB] Deleted sync queue item ${item.id} (tempId: ${item.tempId})`);
             } catch (e) {
                 console.error(`[IDB] Failed to delete item ${item.id}:`, e);
             }
         }
 
-        console.log(`[IDB] clearCompletedSyncQueue: deleted ${count} items`);
+        _idbLog(`[IDB] clearCompletedSyncQueue: deleted ${count} items`);
         return count;
     }
 

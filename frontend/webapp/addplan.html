@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/shared-components.min.css?v=PLACEHOLDER">
 
     <!-- Choices.js -->
     <link rel="stylesheet" href="/webapp/static/css/vendor/choices.min.css">
@@ -23,50 +24,21 @@
 
     <style>
         /* Add plan specific styles */
+        /* page-header, page-title, amount-input-wrapper, currency-label moved to shared-components.css */
+
+        /* Extra margin for add plan page header */
         .page-header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--tg-theme-section-separator-color);
-            margin-bottom: 24px;
-            position: relative;
-        }
-
-        .page-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--tg-theme-text-color);
-        }
-
-        .amount-input-wrapper {
-            position: relative;
             margin-bottom: 24px;
         }
 
+        /* Override amount-input colors for plan (uses link-color instead of button-color) */
         .amount-input {
-            width: 100%;
-            font-size: 32px;
-            font-weight: 700;
-            text-align: center;
-            padding: 16px;
-            border: 2px solid var(--tg-theme-link-color);
-            border-radius: 12px;
-            background-color: var(--tg-theme-bg-color);
+            border-color: var(--tg-theme-link-color);
             color: var(--tg-theme-link-color);
         }
 
         .amount-input:focus {
-            outline: none;
             border-color: var(--tg-theme-button-color);
-        }
-
-        .currency-label {
-            position: absolute;
-            right: 24px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 20px;
-            color: var(--tg-theme-hint-color);
-            pointer-events: none;
         }
 
         .category-list {

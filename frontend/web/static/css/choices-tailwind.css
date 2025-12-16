@@ -446,25 +446,224 @@
 }
 
 /* ============================================================================
- * MOBILE: Spacing between search input and dropdown list
- * Improves touch navigation by adding visual gap
+ * Visual separator lines - top and bottom of dropdown list
+ * Improves visual separation between search input and list items
  * ============================================================================ */
+.choices__list--dropdown .choices__list {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.choices__list--dropdown .choices__list::before {
+    content: '';
+    display: block;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0 1rem 0.5rem 1rem;
+}
+
+.choices__list--dropdown .choices__list::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0.5rem 1rem 0 1rem;
+}
+
+.dark .choices__list--dropdown .choices__list::before,
+.dark .choices__list--dropdown .choices__list::after {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================================
+ * MULTI-SELECT MODE: Comma-Separated Display
+ * ============================================================================ */
+
+/* Container for comma-separated items */
+.choices-tailwind .choices__list--multiple,
+.choices.is-multiple .choices__list--multiple {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: center;
+    padding: 0.25rem 0;
+}
+
+/* Individual comma-separated item */
+.choices__item--comma {
+    display: inline;
+    font-size: 0.875rem;
+    color: inherit;
+    padding: 0;
+    margin: 0;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Add comma separator between items */
+.choices__item--comma:not(:last-child)::after {
+    content: ', ';
+}
+
+/* ============================================================================
+ * MULTI-SELECT MODE: Badge Style with Remove Buttons
+ * ============================================================================ */
+
+/* Container for badge items */
+.choices.is-multiple .choices__list--multiple:has(.choices__item--badge) {
+    gap: 0.375rem;
+    padding: 0.25rem 0;
+}
+
+/* Individual badge item */
+.choices__item--badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    background-color: #dbeafe;  /* blue-100 */
+    color: #1e40af;  /* blue-800 */
+    border-radius: 9999px;  /* full rounded */
+    transition: all 0.15s ease;
+}
+
+.choices__item--badge:hover {
+    background-color: #bfdbfe;  /* blue-200 */
+}
+
+.dark .choices__item--badge {
+    background-color: #1e3a5f;
+    color: #93c5fd;  /* blue-300 */
+}
+
+.dark .choices__item--badge:hover {
+    background-color: #1e4976;
+}
+
+/* Badge text */
+.choices__item--badge-text {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Remove button inside badge */
+.choices__item--badge .choices__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    padding: 0;
+    margin-left: 0.125rem;
+    font-size: 0.875rem;
+    font-weight: bold;
+    line-height: 1;
+    color: #3b82f6;  /* blue-500 */
+    background: transparent;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.choices__item--badge .choices__button:hover {
+    color: #ffffff;
+    background-color: #ef4444;  /* red-500 */
+}
+
+.dark .choices__item--badge .choices__button {
+    color: #60a5fa;  /* blue-400 */
+}
+
+.dark .choices__item--badge .choices__button:hover {
+    color: #ffffff;
+    background-color: #dc2626;  /* red-600 */
+}
+
+/* Mobile optimizations for badges */
 @media (max-width: 640px) {
-    /* Add padding at top of dropdown list for touch-friendly gap */
-    .choices__list--dropdown .choices__list {
-        padding-top: 0.5rem;  /* 8px gap between search and first item */
+    .choices__item--badge {
+        font-size: 0.75rem;
+        padding: 0.1875rem 0.375rem;
     }
 
-    /* Visual separator line */
-    .choices__list--dropdown .choices__list::before {
-        content: '';
-        display: block;
-        height: 1px;
-        background: rgba(0, 0, 0, 0.1);
-        margin: 0 1rem 0.5rem 1rem;
+    .choices__item--badge-text {
+        max-width: 100px;
     }
 
-    .dark .choices__list--dropdown .choices__list::before {
-        background: rgba(255, 255, 255, 0.1);
+    .choices__item--badge .choices__button {
+        width: 1.125rem;
+        height: 1.125rem;
+        font-size: 1rem;
+    }
+}
+
+/* ============================================================================
+ * Clear button outside form (под формой справа)
+ * ============================================================================ */
+
+/* Wrapper for clear button (positioned under form) */
+.choices__clear-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+}
+
+/* Clear all button styling - only X icon */
+.choices__clear-all {
+    display: none;  /* Hidden by default, shown via JS */
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem;
+    color: #6b7280;  /* gray-500 */
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.choices__clear-all:hover {
+    color: #ef4444;  /* red-500 */
+    background-color: #fef2f2;  /* red-50 */
+}
+
+.dark .choices__clear-all {
+    color: #9ca3af;  /* gray-400 */
+}
+
+.dark .choices__clear-all:hover {
+    color: #f87171;  /* red-400 */
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ============================================================================
+ * Clickable area for dropdown (multi-select)
+ * ============================================================================ */
+
+/* Make entire inner area clickable */
+.choices.is-multiple .choices__inner,
+.choices-tailwind.is-multiple .choices__inner {
+    cursor: pointer;
+    min-height: 44px;
+}
+
+/* Mobile optimizations for multi-select */
+@media (max-width: 640px) {
+    .choices__item--comma {
+        font-size: 0.8125rem;  /* Slightly smaller on mobile */
+    }
+
+    .choices.is-multiple .choices__inner,
+    .choices-tailwind.is-multiple .choices__inner {
+        min-height: 48px;
+    }
+
+    .choices__clear-all {
+        padding: 0.5rem;  /* Larger touch target on mobile */
     }
 }

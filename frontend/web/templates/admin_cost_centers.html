@@ -1,17 +1,11 @@
 {% extends "base.html" %}
+{% from "components/modal_confirm.html" import confirm_modal %}
+{% from "components/mobile_alert.html" import mobile_restriction_alert %}
+{% from "components/status_filter.html" import status_filter %}
 
 {% block content %}
-<!-- Mobile-only message: page not available on small screens -->
-<div class="md:hidden">
-    <div class="alert alert-info shadow-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <div>
-            <h3 class="font-bold">Страница недоступна на мобильных</h3>
-            <div class="text-sm">Эта страница доступна только на планшетах и ПК.</div>
-        </div>
-        <a href="/" class="btn btn-sm btn-primary">На главную</a>
-    </div>
-</div>
+<!-- Mobile restriction alert (from macro) -->
+{{ mobile_restriction_alert() }}
 
 <!-- Main content (hidden on mobile) -->
 <div class="hidden md:block space-y-6">
@@ -36,15 +30,8 @@
                 {% endif %}
             </div>
 
-            <!-- Status Filter -->
-            <div class="flex flex-wrap items-center gap-3 mb-4">
-                <label class="font-semibold text-sm">Статус:</label>
-                <div class="btn-group">
-                    <button class="btn btn-sm" id="status-all" onclick="updateStatusFilter('all')" aria-pressed="true">Все</button>
-                    <button class="btn btn-sm btn-outline" id="status-active" onclick="updateStatusFilter('active')" aria-pressed="false">✓ Активные</button>
-                    <button class="btn btn-sm btn-outline" id="status-archived" onclick="updateStatusFilter('archived')" aria-pressed="false">📦 Архивные</button>
-                </div>
-            </div>
+            <!-- Status Filter (from macro) -->
+            {{ status_filter() }}
 
             <div id="centers-table-container" class="min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
@@ -137,27 +124,22 @@
 </dialog>
 {% endif %}
 
-<!-- Custom Confirmation Dialog -->
-<dialog id="confirm-modal" class="modal">
-    <div class="modal-box max-w-lg">
-        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
-        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
-        <div class="modal-action">
-            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
-            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button onclick="confirmModalResolve(false)">close</button>
-    </form>
-</dialog>
+<!-- Confirmation Dialog (from macro) -->
+{{ confirm_modal() }}
 {% endblock %}
 
 {% block extra_scripts %}
 <script src="/static/js/confirmDialog.js?v=PLACEHOLDER"></script>
+<script src="/static/js/adminStatusFilter.js?v=PLACEHOLDER"></script>
 <script>
 // Global state
 let centersData = [];
+
+// Status filter callback (used by adminStatusFilter.js)
+window.onStatusFilterChange = function(status) {
+    currentStatusFilter = status;
+    renderCentersTable(centersData);
+};
 let financialCentersData = [];
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 const isAdmin = {{ 'true' if user.is_admin else 'false' }};
@@ -505,37 +487,7 @@ async function deleteCenter(centerId) {
     }
 }
 
-// Update status filter
-function updateStatusFilter(status) {
-    currentStatusFilter = status;
-
-    // Update active button and ARIA states
-    const allBtn = document.getElementById('status-all');
-    const activeBtn = document.getElementById('status-active');
-    const archivedBtn = document.getElementById('status-archived');
-
-    // Reset all buttons to outline
-    [allBtn, activeBtn, archivedBtn].forEach(btn => {
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-
-    // Set active button
-    let selectedBtn;
-    if (status === 'all') {
-        selectedBtn = allBtn;
-    } else if (status === 'active') {
-        selectedBtn = activeBtn;
-    } else {
-        selectedBtn = archivedBtn;
-    }
-
-    selectedBtn.classList.remove('btn-outline');
-    selectedBtn.setAttribute('aria-pressed', 'true');
-
-    // Re-render table with new filter
-    renderCentersTable(centersData);
-}
+// updateStatusFilter is provided by adminStatusFilter.js
 
 // Archive cost location
 async function archiveCenter(centerId) {

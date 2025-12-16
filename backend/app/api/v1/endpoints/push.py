@@ -226,7 +226,7 @@ async def send_push_notification(
     notification: PushNotificationRequest,
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """
     Send a push notification to a user.
 
@@ -239,11 +239,13 @@ async def send_push_notification(
         session: Database session
 
     Returns:
-        Status message
+        Status message with sent count
 
     Raises:
         HTTPException: If user is not admin or notification fails
     """
+    from backend.app.services.push_service import PushService
+
     # Only admins can send push notifications
     if not current_user.is_admin:
         raise HTTPException(
@@ -263,35 +265,24 @@ async def send_push_notification(
             f"{notification.title}"
         )
 
-        # Example implementation with pywebpush:
-        # from pywebpush import webpush, WebPushException
-        #
-        # subscription_info = await get_user_subscription(notification.user_id, session)
-        # if not subscription_info:
-        #     raise HTTPException(404, "No subscription found for user")
-        #
-        # try:
-        #     webpush(
-        #         subscription_info=subscription_info,
-        #         data=json.dumps({
-        #             "title": notification.title,
-        #             "body": notification.body,
-        #             "icon": "/static/icons/icon-192.png",
-        #             "badge": "/static/icons/icon-192.png",
-        #             "tag": "budget-notification",
-        #             "data": notification.data
-        #         }),
-        #         vapid_private_key=settings.VAPID_PRIVATE_KEY,
-        #         vapid_claims={"sub": f"mailto:{settings.VAPID_CONTACT_EMAIL}"}
-        #     )
-        # except WebPushException as e:
-        #     if e.response and e.response.status_code == 410:
-        #         # Subscription expired - remove from database
-        #         await remove_subscription(subscription_info['endpoint'], session)
-        #     raise
+        sent_count = await PushService.send_to_user(
+            session=session,
+            user_id=notification.user_id,
+            title=notification.title,
+            body=notification.body,
+            data=notification.data
+        )
 
-        return {"status": "sent"}
+        if sent_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No push subscriptions found for user"
+            )
 
+        return {"status": "sent", "sent_count": sent_count}
+
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(
             f"[Push] Failed to send notification to user {notification.user_id}: {e}"

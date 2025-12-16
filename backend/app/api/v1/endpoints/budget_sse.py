@@ -528,6 +528,89 @@ def stop_cleanup_task():
         logger.info("Budget SSE cleanup task stopped")
 
 
+# ==================== Push Notification Integration ====================
+# Send push to users WITHOUT active SSE connections
+
+# Global debounce state for push notifications
+_last_push_time: float = 0
+PUSH_DEBOUNCE_SECONDS = 30  # Don't spam push - max 1 per 30 seconds
+
+# Database session factory for push notifications
+_db_session_factory = None
+
+
+def set_push_db_session_factory(factory):
+    """
+    Set the database session factory for push notifications.
+    Called from app startup (main.py).
+    """
+    global _db_session_factory
+    _db_session_factory = factory
+
+
+def _get_connected_user_ids() -> set[int]:
+    """
+    Get set of user IDs with active SSE connections.
+    Used to exclude them from push notifications (they're already receiving SSE).
+    """
+    return {uid for uid, _, _, _ in manager.connections}
+
+
+async def _send_push_for_offline_users(title: str, body: str, data: dict | None = None):
+    """
+    Send push notification to users WITHOUT active SSE connections.
+
+    This is the core integration between SSE and Push:
+    - Users with open tabs receive real-time updates via SSE
+    - Users without open tabs receive push notifications
+
+    Args:
+        title: Notification title
+        body: Notification body text
+        data: Optional data payload (e.g., {"url": "/facts", "type": "fact_created"})
+    """
+    global _last_push_time
+
+    # Check debounce
+    now = time.time()
+    if now - _last_push_time < PUSH_DEBOUNCE_SECONDS:
+        logger.debug(f"[Push] Debounce: skipping push (last was {now - _last_push_time:.1f}s ago)")
+        return
+
+    # Check if we have a session factory
+    if _db_session_factory is None:
+        logger.debug("[Push] No session factory - push disabled")
+        return
+
+    # Import here to avoid circular imports
+    from backend.app.services.push_service import PushService
+
+    if not PushService.is_configured():
+        logger.debug("[Push] VAPID not configured - push disabled")
+        return
+
+    # Get connected user IDs
+    connected_user_ids = _get_connected_user_ids()
+
+    try:
+        async for session in _db_session_factory():
+            sent_count = await PushService.broadcast_except_connected(
+                session=session,
+                connected_user_ids=connected_user_ids,
+                title=title,
+                body=body,
+                data=data
+            )
+
+            if sent_count > 0:
+                _last_push_time = now
+                logger.info(f"[Push] Sent to {sent_count} offline users: {title}")
+            break  # Only need one session
+
+    except Exception as e:
+        logger.error(f"[Push] Error sending push notifications: {e}")
+
+
 # Helper functions for broadcasting from other endpoints
 
 # Fields safe to broadcast for facts (no sensitive internal data)
@@ -581,12 +664,25 @@ async def broadcast_fact_created(fact_data: dict):
 
     Security: Only safe fields are broadcast to prevent information disclosure.
     All connected clients receive the event (shared family budget model).
+
+    Also sends push notification to users without active SSE connections.
     """
     filtered_data = _filter_fact_data(fact_data)
     logger.debug(f"broadcast_fact_created: fact_id={fact_data.get('id')}")
     await manager.broadcast(
         event_type="fact_created",
         data=filtered_data,
+    )
+
+    # Send push to offline users
+    description = fact_data.get("description", "Новая запись")
+    amount = fact_data.get("amount", 0)
+    record_type = fact_data.get("record_type", "fact")
+    type_label = "Доход" if amount > 0 else "Расход"
+    await _send_push_for_offline_users(
+        title=f"💰 {type_label}: {abs(amount):,.0f}".replace(",", " "),
+        body=description[:100] if description else "Добавлена новая запись",
+        data={"type": "fact_created", "id": fact_data.get("id"), "url": "/"}
     )
 
 
@@ -661,12 +757,23 @@ async def broadcast_transfer_created(transfer_data: dict):
 
     Security: Only safe fields are broadcast to prevent information disclosure.
     All connected clients receive the event (shared family budget model).
+
+    Also sends push notification to users without active SSE connections.
     """
     filtered_data = _filter_transfer_data(transfer_data)
     logger.debug(f"broadcast_transfer_created: transfer_id={transfer_data.get('id')}")
     await manager.broadcast(
         event_type="transfer_created",
         data=filtered_data,
+    )
+
+    # Send push to offline users
+    amount = transfer_data.get("amount", 0)
+    description = transfer_data.get("description", "Перевод между счетами")
+    await _send_push_for_offline_users(
+        title=f"↔️ Перевод: {abs(amount):,.0f}".replace(",", " "),
+        body=description[:100] if description else "Перевод между счетами",
+        data={"type": "transfer_created", "id": transfer_data.get("id"), "url": "/"}
     )
 
 

@@ -35,31 +35,325 @@ class BudgetSSEClient {
         // Connection ID for active disconnect notification (sendBeacon)
         this.connectionId = null;
 
-        // Close when tab hidden, reconnect when visible
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'hidden') {
-                // Close connection when tab is hidden to free up connection slot
-                debugLog('[BudgetSSE] Tab hidden, closing connection');
-                this._silentClose();
-            } else if (document.visibilityState === 'visible' &&
-                !this.isConnected &&
-                this.enabled &&
-                !this.reconnectTimeout) {
-                debugLog('[BudgetSSE] Tab visible, reconnecting');
-                this.reconnectAttempts = 0;
-                this.limitReached = false;
-                this._createConnection();
-            }
-        });
+        // Multi-tab support: BroadcastChannel + Web Locks API
+        this.isLeader = false;
+        this.channel = null;
+        this.leaderHeartbeatInterval = null;
+        this._followerCheckInterval = null;
+        this.lastLeaderHeartbeat = 0;
+        this.HEARTBEAT_INTERVAL = 3000;  // Leader sends heartbeat every 3 sec
+        this.LEADER_TIMEOUT = 10000;     // Follower considers leader dead after 10 sec
+        this._multiTabSupported = null;  // Cached support check
+        this._multiTabInitialized = false;  // Lazy init flag
 
         // Close connection on page unload
         window.addEventListener('beforeunload', () => {
             this._silentClose();
         });
 
-        window.addEventListener('pagehide', () => {
-            this._silentClose();
+        window.addEventListener('pagehide', (event) => {
+            // Only close if not persisted (not going to bfcache)
+            if (!event.persisted) {
+                this._silentClose();
+            }
         });
+
+        // Visibility change handler - updated for multi-tab
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') {
+                // Leader: keep connection alive, continue heartbeat
+                // Follower: nothing to close (no connection)
+                if (this.isLeader) {
+                    debugLog('[BudgetSSE] Tab hidden, leader keeping SSE connection active');
+                }
+            } else if (document.visibilityState === 'visible') {
+                // Leader: check if connection is alive
+                if (this.isLeader && !this.isConnected && this.enabled) {
+                    debugLog('[BudgetSSE] Tab visible, leader reconnecting');
+                    this.reconnectAttempts = 0;
+                    this.limitReached = false;
+                    this._createConnection();
+                }
+                // Follower: request status from leader
+                if (!this.isLeader && this.channel) {
+                    this._broadcastMessage({ type: 'status_request' });
+                }
+            }
+        });
+
+        // Multi-tab initialization is now lazy - triggered by connect()
+        // This prevents 401 errors for unauthenticated users
+    }
+
+    /**
+     * Check if multi-tab sharing is supported (BroadcastChannel + Web Locks)
+     * @returns {boolean}
+     * @private
+     */
+    _supportsMultiTab() {
+        if (this._multiTabSupported === null) {
+            this._multiTabSupported = (
+                typeof BroadcastChannel !== 'undefined' &&
+                typeof navigator.locks !== 'undefined'
+            );
+        }
+        return this._multiTabSupported;
+    }
+
+    /**
+     * Initialize multi-tab support with BroadcastChannel and Web Locks
+     * Called lazily from connect() to prevent 401 errors for unauthenticated users
+     * @private
+     */
+    async _initMultiTab() {
+        // Prevent double initialization
+        if (this._multiTabInitialized) {
+            return;
+        }
+        this._multiTabInitialized = true;
+
+        if (!this._supportsMultiTab()) {
+            debugLog('[BudgetSSE] Multi-tab not supported, using per-tab connection');
+            // Fallback: work like before (per-tab connection)
+            return;
+        }
+
+        try {
+            // Create BroadcastChannel for inter-tab communication
+            this.channel = new BroadcastChannel('budget-sse-channel');
+            this.channel.onmessage = (e) => this._handleChannelMessage(e.data);
+            this.channel.onerror = () => {
+                debugLog('[BudgetSSE] BroadcastChannel error, falling back to per-tab');
+                this._multiTabSupported = false;
+                this.channel = null;
+            };
+
+            // Try to become leader (blocking request - waits for lock)
+            this._tryBecomeLeader();
+        } catch (e) {
+            debugLog('[BudgetSSE] Multi-tab init failed:', e);
+            this._multiTabSupported = false;
+        }
+    }
+
+    /**
+     * Try to acquire leader lock using Web Locks API
+     * @private
+     */
+    async _tryBecomeLeader() {
+        // Web Locks API - blocking request (waits until lock is released)
+        // When leader tab closes, lock is released and next tab gets it
+        navigator.locks.request('budget-sse-leader', async (lock) => {
+            // We got the lock - we are now the leader!
+            debugLog('[BudgetSSE] Became leader');
+            this.isLeader = true;
+
+            // Clear follower check interval if it was running
+            if (this._followerCheckInterval) {
+                clearInterval(this._followerCheckInterval);
+                this._followerCheckInterval = null;
+            }
+
+            // Notify followers that we are the new leader
+            this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
+
+            // Create SSE connection
+            if (this.enabled) {
+                this._createConnection();
+            }
+
+            // Start heartbeat for followers
+            this._startLeaderHeartbeat();
+
+            // IMPORTANT: Promise never resolves → lock is held until tab closes
+            return new Promise(() => {});
+        });
+
+        // This code runs immediately (doesn't wait for lock)
+        // If we're not leader yet - listen as follower
+        debugLog('[BudgetSSE] Waiting for leader lock...');
+        this._startFollowerMode();
+    }
+
+    /**
+     * Start follower mode - listen for events from leader via BroadcastChannel
+     * @private
+     */
+    _startFollowerMode() {
+        // Follower listens for events from leader via BroadcastChannel
+        // and tracks heartbeat to detect leader death
+        this.lastLeaderHeartbeat = Date.now();
+
+        // Check heartbeat every 5 seconds
+        this._followerCheckInterval = setInterval(() => {
+            if (this.isLeader) {
+                // We became leader, stop checking
+                clearInterval(this._followerCheckInterval);
+                this._followerCheckInterval = null;
+                return;
+            }
+
+            const timeSinceHeartbeat = Date.now() - this.lastLeaderHeartbeat;
+            if (timeSinceHeartbeat > this.LEADER_TIMEOUT) {
+                debugLog('[BudgetSSE] Leader heartbeat timeout, may become leader soon');
+                // Web Locks will automatically transfer lock to next in queue
+            }
+        }, 5000);
+    }
+
+    /**
+     * Start leader heartbeat to notify followers we're alive
+     * @private
+     */
+    _startLeaderHeartbeat() {
+        if (this.leaderHeartbeatInterval) {
+            clearInterval(this.leaderHeartbeatInterval);
+        }
+
+        this.leaderHeartbeatInterval = setInterval(() => {
+            this._broadcastMessage({
+                type: 'heartbeat',
+                timestamp: Date.now(),
+                isConnected: this.isConnected
+            });
+        }, this.HEARTBEAT_INTERVAL);
+
+        // Send initial heartbeat
+        this._broadcastMessage({
+            type: 'heartbeat',
+            timestamp: Date.now(),
+            isConnected: this.isConnected
+        });
+    }
+
+    /**
+     * Broadcast message to other tabs via BroadcastChannel
+     * @param {Object} message - Message to broadcast
+     * @private
+     */
+    _broadcastMessage(message) {
+        if (this.channel) {
+            try {
+                this.channel.postMessage(message);
+            } catch (e) {
+                debugLog('[BudgetSSE] Broadcast failed:', e);
+            }
+        }
+    }
+
+    /**
+     * Handle message from BroadcastChannel
+     * @param {Object} data - Message data
+     * @private
+     */
+    _handleChannelMessage(data) {
+        switch (data.type) {
+            case 'heartbeat':
+                this.lastLeaderHeartbeat = data.timestamp;
+                // Update connection status indicator based on leader's status
+                if (!this.isLeader) {
+                    this.isConnected = data.isConnected;
+                    this._updateStatusIndicator();
+                }
+                break;
+
+            case 'sse_event':
+                // Received SSE event from leader - process as usual
+                if (!this.isLeader) {
+                    this._dispatchReceivedEvent(data.event, data.data);
+                }
+                break;
+
+            case 'leader_changed':
+                // New leader - reset heartbeat timer
+                this.lastLeaderHeartbeat = data.timestamp;
+                debugLog('[BudgetSSE] Leader changed, resetting heartbeat');
+                break;
+
+            case 'status_request':
+                // Follower requested status - respond if we're leader
+                if (this.isLeader) {
+                    this._broadcastMessage({
+                        type: 'status_response',
+                        isConnected: this.isConnected,
+                        connectionId: this.connectionId
+                    });
+                }
+                break;
+
+            case 'status_response':
+                // Got status from leader
+                if (!this.isLeader) {
+                    this.isConnected = data.isConnected;
+                    this._updateStatusIndicator();
+                }
+                break;
+        }
+    }
+
+    /**
+     * Dispatch received event from BroadcastChannel (for followers)
+     * @param {string} eventType - Event type
+     * @param {Object} eventData - Event data
+     * @private
+     */
+    _dispatchReceivedEvent(eventType, eventData) {
+        switch (eventType) {
+            case 'fact_created':
+                this._handleFactCreated(eventData);
+                break;
+            case 'fact_updated':
+                this._handleFactUpdated(eventData);
+                break;
+            case 'fact_deleted':
+                this._handleFactDeleted(eventData);
+                break;
+            case 'plan_created':
+                this._handlePlanCreated(eventData);
+                break;
+            case 'plan_updated':
+                this._handlePlanUpdated(eventData);
+                break;
+            case 'plan_deleted':
+                this._handlePlanDeleted(eventData);
+                break;
+            case 'transfer_created':
+                this._handleTransferCreated(eventData);
+                break;
+            case 'transfer_deleted':
+                this._handleTransferDeleted(eventData);
+                break;
+            case 'item_created':
+                this._handleItemCreated(eventData);
+                break;
+            case 'item_updated':
+                this._handleItemUpdated(eventData);
+                break;
+            case 'item_deleted':
+                this._handleItemDeleted(eventData);
+                break;
+            case 'item_completed':
+                this._handleItemCompleted(eventData);
+                break;
+            default:
+                this._handleEvent(eventType, eventData);
+        }
+    }
+
+    /**
+     * Broadcast SSE event to followers (called by leader when receiving SSE event)
+     * @param {string} eventType - Event type
+     * @param {Object} eventData - Event data
+     * @private
+     */
+    _broadcastSSEEvent(eventType, eventData) {
+        if (this.isLeader && this.channel) {
+            this._broadcastMessage({
+                type: 'sse_event',
+                event: eventType,
+                data: eventData
+            });
+        }
     }
 
     /**
@@ -78,10 +372,6 @@ class BudgetSSEClient {
             }
             const data = await response.json();
             const canConnect = data.user_connections < data.limits.max_per_user;
-
-            if (!canConnect) {
-                console.warn('[BudgetSSE] Connection limit reached:', data);
-            }
             return { canConnect, ...data };
         } catch (e) {
             debugLog('[BudgetSSE] Status check error, allowing connection:', e);
@@ -92,6 +382,11 @@ class BudgetSSEClient {
     /**
      * Connect to SSE endpoint
      * Global connection for all budget events (shared family budget model)
+     *
+     * With multi-tab support:
+     * - If multi-tab is supported, only the leader tab creates a connection
+     * - Followers receive events via BroadcastChannel
+     * - If multi-tab is not supported, each tab creates its own connection (fallback)
      */
     connect() {
         if (this.eventSource && this.isConnected) {
@@ -104,6 +399,24 @@ class BudgetSSEClient {
             return;
         }
 
+        // Lazy init multi-tab support (only on first connect)
+        if (!this._multiTabInitialized) {
+            this._initMultiTab();
+        }
+
+        // If multi-tab is supported, only leader creates connection
+        if (this._supportsMultiTab()) {
+            if (this.isLeader) {
+                debugLog('[BudgetSSE] Leader connecting');
+                this._createConnection();
+            } else {
+                debugLog('[BudgetSSE] Follower - waiting for events from leader');
+                // Follower doesn't create connection, receives events via BroadcastChannel
+            }
+            return;
+        }
+
+        // Fallback: per-tab connection (multi-tab not supported)
         this._createConnection();
     }
 
@@ -119,7 +432,6 @@ class BudgetSSEClient {
         // Precheck connection limit before attempting connection
         const { canConnect, user_connections, limits } = await this._checkConnectionLimit();
         if (!canConnect) {
-            console.warn(`[BudgetSSE] Limit reached: ${user_connections}/${limits.max_per_user}`);
             this.limitReached = true;
             this.reconnectAttempts = this.maxReconnectAttempts;  // Stop reconnect loop
             this._updateStatusIndicator();
@@ -192,18 +504,21 @@ class BudgetSSEClient {
                 debugLog('[BudgetSSE] Fact created:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleFactCreated(data);
+                this._broadcastSSEEvent('fact_created', data);  // Broadcast to followers
             });
 
             this.eventSource.addEventListener('fact_updated', (event) => {
                 debugLog('[BudgetSSE] Fact updated:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleFactUpdated(data);
+                this._broadcastSSEEvent('fact_updated', data);  // Broadcast to followers
             });
 
             this.eventSource.addEventListener('fact_deleted', (event) => {
                 debugLog('[BudgetSSE] Fact deleted:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleFactDeleted(data);
+                this._broadcastSSEEvent('fact_deleted', data);  // Broadcast to followers
             });
 
             // Plan events
@@ -211,18 +526,21 @@ class BudgetSSEClient {
                 debugLog('[BudgetSSE] Plan created:', event.data);
                 const data = JSON.parse(event.data);
                 this._handlePlanCreated(data);
+                this._broadcastSSEEvent('plan_created', data);  // Broadcast to followers
             });
 
             this.eventSource.addEventListener('plan_updated', (event) => {
                 debugLog('[BudgetSSE] Plan updated:', event.data);
                 const data = JSON.parse(event.data);
                 this._handlePlanUpdated(data);
+                this._broadcastSSEEvent('plan_updated', data);  // Broadcast to followers
             });
 
             this.eventSource.addEventListener('plan_deleted', (event) => {
                 debugLog('[BudgetSSE] Plan deleted:', event.data);
                 const data = JSON.parse(event.data);
                 this._handlePlanDeleted(data);
+                this._broadcastSSEEvent('plan_deleted', data);  // Broadcast to followers
             });
 
             // Transfer events
@@ -230,12 +548,14 @@ class BudgetSSEClient {
                 debugLog('[BudgetSSE] Transfer created:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleTransferCreated(data);
+                this._broadcastSSEEvent('transfer_created', data);  // Broadcast to followers
             });
 
             this.eventSource.addEventListener('transfer_deleted', (event) => {
                 debugLog('[BudgetSSE] Transfer deleted:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleTransferDeleted(data);
+                this._broadcastSSEEvent('transfer_deleted', data);  // Broadcast to followers
             });
 
             // Shopping list item events (consolidated from shopping_list_sse)
@@ -243,24 +563,28 @@ class BudgetSSEClient {
                 debugLog('[BudgetSSE] Item created:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleItemCreated(data);
+                this._broadcastSSEEvent('item_created', data);  // Broadcast to followers
             });
 
             this.eventSource.addEventListener('item_updated', (event) => {
                 debugLog('[BudgetSSE] Item updated:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleItemUpdated(data);
+                this._broadcastSSEEvent('item_updated', data);  // Broadcast to followers
             });
 
             this.eventSource.addEventListener('item_deleted', (event) => {
                 debugLog('[BudgetSSE] Item deleted:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleItemDeleted(data);
+                this._broadcastSSEEvent('item_deleted', data);  // Broadcast to followers
             });
 
             this.eventSource.addEventListener('item_completed', (event) => {
                 debugLog('[BudgetSSE] Item completed:', event.data);
                 const data = JSON.parse(event.data);
                 this._handleItemCompleted(data);
+                this._broadcastSSEEvent('item_completed', data);  // Broadcast to followers
             });
 
             // Keepalive ping
@@ -484,6 +808,25 @@ class BudgetSSEClient {
      * Disconnect from SSE
      */
     disconnect() {
+        // Cleanup multi-tab resources
+        if (this.leaderHeartbeatInterval) {
+            clearInterval(this.leaderHeartbeatInterval);
+            this.leaderHeartbeatInterval = null;
+        }
+        if (this._followerCheckInterval) {
+            clearInterval(this._followerCheckInterval);
+            this._followerCheckInterval = null;
+        }
+        if (this.channel) {
+            try {
+                this.channel.close();
+            } catch (e) {
+                // Ignore errors during cleanup
+            }
+            this.channel = null;
+        }
+        this.isLeader = false;
+
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
@@ -521,6 +864,25 @@ class BudgetSSEClient {
      * @private
      */
     _silentClose() {
+        // Cleanup multi-tab resources
+        if (this.leaderHeartbeatInterval) {
+            clearInterval(this.leaderHeartbeatInterval);
+            this.leaderHeartbeatInterval = null;
+        }
+        if (this._followerCheckInterval) {
+            clearInterval(this._followerCheckInterval);
+            this._followerCheckInterval = null;
+        }
+        if (this.channel) {
+            try {
+                this.channel.close();
+            } catch (e) {
+                // Ignore errors during cleanup
+            }
+            this.channel = null;
+        }
+        this.isLeader = false;
+
         // Actively notify server about disconnect via sendBeacon
         // This allows instant connection slot release (even on page close)
         if (this.connectionId) {
@@ -863,7 +1225,11 @@ class BudgetSSEClient {
             isConnected: this.isConnected,
             enabled: this.enabled,
             reconnectAttempts: this.reconnectAttempts,
-            limitReached: this.limitReached
+            limitReached: this.limitReached,
+            // Multi-tab status
+            multiTabSupported: this._supportsMultiTab(),
+            isLeader: this.isLeader,
+            hasChannel: this.channel !== null
         };
     }
 
@@ -916,13 +1282,7 @@ if (typeof window !== 'undefined') {
     window.budgetSSEClient = new BudgetSSEClient();
 }
 
-// Debug log helper (if not defined)
+// Debug log helper - disabled in production (no-op)
 if (typeof debugLog === 'undefined') {
-    window.debugLog = function(...args) {
-        if (window.DEBUG_MODE) {
-            console.log(...args);
-        }
-    };
+    window.debugLog = function() {};
 }
-
-debugLog('[BudgetSSE] Module loaded');

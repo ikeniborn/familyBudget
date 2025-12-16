@@ -56,7 +56,6 @@ class PushNotificationManager {
                 await this.subscribe();
             } catch (error) {
                 // Subscription failed - don't break initialization
-                console.warn('[Push] Subscription failed:', error.message);
                 return false;
             }
         } else if (Notification.permission === 'default') {
@@ -337,6 +336,7 @@ class PushNotificationManager {
         if (!this.isSupported) {
             return {
                 supported: false,
+                configured: false,
                 permission: null,
                 subscribed: false
             };
@@ -347,14 +347,92 @@ class PushNotificationManager {
 
         return {
             supported: true,
+            configured: !!this.vapidPublicKey,
             permission: Notification.permission,
             subscribed: !!subscription,
             subscription: subscription ? subscription.toJSON() : null
         };
+    }
+
+    /**
+     * Toggle subscription state (for UI button)
+     * @returns {Promise<boolean>} New subscription state
+     */
+    async toggleSubscription() {
+        const status = await this.getStatus();
+
+        if (status.subscribed) {
+            await this.unsubscribe();
+        } else {
+            const granted = await this.requestPermission();
+            if (!granted) {
+                this._updateUI();
+                return false;
+            }
+        }
+
+        this._updateUI();
+        return (await this.getStatus()).subscribed;
+    }
+
+    /**
+     * Update UI elements based on current state
+     * @private
+     */
+    _updateUI() {
+        const bellBtn = document.getElementById('push-bell-btn');
+        const bellIcon = document.getElementById('push-bell-icon');
+        const bellTooltip = document.getElementById('push-bell-tooltip');
+
+        if (!bellBtn) return;
+
+        // Show/hide based on support and configuration
+        if (!this.isSupported) {
+            bellBtn.classList.add('hidden');
+            if (bellTooltip) bellTooltip.textContent = 'Push-уведомления не поддерживаются';
+            return;
+        }
+
+        if (!this.vapidPublicKey) {
+            bellBtn.classList.add('hidden');
+            if (bellTooltip) bellTooltip.textContent = 'Push-уведомления не настроены';
+            return;
+        }
+
+        bellBtn.classList.remove('hidden');
+        const permission = Notification.permission;
+
+        // Update icon based on subscription state
+        if (bellIcon) {
+            if (permission === 'denied') {
+                // Permission denied - show muted bell
+                bellIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M9.143 17.082a24.248 24.248 0 0 0 3.844.148m-3.844-.148a23.856 23.856 0 0 1-5.455-1.31 8.964 8.964 0 0 0 2.3-5.542m3.155 6.852a3 3 0 0 0 5.667 1.97m-5.667-1.97a24.25 24.25 0 0 0 3.844.148m0 0c.99-.009 1.977-.052 2.955-.13a4.503 4.503 0 0 0 1.976-7.294m-8.775 7.276c-1.632-.139-3.241-.376-4.819-.707m8.82.707a4.485 4.485 0 0 0-1.255-8.774" /><path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18" />`;
+                bellBtn.classList.remove('text-primary');
+                bellBtn.classList.add('text-error');
+                if (bellTooltip) bellTooltip.textContent = 'Push-уведомления заблокированы';
+            } else if (this.subscription) {
+                // Subscribed - filled bell with color
+                bellIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />`;
+                bellBtn.classList.add('text-primary');
+                bellBtn.classList.remove('text-error');
+                if (bellTooltip) bellTooltip.textContent = 'Push-уведомления включены';
+            } else {
+                // Not subscribed - outline bell
+                bellIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />`;
+                bellBtn.classList.remove('text-primary', 'text-error');
+                if (bellTooltip) bellTooltip.textContent = 'Включить push-уведомления';
+            }
+        }
     }
 }
 
 // Export as global
 if (typeof window !== 'undefined') {
     window.PushNotificationManager = PushNotificationManager;
+    // Create singleton instance
+    window.pushManager = new PushNotificationManager();
+
+    // Auto-init REMOVED - initialization is handled by base.html
+    // This ensures pushManager only initializes for authenticated users
+    // (when loaded inside {% if user %} block)
 }

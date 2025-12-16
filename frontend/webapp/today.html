@@ -13,22 +13,14 @@
     <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/shared-components.min.css?v=PLACEHOLDER">
 
     <style>
         /* Today page specific styles */
-        .page-header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--tg-theme-section-separator-color);
-            margin-bottom: 16px;
-            position: relative;
-        }
+        /* page-header, page-title, summary-card/row/label/value moved to shared-components.css */
 
-
+        /* Override page-title for subtitle support */
         .page-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--tg-theme-text-color);
             margin-bottom: 4px;
         }
 
@@ -37,124 +29,28 @@
             color: var(--tg-theme-hint-color);
         }
 
+        /* Override summary-card for today's compact layout */
         .summary-card {
-            background-color: var(--tg-theme-secondary-bg-color);
-            border-radius: 12px;
             padding: 16px;
             margin-bottom: 16px;
         }
 
         .summary-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             padding: 8px 0;
         }
 
         .summary-label {
             font-size: 14px;
-            color: var(--tg-theme-text-color);
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
         .summary-value {
             font-size: 16px;
-            font-weight: 600;
         }
 
-        .summary-value.income {
-            color: #34c759;
-        }
-
-        .summary-value.expense {
-            color: var(--tg-theme-destructive-text-color);
-        }
-
-        .summary-value.balance {
-            color: var(--tg-theme-link-color);
-        }
+        /* transaction-*, empty-state moved to shared-components.css */
 
         .transactions-list {
             margin-bottom: 80px;
-        }
-
-        .transaction-item {
-            display: flex;
-            align-items: center;
-            padding: 12px;
-            border-bottom: 1px solid var(--tg-theme-section-separator-color);
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .transaction-item:last-child {
-            border-bottom: none;
-        }
-
-        .transaction-item:active {
-            background-color: var(--tg-theme-secondary-bg-color);
-        }
-
-        .transaction-icon {
-            font-size: 32px;
-            margin-right: 12px;
-        }
-
-        .transaction-details {
-            flex: 1;
-        }
-
-        .transaction-category {
-            font-size: 16px;
-            font-weight: 500;
-            color: var(--tg-theme-text-color);
-            margin-bottom: 2px;
-        }
-
-        .transaction-description {
-            font-size: 14px;
-            color: var(--tg-theme-hint-color);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .transaction-time {
-            font-size: 12px;
-            color: var(--tg-theme-hint-color);
-            margin-top: 2px;
-        }
-
-        .transaction-amount {
-            font-size: 18px;
-            font-weight: 600;
-            margin-left: 12px;
-        }
-
-        .transaction-amount.income {
-            color: #34c759;
-        }
-
-        .transaction-amount.expense {
-            color: var(--tg-theme-destructive-text-color);
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-        }
-
-        .empty-state-icon {
-            font-size: 64px;
-            margin-bottom: 16px;
-        }
-
-        .empty-state-text {
-            font-size: 16px;
-            color: var(--tg-theme-hint-color);
-            margin-bottom: 24px;
         }
 
         .loading-state {

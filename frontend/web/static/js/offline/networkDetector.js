@@ -10,6 +10,10 @@
  * @version 1.0.0
  */
 
+// Silent logger - only errors in production
+const _networkLog = window.DEBUG_MODE ? console.log.bind(console) : function() {};
+const _networkWarn = window.DEBUG_MODE ? console.warn.bind(console) : function() {};
+
 class SmartNetworkDetector {
     constructor(options = {}) {
         // Состояние: 'online' | 'offline' | 'degraded'
@@ -201,7 +205,7 @@ class SmartNetworkDetector {
                 }
             }));
 
-            console.log(`[NetworkDetector] Status changed: ${oldStatus} → ${newStatus}`);
+            _networkLog(`[NetworkDetector] Status changed: ${oldStatus} → ${newStatus}`);
         }
 
         return newStatus;
@@ -466,7 +470,7 @@ class SmartNetworkDetector {
         try {
             localStorage.setItem('budget_auto_offline_mode', this.autoOfflineMode.toString());
         } catch (e) {
-            console.warn('[NetworkDetector] Failed to save offline state');
+            _networkWarn('[NetworkDetector] Failed to save offline state');
         }
     }
 
@@ -483,7 +487,7 @@ class SmartNetworkDetector {
         this.stopHeartbeat();
         this.status = 'offline';
 
-        console.log('[NetworkDetector] Auto offline mode ENABLED');
+        _networkLog('[NetworkDetector] Auto offline mode ENABLED');
 
         // Start periodic recovery check (progressive backoff: 30s → 60s → 120s)
         this._startAutoRecoveryCheck();
@@ -515,7 +519,7 @@ class SmartNetworkDetector {
         this._stopAutoRecoveryCheck();
         this._startHeartbeat();
 
-        console.log('[NetworkDetector] Auto offline mode DISABLED');
+        _networkLog('[NetworkDetector] Auto offline mode DISABLED');
 
         // Check actual network state
         await this.checkConnectivity(true);
@@ -535,10 +539,10 @@ class SmartNetworkDetector {
         const scheduleNext = () => {
             const interval = intervals[Math.min(checkCount, intervals.length - 1)];
 
-            console.log(`[NetworkDetector] Scheduling next auto recovery check in ${interval / 1000}s (check #${checkCount + 1})`);
+            _networkLog(`[NetworkDetector] Scheduling next auto recovery check in ${interval / 1000}s (check #${checkCount + 1})`);
 
             this.autoRecoveryTimer = setTimeout(async () => {
-                console.log(`[NetworkDetector] Auto recovery check #${checkCount + 1}...`);
+                _networkLog(`[NetworkDetector] Auto recovery check #${checkCount + 1}...`);
 
                 // Temporarily disable auto offline mode to allow real connectivity check
                 const wasAutoOffline = this.autoOfflineMode;
@@ -550,7 +554,7 @@ class SmartNetworkDetector {
 
                     if (this.status !== 'offline') {
                         // Recovered!
-                        console.log('[NetworkDetector] Server recovered, disabling auto offline mode');
+                        _networkLog('[NetworkDetector] Server recovered, disabling auto offline mode');
                         await this.disableAutoOfflineMode();
 
                     // Show notification

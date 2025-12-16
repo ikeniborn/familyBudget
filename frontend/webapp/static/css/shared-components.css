@@ -1,0 +1,415 @@
+/**
+ * Shared Components CSS
+ *
+ * Reusable page-level components extracted from inline styles.
+ * Used by: add.html, edit.html, list.html, stats.html, summary.html, today.html
+ */
+
+/* ==================== Page Header ==================== */
+
+.page-header {
+    text-align: center;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--tg-theme-section-separator-color);
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.page-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--tg-theme-text-color);
+}
+
+/* Extra margin variant (for add/edit pages) */
+.page-header--large {
+    margin-bottom: 24px;
+}
+
+/* ==================== Period Selector ==================== */
+
+.period-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 0 16px;
+}
+
+.period-btn {
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid var(--tg-theme-section-separator-color);
+    background-color: var(--tg-theme-bg-color);
+    color: var(--tg-theme-text-color);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.period-btn.active {
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    border-color: var(--tg-theme-button-color);
+}
+
+.period-btn:active {
+    opacity: 0.8;
+}
+
+/* ==================== Summary Card ==================== */
+
+.summary-card {
+    background-color: var(--tg-theme-secondary-bg-color);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.summary-title {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color);
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--tg-theme-section-separator-color);
+}
+
+.summary-row:last-child {
+    border-bottom: none;
+}
+
+.summary-label {
+    font-size: 16px;
+    color: var(--tg-theme-text-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.summary-value {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.summary-value.income {
+    color: #34c759;
+}
+
+.summary-value.expense {
+    color: var(--tg-theme-destructive-text-color);
+}
+
+.summary-value.balance {
+    color: var(--tg-theme-link-color);
+}
+
+/* ==================== Transaction Item ==================== */
+
+.transaction-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid var(--tg-theme-section-separator-color);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.transaction-item:last-child {
+    border-bottom: none;
+}
+
+.transaction-item:active {
+    background-color: var(--tg-theme-secondary-bg-color);
+}
+
+.transaction-icon {
+    font-size: 32px;
+    margin-right: 12px;
+}
+
+.transaction-details {
+    flex: 1;
+}
+
+.transaction-category {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--tg-theme-text-color);
+    margin-bottom: 2px;
+}
+
+.transaction-description {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.transaction-time {
+    font-size: 12px;
+    color: var(--tg-theme-hint-color);
+    margin-top: 2px;
+}
+
+.transaction-amount {
+    font-size: 18px;
+    font-weight: 600;
+    margin-left: 12px;
+}
+
+.transaction-amount.income {
+    color: #34c759;
+}
+
+.transaction-amount.expense {
+    color: var(--tg-theme-destructive-text-color);
+}
+
+/* ==================== Loading State ==================== */
+
+.loading-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.loading-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.loading-state-text {
+    font-size: 16px;
+    color: var(--tg-theme-hint-color);
+}
+
+/* ==================== Enhanced Empty State ==================== */
+
+/* Override base empty-state for page-level usage */
+.empty-state--page {
+    padding: 60px 20px;
+}
+
+.empty-state--page .empty-state-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+}
+
+.empty-state--page .empty-state-text {
+    margin-bottom: 24px;
+}
+
+/* ==================== Pagination ==================== */
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 0;
+    margin-bottom: 80px;
+}
+
+.pagination-info {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color);
+}
+
+.pagination-button {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.pagination-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination-button:active:not(:disabled) {
+    opacity: 0.8;
+}
+
+/* ==================== Filters Section ==================== */
+
+.filters-section {
+    background-color: var(--tg-theme-secondary-bg-color);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.filters-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.filters-header:active {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.filters-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--tg-theme-text-color);
+}
+
+.filters-toggle {
+    font-size: 20px;
+    transition: transform 0.3s;
+}
+
+.filters-toggle.expanded {
+    transform: rotate(180deg);
+}
+
+.filters-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.filters-content.expanded {
+    max-height: 600px;
+}
+
+.filters-body {
+    padding: 0 16px 16px 16px;
+}
+
+.filter-group {
+    margin-bottom: 16px;
+}
+
+.filter-group:last-child {
+    margin-bottom: 0;
+}
+
+.filter-label {
+    font-size: 14px;
+    color: var(--tg-theme-hint-color);
+    margin-bottom: 8px;
+    display: block;
+}
+
+.filter-row {
+    display: flex;
+    gap: 8px;
+}
+
+.filter-row input,
+.filter-row select {
+    flex: 1;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.filter-actions .btn {
+    flex: 1;
+}
+
+.filters-badge {
+    background-color: var(--tg-theme-link-color);
+    color: white;
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+/* ==================== Amount Input ==================== */
+
+.amount-input-wrapper {
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.amount-input {
+    width: 100%;
+    font-size: 32px;
+    font-weight: 700;
+    text-align: center;
+    padding: 16px;
+    border: 2px solid var(--tg-theme-button-color);
+    border-radius: 12px;
+    background-color: var(--tg-theme-bg-color);
+    color: var(--tg-theme-text-color);
+}
+
+.amount-input:focus {
+    outline: none;
+    border-color: var(--tg-theme-link-color);
+}
+
+.amount-input.expense {
+    border-color: var(--tg-theme-destructive-text-color);
+    color: var(--tg-theme-destructive-text-color);
+}
+
+.amount-input.income {
+    border-color: #34c759;
+    color: #34c759;
+}
+
+.currency-label {
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    color: var(--tg-theme-hint-color);
+    pointer-events: none;
+}
+
+/* ==================== Quick Amount Buttons ==================== */
+
+.quick-amount-buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.quick-amount-btn {
+    padding: 8px;
+    font-size: 14px;
+    background-color: var(--tg-theme-secondary-bg-color);
+    border: 1px solid var(--tg-theme-section-separator-color);
+    border-radius: 8px;
+    color: var(--tg-theme-text-color);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quick-amount-btn:active {
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+}

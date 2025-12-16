@@ -2192,6 +2192,7 @@ function initCategoryFilter() {
             type: currentGlobalType,  // 'expense' or 'income'
             multiple: true,           // Enable multi-select for filter (v5.1.3)
             showPath: false,          // Hide breadcrumbs for filter page (v5.1.3)
+            showClearButton: false,   // Hide clear-all button (v5.1.4)
             onChange: (selectedArticles) => {  // Changed from onSelect to onChange (v5.1.3)
                 updateCategoryFilter(selectedArticles);
             }
