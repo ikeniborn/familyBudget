@@ -454,199 +454,219 @@ async def get_quick_stats_html(
         else:
             return "text-error"
 
-    # Generate HTML - clean metrics without wrapper card
+    # Generate HTML - unified responsive Grid layout (5 breakpoints)
     html = f"""
     <style>
-        @media (min-width: 768px) {{
-            #desktop-stats {{ display: flex !important; }}
-            #mobile-stats {{ display: none !important; }}
+        /* === QUICK STATS: 5 Breakpoints Grid Layout === */
+        .stats-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
         }}
-        @media (max-width: 767px) {{
-            #desktop-stats {{ display: none !important; }}
-            #mobile-stats {{ display: grid !important; }}
+        .stat-card {{
+            background: oklch(var(--b2));
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.625rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid oklch(var(--b3));
         }}
-        /* Mobile - оптимизировано для 375-430px */
-        #mobile-stats .stat-title {{ font-size: clamp(0.75rem, calc(0.5rem + 1.5vw), 0.9375rem); }}
-        #mobile-stats .stat-label {{ font-size: clamp(0.6875rem, calc(0.4375rem + 1.2vw), 0.8125rem); }}
-        #mobile-stats .stat-value {{ font-size: clamp(0.6875rem, calc(0.4375rem + 1.2vw), 0.8125rem); }}
-        #mobile-stats .stat-pct {{ font-size: clamp(0.625rem, calc(0.375rem + 1vw), 0.75rem); }}
-        /* Desktop */
-        #desktop-stats .stat-title {{ font-size: clamp(0.8125rem, calc(0.5rem + 0.8vw), 1rem); }}
-        #desktop-stats .stat-label {{ font-size: clamp(0.6875rem, calc(0.5rem + 0.5vw), 0.8125rem); }}
-        #desktop-stats .stat-value {{ font-size: clamp(0.75rem, calc(0.5rem + 0.6vw), 0.9375rem); }}
-        #desktop-stats .stat-pct {{ font-size: clamp(0.625rem, calc(0.375rem + 0.5vw), 0.75rem); }}
-        /* Prevent text wrapping */
-        .stat-row {{ white-space: nowrap; }}
+        .stat-title {{
+            font-weight: 600;
+            font-size: 0.8125rem;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }}
+        .stat-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.375rem;
+            white-space: nowrap;
+            line-height: 1.2;
+        }}
+        .stat-label {{
+            font-size: 0.6875rem;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }}
+        .stat-value {{
+            font-size: 0.8125rem;
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        .stat-pct {{
+            font-size: 0.6875rem;
+            font-weight: 700;
+        }}
+        /* Mobile/Desktop value toggle */
+        .mobile-value {{ display: inline; }}
+        .desktop-value {{ display: none; }}
+
+        /* Breakpoint: <375px (XS) - 1 column */
+        @media (max-width: 374px) {{
+            .stats-grid {{
+                grid-template-columns: 1fr;
+                gap: 0.375rem;
+            }}
+            .stat-card {{ padding: 0.375rem 0.5rem; }}
+            .stat-title {{ font-size: 0.75rem; }}
+            .stat-label {{ font-size: 0.625rem; }}
+            .stat-value {{ font-size: 0.75rem; }}
+            .stat-pct {{ font-size: 0.625rem; }}
+        }}
+
+        /* Breakpoint: 375-479px (SM) - 2 columns */
+        @media (min-width: 375px) and (max-width: 479px) {{
+            .stats-grid {{
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }}
+        }}
+
+        /* Breakpoint: 480-767px (MD) - 2 columns, larger fonts */
+        @media (min-width: 480px) and (max-width: 767px) {{
+            .stats-grid {{
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }}
+            .stat-card {{ padding: 0.625rem 0.75rem; }}
+            .stat-title {{ font-size: 0.875rem; }}
+            .stat-label {{ font-size: 0.75rem; }}
+            .stat-value {{ font-size: 0.875rem; }}
+            .stat-pct {{ font-size: 0.75rem; }}
+        }}
+
+        /* Breakpoint: 768-1023px (LG) - 4 columns, desktop values */
+        @media (min-width: 768px) and (max-width: 1023px) {{
+            .mobile-value {{ display: none; }}
+            .desktop-value {{ display: inline; }}
+            .stats-grid {{
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.75rem;
+            }}
+            .stat-card {{ padding: 0.625rem 0.75rem; }}
+            .stat-title {{ font-size: 0.9375rem; }}
+            .stat-label {{ font-size: 0.75rem; }}
+            .stat-value {{ font-size: 0.9375rem; }}
+            .stat-pct {{ font-size: 0.75rem; }}
+        }}
+
+        /* Breakpoint: >=1024px (XL) - 4 columns, full desktop */
+        @media (min-width: 1024px) {{
+            .mobile-value {{ display: none; }}
+            .desktop-value {{ display: inline; }}
+            .stats-grid {{
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1rem;
+            }}
+            .stat-card {{ padding: 0.75rem 1rem; }}
+            .stat-title {{ font-size: 1rem; }}
+            .stat-label {{ font-size: 0.8125rem; }}
+            .stat-value {{ font-size: 1rem; }}
+            .stat-pct {{ font-size: 0.8125rem; }}
+        }}
     </style>
-    <!-- Desktop version: horizontal flex layout -->
-    <div id="desktop-stats" class="flex flex-row gap-3 w-full">
+
+    <div class="stats-grid">
         <!-- Доходы -->
-        <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
+        <div class="stat-card">
+            <div class="stat-title">💰 Доходы</div>
             <div>
-                <span class="font-semibold stat-title">💰 Доходы</span>
-            </div>
-            <div class="space-y-px">
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">План</span>
-                    <span class="font-semibold stat-value">{format_money_desktop(month_plan_income)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">План</span>
+                    <span class="stat-value">
+                        <span class="mobile-value">{format_money_mobile(month_plan_income)}</span>
+                        <span class="desktop-value">{format_money_desktop(month_plan_income)}</span>
+                    </span>
                 </div>
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">Факт</span>
-                    <span class="font-bold text-success stat-value">{format_money_desktop(month_income)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">Факт</span>
+                    <span class="stat-value text-success">
+                        <span class="mobile-value">{format_money_mobile(month_income)}</span>
+                        <span class="desktop-value">{format_money_desktop(month_income)}</span>
+                    </span>
                 </div>
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">Исп., %</span>
-                    <span class="font-bold {get_pct_color(plan_execution_income_pct)} stat-pct">{format_pct(plan_execution_income_pct)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">Исп.%</span>
+                    <span class="stat-pct {get_pct_color(plan_execution_income_pct)}">{format_pct(plan_execution_income_pct)}</span>
                 </div>
             </div>
         </div>
 
         <!-- Расходы -->
-        <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
+        <div class="stat-card">
+            <div class="stat-title">💸 Расходы</div>
             <div>
-                <span class="font-semibold stat-title">💸 Расходы</span>
-            </div>
-            <div class="space-y-px">
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">План</span>
-                    <span class="font-semibold stat-value">{format_money_desktop(month_plan_expense)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">План</span>
+                    <span class="stat-value">
+                        <span class="mobile-value">{format_money_mobile(month_plan_expense)}</span>
+                        <span class="desktop-value">{format_money_desktop(month_plan_expense)}</span>
+                    </span>
                 </div>
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">Факт</span>
-                    <span class="font-bold text-error stat-value">{format_money_desktop(month_expense)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">Факт</span>
+                    <span class="stat-value text-error">
+                        <span class="mobile-value">{format_money_mobile(month_expense)}</span>
+                        <span class="desktop-value">{format_money_desktop(month_expense)}</span>
+                    </span>
                 </div>
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">Исп., %</span>
-                    <span class="font-bold {get_pct_color(plan_execution_expense_pct)} stat-pct">{format_pct(plan_execution_expense_pct)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">Исп.%</span>
+                    <span class="stat-pct {get_pct_color(plan_execution_expense_pct)}">{format_pct(plan_execution_expense_pct)}</span>
                 </div>
             </div>
         </div>
 
         <!-- Пополнение -->
-        <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
+        <div class="stat-card">
+            <div class="stat-title">➕ Пополнение</div>
             <div>
-                <span class="font-semibold stat-title">➕ Пополнение</span>
-            </div>
-            <div class="space-y-px">
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">План</span>
-                    <span class="font-semibold stat-value">{format_money_desktop(month_plan_credit)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">План</span>
+                    <span class="stat-value">
+                        <span class="mobile-value">{format_money_mobile(month_plan_credit)}</span>
+                        <span class="desktop-value">{format_money_desktop(month_plan_credit)}</span>
+                    </span>
                 </div>
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">Факт</span>
-                    <span class="font-bold text-info stat-value">{format_money_desktop(month_credit)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">Факт</span>
+                    <span class="stat-value text-info">
+                        <span class="mobile-value">{format_money_mobile(month_credit)}</span>
+                        <span class="desktop-value">{format_money_desktop(month_credit)}</span>
+                    </span>
                 </div>
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">Исп., %</span>
-                    <span class="font-bold {get_pct_color(plan_execution_credit_pct)} stat-pct">{format_pct(plan_execution_credit_pct)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">Исп.%</span>
+                    <span class="stat-pct {get_pct_color(plan_execution_credit_pct)}">{format_pct(plan_execution_credit_pct)}</span>
                 </div>
             </div>
         </div>
 
         <!-- Списание -->
-        <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
+        <div class="stat-card">
+            <div class="stat-title">➖ Списание</div>
             <div>
-                <span class="font-semibold stat-title">➖ Списание</span>
-            </div>
-            <div class="space-y-px">
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">План</span>
-                    <span class="font-semibold stat-value">{format_money_desktop(month_plan_debit)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">План</span>
+                    <span class="stat-value">
+                        <span class="mobile-value">{format_money_mobile(month_plan_debit)}</span>
+                        <span class="desktop-value">{format_money_desktop(month_plan_debit)}</span>
+                    </span>
                 </div>
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">Факт</span>
-                    <span class="font-bold text-warning stat-value">{format_money_desktop(month_debit)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">Факт</span>
+                    <span class="stat-value text-warning">
+                        <span class="mobile-value">{format_money_mobile(month_debit)}</span>
+                        <span class="desktop-value">{format_money_desktop(month_debit)}</span>
+                    </span>
                 </div>
-                <div class="stat-row flex justify-between items-baseline gap-2">
-                    <span class="stat-label opacity-60">Исп., %</span>
-                    <span class="font-bold {get_pct_color(plan_execution_debit_pct)} stat-pct">{format_pct(plan_execution_debit_pct)}</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mobile version: 2x2 grid with responsive font sizing -->
-    <div id="mobile-stats" class="grid grid-cols-2 gap-2">
-        <!-- Доходы -->
-        <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
-            <div>
-                <span class="font-semibold stat-title">💰 Доходы</span>
-            </div>
-            <div class="space-y-px">
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">План</span>
-                    <span class="font-semibold stat-value">{format_money_mobile(month_plan_income)}</span>
-                </div>
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">Факт</span>
-                    <span class="font-bold text-success stat-value">{format_money_mobile(month_income)}</span>
-                </div>
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">Исп., %</span>
-                    <span class="font-bold {get_pct_color(plan_execution_income_pct)} stat-pct">{format_pct(plan_execution_income_pct)}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Расходы -->
-        <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
-            <div>
-                <span class="font-semibold stat-title">💸 Расходы</span>
-            </div>
-            <div class="space-y-px">
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">План</span>
-                    <span class="font-semibold stat-value">{format_money_mobile(month_plan_expense)}</span>
-                </div>
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">Факт</span>
-                    <span class="font-bold text-error stat-value">{format_money_mobile(month_expense)}</span>
-                </div>
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">Исп., %</span>
-                    <span class="font-bold {get_pct_color(plan_execution_expense_pct)} stat-pct">{format_pct(plan_execution_expense_pct)}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Пополнение -->
-        <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
-            <div>
-                <span class="font-semibold stat-title">➕ Пополнение</span>
-            </div>
-            <div class="space-y-px">
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">План</span>
-                    <span class="font-semibold stat-value">{format_money_mobile(month_plan_credit)}</span>
-                </div>
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">Факт</span>
-                    <span class="font-bold text-info stat-value">{format_money_mobile(month_credit)}</span>
-                </div>
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">Исп., %</span>
-                    <span class="font-bold {get_pct_color(plan_execution_credit_pct)} stat-pct">{format_pct(plan_execution_credit_pct)}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Списание -->
-        <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
-            <div>
-                <span class="font-semibold stat-title">➖ Списание</span>
-            </div>
-            <div class="space-y-px">
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">План</span>
-                    <span class="font-semibold stat-value">{format_money_mobile(month_plan_debit)}</span>
-                </div>
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">Факт</span>
-                    <span class="font-bold text-warning stat-value">{format_money_mobile(month_debit)}</span>
-                </div>
-                <div class="stat-row flex justify-between items-baseline gap-1">
-                    <span class="stat-label opacity-60">Исп., %</span>
-                    <span class="font-bold {get_pct_color(plan_execution_debit_pct)} stat-pct">{format_pct(plan_execution_debit_pct)}</span>
+                <div class="stat-row">
+                    <span class="stat-label">Исп.%</span>
+                    <span class="stat-pct {get_pct_color(plan_execution_debit_pct)}">{format_pct(plan_execution_debit_pct)}</span>
                 </div>
             </div>
         </div>
@@ -785,85 +805,142 @@ async def get_account_balances_html(
         """
         return html
 
-    # Determine grid columns based on number of accounts (max 4 columns)
-    num_accounts = len(balances)
-    if num_accounts == 1:
-        grid_cols_class = "grid-cols-1"
-    elif num_accounts == 2:
-        grid_cols_class = "grid-cols-2"
-    elif num_accounts == 3:
-        grid_cols_class = "grid-cols-3"
-    else:
-        grid_cols_class = "grid-cols-4"
-
-    # Generate cards for desktop layout
-    desktop_cards = ""
+    # Generate unified responsive cards
+    balance_cards = ""
     for bal in balances:
-        desktop_cards += f"""
-        <div class="bg-base-200 rounded-lg p-2 hover:bg-base-300 transition-colors">
-            <div class="font-semibold balance-title mb-1 truncate" title="{bal['name']}">{bal['name']}</div>
-            <div class="space-y-1">
-                <div class="balance-row flex justify-between items-baseline gap-2">
-                    <span class="balance-label opacity-60">Начало</span>
-                    <span class="balance-value font-medium {get_balance_color(bal['opening_balance'])}">{format_money_desktop(bal['opening_balance'])}</span>
+        balance_cards += f"""
+        <div class="balance-card">
+            <div class="balance-title" title="{bal['name']}">{bal['name']}</div>
+            <div>
+                <div class="balance-row">
+                    <span class="balance-label">Начало</span>
+                    <span class="balance-value {get_balance_color(bal['opening_balance'])}">
+                        <span class="mobile-value">{format_money_mobile(bal['opening_balance'])}</span>
+                        <span class="desktop-value">{format_money_desktop(bal['opening_balance'])}</span>
+                    </span>
                 </div>
-                <div class="balance-row flex justify-between items-baseline gap-2 pt-1 border-t border-base-300">
-                    <span class="balance-label opacity-60">Текущий</span>
-                    <span class="balance-value font-bold {get_balance_color(bal['current_balance'])}">{format_money_desktop(bal['current_balance'])}</span>
-                </div>
-            </div>
-        </div>"""
-
-    # Generate cards for mobile layout (2 columns grid)
-    mobile_cards = ""
-    for bal in balances:
-        mobile_cards += f"""
-        <div class="bg-base-200 rounded-lg p-2">
-            <div class="font-semibold balance-title mb-1 truncate" title="{bal['name']}">{bal['name']}</div>
-            <div class="space-y-1">
-                <div class="balance-row flex justify-between items-baseline gap-1">
-                    <span class="balance-label opacity-60">Начало</span>
-                    <span class="balance-value {get_balance_color(bal['opening_balance'])}">{format_money_mobile(bal['opening_balance'])}</span>
-                </div>
-                <div class="balance-row flex justify-between items-baseline gap-1">
-                    <span class="balance-label opacity-60">Текущий</span>
-                    <span class="balance-value font-bold {get_balance_color(bal['current_balance'])}">{format_money_mobile(bal['current_balance'])}</span>
+                <div class="balance-row balance-divider">
+                    <span class="balance-label">Текущий</span>
+                    <span class="balance-value font-bold {get_balance_color(bal['current_balance'])}">
+                        <span class="mobile-value">{format_money_mobile(bal['current_balance'])}</span>
+                        <span class="desktop-value">{format_money_desktop(bal['current_balance'])}</span>
+                    </span>
                 </div>
             </div>
         </div>"""
 
     html = f"""
     <style>
-        @media (min-width: 768px) {{
-            #desktop-balances {{ display: block !important; }}
-            #mobile-balances {{ display: none !important; }}
+        /* === BALANCES: 5 Breakpoints Grid Layout === */
+        .balances-grid {{
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
         }}
-        @media (max-width: 767px) {{
-            #desktop-balances {{ display: none !important; }}
-            #mobile-balances {{ display: grid !important; }}
+        .balance-card {{
+            background: oklch(var(--b2));
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.625rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid oklch(var(--b3));
         }}
-        /* Mobile - оптимизировано для 375-430px */
-        #mobile-balances .balance-title {{ font-size: clamp(0.75rem, calc(0.5rem + 1.5vw), 0.9375rem); }}
-        #mobile-balances .balance-label {{ font-size: clamp(0.6875rem, calc(0.4375rem + 1.2vw), 0.8125rem); }}
-        #mobile-balances .balance-value {{ font-size: clamp(0.6875rem, calc(0.4375rem + 1.2vw), 0.8125rem); }}
-        /* Desktop */
-        #desktop-balances .balance-title {{ font-size: clamp(0.8125rem, calc(0.5rem + 0.8vw), 1rem); }}
-        #desktop-balances .balance-label {{ font-size: clamp(0.6875rem, calc(0.5rem + 0.5vw), 0.8125rem); }}
-        #desktop-balances .balance-value {{ font-size: clamp(0.75rem, calc(0.5rem + 0.6vw), 0.9375rem); }}
-        /* Prevent text wrapping */
-        .balance-row {{ white-space: nowrap; }}
+        .balance-title {{
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        .balance-row {{
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.25rem;
+            white-space: nowrap;
+            line-height: 1.2;
+        }}
+        .balance-label {{
+            font-size: 0.625rem;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }}
+        .balance-value {{
+            font-size: 0.75rem;
+            font-weight: 600;
+        }}
+        .balance-divider {{
+            border-top: 1px solid oklch(var(--b3));
+            margin-top: 0.25rem;
+            padding-top: 0.25rem;
+        }}
+        /* Mobile/Desktop value toggle */
+        .mobile-value {{ display: inline; }}
+        .desktop-value {{ display: none; }}
+
+        /* Breakpoint: <375px (XS) - 1 column */
+        @media (max-width: 374px) {{
+            .balances-grid {{
+                grid-template-columns: 1fr;
+                gap: 0.375rem;
+            }}
+            .balance-card {{ padding: 0.375rem 0.5rem; }}
+            .balance-title {{ font-size: 0.6875rem; }}
+            .balance-label {{ font-size: 0.5625rem; }}
+            .balance-value {{ font-size: 0.6875rem; }}
+        }}
+
+        /* Breakpoint: 375-479px (SM) - 2 columns */
+        @media (min-width: 375px) and (max-width: 479px) {{
+            .balances-grid {{
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }}
+        }}
+
+        /* Breakpoint: 480-767px (MD) - 3 columns */
+        @media (min-width: 480px) and (max-width: 767px) {{
+            .balances-grid {{
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.75rem;
+            }}
+            .balance-card {{ padding: 0.625rem 0.75rem; }}
+            .balance-title {{ font-size: 0.8125rem; }}
+            .balance-label {{ font-size: 0.6875rem; }}
+            .balance-value {{ font-size: 0.8125rem; }}
+        }}
+
+        /* Breakpoint: 768-1023px (LG) - 3 columns, desktop values */
+        @media (min-width: 768px) and (max-width: 1023px) {{
+            .mobile-value {{ display: none; }}
+            .desktop-value {{ display: inline; }}
+            .balances-grid {{
+                grid-template-columns: repeat(3, 1fr);
+                gap: 0.75rem;
+            }}
+            .balance-card {{ padding: 0.625rem 0.75rem; }}
+            .balance-title {{ font-size: 0.875rem; }}
+            .balance-label {{ font-size: 0.75rem; }}
+            .balance-value {{ font-size: 0.875rem; }}
+        }}
+
+        /* Breakpoint: >=1024px (XL) - 6 columns, full desktop */
+        @media (min-width: 1024px) {{
+            .mobile-value {{ display: none; }}
+            .desktop-value {{ display: inline; }}
+            .balances-grid {{
+                grid-template-columns: repeat(6, 1fr);
+                gap: 1rem;
+            }}
+            .balance-card {{ padding: 0.75rem 1rem; }}
+            .balance-title {{ font-size: 0.9375rem; }}
+            .balance-label {{ font-size: 0.75rem; }}
+            .balance-value {{ font-size: 0.9375rem; }}
+        }}
     </style>
 
-    <!-- Desktop: Adaptive grid layout (1-4 columns) -->
-    <div id="desktop-balances">
-        <div class="grid {grid_cols_class} gap-3">
-{desktop_cards}
-        </div>
-    </div>
-
-    <!-- Mobile: 2-column grid -->
-    <div id="mobile-balances" class="grid grid-cols-2 gap-3">
-{mobile_cards}
+    <div class="balances-grid">
+{balance_cards}
     </div>
     """
 
