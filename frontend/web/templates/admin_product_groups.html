@@ -1,17 +1,11 @@
 {% extends "base.html" %}
+{% from "components/modal_confirm.html" import confirm_modal %}
+{% from "components/mobile_alert.html" import mobile_restriction_alert %}
+{% from "components/status_filter.html" import status_filter_buttons %}
 
 {% block content %}
-<!-- Mobile-only message: page not available on small screens -->
-<div class="md:hidden">
-    <div class="alert alert-info shadow-lg">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-        <div>
-            <h3 class="font-bold">Страница недоступна на мобильных</h3>
-            <div class="text-sm">Эта страница доступна только на планшетах и ПК.</div>
-        </div>
-        <a href="/" class="btn btn-sm btn-primary">На главную</a>
-    </div>
-</div>
+<!-- Mobile restriction alert (from macro) -->
+{{ mobile_restriction_alert() }}
 
 <!-- Main content (hidden on mobile) -->
 <div class="hidden md:block space-y-6">
@@ -44,11 +38,7 @@
                                 <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-bordered w-full rounded-l-none" oninput="handleSearch(this.value)" />
                             </div>
                         </div>
-                        <div class="btn-group">
-                            <button class="btn btn-sm" id="status-all" onclick="updateStatusFilter('all')" aria-pressed="true" style="height: 3rem; min-height: 3rem;">Все</button>
-                            <button class="btn btn-sm btn-outline" id="status-active" onclick="updateStatusFilter('active')" aria-pressed="false" style="height: 3rem; min-height: 3rem;">✓ Активные</button>
-                            <button class="btn btn-sm btn-outline" id="status-archived" onclick="updateStatusFilter('archived')" aria-pressed="false" style="height: 3rem; min-height: 3rem;">📦 Архивные</button>
-                        </div>
+                        {{ status_filter_buttons(fixed_height=true) }}
                     </div>
                 </div>
             </div>
@@ -140,25 +130,20 @@
 </dialog>
 {% endif %}
 
-<!-- Custom Confirmation Dialog -->
-<dialog id="confirm-modal" class="modal">
-    <div class="modal-box max-w-lg">
-        <h3 class="font-bold text-lg mb-4" id="confirm-title">Подтверждение</h3>
-        <p class="whitespace-pre-line mb-6" id="confirm-message"></p>
-        <div class="modal-action">
-            <button type="button" class="btn btn-ghost" onclick="confirmModalResolve(false)">Отмена</button>
-            <button type="button" class="btn btn-error" onclick="confirmModalResolve(true)">Подтвердить</button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button onclick="confirmModalResolve(false)">close</button>
-    </form>
-</dialog>
+<!-- Confirmation Dialog (from macro) -->
+{{ confirm_modal() }}
 {% endblock %}
 
 {% block extra_scripts %}
 <script src="/static/js/confirmDialog.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/adminStatusFilter.js?v=PLACEHOLDER"></script>
 <script>
+// Status filter callback (used by adminStatusFilter.js)
+window.onStatusFilterChange = function(status) {
+    currentStatusFilter = status;
+    renderProductGroupsTree();
+};
+
 // Check if current user is admin
 const isAdmin = {{ 'true' if user.is_admin else 'false' }};
 
@@ -339,21 +324,7 @@ function renderTreeNodes(nodes, level) {
     return html;
 }
 
-// Update status filter
-function updateStatusFilter(status) {
-    currentStatusFilter = status;
-
-    // Update button states
-    document.getElementById('status-all').classList.toggle('btn-outline', status !== 'all');
-    document.getElementById('status-active').classList.toggle('btn-outline', status !== 'active');
-    document.getElementById('status-archived').classList.toggle('btn-outline', status !== 'archived');
-
-    document.getElementById('status-all').setAttribute('aria-pressed', status === 'all');
-    document.getElementById('status-active').setAttribute('aria-pressed', status === 'active');
-    document.getElementById('status-archived').setAttribute('aria-pressed', status === 'archived');
-
-    renderProductGroupsTree();
-}
+// updateStatusFilter is provided by adminStatusFilter.js
 
 // Handle search input
 function handleSearch(query) {

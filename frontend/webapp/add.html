@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/shared-components.min.css?v=PLACEHOLDER">
 
     <!-- Choices.js -->
     <link rel="stylesheet" href="/webapp/static/css/vendor/choices.min.css">
@@ -23,61 +24,11 @@
 
     <style>
         /* Add transaction specific styles */
+        /* page-header, page-title, amount-input, quick-amount-buttons moved to shared-components.css */
+
+        /* Extra margin for add page header */
         .page-header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--tg-theme-section-separator-color);
             margin-bottom: 24px;
-            position: relative;
-        }
-
-
-        .page-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--tg-theme-text-color);
-        }
-
-        .amount-input-wrapper {
-            position: relative;
-            margin-bottom: 24px;
-        }
-
-        .amount-input {
-            width: 100%;
-            font-size: 32px;
-            font-weight: 700;
-            text-align: center;
-            padding: 16px;
-            border: 2px solid var(--tg-theme-button-color);
-            border-radius: 12px;
-            background-color: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
-        }
-
-        .amount-input:focus {
-            outline: none;
-            border-color: var(--tg-theme-link-color);
-        }
-
-        .amount-input.expense {
-            border-color: var(--tg-theme-destructive-text-color);
-            color: var(--tg-theme-destructive-text-color);
-        }
-
-        .amount-input.income {
-            border-color: #34c759;
-            color: #34c759;
-        }
-
-        .currency-label {
-            position: absolute;
-            right: 24px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 20px;
-            color: var(--tg-theme-hint-color);
-            pointer-events: none;
         }
 
         .category-list {
@@ -117,29 +68,6 @@
             padding: 16px;
             text-align: center;
             color: var(--tg-theme-hint-color);
-        }
-
-        .quick-amount-buttons {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .quick-amount-btn {
-            padding: 8px;
-            font-size: 14px;
-            background-color: var(--tg-theme-secondary-bg-color);
-            border: 1px solid var(--tg-theme-section-separator-color);
-            border-radius: 8px;
-            color: var(--tg-theme-text-color);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .quick-amount-btn:active {
-            background-color: var(--tg-theme-button-color);
-            color: var(--tg-theme-button-text-color);
         }
 
         .toggle-btn {

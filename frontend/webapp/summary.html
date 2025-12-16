@@ -13,54 +13,11 @@
     <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/shared-components.min.css?v=PLACEHOLDER">
 
     <style>
         /* Summary page specific styles */
-        .page-header {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid var(--tg-theme-section-separator-color);
-            margin-bottom: 16px;
-            position: relative;
-        }
-
-
-        .page-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--tg-theme-text-color);
-        }
-
-        /* Period selector */
-        .period-selector {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-            gap: 8px;
-            margin-bottom: 16px;
-            padding: 0 16px;
-        }
-
-        .period-btn {
-            padding: 10px;
-            font-size: 14px;
-            font-weight: 500;
-            border-radius: 8px;
-            border: 1px solid var(--tg-theme-section-separator-color);
-            background-color: var(--tg-theme-bg-color);
-            color: var(--tg-theme-text-color);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .period-btn.active {
-            background-color: var(--tg-theme-button-color);
-            color: var(--tg-theme-button-text-color);
-            border-color: var(--tg-theme-button-color);
-        }
-
-        .period-btn:active {
-            opacity: 0.8;
-        }
+        /* page-header, page-title, period-selector moved to shared-components.css */
 
         /* Total summary card */
         .total-summary {

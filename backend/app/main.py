@@ -281,6 +281,10 @@ app.mount("/shared", StaticFiles(directory=str(FrontendPaths.SHARED)), name="sha
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
 
+# Register custom Jinja2 filters for HTMX partials
+from backend.app.utils.template_filters import register_filters
+register_filters(templates.env)
+
 # PWA endpoints (must be before web_router to avoid being caught by catch-all routes)
 # Support both GET and HEAD methods - browsers use HEAD to check for Service Worker updates
 @app.api_route("/sw.js", methods=["GET", "HEAD"], include_in_schema=False)
