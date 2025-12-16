@@ -478,13 +478,18 @@ async def get_quick_stats_html(
             align-items: center;
             gap: 0.25rem;
         }}
+        .stat-rows {{
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }}
         .stat-row {{
             display: flex;
             justify-content: space-between;
-            align-items: baseline;
+            align-items: center;
             gap: 0.375rem;
             white-space: nowrap;
-            line-height: 1.2;
+            height: 1.125rem;
         }}
         .stat-label {{
             font-size: 0.6875rem;
@@ -574,7 +579,7 @@ async def get_quick_stats_html(
         <!-- Доходы -->
         <div class="stat-card">
             <div class="stat-title">💰 Доходы</div>
-            <div>
+            <div class="stat-rows">
                 <div class="stat-row">
                     <span class="stat-label">План</span>
                     <span class="stat-value">
@@ -599,7 +604,7 @@ async def get_quick_stats_html(
         <!-- Расходы -->
         <div class="stat-card">
             <div class="stat-title">💸 Расходы</div>
-            <div>
+            <div class="stat-rows">
                 <div class="stat-row">
                     <span class="stat-label">План</span>
                     <span class="stat-value">
@@ -624,7 +629,7 @@ async def get_quick_stats_html(
         <!-- Пополнение -->
         <div class="stat-card">
             <div class="stat-title">➕ Пополнение</div>
-            <div>
+            <div class="stat-rows">
                 <div class="stat-row">
                     <span class="stat-label">План</span>
                     <span class="stat-value">
@@ -649,7 +654,7 @@ async def get_quick_stats_html(
         <!-- Списание -->
         <div class="stat-card">
             <div class="stat-title">➖ Списание</div>
-            <div>
+            <div class="stat-rows">
                 <div class="stat-row">
                     <span class="stat-label">План</span>
                     <span class="stat-value">
