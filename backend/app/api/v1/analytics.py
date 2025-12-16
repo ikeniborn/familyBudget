@@ -479,7 +479,7 @@ async def get_quick_stats_html(
         .stat-row {{ white-space: nowrap; }}
     </style>
     <!-- Desktop version: horizontal flex layout -->
-    <div id="desktop-stats" class="flex flex-row gap-2 w-full">
+    <div id="desktop-stats" class="flex flex-row gap-3 w-full">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg py-1 px-2 shadow flex-1">
             <div>
@@ -566,7 +566,7 @@ async def get_quick_stats_html(
     </div>
 
     <!-- Mobile version: 2x2 grid with responsive font sizing -->
-    <div id="mobile-stats" class="grid grid-cols-2 gap-1.5">
+    <div id="mobile-stats" class="grid grid-cols-2 gap-2">
         <!-- Доходы -->
         <div class="bg-base-200 rounded-lg py-1 px-2 shadow">
             <div>
