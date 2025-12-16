@@ -187,13 +187,17 @@
     <!-- Choices.js JS -->
     <script src="/static/js/vendor/choices.min.js"></script>
 
-    <!-- Offline Mode Scripts -->
+    <!-- Offline Mode Scripts (базовые - всегда загружаются) -->
     <script src="/static/js/offline/idb.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/networkDetector.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/offlineManager.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/offline/conflictResolver.min.js?v=PLACEHOLDER"></script>
+
+    {% if user %}
+    <!-- Auth-required scripts (только для авторизованных) -->
     <script src="/static/js/offline/pushManager.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/budget/budgetSSEClient.js?v=PLACEHOLDER"></script>
+    {% endif %}
 
     <!-- ECharts (for analytics pages) -->
     {% block extra_head %}{% endblock %}
@@ -984,7 +988,7 @@
     <script>
         // Initialize offline manager
         window.offlineManager = new OfflineManager();
-        window.pushManager = new PushNotificationManager();
+        // pushManager singleton уже создан в pushManager.js
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async () => {

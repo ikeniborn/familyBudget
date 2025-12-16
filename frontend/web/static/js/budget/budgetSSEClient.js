@@ -44,6 +44,7 @@ class BudgetSSEClient {
         this.HEARTBEAT_INTERVAL = 3000;  // Leader sends heartbeat every 3 sec
         this.LEADER_TIMEOUT = 10000;     // Follower considers leader dead after 10 sec
         this._multiTabSupported = null;  // Cached support check
+        this._multiTabInitialized = false;  // Lazy init flag
 
         // Close connection on page unload
         window.addEventListener('beforeunload', () => {
@@ -80,8 +81,8 @@ class BudgetSSEClient {
             }
         });
 
-        // Initialize multi-tab support (async)
-        this._initMultiTab();
+        // Multi-tab initialization is now lazy - triggered by connect()
+        // This prevents 401 errors for unauthenticated users
     }
 
     /**
@@ -101,9 +102,16 @@ class BudgetSSEClient {
 
     /**
      * Initialize multi-tab support with BroadcastChannel and Web Locks
+     * Called lazily from connect() to prevent 401 errors for unauthenticated users
      * @private
      */
     async _initMultiTab() {
+        // Prevent double initialization
+        if (this._multiTabInitialized) {
+            return;
+        }
+        this._multiTabInitialized = true;
+
         if (!this._supportsMultiTab()) {
             debugLog('[BudgetSSE] Multi-tab not supported, using per-tab connection');
             // Fallback: work like before (per-tab connection)
@@ -391,8 +399,12 @@ class BudgetSSEClient {
             return;
         }
 
+        // Lazy init multi-tab support (only on first connect)
+        if (!this._multiTabInitialized) {
+            this._initMultiTab();
+        }
+
         // If multi-tab is supported, only leader creates connection
-        // _initMultiTab() handles this automatically
         if (this._supportsMultiTab()) {
             if (this.isLeader) {
                 debugLog('[BudgetSSE] Leader connecting');

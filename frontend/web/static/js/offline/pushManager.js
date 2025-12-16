@@ -432,15 +432,7 @@ if (typeof window !== 'undefined') {
     // Create singleton instance
     window.pushManager = new PushNotificationManager();
 
-    // Auto-init when DOM is ready
-    const initPushManager = async () => {
-        await window.pushManager.init();
-        window.pushManager._updateUI();
-    };
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initPushManager);
-    } else {
-        initPushManager();
-    }
+    // Auto-init REMOVED - initialization is handled by base.html
+    // This ensures pushManager only initializes for authenticated users
+    // (when loaded inside {% if user %} block)
 }
