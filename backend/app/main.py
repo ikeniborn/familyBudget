@@ -15,12 +15,16 @@ from backend.app.api.web.router import web_router
 from backend.app.core.config import get_settings
 from backend.app.core.exceptions import APIException
 from backend.app.core.logging import setup_logging, get_logger
-from backend.app.db.session import close_db, init_db
+from backend.app.db.session import close_db, init_db, get_session
 from backend.app.middleware import JWTAuthMiddleware, limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from backend.app.scheduler import start_scheduler, stop_scheduler
-from backend.app.api.v1.endpoints.budget_sse import start_cleanup_task, stop_cleanup_task
+from backend.app.api.v1.endpoints.budget_sse import (
+    start_cleanup_task,
+    stop_cleanup_task,
+    set_push_db_session_factory,
+)
 from backend.app.middleware.csp_middleware import CSPMiddleware
 from backend.app.middleware.error_handler import (
     api_exception_handler,
@@ -56,6 +60,10 @@ async def lifespan(app: FastAPI):
     # Initialize database
     await init_db()
     logger.info("Database initialized successfully")
+
+    # Initialize push notification session factory
+    set_push_db_session_factory(get_session)
+    logger.info("Push notification session factory initialized")
 
     # Start background scheduler (cron jobs)
     await start_scheduler()
