@@ -836,10 +836,10 @@ async def get_account_balances_html(
 
     html = f"""
     <style>
-        /* === BALANCES: 5 Breakpoints Grid Layout === */
+        /* === BALANCES: 5 Breakpoints Grid Layout with auto-fit === */
         .balances-grid {{
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 0.5rem;
         }}
         .balance-card {{
@@ -883,10 +883,10 @@ async def get_account_balances_html(
         .mobile-value {{ display: inline; }}
         .desktop-value {{ display: none; }}
 
-        /* Breakpoint: <375px (XS) - 1 column */
+        /* Breakpoint: <375px (XS) - auto-fit min 120px */
         @media (max-width: 374px) {{
             .balances-grid {{
-                grid-template-columns: 1fr;
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
                 gap: 0.375rem;
             }}
             .balance-card {{ padding: 0.375rem 0.5rem; }}
@@ -895,18 +895,18 @@ async def get_account_balances_html(
             .balance-value {{ font-size: 0.6875rem; }}
         }}
 
-        /* Breakpoint: 375-479px (SM) - 2 columns */
+        /* Breakpoint: 375-479px (SM) - auto-fit min 140px */
         @media (min-width: 375px) and (max-width: 479px) {{
             .balances-grid {{
-                grid-template-columns: repeat(2, 1fr);
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
                 gap: 0.5rem;
             }}
         }}
 
-        /* Breakpoint: 480-767px (MD) - 3 columns */
+        /* Breakpoint: 480-767px (MD) - auto-fit min 160px */
         @media (min-width: 480px) and (max-width: 767px) {{
             .balances-grid {{
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
                 gap: 0.75rem;
             }}
             .balance-card {{ padding: 0.625rem 0.75rem; }}
@@ -915,12 +915,12 @@ async def get_account_balances_html(
             .balance-value {{ font-size: 0.8125rem; }}
         }}
 
-        /* Breakpoint: 768-1023px (LG) - 3 columns, desktop values */
+        /* Breakpoint: 768-1023px (LG) - auto-fit min 180px, desktop values */
         @media (min-width: 768px) and (max-width: 1023px) {{
             .mobile-value {{ display: none; }}
             .desktop-value {{ display: inline; }}
             .balances-grid {{
-                grid-template-columns: repeat(3, 1fr);
+                grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
                 gap: 0.75rem;
             }}
             .balance-card {{ padding: 0.625rem 0.75rem; }}
@@ -929,12 +929,12 @@ async def get_account_balances_html(
             .balance-value {{ font-size: 0.875rem; }}
         }}
 
-        /* Breakpoint: >=1024px (XL) - 6 columns, full desktop */
+        /* Breakpoint: >=1024px (XL) - auto-fit min 200px, full desktop */
         @media (min-width: 1024px) {{
             .mobile-value {{ display: none; }}
             .desktop-value {{ display: inline; }}
             .balances-grid {{
-                grid-template-columns: repeat(6, 1fr);
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
                 gap: 1rem;
             }}
             .balance-card {{ padding: 0.75rem 1rem; }}
