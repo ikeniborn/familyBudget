@@ -497,6 +497,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (factDateInput) {
         factDateInput.value = BudgetShared.DateFormatter.today();
         debugLog('[DOMContentLoaded] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', factDateInput.value);
+
+        // Обработчик изменения даты для обновления fact hints
+        factDateInput.addEventListener('change', () => {
+            const cat = transactionCategoryTreeSelect?.getSelectedCategory();
+            loadFactHints(cat);
+        });
     }
 
     // Инициализация кнопок периода планирования
@@ -833,6 +839,8 @@ async function loadTransactionCategories() {
                     debugLog('Transaction category changed:', category);
                     // Update recommended amounts based on selected category
                     loadRecommendedAmounts('form_modal_add_transaction', 'fact', category);
+                    // Update fact hints for current month
+                    loadFactHints(category);
                 }
             });
         }
@@ -943,6 +951,8 @@ async function loadFinancialCenters() {
                 // Update recommended amounts
                 const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
                 loadRecommendedAmounts('form_modal_add_transaction', 'fact', selectedCategory);
+                // Update fact hints for current month
+                loadFactHints(selectedCategory);
             });
         }
 
@@ -1143,367 +1153,97 @@ function setTransactionDate(daysOffset) {
 
 // ============ Plan Hints Functions ============
 
-// Debounce tracking for plan hints API calls
-let planHintsTimeout = null;
-let planHintsController = null;
+// ============ Fact Hints Functions ============
 
-/**
- * Load plan hints from API and update hint buttons.
- * Shows previous month's plan and fact sums for selected category.
- *
- * @param {object|null} category - Selected category (from onCategoryChange callback)
- */
-async function loadPlanHints(category = null) {
-    // Clear existing debounce timeout
-    if (planHintsTimeout) {
-        clearTimeout(planHintsTimeout);
-    }
+let factHintsTimeout = null;
+let factHintsController = null;
 
-    // Cancel pending API call
-    if (planHintsController) {
-        planHintsController.abort();
-    }
+async function loadFactHints(category = null) {
+    // 1. Clear debounce timeout
+    if (factHintsTimeout) clearTimeout(factHintsTimeout);
+    if (factHintsController) factHintsController.abort();
 
-    // Get hint buttons
-    const prevPlanBtn = document.getElementById('hint-prev-plan');
-    const prevFactBtn = document.getElementById('hint-prev-fact');
+    const planBtn = document.getElementById('hint-period-plan');
+    const factBtn = document.getElementById('hint-period-fact');
+    if (!planBtn || !factBtn) return;
 
-    if (!prevPlanBtn || !prevFactBtn) {
-        debugLog('[loadPlanHints] Hint buttons not found');
-        return;
-    }
+    // 2. Show loading state
+    planBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    factBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
 
-    // Show loading state
-    prevPlanBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-    prevPlanBtn.disabled = true;
-    prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-
-    prevFactBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-    prevFactBtn.disabled = true;
-    prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-
-    // Check if category is selected
-    const articleId = category ? category.id : null;
+    const articleId = category?.id;
     if (!articleId) {
-        // No category selected - show placeholder
-        prevPlanBtn.innerHTML = 'План пред. мес: --';
-        prevFactBtn.innerHTML = 'Факт пред. мес: --';
+        planBtn.innerHTML = 'План мес: --';
+        factBtn.innerHTML = 'Факт мес: --';
         return;
     }
 
-    // Check if offline - show placeholder immediately
-    if (!navigator.onLine) {
-        debugLog('[loadPlanHints] Offline - showing placeholder');
-        prevPlanBtn.innerHTML = 'План пред. мес: --';
-        prevFactBtn.innerHTML = 'Факт пред. мес: --';
-        return;
-    }
+    // 3. Debounce 300ms
+    factHintsTimeout = setTimeout(async () => {
+        if (!navigator.onLine) {
+            planBtn.innerHTML = 'План мес: --';
+            factBtn.innerHTML = 'Факт мес: --';
+            return;
+        }
 
-    // Debounce: wait 300ms after last call
-    planHintsTimeout = setTimeout(async () => {
         try {
-            planHintsController = new AbortController();
+            factHintsController = new AbortController();
 
-            // Get current planning period from hidden input
-            const periodInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
-            const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
+            // Get form values
+            const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+            const factDate = BudgetShared.DateFormatter.formatForAPI(dateInput?.value || BudgetShared.DateFormatter.today());
+            const typeInput = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked');
+            const articleType = typeInput?.value || 'expense';
+            const fcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
 
-            // Get current type (income/expense)
-            const typeInput = document.querySelector('#form_modal_add_plan input[name="plan_type"]:checked');
-            const articleType = typeInput ? typeInput.value : 'expense';
+            const params = new URLSearchParams({ fact_date: factDate, article_type: articleType });
+            params.append('article_id', articleId);
+            if (fcSelect?.value) params.append('financial_center_id', fcSelect.value);
 
-            // Get current account
-            const cfoSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
-            const financialCenterId = cfoSelect ? cfoSelect.value : null;
-
-            // Build query params
-            const params = new URLSearchParams({
-                period: period,
-                article_type: articleType,
+            const response = await fetch(`/api/v1/analytics/fact-hints?${params}`, {
+                signal: factHintsController.signal,
+                credentials: 'include'
             });
 
-            if (articleId) {
-                params.append('article_id', articleId);
-            }
-
-            if (financialCenterId) {
-                params.append('financial_center_id', financialCenterId);
-            }
-
-            // Call API
-            const response = await fetch(`/api/v1/analytics/plan-hints?${params.toString()}`, {
-                signal: planHintsController.signal,
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-                console.error(`[loadPlanHints] API error: ${response.status}`, errorData);
-
-                // Show error state
-                prevPlanBtn.innerHTML = 'План пред. мес: --';
-                prevFactBtn.innerHTML = 'Факт пред. мес: --';
-                return;
-            }
-
-            const data = await response.json();
-
-            // Update hint buttons
-            updatePlanHintButtons(data);
-
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                debugLog('[loadPlanHints] Request cancelled (debounce)');
+            if (response.ok) {
+                updateFactHintButtons(await response.json());
             } else {
-                console.error('[loadPlanHints] Failed to load:', error);
-
-                // Show error state
-                prevPlanBtn.innerHTML = 'План пред. мес: --';
-                prevFactBtn.innerHTML = 'Факт пред. мес: --';
+                planBtn.innerHTML = 'План мес: --';
+                factBtn.innerHTML = 'Факт мес: --';
             }
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error('[loadFactHints]', e);
+            planBtn.innerHTML = 'План мес: --';
+            factBtn.innerHTML = 'Факт мес: --';
         }
     }, 300);
 }
 
-/**
- * Update plan hint buttons with data from API.
- *
- * @param {object} data - Response from /api/v1/analytics/plan-hints
- */
-function updatePlanHintButtons(data) {
-    const prevPlanBtn = document.getElementById('hint-prev-plan');
-    const prevFactBtn = document.getElementById('hint-prev-fact');
+function updateFactHintButtons(data) {
+    const planBtn = document.getElementById('hint-period-plan');
+    const factBtn = document.getElementById('hint-period-fact');
+    if (!planBtn || !factBtn) return;
 
-    if (!prevPlanBtn || !prevFactBtn) return;
-
-    // Format amounts
-    const formatAmount = (amount) => {
-        if (amount === null || amount === undefined) return '--';
-        const num = parseFloat(amount);
-        if (num >= 1000) {
-            return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
-        }
-        return num.toFixed(0);
+    const formatAmount = (amt) => {
+        if (!amt) return '--';
+        const n = parseFloat(amt);
+        return n >= 1000 ? (n/1000).toFixed(n%1000===0?0:1)+'k' : n.toFixed(0);
     };
 
-    // Get previous period month name
-    const prevPeriodParts = data.prev_period.split('-');
-    const prevMonthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-    const prevMonthName = prevMonthNames[parseInt(prevPeriodParts[1]) - 1];
+    const monthNames = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+    const monthName = monthNames[parseInt(data.period.split('-')[1]) - 1];
 
-    // Update Plan button
-    const planAmount = data.prev_period_plan_sum;
-    if (planAmount !== null && planAmount !== undefined && parseFloat(planAmount) > 0) {
-        prevPlanBtn.innerHTML = `План ${prevMonthName}: ${formatAmount(planAmount)}₽`;
-        prevPlanBtn.disabled = false;
-        prevPlanBtn.className = 'btn btn-xs btn-outline btn-info';
-        prevPlanBtn.onclick = () => setPlanAmount(parseFloat(planAmount));
-    } else {
-        prevPlanBtn.innerHTML = `План ${prevMonthName}: --`;
-        prevPlanBtn.disabled = true;
-        prevPlanBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-        prevPlanBtn.onclick = null;
-    }
+    // Plan button
+    const planAmt = data.period_plan_sum;
+    planBtn.innerHTML = planAmt > 0 ? `План ${monthName}: ${formatAmount(planAmt)}` : `План ${monthName}: --`;
+    planBtn.className = planAmt > 0 ? 'btn btn-xs btn-ghost text-info' : 'btn btn-xs btn-ghost btn-disabled';
+    planBtn.disabled = true;
 
-    // Update Fact button
-    const factAmount = data.prev_period_fact_sum;
-    if (factAmount !== null && factAmount !== undefined && parseFloat(factAmount) > 0) {
-        prevFactBtn.innerHTML = `Факт ${prevMonthName}: ${formatAmount(factAmount)}₽`;
-        prevFactBtn.disabled = false;
-        prevFactBtn.className = 'btn btn-xs btn-outline btn-success';
-        prevFactBtn.onclick = () => setPlanAmount(parseFloat(factAmount));
-    } else {
-        prevFactBtn.innerHTML = `Факт ${prevMonthName}: --`;
-        prevFactBtn.disabled = true;
-        prevFactBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-        prevFactBtn.onclick = null;
-    }
-}
-
-// ============ Smart Amount Suggestions Functions ============
-
-// Debounce tracking for recommended amounts API calls
-let recommendedAmountsTimeout = null;
-let recommendedAmountsController = null;
-
-/**
- * Load recommended amounts from API and update quick amount buttons.
- *
- * @param {string} formId - ID модальной формы ('form_modal_add_transaction' или 'form_modal_add_plan')
- * @param {string} recordType - Тип записи ('fact' или 'plan')
- * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
- */
-async function loadRecommendedAmounts(formId, recordType = 'fact', category = null) {
-    // Clear existing debounce timeout
-    if (recommendedAmountsTimeout) {
-        clearTimeout(recommendedAmountsTimeout);
-    }
-
-    // Cancel pending API call
-    if (recommendedAmountsController) {
-        recommendedAmountsController.abort();
-    }
-
-    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
-    const fallbackDefaults = {
-        'fact-expense': [100, 500, 1000, 5000],
-        'fact-income': [10000, 20000, 50000, 100000],
-        'plan-expense': [100, 500, 1000, 5000],
-        'plan-income': [10000, 20000, 50000, 100000],
-    };
-
-    // Helper to apply fallback amounts
-    const applyFallback = (type) => {
-        const fallbackKey = `${recordType}-${type || 'expense'}`;
-        const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
-        updateQuickAmountButtons(formId, fallbackAmounts);
-    };
-
-    // Debounce: wait 300ms after last call
-    recommendedAmountsTimeout = setTimeout(async () => {
-        // Get form elements early to determine type for fallback
-        const form = document.getElementById(formId);
-        if (!form) {
-            console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
-            return;
-        }
-
-        // Get current type (income/expense)
-        const typeInput = form.querySelector('input[name="record_type"]:checked') ||
-                         form.querySelector('input[name="plan_type"]:checked');
-        const type = typeInput ? typeInput.value : 'expense';
-
-        // Check if offline - use fallback immediately without API call
-        if (!navigator.onLine) {
-            debugLog('[loadRecommendedAmounts] Offline - using fallback amounts');
-            applyFallback(type);
-            return;
-        }
-
-        try {
-            recommendedAmountsController = new AbortController();
-
-            // Get current category (from callback parameter or fallback to DOM)
-            const articleId = category ? category.id : null;
-
-            // Get current account
-            const fcSelect = form.querySelector('select[name="financial_center_id"]');
-            const financialCenterId = fcSelect ? fcSelect.value : null;
-
-            // Build query params
-            const params = new URLSearchParams({
-                record_type: recordType,
-                period: 'quarter',  // 90 days analysis
-            });
-
-            if (articleId && articleId !== '') {
-                params.append('article_id', articleId);
-            }
-
-            if (financialCenterId && financialCenterId !== '') {
-                params.append('financial_center_id', financialCenterId);
-            }
-
-            if (type) {
-                params.append('article_type', type);
-            }
-
-            // Call API
-            const response = await fetch(`/api/v1/analytics/recommended-amounts?${params.toString()}`, {
-                signal: recommendedAmountsController.signal,
-                credentials: 'include',  // Include cookies for auth
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-
-                // Graceful fallback for 422 (validation error or no data) or 503 (offline/service unavailable)
-                if (response.status === 422 || response.status === 503) {
-                    debugLog(`[loadRecommendedAmounts] API ${response.status} - using fallback amounts`);
-                    applyFallback(type);
-                    return;
-                }
-
-                console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
-                return;
-            }
-
-            const data = await response.json();
-
-            // Update button labels with new amounts
-            updateQuickAmountButtons(formId, data.amounts);
-
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
-            } else {
-                // Network error (offline, DNS failure, etc.) - use fallback silently
-                debugLog('[loadRecommendedAmounts] Network error - using fallback amounts:', error.message);
-                applyFallback(type);
-            }
-        }
-    }, 300); // 300ms debounce
-}
-
-/**
- * Update quick amount button labels with new amounts.
- *
- * @param {string} formId - ID модальной формы
- * @param {Array<number>} amounts - Array of 4 recommended amounts
- */
-function updateQuickAmountButtons(formId, amounts) {
-    if (!amounts || amounts.length !== 4) {
-        console.warn('[updateQuickAmountButtons] Invalid amounts array:', amounts);
-        return;
-    }
-
-    // Find buttons in the specified form
-    const form = document.getElementById(formId);
-    if (!form) {
-        console.warn(`[updateQuickAmountButtons] Form ${formId} not found`);
-        return;
-    }
-
-    // Find quick amount buttons (need to select parent container then buttons)
-    const buttons = form.querySelectorAll('.btn[onclick*="Amount"]');
-
-    amounts.forEach((amount, index) => {
-        if (buttons[index]) {
-            const amountValue = parseFloat(amount);
-
-            // Update button text with formatted amount
-            buttons[index].textContent = formatAmountForButton(amountValue) + ' ₽';
-
-            // Update onclick handler
-            const funcName = formId.includes('transaction') ? 'setTransactionAmount' : 'setPlanAmount';
-            buttons[index].setAttribute('onclick', `${funcName}(${amountValue})`);
-        }
-    });
-}
-
-/**
- * Format amount for button display.
- *
- * Examples:
- * - 100 → "100"
- * - 1000 → "1k"
- * - 1500 → "1.5k"
- * - 10000 → "10k"
- *
- * @param {number} amount - Amount to format
- * @returns {string} Formatted amount string
- */
-function formatAmountForButton(amount) {
-    if (amount >= 1000) {
-        const thousands = amount / 1000;
-        // Check if it's a round number
-        if (Number.isInteger(thousands)) {
-            return `${thousands}k`;
-        } else {
-            return `${thousands.toFixed(1)}k`;
-        }
-    }
-    return amount.toString();
+    // Fact button
+    const factAmt = data.period_fact_sum;
+    factBtn.innerHTML = factAmt > 0 ? `Факт ${monthName}: ${formatAmount(factAmt)}` : `Факт ${monthName}: --`;
+    factBtn.className = factAmt > 0 ? 'btn btn-xs btn-ghost text-success' : 'btn btn-xs btn-ghost btn-disabled';
+    factBtn.disabled = true;
 }
 
 // ============ Plan Period Buttons Functions ============
@@ -1590,6 +1330,10 @@ function setupTransactionTypeButtons() {
 
             // Обновить рекомендуемые суммы для нового типа факта
             loadRecommendedAmounts('form_modal_add_transaction', 'fact');
+
+            // Обновить fact hints для нового типа
+            const cat = transactionCategoryTreeSelect?.getSelectedCategory();
+            loadFactHints(cat);
         });
     });
 }

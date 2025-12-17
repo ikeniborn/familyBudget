@@ -233,3 +233,59 @@ class PlanHintsResponse(BaseModel):
         description="Article type: 'expense' or 'income'",
         examples=["expense", "income"]
     )
+
+
+class FactHintsResponse(BaseModel):
+    """
+    Response schema for fact hints endpoint.
+
+    Returns sum of plans and facts for the CURRENT month (based on fact_date).
+    Used to display hints in fact creation modal (display-only, not clickable).
+
+    Example Usage:
+        GET /api/v1/analytics/fact-hints?fact_date=2025-12-15&article_type=expense&article_id=45
+
+        Response:
+        {
+            "period_plan_sum": 15000.00,
+            "period_fact_sum": 8500.00,
+            "period": "2025-12",
+            "article_id": 45,
+            "article_name": "Продукты",
+            "article_type": "expense"
+        }
+    """
+
+    period_plan_sum: Optional[Decimal] = Field(
+        None,
+        ge=0,
+        description="Sum of plans for the month (NULL if no data)"
+    )
+
+    period_fact_sum: Optional[Decimal] = Field(
+        None,
+        ge=0,
+        description="Sum of facts for the month (NULL if no data)"
+    )
+
+    period: str = Field(
+        ...,
+        description="Period in YYYY-MM format",
+        examples=["2025-12", "2025-11"]
+    )
+
+    article_id: Optional[int] = Field(
+        None,
+        description="Category ID for which hints were calculated"
+    )
+
+    article_name: Optional[str] = Field(
+        None,
+        description="Category name for display"
+    )
+
+    article_type: str = Field(
+        ...,
+        description="Article type: 'expense', 'income', 'debit', or 'credit'",
+        examples=["expense", "income", "debit", "credit"]
+    )
