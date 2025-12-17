@@ -100,6 +100,15 @@
                     </select>
                 </div>
 
+                <!-- Transfer Hints for FROM (expense) - shown for both fact and plan transfers -->
+                <div id="transfer-from-hints" class="grid grid-cols-2 gap-1">
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-plan" disabled>
+                        План: --
+                    </button>
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-from-fact" disabled>
+                        Факт: --
+                    </button>
+                </div>
             </div>
 
             <!-- TO Section -->
@@ -153,6 +162,15 @@
                     </select>
                 </div>
 
+                <!-- Transfer Hints for TO (income) - shown for both fact and plan transfers -->
+                <div id="transfer-to-hints" class="grid grid-cols-2 gap-1">
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-plan" disabled>
+                        План: --
+                    </button>
+                    <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="transfer-hint-to-fact" disabled>
+                        Факт: --
+                    </button>
+                </div>
             </div>
 
             <!-- Amount (after FROM/TO sections) -->

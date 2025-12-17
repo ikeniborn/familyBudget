@@ -29,6 +29,8 @@ logger = get_logger(__name__)
 
 # Advisory lock IDs for scheduler jobs (unique per job)
 # Using hash of job name to generate unique lock IDs
+LOCK_ID_ARTICLE_STATS = 1001
+LOCK_ID_RECOMMENDED_AMOUNTS = 1002
 LOCK_ID_WEEKLY_REPORTS = 1003
 LOCK_ID_BUDGET_THRESHOLDS = 1004
 LOCK_ID_PLAN_REMINDERS = 1005
@@ -73,8 +75,91 @@ async def release_advisory_lock(session, lock_id: int):
 scheduler: AsyncIOScheduler | None = None
 
 
+async def recalculate_article_usage_stats_job():
+    """
+    Job: Recalculate article usage statistics from t_f_budget_fact.
+
+    Calls PostgreSQL function recalculate_article_usage_stats() which:
+    1. Truncates t_article_usage_stats
+    2. Recalculates usage counts from t_f_budget_fact
+    3. Inserts updated statistics
+
+    Schedule: Daily at 00:00
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
+    """
+    logger.info("[SCHEDULER] Starting article usage statistics recalculation job")
+
+    try:
+        async with get_session_context() as session:
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_ARTICLE_STATS):
+                logger.info(
+                    "[SCHEDULER] Article stats job skipped - "
+                    "another worker is already executing"
+                )
+                return
+
+            try:
+                # Call PostgreSQL function
+                await session.execute(text("SELECT recalculate_article_usage_stats()"))
+                await session.commit()
+
+                logger.info("[SCHEDULER] Article usage statistics recalculated successfully")
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_ARTICLE_STATS)
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error recalculating article usage statistics: {e}", exc_info=True)
+        raise
 
 
+async def recalculate_recommended_amounts_job():
+    """
+    Job: Recalculate recommended amounts for quick selection buttons.
+
+    Calls PostgreSQL function recalculate_recommended_amounts() which:
+    1. Recalculates global recommendations (4 variations: fact/plan × income/expense)
+    2. Recalculates TOP-10 popular categories (from t_article_usage_stats)
+    3. Uses K-means clustering algorithm with quantile-based initialization
+    4. Stores results in t_recommended_amounts table with metadata
+
+    Algorithm:
+        - K-means clustering (k=4) on last 90 days of transaction history
+        - Lloyd's algorithm with convergence detection
+        - Amounts rounded to "nice" numbers (10, 50, 100, 500, 1000, etc.)
+        - Minimum sample size: 20 transactions (fallback to defaults if below)
+
+    Schedule: Daily at 02:00 UTC
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
+    """
+    logger.info("[SCHEDULER] Starting recommended amounts recalculation job")
+
+    try:
+        async with get_session_context() as session:
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_RECOMMENDED_AMOUNTS):
+                logger.info(
+                    "[SCHEDULER] Recommended amounts job skipped - "
+                    "another worker is already executing"
+                )
+                return
+
+            try:
+                # Call PostgreSQL function (performs K-means clustering on historical data)
+                await session.execute(text("SELECT recalculate_recommended_amounts()"))
+                await session.commit()
+
+                logger.info("[SCHEDULER] Recommended amounts recalculated successfully")
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_RECOMMENDED_AMOUNTS)
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error recalculating recommended amounts: {e}", exc_info=True)
+        raise
 
 
 async def send_weekly_reports_job():
@@ -171,7 +256,7 @@ async def refresh_balance_aggregates_job():
     4. Count transactions in that month
     5. Upsert into aggregate table
 
-    Schedule: Daily at 01:00 UTC (after article stats at 00:00)
+    Schedule: Daily at 01:00 UTC (between article stats at 00:00 and recommended amounts at 02:00)
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -303,7 +388,27 @@ def init_scheduler() -> AsyncIOScheduler:
 
     # Register jobs
 
-    # Job 1: Refresh balance aggregates (daily at 01:00 UTC)
+    # Job 1: Recalculate article usage statistics (daily at 00:00 UTC)
+    scheduler.add_job(
+        recalculate_article_usage_stats_job,
+        trigger=CronTrigger(hour=0, minute=0),
+        id="recalculate_article_usage_stats",
+        name="Recalculate Article Usage Statistics",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: recalculate_article_usage_stats (daily at 00:00 UTC)")
+
+    # Job 2: Recalculate recommended amounts for quick selection buttons (daily at 02:00 UTC)
+    scheduler.add_job(
+        recalculate_recommended_amounts_job,
+        trigger=CronTrigger(hour=2, minute=0),
+        id="recalculate_recommended_amounts",
+        name="Recalculate Recommended Amounts (K-means)",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: recalculate_recommended_amounts (daily at 02:00 UTC)")
+
+    # Job 2.5: Refresh balance aggregates (daily at 01:00 UTC)
     scheduler.add_job(
         refresh_balance_aggregates_job,
         trigger=CronTrigger(hour=1, minute=0),

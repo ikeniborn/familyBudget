@@ -452,6 +452,199 @@ function initDefaultPeriodFilter() {
     updateFilterIndicator();
 }
 
+// Debounce state for recommended amounts
+let recommendedAmountsTimeout = null;
+let recommendedAmountsController = null;
+
+/**
+ * Load recommended amounts from API and update quick amount buttons.
+ *
+ * @param {string} formId - ID модальной формы ('form_modal_add_transaction')
+ * @param {string} recordType - Тип записи ('fact')
+ * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
+ */
+async function loadRecommendedAmounts(formId, recordType = 'fact', category = null) {
+    // Clear existing debounce timeout
+    if (recommendedAmountsTimeout) {
+        clearTimeout(recommendedAmountsTimeout);
+    }
+
+    // Cancel pending API call
+    if (recommendedAmountsController) {
+        recommendedAmountsController.abort();
+    }
+
+    // Debounce: wait 300ms after last call
+    recommendedAmountsTimeout = setTimeout(async () => {
+        try {
+            recommendedAmountsController = new AbortController();
+
+            // Get form elements
+            const form = document.getElementById(formId);
+            if (!form) {
+                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
+                return;
+            }
+
+            // Get current type (income/expense)
+            const typeInput = form.querySelector('input[name="record_type"]:checked');
+            const type = typeInput ? typeInput.value : 'expense';
+
+            // Get current category (from callback parameter, not DOM!)
+            const articleId = category ? category.id : null;
+
+            // Build query params
+            const params = new URLSearchParams({
+                record_type: recordType,
+                period: 'quarter',  // 90 days analysis
+            });
+
+            if (articleId && articleId !== '') {
+                params.append('article_id', articleId);
+            }
+
+            if (type) {
+                params.append('article_type', type);
+            }
+
+            // Call API
+            const response = await fetch(`/api/v1/analytics/recommended-amounts?${params.toString()}`, {
+                signal: recommendedAmountsController.signal,
+                credentials: 'include',  // Include cookies for auth
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+
+                // Graceful fallback for 422 (validation error or no data)
+                if (response.status === 422) {
+                    console.warn(`[loadRecommendedAmounts] API validation error (using fallback):`, errorData);
+
+                    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
+                    const fallbackDefaults = {
+                        'fact-expense': [100, 500, 1000, 5000],
+                        'fact-income': [10000, 20000, 50000, 100000],
+                    };
+
+                    const fallbackKey = `${recordType}-${type || 'expense'}`;
+                    const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
+
+                    updateQuickAmountButtons(formId, fallbackAmounts);
+                    return;
+                }
+
+                console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
+                return;
+            }
+
+            const data = await response.json();
+
+            // Update button labels with new amounts
+            updateQuickAmountButtons(formId, data.amounts);
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
+            } else {
+                console.error('[loadRecommendedAmounts] Failed to load:', error);
+            }
+        }
+    }, 300); // 300ms debounce
+}
+
+// ============ Fact Hints Functions ============
+
+let factHintsTimeout = null;
+let factHintsController = null;
+
+async function loadFactHints(category = null) {
+    // 1. Clear debounce timeout
+    if (factHintsTimeout) clearTimeout(factHintsTimeout);
+    if (factHintsController) factHintsController.abort();
+
+    const planBtn = document.getElementById('hint-period-plan');
+    const factBtn = document.getElementById('hint-period-fact');
+    if (!planBtn || !factBtn) return;
+
+    // 2. Show loading state
+    planBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+    factBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+
+    const articleId = category?.id;
+    if (!articleId) {
+        planBtn.innerHTML = 'План мес: --';
+        factBtn.innerHTML = 'Факт мес: --';
+        return;
+    }
+
+    // 3. Debounce 300ms
+    factHintsTimeout = setTimeout(async () => {
+        if (!navigator.onLine) {
+            planBtn.innerHTML = 'План мес: --';
+            factBtn.innerHTML = 'Факт мес: --';
+            return;
+        }
+
+        try {
+            factHintsController = new AbortController();
+
+            // Get form values
+            const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+            const factDate = BudgetShared.DateFormatter.formatForAPI(dateInput?.value || BudgetShared.DateFormatter.today());
+            const typeInput = document.querySelector('#form_modal_add_transaction input[name="record_type"]:checked');
+            const articleType = typeInput?.value || 'expense';
+            const fcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
+
+            const params = new URLSearchParams({ fact_date: factDate, article_type: articleType });
+            params.append('article_id', articleId);
+            if (fcSelect?.value) params.append('financial_center_id', fcSelect.value);
+
+            const response = await fetch(`/api/v1/analytics/fact-hints?${params}`, {
+                signal: factHintsController.signal,
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                updateFactHintButtons(await response.json());
+            } else {
+                planBtn.innerHTML = 'План мес: --';
+                factBtn.innerHTML = 'Факт мес: --';
+            }
+        } catch (e) {
+            if (e.name !== 'AbortError') console.error('[loadFactHints]', e);
+            planBtn.innerHTML = 'План мес: --';
+            factBtn.innerHTML = 'Факт мес: --';
+        }
+    }, 300);
+}
+
+function updateFactHintButtons(data) {
+    const planBtn = document.getElementById('hint-period-plan');
+    const factBtn = document.getElementById('hint-period-fact');
+    if (!planBtn || !factBtn) return;
+
+    const formatAmount = (amt) => {
+        if (!amt) return '--';
+        const n = parseFloat(amt);
+        return n >= 1000 ? (n/1000).toFixed(n%1000===0?0:1)+'k' : n.toFixed(0);
+    };
+
+    const monthNames = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+    const monthName = monthNames[parseInt(data.period.split('-')[1]) - 1];
+
+    // Plan button
+    const planAmt = data.period_plan_sum;
+    planBtn.innerHTML = planAmt > 0 ? `План ${monthName}: ${formatAmount(planAmt)}` : `План ${monthName}: --`;
+    planBtn.className = planAmt > 0 ? 'btn btn-xs btn-ghost text-info' : 'btn btn-xs btn-ghost btn-disabled';
+    planBtn.disabled = true;
+
+    // Fact button
+    const factAmt = data.period_fact_sum;
+    factBtn.innerHTML = factAmt > 0 ? `Факт ${monthName}: ${formatAmount(factAmt)}` : `Факт ${monthName}: --`;
+    factBtn.className = factAmt > 0 ? 'btn btn-xs btn-ghost text-success' : 'btn btn-xs btn-ghost btn-disabled';
+    factBtn.disabled = true;
+}
+
 // Collapse filters panel
 function collapseFilters() {
     const checkbox = document.getElementById('filters-toggle');
@@ -650,6 +843,10 @@ async function loadArticles() {
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     debugLog('Category changed in create modal:', category);
+                    // Update recommended amounts based on selected category
+                    loadRecommendedAmounts('form_modal_add_transaction', 'fact', category);
+                    // Update fact hints for current month
+                    loadFactHints(category);
                 }
             });
         }
@@ -671,6 +868,12 @@ async function loadArticles() {
             );
             createDateInput.value = todayFormatted;
             debugLog('[loadCategories] Повторно установлена дата ПОСЛЕ инициализации CalendarWidget:', todayFormatted);
+
+            // Обработчик изменения даты для обновления fact hints
+            createDateInput.addEventListener('change', () => {
+                const cat = createCategoryTreeSelect?.getSelectedCategory();
+                loadFactHints(cat);
+            });
         }
     } catch (error) {
         console.error('Error loading articles:', error);
@@ -861,6 +1064,9 @@ async function loadFinancialCenters() {
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_transaction', fcId);
+                // Update fact hints for current month
+                const selectedCategory = createCategoryTreeSelect?.getSelectedCategory();
+                loadFactHints(selectedCategory);
             });
         }
 
@@ -1921,6 +2127,13 @@ function setupCreateTransactionTypeButtons() {
                 // This prevents Choices.js "multiple instances" error
                 createCategoryTreeSelect.updateType(createType);
             }
+
+            // Обновить рекомендуемые суммы для нового типа факта
+            loadRecommendedAmounts('form_modal_add_transaction', 'fact');  // FIXED: form_modal_add_transaction
+
+            // Обновить fact hints для нового типа
+            const cat = createCategoryTreeSelect?.getSelectedCategory();
+            loadFactHints(cat);
         });
     });
 }
