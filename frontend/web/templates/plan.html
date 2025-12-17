@@ -184,9 +184,12 @@
     </div>
 
     <!-- Plan Analytics Section -->
-    <div class="card bg-base-100 shadow-lg">
-        <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">📊 Аналитика планирования</h2>
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="analytics-toggle" class="peer" />
+        <label for="analytics-toggle" class="collapse-title text-xl font-medium cursor-pointer">
+            <h2 class="card-title text-2xl mb-0">📊 Аналитика планирования</h2>
+        </label>
+        <div class="collapse-content">
 
             <!-- Analytics Filters - Row 1 -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -277,6 +280,13 @@
                 <div class="text-4xl mb-2">📅</div>
                 <p>Нет данных для отображения. Добавьте плановые записи.</p>
             </div>
+
+            <!-- Collapse button -->
+            <div class="flex justify-end mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="collapseAnalytics()">
+                    ⬆️ Свернуть
+                </button>
+            </div>
         </div>
     </div>
 
@@ -332,6 +342,28 @@
 /* Collapse behavior with checkbox */
 #filters-toggle:checked ~ .collapse-content {
     max-height: 1000px;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+/* Hide analytics toggle checkbox */
+#analytics-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Default state: collapsed (unchecked) */
+#analytics-toggle:not(:checked) ~ .collapse-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+/* Expanded state */
+#analytics-toggle:checked ~ .collapse-content {
+    max-height: 2000px; /* Increased for analytics content */
     padding-top: 1rem;
     padding-bottom: 1rem;
 }
@@ -867,6 +899,14 @@ function updatePlanHintButtons(data) {
 // Collapse filters panel
 function collapseFilters() {
     const checkbox = document.getElementById('filters-toggle');
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+}
+
+// Collapse analytics section
+function collapseAnalytics() {
+    const checkbox = document.getElementById('analytics-toggle');
     if (checkbox) {
         checkbox.checked = false;
     }
