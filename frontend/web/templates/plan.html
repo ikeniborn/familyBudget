@@ -41,7 +41,10 @@
     <div class="collapse collapse-arrow bg-base-100 shadow-lg">
         <input type="checkbox" id="filters-toggle" class="peer" />
         <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
-            <span>🔍 Фильтры</span>
+            <span>
+                🔍 Фильтры
+                <span id="filter-indicator" class="badge badge-primary badge-sm ml-2" style="display: none;">активны</span>
+            </span>
             <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
         </label>
         <div class="collapse-content">
@@ -455,16 +458,100 @@ let selectedFactIds = new Set();
 let deletingFactIds = new Set(); // Track ongoing deletions to prevent race conditions
 let remindersMap = new Map(); // Map<factId, reminder> for reminder status display
 
-// Filter state
+// КОНСТАНТЫ - дефолтный период (текущий месяц)
+// Используем LOCAL time (не UTC!) как в DateFormatter.todayISO()
+const DEFAULT_DATE_FROM = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}-01`;  // Первый день текущего месяца (YYYY-MM-DD)
+})();
+
+const DEFAULT_DATE_TO = BudgetShared.DateFormatter.todayISO(); // Сегодня (YYYY-MM-DD)
+
+// Filter state - инициализировать с дефолтным периодом
 let filters = {
     user_id: null,
     article_id: null,
     article_type: null,
-    date_from: null,
-    date_to: null,
+    date_from: DEFAULT_DATE_FROM,
+    date_to: DEFAULT_DATE_TO,
     financial_center_id: null,
-    cost_center_id: null
+    cost_center_id: null,
+    search: null
 };
+
+/**
+ * Обновляет badge-индикатор активных фильтров.
+ * Индикатор скрыт когда активен только дефолтный период (текущий месяц).
+ */
+function updateFilterIndicator() {
+    const indicator = document.getElementById('filter-indicator');
+    if (!indicator) return;
+
+    const activeFilters = countActiveFilters();
+
+    if (activeFilters > 0) {
+        indicator.textContent = activeFilters === 1 ? '1 активен' : `${activeFilters} активно`;
+        indicator.style.display = 'inline-flex';
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+
+/**
+ * Подсчитывает количество активных фильтров.
+ * Период по умолчанию (текущий месяц) НЕ считается активным фильтром.
+ */
+function countActiveFilters() {
+    let count = 0;
+
+    // Период: НЕ считаем если это дефолтный период (обе даты совпадают с константами)
+    const isDefaultPeriod =
+        filters.date_from === DEFAULT_DATE_FROM &&
+        filters.date_to === DEFAULT_DATE_TO;
+
+    // Считаем период ТОЛЬКО если он отличается от дефолтного
+    if (!isDefaultPeriod) {
+        if (filters.date_from || filters.date_to) {
+            count++;
+        }
+    }
+
+    // Остальные фильтры - считаем если установлены (не null/empty)
+    if (filters.user_id) count++;
+    if (filters.article_id) count++;
+    if (filters.article_type) count++;
+    if (filters.financial_center_id) count++;
+    if (filters.cost_center_id) count++;
+    if (filters.search) count++;
+
+    return count;
+}
+
+/**
+ * Инициализирует дефолтный период в UI фильтров.
+ * Вызывается в DOMContentLoaded перед загрузкой данных.
+ */
+function initDefaultPeriodFilter() {
+    const dateFromInput = document.getElementById('filter-date-from');
+    const dateToInput = document.getElementById('filter-date-to');
+
+    // YYYY-MM-DD → DD.MM.YYYY для отображения
+    if (dateFromInput) {
+        dateFromInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_FROM);
+    }
+    if (dateToInput) {
+        dateToInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_TO);
+    }
+
+    // Убедиться что filters синхронизированы с константами
+    filters.date_from = DEFAULT_DATE_FROM;
+    filters.date_to = DEFAULT_DATE_TO;
+
+    // Обновить индикатор - при дефолтном периоде он должен быть СКРЫТ
+    updateFilterIndicator();
+}
 
 // Debounce state for recommended amounts
 let recommendedAmountsTimeout = null;
@@ -794,6 +881,9 @@ function truncateText(text, maxLength = 30) {
 
 // Load data on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Установить дефолтный период (текущий месяц) в UI перед загрузкой данных
+    initDefaultPeriodFilter();
+
     loadUsers();
     loadArticles();
     loadFinancialCenters();
@@ -1376,32 +1466,48 @@ function applyFilters() {
 
     // Sync UI with filter state
     AdminFactsCommon.syncFiltersUI(filters);
+
+    // Обновить индикатор активных фильтров
+    updateFilterIndicator();
 }
 
-// Reset filters
+// Reset filters - восстанавливает дефолтный период (текущий месяц)
 function resetFilters() {
+    // Очистить все UI элементы фильтров (кроме дат)
     document.getElementById('filter-user').value = '';
     document.getElementById('filter-article').value = '';
     document.getElementById('filter-article-type').value = '';
-    document.getElementById('filter-date-from').value = '';
-    document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-financial-center').value = '';
     document.getElementById('filter-cost-center').value = '';
     document.getElementById('filter-search').value = '';
 
+    // ВОССТАНОВИТЬ период по умолчанию из КОНСТАНТ
     filters = {
         user_id: null,
         article_id: null,
         article_type: null,
-        date_from: null,
-        date_to: null,
+        date_from: DEFAULT_DATE_FROM,
+        date_to: DEFAULT_DATE_TO,
         financial_center_id: null,
         cost_center_id: null,
         search: null
     };
 
+    // Обновить UI для дат (конвертируем YYYY-MM-DD → DD.MM.YYYY)
+    const dateFromInput = document.getElementById('filter-date-from');
+    const dateToInput = document.getElementById('filter-date-to');
+    if (dateFromInput) {
+        dateFromInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_FROM);
+    }
+    if (dateToInput) {
+        dateToInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_TO);
+    }
+
     currentPage = 0;
     loadFacts();
+
+    // Обновить индикатор - должен скрыться т.к. период дефолтный
+    updateFilterIndicator();
 }
 
 /**
