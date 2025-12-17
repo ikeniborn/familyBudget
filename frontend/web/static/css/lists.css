@@ -676,6 +676,17 @@
 }
 
 /* ============================================== */
+/* Import Accordion - Compact */
+/* ============================================== */
+
+/* Override DaisyUI collapse-title default height (3.75rem) and padding (1rem) */
+#detail-view > .collapse > .collapse-title {
+    min-height: 2.5rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+/* ============================================== */
 /* Toolbar Styles */
 /* ============================================== */
 
