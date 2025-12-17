@@ -19,12 +19,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact as Fact
-from backend.app.schemas.analytics import (
-    FactHintsResponse,
-    PlanHintsResponse,
-    RecommendedAmountsMetadata,
-    RecommendedAmountsResponse,
-)
+from backend.app.schemas.analytics import PlanHintsResponse
 from backend.app.utils.date_helpers import (
     get_current_calendar_month,
     get_current_calendar_quarter,
@@ -2514,121 +2509,123 @@ def get_russian_month_name(month: int, year: int) -> str:
     return f"{month_names.get(month, '')} {year}"
 
 
-# ==================== Fact Hints for Modals ====================
+# ==================== Plan Hints for Modals ====================
 
 
-@router.get("/fact-hints", response_model=FactHintsResponse)
-async def get_fact_hints(
+@router.get("/plan-hints", response_model=PlanHintsResponse)
+async def get_plan_hints(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    article_id: Optional[int] = Query(None, gt=0, description="Category ID"),
-    fact_date: date = Query(..., description="Transaction date (YYYY-MM-DD)"),
-    article_type: str = Query(
-        "expense",
-        pattern="^(income|expense|debit|credit)$",
-        description="Article type: expense, income, debit, or credit"
-    ),
-    financial_center_id: Optional[int] = Query(
+    article_id: Optional[int] = Query(
         None,
         gt=0,
-        description="Financial center ID filter"
+        description="Category ID for which to get hints"
+    ),
+    period: str = Query(
+        ...,
+        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
+        description="Planning period in YYYY-MM format (e.g., '2025-11')"
+    ),
+    article_type: str = Query(
+        "expense",
+        pattern="^(income|expense)$",
+        description="Article type: 'income' or 'expense'"
     ),
 ):
     """
-    Get fact hints for the fact creation modal.
+    Get plan hints for the plan creation modal.
 
-    Returns sum of plans and facts for the CURRENT month (based on fact_date).
-    Used to display hints in fact creation modal (display-only, not clickable).
+    Returns sum of plans and facts from PREVIOUS month for the specified category.
 
     Logic:
-        - fact_date=2025-12-15 → period = December 2025
-        - Returns: sum of plans + sum of facts for that month
+        - If user selects "November 2025" as planning period
+        - Previous period = "October 2025"
+        - Returns: sum of plans for Oct 2025, sum of facts for Oct 2025
 
     NOTE: Shared Family Budget - NO user_id filter (all users see all data)
 
     Args:
-        article_id: Optional category ID filter
-        fact_date: Transaction date (determines the month)
-        article_type: Type of article (expense, income, debit, credit)
-        financial_center_id: Optional financial center filter
+        article_id: Category ID (optional, but recommended for meaningful results)
+        period: Selected planning month in YYYY-MM format
+        article_type: Type of operation ('expense' or 'income')
 
     Returns:
-        FactHintsResponse with period_plan_sum, period_fact_sum, and metadata
+        PlanHintsResponse with prev_period_plan_sum and prev_period_fact_sum
     """
-    # Calculate month boundaries from fact_date
-    month_start = date(fact_date.year, fact_date.month, 1)
-    _, last_day = cal_module.monthrange(fact_date.year, fact_date.month)
-    month_end = date(fact_date.year, fact_date.month, last_day)
-    period_str = f"{fact_date.year}-{fact_date.month:02d}"
+    # Parse the planning period
+    try:
+        year, month = map(int, period.split('-'))
+    except ValueError:
+        raise HTTPException(400, f"Invalid period format: {period}. Expected YYYY-MM")
 
-    # Get article name if provided
+    # Calculate previous month
+    if month == 1:
+        prev_year = year - 1
+        prev_month = 12
+    else:
+        prev_year = year
+        prev_month = month - 1
+
+    prev_period_str = f"{prev_year}-{prev_month:02d}"
+    prev_start = date(prev_year, prev_month, 1)
+    _, last_day = cal_module.monthrange(prev_year, prev_month)
+    prev_end = date(prev_year, prev_month, last_day)
+
+    # Get article name if article_id provided
     article_name = None
     if article_id:
-        result = await session.execute(
+        article_result = await session.execute(
             select(Article.name).where(Article.id == article_id)
         )
-        row = result.first()
-        if row:
-            article_name = row[0]
+        article_row = article_result.first()
+        if article_row:
+            article_name = article_row[0]
 
-    # Map article_type to filter (debit→expense, credit→income for aggregation)
-    type_filter = article_type
-    if article_type == "debit":
-        type_filter = "expense"
-    elif article_type == "credit":
-        type_filter = "income"
-
-    # Base query conditions (Shared Family Budget - NO user_id filter!)
-    base_conditions = [
-        Fact.fact_date >= month_start,
-        Fact.fact_date <= month_end,
-    ]
-
-    # Query PLANS for the month
+    # Query previous month PLANS (Shared Family Budget - NO user_id filter!)
     plan_query = (
         select(func.sum(Fact.amount).label("total"))
         .select_from(Fact)
         .join(Article, Fact.article_id == Article.id)
         .where(
-            *base_conditions,
+            Fact.fact_date >= prev_start,
+            Fact.fact_date <= prev_end,
             Fact.record_type == "plan",
-            Article.type.in_([article_type, type_filter])
+            Article.type == article_type
         )
     )
     if article_id:
         plan_query = plan_query.where(Fact.article_id == article_id)
-    if financial_center_id:
-        plan_query = plan_query.where(Fact.financial_center_id == financial_center_id)
 
     plan_result = await session.execute(plan_query)
-    period_plan_sum = plan_result.scalar_one_or_none()
+    prev_plan_sum = plan_result.scalar_one_or_none()
 
-    # Query FACTS for the month
+    # Query previous month FACTS (Shared Family Budget - NO user_id filter!)
     fact_query = (
         select(func.sum(Fact.amount).label("total"))
         .select_from(Fact)
         .join(Article, Fact.article_id == Article.id)
         .where(
-            *base_conditions,
+            Fact.fact_date >= prev_start,
+            Fact.fact_date <= prev_end,
             Fact.record_type == "fact",
-            Article.type.in_([article_type, type_filter])
+            Article.type == article_type
         )
     )
     if article_id:
         fact_query = fact_query.where(Fact.article_id == article_id)
-    if financial_center_id:
-        fact_query = fact_query.where(Fact.financial_center_id == financial_center_id)
 
     fact_result = await session.execute(fact_query)
-    period_fact_sum = fact_result.scalar_one_or_none()
+    prev_fact_sum = fact_result.scalar_one_or_none()
 
-    return FactHintsResponse(
-        period_plan_sum=period_plan_sum,
-        period_fact_sum=period_fact_sum,
-        period=period_str,
+    return PlanHintsResponse(
+        prev_period_plan_sum=prev_plan_sum,
+        prev_period_fact_sum=prev_fact_sum,
+        prev_period=prev_period_str,
         article_id=article_id,
         article_name=article_name,
         article_type=article_type
     )
+
+
 
 

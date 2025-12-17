@@ -12,12 +12,6 @@ let transferRecordType = 'fact'; // Default to fact, can be 'plan' for planned t
 let allFinancialCenters = []; // Store all accounts for filtering
 let allCostCenters = []; // Store all cost centers for filtering
 
-// Debounce state for transfer plan hints
-let transferHintsFromTimeout = null;
-let transferHintsFromController = null;
-let transferHintsToTimeout = null;
-let transferHintsToController = null;
-
 /**
  * Set transfer record type and update UI accordingly
  * @param {string} type - 'fact' or 'plan'
@@ -26,30 +20,6 @@ function setTransferRecordType(type) {
     if (type === 'fact' || type === 'plan') {
         transferRecordType = type;
         updateQuickDateButtonsVisibility();
-        updateTransferHintsVisibility();
-    }
-}
-
-/**
- * Update visibility of hint containers based on transfer type
- * Hints are shown for BOTH fact and plan transfers
- */
-function updateTransferHintsVisibility() {
-    const fromHints = document.getElementById('transfer-from-hints');
-    const toHints = document.getElementById('transfer-to-hints');
-
-    // Show hints for BOTH fact and plan transfers
-    if (fromHints) fromHints.classList.remove('hidden');
-    if (toHints) toHints.classList.remove('hidden');
-
-    if (transferRecordType === 'plan') {
-        // Load plan hints (previous month data, clickable)
-        loadTransferPlanHints('from');
-        loadTransferPlanHints('to');
-    } else {
-        // Load fact hints (current month data, display-only)
-        loadTransferFactHints('from');
-        loadTransferFactHints('to');
     }
 }
 
@@ -121,333 +91,6 @@ function selectTransferPeriod(offset) {
             btn.classList.remove('btn-active');
         }
     });
-
-    // Reload hints when period changes (only for plan transfers)
-    if (transferRecordType === 'plan') {
-        loadTransferPlanHints('from');
-        loadTransferPlanHints('to');
-    }
-}
-
-/**
- * Load plan hints for transfer modal (FROM or TO section)
- * @param {string} direction - 'from' (expense) or 'to' (income)
- */
-async function loadTransferPlanHints(direction) {
-    // Only load hints for plan transfers
-    if (transferRecordType !== 'plan') return;
-
-    const isFrom = direction === 'from';
-    const timeoutRef = isFrom ? 'transferHintsFromTimeout' : 'transferHintsToTimeout';
-    const controllerRef = isFrom ? 'transferHintsFromController' : 'transferHintsToController';
-    const categoryTree = isFrom ? fromCategoryTree : toCategoryTree;
-    const articleType = isFrom ? 'expense' : 'income';
-    const planBtnId = isFrom ? 'transfer-hint-from-plan' : 'transfer-hint-to-plan';
-    const factBtnId = isFrom ? 'transfer-hint-from-fact' : 'transfer-hint-to-fact';
-
-    // Clear existing timeout
-    if (window[timeoutRef]) clearTimeout(window[timeoutRef]);
-    if (window[controllerRef]) window[controllerRef].abort();
-
-    const planBtn = document.getElementById(planBtnId);
-    const factBtn = document.getElementById(factBtnId);
-
-    if (!planBtn || !factBtn) return;
-
-    // Show loading state
-    planBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-    planBtn.disabled = true;
-    planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-    factBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-    factBtn.disabled = true;
-    factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-
-    // Get selected category
-    const selectedCategory = categoryTree ? categoryTree.getSelectedCategory() : null;
-    const articleId = selectedCategory ? selectedCategory.id : null;
-
-    if (!articleId) {
-        planBtn.innerHTML = 'План: --';
-        factBtn.innerHTML = 'Факт: --';
-        return;
-    }
-
-    window[timeoutRef] = setTimeout(async () => {
-        // Skip API call if offline
-        if (!navigator.onLine) {
-            planBtn.innerHTML = 'План: --';
-            factBtn.innerHTML = 'Факт: --';
-            return;
-        }
-
-        try {
-            window[controllerRef] = new AbortController();
-
-            // Get selected period
-            const periodInput = document.getElementById('transfer_plan_month');
-            const period = periodInput ? periodInput.value : new Date().toISOString().slice(0, 7);
-
-            // Get financial center ID for the direction
-            const fcSelectId = isFrom ? 'from_financial_center' : 'to_financial_center';
-            const fcSelect = document.getElementById(fcSelectId);
-            const financialCenterId = fcSelect ? fcSelect.value : null;
-
-            const params = new URLSearchParams({
-                period: period,
-                article_type: articleType
-            });
-            params.append('article_id', articleId);
-
-            if (financialCenterId) {
-                params.append('financial_center_id', financialCenterId);
-            }
-
-            const response = await fetch(`/api/v1/analytics/plan-hints?${params}`, {
-                signal: window[controllerRef].signal,
-                credentials: 'include'
-            });
-
-            if (!response.ok) {
-                planBtn.innerHTML = 'План: --';
-                factBtn.innerHTML = 'Факт: --';
-                return;
-            }
-
-            const data = await response.json();
-            updateTransferHintButtons(direction, data);
-
-        } catch (error) {
-            // Silently handle abort and network errors (offline mode)
-            if (error.name !== 'AbortError') {
-                // Only log non-network errors
-                if (navigator.onLine && !error.message?.includes('Failed to fetch')) {
-                    console.error(`[loadTransferPlanHints] Failed for ${direction}:`, error);
-                }
-                planBtn.innerHTML = 'План: --';
-                factBtn.innerHTML = 'Факт: --';
-            }
-        }
-    }, 300);
-}
-
-/**
- * Update transfer hint buttons with data from API
- * @param {string} direction - 'from' or 'to'
- * @param {object} data - API response data
- */
-function updateTransferHintButtons(direction, data) {
-    const isFrom = direction === 'from';
-    const planBtnId = isFrom ? 'transfer-hint-from-plan' : 'transfer-hint-to-plan';
-    const factBtnId = isFrom ? 'transfer-hint-from-fact' : 'transfer-hint-to-fact';
-
-    const planBtn = document.getElementById(planBtnId);
-    const factBtn = document.getElementById(factBtnId);
-
-    if (!planBtn || !factBtn) return;
-
-    const formatAmount = (amount) => {
-        if (amount === null || amount === undefined) return '--';
-        const num = parseFloat(amount);
-        if (num >= 1000) return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
-        return num.toFixed(0);
-    };
-
-    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-    const prevMonth = monthNames[parseInt(data.prev_period.split('-')[1]) - 1];
-
-    // Plan button
-    const planAmt = data.prev_period_plan_sum;
-    if (planAmt && parseFloat(planAmt) > 0) {
-        planBtn.innerHTML = `План ${prevMonth}: ${formatAmount(planAmt)}`;
-        planBtn.disabled = false;
-        planBtn.className = 'btn btn-xs btn-outline btn-info';
-        planBtn.onclick = () => setTransferAmount(parseFloat(planAmt));
-    } else {
-        planBtn.innerHTML = `План ${prevMonth}: --`;
-        planBtn.disabled = true;
-        planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-        planBtn.onclick = null;
-    }
-
-    // Fact button
-    const factAmt = data.prev_period_fact_sum;
-    if (factAmt && parseFloat(factAmt) > 0) {
-        factBtn.innerHTML = `Факт ${prevMonth}: ${formatAmount(factAmt)}`;
-        factBtn.disabled = false;
-        factBtn.className = 'btn btn-xs btn-outline btn-success';
-        factBtn.onclick = () => setTransferAmount(parseFloat(factAmt));
-    } else {
-        factBtn.innerHTML = `Факт ${prevMonth}: --`;
-        factBtn.disabled = true;
-        factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-        factBtn.onclick = null;
-    }
-}
-
-/**
- * Set transfer amount from hint button click
- * @param {number} amount - Amount to set
- */
-function setTransferAmount(amount) {
-    const amountInput = document.getElementById('transfer_amount');
-    if (amountInput) {
-        amountInput.value = amount;
-        amountInput.focus();
-    }
-}
-
-/**
- * Load fact hints for transfer modal (FROM or TO section)
- * Shows plan/fact sums for the CURRENT month (based on selected date)
- * Buttons are display-only (not clickable)
- * @param {string} direction - 'from' (expense/debit) or 'to' (income/credit)
- */
-async function loadTransferFactHints(direction) {
-    // Only load hints for fact transfers
-    if (transferRecordType !== 'fact') return;
-
-    const isFrom = direction === 'from';
-    const timeoutRef = isFrom ? 'transferHintsFromTimeout' : 'transferHintsToTimeout';
-    const controllerRef = isFrom ? 'transferHintsFromController' : 'transferHintsToController';
-    const categoryTree = isFrom ? fromCategoryTree : toCategoryTree;
-    const articleType = isFrom ? 'expense' : 'income';
-    const planBtnId = isFrom ? 'transfer-hint-from-plan' : 'transfer-hint-to-plan';
-    const factBtnId = isFrom ? 'transfer-hint-from-fact' : 'transfer-hint-to-fact';
-
-    // Clear existing timeout
-    if (window[timeoutRef]) clearTimeout(window[timeoutRef]);
-    if (window[controllerRef]) window[controllerRef].abort();
-
-    const planBtn = document.getElementById(planBtnId);
-    const factBtn = document.getElementById(factBtnId);
-
-    if (!planBtn || !factBtn) return;
-
-    // Show loading state
-    planBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-    planBtn.disabled = true;
-    planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-    factBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-    factBtn.disabled = true;
-    factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-
-    // Get selected category
-    const selectedCategory = categoryTree ? categoryTree.getSelectedCategory() : null;
-    const articleId = selectedCategory ? selectedCategory.id : null;
-
-    if (!articleId) {
-        planBtn.innerHTML = 'План: --';
-        factBtn.innerHTML = 'Факт: --';
-        return;
-    }
-
-    window[timeoutRef] = setTimeout(async () => {
-        // Skip API call if offline
-        if (!navigator.onLine) {
-            planBtn.innerHTML = 'План: --';
-            factBtn.innerHTML = 'Факт: --';
-            return;
-        }
-
-        try {
-            window[controllerRef] = new AbortController();
-
-            // Get selected date (fact_date determines the month)
-            const dateInput = document.getElementById('transfer_date');
-            const factDate = dateInput && dateInput.value
-                ? BudgetShared.DateFormatter.formatForAPI(dateInput.value)
-                : new Date().toISOString().split('T')[0];
-
-            // Get financial center ID for the direction
-            const fcSelectId = isFrom ? 'from_financial_center' : 'to_financial_center';
-            const fcSelect = document.getElementById(fcSelectId);
-            const financialCenterId = fcSelect ? fcSelect.value : null;
-
-            const params = new URLSearchParams({
-                fact_date: factDate,
-                article_type: articleType
-            });
-            params.append('article_id', articleId);
-
-            if (financialCenterId) {
-                params.append('financial_center_id', financialCenterId);
-            }
-
-            const response = await fetch(`/api/v1/analytics/fact-hints?${params}`, {
-                signal: window[controllerRef].signal,
-                credentials: 'include'
-            });
-
-            if (!response.ok) {
-                planBtn.innerHTML = 'План: --';
-                factBtn.innerHTML = 'Факт: --';
-                return;
-            }
-
-            const data = await response.json();
-            updateTransferFactHintButtons(direction, data);
-
-        } catch (error) {
-            // Silently handle abort and network errors (offline mode)
-            if (error.name !== 'AbortError') {
-                if (navigator.onLine && !error.message?.includes('Failed to fetch')) {
-                    console.error(`[loadTransferFactHints] Failed for ${direction}:`, error);
-                }
-                planBtn.innerHTML = 'План: --';
-                factBtn.innerHTML = 'Факт: --';
-            }
-        }
-    }, 300);
-}
-
-/**
- * Update transfer hint buttons with fact hints data (display-only)
- * @param {string} direction - 'from' or 'to'
- * @param {object} data - API response from fact-hints endpoint
- */
-function updateTransferFactHintButtons(direction, data) {
-    const isFrom = direction === 'from';
-    const planBtnId = isFrom ? 'transfer-hint-from-plan' : 'transfer-hint-to-plan';
-    const factBtnId = isFrom ? 'transfer-hint-from-fact' : 'transfer-hint-to-fact';
-
-    const planBtn = document.getElementById(planBtnId);
-    const factBtn = document.getElementById(factBtnId);
-
-    if (!planBtn || !factBtn) return;
-
-    const formatAmount = (amount) => {
-        if (amount === null || amount === undefined) return '--';
-        const num = parseFloat(amount);
-        if (num >= 1000) return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + 'k';
-        return num.toFixed(0);
-    };
-
-    const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-    const monthName = monthNames[parseInt(data.period.split('-')[1]) - 1];
-
-    // Plan button (display-only, not clickable)
-    const planAmt = data.period_plan_sum;
-    if (planAmt && parseFloat(planAmt) > 0) {
-        planBtn.innerHTML = `План ${monthName}: ${formatAmount(planAmt)}`;
-        planBtn.className = 'btn btn-xs btn-ghost text-info';
-    } else {
-        planBtn.innerHTML = `План ${monthName}: --`;
-        planBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-    }
-    planBtn.disabled = true;
-    planBtn.onclick = null;
-
-    // Fact button (display-only, not clickable)
-    const factAmt = data.period_fact_sum;
-    if (factAmt && parseFloat(factAmt) > 0) {
-        factBtn.innerHTML = `Факт ${monthName}: ${formatAmount(factAmt)}`;
-        factBtn.className = 'btn btn-xs btn-ghost text-success';
-    } else {
-        factBtn.innerHTML = `Факт ${monthName}: --`;
-        factBtn.className = 'btn btn-xs btn-ghost btn-disabled';
-    }
-    factBtn.disabled = true;
-    factBtn.onclick = null;
 }
 
 /**
@@ -473,12 +116,7 @@ function initTransferModal() {
             showLeafOnly: true,
             searchEnabled: true,
             onCategoryChange: (category) => {
-                // Reload FROM hints when category changes
-                if (transferRecordType === 'plan') {
-                    loadTransferPlanHints('from');
-                } else {
-                    loadTransferFactHints('from');
-                }
+                debugLog('FROM category changed:', category);
             }
         });
     }
@@ -490,12 +128,7 @@ function initTransferModal() {
             showLeafOnly: true,
             searchEnabled: true,
             onCategoryChange: (category) => {
-                // Reload TO hints when category changes
-                if (transferRecordType === 'plan') {
-                    loadTransferPlanHints('to');
-                } else {
-                    loadTransferFactHints('to');
-                }
+                debugLog('TO category changed:', category);
             }
         });
     }
@@ -806,7 +439,6 @@ async function filterCostCenterDropdown(selectId, financialCenterId) {
 /**
  * Setup CFO filtering event listeners
  * When one CFO is selected, remove it from the opposite dropdown
- * Also triggers hint reload for plan transfers
  */
 function setupCFOFiltering() {
     const fromFCSelect = document.querySelector('#from_financial_center');
@@ -822,12 +454,6 @@ function setupCFOFiltering() {
             }
             // Filter FROM cost center dropdown
             await filterCostCenterDropdown('from_cost_center', fcId);
-            // Reload FROM hints when account changes
-            if (transferRecordType === 'plan') {
-                loadTransferPlanHints('from');
-            } else {
-                loadTransferFactHints('from');
-            }
         });
     }
 
@@ -841,12 +467,6 @@ function setupCFOFiltering() {
             }
             // Filter TO cost center dropdown
             await filterCostCenterDropdown('to_cost_center', fcId);
-            // Reload TO hints when account changes
-            if (transferRecordType === 'plan') {
-                loadTransferPlanHints('to');
-            } else {
-                loadTransferFactHints('to');
-            }
         });
     }
 }
@@ -928,14 +548,6 @@ function setupQuickDateButtons() {
             const formattedDate = BudgetShared.DateFormatter.formatForDisplay(isoDate);
             dateInput.value = formattedDate;
         });
-    });
-
-    // Setup date change handler for fact hints reload
-    dateInput.addEventListener('change', () => {
-        if (transferRecordType === 'fact') {
-            loadTransferFactHints('from');
-            loadTransferFactHints('to');
-        }
     });
 }
 

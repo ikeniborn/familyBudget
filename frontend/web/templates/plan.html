@@ -585,10 +585,6 @@ function initDefaultPeriodFilter() {
     updateFilterIndicator();
 }
 
-// Debounce state for recommended amounts
-let recommendedAmountsTimeout = null;
-let recommendedAmountsController = null;
-
 /**
  * Open transfer modal in plan mode
  * Sets record_type to 'plan' and shows the modal
@@ -626,104 +622,6 @@ function openPlanTransferModal() {
 }
 // Ensure function is globally accessible for onclick handlers
 window.openPlanTransferModal = openPlanTransferModal;
-
-/**
- * Load recommended amounts from API and update quick amount buttons.
- *
- * @param {string} formId - ID модальной формы ('form_create_modal')
- * @param {string} recordType - Тип записи ('plan')
- * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
- */
-async function loadRecommendedAmounts(formId, recordType = 'plan', category = null) {
-    // Clear existing debounce timeout
-    if (recommendedAmountsTimeout) {
-        clearTimeout(recommendedAmountsTimeout);
-    }
-
-    // Cancel pending API call
-    if (recommendedAmountsController) {
-        recommendedAmountsController.abort();
-    }
-
-    // Debounce: wait 300ms after last call
-    recommendedAmountsTimeout = setTimeout(async () => {
-        try {
-            recommendedAmountsController = new AbortController();
-
-            // Get form elements
-            const form = document.getElementById(formId);
-            if (!form) {
-                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
-                return;
-            }
-
-            // Get current type (income/expense)
-            const typeInput = form.querySelector('input[name="plan_type"]:checked');
-            const type = typeInput ? typeInput.value : 'expense';
-
-            // Get current category (from callback parameter, not DOM!)
-            const articleId = category ? category.id : null;
-
-            // Build query params
-            const params = new URLSearchParams({
-                record_type: recordType,
-                period: 'quarter',  // 90 days analysis
-            });
-
-            if (articleId && articleId !== '') {
-                params.append('article_id', articleId);
-            }
-
-            if (type) {
-                params.append('article_type', type);
-            }
-
-            // Call API
-            const response = await fetch(`/api/v1/analytics/recommended-amounts?${params.toString()}`, {
-                signal: recommendedAmountsController.signal,
-                credentials: 'include',  // Include cookies for auth
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-
-                // Graceful fallback for 422 (validation error or no data)
-                if (response.status === 422) {
-                    console.warn(`[loadRecommendedAmounts] API validation error (using fallback):`, errorData);
-
-                    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
-                    const fallbackDefaults = {
-                        'plan-expense': [5000, 10000, 20000, 50000],
-                        'plan-income': [20000, 50000, 100000, 200000],
-                        'fact-expense': [100, 500, 1000, 5000],
-                        'fact-income': [10000, 20000, 50000, 100000],
-                    };
-
-                    const fallbackKey = `${recordType}-${type || 'expense'}`;
-                    const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
-
-                    updateQuickAmountButtons(formId, fallbackAmounts);
-                    return;
-                }
-
-                console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
-                return;
-            }
-
-            const data = await response.json();
-
-            // Update button labels with new amounts
-            updateQuickAmountButtons(formId, data.amounts);
-
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
-            } else {
-                console.error('[loadRecommendedAmounts] Failed to load:', error);
-            }
-        }
-    }, 300); // 300ms debounce
-}
 
 // ==================== Plan Hints (for modal_add_plan) ====================
 
