@@ -40,7 +40,7 @@
         <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
             <span>
                 🔍 Фильтры
-                <span id="filter-indicator" class="badge badge-primary badge-sm ml-2" style="display: none;">активны</span>
+                <span id="filter-indicator" class="badge badge-primary badge-sm ml-2 hidden">активны</span>
             </span>
             <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
         </label>
@@ -392,9 +392,9 @@ function updateFilterIndicator() {
 
     if (activeFilters > 0) {
         indicator.textContent = activeFilters === 1 ? '1 активен' : `${activeFilters} активно`;
-        indicator.style.display = 'inline-flex';
+        indicator.classList.remove('hidden');
     } else {
-        indicator.style.display = 'none';
+        indicator.classList.add('hidden');
     }
 }
 
