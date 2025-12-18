@@ -119,6 +119,20 @@ server {
         if_modified_since exact;
     }
 
+    # Service Worker - minified version (served directly by nginx)
+    location = /sw.min.js {
+        alias /usr/share/nginx/html/sw.min.js;
+        gzip_static on;  # Serve pre-compressed .gz file when client supports it
+        add_header Content-Type "application/javascript; charset=utf-8" always;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;  # Never cache Service Worker
+        add_header Pragma "no-cache" always;
+        add_header Service-Worker-Allowed "/" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        # Ensure ETag/Last-Modified for update checks
+        etag on;
+        if_modified_since exact;
+    }
+
     # Static files - versioned JS/CSS (with ?v=timestamp) - aggressive caching
     # Example: lists.min.js?v=20251218_1845
     location ~ ^/static/.*\.(js|css)$ {

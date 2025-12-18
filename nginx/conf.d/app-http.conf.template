@@ -46,6 +46,19 @@ server {
         if_modified_since exact;
     }
 
+    # Service Worker - minified version (served directly by nginx)
+    location = /sw.min.js {
+        alias /usr/share/nginx/html/sw.min.js;
+        gzip_static on;
+        add_header Content-Type "application/javascript; charset=utf-8" always;
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;  # Never cache Service Worker
+        add_header Pragma "no-cache" always;
+        add_header Service-Worker-Allowed "/" always;
+        add_header Access-Control-Allow-Origin "*" always;
+        etag on;
+        if_modified_since exact;
+    }
+
     # SSE endpoint - disable buffering for real-time events
     location /api/v1/budget/events {
         proxy_pass http://backend;
