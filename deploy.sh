@@ -1169,6 +1169,46 @@ main() {
     run_cache_busting "auto" "/opt/budget"
     echo ""
 
+    # Verify cache busting succeeded
+    info "Verifying cache busting results..."
+    placeholder_count=$(grep -r "PLACEHOLDER" "$DEPLOY_DIR/frontend/web/templates/"*.html 2>/dev/null | wc -l)
+    if [[ $placeholder_count -gt 0 ]]; then
+        warning "Found $placeholder_count PLACEHOLDER tokens after cache busting"
+        warning "Cache busting may have failed - check permissions and perl installation"
+        echo ""
+        echo "Files with PLACEHOLDER:"
+        grep -l "PLACEHOLDER" "$DEPLOY_DIR/frontend/web/templates/"*.html 2>/dev/null | sed 's|.*/||'
+        echo ""
+    else
+        success "Cache busting verified - all PLACEHOLDER tokens replaced"
+    fi
+    echo ""
+
+    # Verify Service Worker cache version updated
+    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+        info "Checking Service Worker cache version..."
+
+        sw_placeholder_count=$(grep -c "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null || echo 0)
+
+        if [[ $sw_placeholder_count -gt 0 ]]; then
+            warning "Service Worker still contains CACHE_VERSION_PLACEHOLDER"
+            warning "Cache busting did not update sw.min.js"
+            echo ""
+        else
+            # Extract actual version
+            sw_version=$(grep -o "CACHE_VERSION.*=.*'v-[^']*'" "$DEPLOY_DIR/sw.min.js" 2>/dev/null | grep -o "v-[^']*" | head -1)
+            if [[ -n "$sw_version" ]]; then
+                success "Service Worker cache version: $sw_version"
+            else
+                warning "Could not extract Service Worker version from sw.min.js"
+            fi
+        fi
+        echo ""
+    else
+        warning "Service Worker file not found: $DEPLOY_DIR/sw.min.js"
+        echo ""
+    fi
+
     # LATE checks (after code sync): docker-compose.yml, directories
     check_prerequisites_late
     echo ""
@@ -1386,6 +1426,77 @@ main() {
 
         verify_all_services
         echo ""
+
+        # Smoke test: verify critical pages load
+        if [[ "${SKIP_SMOKE_TEST:-false}" != "true" ]]; then
+            info "Running smoke tests..."
+            echo ""
+
+            # Wait for backend to be ready
+            sleep 5
+
+            smoke_test_failed=false
+
+            # Test 1: Health endpoint
+            if curl -sf -o /dev/null http://localhost:8000/health; then
+                success "✓ Health endpoint responding"
+            else
+                warning "✗ Health endpoint failed"
+                smoke_test_failed=true
+            fi
+
+            # Test 2: Lists page loads
+            lists_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/lists 2>/dev/null || echo "000")
+            if [[ "$lists_status" == "200" ]]; then
+                success "✓ Lists page loads (HTTP $lists_status)"
+            else
+                warning "✗ Lists page failed (HTTP $lists_status)"
+                smoke_test_failed=true
+            fi
+
+            # Test 3: Static files have versions (not PLACEHOLDER)
+            lists_html=$(curl -s http://localhost:8000/lists 2>/dev/null)
+            if echo "$lists_html" | grep -q "PLACEHOLDER"; then
+                warning "✗ Lists page contains PLACEHOLDER tokens"
+                smoke_test_failed=true
+            else
+                success "✓ Lists page has proper versions (no PLACEHOLDER)"
+            fi
+
+            # Test 4: Hierarchy JS loads
+            hierarchy_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/static/js/lists/hierarchyView.min.js 2>/dev/null || echo "000")
+            if [[ "$hierarchy_status" == "200" ]]; then
+                success "✓ Hierarchy JS available (HTTP $hierarchy_status)"
+            else
+                warning "✗ Hierarchy JS failed (HTTP $hierarchy_status)"
+                smoke_test_failed=true
+            fi
+
+            # Test 5: Service Worker has version
+            if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+                sw_content=$(curl -s http://localhost:8000/sw.js 2>/dev/null)
+                if echo "$sw_content" | grep -q "CACHE_VERSION_PLACEHOLDER"; then
+                    warning "✗ Service Worker contains PLACEHOLDER"
+                    smoke_test_failed=true
+                elif echo "$sw_content" | grep -qE "CACHE_VERSION.*=.*'v-[0-9]+"; then
+                    sw_ver=$(echo "$sw_content" | grep -oE "v-[0-9_]+" | head -1)
+                    success "✓ Service Worker has version: $sw_ver"
+                else
+                    warning "⚠ Could not verify Service Worker version"
+                fi
+            fi
+
+            echo ""
+
+            if [[ "$smoke_test_failed" == "true" ]]; then
+                warning "Smoke tests completed with failures"
+                warning "Review warnings above and check logs"
+            else
+                success "All smoke tests passed!"
+            fi
+
+            echo ""
+        fi
 
         # Check for orphaned deployment processes after successful deployment
         # This ensures no deployment-related processes (alembic, npm, pip, rsync) remain running

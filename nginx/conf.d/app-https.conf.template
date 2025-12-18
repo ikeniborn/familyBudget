@@ -100,7 +100,7 @@ server {
     location = /manifest.json {
         alias /usr/share/nginx/html/manifest.json;
         add_header Content-Type "application/manifest+json" always;
-        add_header Cache-Control "public, max-age=604800" always;  # 7 days
+        add_header Cache-Control "public, max-age=3600, must-revalidate" always;  # 1 hour
         add_header Access-Control-Allow-Origin "*" always;
     }
 
@@ -110,7 +110,8 @@ server {
         alias /usr/share/nginx/html/sw.js;
         gzip_static on;  # Serve pre-compressed .gz file when client supports it
         add_header Content-Type "application/javascript; charset=utf-8" always;
-        add_header Cache-Control "public, max-age=0, must-revalidate" always;  # Always check for updates
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;  # Never cache Service Worker
+        add_header Pragma "no-cache" always;
         add_header Service-Worker-Allowed "/" always;
         add_header Access-Control-Allow-Origin "*" always;
         # Ensure ETag/Last-Modified for update checks
@@ -118,7 +119,27 @@ server {
         if_modified_since exact;
     }
 
-    # Static files
+    # Static files - versioned JS/CSS (with ?v=timestamp) - aggressive caching
+    # Example: lists.min.js?v=20251218_1845
+    location ~ ^/static/.*\.(js|css)$ {
+        alias /usr/share/nginx/html$uri;
+
+        # Versioned files (with ?v=) - cache forever
+        if ($args ~ "^v=") {
+            expires 1y;
+            add_header Cache-Control "public, immutable" always;
+        }
+
+        # Non-versioned files - short cache
+        if ($args !~ "^v=") {
+            expires 1h;
+            add_header Cache-Control "public, must-revalidate" always;
+        }
+
+        access_log off;
+    }
+
+    # Static images, fonts, etc. - long-term caching
     location /static/ {
         alias /usr/share/nginx/html/static/;
         expires 30d;
