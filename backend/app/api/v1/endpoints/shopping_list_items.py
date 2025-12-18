@@ -244,10 +244,10 @@ async def suggest_products(
     Get product suggestions based on shopping list history.
 
     **Features:**
-    - Fuzzy, case-insensitive search using pg_trgm trigram similarity
-    - Finds matches even with typos (e.g., "молко" finds "молоко")
+    - Case-insensitive substring search using ILIKE
+    - Finds products containing the search query (e.g., "мол" finds "Молоко")
     - Returns unique products with store and product group info
-    - Sorted by relevance (similarity), then by last usage
+    - Sorted by last usage, then by usage count
     - Includes usage count for relevance
 
     **Example:**
@@ -274,9 +274,12 @@ async def suggest_products(
     }
     ```
     """
+    # Escape LIKE special characters to prevent SQL injection
+    # Note: pg_trgm similarity doesn't work with Cyrillic when DB collate is 'C'
+    search_pattern = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
     # Build query with joins for store and product group names
     # Aggregate by product_name, store_id, product_group_id
-    # Using pg_trgm similarity for fuzzy, case-insensitive search
     query = (
         select(
             ShoppingListItem.product_name,
@@ -290,10 +293,9 @@ async def suggest_products(
         .join(Store, ShoppingListItem.store_id == Store.id, isouter=True)
         .join(ProductGroup, ShoppingListItem.product_group_id == ProductGroup.id, isouter=True)
         .where(
-            # Trigram similarity for fuzzy, case-insensitive search
-            # LOWER() on both sides ensures case-insensitivity for Russian text
-            # Threshold 0.3 balances precision and recall
-            func.similarity(func.lower(ShoppingListItem.product_name), func.lower(q)) > 0.3,
+            # Case-insensitive substring search using ILIKE
+            # Works with any locale including 'C' (POSIX)
+            ShoppingListItem.product_name.ilike(f"%{search_pattern}%"),
             ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted
         )
         .group_by(
@@ -303,10 +305,10 @@ async def suggest_products(
             Store.name,
             ProductGroup.name,
         )
-        # Sort by relevance (similarity desc), then by last usage
+        # Sort by last usage (most recent first), then by usage count
         .order_by(
-            func.similarity(func.lower(ShoppingListItem.product_name), func.lower(q)).desc(),
-            func.max(ShoppingListItem.created_at).desc()
+            func.max(ShoppingListItem.created_at).desc(),
+            func.count().desc()
         )
         .limit(limit)
     )
