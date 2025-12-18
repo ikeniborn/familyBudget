@@ -1,0 +1,144 @@
+# SSE Endpoints
+# Server-Sent Events for real-time updates
+
+routes:
+  # ---------------------------------------------------------------------------
+  # CONNECT
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/budget/events/connect"
+    method: GET
+    auth: user
+    description: "Establish SSE connection"
+    response:
+      status: 200
+      content_type: "text/event-stream"
+      headers:
+        Cache-Control: "no-cache"
+        Connection: "keep-alive"
+    implementation:
+      file: "backend/app/api/v1/endpoints/budget_sse.py"
+      loc: 877
+      manager: "BudgetConnectionManager"
+    events:
+      - name: "connected"
+        data:
+          message: "Connected to SSE"
+          connection_id: "string"
+
+      - name: "fact_created"
+        data:
+          id: "integer"
+          amount: "decimal"
+          article_id: "integer"
+          fact_date: "YYYY-MM-DD"
+        trigger: "POST /api/v1/facts"
+
+      - name: "fact_updated"
+        data:
+          id: "integer"
+          changed_fields: "array"
+        trigger: "PUT /api/v1/facts/{id}"
+
+      - name: "fact_deleted"
+        data:
+          id: "integer"
+        trigger: "DELETE /api/v1/facts/{id}"
+
+      - name: "transfer_created"
+        data:
+          transfer_id: "UUID"
+          from_financial_center_id: "integer"
+          to_financial_center_id: "integer"
+          amount: "decimal"
+        trigger: "POST /api/v1/transfers"
+
+      - name: "shopping_list_item_created"
+        data:
+          id: "integer"
+          shopping_list_id: "integer"
+          name: "string"
+        trigger: "POST /api/v1/shopping-list-items"
+
+      - name: "shopping_list_item_updated"
+        data:
+          id: "integer"
+          changed_fields: "array"
+        trigger: "PUT /api/v1/shopping-list-items/{id}"
+
+      - name: "shopping_list_item_deleted"
+        data:
+          id: "integer"
+        trigger: "DELETE /api/v1/shopping-list-items"
+
+      - name: "article_created"
+        data:
+          id: "integer"
+          name: "string"
+          type: "string"
+        trigger: "POST /api/v1/articles"
+
+      - name: "article_updated"
+        data:
+          id: "integer"
+          changed_fields: "array"
+        trigger: "PUT /api/v1/articles/{id}"
+
+      - name: "ping"
+        data:
+          timestamp: "ISO 8601"
+        interval: "30 seconds"
+        description: "Keep-alive ping"
+
+  # ---------------------------------------------------------------------------
+  # STATUS
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/budget/events/status"
+    method: GET
+    auth: user
+    description: "Check SSE connection status"
+    response:
+      status: 200
+      body:
+        connected: "boolean"
+        connection_count: "integer (total connections)"
+        user_connection_count: "integer (user's connections)"
+
+  # ---------------------------------------------------------------------------
+  # DISCONNECT
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/budget/events/disconnect"
+    method: POST
+    auth: user
+    description: "Gracefully disconnect SSE"
+    response:
+      status: 200
+      body:
+        message: "Disconnected"
+
+# Critical Constraint
+critical_constraint:
+  $ref: "../functionality/realtime.yaml#/critical_constraint"
+
+# Frontend Integration
+frontend:
+  js_module:
+    $ref: "../web/js-modules.yaml#/modules/budgetSSEClient"
+  ui:
+    indicator_location: "navbar"
+    states:
+      - connected: "green badge"
+      - disconnected: "red badge"
+      - reconnecting: "yellow badge"
+
+# Connection Manager
+connection_manager:
+  type: "In-memory"
+  class: "BudgetConnectionManager"
+  methods:
+    - connect: "Add client to pool"
+    - disconnect: "Remove client from pool"
+    - broadcast: "Send event to all clients"
+    - get_connection_count: "Get total connections"
+  note: |
+    In-memory manager does NOT share state between workers.
+    MUST run with WORKERS=1.

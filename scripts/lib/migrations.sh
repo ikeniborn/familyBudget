@@ -85,7 +85,11 @@ run_alembic_migrations() {
     fi
     echo ""
 
-    if compose_cmd exec -T backend bash -c "cd /app && ADMIN_TELEGRAM_ID=${ADMIN_TELEGRAM_ID:-} alembic -c backend/db/migrations/alembic.ini upgrade head" 2>&1 | tee -a "$LOG_FILE"; then
+    # Use PIPESTATUS to capture alembic exit code (tee always returns 0)
+    compose_cmd exec -T backend bash -c "cd /app && ADMIN_TELEGRAM_ID=${ADMIN_TELEGRAM_ID:-} alembic -c backend/db/migrations/alembic.ini upgrade head" 2>&1 | tee -a "$LOG_FILE"
+    local alembic_exit_code=${PIPESTATUS[0]}
+
+    if [[ $alembic_exit_code -eq 0 ]]; then
         echo ""
         success "Alembic migrations completed successfully"
 

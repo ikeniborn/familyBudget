@@ -68,17 +68,21 @@
                 </select>
             </div>
 
-            <!-- Quick Amount Buttons (after account and cost location selection) -->
+            <!-- Fact Hints (план/факт за месяц) -->
+            <div id="fact-hints-container" class="grid grid-cols-2 gap-1">
+                <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-period-plan" disabled>
+                    План мес: --
+                </button>
+                <button type="button" class="btn btn-xs btn-ghost btn-disabled" id="hint-period-fact" disabled>
+                    Факт мес: --
+                </button>
+            </div>
+
+            <!-- Сумма -->
             <div class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Сумма *</span>
                 </label>
-                <div class="grid grid-cols-4 gap-1 mb-1">
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(100)">100</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(500)">500</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(1000)">1000</button>
-                    <button type="button" class="btn btn-xs btn-outline" onclick="setTransactionAmount(5000)">5000</button>
-                </div>
                 <input type="number" name="amount" step="1" min="1" required
                        class="input input-bordered" placeholder="0" />
             </div>

@@ -41,7 +41,10 @@
     <div class="collapse collapse-arrow bg-base-100 shadow-lg">
         <input type="checkbox" id="filters-toggle" class="peer" />
         <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
-            <span>🔍 Фильтры</span>
+            <span>
+                🔍 Фильтры
+                <span id="filter-indicator" class="badge badge-primary badge-sm ml-2 hidden">активны</span>
+            </span>
             <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
         </label>
         <div class="collapse-content">
@@ -181,9 +184,12 @@
     </div>
 
     <!-- Plan Analytics Section -->
-    <div class="card bg-base-100 shadow-lg">
-        <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">📊 Аналитика планирования</h2>
+    <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+        <input type="checkbox" id="analytics-toggle" class="peer" />
+        <label for="analytics-toggle" class="collapse-title text-xl font-medium cursor-pointer">
+            <h2 class="card-title text-2xl mb-0">📊 Аналитика планирования</h2>
+        </label>
+        <div class="collapse-content">
 
             <!-- Analytics Filters - Row 1 -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
@@ -274,6 +280,13 @@
                 <div class="text-4xl mb-2">📅</div>
                 <p>Нет данных для отображения. Добавьте плановые записи.</p>
             </div>
+
+            <!-- Collapse button -->
+            <div class="flex justify-end mt-4">
+                <button class="btn btn-sm btn-ghost gap-1" onclick="collapseAnalytics()">
+                    ⬆️ Свернуть
+                </button>
+            </div>
         </div>
     </div>
 
@@ -329,6 +342,28 @@
 /* Collapse behavior with checkbox */
 #filters-toggle:checked ~ .collapse-content {
     max-height: 1000px;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+/* Hide analytics toggle checkbox */
+#analytics-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Default state: collapsed (unchecked) */
+#analytics-toggle:not(:checked) ~ .collapse-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+/* Expanded state */
+#analytics-toggle:checked ~ .collapse-content {
+    max-height: 2000px; /* Increased for analytics content */
     padding-top: 1rem;
     padding-bottom: 1rem;
 }
@@ -455,20 +490,100 @@ let selectedFactIds = new Set();
 let deletingFactIds = new Set(); // Track ongoing deletions to prevent race conditions
 let remindersMap = new Map(); // Map<factId, reminder> for reminder status display
 
-// Filter state
+// КОНСТАНТЫ - дефолтный период (текущий месяц)
+// Используем LOCAL time (не UTC!) как в DateFormatter.todayISO()
+const DEFAULT_DATE_FROM = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}-01`;  // Первый день текущего месяца (YYYY-MM-DD)
+})();
+
+const DEFAULT_DATE_TO = BudgetShared.DateFormatter.todayISO(); // Сегодня (YYYY-MM-DD)
+
+// Filter state - инициализировать с дефолтным периодом
 let filters = {
     user_id: null,
     article_id: null,
     article_type: null,
-    date_from: null,
-    date_to: null,
+    date_from: DEFAULT_DATE_FROM,
+    date_to: DEFAULT_DATE_TO,
     financial_center_id: null,
-    cost_center_id: null
+    cost_center_id: null,
+    search: null
 };
 
-// Debounce state for recommended amounts
-let recommendedAmountsTimeout = null;
-let recommendedAmountsController = null;
+/**
+ * Обновляет badge-индикатор активных фильтров.
+ * Индикатор скрыт когда активен только дефолтный период (текущий месяц).
+ */
+function updateFilterIndicator() {
+    const indicator = document.getElementById('filter-indicator');
+    if (!indicator) return;
+
+    const activeFilters = countActiveFilters();
+
+    if (activeFilters > 0) {
+        indicator.textContent = activeFilters === 1 ? '1 активен' : `${activeFilters} активно`;
+        indicator.classList.remove('hidden');
+    } else {
+        indicator.classList.add('hidden');
+    }
+}
+
+/**
+ * Подсчитывает количество активных фильтров.
+ * Период по умолчанию (текущий месяц) НЕ считается активным фильтром.
+ */
+function countActiveFilters() {
+    let count = 0;
+
+    // Период: НЕ считаем если это дефолтный период (обе даты совпадают с константами)
+    const isDefaultPeriod =
+        filters.date_from === DEFAULT_DATE_FROM &&
+        filters.date_to === DEFAULT_DATE_TO;
+
+    // Считаем период ТОЛЬКО если он отличается от дефолтного
+    if (!isDefaultPeriod) {
+        if (filters.date_from || filters.date_to) {
+            count++;
+        }
+    }
+
+    // Остальные фильтры - считаем если установлены (не null/empty)
+    if (filters.user_id) count++;
+    if (filters.article_id) count++;
+    if (filters.article_type) count++;
+    if (filters.financial_center_id) count++;
+    if (filters.cost_center_id) count++;
+    if (filters.search) count++;
+
+    return count;
+}
+
+/**
+ * Инициализирует дефолтный период в UI фильтров.
+ * Вызывается в DOMContentLoaded перед загрузкой данных.
+ */
+function initDefaultPeriodFilter() {
+    const dateFromInput = document.getElementById('filter-date-from');
+    const dateToInput = document.getElementById('filter-date-to');
+
+    // YYYY-MM-DD → DD.MM.YYYY для отображения
+    if (dateFromInput) {
+        dateFromInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_FROM);
+    }
+    if (dateToInput) {
+        dateToInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_TO);
+    }
+
+    // Убедиться что filters синхронизированы с константами
+    filters.date_from = DEFAULT_DATE_FROM;
+    filters.date_to = DEFAULT_DATE_TO;
+
+    // Обновить индикатор - при дефолтном периоде он должен быть СКРЫТ
+    updateFilterIndicator();
+}
 
 /**
  * Open transfer modal in plan mode
@@ -507,104 +622,6 @@ function openPlanTransferModal() {
 }
 // Ensure function is globally accessible for onclick handlers
 window.openPlanTransferModal = openPlanTransferModal;
-
-/**
- * Load recommended amounts from API and update quick amount buttons.
- *
- * @param {string} formId - ID модальной формы ('form_create_modal')
- * @param {string} recordType - Тип записи ('plan')
- * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
- */
-async function loadRecommendedAmounts(formId, recordType = 'plan', category = null) {
-    // Clear existing debounce timeout
-    if (recommendedAmountsTimeout) {
-        clearTimeout(recommendedAmountsTimeout);
-    }
-
-    // Cancel pending API call
-    if (recommendedAmountsController) {
-        recommendedAmountsController.abort();
-    }
-
-    // Debounce: wait 300ms after last call
-    recommendedAmountsTimeout = setTimeout(async () => {
-        try {
-            recommendedAmountsController = new AbortController();
-
-            // Get form elements
-            const form = document.getElementById(formId);
-            if (!form) {
-                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
-                return;
-            }
-
-            // Get current type (income/expense)
-            const typeInput = form.querySelector('input[name="plan_type"]:checked');
-            const type = typeInput ? typeInput.value : 'expense';
-
-            // Get current category (from callback parameter, not DOM!)
-            const articleId = category ? category.id : null;
-
-            // Build query params
-            const params = new URLSearchParams({
-                record_type: recordType,
-                period: 'quarter',  // 90 days analysis
-            });
-
-            if (articleId && articleId !== '') {
-                params.append('article_id', articleId);
-            }
-
-            if (type) {
-                params.append('article_type', type);
-            }
-
-            // Call API
-            const response = await fetch(`/api/v1/analytics/recommended-amounts?${params.toString()}`, {
-                signal: recommendedAmountsController.signal,
-                credentials: 'include',  // Include cookies for auth
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-
-                // Graceful fallback for 422 (validation error or no data)
-                if (response.status === 422) {
-                    console.warn(`[loadRecommendedAmounts] API validation error (using fallback):`, errorData);
-
-                    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
-                    const fallbackDefaults = {
-                        'plan-expense': [5000, 10000, 20000, 50000],
-                        'plan-income': [20000, 50000, 100000, 200000],
-                        'fact-expense': [100, 500, 1000, 5000],
-                        'fact-income': [10000, 20000, 50000, 100000],
-                    };
-
-                    const fallbackKey = `${recordType}-${type || 'expense'}`;
-                    const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
-
-                    updateQuickAmountButtons(formId, fallbackAmounts);
-                    return;
-                }
-
-                console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
-                return;
-            }
-
-            const data = await response.json();
-
-            // Update button labels with new amounts
-            updateQuickAmountButtons(formId, data.amounts);
-
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
-            } else {
-                console.error('[loadRecommendedAmounts] Failed to load:', error);
-            }
-        }
-    }, 300); // 300ms debounce
-}
 
 // ==================== Plan Hints (for modal_add_plan) ====================
 
@@ -785,6 +802,14 @@ function collapseFilters() {
     }
 }
 
+// Collapse analytics section
+function collapseAnalytics() {
+    const checkbox = document.getElementById('analytics-toggle');
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+}
+
 // Utility function to truncate text to specified length
 function truncateText(text, maxLength = 30) {
     if (!text || text === '—') return text;
@@ -794,6 +819,9 @@ function truncateText(text, maxLength = 30) {
 
 // Load data on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Установить дефолтный период (текущий месяц) в UI перед загрузкой данных
+    initDefaultPeriodFilter();
+
     loadUsers();
     loadArticles();
     loadFinancialCenters();
@@ -1376,32 +1404,48 @@ function applyFilters() {
 
     // Sync UI with filter state
     AdminFactsCommon.syncFiltersUI(filters);
+
+    // Обновить индикатор активных фильтров
+    updateFilterIndicator();
 }
 
-// Reset filters
+// Reset filters - восстанавливает дефолтный период (текущий месяц)
 function resetFilters() {
+    // Очистить все UI элементы фильтров (кроме дат)
     document.getElementById('filter-user').value = '';
     document.getElementById('filter-article').value = '';
     document.getElementById('filter-article-type').value = '';
-    document.getElementById('filter-date-from').value = '';
-    document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-financial-center').value = '';
     document.getElementById('filter-cost-center').value = '';
     document.getElementById('filter-search').value = '';
 
+    // ВОССТАНОВИТЬ период по умолчанию из КОНСТАНТ
     filters = {
         user_id: null,
         article_id: null,
         article_type: null,
-        date_from: null,
-        date_to: null,
+        date_from: DEFAULT_DATE_FROM,
+        date_to: DEFAULT_DATE_TO,
         financial_center_id: null,
         cost_center_id: null,
         search: null
     };
 
+    // Обновить UI для дат (конвертируем YYYY-MM-DD → DD.MM.YYYY)
+    const dateFromInput = document.getElementById('filter-date-from');
+    const dateToInput = document.getElementById('filter-date-to');
+    if (dateFromInput) {
+        dateFromInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_FROM);
+    }
+    if (dateToInput) {
+        dateToInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_TO);
+    }
+
     currentPage = 0;
     loadFacts();
+
+    // Обновить индикатор - должен скрыться т.к. период дефолтный
+    updateFilterIndicator();
 }
 
 /**

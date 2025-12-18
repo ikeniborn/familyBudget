@@ -213,6 +213,134 @@ async def create_shopping_list_item(
     return response
 
 
+# ==================== AUTOCOMPLETE ENDPOINT ====================
+# NOTE: This endpoint MUST be defined BEFORE /{item_id} to prevent
+# FastAPI from matching "/products/suggest" as item_id parameter
+
+
+@router.get(
+    "/products/suggest",
+    response_model=ProductSuggestionsResponse,
+    summary="Get product suggestions for autocomplete",
+    description="Search product names from shopping list history for autocomplete",
+)
+async def suggest_products(
+    q: str = Query(
+        ...,
+        min_length=2,
+        max_length=100,
+        description="Search query (min 2 characters)"
+    ),
+    limit: int = Query(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum number of suggestions"
+    ),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> ProductSuggestionsResponse:
+    """
+    Get product suggestions based on shopping list history.
+
+    **Features:**
+    - Case-insensitive substring search using ILIKE
+    - Finds products containing the search query (e.g., "мол" finds "Молоко")
+    - Returns unique products with store and product group info
+    - Sorted by last usage, then by usage count
+    - Includes usage count for relevance
+
+    **Example:**
+    ```
+    GET /api/v1/shopping-list-items/products/suggest?q=мол&limit=10
+    ```
+
+    **Response:**
+    ```json
+    {
+      "suggestions": [
+        {
+          "product_name": "Молоко",
+          "store_id": 1,
+          "store_name": "Ашан",
+          "product_group_id": 5,
+          "product_group_name": "Молочные продукты",
+          "last_used": "2025-01-10T12:00:00",
+          "usage_count": 15
+        }
+      ],
+      "query": "мол",
+      "count": 1
+    }
+    ```
+    """
+    # Escape LIKE special characters to prevent SQL injection
+    # Note: pg_trgm similarity doesn't work with Cyrillic when DB collate is 'C'
+    search_pattern = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    # Build query with joins for store and product group names
+    # Aggregate by product_name, store_id, product_group_id
+    query = (
+        select(
+            ShoppingListItem.product_name,
+            ShoppingListItem.store_id,
+            ShoppingListItem.product_group_id,
+            Store.name.label("store_name"),
+            ProductGroup.name.label("product_group_name"),
+            func.max(ShoppingListItem.created_at).label("last_used"),
+            func.count().label("usage_count"),
+        )
+        .join(Store, ShoppingListItem.store_id == Store.id, isouter=True)
+        .join(ProductGroup, ShoppingListItem.product_group_id == ProductGroup.id, isouter=True)
+        .where(
+            # Case-insensitive substring search using ILIKE
+            # Works with any locale including 'C' (POSIX)
+            ShoppingListItem.product_name.ilike(f"%{search_pattern}%"),
+            ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted
+        )
+        .group_by(
+            ShoppingListItem.product_name,
+            ShoppingListItem.store_id,
+            ShoppingListItem.product_group_id,
+            Store.name,
+            ProductGroup.name,
+        )
+        # Sort by last usage (most recent first), then by usage count
+        .order_by(
+            func.max(ShoppingListItem.created_at).desc(),
+            func.count().desc()
+        )
+        .limit(limit)
+    )
+
+    result = await session.execute(query)
+    rows = result.all()
+
+    suggestions = [
+        ProductSuggestion(
+            product_name=row.product_name,
+            store_id=row.store_id,
+            store_name=row.store_name,
+            product_group_id=row.product_group_id,
+            product_group_name=row.product_group_name,
+            last_used=row.last_used,
+            usage_count=row.usage_count,
+        )
+        for row in rows
+    ]
+
+    logger.debug(f"Product suggestions for '{q}': {len(suggestions)} results")
+
+    return ProductSuggestionsResponse(
+        suggestions=suggestions,
+        query=q,
+        count=len(suggestions),
+    )
+
+
+# ==================== ITEM CRUD ENDPOINTS ====================
+
+
 @router.get(
     "/{item_id}",
     response_model=ShoppingListItemResponse,
@@ -1007,115 +1135,3 @@ async def resolve_conflict(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid strategy: {request.strategy}. Use 'server', 'client', or 'merge'",
         )
-
-
-# ==================== AUTOCOMPLETE ENDPOINT ====================
-
-
-@router.get(
-    "/products/suggest",
-    response_model=ProductSuggestionsResponse,
-    summary="Get product suggestions for autocomplete",
-    description="Search product names from shopping list history for autocomplete",
-)
-async def suggest_products(
-    q: str = Query(
-        ...,
-        min_length=2,
-        max_length=100,
-        description="Search query (min 2 characters)"
-    ),
-    limit: int = Query(
-        default=10,
-        ge=1,
-        le=50,
-        description="Maximum number of suggestions"
-    ),
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-) -> ProductSuggestionsResponse:
-    """
-    Get product suggestions based on shopping list history.
-
-    **Features:**
-    - Case-insensitive search in product names
-    - Returns unique products with store and product group info
-    - Sorted by last usage (most recent first)
-    - Includes usage count for relevance
-
-    **Example:**
-    ```
-    GET /api/v1/shopping-list-items/products/suggest?q=мол&limit=10
-    ```
-
-    **Response:**
-    ```json
-    {
-      "suggestions": [
-        {
-          "product_name": "Молоко",
-          "store_id": 1,
-          "store_name": "Ашан",
-          "product_group_id": 5,
-          "product_group_name": "Молочные продукты",
-          "last_used": "2025-01-10T12:00:00",
-          "usage_count": 15
-        }
-      ],
-      "query": "мол",
-      "count": 1
-    }
-    ```
-    """
-    # Build query with joins for store and product group names
-    # Aggregate by product_name, store_id, product_group_id
-    query = (
-        select(
-            ShoppingListItem.product_name,
-            ShoppingListItem.store_id,
-            ShoppingListItem.product_group_id,
-            Store.name.label("store_name"),
-            ProductGroup.name.label("product_group_name"),
-            func.max(ShoppingListItem.created_at).label("last_used"),
-            func.count().label("usage_count"),
-        )
-        .join(Store, ShoppingListItem.store_id == Store.id, isouter=True)
-        .join(ProductGroup, ShoppingListItem.product_group_id == ProductGroup.id, isouter=True)
-        .where(
-            ShoppingListItem.product_name.ilike(f"%{q}%"),
-            ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted
-        )
-        .group_by(
-            ShoppingListItem.product_name,
-            ShoppingListItem.store_id,
-            ShoppingListItem.product_group_id,
-            Store.name,
-            ProductGroup.name,
-        )
-        .order_by(func.max(ShoppingListItem.created_at).desc())
-        .limit(limit)
-    )
-
-    result = await session.execute(query)
-    rows = result.all()
-
-    suggestions = [
-        ProductSuggestion(
-            product_name=row.product_name,
-            store_id=row.store_id,
-            store_name=row.store_name,
-            product_group_id=row.product_group_id,
-            product_group_name=row.product_group_name,
-            last_used=row.last_used,
-            usage_count=row.usage_count,
-        )
-        for row in rows
-    ]
-
-    logger.debug(f"Product suggestions for '{q}': {len(suggestions)} results")
-
-    return ProductSuggestionsResponse(
-        suggestions=suggestions,
-        query=q,
-        count=len(suggestions),
-    )

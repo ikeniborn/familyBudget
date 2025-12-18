@@ -1,0 +1,174 @@
+# Authentication Module
+# JWT, Telegram OAuth, Email/Password, 2FA
+
+module:
+  name: authentication
+  description: "Аутентификация и авторизация пользователей"
+  critical: true
+
+  # ---------------------------------------------------------------------------
+  # SERVICES
+  # ---------------------------------------------------------------------------
+  services:
+    - name: jwt
+      path: "backend/app/services/jwt.py"
+      loc: 315
+      functions:
+        - create_access_token
+        - decode_access_token
+        - decode_access_token_full
+      depends_on: []
+
+    - name: telegram_auth
+      path: "backend/app/services/telegram_auth.py"
+      loc: 401
+      functions:
+        - validate_telegram_auth
+        - get_bot_username
+      depends_on:
+        - jwt
+      notes: "HMAC-SHA256 validation"
+
+    - name: auth_service
+      path: "backend/app/services/auth_service.py"
+      functions:
+        - get_user_by_telegram_id
+        - get_user_by_email
+        - add_email_to_user
+      depends_on: []
+
+    - name: password_service
+      path: "backend/app/services/password_service.py"
+      loc: 321
+      functions:
+        - hash_password
+        - verify_password
+        - verify_password_with_dummy
+      depends_on: []
+      notes: "Argon2 hashing, timing attack prevention"
+
+    - name: totp_service
+      path: "backend/app/services/totp_service.py"
+      functions:
+        - generate_totp_secret
+        - verify_totp
+        - get_totp_uri
+      depends_on: []
+      notes: "TOTP 2FA (Google Authenticator compatible)"
+
+    - name: two_factor_session_service
+      path: "backend/app/services/two_factor_session_service.py"
+      functions:
+        - create_session
+        - verify_session
+        - delete_session
+      depends_on:
+        - totp_service
+      notes: "5-minute TTL sessions"
+
+    - name: webapp_auth
+      path: "backend/app/services/webapp_auth.py"
+      functions:
+        - validate_telegram_webapp_init_data
+      depends_on:
+        - jwt
+      notes: "Telegram Web Apps auth via initData"
+
+  # ---------------------------------------------------------------------------
+  # MODELS
+  # ---------------------------------------------------------------------------
+  models:
+    - $ref: "../database/dimensions.yaml#/tables/t_d_user"
+    - $ref: "../database/history.yaml#/tables/t_d_user_history"
+    - $ref: "../database/support.yaml#/tables/t_refresh_token"
+    - $ref: "../database/support.yaml#/tables/t_2fa_session"
+    - $ref: "../database/support.yaml#/tables/t_user_consent"
+
+  # ---------------------------------------------------------------------------
+  # ENDPOINTS
+  # ---------------------------------------------------------------------------
+  endpoints:
+    - $ref: "../endpoints/auth.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # MIDDLEWARE
+  # ---------------------------------------------------------------------------
+  middleware:
+    - name: jwt_middleware
+      path: "backend/app/middleware/jwt_middleware.py"
+      description: |
+        Extracts JWT from Cookie (access_token) or Bearer header.
+        Validates signature + expiration.
+        Injects user_id into request.state.
+        Smart 401 handling (redirect for browser, JSON for API).
+      whitelist:
+        - "/health"
+        - "/ready"
+        - "/ping"
+        - "/auth/*"
+        - "/static/*"
+        - "/api/v1/webapp/validate"
+
+  # ---------------------------------------------------------------------------
+  # DEPENDENCIES (Core Auth Deps)
+  # ---------------------------------------------------------------------------
+  core_dependencies:
+    - name: get_current_user
+      path: "backend/app/core/auth.py"
+      description: "Load User from DB by user_id in request.state"
+
+    - name: get_current_admin
+      path: "backend/app/core/auth.py"
+      description: "get_current_user + is_admin check"
+
+    - name: get_current_user_optional
+      path: "backend/app/core/auth.py"
+      description: "Optional user for public pages"
+
+  # ---------------------------------------------------------------------------
+  # SECURITY
+  # ---------------------------------------------------------------------------
+  security:
+    jwt:
+      storage: "httpOnly cookie (access_token)"
+      expiration: "7 days (configurable)"
+      algorithm: "HS256"
+
+    telegram_oauth:
+      validation: "HMAC-SHA256 with bot token"
+      note: "User must exist before login (no auto-registration)"
+
+    password:
+      algorithm: "Argon2id"
+      timing_attack_prevention: true
+
+    two_factor:
+      type: "TOTP"
+      session_ttl: "5 minutes"
+
+  # ---------------------------------------------------------------------------
+  # FLOWS
+  # ---------------------------------------------------------------------------
+  flows:
+    telegram_oauth:
+      $ref: "../flows/telegram-oauth.yaml"
+
+    email_password:
+      steps:
+        - "User enters email/password"
+        - "POST /api/v1/auth/login-email"
+        - "Hash password with Argon2"
+        - "Send 2FA code via email"
+        - "User verifies at /api/v1/auth/2fa-verify"
+        - "Create JWT token → httpOnly cookie"
+
+  # ---------------------------------------------------------------------------
+  # USED BY
+  # ---------------------------------------------------------------------------
+  used_by:
+    - $ref: "./budget-management.yaml#/module"
+    - $ref: "./financial-centers.yaml#/module"
+    - $ref: "./cost-centers.yaml#/module"
+    - $ref: "./shopping-lists.yaml#/module"
+    - $ref: "./admin.yaml#/module"
+    - $ref: "../web/js-modules.yaml#/modules/offlineManager"

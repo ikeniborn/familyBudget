@@ -1,0 +1,229 @@
+# Admin Endpoints
+# User management, bulk operations
+
+routes:
+  # ===========================================================================
+  # USERS
+  # ===========================================================================
+  - path: "/api/v1/users"
+    method: GET
+    auth: admin
+    description: "List all users"
+    query_params:
+      include_inactive: "boolean (default: false)"
+    response:
+      status: 200
+      body:
+        - id: "integer"
+          telegram_id: "integer"
+          email: "string (optional)"
+          username: "string"
+          first_name: "string"
+          last_name: "string"
+          is_admin: "boolean"
+          is_active: "boolean"
+          created_at: "datetime"
+          last_login_at: "datetime"
+    service:
+      $ref: "../functionality/admin.yaml#/module/services/0"
+
+  - path: "/api/v1/users"
+    method: POST
+    auth: admin
+    description: "Create new user (admin only)"
+    request:
+      body:
+        telegram_id: "integer (required)"
+        username: "string (optional)"
+        first_name: "string (required)"
+        last_name: "string (optional)"
+        is_admin: "boolean (default: false)"
+    response:
+      status: 201
+      body:
+        id: "integer"
+        telegram_id: "integer"
+    note: "No auto-registration. Users must be created by admin."
+
+  - path: "/api/v1/users/{id}"
+    method: GET
+    auth: admin
+    description: "Get user by ID"
+    path_params:
+      id: "integer"
+    response:
+      status: 200
+      body:
+        # full user object
+    errors:
+      - status: 404
+        detail: "User not found"
+
+  - path: "/api/v1/users/{id}/role"
+    method: PUT
+    auth: admin
+    description: "Update user role (promote/demote)"
+    path_params:
+      id: "integer"
+    request:
+      body:
+        is_admin: "boolean"
+    response:
+      status: 200
+    constraints:
+      - "Cannot demote yourself"
+    side_effects:
+      - "UserHistory record created"
+
+  - path: "/api/v1/users/{id}/deactivate"
+    method: POST
+    auth: admin
+    description: "Deactivate user"
+    path_params:
+      id: "integer"
+    response:
+      status: 200
+    constraints:
+      - "Cannot deactivate yourself"
+    side_effects:
+      - "User.is_active = False"
+      - "All refresh tokens invalidated"
+
+  - path: "/api/v1/users/{id}/reactivate"
+    method: POST
+    auth: admin
+    description: "Reactivate user"
+    path_params:
+      id: "integer"
+    response:
+      status: 200
+
+  - path: "/api/v1/users/{id}/history"
+    method: GET
+    auth: admin
+    description: "Get user change history"
+    path_params:
+      id: "integer"
+    response:
+      status: 200
+      body:
+        - history_id: "integer"
+          change_type: "string"
+          changed_fields: "array"
+          valid_from: "datetime"
+
+  # ===========================================================================
+  # BULK OPERATIONS
+  # ===========================================================================
+  - path: "/api/v1/admin/articles/bulk-archive"
+    method: POST
+    auth: admin
+    description: "Bulk archive articles"
+    request:
+      body:
+        article_ids: "array of integers"
+        recursive: "boolean (default: false)"
+    response:
+      status: 200
+      body:
+        archived_count: "integer"
+
+  - path: "/api/v1/admin/articles/bulk-restore"
+    method: POST
+    auth: admin
+    description: "Bulk restore articles"
+    request:
+      body:
+        article_ids: "array of integers"
+        recursive: "boolean (default: false)"
+    response:
+      status: 200
+      body:
+        restored_count: "integer"
+
+  # ===========================================================================
+  # IMPORT STAGING
+  # ===========================================================================
+  - path: "/api/v1/admin/staging"
+    method: GET
+    auth: admin
+    description: "Review staged imports"
+    response:
+      status: 200
+      body:
+        - staging_id: "integer"
+          user_id: "integer"
+          bank_provider: "string"
+          row_count: "integer"
+          status: "pending | approved | rejected"
+          uploaded_at: "datetime"
+
+  - path: "/api/v1/admin/staging/{id}/approve"
+    method: POST
+    auth: admin
+    description: "Approve staged import"
+    path_params:
+      id: "integer"
+    response:
+      status: 200
+      body:
+        imported_count: "integer"
+
+  - path: "/api/v1/admin/staging/{id}/reject"
+    method: POST
+    auth: admin
+    description: "Reject staged import"
+    path_params:
+      id: "integer"
+    response:
+      status: 200
+
+  # ===========================================================================
+  # DATA EXPORT
+  # ===========================================================================
+  - path: "/api/v1/admin/export/transactions"
+    method: GET
+    auth: admin
+    description: "Export transactions to CSV"
+    query_params:
+      date_from: "YYYY-MM-DD"
+      date_to: "YYYY-MM-DD"
+      format: "csv | xlsx (default: csv)"
+    response:
+      status: 200
+      content_type: "text/csv"
+      headers:
+        Content-Disposition: "attachment; filename=transactions.csv"
+
+  - path: "/api/v1/admin/export/full"
+    method: GET
+    auth: admin
+    description: "Export full database backup"
+    response:
+      status: 200
+      content_type: "application/json"
+      body:
+        users: "array"
+        articles: "array"
+        facts: "array"
+        financial_centers: "array"
+        cost_centers: "array"
+
+# Authorization
+authorization:
+  check: "get_current_admin"
+  path: "backend/app/core/auth.py"
+  requires:
+    - "Valid JWT token"
+    - "User.is_admin == True"
+    - "User.is_active == True"
+
+# Frontend
+frontend:
+  pages:
+    - $ref: "../web/templates.yaml#/templates/admin_dashboard"
+    - $ref: "../web/templates.yaml#/templates/admin_users"
+    - $ref: "../web/templates.yaml#/templates/admin_articles"
+    - $ref: "../web/templates.yaml#/templates/admin_financial_centers"
+    - $ref: "../web/templates.yaml#/templates/admin_cost_centers"
+    - $ref: "../web/templates.yaml#/templates/admin_monitoring"

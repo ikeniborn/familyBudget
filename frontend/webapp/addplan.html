@@ -376,9 +376,6 @@
             // Load categories
             await loadCategories();
 
-            // Load recommended amounts (initial load with global recommendations)
-            loadRecommendedAmounts();
-
             // Load financial centers and cost centers
             await loadFinancialCenters();
             await loadCostCenters();
@@ -417,9 +414,6 @@
                     // Reload categories for selected type
                     loadCategories();
 
-                    // Update recommended amounts for new type
-                    loadRecommendedAmounts();
-
                     // Haptic feedback
                     app.ui.hapticLight();
                 });
@@ -451,117 +445,6 @@
             const btn3Year = currentMonth >= 10 ? currentYear + 1 : currentYear;
             const btn3Text = `${monthNamesShort[btn3Month]} ${btn3Year}`;
             document.getElementById('period-btn-year').textContent = btn3Text;
-        }
-
-        // Debounce tracking for recommended amounts API calls
-        let recommendedAmountsTimeout = null;
-        let recommendedAmountsController = null;
-
-        /**
-         * Load recommended amounts from API with debounce and update quick amount buttons.
-         *
-         * Uses 300ms debounce to avoid excessive API calls during rapid category changes.
-         * Cancels pending requests via AbortController.
-         *
-         * Hybrid strategy:
-         * 1. Try cache lookup (updated nightly by scheduler)
-         * 2. On-demand calculation if cache miss
-         * 3. Fallback to defaults if insufficient data
-         */
-        async function loadRecommendedAmounts() {
-            // Clear existing debounce timeout
-            if (recommendedAmountsTimeout) {
-                clearTimeout(recommendedAmountsTimeout);
-            }
-
-            // Cancel pending API call
-            if (recommendedAmountsController) {
-                recommendedAmountsController.abort();
-            }
-
-            // Debounce: wait 300ms after last call
-            recommendedAmountsTimeout = setTimeout(async () => {
-                try {
-                    recommendedAmountsController = new AbortController();
-
-                    // Build query params
-                    const params = {
-                        record_type: 'plan',  // CRITICAL: 'plan' for plans (not 'fact')
-                        period: 'quarter',     // 90 days analysis period
-                    };
-
-                    // Optional filters
-                    if (formState.categoryId) {
-                        params.article_id = formState.categoryId;
-                    }
-
-                    if (formState.planType) {
-                        params.type = formState.planType;
-                    }
-
-                    // Call API with abort signal
-                    const response = await app.api.get('/api/v1/analytics/recommended-amounts', params, {
-                        signal: recommendedAmountsController.signal
-                    });
-
-                    // Update button labels with new amounts
-                    updateQuickAmountButtons(response.amounts);
-
-                    console.log('[Recommended Amounts] Updated:', response.amounts, response.metadata);
-
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        console.log('[Recommended Amounts] Request cancelled (debounce)');
-                    } else {
-                        console.error('[Recommended Amounts] Failed to load:', error);
-                        // Keep existing button values on error
-                    }
-                }
-            }, 300); // 300ms debounce
-        }
-
-        /**
-         * Update quick amount button labels with new amounts.
-         *
-         * @param {Array<number>} amounts - Array of 4 recommended amounts
-         */
-        function updateQuickAmountButtons(amounts) {
-            const buttons = document.querySelectorAll('.quick-amount-btn[data-amount]');
-
-            amounts.forEach((amount, index) => {
-                if (buttons[index]) {
-                    // Update data-amount attribute (used by click handler)
-                    buttons[index].dataset.amount = parseFloat(amount);
-
-                    // Update button text with formatted amount
-                    buttons[index].textContent = formatAmountForButton(amount);
-                }
-            });
-        }
-
-        /**
-         * Format amount for button display.
-         *
-         * Examples:
-         * - 100 → "100"
-         * - 1000 → "1k"
-         * - 1500 → "1.5k"
-         * - 10000 → "10k"
-         *
-         * @param {number} amount - Amount to format
-         * @returns {string} Formatted amount string
-         */
-        function formatAmountForButton(amount) {
-            if (amount >= 1000) {
-                const thousands = amount / 1000;
-                // Check if it's a round number
-                if (Number.isInteger(thousands)) {
-                    return `${thousands}k`;
-                } else {
-                    return `${thousands.toFixed(1)}k`;
-                }
-            }
-            return amount.toString();
         }
 
         function setupQuickAmountButtons() {
@@ -699,9 +582,6 @@
 
                                 // Clear error
                                 document.getElementById('category-error').textContent = '';
-
-                                // Update recommended amounts for selected category
-                                loadRecommendedAmounts();
 
                                 // Haptic feedback
                                 app.ui.hapticLight();

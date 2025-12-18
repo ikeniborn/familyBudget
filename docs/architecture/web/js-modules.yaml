@@ -1,0 +1,313 @@
+# JavaScript Modules
+# Frontend JS module dependencies
+
+modules:
+  # ---------------------------------------------------------------------------
+  # SHARED BUNDLE
+  # ---------------------------------------------------------------------------
+  budgetShared:
+    path: "frontend/shared/static/js/budgetShared.js"
+    minified: "budgetShared.min.js"
+    size: "~79KB (unminified), ~25KB (minified gzip)"
+    description: "Unified bundle with shared utilities"
+    exports:
+      - DateFormatter
+      - CalendarWidget
+      - ChoicesCategoryTree
+      - ChoicesProductGroupTree
+    usage: |
+      // Access via global namespace
+      BudgetShared.DateFormatter.formatForAPI(date)
+      new BudgetShared.CalendarWidget({inputElement, mode})
+      new BudgetShared.ChoicesCategoryTree('#select_id', {type})
+
+  dateFormatter:
+    path: "frontend/shared/static/js/dateFormatter.js"
+    loc: ~200
+    description: "Date formatting utilities"
+    functions:
+      - formatForAPI: "DD.MM.YYYY → YYYY-MM-DD"
+      - formatForDisplay: "YYYY-MM-DD → DD.MM.YYYY"
+      - today: "Current date in DD.MM.YYYY"
+      - getUTCToday: "Current date in YYYY-MM-DD"
+      - getMonthRange: "Get month start/end dates"
+      - formatForRussianDisplay: "YYYY-MM-DD → '27 октября 2025'"
+    included_in: budgetShared
+
+  calendarWidget:
+    path: "frontend/shared/static/js/calendar-widget.js"
+    loc: ~310
+    description: "Custom date picker widget"
+    modes:
+      - single: "Pick one date"
+      - range: "Pick date range"
+    features:
+      - "Russian month names"
+      - "Keyboard navigation"
+      - "Mobile-friendly"
+    included_in: budgetShared
+
+  choicesCategoryTree:
+    path: "frontend/shared/static/js/choicesCategoryTree.js"
+    loc: ~360
+    description: "Hierarchical category selector (Choices.js plugin)"
+    features:
+      - "Filter by type (expense/income)"
+      - "Parent indicators in dropdown"
+      - "Search within categories"
+    depends_on:
+      - "Choices.js (vendor)"
+    included_in: budgetShared
+
+  choicesProductGroupTree:
+    path: "frontend/shared/static/js/choicesProductGroupTree.js"
+    description: "Hierarchical product group selector"
+    similar_to: choicesCategoryTree
+    included_in: budgetShared
+
+  # ---------------------------------------------------------------------------
+  # BUDGET/REALTIME
+  # ---------------------------------------------------------------------------
+  budgetSSEClient:
+    path: "frontend/web/static/js/budget/budgetSSEClient.js"
+    loc: 1288
+    description: "Server-Sent Events client for real-time updates"
+    endpoints:
+      - path: "/api/v1/budget/events/connect"
+        method: "EventSource"
+      - path: "/api/v1/budget/events/status"
+        method: "GET"
+      - path: "/api/v1/budget/events/disconnect"
+        method: "POST"
+    events_handled:
+      - fact_created
+      - fact_updated
+      - fact_deleted
+      - transfer_created
+      - shopping_list_item_created
+      - shopping_list_item_updated
+      - shopping_list_item_deleted
+      - article_created
+      - article_updated
+    ui_updates:
+      - "Navbar SSE indicator badge"
+      - "HTMX refresh of quick-stats"
+      - "HTMX refresh of recent-transactions"
+    functionality:
+      $ref: "../functionality/realtime.yaml#/module"
+
+  # ---------------------------------------------------------------------------
+  # OFFLINE
+  # ---------------------------------------------------------------------------
+  offlineManager:
+    path: "frontend/web/static/js/offline/offlineManager.js"
+    loc: 1473
+    description: "Main offline mode manager"
+    endpoints:
+      - "/api/v1/users/me"
+      - "/api/v1/facts"
+      - "/api/v1/transfers"
+    depends_on:
+      - idb
+      - networkDetector
+      - conflictResolver
+    functionality:
+      $ref: "../functionality/offline.yaml#/module"
+
+  idb:
+    path: "frontend/web/static/js/offline/idb.js"
+    loc: 1282
+    description: "IndexedDB wrapper"
+    stores:
+      - facts
+      - shoppingListItems
+      - syncQueue
+    functionality:
+      $ref: "../functionality/offline.yaml#/indexeddb"
+
+  networkDetector:
+    path: "frontend/web/static/js/offline/networkDetector.js"
+    description: "Backend availability monitoring"
+    events:
+      dispatches: "network-status-change"
+    fallback: "Polling when navigator.onLine unreliable"
+
+  conflictResolver:
+    path: "frontend/web/static/js/offline/conflictResolver.js"
+    description: "Sync conflict resolution"
+    strategies:
+      - server-wins
+      - client-wins
+      - manual-merge
+
+  offlineShoppingManager:
+    path: "frontend/web/static/js/offline/offlineShoppingManager.js"
+    description: "Shopping list offline operations"
+    endpoints:
+      - "/api/v1/shopping-list-items/sync/batch"
+    depends_on:
+      - idb
+      - networkDetector
+
+  # ---------------------------------------------------------------------------
+  # PUSH
+  # ---------------------------------------------------------------------------
+  pushManager:
+    path: "frontend/web/static/js/offline/pushManager.js"
+    description: "Web Push notifications manager"
+    endpoints:
+      - path: "/api/v1/push/vapid-key"
+        method: "GET"
+      - path: "/api/v1/push/subscribe"
+        method: "POST"
+      - path: "/api/v1/push/unsubscribe"
+        method: "POST"
+    browser_api: "PushManager, ServiceWorkerRegistration"
+
+  # ---------------------------------------------------------------------------
+  # LISTS
+  # ---------------------------------------------------------------------------
+  listsManager:
+    path: "frontend/web/static/js/lists/listsManager.js"
+    loc: 2359
+    description: "Shopping lists CRUD and view management"
+    endpoints:
+      - "/api/v1/shopping-lists"
+      - "/api/v1/shopping-list-items"
+      - "/api/v1/shopping-list-items/sync/batch"
+      - "/api/v1/stores"
+      - "/api/v1/product-groups"
+    features:
+      - "Dual view: table and hierarchy"
+      - "Batch operations"
+      - "Offline sync"
+    depends_on:
+      - hierarchyView
+      - offlineShoppingManager
+    functionality:
+      $ref: "../functionality/shopping-lists.yaml#/module"
+
+  hierarchyView:
+    path: "frontend/web/static/js/lists/hierarchyView.js"
+    description: "Collapsible tree view renderer"
+    usage:
+      - "Shopping lists hierarchy"
+      - "Article hierarchy (admin)"
+      - "Product group hierarchy (admin)"
+
+  csvImporter:
+    path: "frontend/web/static/js/lists/csvImporter.js"
+    description: "CSV upload for shopping lists"
+    endpoints:
+      - "/api/v1/shopping-lists/import/analyze"
+      - "/api/v1/shopping-lists/import/preview"
+      - "/api/v1/shopping-lists/import/execute"
+
+  googleSheetsImporter:
+    path: "frontend/web/static/js/lists/googleSheetsImporter.js"
+    description: "Google Sheets integration"
+    endpoints:
+      - "/api/v1/shopping-lists/google-sheets/fetch"
+
+  importManager:
+    path: "frontend/web/static/js/lists/importManager.js"
+    description: "Import orchestrator (CSV, Google Sheets)"
+    depends_on:
+      - csvImporter
+      - googleSheetsImporter
+
+  # ---------------------------------------------------------------------------
+  # TRANSFER
+  # ---------------------------------------------------------------------------
+  transfer:
+    path: "frontend/web/static/js/transfer.js"
+    loc: 1227
+    description: "Transfer dialog logic"
+    endpoints:
+      - "/api/v1/transfers"
+      - "/api/v1/financial-centers"
+      - "/api/v1/analytics/fact-hints"
+      - "/api/v1/analytics/plan-hints"
+    features:
+      - "Fact transfer (immediate)"
+      - "Plan transfer (scheduled)"
+      - "Hint loading"
+
+  # ---------------------------------------------------------------------------
+  # ADMIN
+  # ---------------------------------------------------------------------------
+  adminFactsCommon:
+    path: "frontend/web/static/js/admin-facts-common.js"
+    description: "Shared logic for facts/plans pages"
+    features:
+      - "Date range filter"
+      - "Pagination"
+      - "Column sorting"
+
+  adminStatusFilter:
+    path: "frontend/web/static/js/adminStatusFilter.js"
+    description: "Status filter UI (active/archived/deleted)"
+    usage: "Admin entity pages"
+
+  # ---------------------------------------------------------------------------
+  # UTILITIES
+  # ---------------------------------------------------------------------------
+  htmxWidgets:
+    path: "frontend/web/static/js/htmxWidgets.js"
+    description: "HTMX wrapper utilities"
+    features:
+      - "Custom AJAX configurations"
+      - "Error handling"
+
+  confirmDialog:
+    path: "frontend/web/static/js/confirmDialog.js"
+    description: "Confirmation modal manager"
+    usage: "Delete/archive operations"
+
+# ---------------------------------------------------------------------------
+# VENDOR LIBRARIES
+# ---------------------------------------------------------------------------
+vendor:
+  htmx:
+    path: "frontend/web/static/js/vendor/htmx.min.js"
+    version: "1.9.x"
+    description: "High-power tools for HTML"
+
+  choices:
+    path: "frontend/web/static/js/vendor/choices.min.js"
+    version: "10.x"
+    description: "Customisable select boxes"
+
+  echarts:
+    path: "frontend/web/static/js/vendor/echarts.min.js"
+    version: "5.x"
+    description: "Charting library"
+    usage: "analytics.html"
+
+# ---------------------------------------------------------------------------
+# TELEGRAM WEB APP JS
+# ---------------------------------------------------------------------------
+telegram_webapp:
+  api:
+    path: "frontend/webapp/static/js/api.js"
+    description: "APIClient for backend calls"
+
+  auth:
+    path: "frontend/webapp/static/js/auth.js"
+    description: "JWT token management"
+
+  storage:
+    path: "frontend/webapp/static/js/storage.js"
+    description: "LocalStorage wrapper"
+
+  theme:
+    path: "frontend/webapp/static/js/theme.js"
+    description: "Telegram theme integration"
+
+  ui:
+    path: "frontend/webapp/static/js/ui.js"
+    description: "UI utilities, toasts, haptic feedback"
+
+  validators:
+    path: "frontend/webapp/static/js/validators.js"
+    description: "Input validation"

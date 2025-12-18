@@ -1,0 +1,128 @@
+# Endpoints - API Index
+# REST API v1 endpoints
+
+description: |
+  API endpoints проекта Family Budget.
+  REST API v1 + HTMX HTML endpoints.
+
+base_path: "/api/v1"
+total_endpoints: 50+
+
+auth_levels:
+  public: "No authentication required"
+  user: "Valid JWT token required"
+  admin: "JWT token + is_admin=True"
+
+groups:
+  - name: auth
+    file: "./auth.yaml"
+    prefix: "/api/v1/auth"
+    endpoints_count: 8
+    auth_level: "mixed"
+
+  - name: articles
+    file: "./articles.yaml"
+    prefix: "/api/v1/articles"
+    endpoints_count: 8
+    auth_level: "user (read), admin (write)"
+
+  - name: facts
+    file: "./facts.yaml"
+    prefix: "/api/v1/facts"
+    endpoints_count: 6
+    auth_level: "user"
+
+  - name: financial_centers
+    file: "./financial-centers.yaml"
+    prefix: "/api/v1/financial-centers"
+    endpoints_count: 5
+    auth_level: "user (read), admin (write)"
+
+  - name: cost_centers
+    file: "./cost-centers.yaml"
+    prefix: "/api/v1/cost-centers"
+    endpoints_count: 5
+    auth_level: "user (read), admin (write)"
+
+  - name: transfers
+    file: "./transfers.yaml"
+    prefix: "/api/v1/transfers"
+    endpoints_count: 2
+    auth_level: "user"
+
+  - name: shopping
+    file: "./shopping.yaml"
+    prefix: "/api/v1/shopping-lists, /stores, /product-groups"
+    endpoints_count: 12
+    auth_level: "user"
+
+  - name: import
+    file: "./import.yaml"
+    prefix: "/api/v1/import"
+    endpoints_count: 6
+    auth_level: "user"
+
+  - name: analytics
+    file: "./analytics.yaml"
+    prefix: "/api/v1/analytics"
+    endpoints_count: 8
+    auth_level: "user"
+
+  - name: admin
+    file: "./admin.yaml"
+    prefix: "/api/v1/admin"
+    endpoints_count: 10
+    auth_level: "admin"
+
+  - name: sse
+    file: "./sse.yaml"
+    prefix: "/api/v1/budget/events"
+    endpoints_count: 3
+    auth_level: "user"
+
+  - name: health
+    file: "./health.yaml"
+    prefix: "/"
+    endpoints_count: 4
+    auth_level: "public"
+
+# Endpoint Files Location
+endpoint_files:
+  backend_api_v1: "backend/app/api/v1/"
+  backend_api_web: "backend/app/api/web/"
+  total_loc: ~6000
+
+# Common Response Formats
+response_formats:
+  success:
+    status_codes: [200, 201]
+    format: "JSON"
+
+  validation_error:
+    status_code: 422
+    format:
+      detail:
+        - loc: ["body", "field_name"]
+          msg: "Error message"
+          type: "error_type"
+
+  auth_error:
+    status_code: 401
+    format:
+      detail: "Not authenticated"
+
+  forbidden:
+    status_code: 403
+    format:
+      detail: "Not enough permissions"
+
+  not_found:
+    status_code: 404
+    format:
+      detail: "Resource not found"
+
+# Rate Limiting
+rate_limiting:
+  library: "slowapi"
+  default_limit: "100/minute"
+  auth_endpoints: "10/minute"

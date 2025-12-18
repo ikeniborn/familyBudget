@@ -2121,17 +2121,23 @@ async function handleSaveItem(event) {
         showToast(isEdit ? 'Товар обновлен' : 'Товар добавлен', 'success');
         closeItemModal();
 
-        // Optimistic update of local state
+        // For EDIT: optimistic update (no race condition)
         if (isEdit) {
             const item = manager.currentItems.find(i => i.id === parseInt(itemId));
-            if (item) Object.assign(item, data);
-        } else {
-            // Add new item with temp or real ID
+            if (item) {
+                Object.assign(item, data);
+                manager.renderCurrentView();
+                manager.updateProgressBadge();
+                await manager.updateItemsCache();
+            }
+        } else if (result.tempId && !result.id) {
+            // CREATE offline: tempId exists but no real server ID
+            // Offline mode needs immediate update (no SSE in offline)
             const newItem = {
-                id: result.id || result.tempId,
+                id: result.tempId,
                 ...data,
                 is_completed: false,
-                _offline: result._offline || false
+                _offline: true
             };
             // Get store and product group names for display
             const store = manager.stores?.find(s => s.id === data.store_id);
@@ -2140,11 +2146,11 @@ async function handleSaveItem(event) {
             if (group) newItem.product_group_name = group.name;
 
             manager.currentItems.push(newItem);
+            manager.renderCurrentView();
+            manager.updateProgressBadge();
+            await manager.updateItemsCache();
         }
-
-        manager.renderCurrentView();
-        manager.updateProgressBadge();
-        await manager.updateItemsCache();
+        // CREATE online (result.id exists): do nothing, SSE will add the item
 
     } catch (error) {
         console.error('[ListsManager] Error saving item:', error);
@@ -2312,17 +2318,22 @@ function initializeImportWizard() {
 }
 
 /**
- * Handle import accordion toggle (open/close)
- * @param {boolean} isOpen - Whether the accordion is being opened
+ * Toggle import wizard accordion (open/close)
+ * Handles opening/closing the import wizard container and updating the visual indicator
  */
-function handleImportToggle(isOpen) {
+function toggleImportWizard() {
+    const container = document.getElementById('import-wizard-container');
+    const icon = document.getElementById('import-toggle-icon');
+    const hint = document.getElementById('import-toggle-hint');
     const wizardContainer = document.getElementById('import-wizard');
+    const isOpen = !container.classList.contains('hidden');
 
     if (isOpen) {
-        // Opening - initialize wizard
-        initializeImportWizard();
-    } else {
-        // Closing - clear wizard content and reset state
+        // Closing - hide wizard and reset state
+        container.classList.add('hidden');
+        icon.textContent = '▶';
+        if (hint) hint.classList.remove('hidden');
+
         if (wizardContainer) {
             wizardContainer.innerHTML = '';
         }
@@ -2331,6 +2342,12 @@ function handleImportToggle(isOpen) {
             window.importManager.currentMethod = null;
         }
         debugLog('[ImportWizard] Closed and reset');
+    } else {
+        // Opening - show wizard and initialize
+        container.classList.remove('hidden');
+        icon.textContent = '▼';
+        if (hint) hint.classList.add('hidden');
+        initializeImportWizard();
     }
 }
 

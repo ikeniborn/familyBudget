@@ -251,9 +251,6 @@
             // Load categories (will filter by FC if selected)
             await loadCategories();
 
-            // Load recommended amounts (initial load based on default type: expense)
-            loadRecommendedAmounts();
-
             // Setup MainButton for save
             setupMainButton();
 
@@ -290,122 +287,10 @@
                     // Reload categories for selected type
                     loadCategories();
 
-                    // Load recommended amounts for new type (expense/income)
-                    loadRecommendedAmounts();
-
                     // Haptic feedback
                     app.ui.hapticLight();
                 });
             });
-        }
-
-        // Debounce helper for recommended amounts loading
-        let recommendedAmountsTimeout = null;
-        let recommendedAmountsController = null;
-
-        /**
-         * Load recommended amounts from API with debounce and update quick amount buttons.
-         * Called on category change and fact type change (expense/income).
-         */
-        async function loadRecommendedAmounts() {
-            // Clear previous timeout
-            if (recommendedAmountsTimeout) {
-                clearTimeout(recommendedAmountsTimeout);
-            }
-
-            // Abort previous request if still pending
-            if (recommendedAmountsController) {
-                recommendedAmountsController.abort();
-            }
-
-            // Debounce: wait 300ms before making API call
-            recommendedAmountsTimeout = setTimeout(async () => {
-                try {
-                    // Create new AbortController for this request
-                    recommendedAmountsController = new AbortController();
-
-                    // Build query parameters
-                    const params = {
-                        record_type: 'fact',  // Always 'fact' for add.html
-                        period: 'quarter',    // 90 days as per user selection
-                    };
-
-                    // Add optional filters
-                    if (formState.categoryId) {
-                        params.article_id = formState.categoryId;
-                    }
-                    if (formState.factType) {
-                        params.type = formState.factType;  // 'income' or 'expense'
-                    }
-
-                    // Make API call with abort signal
-                    const response = await app.api.get('/api/v1/analytics/recommended-amounts', params, {
-                        signal: recommendedAmountsController.signal
-                    });
-
-                    // Update quick amount buttons with new values
-                    updateQuickAmountButtons(response.amounts);
-
-                    console.log('[RecommendedAmounts] Loaded:', response.amounts, 'Algorithm:', response.algorithm, 'Sample:', response.metadata.sample_size);
-
-                } catch (error) {
-                    if (error.name === 'AbortError') {
-                        console.log('[RecommendedAmounts] Request aborted (debounce)');
-                        return;
-                    }
-
-                    console.warn('[RecommendedAmounts] Failed to load, using defaults:', error);
-
-                    // Fallback to default amounts
-                    const defaultAmounts = formState.factType === 'income'
-                        ? [10000, 20000, 50000, 100000]
-                        : [100, 500, 1000, 5000];
-
-                    updateQuickAmountButtons(defaultAmounts);
-                }
-            }, 300);  // 300ms debounce delay
-        }
-
-        /**
-         * Update quick amount button labels and data-amount attributes.
-         * @param {Array<number>} amounts - Array of 4 recommended amounts
-         */
-        function updateQuickAmountButtons(amounts) {
-            const buttons = document.querySelectorAll('.quick-amount-btn[data-amount]');
-
-            if (!amounts || amounts.length !== 4) {
-                console.error('[RecommendedAmounts] Invalid amounts array:', amounts);
-                return;
-            }
-
-            amounts.forEach((amount, index) => {
-                if (buttons[index]) {
-                    const amountValue = parseFloat(amount);
-                    buttons[index].dataset.amount = amountValue;
-
-                    // Format amount for display
-                    const formattedAmount = formatAmountForButton(amountValue);
-                    buttons[index].textContent = formattedAmount;
-                }
-            });
-        }
-
-        /**
-         * Format amount for button display (1000 → '1k', 50000 → '50k', etc.)
-         * @param {number} amount - Amount to format
-         * @returns {string} Formatted string
-         */
-        function formatAmountForButton(amount) {
-            if (amount >= 1000) {
-                const thousands = amount / 1000;
-                // Check if it's a whole number in thousands
-                if (Number.isInteger(thousands)) {
-                    return `${thousands}k`;
-                } else {
-                    return `${thousands.toFixed(1)}k`;
-                }
-            }
-            return amount.toString();
         }
 
         function setupQuickAmountButtons() {
@@ -534,9 +419,6 @@
 
                                 // Clear error
                                 document.getElementById('category-error').textContent = '';
-
-                                // Load recommended amounts for selected category
-                                loadRecommendedAmounts();
 
                                 // Haptic feedback
                                 app.ui.hapticLight();

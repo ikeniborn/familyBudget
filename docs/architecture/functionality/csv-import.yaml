@@ -1,0 +1,204 @@
+# CSV Import Module
+# Multi-bank CSV import (Tinkoff, generic, Google Sheets)
+
+module:
+  name: csv_import
+  description: "Импорт транзакций из банковских CSV выписок"
+
+  # ---------------------------------------------------------------------------
+  # SERVICES
+  # ---------------------------------------------------------------------------
+  services:
+    - name: tinkoff_csv_parser
+      path: "backend/app/services/tinkoff_csv_parser.py"
+      loc: 324
+      functions:
+        - parse_tinkoff_csv
+        - detect_tinkoff_format
+      depends_on: []
+      notes: "Tinkoff bank specific CSV format"
+
+    - name: generic_csv_parser
+      path: "backend/app/services/generic_csv_parser.py"
+      loc: 405
+      functions:
+        - parse_generic_csv
+        - map_columns
+      depends_on:
+        - csv_column_matcher
+      notes: "Generic bank CSV with column mapping"
+
+    - name: google_sheets_parser
+      path: "backend/app/services/google_sheets_parser.py"
+      functions:
+        - fetch_sheet_data
+        - parse_sheet_rows
+      depends_on: []
+      notes: "Google Sheets API integration"
+
+    - name: csv_detector
+      path: "backend/app/services/csv_detector.py"
+      loc: 379
+      functions:
+        - detect_bank_format
+        - detect_encoding
+        - detect_delimiter
+      depends_on: []
+      notes: "Auto-detect CSV format and bank"
+
+    - name: csv_analyzer
+      path: "backend/app/services/csv_analyzer.py"
+      functions:
+        - analyze_csv_structure
+        - suggest_column_mapping
+      depends_on:
+        - csv_detector
+
+    - name: csv_validator
+      path: "backend/app/services/csv_validator.py"
+      loc: 459
+      functions:
+        - validate_csv_data
+        - validate_dates
+        - validate_amounts
+        - check_duplicates
+      depends_on: []
+      notes: "Data quality validation"
+
+    - name: csv_column_matcher
+      path: "backend/app/services/csv_column_matcher.py"
+      loc: 339
+      functions:
+        - match_columns_to_schema
+        - get_column_suggestions
+      depends_on: []
+      notes: "Match CSV columns to BudgetFact fields"
+
+    - name: csv_security
+      path: "backend/app/services/csv_security.py"
+      functions:
+        - sanitize_csv_content
+        - detect_csv_injection
+      depends_on: []
+      notes: "CSV injection prevention"
+
+    - name: import_executor
+      path: "backend/app/services/import_executor.py"
+      loc: 332
+      functions:
+        - execute_import
+        - rollback_import
+        - get_import_preview
+      depends_on:
+        - csv_validator
+        - $ref: "./budget-management.yaml#/module/services/0"
+      notes: "Execute staged imports"
+
+    - name: mapping_service
+      path: "backend/app/services/mapping_service.py"
+      functions:
+        - save_column_mapping
+        - get_user_mappings
+        - get_mapping_for_bank
+      depends_on: []
+      models:
+        - $ref: "../database/support.yaml#/tables/t_import_column_mapping"
+        - $ref: "../database/support.yaml#/tables/t_d_import_template"
+
+  # ---------------------------------------------------------------------------
+  # MODELS
+  # ---------------------------------------------------------------------------
+  models:
+    - $ref: "../database/support.yaml#/tables/t_import_staging"
+    - $ref: "../database/support.yaml#/tables/t_import_file_upload"
+    - $ref: "../database/support.yaml#/tables/t_import_column_mapping"
+    - $ref: "../database/support.yaml#/tables/t_d_import_template"
+    - $ref: "../database/support.yaml#/tables/t_d_bank_provider"
+
+  # ---------------------------------------------------------------------------
+  # ENDPOINTS
+  # ---------------------------------------------------------------------------
+  endpoints:
+    $ref: "../endpoints/import.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # IMPORT WORKFLOW
+  # ---------------------------------------------------------------------------
+  workflow:
+    flow:
+      $ref: "../flows/csv-import.yaml"
+
+    stages:
+      - name: upload
+        description: "Upload CSV file"
+        endpoint: "POST /api/v1/import/upload"
+        output: "ImportFileUpload record"
+
+      - name: detect
+        description: "Auto-detect bank format"
+        service: csv_detector
+        output: "BankProvider, encoding, delimiter"
+
+      - name: analyze
+        description: "Analyze CSV structure"
+        service: csv_analyzer
+        output: "Column mapping suggestions"
+
+      - name: preview
+        description: "Show import preview"
+        endpoint: "POST /api/v1/import/preview"
+        output: "List of staged transactions"
+
+      - name: validate
+        description: "Validate data quality"
+        service: csv_validator
+        output: "Validation errors/warnings"
+
+      - name: execute
+        description: "Execute import"
+        endpoint: "POST /api/v1/import/execute"
+        output: "Created BudgetFact records"
+
+  # ---------------------------------------------------------------------------
+  # SUPPORTED BANKS
+  # ---------------------------------------------------------------------------
+  supported_banks:
+    - name: tinkoff
+      formats: ["CSV"]
+      auto_detect: true
+      parser: tinkoff_csv_parser
+
+    - name: sberbank
+      formats: ["CSV"]
+      auto_detect: true
+      parser: generic_csv_parser
+
+    - name: generic
+      formats: ["CSV"]
+      auto_detect: false
+      parser: generic_csv_parser
+      notes: "User defines column mapping"
+
+    - name: google_sheets
+      formats: ["Google Sheets"]
+      auto_detect: false
+      parser: google_sheets_parser
+
+  # ---------------------------------------------------------------------------
+  # DEPENDENCIES
+  # ---------------------------------------------------------------------------
+  depends_on:
+    - $ref: "./budget-management.yaml#/module"
+    - $ref: "./financial-centers.yaml#/module"
+    - $ref: "./cost-centers.yaml#/module"
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND
+  # ---------------------------------------------------------------------------
+  frontend:
+    admin_page:
+      $ref: "../web/templates.yaml#/templates/admin_import"
+    js_modules:
+      - $ref: "../web/js-modules.yaml#/modules/csvImporter"
+      - $ref: "../web/js-modules.yaml#/modules/googleSheetsImporter"
+      - $ref: "../web/js-modules.yaml#/modules/importManager"

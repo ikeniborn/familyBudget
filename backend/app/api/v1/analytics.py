@@ -20,9 +20,8 @@ from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact as Fact
 from backend.app.schemas.analytics import (
+    FactHintsResponse,
     PlanHintsResponse,
-    RecommendedAmountsMetadata,
-    RecommendedAmountsResponse,
 )
 from backend.app.utils.date_helpers import (
     get_current_calendar_month,
@@ -2263,164 +2262,6 @@ async def get_heatmap_data(
         }
 
 
-@router.get("/recommended-amounts", response_model=RecommendedAmountsResponse)
-async def get_recommended_amounts(
-    current_user: CurrentUser,
-    session: AsyncSession = Depends(get_session),
-    article_id: Optional[int] = Query(
-        None,
-        gt=0,
-        description="Optional category ID filter (omit for global recommendations)"
-    ),
-    article_type: Optional[str] = Query(
-        None,
-        pattern="^(income|expense)$",
-        description="Optional transaction type filter: 'income' or 'expense' (omit for all types)"
-    ),
-    record_type: str = Query(
-        "fact",
-        pattern="^(fact|plan)$",
-        description="Record type: 'fact' (actual transactions) or 'plan' (planned transactions)"
-    ),
-    period: str = Query(
-        "quarter",
-        pattern="^(month|quarter|year)$",
-        description="Analysis period: 'month' (30d), 'quarter' (90d), 'year' (365d)"
-    ),
-    financial_center_id: Optional[int] = Query(
-        None,
-        gt=0,
-        description="Optional financial center (ЦФО) filter for recommendations"
-    ),
-):
-    """
-    Get recommended amounts for quick selection buttons in transaction forms.
-
-    Algorithm:
-        1. Check cache (t_recommended_amounts table) for pre-calculated values
-        2. If not in cache or stale, fallback to default amounts
-
-    Query Parameters:
-        - article_id: Optional category filter (NULL = global recommendations)
-        - article_type: Optional type filter ('income' | 'expense' | NULL = all)
-        - record_type: 'fact' (actual transactions) or 'plan' (planned transactions)
-        - period: Analysis period ('month' | 'quarter' | 'year')
-
-    Returns:
-        - amounts: Array of 4 recommended amounts (rounded to nice numbers)
-        - algorithm: 'k_means' (pre-calculated) or 'default' (fallback)
-        - metadata: Detailed calculation info (sample_size, min/max/avg, period_days)
-
-    Examples:
-        GET /api/v1/analytics/recommended-amounts?record_type=fact&article_type=expense
-        GET /api/v1/analytics/recommended-amounts?article_id=5&record_type=fact
-        GET /api/v1/analytics/recommended-amounts?record_type=plan&article_type=income
-
-    Notes:
-        - Pre-calculated values are populated by nightly scheduler (recalculate_recommended_amounts)
-        - Updated nightly at 02:00 UTC for all leaf categories (adaptive period: 90/180/270/360 days)
-        - Fallback to defaults if not in cache
-        - Shared family budget model: all authenticated users see same recommendations
-    """
-    # Default fallback values
-    DEFAULT_AMOUNTS = {
-        ("fact", "expense"): [Decimal("100.00"), Decimal("500.00"), Decimal("1000.00"), Decimal("5000.00")],
-        ("fact", "income"): [Decimal("10000.00"), Decimal("20000.00"), Decimal("50000.00"), Decimal("100000.00")],
-        ("plan", "expense"): [Decimal("5000.00"), Decimal("10000.00"), Decimal("20000.00"), Decimal("50000.00")],
-        ("plan", "income"): [Decimal("20000.00"), Decimal("50000.00"), Decimal("100000.00"), Decimal("200000.00")],
-    }
-
-    # Step 1: Try to get from cache (t_recommended_amounts)
-    # Priority: exact match (article_id + financial_center_id) > partial match > global
-    cache_query = text("""
-        SELECT amounts, metadata
-        FROM t_recommended_amounts
-        WHERE (article_id IS NOT DISTINCT FROM :article_id)
-          AND (financial_center_id IS NOT DISTINCT FROM :financial_center_id)
-          AND (type IS NOT DISTINCT FROM :type)
-          AND record_type = :record_type
-          AND period = :period
-          AND last_updated >= NOW() - INTERVAL '24 hours'
-        LIMIT 1
-    """)
-
-    result = await session.execute(
-        cache_query,
-        {
-            "article_id": article_id,
-            "financial_center_id": financial_center_id,
-            "type": article_type,
-            "record_type": record_type,
-            "period": period
-        }
-    )
-    row = result.first()
-
-    if row:
-        # Cache hit - use pre-calculated values
-        amounts_array = row[0]  # PostgreSQL ARRAY
-        metadata_json = row[1]  # JSONB
-
-        # Get article name if article_id is provided
-        article_name = None
-        if article_id:
-            article_result = await session.execute(
-                select(Article.name).where(Article.id == article_id)
-            )
-            article_row = article_result.first()
-            if article_row:
-                article_name = article_row[0]
-
-        metadata_json["article_name"] = article_name
-
-        return RecommendedAmountsResponse(
-            amounts=[Decimal(str(amt)) for amt in amounts_array],
-            algorithm="k_means" if metadata_json.get("source") == "k_means" else "default",
-            metadata=RecommendedAmountsMetadata(**metadata_json)
-        )
-
-    # Step 2: Cache miss - fallback to defaults
-    # Note: On-demand calculation via PostgreSQL function removed
-    # Pre-calculated values are populated by nightly scheduler (recalculate_recommended_amounts)
-    # Determine default key based on record_type and article_type
-    if article_type is None:
-        # If article_type is not specified, default to expense for facts, income for plans
-        default_type = "expense" if record_type == "fact" else "income"
-    else:
-        default_type = article_type
-
-    default_key = (record_type, default_type)
-    default_amounts = DEFAULT_AMOUNTS.get(default_key, DEFAULT_AMOUNTS[("fact", "expense")])
-
-    # Get article name if article_id is provided
-    article_name = None
-    if article_id:
-        article_result = await session.execute(
-            select(Article.name).where(Article.id == article_id)
-        )
-        article_row = article_result.first()
-        if article_row:
-            article_name = article_row[0]
-
-    period_days_map = {"month": 30, "quarter": 90, "year": 365}
-
-    return RecommendedAmountsResponse(
-        amounts=default_amounts,
-        algorithm="default",
-        metadata=RecommendedAmountsMetadata(
-            source="default",
-            sample_size=0,
-            min_amount=None,
-            max_amount=None,
-            avg_amount=None,
-            period_days=period_days_map.get(period, 90),
-            algorithm_version=None,
-            article_id=article_id,
-            article_name=article_name
-        )
-    )
-
-
 # ==================== Plan Analytics Endpoints ====================
 
 
@@ -2671,147 +2512,121 @@ def get_russian_month_name(month: int, year: int) -> str:
     return f"{month_names.get(month, '')} {year}"
 
 
-# ==================== Plan Hints Endpoint ====================
+# ==================== Fact Hints for Modals ====================
 
 
-@router.get("/plan-hints", response_model=PlanHintsResponse)
-async def get_plan_hints(
+@router.get("/fact-hints", response_model=FactHintsResponse)
+async def get_fact_hints(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-    article_id: Optional[int] = Query(
-        None,
-        gt=0,
-        description="Category ID for which to get hints"
-    ),
-    period: str = Query(
-        ...,
-        pattern=r"^\d{4}-(0[1-9]|1[0-2])$",
-        description="Planning period in YYYY-MM format (e.g., '2025-11')"
-    ),
+    article_id: Optional[int] = Query(None, gt=0, description="Category ID"),
+    fact_date: date = Query(..., description="Transaction date (YYYY-MM-DD)"),
     article_type: str = Query(
         "expense",
-        pattern="^(income|expense)$",
-        description="Article type: 'income' or 'expense'"
+        pattern="^(income|expense|debit|credit)$",
+        description="Article type: expense, income, debit, or credit"
     ),
     financial_center_id: Optional[int] = Query(
         None,
         gt=0,
-        description="Financial center ID to filter hints"
+        description="Financial center ID filter"
     ),
 ):
     """
-    Get plan hints for the plan creation modal.
+    Get fact hints for the fact creation modal.
 
-    Returns sum of plans and facts from PREVIOUS month for the specified category.
+    Returns sum of plans and facts for the CURRENT month (based on fact_date).
+    Used to display hints in fact creation modal (display-only, not clickable).
 
     Logic:
-        - If user selects "November 2025" as planning period
-        - Previous period = "October 2025"
-        - Returns: sum of plans for Oct 2025, sum of facts for Oct 2025
+        - fact_date=2025-12-15 → period = December 2025
+        - Returns: sum of plans + sum of facts for that month
+
+    NOTE: Shared Family Budget - NO user_id filter (all users see all data)
 
     Args:
-        article_id: Category ID (optional, but recommended for meaningful results)
-        period: Selected planning month in YYYY-MM format
-        article_type: Type of operation ('expense' or 'income')
+        article_id: Optional category ID filter
+        fact_date: Transaction date (determines the month)
+        article_type: Type of article (expense, income, debit, credit)
+        financial_center_id: Optional financial center filter
 
     Returns:
-        PlanHintsResponse with prev_period_plan_sum and prev_period_fact_sum
-
-    Example:
-        GET /api/v1/analytics/plan-hints?article_id=45&period=2025-11&article_type=expense
-
-        Response:
-        {
-            "prev_period_plan_sum": 15000.00,
-            "prev_period_fact_sum": 12500.00,
-            "prev_period": "2025-10",
-            "article_id": 45,
-            "article_name": "Продукты",
-            "article_type": "expense"
-        }
+        FactHintsResponse with period_plan_sum, period_fact_sum, and metadata
     """
-    # Parse the planning period
-    try:
-        year, month = map(int, period.split('-'))
-    except ValueError:
-        raise HTTPException(400, f"Invalid period format: {period}. Expected YYYY-MM")
+    # Calculate month boundaries from fact_date
+    month_start = date(fact_date.year, fact_date.month, 1)
+    _, last_day = cal_module.monthrange(fact_date.year, fact_date.month)
+    month_end = date(fact_date.year, fact_date.month, last_day)
+    period_str = f"{fact_date.year}-{fact_date.month:02d}"
 
-    # Calculate previous month
-    if month == 1:
-        prev_year = year - 1
-        prev_month = 12
-    else:
-        prev_year = year
-        prev_month = month - 1
-
-    prev_period_str = f"{prev_year}-{prev_month:02d}"
-    prev_start = date(prev_year, prev_month, 1)
-    _, last_day = cal_module.monthrange(prev_year, prev_month)
-    prev_end = date(prev_year, prev_month, last_day)
-
-    # Get article name if article_id provided
+    # Get article name if provided
     article_name = None
     if article_id:
-        article_result = await session.execute(
+        result = await session.execute(
             select(Article.name).where(Article.id == article_id)
         )
-        article_row = article_result.first()
-        if article_row:
-            article_name = article_row[0]
+        row = result.first()
+        if row:
+            article_name = row[0]
 
-    # Query previous month PLANS
+    # Map article_type to filter (debit→expense, credit→income for aggregation)
+    type_filter = article_type
+    if article_type == "debit":
+        type_filter = "expense"
+    elif article_type == "credit":
+        type_filter = "income"
+
+    # Base query conditions (Shared Family Budget - NO user_id filter!)
+    base_conditions = [
+        Fact.fact_date >= month_start,
+        Fact.fact_date <= month_end,
+    ]
+
+    # Query PLANS for the month
     plan_query = (
         select(func.sum(Fact.amount).label("total"))
         .select_from(Fact)
         .join(Article, Fact.article_id == Article.id)
         .where(
-            Fact.user_id == current_user.id,
-            Fact.fact_date >= prev_start,
-            Fact.fact_date <= prev_end,
+            *base_conditions,
             Fact.record_type == "plan",
-            Article.type == article_type
+            Article.type.in_([article_type, type_filter])
         )
     )
-
     if article_id:
         plan_query = plan_query.where(Fact.article_id == article_id)
-
     if financial_center_id:
         plan_query = plan_query.where(Fact.financial_center_id == financial_center_id)
 
     plan_result = await session.execute(plan_query)
-    plan_row = plan_result.first()
-    prev_plan_sum = Decimal(str(plan_row[0])) if plan_row and plan_row[0] else None
+    period_plan_sum = plan_result.scalar_one_or_none()
 
-    # Query previous month FACTS
+    # Query FACTS for the month
     fact_query = (
         select(func.sum(Fact.amount).label("total"))
         .select_from(Fact)
         .join(Article, Fact.article_id == Article.id)
         .where(
-            Fact.user_id == current_user.id,
-            Fact.fact_date >= prev_start,
-            Fact.fact_date <= prev_end,
+            *base_conditions,
             Fact.record_type == "fact",
-            Article.type == article_type
+            Article.type.in_([article_type, type_filter])
         )
     )
-
     if article_id:
         fact_query = fact_query.where(Fact.article_id == article_id)
-
     if financial_center_id:
         fact_query = fact_query.where(Fact.financial_center_id == financial_center_id)
 
     fact_result = await session.execute(fact_query)
-    fact_row = fact_result.first()
-    prev_fact_sum = Decimal(str(fact_row[0])) if fact_row and fact_row[0] else None
+    period_fact_sum = fact_result.scalar_one_or_none()
 
-    return PlanHintsResponse(
-        prev_period_plan_sum=prev_plan_sum,
-        prev_period_fact_sum=prev_fact_sum,
-        prev_period=prev_period_str,
+    return FactHintsResponse(
+        period_plan_sum=period_plan_sum,
+        period_fact_sum=period_fact_sum,
+        period=period_str,
         article_id=article_id,
         article_name=article_name,
         article_type=article_type
     )
+
+

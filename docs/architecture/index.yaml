@@ -1,0 +1,302 @@
+# Family Budget - Architecture Dependency Graph
+# Main index file with links to all sections
+
+meta:
+  version: "1.0.0"
+  project: "Family Budget"
+  description: "Граф зависимостей для работы с кодовой базой"
+  generated: "2025-12-18"
+  total_files: 52
+
+  legend:
+    references:
+      "$ref": "JSON Reference pointer to related element"
+      "./": "Same directory"
+      "../": "Parent directory"
+      "#/path": "JSON Pointer within file"
+
+    fk_symbols:
+      "→": "Required foreign key"
+      "⊗": "Optional foreign key (nullable)"
+      "↔": "Self-reference"
+
+    patterns:
+      scd_type_1: "In-place updates, stable PK"
+      scd_type_2: "Full history with versioning (valid_from/valid_to)"
+      closure_table: "Efficient O(1) hierarchical queries"
+      star_schema: "Fact table with dimension FKs"
+      partitioned: "Table partitioned by date range"
+
+# =============================================================================
+# SECTIONS
+# =============================================================================
+
+sections:
+
+  # ---------------------------------------------------------------------------
+  # 1. FUNCTIONALITY (Business Logic)
+  # ---------------------------------------------------------------------------
+  functionality:
+    description: "Модули бизнес-логики (12 модулей)"
+    index: "./functionality/_index.yaml"
+    modules:
+      - name: authentication
+        file: "./functionality/authentication.yaml"
+        description: "JWT, Telegram OAuth, Email/Password, 2FA"
+
+      - name: budget_management
+        file: "./functionality/budget-management.yaml"
+        description: "Категории, транзакции, иерархия"
+
+      - name: financial_centers
+        file: "./functionality/financial-centers.yaml"
+        description: "Счета, кошельки, балансы"
+
+      - name: cost_centers
+        file: "./functionality/cost-centers.yaml"
+        description: "Проекты, отделы, группы"
+
+      - name: transfers
+        file: "./functionality/transfers.yaml"
+        description: "Переводы между счетами"
+
+      - name: shopping_lists
+        file: "./functionality/shopping-lists.yaml"
+        description: "Списки покупок, offline sync"
+
+      - name: csv_import
+        file: "./functionality/csv-import.yaml"
+        description: "Импорт из Tinkoff, generic CSV, Google Sheets"
+
+      - name: notifications
+        file: "./functionality/notifications.yaml"
+        description: "Push уведомления, напоминания"
+
+      - name: analytics
+        file: "./functionality/analytics.yaml"
+        description: "Статистика, отчёты, дашборды"
+
+      - name: admin
+        file: "./functionality/admin.yaml"
+        description: "Управление пользователями, bulk операции"
+
+      - name: realtime
+        file: "./functionality/realtime.yaml"
+        description: "SSE события, real-time обновления"
+
+      - name: offline
+        file: "./functionality/offline.yaml"
+        description: "IndexedDB, sync queue, конфликты"
+
+  # ---------------------------------------------------------------------------
+  # 2. WEB (Frontend Components)
+  # ---------------------------------------------------------------------------
+  web:
+    description: "Frontend компоненты"
+    index: "./web/_index.yaml"
+    components:
+      - name: templates
+        file: "./web/templates.yaml"
+        description: "Jinja2 шаблоны (16+)"
+
+      - name: js_modules
+        file: "./web/js-modules.yaml"
+        description: "JavaScript модули (15+)"
+
+      - name: css
+        file: "./web/css.yaml"
+        description: "CSS файлы (Tailwind, DaisyUI)"
+
+      - name: htmx_triggers
+        file: "./web/htmx-triggers.yaml"
+        description: "HTMX → API endpoint mappings"
+
+  # ---------------------------------------------------------------------------
+  # 3. ENDPOINTS (API)
+  # ---------------------------------------------------------------------------
+  endpoints:
+    description: "API endpoints (50+)"
+    index: "./endpoints/_index.yaml"
+    groups:
+      - name: auth
+        file: "./endpoints/auth.yaml"
+        prefix: "/api/v1/auth"
+
+      - name: articles
+        file: "./endpoints/articles.yaml"
+        prefix: "/api/v1/articles"
+
+      - name: facts
+        file: "./endpoints/facts.yaml"
+        prefix: "/api/v1/facts"
+
+      - name: financial_centers
+        file: "./endpoints/financial-centers.yaml"
+        prefix: "/api/v1/financial-centers"
+
+      - name: cost_centers
+        file: "./endpoints/cost-centers.yaml"
+        prefix: "/api/v1/cost-centers"
+
+      - name: transfers
+        file: "./endpoints/transfers.yaml"
+        prefix: "/api/v1/transfers"
+
+      - name: shopping
+        file: "./endpoints/shopping.yaml"
+        prefix: "/api/v1/shopping-lists, /stores, /product-groups"
+
+      - name: import
+        file: "./endpoints/import.yaml"
+        prefix: "/api/v1/import"
+
+      - name: analytics
+        file: "./endpoints/analytics.yaml"
+        prefix: "/api/v1/analytics"
+
+      - name: admin
+        file: "./endpoints/admin.yaml"
+        prefix: "/api/v1/admin"
+
+      - name: sse
+        file: "./endpoints/sse.yaml"
+        prefix: "/api/v1/budget/events"
+
+      - name: health
+        file: "./endpoints/health.yaml"
+        prefix: "/health, /ready, /ping"
+
+  # ---------------------------------------------------------------------------
+  # 4. DATABASE (Objects)
+  # ---------------------------------------------------------------------------
+  database:
+    description: "Объекты СУБД (36 таблиц)"
+    index: "./database/_index.yaml"
+    categories:
+      - name: dimensions
+        file: "./database/dimensions.yaml"
+        description: "Dimension tables (t_d_*)"
+        count: 7
+
+      - name: facts
+        file: "./database/facts.yaml"
+        description: "Fact tables (t_f_*)"
+        count: 3
+
+      - name: history
+        file: "./database/history.yaml"
+        description: "History tables (*_history)"
+        count: 7
+
+      - name: hierarchy
+        file: "./database/hierarchy.yaml"
+        description: "Closure tables"
+        count: 2
+
+      - name: support
+        file: "./database/support.yaml"
+        description: "Support/linking tables"
+        count: 17
+
+      - name: indexes
+        file: "./database/indexes.yaml"
+        description: "Index стратегия"
+
+      - name: constraints
+        file: "./database/constraints.yaml"
+        description: "FK, CHECK, UNIQUE constraints"
+
+      - name: fk_graph
+        file: "./database/fk-graph.yaml"
+        description: "ASCII граф FK зависимостей"
+
+  # ---------------------------------------------------------------------------
+  # 5. FLOWS (Data Flow Diagrams)
+  # ---------------------------------------------------------------------------
+  flows:
+    description: "Диаграммы потоков данных"
+    index: "./flows/_index.yaml"
+    diagrams:
+      - name: create_transaction
+        file: "./flows/create-transaction.yaml"
+        description: "POST /facts → BudgetFact → SSE broadcast"
+
+      - name: telegram_oauth
+        file: "./flows/telegram-oauth.yaml"
+        description: "Telegram Login Widget → JWT → Cookie"
+
+      - name: sse_broadcast
+        file: "./flows/sse-broadcast.yaml"
+        description: "Change → BudgetConnectionManager → All clients"
+
+      - name: offline_sync
+        file: "./flows/offline-sync.yaml"
+        description: "IndexedDB → Sync queue → Backend → Conflict resolution"
+
+      - name: csv_import
+        file: "./flows/csv-import.yaml"
+        description: "Upload → Detect → Preview → Execute"
+
+  # ---------------------------------------------------------------------------
+  # 6. GUIDES (Development Guides)
+  # ---------------------------------------------------------------------------
+  guides:
+    description: "Руководства для разработки"
+    index: "./guides/_index.yaml"
+    documents:
+      - name: change_checklist
+        file: "./guides/change-checklist.yaml"
+        description: "Чеклист при изменениях компонентов"
+
+      - name: critical_paths
+        file: "./guides/critical-paths.yaml"
+        description: "High-impact зависимости"
+
+      - name: impact_analysis
+        file: "./guides/impact-analysis.yaml"
+        description: "Как делать impact analysis"
+
+# =============================================================================
+# QUICK LINKS
+# =============================================================================
+
+quick_links:
+  # Most commonly needed files
+  common:
+    - label: "Article CRUD"
+      files:
+        - "./functionality/budget-management.yaml"
+        - "./endpoints/articles.yaml"
+        - "./database/dimensions.yaml#/tables/t_d_article"
+
+    - label: "Transaction CRUD"
+      files:
+        - "./functionality/budget-management.yaml"
+        - "./endpoints/facts.yaml"
+        - "./database/facts.yaml#/tables/t_f_budget_fact"
+
+    - label: "Authentication"
+      files:
+        - "./functionality/authentication.yaml"
+        - "./endpoints/auth.yaml"
+        - "./database/dimensions.yaml#/tables/t_d_user"
+
+    - label: "Real-time Updates"
+      files:
+        - "./functionality/realtime.yaml"
+        - "./endpoints/sse.yaml"
+        - "./web/js-modules.yaml#/modules/budgetSSEClient"
+
+  # Change scenarios
+  scenarios:
+    add_new_field_to_model:
+      checklist: "./guides/change-checklist.yaml#/scenarios/add_field"
+
+    add_new_endpoint:
+      checklist: "./guides/change-checklist.yaml#/scenarios/add_endpoint"
+
+    add_new_js_module:
+      checklist: "./guides/change-checklist.yaml#/scenarios/add_js_module"
+
+    modify_database_schema:
+      checklist: "./guides/change-checklist.yaml#/scenarios/modify_schema"

@@ -1,0 +1,192 @@
+# Auth Endpoints
+# Authentication and authorization
+
+routes:
+  # ---------------------------------------------------------------------------
+  # TELEGRAM OAUTH
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/auth/telegram"
+    method: POST
+    auth: public
+    description: "Telegram OAuth login"
+    service:
+      $ref: "../functionality/authentication.yaml#/module/services/1"
+    request:
+      body:
+        id: "integer (Telegram user ID)"
+        first_name: "string"
+        last_name: "string (optional)"
+        username: "string (optional)"
+        photo_url: "string (optional)"
+        auth_date: "integer (Unix timestamp)"
+        hash: "string (HMAC-SHA256)"
+    response:
+      status: 200
+      body:
+        user:
+          id: "integer"
+          telegram_id: "integer"
+          username: "string"
+          is_admin: "boolean"
+        access_token: "string (also set as httpOnly cookie)"
+    errors:
+      - status: 401
+        detail: "Invalid Telegram auth data"
+      - status: 403
+        detail: "User not found (must be created by admin first)"
+    flow:
+      $ref: "../flows/telegram-oauth.yaml"
+
+  # ---------------------------------------------------------------------------
+  # TOKEN REFRESH
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/auth/refresh"
+    method: POST
+    auth: public
+    description: "Refresh JWT access token"
+    service:
+      $ref: "../functionality/authentication.yaml#/module/services/0"
+    request:
+      body:
+        refresh_token: "string"
+    response:
+      status: 200
+      body:
+        access_token: "string"
+        refresh_token: "string (new)"
+    errors:
+      - status: 401
+        detail: "Invalid or expired refresh token"
+
+  # ---------------------------------------------------------------------------
+  # LOGOUT
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/auth/logout"
+    method: POST
+    auth: user
+    description: "Logout and invalidate tokens"
+    response:
+      status: 200
+      body:
+        message: "Successfully logged out"
+    actions:
+      - "Delete refresh token from database"
+      - "Clear access_token cookie"
+
+  # ---------------------------------------------------------------------------
+  # EMAIL/PASSWORD AUTH
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/auth/register"
+    method: POST
+    auth: public
+    description: "Register with email/password"
+    service:
+      $ref: "../functionality/authentication.yaml#/module/services/3"
+    request:
+      body:
+        email: "string (valid email)"
+        password: "string (min 8 chars)"
+        first_name: "string"
+    response:
+      status: 201
+      body:
+        message: "Registration successful, check email for 2FA code"
+    errors:
+      - status: 400
+        detail: "Email already registered"
+
+  - path: "/api/v1/auth/login-email"
+    method: POST
+    auth: public
+    description: "Login with email/password (step 1)"
+    request:
+      body:
+        email: "string"
+        password: "string"
+    response:
+      status: 200
+      body:
+        session_token: "string (temporary)"
+        message: "2FA code sent to email"
+    errors:
+      - status: 401
+        detail: "Invalid email or password"
+
+  - path: "/api/v1/auth/2fa-verify"
+    method: POST
+    auth: public
+    description: "Verify 2FA code (step 2)"
+    service:
+      $ref: "../functionality/authentication.yaml#/module/services/4"
+    request:
+      body:
+        session_token: "string"
+        code: "string (6 digits)"
+    response:
+      status: 200
+      body:
+        access_token: "string"
+        refresh_token: "string"
+    errors:
+      - status: 401
+        detail: "Invalid or expired code"
+
+  # ---------------------------------------------------------------------------
+  # WEBAPP AUTH
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/webapp/validate"
+    method: POST
+    auth: public
+    description: "Validate Telegram Web App initData"
+    service:
+      $ref: "../functionality/authentication.yaml#/module/services/6"
+    request:
+      body:
+        initData: "string (Telegram Web App init data)"
+    response:
+      status: 200
+      body:
+        access_token: "string"
+        user:
+          id: "integer"
+          telegram_id: "integer"
+    errors:
+      - status: 401
+        detail: "Invalid initData"
+
+  # ---------------------------------------------------------------------------
+  # USER INFO
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/users/me"
+    method: GET
+    auth: user
+    description: "Get current user info"
+    response:
+      status: 200
+      body:
+        id: "integer"
+        telegram_id: "integer"
+        email: "string (optional)"
+        username: "string"
+        first_name: "string"
+        is_admin: "boolean"
+        is_active: "boolean"
+        created_at: "datetime"
+        last_login_at: "datetime"
+
+# Models
+models:
+  - $ref: "../database/dimensions.yaml#/tables/t_d_user"
+  - $ref: "../database/support.yaml#/tables/t_refresh_token"
+  - $ref: "../database/support.yaml#/tables/t_2fa_session"
+
+# Schemas
+schemas:
+  path: "backend/app/schemas/auth.py"
+  classes:
+    - TelegramAuthRequest
+    - TokenResponse
+    - RegisterRequest
+    - LoginEmailRequest
+    - TwoFactorVerifyRequest
+    - UserResponse
