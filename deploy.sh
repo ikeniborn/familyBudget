@@ -1445,22 +1445,22 @@ main() {
                 smoke_test_failed=true
             fi
 
-            # Test 2: Lists page loads
-            lists_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/lists 2>/dev/null || echo "000")
-            if [[ "$lists_status" == "200" ]]; then
-                success "✓ Lists page loads (HTTP $lists_status)"
+            # Test 2: Manifest loads (public endpoint)
+            manifest_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/manifest.json 2>/dev/null || echo "000")
+            if [[ "$manifest_status" == "200" ]]; then
+                success "✓ Manifest loads (HTTP $manifest_status)"
             else
-                warning "✗ Lists page failed (HTTP $lists_status)"
+                warning "✗ Manifest failed (HTTP $manifest_status)"
                 smoke_test_failed=true
             fi
 
-            # Test 3: Static files have versions (not PLACEHOLDER)
-            lists_html=$(curl -s http://localhost:8000/lists 2>/dev/null)
-            if echo "$lists_html" | grep -q "PLACEHOLDER"; then
-                warning "✗ Lists page contains PLACEHOLDER tokens"
+            # Test 3: Manifest has proper version (not PLACEHOLDER)
+            manifest_json=$(curl -s http://localhost:8000/manifest.json 2>/dev/null)
+            if echo "$manifest_json" | grep -q "PLACEHOLDER"; then
+                warning "✗ Manifest contains PLACEHOLDER tokens"
                 smoke_test_failed=true
             else
-                success "✓ Lists page has proper versions (no PLACEHOLDER)"
+                success "✓ Manifest has proper versions (no PLACEHOLDER)"
             fi
 
             # Test 4: Hierarchy JS loads
@@ -1472,17 +1472,23 @@ main() {
                 smoke_test_failed=true
             fi
 
-            # Test 5: Service Worker has version
+            # Test 5: Service Worker has version (check minified version)
             if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
-                sw_content=$(curl -s http://localhost:8000/sw.js 2>/dev/null)
-                if echo "$sw_content" | grep -q "CACHE_VERSION_PLACEHOLDER"; then
-                    warning "✗ Service Worker contains PLACEHOLDER"
+                sw_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/sw.min.js 2>/dev/null || echo "000")
+                if [[ "$sw_status" != "200" ]]; then
+                    warning "✗ Service Worker not accessible (HTTP $sw_status)"
                     smoke_test_failed=true
-                elif echo "$sw_content" | grep -qE "CACHE_VERSION.*=.*'v-[0-9]+"; then
-                    sw_ver=$(echo "$sw_content" | grep -oE "v-[0-9_]+" | head -1)
-                    success "✓ Service Worker has version: $sw_ver"
                 else
-                    warning "⚠ Could not verify Service Worker version"
+                    sw_content=$(curl -s http://localhost:8000/sw.min.js 2>/dev/null)
+                    if echo "$sw_content" | grep -q "CACHE_VERSION_PLACEHOLDER"; then
+                        warning "✗ Service Worker contains PLACEHOLDER"
+                        smoke_test_failed=true
+                    elif echo "$sw_content" | grep -qE "CACHE_VERSION.*=.*['\"]v[0-9]{8}_[0-9]{4}"; then
+                        sw_ver=$(echo "$sw_content" | grep -oE "v[0-9]{8}_[0-9]{4}" | head -1)
+                        success "✓ Service Worker has version: $sw_ver"
+                    else
+                        warning "⚠ Could not verify Service Worker version format"
+                    fi
                 fi
             fi
 
