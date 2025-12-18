@@ -837,8 +837,6 @@ async function loadTransactionCategories() {
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     debugLog('Transaction category changed:', category);
-                    // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_modal_add_transaction', 'fact', category);
                     // Update fact hints for current month
                     loadFactHints(category);
                 }
@@ -948,10 +946,8 @@ async function loadFinancialCenters() {
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_transaction', fcId);
-                // Update recommended amounts
-                const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
-                loadRecommendedAmounts('form_modal_add_transaction', 'fact', selectedCategory);
                 // Update fact hints for current month
+                const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
                 loadFactHints(selectedCategory);
             });
         }
@@ -1120,24 +1116,6 @@ async function filterCostCenterDropdown(formSelector, financialCenterId) {
 
 // showToast и showNotification определены в base.html - используем глобальные функции
 // (не нужно переопределять здесь)
-
-// Quick Amount для формы факта
-function setTransactionAmount(value) {
-    const amountInput = document.querySelector('#form_modal_add_transaction input[name="amount"]');
-    if (amountInput) {
-        amountInput.value = Math.round(value);
-        amountInput.focus();
-    }
-}
-
-// Quick Amount для формы плана
-function setPlanAmount(value) {
-    const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
-    if (amountInput) {
-        amountInput.value = Math.round(value);
-        amountInput.focus();
-    }
-}
 
 // Quick Date для формы факта
 function setTransactionDate(daysOffset) {
@@ -1328,9 +1306,6 @@ function setupTransactionTypeButtons() {
             debugLog('Transaction type changed to:', this.dataset.type);
             loadTransactionCategories();
 
-            // Обновить рекомендуемые суммы для нового типа факта
-            loadRecommendedAmounts('form_modal_add_transaction', 'fact');
-
             // Обновить fact hints для нового типа
             const cat = transactionCategoryTreeSelect?.getSelectedCategory();
             loadFactHints(cat);
@@ -1361,9 +1336,6 @@ function setupPlanTypeButtons() {
             // Перезагрузить только категории планов с новым типом
             debugLog('Plan type changed to:', this.dataset.type);
             loadPlanCategories();
-
-            // Обновить рекомендуемые суммы для нового типа плана
-            loadRecommendedAmounts('form_modal_add_plan', 'plan');
         });
     });
 }

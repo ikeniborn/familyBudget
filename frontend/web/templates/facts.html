@@ -452,106 +452,6 @@ function initDefaultPeriodFilter() {
     updateFilterIndicator();
 }
 
-// Debounce state for recommended amounts
-let recommendedAmountsTimeout = null;
-let recommendedAmountsController = null;
-
-/**
- * Load recommended amounts from API and update quick amount buttons.
- *
- * @param {string} formId - ID модальной формы ('form_modal_add_transaction')
- * @param {string} recordType - Тип записи ('fact')
- * @param {object|null} category - Выбранная категория (из onCategoryChange callback)
- */
-async function loadRecommendedAmounts(formId, recordType = 'fact', category = null) {
-    // Clear existing debounce timeout
-    if (recommendedAmountsTimeout) {
-        clearTimeout(recommendedAmountsTimeout);
-    }
-
-    // Cancel pending API call
-    if (recommendedAmountsController) {
-        recommendedAmountsController.abort();
-    }
-
-    // Debounce: wait 300ms after last call
-    recommendedAmountsTimeout = setTimeout(async () => {
-        try {
-            recommendedAmountsController = new AbortController();
-
-            // Get form elements
-            const form = document.getElementById(formId);
-            if (!form) {
-                console.warn(`[loadRecommendedAmounts] Form ${formId} not found`);
-                return;
-            }
-
-            // Get current type (income/expense)
-            const typeInput = form.querySelector('input[name="record_type"]:checked');
-            const type = typeInput ? typeInput.value : 'expense';
-
-            // Get current category (from callback parameter, not DOM!)
-            const articleId = category ? category.id : null;
-
-            // Build query params
-            const params = new URLSearchParams({
-                record_type: recordType,
-                period: 'quarter',  // 90 days analysis
-            });
-
-            if (articleId && articleId !== '') {
-                params.append('article_id', articleId);
-            }
-
-            if (type) {
-                params.append('article_type', type);
-            }
-
-            // Call API
-            const response = await fetch(`/api/v1/analytics/recommended-amounts?${params.toString()}`, {
-                signal: recommendedAmountsController.signal,
-                credentials: 'include',  // Include cookies for auth
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
-
-                // Graceful fallback for 422 (validation error or no data)
-                if (response.status === 422) {
-                    console.warn(`[loadRecommendedAmounts] API validation error (using fallback):`, errorData);
-
-                    // Client-side fallback defaults (same as backend DEFAULT_AMOUNTS)
-                    const fallbackDefaults = {
-                        'fact-expense': [100, 500, 1000, 5000],
-                        'fact-income': [10000, 20000, 50000, 100000],
-                    };
-
-                    const fallbackKey = `${recordType}-${type || 'expense'}`;
-                    const fallbackAmounts = fallbackDefaults[fallbackKey] || fallbackDefaults['fact-expense'];
-
-                    updateQuickAmountButtons(formId, fallbackAmounts);
-                    return;
-                }
-
-                console.error(`[loadRecommendedAmounts] API error: ${response.status}`, errorData);
-                return;
-            }
-
-            const data = await response.json();
-
-            // Update button labels with new amounts
-            updateQuickAmountButtons(formId, data.amounts);
-
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                debugLog('[loadRecommendedAmounts] Request cancelled (debounce)');
-            } else {
-                console.error('[loadRecommendedAmounts] Failed to load:', error);
-            }
-        }
-    }, 300); // 300ms debounce
-}
-
 // ============ Fact Hints Functions ============
 
 let factHintsTimeout = null;
@@ -843,8 +743,6 @@ async function loadArticles() {
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
                     debugLog('Category changed in create modal:', category);
-                    // Update recommended amounts based on selected category
-                    loadRecommendedAmounts('form_modal_add_transaction', 'fact', category);
                     // Update fact hints for current month
                     loadFactHints(category);
                 }
@@ -2128,9 +2026,6 @@ function setupCreateTransactionTypeButtons() {
                 createCategoryTreeSelect.updateType(createType);
             }
 
-            // Обновить рекомендуемые суммы для нового типа факта
-            loadRecommendedAmounts('form_modal_add_transaction', 'fact');  // FIXED: form_modal_add_transaction
-
             // Обновить fact hints для нового типа
             const cat = createCategoryTreeSelect?.getSelectedCategory();
             loadFactHints(cat);
@@ -2264,14 +2159,6 @@ async function createFact(event) {
         showToast('Ошибка при создании факта: ' + error.message, 'error');
     } finally {
         setSubmitLoading(event.target, false);
-    }
-}
-
-// Установить сумму факта из quick amount buttons
-function setTransactionAmount(amount) {
-    const amountInput = document.querySelector('#form_modal_add_transaction input[name="amount"]');
-    if (amountInput) {
-        amountInput.value = amount;
     }
 }
 

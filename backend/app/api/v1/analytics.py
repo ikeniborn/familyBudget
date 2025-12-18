@@ -22,8 +22,6 @@ from backend.app.models.fact import BudgetFact as Fact
 from backend.app.schemas.analytics import (
     FactHintsResponse,
     PlanHintsResponse,
-    RecommendedAmountsMetadata,
-    RecommendedAmountsResponse,
 )
 from backend.app.utils.date_helpers import (
     get_current_calendar_month,
