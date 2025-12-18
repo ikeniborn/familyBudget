@@ -981,9 +981,9 @@ class CSVImporter {
                 this.listsManager.renderItemsTable();
 
                 // Close import accordion
-                const importToggle = document.getElementById('import-toggle');
-                if (importToggle) {
-                    importToggle.checked = false;
+                const importWizardContainer = document.getElementById('import-wizard-container');
+                if (importWizardContainer && !importWizardContainer.classList.contains('hidden')) {
+                    toggleImportWizard(); // Use the new toggle function
                 }
 
                 // Reset wizard

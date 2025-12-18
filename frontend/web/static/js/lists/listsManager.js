@@ -2312,17 +2312,20 @@ function initializeImportWizard() {
 }
 
 /**
- * Handle import accordion toggle (open/close)
- * @param {boolean} isOpen - Whether the accordion is being opened
+ * Toggle import wizard accordion (open/close)
+ * Handles opening/closing the import wizard container and updating the visual indicator
  */
-function handleImportToggle(isOpen) {
+function toggleImportWizard() {
+    const container = document.getElementById('import-wizard-container');
+    const icon = document.getElementById('import-toggle-icon');
     const wizardContainer = document.getElementById('import-wizard');
+    const isOpen = !container.classList.contains('hidden');
 
     if (isOpen) {
-        // Opening - initialize wizard
-        initializeImportWizard();
-    } else {
-        // Closing - clear wizard content and reset state
+        // Closing - hide wizard and reset state
+        container.classList.add('hidden');
+        icon.textContent = '▶';
+
         if (wizardContainer) {
             wizardContainer.innerHTML = '';
         }
@@ -2331,6 +2334,11 @@ function handleImportToggle(isOpen) {
             window.importManager.currentMethod = null;
         }
         debugLog('[ImportWizard] Closed and reset');
+    } else {
+        // Opening - show wizard and initialize
+        container.classList.remove('hidden');
+        icon.textContent = '▼';
+        initializeImportWizard();
     }
 }
 
