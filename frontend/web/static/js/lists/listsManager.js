@@ -116,6 +116,9 @@ class ListsManager {
             // Show landing view by default
             await this.showLandingView();
 
+            // Setup product autocomplete (mobile-compatible)
+            this._setupProductAutocomplete();
+
             debugLog('[ListsManager] Initialized successfully');
         } catch (error) {
             console.error('[ListsManager] Initialization error:', error);
@@ -1712,6 +1715,27 @@ class ListsManager {
     // ==========================================================
 
     /**
+     * Setup product name autocomplete with mobile-compatible event handling
+     * @private
+     */
+    _setupProductAutocomplete() {
+        const input = document.getElementById('item-product-name');
+        if (!input || input._autocompleteInitialized) return;
+
+        const handler = () => {
+            this.handleProductInput(input.value);
+        };
+
+        // Multiple events for cross-browser mobile compatibility
+        input.addEventListener('input', handler);      // Primary (desktop & some mobile)
+        input.addEventListener('keyup', handler);      // Fallback for mobile keyboards
+        input.addEventListener('compositionend', handler); // IME input (iOS, Android)
+
+        input._autocompleteInitialized = true;
+        debugLog('[ListsManager] Product autocomplete initialized');
+    }
+
+    /**
      * Handle product input for autocomplete
      * @param {string} value - Input value
      */
@@ -2026,7 +2050,15 @@ function openAddItemModal() {
         quantityInput.step = '1';
     }
 
+    // Ensure autocomplete is set up (mobile fix)
+    window.listsManager?._setupProductAutocomplete();
+
     modal.showModal();
+
+    // Focus input after modal animation (iOS Safari fix)
+    setTimeout(() => {
+        document.getElementById('item-product-name')?.focus();
+    }, 100);
 }
 
 /**
@@ -2057,6 +2089,9 @@ function openEditItemModal(itemId) {
     if (window.listsManager.choicesInstances.productGroup) {
         window.listsManager.choicesInstances.productGroup.setChoiceByValue(item.product_group_id.toString());
     }
+
+    // Ensure autocomplete is set up (mobile fix)
+    window.listsManager?._setupProductAutocomplete();
 
     modal.showModal();
 }
