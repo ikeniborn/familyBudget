@@ -2324,6 +2324,7 @@ function initializeImportWizard() {
 function toggleImportWizard() {
     const container = document.getElementById('import-wizard-container');
     const icon = document.getElementById('import-toggle-icon');
+    const hint = document.getElementById('import-toggle-hint');
     const wizardContainer = document.getElementById('import-wizard');
     const isOpen = !container.classList.contains('hidden');
 
@@ -2331,6 +2332,7 @@ function toggleImportWizard() {
         // Closing - hide wizard and reset state
         container.classList.add('hidden');
         icon.textContent = '▶';
+        if (hint) hint.classList.remove('hidden');
 
         if (wizardContainer) {
             wizardContainer.innerHTML = '';
@@ -2344,6 +2346,7 @@ function toggleImportWizard() {
         // Opening - show wizard and initialize
         container.classList.remove('hidden');
         icon.textContent = '▼';
+        if (hint) hint.classList.add('hidden');
         initializeImportWizard();
     }
 }
