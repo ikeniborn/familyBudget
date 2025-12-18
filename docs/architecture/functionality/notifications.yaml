@@ -1,0 +1,166 @@
+# Notifications Module
+# Push notifications, reminders, broadcast
+
+module:
+  name: notifications
+  description: "Push уведомления, напоминания, broadcast сообщения"
+
+  # ---------------------------------------------------------------------------
+  # SERVICES
+  # ---------------------------------------------------------------------------
+  services:
+    - name: notification_service
+      path: "backend/app/services/notification_service.py"
+      loc: 435
+      functions:
+        - create_notification
+        - get_user_notifications
+        - mark_as_read
+        - broadcast_notification  # user_id=NULL for all users
+      depends_on: []
+      models:
+        - $ref: "../database/support.yaml#/tables/t_notification"
+      notes: "Broadcast support via user_id=NULL"
+
+    - name: reminder_service
+      path: "backend/app/services/reminder_service.py"
+      loc: 640
+      functions:
+        - create_reminder
+        - get_user_reminders
+        - update_reminder
+        - delete_reminder
+        - process_due_reminders  # Called by scheduler
+      depends_on:
+        - notification_service
+        - push_service
+      models:
+        - $ref: "../database/support.yaml#/tables/t_scheduled_reminder"
+      notes: "APScheduler integration"
+
+    - name: push_service
+      path: "backend/app/services/push_service.py"
+      loc: 309
+      functions:
+        - subscribe
+        - unsubscribe
+        - send_push_notification
+        - get_vapid_public_key
+      depends_on: []
+      models:
+        - $ref: "../database/support.yaml#/tables/t_push_subscription"
+      notes: "Web Push API (VAPID)"
+
+  # ---------------------------------------------------------------------------
+  # MODELS
+  # ---------------------------------------------------------------------------
+  models:
+    - $ref: "../database/support.yaml#/tables/t_notification"
+    - $ref: "../database/support.yaml#/tables/t_scheduled_reminder"
+    - $ref: "../database/support.yaml#/tables/t_push_subscription"
+
+  # ---------------------------------------------------------------------------
+  # SCHEMAS
+  # ---------------------------------------------------------------------------
+  schemas:
+    path: "backend/app/schemas/"
+    files:
+      - notification.py:
+          - NotificationCreate
+          - NotificationResponse
+      - reminder.py:
+          - ReminderCreate
+          - ReminderUpdate
+          - ReminderResponse
+      - push.py:
+          - PushSubscriptionCreate
+          - VapidPublicKeyResponse
+
+  # ---------------------------------------------------------------------------
+  # ENDPOINTS
+  # ---------------------------------------------------------------------------
+  endpoints:
+    notifications:
+      prefix: "/api/v1/notifications"
+      routes:
+        - path: "/"
+          methods: [GET]
+          description: "Get user notifications"
+        - path: "/send"
+          methods: [POST]
+          description: "Send notification (admin)"
+        - path: "/{id}/read"
+          methods: [POST]
+          description: "Mark notification as read"
+
+    reminders:
+      prefix: "/api/v1/reminders"
+      $ref: "../endpoints/reminders.yaml#/routes"
+
+    push:
+      prefix: "/api/v1/push"
+      routes:
+        - path: "/vapid-key"
+          methods: [GET]
+          description: "Get VAPID public key"
+        - path: "/subscribe"
+          methods: [POST]
+          description: "Subscribe to push notifications"
+        - path: "/unsubscribe"
+          methods: [POST]
+          description: "Unsubscribe from push notifications"
+
+  # ---------------------------------------------------------------------------
+  # NOTIFICATION TYPES
+  # ---------------------------------------------------------------------------
+  notification_types:
+    broadcast:
+      description: "Sent to all users (user_id=NULL)"
+      examples:
+        - "System maintenance announcement"
+        - "New feature released"
+
+    personal:
+      description: "Sent to specific user"
+      examples:
+        - "Budget limit exceeded"
+        - "Reminder triggered"
+
+  # ---------------------------------------------------------------------------
+  # SCHEDULER INTEGRATION
+  # ---------------------------------------------------------------------------
+  scheduler:
+    path: "backend/app/scheduler.py"
+    jobs:
+      - name: process_reminders
+        schedule: "every 1 minute"
+        function: "reminder_service.process_due_reminders"
+
+      - name: weekly_report
+        schedule: "every Monday at 09:00"
+        function: "send_weekly_report"
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND
+  # ---------------------------------------------------------------------------
+  frontend:
+    page:
+      $ref: "../web/templates.yaml#/templates/notifications"
+    js_module:
+      $ref: "../web/js-modules.yaml#/modules/pushManager"
+    service_worker:
+      path: "frontend/web/static/sw.js"
+      handles: "push events"
+
+  # ---------------------------------------------------------------------------
+  # DEPENDENCIES
+  # ---------------------------------------------------------------------------
+  depends_on:
+    - $ref: "./authentication.yaml#/module"
+
+  # ---------------------------------------------------------------------------
+  # USED BY
+  # ---------------------------------------------------------------------------
+  used_by:
+    - $ref: "./budget-management.yaml#/module"
+    - $ref: "../web/templates.yaml#/templates/base"

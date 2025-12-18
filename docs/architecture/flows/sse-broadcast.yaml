@@ -1,0 +1,354 @@
+# SSE Broadcast Flow
+# Real-time event propagation to connected clients
+
+meta:
+  name: "SSE Broadcast"
+  trigger: "Data mutation (create, update, delete)"
+  actors:
+    - "Backend service (event producer)"
+    - "BudgetConnectionManager"
+    - "Web browser (event consumer)"
+  outcome: "All connected clients receive real-time updates"
+
+critical_constraint:
+  description: |
+    CRITICAL: Application MUST run with WORKERS=1 (single uvicorn worker).
+
+    BudgetConnectionManager stores connections in-memory (Python dict).
+    Multiple workers would have SEPARATE connection pools.
+    Events broadcast by worker A would NOT reach clients on worker B.
+
+  configuration:
+    docker_compose: "--workers 1"
+    env_var: "WORKERS=1"
+
+  scaling_solution: |
+    For multiple workers, implement Redis Pub/Sub:
+    - Publish events to Redis channel
+    - Each worker subscribes to channel
+    - Each worker broadcasts to its local connections
+
+# ===========================================================================
+# FLOW DIAGRAM
+# ===========================================================================
+diagram: |
+  ┌─────────────────────────────────────────────────────────────────────────┐
+  │                       SSE BROADCAST FLOW                                │
+  └─────────────────────────────────────────────────────────────────────────┘
+
+  ●─────────────────────────────────────────────────────────────────────────●
+  │                                                                         │
+  │  CLIENT CONNECTION SETUP                                                │
+  │  ═══════════════════════                                                │
+  │                                                                         │
+  │  ┌────────────┐     ┌──────────────────┐     ┌────────────────────┐    │
+  │  │ Browser    │────►│ GET /budget/     │────►│ JWT Auth           │    │
+  │  │ EventSource│     │ events/connect   │     │ Middleware         │    │
+  │  └────────────┘     └──────────────────┘     └─────────┬──────────┘    │
+  │                                                        │               │
+  │                                               ◆ Valid token?           │
+  │                                              / \                       │
+  │                                             /   \                      │
+  │                                           Yes    No───► 401            │
+  │                                            │                           │
+  │                                            ▼                           │
+  │                     ┌──────────────────────────────────────────┐       │
+  │                     │ BudgetConnectionManager.connect()        │       │
+  │                     │                                          │       │
+  │                     │  connections: Dict[user_id, Set[Queue]]  │       │
+  │                     │  ┌─────────────────────────────────────┐ │       │
+  │                     │  │ user_1: {queue_a, queue_b}          │ │       │
+  │                     │  │ user_2: {queue_c}                   │ │       │
+  │                     │  │ user_3: {queue_d, queue_e, queue_f} │ │       │
+  │                     │  └─────────────────────────────────────┘ │       │
+  │                     └──────────────────────────────────────────┘       │
+  │                                            │                           │
+  │                                            ▼                           │
+  │                     ┌──────────────────────────────────────────┐       │
+  │                     │ Response: text/event-stream              │       │
+  │                     │ Cache-Control: no-cache                  │       │
+  │                     │ Connection: keep-alive                   │       │
+  │                     └──────────────────────────────────────────┘       │
+  │                                            │                           │
+  │                                            ▼                           │
+  │                     ┌──────────────────────────────────────────┐       │
+  │                     │ Send "connected" event                   │       │
+  │                     │ data: {"message": "Connected to SSE",    │       │
+  │                     │        "connection_id": "uuid"}          │       │
+  │                     └──────────────────────────────────────────┘       │
+  │                                                                         │
+  │                                                                         │
+  │  EVENT BROADCAST                                                        │
+  │  ═══════════════                                                        │
+  │                                                                         │
+  │  ┌────────────┐                                                         │
+  │  │ API        │                                                         │
+  │  │ Endpoint   │  POST /facts, PUT /facts/{id}, DELETE /facts/{id}      │
+  │  └─────┬──────┘                                                         │
+  │        │                                                                │
+  │        ▼                                                                │
+  │  ┌────────────────┐                                                     │
+  │  │ Service Layer  │                                                     │
+  │  │ (business      │                                                     │
+  │  │  logic)        │                                                     │
+  │  └─────┬──────────┘                                                     │
+  │        │                                                                │
+  │        ▼                                                                │
+  │  ┌────────────────┐                                                     │
+  │  │ Database       │                                                     │
+  │  │ Commit         │                                                     │
+  │  └─────┬──────────┘                                                     │
+  │        │                                                                │
+  │        │ After successful commit                                        │
+  │        ▼                                                                │
+  │  ┌─────────────────────────────────────────────────────────────┐       │
+  │  │ await connection_manager.broadcast(event_type, data)        │       │
+  │  └──────────────────────────┬──────────────────────────────────┘       │
+  │                             │                                          │
+  │                             ▼                                          │
+  │  ┌─────────────────────────────────────────────────────────────┐       │
+  │  │ For each user in connections:                               │       │
+  │  │   For each queue in user's queues:                          │       │
+  │  │     queue.put_nowait(event)                                 │       │
+  │  └─────────────────────────────────────────────────────────────┘       │
+  │                             │                                          │
+  │                             ▼                                          │
+  │  ┌───────────────────────────────────────────────────────────────────┐ │
+  │  │                                                                   │ │
+  │  │  Client A          Client B          Client C                     │ │
+  │  │  (user_1)          (user_1)          (user_2)                     │ │
+  │  │     │                  │                  │                        │ │
+  │  │     ▼                  ▼                  ▼                        │ │
+  │  │  ┌──────┐          ┌──────┐          ┌──────┐                     │ │
+  │  │  │event │          │event │          │event │                     │ │
+  │  │  │data  │          │data  │          │data  │                     │ │
+  │  │  └──────┘          └──────┘          └──────┘                     │ │
+  │  │                                                                   │ │
+  │  └───────────────────────────────────────────────────────────────────┘ │
+  │                                                                         │
+  ○─────────────────────────────────────────────────────────────────────────○
+
+# ===========================================================================
+# EVENT TYPES
+# ===========================================================================
+events:
+  connected:
+    trigger: "Client establishes SSE connection"
+    data:
+      message: "Connected to SSE"
+      connection_id: "UUID"
+
+  fact_created:
+    trigger: "POST /api/v1/facts"
+    data:
+      id: "integer"
+      amount: "decimal"
+      article_id: "integer"
+      fact_date: "YYYY-MM-DD"
+
+  fact_updated:
+    trigger: "PUT /api/v1/facts/{id}"
+    data:
+      id: "integer"
+      changed_fields: "array of field names"
+
+  fact_deleted:
+    trigger: "DELETE /api/v1/facts/{id}"
+    data:
+      id: "integer"
+
+  transfer_created:
+    trigger: "POST /api/v1/transfers"
+    data:
+      transfer_id: "UUID"
+      from_financial_center_id: "integer"
+      to_financial_center_id: "integer"
+      amount: "decimal"
+
+  shopping_list_item_created:
+    trigger: "POST /api/v1/shopping-list-items"
+    data:
+      id: "integer"
+      shopping_list_id: "integer"
+      name: "string"
+
+  shopping_list_item_updated:
+    trigger: "PUT /api/v1/shopping-list-items/{id}"
+    data:
+      id: "integer"
+      changed_fields: "array"
+
+  shopping_list_item_deleted:
+    trigger: "DELETE /api/v1/shopping-list-items/{id}"
+    data:
+      id: "integer"
+
+  article_created:
+    trigger: "POST /api/v1/articles"
+    data:
+      id: "integer"
+      name: "string"
+      type: "string"
+
+  article_updated:
+    trigger: "PUT /api/v1/articles/{id}"
+    data:
+      id: "integer"
+      changed_fields: "array"
+
+  ping:
+    trigger: "Keep-alive timer (30 seconds)"
+    data:
+      timestamp: "ISO 8601"
+
+# ===========================================================================
+# CONNECTION MANAGER
+# ===========================================================================
+connection_manager:
+  class: "BudgetConnectionManager"
+  file: "backend/app/api/v1/endpoints/budget_sse.py"
+
+  data_structures:
+    connections:
+      type: "Dict[int, Set[asyncio.Queue]]"
+      description: "user_id → set of queues (one per browser tab)"
+
+  methods:
+    connect:
+      signature: "async def connect(user_id: int) -> asyncio.Queue"
+      description: "Add client to connection pool"
+      returns: "Queue for receiving events"
+
+    disconnect:
+      signature: "async def disconnect(user_id: int, queue: asyncio.Queue)"
+      description: "Remove client from connection pool"
+
+    broadcast:
+      signature: "async def broadcast(event_type: str, data: dict)"
+      description: "Send event to ALL connected clients"
+      implementation: |
+        for user_id, queues in self.connections.items():
+            for queue in queues:
+                await queue.put({"event": event_type, "data": data})
+
+    get_connection_count:
+      signature: "def get_connection_count() -> int"
+      description: "Total number of active connections"
+
+# ===========================================================================
+# FRONTEND INTEGRATION
+# ===========================================================================
+frontend:
+  js_module:
+    $ref: "../web/js-modules.yaml#/modules/budgetSSEClient"
+
+  connection_code: |
+    const eventSource = new EventSource('/api/v1/budget/events/connect');
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      handleEvent(data);
+    };
+
+    eventSource.onerror = (error) => {
+      // Reconnect logic
+      setTimeout(reconnect, 5000);
+    };
+
+  event_handlers:
+    fact_created:
+      action: "Add new row to transactions table"
+      animation: "Highlight new row"
+
+    fact_updated:
+      action: "Update row in transactions table"
+
+    fact_deleted:
+      action: "Remove row from transactions table"
+
+    shopping_list_item_updated:
+      action: "Update item checkbox/details"
+
+  ui_indicator:
+    location: "Navbar"
+    states:
+      connected: "Green badge"
+      disconnected: "Red badge"
+      reconnecting: "Yellow badge (pulsing)"
+
+# ===========================================================================
+# KEEP-ALIVE
+# ===========================================================================
+keepalive:
+  interval: "30 seconds"
+  event: "ping"
+  purpose:
+    - "Prevent connection timeout"
+    - "Detect dead connections"
+    - "Browser/proxy compatibility"
+
+  implementation: |
+    async def send_keepalive(queue: asyncio.Queue):
+        while True:
+            await asyncio.sleep(30)
+            await queue.put({
+                "event": "ping",
+                "data": {"timestamp": datetime.utcnow().isoformat()}
+            })
+
+# ===========================================================================
+# ERROR HANDLING
+# ===========================================================================
+error_handling:
+  client_disconnect:
+    detection: "BrokenPipeError, ConnectionResetError"
+    action: "Remove from connection pool, cleanup queue"
+
+  queue_full:
+    detection: "queue.put_nowait raises QueueFull"
+    action: "Drop event (client too slow)"
+    logging: "Warning with user_id"
+
+  broadcast_failure:
+    detection: "Exception during broadcast"
+    action: "Log error, continue with other clients"
+    note: "One failing client should not affect others"
+
+# ===========================================================================
+# SCALING CONSIDERATIONS
+# ===========================================================================
+scaling:
+  current_limitation:
+    description: "In-memory connection manager, single worker only"
+    max_connections: "~1000 per worker (memory dependent)"
+
+  redis_pubsub_solution:
+    description: "For multi-worker deployment"
+    implementation: |
+      # Each worker subscribes to Redis channel
+      redis = aioredis.from_url("redis://localhost")
+      pubsub = redis.pubsub()
+      await pubsub.subscribe("sse_events")
+
+      # On event, publish to Redis instead of direct broadcast
+      await redis.publish("sse_events", json.dumps({
+          "event": event_type,
+          "data": data
+      }))
+
+      # Each worker receives from Redis and broadcasts locally
+      async for message in pubsub.listen():
+          await local_connection_manager.broadcast(
+              message["event"],
+              message["data"]
+          )
+
+    benefits:
+      - "Multiple workers can run"
+      - "Events reach all clients regardless of worker"
+      - "Horizontal scaling possible"
+
+    requirements:
+      - "Redis server"
+      - "aioredis library"
+      - "Refactored connection manager"

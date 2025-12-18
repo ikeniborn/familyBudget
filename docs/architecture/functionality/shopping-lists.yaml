@@ -1,0 +1,160 @@
+# Shopping Lists Module
+# Lists, items, offline sync, product groups, stores
+
+module:
+  name: shopping_lists
+  description: "Списки покупок с поддержкой offline режима"
+
+  # ---------------------------------------------------------------------------
+  # SERVICES
+  # ---------------------------------------------------------------------------
+  services:
+    - name: shopping_list_service
+      path: "backend/app/services/shopping_list_service.py"
+      loc: 329
+      functions:
+        - create_list
+        - update_list
+        - delete_list
+        - get_user_lists
+      depends_on: []
+
+    - name: shopping_list_item_service
+      path: "backend/app/services/shopping_list_item_service.py"
+      loc: 493
+      functions:
+        - create_item
+        - update_item
+        - delete_items_batch
+        - sync_batch           # Offline sync
+        - get_items_by_list
+      depends_on: []
+      notes: "Batch operations, offline sync support"
+
+    - name: store_service
+      path: "backend/app/services/store_service.py"
+      functions:
+        - create_store
+        - update_store
+        - get_all_stores
+      depends_on: []
+      models:
+        - $ref: "../database/dimensions.yaml#/tables/t_d_store"
+        - $ref: "../database/history.yaml#/tables/t_d_store_history"
+
+    - name: product_group_service
+      path: "backend/app/services/product_group_service.py"
+      loc: 339
+      functions:
+        - create_product_group
+        - update_product_group
+        - get_all_product_groups
+      depends_on: []
+      models:
+        - $ref: "../database/dimensions.yaml#/tables/t_d_product_group"
+        - $ref: "../database/history.yaml#/tables/t_d_product_group_history"
+
+    - name: product_group_hierarchy_service
+      path: "backend/app/services/product_group_hierarchy_service.py"
+      loc: 455
+      functions:
+        - get_subtree
+        - get_ancestors
+        - get_path
+      depends_on: []
+      models:
+        - $ref: "../database/hierarchy.yaml#/tables/t_d_product_group_hierarchy"
+      notes: "Closure Table pattern (same as article hierarchy)"
+
+  # ---------------------------------------------------------------------------
+  # MODELS
+  # ---------------------------------------------------------------------------
+  models:
+    - $ref: "../database/facts.yaml#/tables/t_f_shopping_list"
+    - $ref: "../database/facts.yaml#/tables/t_f_shopping_list_item"
+    - $ref: "../database/dimensions.yaml#/tables/t_d_store"
+    - $ref: "../database/history.yaml#/tables/t_d_store_history"
+    - $ref: "../database/dimensions.yaml#/tables/t_d_product_group"
+    - $ref: "../database/history.yaml#/tables/t_d_product_group_history"
+    - $ref: "../database/hierarchy.yaml#/tables/t_d_product_group_hierarchy"
+
+  # ---------------------------------------------------------------------------
+  # SCHEMAS
+  # ---------------------------------------------------------------------------
+  schemas:
+    path: "backend/app/schemas/"
+    files:
+      - shopping_list.py:
+          - ShoppingListCreate
+          - ShoppingListUpdate
+          - ShoppingListResponse
+      - shopping_list_item.py:
+          - ShoppingListItemCreate
+          - ShoppingListItemUpdate
+          - ShoppingListItemResponse
+          - SyncBatchRequest
+          - SyncBatchResponse
+      - store.py:
+          - StoreCreate
+          - StoreUpdate
+          - StoreResponse
+      - product_group.py:
+          - ProductGroupCreate
+          - ProductGroupUpdate
+          - ProductGroupResponse
+
+  # ---------------------------------------------------------------------------
+  # ENDPOINTS
+  # ---------------------------------------------------------------------------
+  endpoints:
+    $ref: "../endpoints/shopping.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # OFFLINE SUPPORT
+  # ---------------------------------------------------------------------------
+  offline_support:
+    description: |
+      Shopping lists support offline mode with sync queue.
+
+    client_storage:
+      type: "IndexedDB"
+      js_module:
+        $ref: "../web/js-modules.yaml#/modules/offlineShoppingManager"
+
+    sync_mechanism:
+      endpoint: "POST /api/v1/shopping-list-items/sync/batch"
+      conflict_resolution: "last-write-wins (by timestamp)"
+      deduplication: "sync_hash field"
+
+    sse_events:
+      - shopping_list_created
+      - shopping_list_updated
+      - shopping_list_deleted
+      - shopping_list_item_created
+      - shopping_list_item_updated
+      - shopping_list_item_deleted
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND
+  # ---------------------------------------------------------------------------
+  frontend:
+    page:
+      $ref: "../web/templates.yaml#/templates/lists"
+    js_modules:
+      - $ref: "../web/js-modules.yaml#/modules/listsManager"
+      - $ref: "../web/js-modules.yaml#/modules/hierarchyView"
+      - $ref: "../web/js-modules.yaml#/modules/csvImporter"
+      - $ref: "../web/js-modules.yaml#/modules/offlineShoppingManager"
+
+  # ---------------------------------------------------------------------------
+  # DEPENDENCIES
+  # ---------------------------------------------------------------------------
+  depends_on:
+    - $ref: "./authentication.yaml#/module"
+
+  # ---------------------------------------------------------------------------
+  # USED BY
+  # ---------------------------------------------------------------------------
+  used_by:
+    - $ref: "./realtime.yaml#/module"
+    - $ref: "./offline.yaml#/module"

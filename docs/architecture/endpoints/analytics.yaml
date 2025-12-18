@@ -1,0 +1,180 @@
+# Analytics Endpoints
+# Statistics, reports, dashboards
+
+routes:
+  # ---------------------------------------------------------------------------
+  # QUICK STATS
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/quick-stats"
+    method: GET
+    auth: user
+    description: "Dashboard summary statistics"
+    query_params:
+      period: "today | week | month (default: month)"
+    response:
+      status: 200
+      body:
+        total_income: "decimal"
+        total_expense: "decimal"
+        balance_change: "decimal"
+        top_expense_categories:
+          - article_id: "integer"
+            article_name: "string"
+            amount: "decimal"
+            percentage: "decimal"
+        top_income_categories:
+          - # same structure
+        transactions_count: "integer"
+    service:
+      $ref: "../functionality/analytics.yaml#/module"
+
+  - path: "/api/v1/analytics/quick-stats-html"
+    method: GET
+    auth: user
+    description: "Quick stats as HTML (for HTMX)"
+    query_params:
+      period: "today | week | month"
+    response:
+      status: 200
+      content_type: "text/html"
+      template: "partials/quick_stats.html"
+    htmx:
+      $ref: "../web/htmx-triggers.yaml#/index_page/quick_stats"
+
+  # ---------------------------------------------------------------------------
+  # ACCOUNT BALANCES
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/account-balances"
+    method: GET
+    auth: user
+    description: "Current balance per financial center"
+    response:
+      status: 200
+      body:
+        - financial_center_id: "integer"
+          financial_center_name: "string"
+          initial_balance: "decimal"
+          current_balance: "decimal"
+          income_total: "decimal"
+          expense_total: "decimal"
+    service:
+      $ref: "../functionality/financial-centers.yaml#/module/services/1"
+
+  - path: "/api/v1/analytics/account-balances-html"
+    method: GET
+    auth: user
+    description: "Account balances as HTML (for HTMX)"
+    response:
+      status: 200
+      content_type: "text/html"
+      template: "partials/account_balances.html"
+    htmx:
+      $ref: "../web/htmx-triggers.yaml#/index_page/account_balances"
+
+  # ---------------------------------------------------------------------------
+  # CATEGORY BREAKDOWN
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/category-breakdown"
+    method: GET
+    auth: user
+    description: "Expense breakdown by category"
+    query_params:
+      date_from: "YYYY-MM-DD"
+      date_to: "YYYY-MM-DD"
+      type: "expense | income (default: expense)"
+      financial_center_id: "integer (optional)"
+    response:
+      status: 200
+      body:
+        - article_id: "integer"
+          article_name: "string"
+          article_type: "string"
+          total_amount: "decimal"
+          percentage: "decimal"
+          transaction_count: "integer"
+
+  # ---------------------------------------------------------------------------
+  # MONTHLY SUMMARY
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/monthly-summary"
+    method: GET
+    auth: user
+    description: "Month-over-month comparison"
+    query_params:
+      months: "integer (default: 6)"
+    response:
+      status: 200
+      body:
+        - month: "YYYY-MM"
+          income: "decimal"
+          expense: "decimal"
+          balance: "decimal"
+
+  # ---------------------------------------------------------------------------
+  # FACT HINTS
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/fact-hints"
+    method: GET
+    auth: user
+    description: "Suggestions for transaction form"
+    query_params:
+      article_id: "integer (optional)"
+      month: "YYYY-MM (optional)"
+    response:
+      status: 200
+      body:
+        recent_amounts:
+          - amount: "decimal"
+            count: "integer"
+        recent_descriptions:
+          - description: "string"
+            count: "integer"
+        suggested_article_id: "integer"
+
+  # ---------------------------------------------------------------------------
+  # PLAN HINTS
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/plan-hints"
+    method: GET
+    auth: user
+    description: "Suggestions for budget planning"
+    query_params:
+      article_id: "integer (optional)"
+      month: "YYYY-MM (optional)"
+    response:
+      status: 200
+      body:
+        average_monthly:
+          - article_id: "integer"
+            article_name: "string"
+            average_amount: "decimal"
+        last_year_same_month:
+          - article_id: "integer"
+            amount: "decimal"
+
+  # ---------------------------------------------------------------------------
+  # TRENDS
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/trends"
+    method: GET
+    auth: user
+    description: "Spending trends over time"
+    query_params:
+      article_id: "integer (optional)"
+      period: "daily | weekly | monthly"
+      date_from: "YYYY-MM-DD"
+      date_to: "YYYY-MM-DD"
+    response:
+      status: 200
+      body:
+        labels: "array of dates"
+        income: "array of decimals"
+        expense: "array of decimals"
+
+# Frontend
+frontend:
+  pages:
+    - $ref: "../web/templates.yaml#/templates/index"
+    - $ref: "../web/templates.yaml#/templates/analytics"
+  charts:
+    library: "ECharts"

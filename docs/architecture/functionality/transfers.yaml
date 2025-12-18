@@ -1,0 +1,82 @@
+# Transfers Module
+# Inter-account transfers (paired facts)
+
+module:
+  name: transfers
+  description: "Переводы между финансовыми центрами"
+
+  # ---------------------------------------------------------------------------
+  # SERVICES
+  # ---------------------------------------------------------------------------
+  services: []
+  # Note: Transfer logic is in endpoint handlers, not separate service
+
+  # ---------------------------------------------------------------------------
+  # MODELS
+  # ---------------------------------------------------------------------------
+  models:
+    - $ref: "../database/facts.yaml#/tables/t_f_budget_fact"
+    - $ref: "../database/history.yaml#/tables/t_f_budget_fact_history"
+
+  # ---------------------------------------------------------------------------
+  # SCHEMAS
+  # ---------------------------------------------------------------------------
+  schemas:
+    path: "backend/app/schemas/transfer.py"
+    classes:
+      - TransferCreate
+      - TransferResponse
+
+  # ---------------------------------------------------------------------------
+  # ENDPOINTS
+  # ---------------------------------------------------------------------------
+  endpoints:
+    $ref: "../endpoints/transfers.yaml#/routes"
+
+  # ---------------------------------------------------------------------------
+  # TRANSFER LOGIC
+  # ---------------------------------------------------------------------------
+  transfer_logic:
+    description: |
+      Transfer creates TWO linked BudgetFact records:
+      1. Expense from source financial_center (negative)
+      2. Income to destination financial_center (positive)
+
+    implementation:
+      - "Generate unique transfer_id (UUID)"
+      - "Create expense fact (from_financial_center)"
+      - "Create income fact (to_financial_center)"
+      - "Link via transfer_id field"
+      - "Both facts have same amount, date, description"
+
+    fields:
+      transfer_id:
+        type: "UUID"
+        description: "Links paired expense/income facts"
+      record_type:
+        values: ["fact", "plan"]
+        description: "Actual transfer or planned transfer"
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND
+  # ---------------------------------------------------------------------------
+  frontend:
+    modal:
+      $ref: "../web/templates.yaml#/components/modal_transfer"
+    js_module:
+      $ref: "../web/js-modules.yaml#/modules/transfer"
+
+  # ---------------------------------------------------------------------------
+  # DEPENDENCIES
+  # ---------------------------------------------------------------------------
+  depends_on:
+    - $ref: "./budget-management.yaml#/module"
+    - $ref: "./financial-centers.yaml#/module"
+
+  # ---------------------------------------------------------------------------
+  # USED BY
+  # ---------------------------------------------------------------------------
+  used_by:
+    - $ref: "./realtime.yaml#/module"
+    - $ref: "./analytics.yaml#/module"
+    - $ref: "../web/templates.yaml#/templates/facts"

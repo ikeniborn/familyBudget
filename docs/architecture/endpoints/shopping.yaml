@@ -1,0 +1,223 @@
+# Shopping Endpoints
+# Shopping lists, items, stores, product groups
+
+routes:
+  # ===========================================================================
+  # SHOPPING LISTS
+  # ===========================================================================
+  - path: "/api/v1/shopping-lists"
+    method: GET
+    auth: user
+    description: "List all shopping lists"
+    response:
+      status: 200
+      body:
+        - id: "integer"
+          name: "string"
+          user_id: "integer (creator)"
+          items_count: "integer"
+          completed_count: "integer"
+          created_at: "datetime"
+
+  - path: "/api/v1/shopping-lists"
+    method: POST
+    auth: user
+    description: "Create new shopping list"
+    request:
+      body:
+        name: "string (required)"
+    response:
+      status: 201
+      body:
+        id: "integer"
+        name: "string"
+    service:
+      $ref: "../functionality/shopping-lists.yaml#/module/services/0"
+
+  - path: "/api/v1/shopping-lists/{id}"
+    method: PUT
+    auth: user
+    description: "Update shopping list"
+    path_params:
+      id: "integer"
+    request:
+      body:
+        name: "string"
+    response:
+      status: 200
+
+  - path: "/api/v1/shopping-lists/{id}"
+    method: DELETE
+    auth: user
+    description: "Delete shopping list"
+    path_params:
+      id: "integer"
+    constraints:
+      - "Only creator can delete"
+    response:
+      status: 200
+
+  # ===========================================================================
+  # SHOPPING LIST ITEMS
+  # ===========================================================================
+  - path: "/api/v1/shopping-list-items"
+    method: GET
+    auth: user
+    description: "List items for a shopping list"
+    query_params:
+      shopping_list_id: "integer (required)"
+    response:
+      status: 200
+      body:
+        - id: "integer"
+          shopping_list_id: "integer"
+          name: "string"
+          quantity: "decimal"
+          unit: "string"
+          product_group_id: "integer (optional)"
+          store_id: "integer (optional)"
+          is_completed: "boolean"
+          sync_hash: "string"
+
+  - path: "/api/v1/shopping-list-items"
+    method: POST
+    auth: user
+    description: "Create shopping list item"
+    request:
+      body:
+        shopping_list_id: "integer (required)"
+        name: "string (required)"
+        quantity: "decimal (optional)"
+        unit: "string (optional)"
+        product_group_id: "integer (optional)"
+        store_id: "integer (optional)"
+        sync_hash: "string (optional, for offline)"
+    response:
+      status: 201
+    service:
+      $ref: "../functionality/shopping-lists.yaml#/module/services/1"
+    side_effects:
+      - "SSE broadcast: shopping_list_item_created"
+
+  - path: "/api/v1/shopping-list-items/{id}"
+    method: PUT
+    auth: user
+    description: "Update shopping list item"
+    path_params:
+      id: "integer"
+    request:
+      body:
+        name: "string (optional)"
+        quantity: "decimal (optional)"
+        is_completed: "boolean (optional)"
+    response:
+      status: 200
+    side_effects:
+      - "SSE broadcast: shopping_list_item_updated"
+
+  - path: "/api/v1/shopping-list-items"
+    method: DELETE
+    auth: user
+    description: "Delete shopping list items (batch)"
+    request:
+      body:
+        ids: "array of integers"
+    response:
+      status: 200
+      body:
+        deleted_count: "integer"
+    side_effects:
+      - "SSE broadcast: shopping_list_item_deleted"
+
+  # ---------------------------------------------------------------------------
+  # OFFLINE SYNC
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/shopping-list-items/sync/batch"
+    method: POST
+    auth: user
+    description: "Batch sync for offline items"
+    request:
+      body:
+        items:
+          - operation: "create | update | delete"
+            data:
+              # item fields
+            sync_hash: "string"
+            client_timestamp: "datetime"
+    response:
+      status: 200
+      body:
+        synced: "integer"
+        conflicts: "array (if any)"
+    service:
+      $ref: "../functionality/shopping-lists.yaml#/module/services/1"
+    functionality:
+      $ref: "../functionality/offline.yaml#/module"
+
+  # ===========================================================================
+  # STORES
+  # ===========================================================================
+  - path: "/api/v1/stores"
+    method: GET
+    auth: user
+    description: "List all stores"
+    response:
+      status: 200
+      body:
+        - id: "integer"
+          name: "string"
+          address: "string (optional)"
+          is_active: "boolean"
+
+  - path: "/api/v1/stores"
+    method: POST
+    auth: admin
+    description: "Create store"
+    request:
+      body:
+        name: "string (required)"
+        address: "string (optional)"
+    response:
+      status: 201
+    service:
+      $ref: "../functionality/shopping-lists.yaml#/module/services/2"
+
+  # ===========================================================================
+  # PRODUCT GROUPS
+  # ===========================================================================
+  - path: "/api/v1/product-groups"
+    method: GET
+    auth: user
+    description: "List product groups (hierarchical)"
+    query_params:
+      flat: "boolean (default: false)"
+    response:
+      status: 200
+      body:
+        - id: "integer"
+          name: "string"
+          parent_id: "integer (nullable)"
+          children: "array (if flat=false)"
+
+  - path: "/api/v1/product-groups"
+    method: POST
+    auth: admin
+    description: "Create product group"
+    request:
+      body:
+        name: "string (required)"
+        parent_id: "integer (optional)"
+    response:
+      status: 201
+    service:
+      $ref: "../functionality/shopping-lists.yaml#/module/services/3"
+    side_effects:
+      - "ProductGroupHierarchy updated (closure table)"
+
+# Models
+models:
+  - $ref: "../database/facts.yaml#/tables/t_f_shopping_list"
+  - $ref: "../database/facts.yaml#/tables/t_f_shopping_list_item"
+  - $ref: "../database/dimensions.yaml#/tables/t_d_store"
+  - $ref: "../database/dimensions.yaml#/tables/t_d_product_group"
+  - $ref: "../database/hierarchy.yaml#/tables/t_d_product_group_hierarchy"

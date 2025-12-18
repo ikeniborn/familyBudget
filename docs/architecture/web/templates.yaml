@@ -1,0 +1,360 @@
+# Web Templates
+# Jinja2 templates hierarchy
+
+templates:
+  # ---------------------------------------------------------------------------
+  # BASE TEMPLATE
+  # ---------------------------------------------------------------------------
+  base:
+    path: "frontend/web/templates/base.html"
+    type: "layout"
+    description: "Master template - navbar, sidebar, toast, offline indicator"
+    children:
+      - index
+      - facts
+      - plan
+      - analytics
+      - lists
+      - notifications
+      - security
+      - login_email
+      - telegram_login
+      - register
+      - admin_dashboard
+      - admin_users
+      - admin_articles
+      - admin_financial_centers
+      - admin_cost_centers
+      - admin_stores
+      - admin_product_groups
+      - admin_monitoring
+
+    includes:
+      js_modules:
+        - $ref: "./js-modules.yaml#/modules/budgetSSEClient"
+        - $ref: "./js-modules.yaml#/modules/offlineManager"
+        - $ref: "./js-modules.yaml#/modules/pushManager"
+        - $ref: "./js-modules.yaml#/modules/networkDetector"
+      css:
+        - $ref: "./css.yaml#/files/tailwind_daisyui"
+        - $ref: "./css.yaml#/files/custom"
+        - $ref: "./css.yaml#/files/style"
+
+    features:
+      - "Responsive navbar (desktop horizontal, mobile dropdown)"
+      - "User profile dropdown"
+      - "Theme toggle (light/dark)"
+      - "SSE status indicator"
+      - "Offline status indicator"
+      - "Toast notification system"
+      - "Cookie consent banner"
+      - "Push notification banner"
+      - "Service Worker registration"
+
+  # ---------------------------------------------------------------------------
+  # PAGE TEMPLATES
+  # ---------------------------------------------------------------------------
+  index:
+    path: "frontend/web/templates/index.html"
+    extends: base
+    description: "Home dashboard with quick stats, balances, recent transactions"
+    partials:
+      - quick_stats
+      - account_balances
+      - recent_transactions
+    modals:
+      - modal_transaction
+      - modal_plan
+      - modal_transfer
+    api_calls:
+      - endpoint: "/api/v1/analytics/quick-stats-html"
+        trigger: "load"
+        target: "#quick-stats"
+      - endpoint: "/api/v1/analytics/account-balances-html"
+        trigger: "load"
+        target: "#account-balances"
+      - endpoint: "/api/v1/facts/recent-html?limit=10"
+        trigger: "load"
+        target: "#recent-transactions"
+
+  facts:
+    path: "frontend/web/templates/facts.html"
+    extends: base
+    description: "Transactions management (facts and plans)"
+    modals:
+      - modal_transaction
+      - modal_edit_fact
+      - modal_confirm
+      - modal_transfer
+    js_modules:
+      - $ref: "./js-modules.yaml#/modules/adminFactsCommon"
+      - $ref: "./js-modules.yaml#/modules/transfer"
+    features:
+      - "Date range filter"
+      - "Category filter"
+      - "Financial center filter"
+      - "Pagination"
+      - "Inline edit"
+
+  plan:
+    path: "frontend/web/templates/plan.html"
+    extends: base
+    description: "Budget planning (planned transactions)"
+    modals:
+      - modal_plan
+      - modal_edit_plan
+      - modal_confirm
+    js_modules:
+      - $ref: "./js-modules.yaml#/modules/adminFactsCommon"
+    features:
+      - "Monthly budget view"
+      - "Category breakdown"
+      - "Plan vs actual comparison"
+
+  analytics:
+    path: "frontend/web/templates/analytics.html"
+    extends: base
+    description: "Statistics and charts"
+    charts:
+      library: "ECharts"
+      types:
+        - pie_chart
+        - line_chart
+        - bar_chart
+    api_calls:
+      - "/api/v1/analytics/category-breakdown"
+      - "/api/v1/analytics/monthly-summary"
+
+  lists:
+    path: "frontend/web/templates/lists.html"
+    extends: base
+    description: "Shopping lists with dual view (table and hierarchy)"
+    js_modules:
+      - $ref: "./js-modules.yaml#/modules/listsManager"
+      - $ref: "./js-modules.yaml#/modules/hierarchyView"
+      - $ref: "./js-modules.yaml#/modules/csvImporter"
+      - $ref: "./js-modules.yaml#/modules/offlineShoppingManager"
+    features:
+      - "Dual view: table and tree"
+      - "Offline support"
+      - "CSV import"
+      - "Google Sheets import"
+      - "Product group categorization"
+
+  notifications:
+    path: "frontend/web/templates/notifications.html"
+    extends: base
+    description: "Notification history"
+    api_calls:
+      - "/api/v1/notifications"
+
+  security:
+    path: "frontend/web/templates/security.html"
+    extends: base
+    description: "2FA settings, security preferences"
+    features:
+      - "Enable/disable 2FA"
+      - "Backup codes"
+      - "Active sessions"
+
+  # ---------------------------------------------------------------------------
+  # AUTH TEMPLATES
+  # ---------------------------------------------------------------------------
+  login_email:
+    path: "frontend/web/templates/login_email.html"
+    extends: base
+    description: "Email/password login"
+    api_calls:
+      - "/api/v1/auth/login-email"
+      - "/api/v1/auth/2fa-verify"
+
+  telegram_login:
+    path: "frontend/web/templates/telegram_login.html"
+    extends: base
+    description: "Telegram OAuth login page"
+    widgets:
+      - "Telegram Login Widget"
+    api_calls:
+      - "/api/v1/auth/telegram"
+
+  register:
+    path: "frontend/web/templates/register.html"
+    extends: base
+    description: "User registration (email)"
+    api_calls:
+      - "/api/v1/auth/register"
+
+  # ---------------------------------------------------------------------------
+  # ADMIN TEMPLATES
+  # ---------------------------------------------------------------------------
+  admin_dashboard:
+    path: "frontend/web/templates/admin_dashboard.html"
+    extends: base
+    description: "Admin overview dashboard"
+    requires_admin: true
+
+  admin_users:
+    path: "frontend/web/templates/admin_users.html"
+    extends: base
+    description: "User management"
+    requires_admin: true
+    modals:
+      - modal_confirm
+    api_calls:
+      - "/api/v1/users"
+      - "/api/v1/users/{id}/role"
+
+  admin_articles:
+    path: "frontend/web/templates/admin_articles.html"
+    extends: base
+    description: "Article (category) management"
+    requires_admin: true
+    modals:
+      - modal_confirm
+    js_modules:
+      - $ref: "./js-modules.yaml#/modules/hierarchyView"
+      - $ref: "./js-modules.yaml#/modules/adminStatusFilter"
+    api_calls:
+      - "/api/v1/articles"
+      - "/api/v1/articles/{id}/archive"
+      - "/api/v1/articles/{id}/restore"
+
+  admin_financial_centers:
+    path: "frontend/web/templates/admin_financial_centers.html"
+    extends: base
+    description: "Financial center (account) management"
+    requires_admin: true
+    modals:
+      - modal_confirm
+    api_calls:
+      - "/api/v1/financial-centers"
+
+  admin_cost_centers:
+    path: "frontend/web/templates/admin_cost_centers.html"
+    extends: base
+    description: "Cost center management"
+    requires_admin: true
+    modals:
+      - modal_confirm
+    api_calls:
+      - "/api/v1/cost-centers"
+
+  admin_stores:
+    path: "frontend/web/templates/admin_stores.html"
+    extends: base
+    description: "Store reference data"
+    requires_admin: true
+    modals:
+      - modal_confirm
+    api_calls:
+      - "/api/v1/stores"
+
+  admin_product_groups:
+    path: "frontend/web/templates/admin_product_groups.html"
+    extends: base
+    description: "Product group hierarchy"
+    requires_admin: true
+    modals:
+      - modal_confirm
+    js_modules:
+      - $ref: "./js-modules.yaml#/modules/hierarchyView"
+    api_calls:
+      - "/api/v1/product-groups"
+
+  admin_monitoring:
+    path: "frontend/web/templates/admin_monitoring.html"
+    extends: base
+    description: "System monitoring dashboard"
+    requires_admin: true
+    features:
+      - "Real-time metrics"
+      - "Connection count"
+      - "Error logs"
+
+# ---------------------------------------------------------------------------
+# COMPONENTS (Jinja2 Macros)
+# ---------------------------------------------------------------------------
+components:
+  modal_transaction:
+    path: "frontend/web/templates/components/modal_transaction.html"
+    type: "macro"
+    description: "Transaction creation modal"
+    fields:
+      - "date (CalendarWidget)"
+      - "amount"
+      - "article_id (ChoicesCategoryTree)"
+      - "financial_center_id (Choices.js)"
+      - "cost_center_id (Choices.js)"
+      - "description"
+    api_calls:
+      - "/api/v1/facts"
+      - "/api/v1/articles"
+      - "/api/v1/financial-centers"
+      - "/api/v1/cost-centers"
+      - "/api/v1/analytics/fact-hints"
+
+  modal_edit_fact:
+    path: "frontend/web/templates/components/modal_edit_fact.html"
+    type: "macro"
+    description: "Transaction edit modal"
+    api_calls:
+      - "/api/v1/facts/{id}"
+
+  modal_plan:
+    path: "frontend/web/templates/components/modal_plan.html"
+    type: "macro"
+    description: "Budget plan creation modal"
+    api_calls:
+      - "/api/v1/facts"
+      - "/api/v1/analytics/plan-hints"
+
+  modal_edit_plan:
+    path: "frontend/web/templates/components/modal_edit_plan.html"
+    type: "macro"
+    description: "Budget plan edit modal"
+
+  modal_transfer:
+    path: "frontend/web/templates/components/modal_transfer.html"
+    type: "macro"
+    description: "Transfer between accounts modal"
+    api_calls:
+      - "/api/v1/transfers"
+      - "/api/v1/financial-centers"
+
+  modal_confirm:
+    path: "frontend/web/templates/components/modal_confirm.html"
+    type: "macro"
+    description: "Confirmation dialog (delete/archive)"
+    usage: "Archive, delete, restore operations"
+
+  status_filter:
+    path: "frontend/web/templates/components/status_filter.html"
+    type: "macro"
+    description: "Status filter buttons (active/archived/deleted)"
+
+  mobile_alert:
+    path: "frontend/web/templates/components/mobile_alert.html"
+    type: "macro"
+    description: "Mobile restriction alert"
+
+# ---------------------------------------------------------------------------
+# PARTIALS (HTMX Fragments)
+# ---------------------------------------------------------------------------
+partials:
+  quick_stats:
+    path: "frontend/web/templates/partials/quick_stats.html"
+    description: "Dashboard statistics fragment"
+    loaded_by: "index.html"
+    endpoint: "/api/v1/analytics/quick-stats-html"
+
+  account_balances:
+    path: "frontend/web/templates/partials/account_balances.html"
+    description: "Account balance cards"
+    loaded_by: "index.html"
+    endpoint: "/api/v1/analytics/account-balances-html"
+
+  recent_transactions:
+    path: "frontend/web/templates/partials/recent_transactions.html"
+    description: "Last 10 transactions list"
+    loaded_by: "index.html"
+    endpoint: "/api/v1/facts/recent-html"

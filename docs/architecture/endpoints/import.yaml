@@ -1,0 +1,191 @@
+# Import Endpoints
+# CSV and Google Sheets import
+
+routes:
+  # ---------------------------------------------------------------------------
+  # UPLOAD
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/upload"
+    method: POST
+    auth: user
+    description: "Upload CSV file for import"
+    request:
+      content_type: "multipart/form-data"
+      body:
+        file: "CSV file"
+        bank_provider_id: "integer (optional, auto-detect if not provided)"
+    response:
+      status: 201
+      body:
+        upload_id: "integer"
+        detected_bank: "string"
+        detected_encoding: "string"
+        detected_delimiter: "string"
+        row_count: "integer"
+        columns: "array of strings"
+    service:
+      $ref: "../functionality/csv-import.yaml#/module/services/4"
+    models:
+      - $ref: "../database/support.yaml#/tables/t_import_file_upload"
+
+  # ---------------------------------------------------------------------------
+  # ANALYZE
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/analyze"
+    method: POST
+    auth: user
+    description: "Analyze CSV structure and suggest column mapping"
+    request:
+      body:
+        upload_id: "integer"
+    response:
+      status: 200
+      body:
+        suggested_mapping:
+          date_column: "string"
+          amount_column: "string"
+          description_column: "string"
+          category_column: "string (optional)"
+        sample_rows: "array (first 5 rows)"
+    service:
+      $ref: "../functionality/csv-import.yaml#/module/services/5"
+
+  # ---------------------------------------------------------------------------
+  # PREVIEW
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/preview"
+    method: POST
+    auth: user
+    description: "Preview import with column mapping"
+    request:
+      body:
+        upload_id: "integer"
+        column_mapping:
+          date: "string (column name)"
+          amount: "string (column name)"
+          description: "string (column name)"
+          category: "string (column name, optional)"
+        article_id: "integer (default article for all rows)"
+        financial_center_id: "integer (optional)"
+    response:
+      status: 200
+      body:
+        valid_rows: "integer"
+        invalid_rows: "integer"
+        warnings: "array of strings"
+        preview:
+          - date: "YYYY-MM-DD"
+            amount: "decimal"
+            description: "string"
+            article_name: "string"
+            validation_errors: "array (if any)"
+    service:
+      $ref: "../functionality/csv-import.yaml#/module/services/6"
+
+  # ---------------------------------------------------------------------------
+  # EXECUTE
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/execute"
+    method: POST
+    auth: user
+    description: "Execute import"
+    request:
+      body:
+        upload_id: "integer"
+        column_mapping:
+          # same as preview
+        article_id: "integer"
+        financial_center_id: "integer (optional)"
+        skip_duplicates: "boolean (default: true)"
+    response:
+      status: 201
+      body:
+        imported_count: "integer"
+        skipped_count: "integer"
+        error_count: "integer"
+        facts_created:
+          - id: "integer"
+            amount: "decimal"
+            fact_date: "YYYY-MM-DD"
+    service:
+      $ref: "../functionality/csv-import.yaml#/module/services/8"
+    side_effects:
+      - "BudgetFact records created"
+      - "ImportStaging records cleared"
+      - "SSE broadcasts for each fact"
+    flow:
+      $ref: "../flows/csv-import.yaml"
+
+  # ---------------------------------------------------------------------------
+  # TEMPLATES
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/templates"
+    method: GET
+    auth: user
+    description: "Get user's saved import templates"
+    response:
+      status: 200
+      body:
+        - id: "integer"
+          name: "string"
+          bank_provider_id: "integer"
+          column_mapping: "object"
+          created_at: "datetime"
+    service:
+      $ref: "../functionality/csv-import.yaml#/module/services/9"
+
+  - path: "/api/v1/import/templates"
+    method: POST
+    auth: user
+    description: "Save import template"
+    request:
+      body:
+        name: "string"
+        bank_provider_id: "integer"
+        column_mapping: "object"
+    response:
+      status: 201
+
+  # ---------------------------------------------------------------------------
+  # GOOGLE SHEETS
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/google-sheets"
+    method: POST
+    auth: user
+    description: "Import from Google Sheets"
+    request:
+      body:
+        sheet_url: "string (Google Sheets URL)"
+        sheet_name: "string (optional, default: first sheet)"
+        column_mapping:
+          # same as CSV
+    response:
+      status: 200
+      body:
+        # same as CSV preview/execute
+    service:
+      $ref: "../functionality/csv-import.yaml#/module/services/2"
+
+  # ---------------------------------------------------------------------------
+  # BANK PROVIDERS
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/bank-providers"
+    method: GET
+    auth: user
+    description: "List supported bank providers"
+    response:
+      status: 200
+      body:
+        - id: "integer"
+          name: "string"
+          code: "string"
+          auto_detect: "boolean"
+          sample_format: "string"
+
+# Models
+models:
+  - $ref: "../database/support.yaml#/tables/t_import_staging"
+  - $ref: "../database/support.yaml#/tables/t_import_file_upload"
+  - $ref: "../database/support.yaml#/tables/t_import_column_mapping"
+  - $ref: "../database/support.yaml#/tables/t_d_import_template"
+  - $ref: "../database/support.yaml#/tables/t_d_bank_provider"
