@@ -2121,17 +2121,23 @@ async function handleSaveItem(event) {
         showToast(isEdit ? 'Товар обновлен' : 'Товар добавлен', 'success');
         closeItemModal();
 
-        // Optimistic update of local state
+        // For EDIT: optimistic update (no race condition)
         if (isEdit) {
             const item = manager.currentItems.find(i => i.id === parseInt(itemId));
-            if (item) Object.assign(item, data);
-        } else {
-            // Add new item with temp or real ID
+            if (item) {
+                Object.assign(item, data);
+                manager.renderCurrentView();
+                manager.updateProgressBadge();
+                await manager.updateItemsCache();
+            }
+        } else if (result.tempId && !result.id) {
+            // CREATE offline: tempId exists but no real server ID
+            // Offline mode needs immediate update (no SSE in offline)
             const newItem = {
-                id: result.id || result.tempId,
+                id: result.tempId,
                 ...data,
                 is_completed: false,
-                _offline: result._offline || false
+                _offline: true
             };
             // Get store and product group names for display
             const store = manager.stores?.find(s => s.id === data.store_id);
@@ -2140,11 +2146,11 @@ async function handleSaveItem(event) {
             if (group) newItem.product_group_name = group.name;
 
             manager.currentItems.push(newItem);
+            manager.renderCurrentView();
+            manager.updateProgressBadge();
+            await manager.updateItemsCache();
         }
-
-        manager.renderCurrentView();
-        manager.updateProgressBadge();
-        await manager.updateItemsCache();
+        // CREATE online (result.id exists): do nothing, SSE will add the item
 
     } catch (error) {
         console.error('[ListsManager] Error saving item:', error);
