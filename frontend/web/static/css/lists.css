@@ -558,6 +558,24 @@
 /* Modal Styles */
 /* ============================================== */
 
+/* Autocomplete dropdown inside modal needs special handling */
+/* The dropdown has position:absolute but modal-box has overflow:auto which clips it */
+
+/* When autocomplete is active, allow overflow */
+#item-modal.autocomplete-active .modal-box {
+    overflow: visible;
+}
+
+#item-modal .form-control.relative {
+    overflow: visible;
+}
+
+/* Autocomplete dropdown styling */
+#product-suggestions-dropdown {
+    /* Ensure dropdown appears above other modal content */
+    z-index: 9999;
+}
+
 /* Desktop: use CSS variable heights for inputs/selects */
 .modal-box .form-control input,
 .modal-box .form-control select {

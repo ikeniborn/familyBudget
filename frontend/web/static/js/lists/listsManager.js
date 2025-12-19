@@ -1854,6 +1854,10 @@ class ListsManager {
         dropdown.innerHTML = html;
         dropdown.classList.remove('hidden');
 
+        // Add class to modal to allow overflow (CSS fix for dropdown visibility)
+        const modal = document.getElementById('item-modal');
+        if (modal) modal.classList.add('autocomplete-active');
+
         // Store suggestions for selection
         this._currentSuggestions = suggestions;
 
@@ -1906,6 +1910,10 @@ class ListsManager {
             dropdown.innerHTML = '';
         }
         this._currentSuggestions = null;
+
+        // Remove overflow class from modal
+        const modal = document.getElementById('item-modal');
+        if (modal) modal.classList.remove('autocomplete-active');
     }
 
     /**
