@@ -1725,12 +1725,6 @@ class ListsManager {
             return;
         }
 
-        // УДАЛЕНА проверка _autocompleteInitialized для диагностики
-        // if (input._autocompleteInitialized) {
-        //     console.warn('[iOS DEBUG] Skipping - already initialized');
-        //     return;
-        // }
-
         const handler = () => {
             this.handleProductInput(input.value);
         };
