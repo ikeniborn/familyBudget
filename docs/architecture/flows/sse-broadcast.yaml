@@ -352,3 +352,95 @@ scaling:
       - "Redis server"
       - "aioredis library"
       - "Refactored connection manager"
+
+# ===========================================================================
+# MULTI-TAB FLOW
+# ===========================================================================
+multi_tab_flow:
+  description: "Single SSE connection shared between browser tabs"
+
+  diagram: |
+    Tab 1 (Leader)              Tab 2-N (Followers)
+    ├─ EventSource SSE conn     ├─ No SSE connection
+    ├─ Web Locks (acquired)     ├─ Web Locks (waiting)
+    ├─ BroadcastChannel         ├─ BroadcastChannel
+    └─ Heartbeat every 3s       └─ Listens for events
+         ↓                            ↑
+         └────── BroadcastChannel ────┘
+                (sse_event, heartbeat)
+
+  leader_election:
+    desktop_flow: |
+      1. Tab calls connect()
+      2. await _initMultiTab() - CRITICAL: must await!
+      3. navigator.locks.request('budget-sse-leader', ...)
+      4. Timeout 100ms - if lock not acquired, start as follower
+      5. If lock acquired before timeout - become leader
+      6. If lock acquired AFTER timeout - promote to leader
+
+    safari_ios_flow: |
+      1. Tab calls connect()
+      2. await _initMultiTab()
+      3. Check connection pressure via /status endpoint
+      4. If pressure >= 50%: use 2000ms timeout (longer wait for Web Locks)
+      5. If pressure < 50%: use 500ms timeout
+      6. If timeout + no heartbeat: become leader
+      7. If timeout + heartbeat detected: stay follower
+      8. CRITICAL: If lock acquired after timeout + was follower → promote to leader
+
+  visibility_handling:
+    tab_hidden: "Leader keeps connection, continues heartbeat"
+    tab_visible:
+      leader: |
+        1. Check _isConnectionStale() (45s without ping)
+        2. If stale: force reconnect
+        3. Check EventSource.readyState === OPEN
+        4. If OPEN: reuse connection, update status
+        5. If CLOSED/CONNECTING: close and reconnect
+      follower: "Request status from leader via BroadcastChannel"
+
+  connection_reuse:
+    description: "Prevent duplicate connections on tab switch"
+    implementation: |
+      // In _createConnection():
+      if (this.eventSource) {
+          if (this.eventSource.readyState === EventSource.OPEN) {
+              // Reuse existing connection
+              this.isConnected = true;
+              this._updateStatusIndicator();
+              return;
+          }
+          // Close stale connection before creating new
+          this.eventSource.close();
+          this.eventSource = null;
+      }
+
+  broadcast_channel_messages:
+    sse_event:
+      description: "SSE событие для рассылки follower'ам"
+      payload: "{ type: 'sse_event', event_type: string, data: object }"
+
+    heartbeat:
+      description: "Leader alive signal"
+      interval: "3 seconds"
+      payload: "{ type: 'heartbeat', timestamp: number }"
+
+    leader_changed:
+      description: "Уведомление о смене лидера"
+      payload: "{ type: 'leader_changed', timestamp: number }"
+
+    status_request:
+      description: "Запрос статуса от follower"
+      payload: "{ type: 'status_request' }"
+
+  safari_ios_race_condition_fix:
+    problem: |
+      connect() вызывал _initMultiTab() без await.
+      К моменту проверки isLeader, Web Locks callback ещё не отработал.
+      Результат: tab становился follower'ом без создания соединения.
+
+    solution: |
+      1. connect() теперь async
+      2. await this._initMultiTab() - ожидаем leader election
+      3. _tryBecomeLeader() возвращает Promise с timeout
+      4. Гарантируем определённый isLeader статус до проверки

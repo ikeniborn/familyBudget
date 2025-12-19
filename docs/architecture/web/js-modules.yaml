@@ -70,8 +70,8 @@ modules:
   # ---------------------------------------------------------------------------
   budgetSSEClient:
     path: "frontend/web/static/js/budget/budgetSSEClient.js"
-    loc: 1288
-    description: "Server-Sent Events client for real-time updates"
+    loc: 1490
+    description: "Server-Sent Events client for real-time updates with multi-tab support"
     endpoints:
       - path: "/api/v1/budget/events/connect"
         method: "EventSource"
@@ -90,9 +90,27 @@ modules:
       - article_created
       - article_updated
     ui_updates:
-      - "Navbar SSE indicator badge"
+      - "Navbar SSE indicator badge (7 states)"
       - "HTMX refresh of quick-stats"
       - "HTMX refresh of recent-transactions"
+    multi_tab_support:
+      leader_election: "Web Locks API + timeout fallback"
+      inter_tab_communication: "BroadcastChannel API"
+      safari_ios_handling: "Timeout-based leader election with connection pressure awareness"
+    key_methods:
+      connect: "async - устанавливает SSE соединение (только leader)"
+      _initMultiTab: "async - инициализирует multi-tab support с leader election"
+      _tryBecomeLeader: "async - Web Locks leader election (100ms timeout для desktop)"
+      _tryBecomeLeaderWithTimeout: "async - timeout-based election для Safari iOS (500-2000ms)"
+      _isSafariIOS: "Определяет Safari на iOS устройствах"
+      _isConnectionStale: "Проверяет устаревшее соединение (45s без ping)"
+      _closeExistingConnection: "Закрывает соединение перед reconnect"
+      _createConnection: "async - создаёт EventSource с валидацией существующего соединения"
+      _updateStatusIndicator: "Обновляет UI badge (7 состояний)"
+    constants:
+      HEARTBEAT_INTERVAL: "3000ms - leader heartbeat"
+      LEADER_TIMEOUT: "10000ms - follower considers leader dead"
+      PING_TIMEOUT: "45000ms - connection staleness detection"
     functionality:
       $ref: "../functionality/realtime.yaml#/module"
 

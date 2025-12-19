@@ -123,12 +123,32 @@ critical_constraint:
 frontend:
   js_module:
     $ref: "../web/js-modules.yaml#/modules/budgetSSEClient"
+
   ui:
     indicator_location: "navbar"
     states:
-      - connected: "green badge"
-      - disconnected: "red badge"
-      - reconnecting: "yellow badge"
+      connected: "🟢 green badge - Real-time синхронизация активна"
+      connected_via_leader: "🟢 green badge - Синхронизация через другую вкладку (follower mode)"
+      approaching_limit: "⚠️ warning badge - Много соединений. Закройте лишние вкладки"
+      disconnected: "🔴 red badge - Ошибка соединения"
+      reconnecting: "⏳ loading badge - Переподключение"
+      limit_reached: "🔴 red badge - Превышен лимит соединений"
+      offline: "⚫ gray badge - Offline режим"
+
+  safari_ios:
+    description: "Специальная обработка для Safari на iOS устройствах"
+    web_locks_timeout: "500-2000ms (на основе connection pressure)"
+    connection_reuse: "Проверка EventSource.readyState при visibility change"
+    race_condition_fix: |
+      connect() метод теперь async и ожидает завершения leader election
+      через await _initMultiTab() перед проверкой isLeader статуса.
+
+  multi_tab_support:
+    description: "Одно SSE соединение на браузер через Web Locks + BroadcastChannel"
+    leader_tab: "Создаёт SSE соединение, рассылает события"
+    follower_tabs: "Получают события через BroadcastChannel от лидера"
+    leader_heartbeat: "Каждые 3 секунды для обнаружения падения лидера"
+    connection_staleness: "45 секунд без ping = stale, force reconnect"
 
 # Connection Manager
 connection_manager:

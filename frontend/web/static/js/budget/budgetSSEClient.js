@@ -46,6 +46,11 @@ class BudgetSSEClient {
         this._multiTabSupported = null;  // Cached support check
         this._multiTabInitialized = false;  // Lazy init flag
 
+        // Connection state tracking (for staleness detection)
+        this.lastServerPing = 0;
+        this.PING_TIMEOUT = 45000;  // Server pings every 10s, allow 45s before considering dead
+        this.approachingLimit = false;  // Track if approaching connection limit
+
         // Close connection on page unload
         window.addEventListener('beforeunload', () => {
             this._silentClose();
@@ -58,7 +63,7 @@ class BudgetSSEClient {
             }
         });
 
-        // Visibility change handler - updated for multi-tab
+        // Visibility change handler - updated for multi-tab with connection reuse
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 // Leader: keep connection alive, continue heartbeat
@@ -67,12 +72,30 @@ class BudgetSSEClient {
                     debugLog('[BudgetSSE] Tab hidden, leader keeping SSE connection active');
                 }
             } else if (document.visibilityState === 'visible') {
-                // Leader: check if connection is alive
-                if (this.isLeader && !this.isConnected && this.enabled) {
-                    debugLog('[BudgetSSE] Tab visible, leader reconnecting');
-                    this.reconnectAttempts = 0;
-                    this.limitReached = false;
-                    this._createConnection();
+                if (this.isLeader) {
+                    // Check for stale connection (no ping received in 45s)
+                    if (this._isConnectionStale()) {
+                        debugLog('[BudgetSSE] Connection stale, forcing reconnect');
+                        this._closeExistingConnection();
+                        this.reconnectAttempts = 0;
+                        this._createConnection();
+                        return;
+                    }
+
+                    // Check if EventSource is still alive (connection reuse)
+                    if (this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
+                        this.isConnected = true;
+                        this._updateStatusIndicator();
+                        return;
+                    }
+
+                    // Connection dead, need reconnect
+                    if (!this.isConnected && this.enabled) {
+                        debugLog('[BudgetSSE] Tab visible, leader reconnecting');
+                        this.reconnectAttempts = 0;
+                        this.limitReached = false;
+                        this._createConnection();
+                    }
                 }
                 // Follower: request status from leader
                 if (!this.isLeader && this.channel) {
@@ -101,8 +124,48 @@ class BudgetSSEClient {
     }
 
     /**
+     * Detect Safari on iOS devices
+     * @returns {boolean}
+     * @private
+     */
+    _isSafariIOS() {
+        const ua = navigator.userAgent;
+        return /iPad|iPhone|iPod/.test(ua) &&
+               !window.MSStream &&
+               /Safari/.test(ua);
+    }
+
+    /**
+     * Check if connection is stale (no ping received in PING_TIMEOUT)
+     * @returns {boolean}
+     * @private
+     */
+    _isConnectionStale() {
+        if (!this.lastServerPing) return false;
+        return Date.now() - this.lastServerPing > this.PING_TIMEOUT;
+    }
+
+    /**
+     * Close existing connection cleanly
+     * @private
+     */
+    _closeExistingConnection() {
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        if (this.fetchController) {
+            this.fetchController.abort();
+            this.fetchController = null;
+        }
+        this.isConnected = false;
+        this.connectionId = null;
+    }
+
+    /**
      * Initialize multi-tab support with BroadcastChannel and Web Locks
      * Called lazily from connect() to prevent 401 errors for unauthenticated users
+     * Now waits for leader status to be determined before returning
      * @private
      */
     async _initMultiTab() {
@@ -128,8 +191,29 @@ class BudgetSSEClient {
                 this.channel = null;
             };
 
-            // Try to become leader (blocking request - waits for lock)
-            this._tryBecomeLeader();
+            // Check connection limit before deciding strategy
+            const status = await this._checkConnectionLimit();
+
+            // Calculate connection pressure (default to 0 if status check failed)
+            let connectionPressure = 0;
+            if (status.limits && status.limits.max_per_user > 0) {
+                connectionPressure = (status.user_connections || 0) / status.limits.max_per_user;
+                // Track if approaching limit (for UI warning)
+                this.approachingLimit = connectionPressure >= 0.7;  // 70% of max
+            }
+
+            // Choose leader election strategy based on browser and connection pressure
+            if (this._isSafariIOS() && connectionPressure >= 0.5) {
+                // High connection pressure on Safari iOS - MUST use Web Locks with longer timeout
+                debugLog('[BudgetSSE] Safari iOS with high connection pressure, forcing Web Locks');
+                await this._tryBecomeLeaderWithTimeout(2000);  // Longer timeout
+            } else if (this._isSafariIOS()) {
+                // Low connection pressure on Safari iOS - try Web Locks with short timeout
+                await this._tryBecomeLeaderWithTimeout(500);
+            } else {
+                // Desktop browsers - standard Web Locks handling with short timeout
+                await this._tryBecomeLeader();
+            }
         } catch (e) {
             debugLog('[BudgetSSE] Multi-tab init failed:', e);
             this._multiTabSupported = false;
@@ -137,42 +221,119 @@ class BudgetSSEClient {
     }
 
     /**
-     * Try to acquire leader lock using Web Locks API
+     * Try to acquire leader lock using Web Locks API (desktop browsers)
+     * Returns a Promise that resolves when leader status is determined
+     * Uses 100ms timeout for fast response on desktop
      * @private
+     * @returns {Promise<void>}
      */
     async _tryBecomeLeader() {
-        // Web Locks API - blocking request (waits until lock is released)
-        // When leader tab closes, lock is released and next tab gets it
-        navigator.locks.request('budget-sse-leader', async (lock) => {
-            // We got the lock - we are now the leader!
-            debugLog('[BudgetSSE] Became leader');
-            this.isLeader = true;
+        return new Promise((resolve) => {
+            let resolved = false;
 
-            // Clear follower check interval if it was running
-            if (this._followerCheckInterval) {
-                clearInterval(this._followerCheckInterval);
-                this._followerCheckInterval = null;
-            }
+            // Short timeout for desktop - Web Locks should be fast
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    // Lock not acquired in 100ms - start as follower
+                    debugLog('[BudgetSSE] Timeout waiting for lock, starting as follower');
+                    this._startFollowerMode();
+                    resolve();
+                }
+            }, 100);  // 100ms timeout for desktop
 
-            // Notify followers that we are the new leader
-            this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
-
-            // Create SSE connection
-            if (this.enabled) {
-                this._createConnection();
-            }
-
-            // Start heartbeat for followers
-            this._startLeaderHeartbeat();
-
-            // IMPORTANT: Promise never resolves → lock is held until tab closes
-            return new Promise(() => {});
+            navigator.locks.request('budget-sse-leader', async (lock) => {
+                if (!resolved) {
+                    // Lock acquired before timeout
+                    resolved = true;
+                    clearTimeout(timeout);
+                    this.isLeader = true;
+                    if (this._followerCheckInterval) {
+                        clearInterval(this._followerCheckInterval);
+                        this._followerCheckInterval = null;
+                    }
+                    this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
+                    this._startLeaderHeartbeat();
+                    debugLog('[BudgetSSE] Acquired Web Lock, became leader');
+                } else if (!this.isLeader) {
+                    // Lock acquired AFTER timeout - promote to leader
+                    this.isLeader = true;
+                    if (this._followerCheckInterval) {
+                        clearInterval(this._followerCheckInterval);
+                        this._followerCheckInterval = null;
+                    }
+                    this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
+                    this._startLeaderHeartbeat();
+                    if (this.enabled && !this.isConnected) {
+                        this._createConnection();
+                    }
+                    debugLog('[BudgetSSE] Promoted to leader after timeout');
+                }
+                resolve();
+                return new Promise(() => {});  // Hold lock forever
+            });
         });
+    }
 
-        // This code runs immediately (doesn't wait for lock)
-        // If we're not leader yet - listen as follower
-        debugLog('[BudgetSSE] Waiting for leader lock...');
-        this._startFollowerMode();
+    /**
+     * Try to acquire leader lock with timeout (for Safari iOS)
+     * Uses configurable timeout based on connection pressure
+     * @param {number} timeoutMs - Timeout in milliseconds
+     * @private
+     * @returns {Promise<void>}
+     */
+    async _tryBecomeLeaderWithTimeout(timeoutMs) {
+        return new Promise((resolve) => {
+            let resolved = false;
+
+            const timeout = setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    // Timeout reached without acquiring lock
+                    // Check if any leader heartbeat received
+                    if (Date.now() - this.lastLeaderHeartbeat < 5000) {
+                        // Leader exists, stay as follower
+                        debugLog('[BudgetSSE] Safari iOS: Leader detected, staying follower');
+                        this._startFollowerMode();
+                    } else {
+                        // No leader detected, become leader
+                        debugLog('[BudgetSSE] Safari iOS: No leader detected, becoming leader');
+                        this.isLeader = true;
+                    }
+                    resolve();
+                }
+            }, timeoutMs);
+
+            navigator.locks.request('budget-sse-leader', async (lock) => {
+                if (!resolved) {
+                    // Lock acquired before timeout - normal flow
+                    resolved = true;
+                    clearTimeout(timeout);
+                    this.isLeader = true;
+                    this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
+                    this._startLeaderHeartbeat();
+                    debugLog('[BudgetSSE] Acquired Web Lock, became leader');
+                } else if (!this.isLeader) {
+                    // CRITICAL FIX: Lock acquired AFTER timeout, but we're follower
+                    // Previous leader died - promote to leader now
+                    this.isLeader = true;
+                    if (this._followerCheckInterval) {
+                        clearInterval(this._followerCheckInterval);
+                        this._followerCheckInterval = null;
+                    }
+                    this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
+                    this._startLeaderHeartbeat();
+                    if (this.enabled && !this.isConnected) {
+                        this._createConnection();  // Must create connection here!
+                    }
+                    debugLog('[BudgetSSE] Promoted to leader after timeout');
+                }
+                // If isLeader was already true from timeout (no leader detected case),
+                // we now also hold the lock - good state
+                resolve();
+                return new Promise(() => {});  // Hold lock forever
+            });
+        });
     }
 
     /**
@@ -387,8 +548,11 @@ class BudgetSSEClient {
      * - If multi-tab is supported, only the leader tab creates a connection
      * - Followers receive events via BroadcastChannel
      * - If multi-tab is not supported, each tab creates its own connection (fallback)
+     *
+     * IMPORTANT: This method is async because it waits for leader election to complete
+     * before deciding whether to create a connection (fixes Safari iOS race condition)
      */
-    connect() {
+    async connect() {
         if (this.eventSource && this.isConnected) {
             debugLog('[BudgetSSE] Already connected');
             return;
@@ -400,8 +564,9 @@ class BudgetSSEClient {
         }
 
         // Lazy init multi-tab support (only on first connect)
+        // CRITICAL: await to ensure leader election completes before checking isLeader
         if (!this._multiTabInitialized) {
-            this._initMultiTab();
+            await this._initMultiTab();
         }
 
         // If multi-tab is supported, only leader creates connection
@@ -412,6 +577,8 @@ class BudgetSSEClient {
             } else {
                 debugLog('[BudgetSSE] Follower - waiting for events from leader');
                 // Follower doesn't create connection, receives events via BroadcastChannel
+                // Update indicator to show follower is connected via leader
+                this._updateStatusIndicator();
             }
             return;
         }
@@ -422,11 +589,33 @@ class BudgetSSEClient {
 
     /**
      * Create EventSource connection with Safari iOS fallback
+     * Validates existing connection before creating new one (connection reuse)
      * @private
      */
     async _createConnection() {
         if (!this.enabled) {
             return;
+        }
+
+        // Check if existing EventSource is still valid (connection reuse)
+        if (this.eventSource) {
+            if (this.eventSource.readyState === EventSource.OPEN) {
+                // Connection still alive, just ensure state is correct
+                debugLog('[BudgetSSE] Existing connection still alive, reusing');
+                this.isConnected = true;
+                this._updateStatusIndicator();
+                return;
+            }
+            // Connection is CONNECTING or CLOSED - close it properly before creating new
+            debugLog('[BudgetSSE] Closing stale EventSource before reconnect');
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+
+        // Also cleanup any stale fetch controller
+        if (this.fetchController) {
+            this.fetchController.abort();
+            this.fetchController = null;
         }
 
         // Precheck connection limit before attempting connection
@@ -587,9 +776,10 @@ class BudgetSSEClient {
                 this._broadcastSSEEvent('item_completed', data);  // Broadcast to followers
             });
 
-            // Keepalive ping
+            // Keepalive ping - track last ping time for staleness detection
             this.eventSource.addEventListener('ping', (event) => {
                 debugLog('[BudgetSSE] Ping received');
+                this.lastServerPing = Date.now();
             });
 
             // Error handler
@@ -758,7 +948,8 @@ class BudgetSSEClient {
                     this._notifyHandlers('connected', data);
                     break;
                 case 'ping':
-                    // Keepalive - ignore
+                    // Keepalive - track last ping time for staleness detection
+                    this.lastServerPing = Date.now();
                     break;
                 case 'fact_created':
                     this._handleFactCreated(data);
@@ -1249,10 +1440,20 @@ class BudgetSSEClient {
             indicator.className = `badge badge-ghost ${sizeClasses}`;
             indicator.innerHTML = '⚫';
             indicator.title = 'Offline режим - SSE отключен';
+        } else if (this.isConnected && this.approachingLimit) {
+            // Connected but approaching connection limit - show warning
+            indicator.className = `badge badge-warning ${sizeClasses}`;
+            indicator.innerHTML = '⚠️';
+            indicator.title = 'Много соединений. Закройте лишние вкладки';
         } else if (this.isConnected) {
             indicator.className = `badge badge-success ${sizeClasses}`;
             indicator.innerHTML = '🟢';
             indicator.title = 'Real-time синхронизация активна';
+        } else if (!this.isLeader && this._supportsMultiTab() && this.lastLeaderHeartbeat > 0) {
+            // Follower mode - receiving events from leader tab
+            indicator.className = `badge badge-success ${sizeClasses}`;
+            indicator.innerHTML = '🟢';
+            indicator.title = 'Синхронизация через другую вкладку';
         } else if (this.limitReached) {
             // Connection limit reached - different from general error
             indicator.className = `badge badge-error ${sizeClasses}`;

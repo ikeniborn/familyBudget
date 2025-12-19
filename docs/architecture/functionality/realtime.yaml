@@ -148,6 +148,40 @@ module:
       Reference: backend/app/api/v1/endpoints/budget_sse.py:9-11
 
   # ---------------------------------------------------------------------------
+  # MULTI-TAB SUPPORT
+  # ---------------------------------------------------------------------------
+  multi_tab_support:
+    description: |
+      Web Locks API + BroadcastChannel для single SSE connection per browser.
+      Одно SSE соединение на браузер, события рассылаются по вкладкам через BroadcastChannel.
+
+    leader_election:
+      method: "Web Locks API"
+      fallback: "Timeout-based для Safari iOS"
+      desktop_timeout: "100ms"
+      safari_ios_timeout: "500-2000ms (на основе connection pressure)"
+
+    inter_tab_communication:
+      method: "BroadcastChannel API"
+      channel: "budget-sse-channel"
+      message_types:
+        - sse_event: "SSE событие для рассылки follower'ам"
+        - heartbeat: "Leader alive signal (каждые 3 сек)"
+        - leader_changed: "Смена лидера"
+        - status_request: "Запрос статуса от follower"
+
+    safari_ios_handling:
+      description: "Специальная обработка для Safari на iOS устройствах"
+      web_locks_timeout: "500ms (норма) / 2000ms (high connection pressure)"
+      connection_reuse: "Проверка EventSource.readyState при visibility change"
+      connection_pressure_check: "Проверка /status перед выбором стратегии"
+
+    connection_staleness:
+      ping_interval: "10 секунд (сервер)"
+      staleness_timeout: "45 секунд без ping = stale connection"
+      action: "Force reconnect при возврате на вкладку"
+
+  # ---------------------------------------------------------------------------
   # FRONTEND
   # ---------------------------------------------------------------------------
   frontend:
@@ -156,7 +190,15 @@ module:
 
     ui_indicator:
       location: "navbar"
-      description: "SSE connection status badge (green/red/yellow)"
+      description: "SSE connection status badge"
+      states:
+        connected: "🟢 green - Real-time синхронизация активна"
+        connected_via_leader: "🟢 green - Синхронизация через другую вкладку"
+        approaching_limit: "⚠️ warning - Много соединений"
+        disconnected: "🔴 red - Ошибка соединения"
+        reconnecting: "⏳ loading - Переподключение"
+        limit_reached: "🔴 red - Превышен лимит"
+        offline: "⚫ gray - Offline режим"
 
   # ---------------------------------------------------------------------------
   # FLOWS
