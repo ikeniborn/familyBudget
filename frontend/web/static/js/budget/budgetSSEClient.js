@@ -33,6 +33,9 @@ class BudgetSSEClient {
         // Also skip Web Locks on Safari iOS - too unreliable
         this._safariIOSMode = this._detectSafariIOS();
 
+        // DEBUG: Log Safari iOS detection result
+        console.log('[BudgetSSE] Safari iOS mode:', this._safariIOSMode, 'UA:', navigator.userAgent.substring(0, 100));
+
         // Flag for limit reached state
         this.limitReached = false;
 
@@ -249,7 +252,7 @@ class BudgetSSEClient {
         // Safari iOS: Skip Web Locks entirely - they're unreliable
         // Each tab will create its own connection (no multi-tab sharing)
         if (this._safariIOSMode) {
-            debugLog('[BudgetSSE] Safari iOS: Skipping Web Locks, using per-tab connection');
+            console.log('[BudgetSSE] Safari iOS: Skipping Web Locks, using per-tab connection');
             this.isLeader = true;  // Always "leader" - each tab manages itself
             this._multiTabSupported = false;  // Disable multi-tab for Safari iOS
             return;
@@ -625,18 +628,21 @@ class BudgetSSEClient {
      */
     async _checkConnectionLimit() {
         try {
+            console.log('[BudgetSSE] _checkConnectionLimit: fetching /api/v1/budget/events/status');
             const response = await fetch('/api/v1/budget/events/status', {
                 credentials: 'include'
             });
+            console.log('[BudgetSSE] _checkConnectionLimit: response status', response.status);
             if (!response.ok) {
-                debugLog('[BudgetSSE] Status check failed, allowing connection');
+                console.log('[BudgetSSE] Status check failed, allowing connection');
                 return { canConnect: true };
             }
             const data = await response.json();
+            console.log('[BudgetSSE] _checkConnectionLimit: data', data);
             const canConnect = data.user_connections < data.limits.max_per_user;
             return { canConnect, ...data };
         } catch (e) {
-            debugLog('[BudgetSSE] Status check error, allowing connection:', e);
+            console.log('[BudgetSSE] Status check error, allowing connection:', e);
             return { canConnect: true };
         }
     }
@@ -654,29 +660,33 @@ class BudgetSSEClient {
      * before deciding whether to create a connection (fixes Safari iOS race condition)
      */
     async connect() {
+        console.log('[BudgetSSE] connect() called, enabled:', this.enabled, 'safariIOSMode:', this._safariIOSMode);
+
         if (this.eventSource && this.isConnected) {
-            debugLog('[BudgetSSE] Already connected');
+            console.log('[BudgetSSE] Already connected');
             return;
         }
 
         if (!this.enabled) {
-            debugLog('[BudgetSSE] SSE disabled');
+            console.log('[BudgetSSE] SSE disabled');
             return;
         }
 
         // Lazy init multi-tab support (only on first connect)
         // CRITICAL: await to ensure leader election completes before checking isLeader
         if (!this._multiTabInitialized) {
+            console.log('[BudgetSSE] Initializing multi-tab support...');
             await this._initMultiTab();
+            console.log('[BudgetSSE] Multi-tab init done, isLeader:', this.isLeader, 'multiTabSupported:', this._supportsMultiTab());
         }
 
         // If multi-tab is supported, only leader creates connection
         if (this._supportsMultiTab()) {
             if (this.isLeader) {
-                debugLog('[BudgetSSE] Leader connecting');
+                console.log('[BudgetSSE] Leader connecting');
                 this._createConnection();
             } else {
-                debugLog('[BudgetSSE] Follower - waiting for events from leader');
+                console.log('[BudgetSSE] Follower - waiting for events from leader');
                 // Follower doesn't create connection, receives events via BroadcastChannel
                 // Update indicator to show follower is connected via leader
                 this._updateStatusIndicator();
@@ -685,6 +695,7 @@ class BudgetSSEClient {
         }
 
         // Fallback: per-tab connection (multi-tab not supported)
+        console.log('[BudgetSSE] Per-tab connection (no multi-tab), calling _createConnection');
         this._createConnection();
     }
 
@@ -697,7 +708,10 @@ class BudgetSSEClient {
      * @private
      */
     async _createConnection() {
+        console.log('[BudgetSSE] _createConnection called, enabled:', this.enabled, 'safariIOSMode:', this._safariIOSMode);
+
         if (!this.enabled) {
+            console.log('[BudgetSSE] _createConnection: SSE disabled, returning');
             return;
         }
 
@@ -723,8 +737,12 @@ class BudgetSSEClient {
         }
 
         // Precheck connection limit before attempting connection
+        console.log('[BudgetSSE] Checking connection limit...');
         const { canConnect, user_connections, limits } = await this._checkConnectionLimit();
+        console.log('[BudgetSSE] Connection limit check result:', { canConnect, user_connections, limits });
+
         if (!canConnect) {
+            console.log('[BudgetSSE] Connection limit reached, stopping');
             this.limitReached = true;
             this.reconnectAttempts = this.maxReconnectAttempts;  // Stop reconnect loop
             this._updateStatusIndicator();
@@ -734,12 +752,12 @@ class BudgetSSEClient {
 
         this.limitReached = false;
         const url = '/api/v1/budget/events';
-        debugLog('[BudgetSSE] Connecting to:', url);
+        console.log('[BudgetSSE] Connecting to:', url);
 
         // Safari iOS: Use fetch-based SSE directly (EventSource has buffering issues)
         // EventSource on Safari iOS buffers responses until ~2KB, so onopen never fires
         if (this._safariIOSMode) {
-            debugLog('[BudgetSSE] Safari iOS: Using fetch-based SSE (EventSource has buffering issues)');
+            console.log('[BudgetSSE] Safari iOS: Using fetch-based SSE (EventSource has buffering issues)');
             this._useFetchEventSource();
             return;
         }
@@ -932,7 +950,7 @@ class BudgetSSEClient {
      */
     async _useFetchEventSource() {
         const url = '/api/v1/budget/events';
-        debugLog('[BudgetSSE] Using fetch-based SSE' + (this._safariIOSMode ? ' (Safari iOS mode)' : ''));
+        console.log('[BudgetSSE] _useFetchEventSource called, Safari iOS:', this._safariIOSMode);
 
         this.fetchController = new AbortController();
 
@@ -982,7 +1000,7 @@ class BudgetSSEClient {
                 throw new Error('Response body is null - ReadableStream not supported');
             }
 
-            debugLog('[BudgetSSE] Fetch connection established');
+            console.log('[BudgetSSE] Fetch connection established, status:', response.status);
             this.isConnected = true;
             this.limitReached = false;
             this.reconnectAttempts = 0;
