@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Вариант 5: Segmented Control - Quick Actions</title>
+
+    <!-- Tailwind CSS + DaisyUI -->
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-base-200 p-4">
+    <!-- Header with theme toggle and navigation -->
+    <header class="navbar bg-base-100 rounded-box shadow mb-4">
+        <div class="navbar-start">
+            <a href="index.html" class="btn btn-ghost btn-sm">← Назад</a>
+        </div>
+        <div class="navbar-center">
+            <span class="font-bold text-lg">Вариант 5</span>
+        </div>
+        <div class="navbar-end">
+            <label class="swap swap-rotate">
+                <input type="checkbox" class="theme-controller" value="dark" />
+                <span class="swap-off text-xl">☀️</span>
+                <span class="swap-on text-xl">🌙</span>
+            </label>
+        </div>
+    </header>
+
+    <!-- Info Card -->
+    <div class="card bg-base-100 shadow-xl mb-4">
+        <div class="card-body p-4">
+            <h2 class="card-title text-lg">Segmented Control + Actions</h2>
+            <div class="text-sm opacity-70">
+                <p><strong>Высота:</strong> ~100px</p>
+                <p><strong>Сложность:</strong> Средняя</p>
+                <p><strong>Паттерн:</strong> Переключатель Факт/План + кнопки</p>
+            </div>
+            <div class="divider my-2"></div>
+            <div class="flex gap-2 flex-wrap text-xs">
+                <span class="badge badge-success">✅ Контекст</span>
+                <span class="badge badge-success">✅ Все видно</span>
+                <span class="badge badge-warning">⚠️ Доп.клик для типа</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Component -->
+    <div class="card bg-base-100 shadow-xl">
+        <div class="card-body p-4">
+            <h3 class="text-sm font-semibold text-base-content/70 mb-3">💡 Быстрые действия</h3>
+
+            <!-- Segmented Control -->
+            <div class="tabs tabs-boxed bg-base-200 p-1 mb-4">
+                <button id="tab-fact" class="tab tab-active flex-1 gap-1" onclick="switchTab('fact')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Факт
+                </button>
+                <button id="tab-plan" class="tab flex-1 gap-1" onclick="switchTab('plan')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                    </svg>
+                    План
+                </button>
+            </div>
+
+            <!-- Action buttons for selected type -->
+            <div id="actions-fact" class="flex gap-2">
+                <button onclick="showToast('+ Факт: Расход/Доход')" class="btn btn-success flex-1 gap-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Расход/Доход
+                </button>
+                <button onclick="showToast('↔ Факт: Перевод')" class="btn btn-warning flex-1 gap-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                    Перевод
+                </button>
+            </div>
+
+            <div id="actions-plan" class="hidden flex gap-2">
+                <button onclick="showToast('+ План: Расход/Доход')" class="btn btn-info flex-1 gap-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                    </svg>
+                    Расход/Доход
+                </button>
+                <button onclick="showToast('↔ План: Перевод')" class="btn btn-outline flex-1 gap-1">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                    </svg>
+                    Перевод
+                </button>
+            </div>
+
+            <!-- Divider -->
+            <div class="divider my-3 text-xs text-base-content/50">Быстрые ссылки</div>
+
+            <!-- Quick links -->
+            <div class="flex gap-2">
+                <button onclick="showToast('📊 Аналитика')" class="btn btn-primary btn-outline flex-1 gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    Аналитика
+                </button>
+                <button onclick="showToast('🛒 Списки')" class="btn btn-accent btn-outline flex-1 gap-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                    </svg>
+                    Списки
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo content -->
+    <div class="card bg-base-100 shadow-xl mt-4">
+        <div class="card-body p-4">
+            <h3 class="text-sm font-semibold text-base-content/70">📊 Быстрая статистика</h3>
+            <div class="h-24 bg-base-200 rounded-lg flex items-center justify-center text-base-content/30">
+                (демо контент)
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container" class="toast toast-top toast-center z-50"></div>
+
+    <script>
+        // Theme toggle
+        document.querySelector('.theme-controller').addEventListener('change', function(e) {
+            document.documentElement.setAttribute('data-theme', e.target.checked ? 'dark' : 'light');
+        });
+
+        // Tab switching
+        function switchTab(tab) {
+            const tabFact = document.getElementById('tab-fact');
+            const tabPlan = document.getElementById('tab-plan');
+            const actionsFact = document.getElementById('actions-fact');
+            const actionsPlan = document.getElementById('actions-plan');
+
+            if (tab === 'fact') {
+                tabFact.classList.add('tab-active');
+                tabPlan.classList.remove('tab-active');
+                actionsFact.classList.remove('hidden');
+                actionsPlan.classList.add('hidden');
+            } else {
+                tabFact.classList.remove('tab-active');
+                tabPlan.classList.add('tab-active');
+                actionsFact.classList.add('hidden');
+                actionsPlan.classList.remove('hidden');
+            }
+        }
+
+        // Toast notification
+        function showToast(action) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'alert alert-success shadow-lg';
+            toast.innerHTML = `<span>Нажато: ${action}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s';
+                setTimeout(() => toast.remove(), 300);
+            }, 1500);
+        }
+    </script>
+</body>
+</html>
