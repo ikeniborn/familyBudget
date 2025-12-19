@@ -100,9 +100,10 @@ modules:
     key_methods:
       connect: "async - устанавливает SSE соединение (только leader)"
       _initMultiTab: "async - инициализирует multi-tab support с leader election"
-      _tryBecomeLeader: "async - Web Locks leader election (100ms timeout для desktop)"
-      _tryBecomeLeaderWithTimeout: "async - timeout-based election для Safari iOS (500-2000ms)"
-      _isSafariIOS: "Определяет Safari на iOS устройствах"
+      _tryBecomeLeader: "async - Web Locks leader election (100ms timeout, non-Safari)"
+      _tryBecomeLeaderWithTimeout: "async - timeout-based election для Safari (500-2000ms)"
+      _isSafari: "Определяет Safari браузер (iOS и macOS)"
+      _isSafariIOS: "Определяет Safari на iOS устройствах (legacy)"
       _isConnectionStale: "Проверяет устаревшее соединение (45s без ping)"
       _closeExistingConnection: "Закрывает соединение перед reconnect"
       _createConnection: "async - создаёт EventSource с валидацией существующего соединения"

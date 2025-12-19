@@ -157,9 +157,12 @@ module:
 
     leader_election:
       method: "Web Locks API"
-      fallback: "Timeout-based для Safari iOS"
-      desktop_timeout: "100ms"
-      safari_ios_timeout: "500-2000ms (на основе connection pressure)"
+      fallback: "Heartbeat-based detection при timeout"
+      non_safari_timeout: "100ms (Chrome, Firefox, Edge)"
+      safari_timeout: "500-2000ms (iOS и macOS Safari)"
+      first_tab_detection: |
+        При timeout проверяется lastLeaderHeartbeat.
+        Если heartbeat не получен за 5 секунд - это первая вкладка, становимся лидером.
 
     inter_tab_communication:
       method: "BroadcastChannel API"
@@ -170,11 +173,15 @@ module:
         - leader_changed: "Смена лидера"
         - status_request: "Запрос статуса от follower"
 
-    safari_ios_handling:
-      description: "Специальная обработка для Safari на iOS устройствах"
+    safari_handling:
+      description: "Специальная обработка для Safari (iOS и macOS)"
+      detection: "_isSafari() - проверяет Safari в User-Agent (исключая Chrome)"
       web_locks_timeout: "500ms (норма) / 2000ms (high connection pressure)"
       connection_reuse: "Проверка EventSource.readyState при visibility change"
       connection_pressure_check: "Проверка /status перед выбором стратегии"
+      first_tab_fix: |
+        При timeout проверяется lastLeaderHeartbeat.
+        Если нет heartbeat за 5 сек - первая вкладка становится лидером.
 
     connection_staleness:
       ping_interval: "10 секунд (сервер)"

@@ -124,7 +124,21 @@ class BudgetSSEClient {
     }
 
     /**
-     * Detect Safari on iOS devices
+     * Detect Safari browser (iOS and macOS)
+     * Safari has known issues with Web Locks API timing
+     * @returns {boolean}
+     * @private
+     */
+    _isSafari() {
+        const ua = navigator.userAgent;
+        // Safari on iOS: contains Safari but not Chrome/Firefox/etc
+        // Safari on macOS: contains Safari and not Chrome
+        const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/Chromium/.test(ua);
+        return isSafari;
+    }
+
+    /**
+     * Detect Safari on iOS devices specifically
      * @returns {boolean}
      * @private
      */
@@ -203,15 +217,19 @@ class BudgetSSEClient {
             }
 
             // Choose leader election strategy based on browser and connection pressure
-            if (this._isSafariIOS() && connectionPressure >= 0.5) {
-                // High connection pressure on Safari iOS - MUST use Web Locks with longer timeout
-                debugLog('[BudgetSSE] Safari iOS with high connection pressure, forcing Web Locks');
-                await this._tryBecomeLeaderWithTimeout(2000);  // Longer timeout
-            } else if (this._isSafariIOS()) {
-                // Low connection pressure on Safari iOS - try Web Locks with short timeout
-                await this._tryBecomeLeaderWithTimeout(500);
+            // Safari (iOS and macOS) has known issues with Web Locks timing - use longer timeouts
+            if (this._isSafari()) {
+                if (connectionPressure >= 0.5) {
+                    // High connection pressure on Safari - MUST use Web Locks with longer timeout
+                    debugLog('[BudgetSSE] Safari with high connection pressure, using 2000ms timeout');
+                    await this._tryBecomeLeaderWithTimeout(2000);
+                } else {
+                    // Normal connection pressure on Safari - use medium timeout
+                    debugLog('[BudgetSSE] Safari detected, using 500ms timeout for Web Locks');
+                    await this._tryBecomeLeaderWithTimeout(500);
+                }
             } else {
-                // Desktop browsers - standard Web Locks handling with short timeout
+                // Non-Safari browsers (Chrome, Firefox, Edge) - standard handling
                 await this._tryBecomeLeader();
             }
         } catch (e) {
@@ -221,9 +239,10 @@ class BudgetSSEClient {
     }
 
     /**
-     * Try to acquire leader lock using Web Locks API (desktop browsers)
+     * Try to acquire leader lock using Web Locks API (non-Safari browsers)
      * Returns a Promise that resolves when leader status is determined
-     * Uses 100ms timeout for fast response on desktop
+     * Uses 100ms timeout for fast response on Chrome/Firefox/Edge
+     * If timeout occurs, checks for leader heartbeat before becoming follower
      * @private
      * @returns {Promise<void>}
      */
@@ -231,16 +250,24 @@ class BudgetSSEClient {
         return new Promise((resolve) => {
             let resolved = false;
 
-            // Short timeout for desktop - Web Locks should be fast
+            // Short timeout for non-Safari - Web Locks should be fast
             const timeout = setTimeout(() => {
                 if (!resolved) {
                     resolved = true;
-                    // Lock not acquired in 100ms - start as follower
-                    debugLog('[BudgetSSE] Timeout waiting for lock, starting as follower');
-                    this._startFollowerMode();
+                    // Lock not acquired in 100ms
+                    // Check if any leader heartbeat received (another tab is leader)
+                    if (Date.now() - this.lastLeaderHeartbeat < 5000) {
+                        // Leader exists, stay as follower
+                        debugLog('[BudgetSSE] Timeout, leader detected via heartbeat, starting as follower');
+                        this._startFollowerMode();
+                    } else {
+                        // No leader detected - this is the first tab, become leader
+                        debugLog('[BudgetSSE] Timeout, no leader detected, becoming leader');
+                        this.isLeader = true;
+                    }
                     resolve();
                 }
-            }, 100);  // 100ms timeout for desktop
+            }, 100);  // 100ms timeout for non-Safari
 
             navigator.locks.request('budget-sse-leader', async (lock) => {
                 if (!resolved) {
@@ -256,7 +283,8 @@ class BudgetSSEClient {
                     this._startLeaderHeartbeat();
                     debugLog('[BudgetSSE] Acquired Web Lock, became leader');
                 } else if (!this.isLeader) {
-                    // Lock acquired AFTER timeout - promote to leader
+                    // Lock acquired AFTER timeout, but we're follower
+                    // Previous leader died - promote to leader now
                     this.isLeader = true;
                     if (this._followerCheckInterval) {
                         clearInterval(this._followerCheckInterval);
@@ -276,9 +304,10 @@ class BudgetSSEClient {
     }
 
     /**
-     * Try to acquire leader lock with timeout (for Safari iOS)
-     * Uses configurable timeout based on connection pressure
-     * @param {number} timeoutMs - Timeout in milliseconds
+     * Try to acquire leader lock with configurable timeout (for Safari browsers)
+     * Safari (iOS and macOS) has known issues with Web Locks API timing
+     * Uses longer timeout and heartbeat detection to handle slow Web Locks
+     * @param {number} timeoutMs - Timeout in milliseconds (500ms normal, 2000ms high pressure)
      * @private
      * @returns {Promise<void>}
      */
