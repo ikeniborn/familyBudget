@@ -791,8 +791,15 @@ class BudgetSSEClient {
     async connect() {
         console.log('[BudgetSSE] connect() called, enabled:', this.enabled, 'safariIOSMode:', this._safariIOSMode);
 
-        if (this.eventSource && this.isConnected) {
-            console.log('[BudgetSSE] Already connected');
+        // Guard: already connected (EventSource or fetch-based)
+        if (this.isConnected && (this.eventSource || this.fetchController)) {
+            console.log('[BudgetSSE] Already connected, skipping');
+            return;
+        }
+
+        // Guard: connection in progress (prevent double connect calls)
+        if (this._connectingInProgress) {
+            console.log('[BudgetSSE] Connection already in progress, skipping');
             return;
         }
 
@@ -800,6 +807,9 @@ class BudgetSSEClient {
             console.log('[BudgetSSE] SSE disabled');
             return;
         }
+
+        // Set connecting flag
+        this._connectingInProgress = true;
 
         // Lazy init multi-tab support (only on first connect)
         // CRITICAL: await to ensure leader election completes before checking isLeader
@@ -1138,6 +1148,7 @@ class BudgetSSEClient {
                 if (response.status === 401) {
                     console.error('[BudgetSSE] 401: Not authenticated');
                     this.enabled = false;  // Disable SSE
+                    this._connectingInProgress = false;
                     this._updateStatusIndicator();
                     return;  // Don't reconnect - user needs to log in
                 }
@@ -1146,6 +1157,7 @@ class BudgetSSEClient {
                     console.error('[BudgetSSE] 429: Connection limit reached');
                     this.limitReached = true;
                     this.reconnectAttempts = this.maxReconnectAttempts;  // Stop reconnect loop
+                    this._connectingInProgress = false;
                     this._updateStatusIndicator();
                     this._notifyHandlers('limit_reached', {});
                     return;  // Don't reconnect - it will just fail again
@@ -1163,6 +1175,7 @@ class BudgetSSEClient {
             this.limitReached = false;
             this.reconnectAttempts = 0;
             this._fetchAttempts = 0;  // Reset fetch attempts on success
+            this._connectingInProgress = false;  // Clear connecting flag
             this._updateStatusIndicator();
             this._notifyHandlers('connect', {});
 
@@ -1188,11 +1201,13 @@ class BudgetSSEClient {
 
             // Stream ended - schedule reconnect
             this.isConnected = false;
+            this._connectingInProgress = false;
             this._updateStatusIndicator();
             this._scheduleReconnect();
 
         } catch (error) {
             clearTimeout(connectionTimeout);
+            this._connectingInProgress = false;
 
             if (error.name === 'AbortError') {
                 debugLog('[BudgetSSE] Fetch aborted');
@@ -1375,6 +1390,7 @@ class BudgetSSEClient {
         this.limitReached = false;  // Reset limit flag on disconnect
         this.connectionId = null;   // Clear connection ID
         this._fetchAttempts = 0;    // Reset fetch attempts
+        this._connectingInProgress = false;  // Reset connecting flag
         this._updateStatusIndicator();
         this._notifyHandlers('disconnect', {});
     }
@@ -1456,6 +1472,7 @@ class BudgetSSEClient {
         this._pollingActive = false;
 
         this.isConnected = false;
+        this._connectingInProgress = false;
         // Don't call _notifyHandlers or _updateStatusIndicator
         // because tab is hidden/closing
     }
