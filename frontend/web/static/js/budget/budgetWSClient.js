@@ -31,6 +31,10 @@ class BudgetWSClient {
         this.lastServerPing = 0;
         this.PING_TIMEOUT = 45000;  // Server pings every 10s, allow 45s before considering dead
 
+        // Error tracking for debugging (especially iOS Safari without Web Inspector)
+        this._lastError = null;
+        this._connectionHistory = [];
+
         // Long Polling fallback
         this.useLongPolling = false;
         this.pollController = null;
@@ -72,7 +76,6 @@ class BudgetWSClient {
         // Try WebSocket first with shorter timeout, fallback to Long Polling if fails
         // Reference: https://discussions.apple.com/thread/256142477
         if (this._safariIOSMode) {
-            console.log('[BudgetWS] Safari iOS detected - WebSocket with fast fallback enabled');
             this._iosWebSocketTimeout = 5000;  // 5 sec timeout (vs 10 sec default)
         }
 
@@ -94,7 +97,6 @@ class BudgetWSClient {
                     debugLog('[BudgetWS] Tab hidden, leader keeping connection active');
                 }
             } else if (document.visibilityState === 'visible') {
-                console.log('[BudgetWS] Tab became visible, checking connection health');
 
                 if (this.isLeader) {
                     if (this._isConnectionStale()) {
@@ -126,8 +128,6 @@ class BudgetWSClient {
             }
         });
 
-        // DEBUG: Log initialization
-        console.log('[BudgetWS] Initialized, Safari iOS mode:', this._safariIOSMode);
     }
 
     // ==================== BROWSER DETECTION ====================
@@ -146,12 +146,7 @@ class BudgetWSClient {
         const isYandexIOS = /YaBrowser/.test(ua) && isIOS;
 
         // Any iOS browser that uses WebKit (Safari, Yandex, etc.)
-        const result = (isIOS || isPadOSDesktop) && (isSafariLike || isYandexIOS);
-        console.log('[BudgetWS] iOS browser detection:', {
-            isIOS, isPadOSDesktop, isSafariLike, isYandexIOS, result,
-            ua: ua.substring(0, 120)
-        });
-        return result;
+        return (isIOS || isPadOSDesktop) && (isSafariLike || isYandexIOS);
     }
 
     /**
@@ -193,7 +188,6 @@ class BudgetWSClient {
 
         // Safari iOS: Skip Web Locks entirely
         if (this._safariIOSMode) {
-            console.log('[BudgetWS] Safari iOS: Skipping Web Locks, using per-tab connection');
             this.isLeader = true;
             this._multiTabSupported = false;
             return;
@@ -241,7 +235,6 @@ class BudgetWSClient {
             }
 
             if (safetyTimeoutFired) {
-                console.log('[BudgetWS] Safety timeout already fired, skipping leader election');
                 return;
             }
 
@@ -383,7 +376,6 @@ class BudgetWSClient {
 
             const timeSinceHeartbeat = Date.now() - this.lastLeaderHeartbeat;
             if (timeSinceHeartbeat > this.LEADER_TIMEOUT) {
-                console.log('[BudgetWS] Leader heartbeat timeout, attempting to become leader');
                 clearInterval(this._followerCheckInterval);
                 this._followerCheckInterval = null;
 
@@ -592,7 +584,6 @@ class BudgetWSClient {
      * @private
      */
     _forceReconnect() {
-        console.log('[BudgetWS] Force reconnecting...');
         this._closeExistingConnection();
         this.reconnectAttempts = 0;
         this.limitReached = false;
@@ -618,7 +609,6 @@ class BudgetWSClient {
             const canConnect = data.user_connections < data.limits.max_per_user;
             return { canConnect, ...data };
         } catch (e) {
-            console.log('[BudgetWS] Status check error:', e);
             return { canConnect: true };
         }
     }
@@ -629,26 +619,30 @@ class BudgetWSClient {
      * @private
      */
     async _getWSToken() {
-        console.log('[BudgetWS] Fetching WS token...');
+        this._logHistory('token_fetch_start');
         try {
             const response = await fetch('/api/v1/budget/ws/token', {
                 method: 'POST',
                 credentials: 'include'
             });
-            console.log('[BudgetWS] Token response status:', response.status);
             if (!response.ok) {
                 if (response.status === 401) {
-                    console.error('[BudgetWS] 401: Not authenticated');
+                    this._setError('Token 401: Not authenticated');
                     this.enabled = false;
                     return null;
                 }
-                throw new Error(`HTTP ${response.status}`);
+                this._setError(`Token HTTP ${response.status}`);
+                return null;
             }
             const data = await response.json();
-            console.log('[BudgetWS] Token received, length:', data.token?.length || 0);
+            if (!data.token) {
+                this._setError('Token empty in response');
+                return null;
+            }
+            this._logHistory('token_received');
             return data.token;
         } catch (e) {
-            console.error('[BudgetWS] Failed to get WS token:', e);
+            this._setError(`Token fetch: ${e.message}`);
             return null;
         }
     }
@@ -659,44 +653,26 @@ class BudgetWSClient {
      * Connect to WebSocket endpoint
      */
     async connect() {
-        console.log('[BudgetWS] connect() called, enabled:', this.enabled);
-
-        if (!this.enabled) {
-            console.log('[BudgetWS] WebSocket disabled');
-            return;
-        }
-
-        if (this.isConnected) {
-            console.log('[BudgetWS] Already connected');
-            return;
-        }
-
-        if (this.ws || this._pollingActive) {
-            console.log('[BudgetWS] Connection already in progress');
-            return;
-        }
+        if (!this.enabled) return;
+        if (this.isConnected) return;
+        if (this.ws || this._pollingActive) return;
 
         // Initialize multi-tab support
         if (!this._multiTabInitialized) {
-            console.log('[BudgetWS] Initializing multi-tab support...');
             await this._initMultiTab();
-            console.log('[BudgetWS] Multi-tab init done, isLeader:', this.isLeader);
         }
 
         // Only leader creates connection
         if (this._supportsMultiTab()) {
             if (this.isLeader) {
-                console.log('[BudgetWS] Leader connecting');
                 this._createConnection();
             } else {
-                console.log('[BudgetWS] Follower - waiting for events from leader');
                 this._updateStatusIndicator();
             }
             return;
         }
 
         // Fallback: per-tab connection
-        console.log('[BudgetWS] Per-tab connection, calling _createConnection');
         this._createConnection();
     }
 
@@ -733,15 +709,14 @@ class BudgetWSClient {
         const wsUrl = `${protocol}//${window.location.host}/api/v1/budget/ws?token=${encodeURIComponent(token)}`;
 
         try {
-            console.log('[BudgetWS] Creating WebSocket connection...');
             this.ws = new WebSocket(wsUrl);
 
             // Connection timeout (5 sec for iOS, 10 sec for others)
             const timeout = this._iosWebSocketTimeout || 10000;
-            console.log('[BudgetWS] Connection timeout:', timeout, 'ms');
+            this._logHistory(`ws_connecting_timeout_${timeout}ms`);
             const connectionTimeout = setTimeout(() => {
                 if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
-                    console.error('[BudgetWS] Connection timeout, falling back to long polling');
+                    this._setError(`WS timeout after ${timeout}ms`);
                     this.ws.close();
                     this.ws = null;
                     this.useLongPolling = true;
@@ -751,7 +726,7 @@ class BudgetWSClient {
 
             this.ws.onopen = () => {
                 clearTimeout(connectionTimeout);
-                console.log('[BudgetWS] WebSocket connected');
+                this._logHistory('ws_connected');
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
                 this.limitReached = false;
@@ -770,14 +745,13 @@ class BudgetWSClient {
             };
 
             this.ws.onerror = (error) => {
-                console.error('[BudgetWS] WebSocket error:', error);
+                this._setError('WS error event');
                 clearTimeout(connectionTimeout);
             };
 
             this.ws.onclose = (event) => {
                 clearTimeout(connectionTimeout);
-                console.log('[BudgetWS] WebSocket closed:', event.code, event.reason);
-
+                this._logHistory(`ws_closed_${event.code}`);
                 this.isConnected = false;
                 this.connectionId = null;
                 this._stopClientPing();
@@ -785,16 +759,14 @@ class BudgetWSClient {
 
                 // Handle specific close codes
                 if (event.code === 4001) {
-                    // Auth error
-                    console.error('[BudgetWS] Auth error, disabling WebSocket');
+                    this._setError('WS 4001: Auth error');
                     this.enabled = false;
                     this._notifyHandlers('auth_error', {});
                     return;
                 }
 
                 if (event.code === 4029) {
-                    // Connection limit
-                    console.error('[BudgetWS] Connection limit reached');
+                    this._setError('WS 4029: Connection limit');
                     this.limitReached = true;
                     this.reconnectAttempts = this.maxReconnectAttempts;
                     this._notifyHandlers('limit_reached', {});
@@ -807,9 +779,34 @@ class BudgetWSClient {
             };
 
         } catch (error) {
-            console.error('[BudgetWS] WebSocket creation failed:', error);
+            this._setError(`WS create: ${error.message}`);
             this.useLongPolling = true;
             this._startLongPolling();
+        }
+    }
+
+    /**
+     * Set last error for debugging
+     * @param {string} error
+     * @private
+     */
+    _setError(error) {
+        this._lastError = { message: error, time: new Date().toISOString() };
+        this._logHistory(`error: ${error}`);
+        console.error('[BudgetWS]', error);
+    }
+
+    /**
+     * Log to connection history for debugging
+     * @param {string} event
+     * @private
+     */
+    _logHistory(event) {
+        const entry = { event, time: Date.now() };
+        this._connectionHistory.push(entry);
+        // Keep only last 20 entries
+        if (this._connectionHistory.length > 20) {
+            this._connectionHistory.shift();
         }
     }
 
@@ -994,12 +991,9 @@ class BudgetWSClient {
      * @private
      */
     _startLongPolling() {
-        if (this._pollingActive) {
-            console.log('[BudgetWS] Long polling already active');
-            return;
-        }
+        if (this._pollingActive) return;
 
-        console.log('[BudgetWS] Starting long polling (5s interval)');
+        this._logHistory('poll_start');
         this._pollingActive = true;
         this.isConnected = true;
         this._updateStatusIndicator();
@@ -1030,7 +1024,7 @@ class BudgetWSClient {
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    console.error('[BudgetWS] Long polling: 401 - not authenticated');
+                    this._setError('Poll 401: Not authenticated');
                     this._stopLongPolling();
                     this.enabled = false;
                     this.isConnected = false;
@@ -1045,7 +1039,6 @@ class BudgetWSClient {
 
             // Process events
             if (data.events && data.events.length > 0) {
-                console.log('[BudgetWS] Long polling received', data.events.length, 'events');
                 for (const event of data.events) {
                     this._handleServerMessage(event);
                 }
@@ -1068,7 +1061,7 @@ class BudgetWSClient {
                 return;
             }
 
-            console.error('[BudgetWS] Long polling error:', error.message);
+            this._setError(`Poll: ${error.message}`);
 
             // Exponential backoff with jitter to prevent thundering herd
             this._pollRetryCount++;
@@ -1079,7 +1072,7 @@ class BudgetWSClient {
                 debugLog('[BudgetWS] Long polling retry in', Math.round(delay), 'ms (attempt', this._pollRetryCount, ')');
                 this._pollTimeout = setTimeout(() => this._pollLoop(), delay);
             } else {
-                console.error('[BudgetWS] Long polling max retries reached');
+                this._setError('Poll max retries');
                 this._pollingActive = false;
                 this._updateStatusIndicator();
             }
@@ -1489,12 +1482,38 @@ class BudgetWSClient {
 
             // Polling state
             pollingActive: this._pollingActive,
-            pollRetryCount: this._pollRetryCount
+            pollRetryCount: this._pollRetryCount,
+
+            // Error tracking
+            lastError: this._lastError,
+            history: this._connectionHistory.slice(-10)
         };
 
-        console.log('[BudgetWS] === DIAGNOSTIC INFO ===');
-        console.table(diag);
         return diag;
+    }
+
+    /**
+     * Show visual diagnostic alert (for iOS Safari debugging)
+     * Tap status indicator 3 times quickly to trigger
+     */
+    showDiagnostics() {
+        const diag = this.diagnose();
+        const lines = [
+            `Connected: ${diag.isConnected}`,
+            `Enabled: ${diag.enabled}`,
+            `WS State: ${diag.wsState}`,
+            `Long Polling: ${diag.useLongPolling}`,
+            `Polling Active: ${diag.pollingActive}`,
+            `Safari iOS: ${diag.safariIOSMode}`,
+            `Leader: ${diag.isLeader}`,
+            `Reconnects: ${diag.reconnectAttempts}`,
+            ``,
+            `Last Error: ${diag.lastError ? diag.lastError.message : 'none'}`,
+            ``,
+            `History:`,
+            ...diag.history.map(h => `  ${new Date(h.time).toLocaleTimeString()}: ${h.event}`)
+        ];
+        alert('[BudgetWS Diagnostics]\n\n' + lines.join('\n'));
     }
 
     /**
@@ -1502,7 +1521,6 @@ class BudgetWSClient {
      * Call from console: window.budgetWSClient.forceReconnect()
      */
     forceReconnect() {
-        console.log('[BudgetWS] Force reconnect requested');
         this.disconnect();
         this.reconnectAttempts = 0;
         this.limitReached = false;
@@ -1524,10 +1542,8 @@ if (typeof window !== 'undefined') {
 
     // Global online/offline handlers for automatic reconnection
     window.addEventListener('online', () => {
-        console.log('[BudgetWS] Browser went online');
         const client = window.budgetWSClient;
         if (client && client.enabled && !client.isConnected) {
-            console.log('[BudgetWS] Attempting reconnect after online event');
             // Reset state for clean reconnect
             client.reconnectAttempts = 0;
             client._multiTabInitialized = false;
@@ -1537,10 +1553,26 @@ if (typeof window !== 'undefined') {
     });
 
     window.addEventListener('offline', () => {
-        console.log('[BudgetWS] Browser went offline');
         const client = window.budgetWSClient;
         if (client) {
             client._updateStatusIndicator();
+        }
+    });
+
+    // Triple-tap on status indicator to show diagnostics (for iOS Safari)
+    let tapCount = 0;
+    let tapTimeout = null;
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'budget-sse-status-indicator' || e.target.closest('#budget-sse-status-indicator')) {
+            tapCount++;
+            if (tapCount >= 3) {
+                tapCount = 0;
+                clearTimeout(tapTimeout);
+                window.budgetWSClient.showDiagnostics();
+            } else {
+                clearTimeout(tapTimeout);
+                tapTimeout = setTimeout(() => { tapCount = 0; }, 500);
+            }
         }
     });
 }

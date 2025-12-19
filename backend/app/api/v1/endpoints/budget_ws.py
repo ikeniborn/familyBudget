@@ -92,7 +92,9 @@ async def get_ws_token(current_user: User = Depends(get_current_user)):
     Returns:
         dict: {"token": "jwt_token_string"}
     """
+    logger.info(f"WS token requested: user={current_user.id}")
     token = create_ws_token(user_id=current_user.id)
+    logger.info(f"WS token issued: user={current_user.id}, token_len={len(token)}")
     return {"token": token}
 
 
@@ -518,18 +520,26 @@ async def budget_websocket_endpoint(
             console.log(msg.type, msg.data);
         };
     """
+    # Log connection attempt with User-Agent for iOS debugging
+    client_host = websocket.client.host if websocket.client else "unknown"
+    user_agent = websocket.headers.get("user-agent", "unknown")[:100]
+    logger.info(f"WS connect attempt: host={client_host}, ua={user_agent}")
+
     # Verify JWT token
     user = await verify_ws_token(token)
     if not user:
+        logger.warning(f"WS rejected: invalid token, host={client_host}")
         await websocket.close(code=4001, reason="Invalid or expired token")
         return
 
     user_id = user.id
+    logger.info(f"WS token verified: user={user_id}")
 
     # Check connection limits and accept
     try:
         connection_id = await ws_manager.connect(websocket, user_id)
     except HTTPException as e:
+        logger.warning(f"WS rejected: limit exceeded, user={user_id}")
         await websocket.close(code=4029, reason=e.detail)
         return
 
@@ -693,6 +703,8 @@ async def poll_budget_events(
             "server_time": 1234567890.123,  // Current server time for next poll
         }
     """
+    logger.debug(f"Long poll request: user={current_user.id}, since={since}, timeout={timeout}")
+
     # Check for existing events first
     events = event_buffer.get_events_since(since)
 
