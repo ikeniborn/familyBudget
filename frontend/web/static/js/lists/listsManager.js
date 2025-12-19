@@ -1934,7 +1934,17 @@ class ListsManager {
 
         // Add class to modal to allow overflow (CSS fix for dropdown visibility)
         const modal = document.getElementById('item-modal');
-        if (modal) modal.classList.add('autocomplete-active');
+        if (modal) {
+            modal.classList.add('autocomplete-active');
+            console.log('[iOS DEBUG 31] Modal classes after autocomplete-active:', modal.className);
+
+            const modalBox = modal.querySelector('.modal-box');
+            if (modalBox) {
+                console.log('[iOS DEBUG 32] Modal-box overflow:', window.getComputedStyle(modalBox).overflow);
+                console.log('[iOS DEBUG 33] Modal-box overflow-y:', window.getComputedStyle(modalBox).overflowY);
+                console.log('[iOS DEBUG 34] Modal-box overflow-x:', window.getComputedStyle(modalBox).overflowX);
+            }
+        }
 
         // Store suggestions for selection
         this._currentSuggestions = suggestions;

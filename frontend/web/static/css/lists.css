@@ -563,11 +563,11 @@
 
 /* When autocomplete is active, allow overflow */
 #item-modal.autocomplete-active .modal-box {
-    overflow: visible;
+    overflow: visible !important;
 }
 
-#item-modal .form-control.relative {
-    overflow: visible;
+#item-modal.autocomplete-active .form-control.relative {
+    overflow: visible !important;
 }
 
 /* Autocomplete dropdown styling */
