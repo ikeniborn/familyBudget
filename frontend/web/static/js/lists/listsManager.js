@@ -1719,11 +1719,8 @@ class ListsManager {
      * @private
      */
     _setupProductAutocomplete() {
-        console.log('[Autocomplete] _setupProductAutocomplete called');
         const input = document.getElementById('item-product-name');
-        console.log('[Autocomplete] input element:', input);
         if (!input || input._autocompleteInitialized) {
-            console.log('[Autocomplete] Skipping - input:', !!input, 'initialized:', input?._autocompleteInitialized);
             return;
         }
 
@@ -1737,7 +1734,6 @@ class ListsManager {
         input.addEventListener('compositionend', handler); // IME input (iOS, Android)
 
         input._autocompleteInitialized = true;
-        console.log('[Autocomplete] Event listeners attached successfully');
         debugLog('[ListsManager] Product autocomplete initialized');
     }
 
@@ -1746,8 +1742,6 @@ class ListsManager {
      * @param {string} value - Input value
      */
     handleProductInput(value) {
-        console.log('[Autocomplete] handleProductInput called with:', value);
-
         // Clear previous debounce timer
         if (this._autocompleteTimer) {
             clearTimeout(this._autocompleteTimer);
@@ -1755,13 +1749,11 @@ class ListsManager {
 
         // Hide dropdown if query too short
         if (!value || value.length < 2) {
-            console.log('[Autocomplete] Query too short, hiding suggestions');
             this.hideProductSuggestions();
             return;
         }
 
         // Debounce API calls (300ms)
-        console.log('[Autocomplete] Scheduling showProductSuggestions in 300ms');
         this._autocompleteTimer = setTimeout(() => {
             this.showProductSuggestions(value);
         }, 300);
@@ -1772,8 +1764,6 @@ class ListsManager {
      * @param {string} query - Search query
      */
     async showProductSuggestions(query) {
-        console.log('[Autocomplete] showProductSuggestions called, query:', query, 'isOnline:', this.isOnline);
-
         if (query.length < 2) {
             this.hideProductSuggestions();
             return;
@@ -1784,16 +1774,13 @@ class ListsManager {
 
             if (this.isOnline) {
                 // Online: fetch from API
-                console.log('[Autocomplete] Fetching from API...');
                 const response = await fetch(
                     `/api/v1/shopping-list-items/products/suggest?q=${encodeURIComponent(query)}&limit=10`
                 );
-                console.log('[Autocomplete] API response status:', response.status);
 
                 if (response.ok) {
                     const data = await response.json();
                     suggestions = data.suggestions || [];
-                    console.log('[Autocomplete] Got', suggestions.length, 'suggestions from API');
 
                     // Cache suggestions for offline use
                     if (this.db && suggestions.length > 0) {
@@ -1802,12 +1789,9 @@ class ListsManager {
                 }
             } else {
                 // Offline: search in cached suggestions
-                console.log('[Autocomplete] Offline mode, searching cache...');
                 suggestions = await this._searchCachedSuggestions(query);
-                console.log('[Autocomplete] Got', suggestions.length, 'suggestions from cache');
             }
 
-            console.log('[Autocomplete] Rendering dropdown with', suggestions.length, 'suggestions');
             this.renderSuggestionsDropdown(suggestions);
 
         } catch (error) {
