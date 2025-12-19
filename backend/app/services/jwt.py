@@ -87,6 +87,68 @@ def create_access_token(user_id: int, telegram_id: int) -> str:
     return token
 
 
+# WebSocket token configuration
+WS_TOKEN_EXPIRE_MINUTES = 5  # Short-lived token for WebSocket connections
+
+
+def create_ws_token(user_id: int) -> str:
+    """
+    Create a short-lived JWT token for WebSocket connection.
+
+    WebSocket tokens are passed via URL query parameter, which can be logged
+    or exposed in referrer headers. Therefore, WS tokens:
+    - Have short expiration (5 minutes)
+    - Include 'type: ws' claim to distinguish from regular tokens
+    - Only contain user_id (minimal claims)
+
+    Args:
+        user_id: Database user ID
+
+    Returns:
+        str: Encoded JWT token string for WebSocket authentication
+
+    Security notes:
+        - Token is short-lived to minimize exposure window
+        - Token type 'ws' prevents use as regular API token
+        - Should only be used for WebSocket initial connection
+    """
+    expire = datetime.utcnow() + timedelta(minutes=WS_TOKEN_EXPIRE_MINUTES)
+
+    claims = {
+        "sub": user_id,  # Subject (user ID)
+        "type": "ws",  # Token type - WebSocket only
+        "exp": expire,
+        "iat": datetime.utcnow(),
+    }
+
+    token = jwt.encode(claims, SECRET_KEY, algorithm=ALGORITHM)
+    return token
+
+
+def decode_ws_token(token: str) -> Optional[int]:
+    """
+    Decode and validate WebSocket JWT token.
+
+    Only accepts tokens with 'type: ws' claim.
+
+    Args:
+        token: JWT token string to decode
+
+    Returns:
+        Optional[int]: User ID if token is valid WS token, None otherwise
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+        # Verify this is a WebSocket token
+        if payload.get("type") != "ws":
+            return None
+
+        return payload.get("sub")
+    except JWTError:
+        return None
+
+
 def decode_access_token(token: str) -> Optional[int]:
     """
     Decode and validate JWT access token.

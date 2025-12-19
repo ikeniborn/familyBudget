@@ -48,7 +48,7 @@ from backend.app.db.session import get_session, get_session_context
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.core.dependencies import get_current_user
-from backend.app.services.jwt import create_access_token
+from backend.app.services.jwt import create_ws_token, decode_ws_token
 
 # Security constants
 MAX_CONNECTIONS_PER_USER = 10  # Max WebSocket connections per user
@@ -84,13 +84,15 @@ async def get_ws_token(current_user: User = Depends(get_current_user)):
     via this HTTP endpoint (with cookie auth), then uses the token
     to connect to the WebSocket endpoint.
 
+    Security:
+        - Token expires in 5 minutes (short-lived)
+        - Token has 'type: ws' claim (cannot be used as API token)
+        - Requires authenticated user via httpOnly cookie
+
     Returns:
         dict: {"token": "jwt_token_string"}
     """
-    token = create_access_token(
-        user_id=current_user.id,
-        telegram_id=current_user.telegram_id
-    )
+    token = create_ws_token(user_id=current_user.id)
     return {"token": token}
 
 
@@ -447,22 +449,24 @@ async def verify_ws_token(token: str) -> User | None:
     Verify JWT token from WebSocket query parameter.
 
     WebSocket doesn't support cookies, so JWT is passed via query param.
+    Only accepts short-lived WS tokens with 'type: ws' claim.
 
     Args:
-        token: JWT token string
+        token: JWT token string (must be WS token type)
 
     Returns:
-        User object if valid, None otherwise
+        User object if valid WS token, None otherwise
+
+    Security:
+        - Only accepts tokens with 'type: ws' claim
+        - Regular API tokens are rejected (prevents token misuse)
+        - WS tokens expire in 5 minutes
     """
     try:
-        settings = get_settings()
-        payload = jwt.decode(
-            token,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
-        )
-        user_id: int = payload.get("sub")
+        # Use dedicated WS token decoder (checks 'type: ws' claim)
+        user_id = decode_ws_token(token)
         if user_id is None:
+            logger.warning("Budget WS: Invalid or non-WS token type")
             return None
 
         # Get user from database
@@ -471,9 +475,6 @@ async def verify_ws_token(token: str) -> User | None:
             if user and getattr(user, "is_active", True):
                 return user
 
-        return None
-    except JWTError as e:
-        logger.warning(f"Budget WS JWT verification failed: {e}")
         return None
     except Exception as e:
         logger.error(f"Budget WS token verification error: {e}")
