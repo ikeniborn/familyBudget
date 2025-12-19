@@ -372,10 +372,10 @@
 <!-- ============================================== -->
 <!-- Dropdown rendered outside modal to fix iOS Safari position:fixed bug -->
 <!-- Positioned via JavaScript using getBoundingClientRect() -->
-<!-- z-index: 999999 to appear ABOVE dialog (DaisyUI modal z-index ~999) -->
+<!-- z-index: max int32 to appear ABOVE dialog and all other elements -->
 <div id="product-suggestions-dropdown"
      class="fixed bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"
-     style="pointer-events: auto; z-index: 999999 !important;">
+     style="pointer-events: auto; z-index: 2147483647 !important;">
     <!-- Suggestions will be rendered here by listsManager.js -->
 </div>
 

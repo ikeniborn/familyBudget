@@ -1902,16 +1902,13 @@ class ListsManager {
 
         // Build dropdown HTML
         const html = suggestions.map((s, index) => `
-            <div class="suggestion-item px-3 py-2 hover:bg-base-200 cursor-pointer flex items-center gap-2"
+            <div class="suggestion-item px-3 py-2 hover:bg-base-200 cursor-pointer"
                  data-index="${index}">
-                <div class="flex-1">
-                    <div class="font-medium text-sm">${this._escapeHtml(s.product_name)}</div>
-                    <div class="text-xs text-base-content/60">
-                        ${s.store_name ? `<span class="mr-2">🏪 ${this._escapeHtml(s.store_name)}</span>` : ''}
-                        ${s.product_group_name ? `<span>📦 ${this._escapeHtml(s.product_group_name)}</span>` : ''}
-                    </div>
+                <div class="font-medium text-sm">${this._escapeHtml(s.product_name)}</div>
+                <div class="text-xs text-base-content/60">
+                    ${s.store_name ? `<span class="mr-2">🏪 ${this._escapeHtml(s.store_name)}</span>` : ''}
+                    ${s.product_group_name ? `<span>📦 ${this._escapeHtml(s.product_group_name)}</span>` : ''}
                 </div>
-                ${s.usage_count > 1 ? `<span class="badge badge-ghost badge-xs">${s.usage_count}x</span>` : ''}
             </div>
         `).join('');
 
