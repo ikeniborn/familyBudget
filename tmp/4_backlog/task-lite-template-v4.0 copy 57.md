@@ -6,8 +6,11 @@
 ---
 
 ## Задачи
+Изучи /home/UF.RT.RU/i.y.tischenko/Документы/Git/familyBudget/docs/architecture перед началом изменений и планированием в рамках полученного задания.
 
 
+
+ВАЖНО! После всех изменений актуализируй /home/UF.RT.RU/i.y.tischenko/Документы/Git/familyBudget/docs/architecture
 ---
 
 
