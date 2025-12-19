@@ -351,14 +351,41 @@ async def budget_events(
         disconnect_reason = "normal"
 
         try:
+            # Safari iOS buffering workaround: Send 2KB+ in initial event
+            # Safari iOS buffers SSE responses until ~2KB, preventing onopen/onmessage events
+            # Reference: https://github.com/bigskysoftware/htmx/issues/2388
+            user_agent = request.headers.get("user-agent", "").lower()
+            is_safari_ios = (
+                ("iphone" in user_agent or "ipad" in user_agent)
+                and "safari" in user_agent
+                and "chrome" not in user_agent
+                and "crios" not in user_agent
+                and "fxios" not in user_agent
+            )
+
+            # Prepare connected event data
+            connected_data = {
+                "user_id": user_id,
+                "connection_id": connection_id,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+
+            if is_safari_ios:
+                # Add 2KB+ padding to connected event to overcome Safari iOS buffering
+                # This ensures the event is large enough to trigger onopen immediately
+                padding_needed = 2048
+                padding_char = "."
+                connected_data["_safari_ios_padding"] = padding_char * padding_needed
+
+                logger.info(
+                    f"Budget SSE: Safari iOS detected (user={user_id}), "
+                    f"added {padding_needed} bytes padding to connected event"
+                )
+
             # Send initial connection event with connection_id for client to track
             yield {
                 "event": "connected",
-                "data": json.dumps({
-                    "user_id": user_id,
-                    "connection_id": connection_id,
-                    "timestamp": datetime.utcnow().isoformat(),
-                }),
+                "data": json.dumps(connected_data),
             }
 
             while True:
