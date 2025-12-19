@@ -134,7 +134,12 @@ class BudgetWSClient {
         const isPadOSDesktop = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
         const isSafariLike = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua);
 
-        return (isIOS || isPadOSDesktop) && isSafariLike;
+        const result = (isIOS || isPadOSDesktop) && isSafariLike;
+        console.log('[BudgetWS] Safari iOS detection:', {
+            isIOS, isPadOSDesktop, isSafariLike, result,
+            ua: ua.substring(0, 100)
+        });
+        return result;
     }
 
     /**
@@ -366,7 +371,19 @@ class BudgetWSClient {
 
             const timeSinceHeartbeat = Date.now() - this.lastLeaderHeartbeat;
             if (timeSinceHeartbeat > this.LEADER_TIMEOUT) {
-                debugLog('[BudgetWS] Leader heartbeat timeout, may become leader soon');
+                console.log('[BudgetWS] Leader heartbeat timeout, attempting to become leader');
+                clearInterval(this._followerCheckInterval);
+                this._followerCheckInterval = null;
+
+                // Try to become leader
+                this.isLeader = true;
+                this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
+                this._startLeaderHeartbeat();
+
+                // Create connection as new leader
+                if (this.enabled && !this.isConnected) {
+                    this._createConnection();
+                }
             }
         }, 5000);
     }
@@ -600,11 +617,13 @@ class BudgetWSClient {
      * @private
      */
     async _getWSToken() {
+        console.log('[BudgetWS] Fetching WS token...');
         try {
             const response = await fetch('/api/v1/budget/ws/token', {
                 method: 'POST',
                 credentials: 'include'
             });
+            console.log('[BudgetWS] Token response status:', response.status);
             if (!response.ok) {
                 if (response.status === 401) {
                     console.error('[BudgetWS] 401: Not authenticated');
@@ -614,6 +633,7 @@ class BudgetWSClient {
                 throw new Error(`HTTP ${response.status}`);
             }
             const data = await response.json();
+            console.log('[BudgetWS] Token received, length:', data.token?.length || 0);
             return data.token;
         } catch (e) {
             console.error('[BudgetWS] Failed to get WS token:', e);
@@ -1418,6 +1438,65 @@ class BudgetWSClient {
             indicator.title = 'Connecting...';
         }
     }
+
+    /**
+     * Get detailed diagnostic info (for debugging without Web Inspector)
+     * Call from console: window.budgetWSClient.diagnose()
+     * @returns {Object}
+     */
+    diagnose() {
+        const diag = {
+            // Connection state
+            isConnected: this.isConnected,
+            enabled: this.enabled,
+            connectionId: this.connectionId,
+
+            // WebSocket state
+            wsState: this.ws ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][this.ws.readyState] : 'NO_SOCKET',
+            useLongPolling: this.useLongPolling,
+
+            // Multi-tab state
+            isLeader: this.isLeader,
+            multiTabSupported: this._supportsMultiTab(),
+            multiTabInitialized: this._multiTabInitialized,
+            hasChannel: this.channel !== null,
+            lastLeaderHeartbeat: this.lastLeaderHeartbeat ? new Date(this.lastLeaderHeartbeat).toISOString() : null,
+
+            // Browser detection
+            safariIOSMode: this._safariIOSMode,
+            needsLongerTimeout: this._needsLongerTimeout(),
+            userAgent: navigator.userAgent,
+
+            // Reconnection state
+            reconnectAttempts: this.reconnectAttempts,
+            maxReconnectAttempts: this.maxReconnectAttempts,
+            limitReached: this.limitReached,
+            approachingLimit: this.approachingLimit,
+
+            // Polling state
+            pollingActive: this._pollingActive,
+            pollRetryCount: this._pollRetryCount
+        };
+
+        console.log('[BudgetWS] === DIAGNOSTIC INFO ===');
+        console.table(diag);
+        return diag;
+    }
+
+    /**
+     * Force reconnect (for debugging)
+     * Call from console: window.budgetWSClient.forceReconnect()
+     */
+    forceReconnect() {
+        console.log('[BudgetWS] Force reconnect requested');
+        this.disconnect();
+        this.reconnectAttempts = 0;
+        this.limitReached = false;
+        this.useLongPolling = false;
+        this._multiTabInitialized = false;
+        this.isLeader = false;
+        setTimeout(() => this.connect(), 500);
+    }
 }
 
 // ==================== GLOBAL EXPORTS ====================
@@ -1428,6 +1507,28 @@ if (typeof window !== 'undefined') {
 
     // Create singleton instance
     window.budgetWSClient = new BudgetWSClient();
+
+    // Global online/offline handlers for automatic reconnection
+    window.addEventListener('online', () => {
+        console.log('[BudgetWS] Browser went online');
+        const client = window.budgetWSClient;
+        if (client && client.enabled && !client.isConnected) {
+            console.log('[BudgetWS] Attempting reconnect after online event');
+            // Reset state for clean reconnect
+            client.reconnectAttempts = 0;
+            client._multiTabInitialized = false;
+            client.isLeader = false;
+            setTimeout(() => client.connect(), 1000);
+        }
+    });
+
+    window.addEventListener('offline', () => {
+        console.log('[BudgetWS] Browser went offline');
+        const client = window.budgetWSClient;
+        if (client) {
+            client._updateStatusIndicator();
+        }
+    });
 }
 
 // Debug log helper
