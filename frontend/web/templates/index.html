@@ -49,10 +49,75 @@
         <div class="grid grid-cols-1 gap-6">
             <!-- Quick Actions -->
             <div class="card bg-base-100 shadow-xl">
-                <div class="card-body">
-                    <h2 class="card-title text-xl mb-4">💡 Быстрые действия</h2>
+                <div class="card-body p-4 md:p-6">
+                    <h2 class="card-title text-lg md:text-xl mb-3 md:mb-4">💡 Быстрые действия</h2>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Mobile: Mini Cards Row (visible on < md) -->
+                    <div class="grid grid-cols-4 gap-2 md:hidden">
+                        <!-- Priority 1: Факт -->
+                        <button onclick="openAddTransactionModal()" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-success text-success-content hover:brightness-95 active:scale-95 transition-all shadow-md">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            <span class="text-xs font-medium">Факт</span>
+                        </button>
+
+                        <!-- Priority 2: Перевод -->
+                        <button onclick="openFactTransferModal()" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-warning text-warning-content hover:brightness-95 active:scale-95 transition-all shadow-md">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                            <span class="text-xs font-medium">Перевод</span>
+                        </button>
+
+                        <!-- Priority 3: Списки -->
+                        <a href="/lists" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-accent text-accent-content hover:brightness-95 active:scale-95 transition-all shadow-md">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            </svg>
+                            <span class="text-xs font-medium">Списки</span>
+                        </a>
+
+                        <!-- More: Dropdown -->
+                        <div class="dropdown dropdown-end">
+                            <button tabindex="0" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-base-200 hover:bg-base-300 active:scale-95 transition-all w-full">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"/>
+                                </svg>
+                                <span class="text-xs font-medium text-base-content/70">Ещё</span>
+                            </button>
+                            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52 mt-2">
+                                <li>
+                                    <button onclick="openAddPlanModal(); document.activeElement.blur();" class="gap-2">
+                                        <svg class="w-4 h-4 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                        </svg>
+                                        План: Расход/Доход
+                                    </button>
+                                </li>
+                                <li>
+                                    <button onclick="openPlanTransferModal(); document.activeElement.blur();" class="gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                        </svg>
+                                        План: Перевод
+                                    </button>
+                                </li>
+                                <div class="divider my-1"></div>
+                                <li data-offline-hidden="true">
+                                    <a href="/analytics" class="gap-2">
+                                        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        Аналитика
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Desktop: Original 3-column layout (visible on >= md) -->
+                    <div class="hidden md:grid md:grid-cols-3 gap-4">
                         <!-- Факты -->
                         <div class="border border-success/30 rounded-lg p-3 bg-success/5">
                             <h3 class="text-sm font-semibold text-success mb-2 flex items-center gap-1">

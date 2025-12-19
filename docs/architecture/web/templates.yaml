@@ -77,6 +77,43 @@ templates:
         trigger: "load"
         target: "#recent-transactions"
 
+    # Mobile Quick Actions (added 2025-12-19)
+    responsive_components:
+      quick_actions:
+        mobile_pattern: "Mini Cards Row"
+        mobile_breakpoint: "< 768px (md)"
+        mobile_layout:
+          type: "4-column grid"
+          height: "~80px"
+          priority_buttons:
+            - name: "Факт"
+              action: "openAddTransactionModal()"
+              color: "bg-success"
+            - name: "Перевод"
+              action: "openFactTransferModal()"
+              color: "bg-warning"
+            - name: "Списки"
+              action: "href: /lists"
+              color: "bg-accent"
+          dropdown_button:
+            name: "Ещё"
+            items:
+              - "План: Расход/Доход"
+              - "План: Перевод"
+              - "Аналитика"
+        desktop_layout:
+          type: "3-column grouped cards"
+          groups:
+            - "Факты (Расход/Доход, Перевод)"
+            - "Планы (Расход/Доход, Перевод)"
+            - "Прочее (Аналитика, Списки)"
+        design_rationale: |
+          Mobile layout optimized for one-handed use:
+          - Priority actions (Факт, Списки) accessible in 1 tap
+          - Secondary actions (План, Аналитика) behind dropdown
+          - Compact ~80px height vs ~350px original
+          - Design variants tested: tmp/quick/variant-*.html
+
   facts:
     path: "frontend/web/templates/facts.html"
     extends: base
