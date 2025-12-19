@@ -356,25 +356,30 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             if (DEBUG) console.log('[SW] Serving from cache:', url.pathname);
 
-            // Stale-while-revalidate: обновляем кеш в фоне если версия изменилась
-            // Проверяем актуальность файла через network request
-            fetch(request).then((response) => {
-              if (response.ok) {
-                // Сравниваем ETag или Last-Modified для определения изменений
-                const cachedETag = cachedResponse.headers.get('etag');
-                const newETag = response.headers.get('etag');
+            // Stale-while-revalidate: обновляем кеш в фоне
+            // Оптимизация: файлы с query string (?v=...) используют cache busting,
+            // поэтому background fetch не нужен - версия уже закодирована в URL.
+            // Для файлов без query string проверяем ETag для обновления.
+            if (!url.search) {
+              // Нет query string - нужен background fetch с проверкой ETag
+              fetch(request).then((response) => {
+                if (response.ok) {
+                  const cachedETag = cachedResponse.headers.get('etag');
+                  const newETag = response.headers.get('etag');
 
-                // Обновляем кеш если версия изменилась
-                if (!cachedETag || cachedETag !== newETag || url.search) {
-                  caches.open(CACHE_NAME).then((cache) => {
-                    if (DEBUG) console.log('[SW] Updating cache for:', url.pathname + url.search);
-                    cache.put(request, response);
-                  });
+                  // Обновляем кеш только если ETag изменился
+                  if (!cachedETag || cachedETag !== newETag) {
+                    caches.open(CACHE_NAME).then((cache) => {
+                      if (DEBUG) console.log('[SW] Updating cache (ETag changed):', url.pathname);
+                      cache.put(request, response);
+                    });
+                  }
                 }
-              }
-            }).catch(() => {
-              // Игнорируем ошибки фонового обновления (offline mode)
-            });
+              }).catch(() => {
+                // Игнорируем ошибки фонового обновления (offline mode)
+              });
+            }
+            // Файлы с ?v=... не требуют background fetch - cache busting работает
 
             return cachedResponse;
           }
