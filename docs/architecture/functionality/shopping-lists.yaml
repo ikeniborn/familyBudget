@@ -17,7 +17,13 @@ module:
         - update_list
         - delete_list
         - get_user_lists
+        - get_shopping_lists_with_stats  # Returns lists with item counts (excludes soft-deleted items)
+        - get_shopping_list_item_count   # Returns (total, completed) counts (excludes soft-deleted items)
       depends_on: []
+      notes: |
+        Item count functions exclude soft-deleted items (deleted_at IS NOT NULL).
+        Used by landing page cards to show "X / Y выполнено (Z%)".
+        Changed in commit 6aa943bf to fix incorrect counts including deleted items.
 
     - name: shopping_list_item_service
       path: "backend/app/services/shopping_list_item_service.py"
@@ -25,11 +31,16 @@ module:
       functions:
         - create_item
         - update_item
-        - delete_items_batch
+        - delete_items_batch   # Soft delete (sets deleted_at timestamp)
         - sync_batch           # Offline sync
         - get_items_by_list
+        - get_pending_sync_items  # Excludes soft-deleted items
       depends_on: []
-      notes: "Batch operations, offline sync support"
+      notes: |
+        Batch operations, offline sync support.
+        Uses soft delete pattern: items marked with deleted_at timestamp instead of physical deletion.
+        Soft-deleted items preserved for autocomplete history and conflict resolution.
+        All queries filter deleted_at IS NULL to exclude soft-deleted items.
 
     - name: store_service
       path: "backend/app/services/store_service.py"

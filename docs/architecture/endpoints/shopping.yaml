@@ -8,16 +8,22 @@ routes:
   - path: "/api/v1/shopping-lists"
     method: GET
     auth: user
-    description: "List all shopping lists"
+    description: "List all shopping lists with statistics"
     response:
       status: 200
       body:
         - id: "integer"
           name: "string"
           user_id: "integer (creator)"
-          items_count: "integer"
-          completed_count: "integer"
+          total_items: "integer (excludes soft-deleted items)"
+          completed_items: "integer (excludes soft-deleted items)"
+          completion_percentage: "float (0-100)"
           created_at: "datetime"
+    service:
+      $ref: "../functionality/shopping-lists.yaml#/module/services/0"
+    notes: |
+      Item counts exclude soft-deleted items (deleted_at IS NOT NULL).
+      Changed in commit 6aa943bf to fix incorrect counts.
 
   - path: "/api/v1/shopping-lists"
     method: POST
@@ -63,21 +69,28 @@ routes:
   - path: "/api/v1/shopping-list-items"
     method: GET
     auth: user
-    description: "List items for a shopping list"
+    description: "List items for a shopping list (excludes soft-deleted)"
     query_params:
       shopping_list_id: "integer (required)"
+      is_completed: "boolean (optional)"
+      store_id: "integer (optional)"
+      product_group_id: "integer (optional)"
     response:
       status: 200
       body:
         - id: "integer"
           shopping_list_id: "integer"
-          name: "string"
+          product_name: "string"
           quantity: "decimal"
           unit: "string"
           product_group_id: "integer (optional)"
           store_id: "integer (optional)"
           is_completed: "boolean"
+          deleted_at: "datetime (always NULL in response - soft-deleted items excluded)"
           sync_hash: "string"
+    notes: |
+      Returns only active items (deleted_at IS NULL).
+      Soft-deleted items are hidden from all queries.
 
   - path: "/api/v1/shopping-list-items"
     method: POST
@@ -118,7 +131,7 @@ routes:
   - path: "/api/v1/shopping-list-items"
     method: DELETE
     auth: user
-    description: "Delete shopping list items (batch)"
+    description: "Soft-delete shopping list items (batch)"
     request:
       body:
         ids: "array of integers"
@@ -128,6 +141,10 @@ routes:
         deleted_count: "integer"
     side_effects:
       - "SSE broadcast: shopping_list_item_deleted"
+    notes: |
+      Uses soft delete pattern: sets deleted_at timestamp instead of physical deletion.
+      Soft-deleted items preserved for autocomplete history and conflict resolution.
+      Excluded from all item count queries and list responses.
 
   # ---------------------------------------------------------------------------
   # OFFLINE SYNC

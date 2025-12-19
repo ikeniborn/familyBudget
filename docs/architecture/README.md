@@ -173,6 +173,10 @@ When adding new components:
 
 ## Generated
 
-- **Date**: 2025-12-18
-- **Version**: 1.0.0
+- **Date**: 2025-12-19
+- **Version**: 1.0.1
 - **Project**: Family Budget
+
+## Recent Changes
+
+- **2025-12-19**: Updated shopping lists documentation to reflect soft delete pattern and item count filtering (commit 6aa943bf)
