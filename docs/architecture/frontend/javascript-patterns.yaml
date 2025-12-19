@@ -1,0 +1,267 @@
+# JavaScript Patterns and Best Practices
+# Frontend JavaScript coding patterns для Family Budget
+
+patterns:
+  # ---------------------------------------------------------------------------
+  # EVENT HANDLING
+  # ---------------------------------------------------------------------------
+  event_handling:
+    dynamic_content:
+      name: "Event Delegation для динамического контента"
+      pattern: event_delegation
+      avoid: inline_onclick_handlers
+      reason: "iOS Safari compatibility - inline onclick не работает надежно для динамически созданных элементов"
+      when_to_use:
+        - "HTML создается динамически через innerHTML или string templates"
+        - "Элементы добавляются/удаляются в runtime"
+        - "Требуется мобильная совместимость (iOS Safari, Android)"
+      implementation:
+        good_example: |
+          // ✅ ПРАВИЛЬНО: Event delegation
+          const parentContainer = document.getElementById('dropdown');
+          parentContainer.addEventListener('click', (event) => {
+              const item = event.target.closest('.item');
+              if (!item) return;
+
+              const index = parseInt(item.dataset.index, 10);
+              handleItemClick(index);
+          });
+        bad_example: |
+          // ❌ НЕПРАВИЛЬНО: Inline onclick
+          const html = items.map((item, index) => `
+              <div class="item" onclick="handleItemClick(${index})">
+          `);
+      files:
+        - "frontend/web/static/js/lists/listsManager.js:_setupSuggestionsClickHandler()"
+      related_commits:
+        - commit: "0eedb351"
+          description: "iOS Safari autocomplete tap fix"
+        - commit: "6c558b76"
+          description: "Input events для autocomplete на мобильных"
+
+    mobile_compatibility:
+      name: "Кроссбраузерные event listeners для мобильных"
+      pattern: multiple_event_listeners
+      when_to_use:
+        - "Input fields на мобильных устройствах"
+        - "IME input (iOS, Android китайская/японская клавиатура)"
+      implementation:
+        example: |
+          // Multiple events для кроссбраузерной совместимости
+          input.addEventListener('input', handler);           // Desktop & некоторые мобильные
+          input.addEventListener('keyup', handler);           // Fallback для мобильных клавиатур
+          input.addEventListener('compositionend', handler);  // IME input (iOS, Android)
+      files:
+        - "frontend/web/static/js/lists/listsManager.js:_setupProductAutocomplete()"
+
+  # ---------------------------------------------------------------------------
+  # INITIALIZATION PATTERNS
+  # ---------------------------------------------------------------------------
+  initialization:
+    idempotent_setup:
+      name: "Идемпотентная инициализация"
+      pattern: initialization_flags
+      when_to_use:
+        - "Функция может быть вызвана несколько раз"
+        - "Нужно избежать повторной инициализации"
+      implementation:
+        example: |
+          _setupSomething() {
+              const element = document.getElementById('target');
+              if (!element || element._initialized) {
+                  return; // Уже инициализировано или элемент не существует
+              }
+
+              // Setup code here
+              element.addEventListener('click', handler);
+
+              element._initialized = true;
+          }
+      files:
+        - "frontend/web/static/js/lists/listsManager.js:_setupProductAutocomplete()"
+        - "frontend/web/static/js/lists/listsManager.js:_setupSuggestionsClickHandler()"
+
+  # ---------------------------------------------------------------------------
+  # MOBILE-SPECIFIC PATTERNS
+  # ---------------------------------------------------------------------------
+  mobile:
+    viewport_configuration:
+      name: "Viewport configuration для веб-приложений"
+      pattern: user_scalable_no
+      when_to_use:
+        - "Веб-приложение (не контентный сайт)"
+        - "Нужно предотвратить автоматический zoom на iOS"
+      avoid_when:
+        - "Контентный сайт (accessibility важнее)"
+        - "Требуется WCAG 2.1 compliance"
+      implementation:
+        example: |
+          <meta name="viewport" content="width=device-width, initial-scale=1.0,
+                maximum-scale=1.0, user-scalable=no">
+      trade_offs:
+        pros:
+          - "100% надежное предотвращение автоматического zoom"
+          - "Улучшает UX для большинства пользователей"
+        cons:
+          - "Снижает accessibility (пользователи не могут зумить)"
+          - "Нарушает WCAG 2.1 Success Criterion 1.4.4"
+      files:
+        - "frontend/web/templates/base.html"
+      related_commits:
+        - commit: "32d78fda"
+          description: "Mobile zoom fix"
+
+    input_font_size:
+      name: "Font size минимум 16px для input на iOS"
+      pattern: minimum_font_size
+      reason: "iOS Safari автоматически зумит input fields < 16px"
+      implementation:
+        example: |
+          .choices__input,
+          .choices__input--cloned {
+              font-size: 16px !important;
+              touch-action: manipulation !important;
+              -webkit-text-size-adjust: 100% !important;
+          }
+      files:
+        - "frontend/web/static/css/choices-tailwind.css"
+
+  # ---------------------------------------------------------------------------
+  # DEBOUNCING & THROTTLING
+  # ---------------------------------------------------------------------------
+  performance:
+    debouncing:
+      name: "Debouncing для API calls"
+      pattern: setTimeout_clearTimeout
+      when_to_use:
+        - "Autocomplete search"
+        - "Input validation"
+        - "Frequent user input"
+      implementation:
+        example: |
+          handleInput(value) {
+              if (this._timer) {
+                  clearTimeout(this._timer);
+              }
+
+              this._timer = setTimeout(() => {
+                  this.performSearch(value);
+              }, 300); // 300ms debounce
+          }
+      files:
+        - "frontend/web/static/js/lists/listsManager.js:handleProductInput()"
+
+  # ---------------------------------------------------------------------------
+  # DOM MANIPULATION
+  # ---------------------------------------------------------------------------
+  dom:
+    escape_html:
+      name: "Экранирование HTML для предотвращения XSS"
+      pattern: escape_function
+      when_to_use:
+        - "User-generated content в innerHTML"
+        - "Динамическое создание HTML"
+      implementation:
+        example: |
+          _escapeHtml(text) {
+              const div = document.createElement('div');
+              div.textContent = text;
+              return div.innerHTML;
+          }
+
+          // Использование
+          const html = `<div>${this._escapeHtml(userInput)}</div>`;
+      files:
+        - "frontend/web/static/js/lists/listsManager.js:_escapeHtml()"
+
+  # ---------------------------------------------------------------------------
+  # CLOSEST() для event delegation
+  # ---------------------------------------------------------------------------
+  dom_traversal:
+    closest_for_delegation:
+      name: "Element.closest() для event delegation"
+      pattern: closest_method
+      when_to_use:
+        - "Event delegation на child элементах"
+        - "Нужно найти ближайшего родителя с определенным селектором"
+      implementation:
+        example: |
+          parentContainer.addEventListener('click', (event) => {
+              // Найти ближайший .item (включая сам event.target)
+              const item = event.target.closest('.item');
+              if (!item) return; // Клик вне .item элементов
+
+              // Обработать клик
+              const id = item.dataset.id;
+              handleClick(id);
+          });
+      browser_support:
+        - "All modern browsers"
+        - "IE9+ с polyfill"
+      files:
+        - "frontend/web/static/js/lists/listsManager.js:_setupSuggestionsClickHandler()"
+
+# ---------------------------------------------------------------------------
+# ANTI-PATTERNS (чего избегать)
+# ---------------------------------------------------------------------------
+anti_patterns:
+  - name: "Inline event handlers в динамическом HTML"
+    avoid: |
+      const html = `<button onclick="handleClick(${id})">Click</button>`;
+    reason: "Не работает на iOS Safari, проблемы с CSP"
+    use_instead: "Event delegation pattern"
+
+  - name: "Игнорирование mobile events"
+    avoid: |
+      input.addEventListener('input', handler); // ТОЛЬКО input event
+    reason: "Не работает на некоторых мобильных клавиатурах"
+    use_instead: "Multiple events (input + keyup + compositionend)"
+
+  - name: "Font-size < 16px для input на мобильных"
+    avoid: |
+      input { font-size: 14px; }
+    reason: "iOS Safari автоматически зумит"
+    use_instead: "font-size: 16px минимум"
+
+  - name: "Повторная инициализация без проверки"
+    avoid: |
+      function setup() {
+          element.addEventListener('click', handler); // Добавится дважды!
+      }
+    reason: "Memory leaks, дублирование обработчиков"
+    use_instead: "Initialization flags pattern"
+
+# ---------------------------------------------------------------------------
+# TESTING GUIDELINES
+# ---------------------------------------------------------------------------
+testing:
+  mobile:
+    - "ВСЕГДА тестировать на реальных iOS устройствах"
+    - "Desktop browser emulation НЕ покажет iOS-специфичные проблемы"
+    - "Тестировать в Safari, Chrome, Yandex Browser на iOS"
+    - "Проверять touch events, не только click"
+
+  browsers:
+    minimum_support:
+      - "iOS Safari (current - 2 versions)"
+      - "Android Chrome (current - 2 versions)"
+      - "Desktop Chrome (current)"
+      - "Desktop Firefox (current)"
+      - "Desktop Safari (current)"
+
+# ---------------------------------------------------------------------------
+# REFERENCES
+# ---------------------------------------------------------------------------
+references:
+  documentation:
+    - "docs/troubleshooting/mobile-zoom-fix.md"
+    - "docs/troubleshooting/mobile-autocomplete-fix.md"
+    - "docs/architecture/functionality/shopping-lists.yaml"
+
+  external:
+    - url: "https://developer.mozilla.org/en-US/docs/Web/API/Element/closest"
+      description: "MDN: Element.closest()"
+    - url: "https://developer.mozilla.org/en-US/docs/Learn/JavaScript/Building_blocks/Events#event_delegation"
+      description: "MDN: Event delegation"
+    - url: "https://developer.apple.com/design/human-interface-guidelines/inputs"
+      description: "Apple HIG: Touch Targets"
