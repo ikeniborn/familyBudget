@@ -303,9 +303,6 @@ services:
 
 volumes:
   postgres_data:
-    # Docker managed volume (migrated from bind mount)
-    # Migration: scripts/migrate_to_docker_volume.sh
-    # Docs: docs/POSTGRES_VOLUME_MIGRATION.md
     external: true
     name: budget_postgres_data
 

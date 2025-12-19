@@ -262,7 +262,7 @@ plans/
 
 # Uploads and temporary files
 uploads/
-#tmp/
+tmp/
 temp/
 
 # General backups
