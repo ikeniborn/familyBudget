@@ -1752,21 +1752,36 @@ class ListsManager {
             return;
         }
 
-        // Event delegation: listen on parent container
-        dropdown.addEventListener('click', (event) => {
-            // Find closest .suggestion-item (handles clicks on child elements)
+        // Shared handler for both touch and click events
+        const handleSelection = (event, isTouchEvent = false) => {
+            // Find closest .suggestion-item (handles taps/clicks on child elements)
             const suggestionItem = event.target.closest('.suggestion-item');
             if (!suggestionItem) return;
+
+            // Prevent ghost click on touch devices
+            if (isTouchEvent) {
+                event.preventDefault();
+            }
 
             // Get suggestion index from data attribute
             const index = parseInt(suggestionItem.dataset.index, 10);
             if (!isNaN(index)) {
                 this.selectSuggestion(index);
             }
+        };
+
+        // iOS Safari: touchstart event (fires BEFORE click)
+        dropdown.addEventListener('touchstart', (event) => {
+            handleSelection(event, true);
+        }, { passive: false }); // passive: false allows preventDefault()
+
+        // Desktop & fallback: click event
+        dropdown.addEventListener('click', (event) => {
+            handleSelection(event, false);
         });
 
         dropdown._clickHandlerInitialized = true;
-        debugLog('[ListsManager] Suggestions click handler initialized (iOS-compatible)');
+        debugLog('[ListsManager] Suggestions click/touch handlers initialized (iOS-compatible)');
     }
 
     /**
