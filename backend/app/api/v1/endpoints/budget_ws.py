@@ -43,7 +43,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSock
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.core.config import settings
+from backend.app.core.config import get_settings
 from backend.app.db.session import get_session, async_session_factory
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
@@ -429,6 +429,7 @@ async def verify_ws_token(token: str) -> User | None:
         User object if valid, None otherwise
     """
     try:
+        settings = get_settings()
         payload = jwt.decode(
             token,
             settings.SECRET_KEY,
