@@ -255,11 +255,7 @@
                        class="input input-bordered input-sm sm:input-md"
                        placeholder="Молоко 3.2%" required
                        autocomplete="new-password">
-                <!-- Autocomplete dropdown -->
-                <div id="product-suggestions-dropdown"
-                     class="absolute top-full left-0 right-0 z-50 mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
-                    <!-- Suggestions will be rendered here -->
-                </div>
+                <!-- Autocomplete dropdown moved to body (Portal pattern for iOS Safari fix) -->
             </div>
 
             <!-- Store -->
@@ -370,6 +366,17 @@
         <button>close</button>
     </form>
 </dialog>
+
+<!-- ============================================== -->
+<!-- AUTOCOMPLETE DROPDOWN PORTAL (iOS Safari Fix) -->
+<!-- ============================================== -->
+<!-- Dropdown rendered outside modal to fix iOS Safari position:fixed bug -->
+<!-- Positioned via JavaScript using getBoundingClientRect() -->
+<div id="product-suggestions-dropdown"
+     class="fixed z-[9999] bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"
+     style="pointer-events: auto;">
+    <!-- Suggestions will be rendered here by listsManager.js -->
+</div>
 
 {% endblock %}
 

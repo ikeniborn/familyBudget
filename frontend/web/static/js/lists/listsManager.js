@@ -1887,22 +1887,15 @@ class ListsManager {
     }
 
     /**
-     * Render suggestions dropdown
+     * Render suggestions dropdown (Portal pattern for iOS Safari fix)
+     * Dropdown is rendered in body with position: fixed and positioned via JS
      * @param {Array} suggestions - Product suggestions
      */
     renderSuggestionsDropdown(suggestions) {
-        console.log('[iOS DEBUG 21] renderSuggestionsDropdown called, suggestions count:', suggestions?.length);
-
         const dropdown = document.getElementById('product-suggestions-dropdown');
-        console.log('[iOS DEBUG 22] Dropdown element found:', !!dropdown);
-
-        if (!dropdown) {
-            console.error('[iOS DEBUG] Dropdown element NOT FOUND!');
-            return;
-        }
+        if (!dropdown) return;
 
         if (!suggestions || suggestions.length === 0) {
-            console.log('[iOS DEBUG 23] No suggestions, hiding dropdown');
             this.hideProductSuggestions();
             return;
         }
@@ -1923,142 +1916,38 @@ class ListsManager {
         `).join('');
 
         dropdown.innerHTML = html;
-        dropdown.classList.remove('hidden');
 
-        console.log('[iOS DEBUG 24] Dropdown HTML set, length:', html.length, 'chars');
-        console.log('[iOS DEBUG 25] Dropdown classes:', dropdown.className);
-        console.log('[iOS DEBUG 26] Dropdown display:', window.getComputedStyle(dropdown).display);
-        console.log('[iOS DEBUG 27] Dropdown visibility:', window.getComputedStyle(dropdown).visibility);
-        console.log('[iOS DEBUG 28] Dropdown position:', window.getComputedStyle(dropdown).position);
-        console.log('[iOS DEBUG 29] Dropdown z-index:', window.getComputedStyle(dropdown).zIndex);
-        console.log('[iOS DEBUG 29.1] Dropdown opacity:', window.getComputedStyle(dropdown).opacity);
-        console.log('[iOS DEBUG 29.2] Dropdown pointer-events:', window.getComputedStyle(dropdown).pointerEvents);
+        // Position dropdown below input field (Portal pattern)
+        const input = document.getElementById('item-product-name');
+        if (input) {
+            const inputRect = input.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
 
-        // Add class to modal to allow overflow (CSS fix for dropdown visibility)
-        const modal = document.getElementById('item-modal');
-        if (modal) {
-            modal.classList.add('autocomplete-active');
-            console.log('[iOS DEBUG 31] Modal classes after autocomplete-active:', modal.className);
+            // Calculate position (below input, aligned left)
+            let top = inputRect.bottom + 4; // 4px gap (mt-1)
+            let left = inputRect.left;
+            let width = inputRect.width;
 
-            const modalBox = modal.querySelector('.modal-box');
-            if (modalBox) {
-                console.log('[iOS DEBUG 32] Modal-box overflow:', window.getComputedStyle(modalBox).overflow);
-                console.log('[iOS DEBUG 33] Modal-box overflow-y:', window.getComputedStyle(modalBox).overflowY);
-                console.log('[iOS DEBUG 34] Modal-box overflow-x:', window.getComputedStyle(modalBox).overflowX);
+            // Ensure dropdown doesn't overflow viewport
+            const maxHeight = 240; // max-h-60 = 15rem = 240px
+            if (top + maxHeight > viewportHeight) {
+                // Show above input if not enough space below
+                top = inputRect.top - maxHeight - 4;
             }
+
+            // Apply positioning
+            dropdown.style.top = `${top}px`;
+            dropdown.style.left = `${left}px`;
+            dropdown.style.width = `${width}px`;
         }
 
-        // Check dropdown positioning and coordinates
-        const rect = dropdown.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const viewportWidth = window.innerWidth;
-        console.log('[iOS DEBUG 35] Dropdown rect:', {
-            top: rect.top,
-            left: rect.left,
-            bottom: rect.bottom,
-            right: rect.right,
-            width: rect.width,
-            height: rect.height
-        });
-        console.log('[iOS DEBUG 36] Viewport:', { width: viewportWidth, height: viewportHeight });
-        console.log('[iOS DEBUG 37] Is in viewport:', {
-            top: rect.top >= 0 && rect.top < viewportHeight,
-            bottom: rect.bottom > 0 && rect.bottom <= viewportHeight,
-            left: rect.left >= 0 && rect.left < viewportWidth,
-            right: rect.right > 0 && rect.right <= viewportWidth
-        });
-
-        // Check parent positioning
-        const formControl = dropdown.closest('.form-control');
-        if (formControl) {
-            const formControlRect = formControl.getBoundingClientRect();
-            console.log('[iOS DEBUG 38] Form-control (parent) rect:', {
-                top: formControlRect.top,
-                left: formControlRect.left,
-                width: formControlRect.width,
-                height: formControlRect.height
-            });
-            console.log('[iOS DEBUG 39] Form-control position:', window.getComputedStyle(formControl).position);
-        }
-
-        // Check modal backdrop (DaisyUI adds .modal-backdrop)
-        const modalBackdrop = document.querySelector('.modal-backdrop');
-        if (modalBackdrop) {
-            const backdropStyle = window.getComputedStyle(modalBackdrop);
-            console.log('[iOS DEBUG 40] Modal backdrop found, z-index:', backdropStyle.zIndex);
-            console.log('[iOS DEBUG 41] Backdrop display:', backdropStyle.display);
-        }
-
-        // Check if dropdown is covered by other elements
-        const elementAtDropdownPosition = document.elementFromPoint(
-            rect.left + rect.width / 2,
-            rect.top + rect.height / 2
-        );
-        console.log('[iOS DEBUG 42] Element at dropdown center:', elementAtDropdownPosition?.tagName, elementAtDropdownPosition?.className);
-        console.log('[iOS DEBUG 43] Is dropdown itself?', elementAtDropdownPosition === dropdown);
-
-        // Check if element is inside dropdown
-        const isInsideDropdown = elementAtDropdownPosition?.closest('#product-suggestions-dropdown');
-        console.log('[iOS DEBUG 44] Is inside dropdown?', !!isInsideDropdown);
-
-        // Get ALL elements at this position (z-index stack)
-        const elementsAtPosition = document.elementsFromPoint(
-            rect.left + rect.width / 2,
-            rect.top + rect.height / 2
-        );
-        console.log('[iOS DEBUG 45] Elements stack (top to bottom):');
-        elementsAtPosition.slice(0, 5).forEach((el, i) => {
-            console.log(`  [${i}]`, el.tagName, el.className || el.id, 'z-index:', window.getComputedStyle(el).zIndex);
-        });
-
-        // Final check: Is dropdown in DOM?
-        const dropdownInDOM = document.getElementById('product-suggestions-dropdown');
-        console.log('[iOS DEBUG 46] Dropdown still in DOM?', !!dropdownInDOM);
-        console.log('[iOS DEBUG 47] Dropdown has children?', dropdownInDOM?.children.length || 0);
-
-        // Check transform/clip-path that might hide element
-        if (dropdownInDOM) {
-            const dropdownStyle = window.getComputedStyle(dropdownInDOM);
-            console.log('[iOS DEBUG 48.1] Dropdown transform:', dropdownStyle.transform);
-            console.log('[iOS DEBUG 48.2] Dropdown clip-path:', dropdownStyle.clipPath);
-            console.log('[iOS DEBUG 48.3] Dropdown height:', dropdownStyle.height);
-            console.log('[iOS DEBUG 48.4] Dropdown max-height:', dropdownStyle.maxHeight);
-        }
-
-        // Check parent transforms/clip
-        if (formControl) {
-            const parentStyle = window.getComputedStyle(formControl);
-            console.log('[iOS DEBUG 48.5] Parent transform:', parentStyle.transform);
-            console.log('[iOS DEBUG 48.6] Parent clip-path:', parentStyle.clipPath);
-            console.log('[iOS DEBUG 48.7] Parent height:', parentStyle.height);
-            console.log('[iOS DEBUG 48.8] Parent overflow:', parentStyle.overflow);
-        }
-
-        // Try to force visibility with inline styles
-        if (dropdownInDOM) {
-            dropdownInDOM.style.display = 'block';
-            dropdownInDOM.style.visibility = 'visible';
-            dropdownInDOM.style.opacity = '1';
-            dropdownInDOM.style.zIndex = '99999';
-            dropdownInDOM.style.backgroundColor = '#ff0000'; // RED for testing
-            dropdownInDOM.style.border = '5px solid yellow'; // YELLOW border
-            dropdownInDOM.style.padding = '20px'; // Make it bigger
-            dropdownInDOM.style.minHeight = '100px'; // Force height
-
-            // Try position: fixed (escape parent flow)
-            dropdownInDOM.style.position = 'fixed';
-            dropdownInDOM.style.top = '100px';
-            dropdownInDOM.style.left = '20px';
-            dropdownInDOM.style.width = '300px';
-
-            console.log('[iOS DEBUG 48] Forced inline styles applied (red bg, yellow border, fixed position)');
-            console.log('[iOS DEBUG 49] Dropdown should be RED SQUARE at top-left of screen');
-        }
+        // Show dropdown
+        dropdown.classList.remove('hidden');
 
         // Store suggestions for selection
         this._currentSuggestions = suggestions;
 
-        console.log('[iOS DEBUG 30] Dropdown should be VISIBLE now!');
         debugLog('[ListsManager] Showing', suggestions.length, 'suggestions');
     }
 
@@ -2108,10 +1997,6 @@ class ListsManager {
             dropdown.innerHTML = '';
         }
         this._currentSuggestions = null;
-
-        // Remove overflow class from modal
-        const modal = document.getElementById('item-modal');
-        if (modal) modal.classList.remove('autocomplete-active');
     }
 
     /**
