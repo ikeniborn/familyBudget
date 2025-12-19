@@ -149,7 +149,8 @@ module:
     js_module:
       $ref: "../web/js-modules.yaml#/modules/pushManager"
     service_worker:
-      path: "frontend/web/static/sw.js"
+      source: "sw.js"  # Root directory
+      served_as: "/sw.min.js"  # Minified at deploy
       handles: "push events"
 
   # ---------------------------------------------------------------------------

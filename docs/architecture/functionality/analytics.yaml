@@ -78,6 +78,10 @@ module:
       endpoint: "GET /api/v1/analytics/account-balances-html"
       template: "partials/account_balances.html"
       trigger: "hx-get on page load"
+      html_attributes:
+        - name: "data-movement"
+          description: "abs(current_balance - opening_balance) for mobile collapsible sorting"
+          added: "2025-12-19"
 
     recent_transactions_html:
       endpoint: "GET /api/v1/facts/recent-html"

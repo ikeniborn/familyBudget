@@ -164,7 +164,7 @@ services:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       # PWA files (served by FastAPI StaticFiles)
-      - ./sw.js:/app/sw.js:ro  # Service Worker
+      - ./sw.min.js:/app/sw.min.js:ro  # Service Worker (minified)
       - ./manifest.json:/app/manifest.json:ro  # PWA Manifest
     ports:
       - "${BACKEND_PORT:-8000}:8000"
@@ -270,8 +270,8 @@ services:
       # SSL certificates from host system (managed by scripts/ssl_certificate_manager.sh)
       - /etc/letsencrypt:/etc/letsencrypt:ro
       # Service Worker (minified + gzip pre-compressed for nginx gzip_static)
-      - ./sw.min.js:/usr/share/nginx/html/sw.js:ro
-      - ./sw.min.js.gz:/usr/share/nginx/html/sw.js.gz:ro
+      - ./sw.min.js:/usr/share/nginx/html/sw.min.js:ro
+      - ./sw.min.js.gz:/usr/share/nginx/html/sw.min.js.gz:ro
       # PWA Manifest
       - ./manifest.json:/usr/share/nginx/html/manifest.json:ro
     ports:

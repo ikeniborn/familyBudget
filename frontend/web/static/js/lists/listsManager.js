@@ -1719,10 +1719,24 @@ class ListsManager {
      * @private
      */
     _setupProductAutocomplete() {
+        console.log('[iOS DEBUG 1] _setupProductAutocomplete called');
+
         const input = document.getElementById('item-product-name');
-        if (!input || input._autocompleteInitialized) return;
+        console.log('[iOS DEBUG 2] Input found:', !!input, 'Already initialized:', !!input?._autocompleteInitialized);
+
+        if (!input) {
+            console.error('[iOS DEBUG] Input element NOT FOUND!');
+            return;
+        }
+
+        // УДАЛЕНА проверка _autocompleteInitialized для диагностики
+        // if (input._autocompleteInitialized) {
+        //     console.warn('[iOS DEBUG] Skipping - already initialized');
+        //     return;
+        // }
 
         const handler = () => {
+            console.log('[iOS DEBUG 5] Input handler fired, value:', input.value, 'length:', input.value.length);
             this.handleProductInput(input.value);
         };
 
@@ -1731,8 +1745,57 @@ class ListsManager {
         input.addEventListener('keyup', handler);      // Fallback for mobile keyboards
         input.addEventListener('compositionend', handler); // IME input (iOS, Android)
 
+        console.log('[iOS DEBUG 6] Event listeners attached (input, keyup, compositionend)');
+
         input._autocompleteInitialized = true;
+
+        // Setup click handler for dropdown (iOS fix)
+        this._setupSuggestionsClickHandler();
+
         debugLog('[ListsManager] Product autocomplete initialized');
+    }
+
+    /**
+     * Setup click/touch handler for suggestions dropdown (iOS-compatible)
+     * Uses event delegation pattern for dynamic content
+     * @private
+     */
+    _setupSuggestionsClickHandler() {
+        const dropdown = document.getElementById('product-suggestions-dropdown');
+        if (!dropdown || dropdown._clickHandlerInitialized) {
+            return;
+        }
+
+        // Shared handler for both touch and click events
+        const handleSelection = (event, isTouchEvent = false) => {
+            // Find closest .suggestion-item (handles taps/clicks on child elements)
+            const suggestionItem = event.target.closest('.suggestion-item');
+            if (!suggestionItem) return;
+
+            // Prevent ghost click on touch devices
+            if (isTouchEvent) {
+                event.preventDefault();
+            }
+
+            // Get suggestion index from data attribute
+            const index = parseInt(suggestionItem.dataset.index, 10);
+            if (!isNaN(index)) {
+                this.selectSuggestion(index);
+            }
+        };
+
+        // iOS Safari: touchstart event (fires BEFORE click)
+        dropdown.addEventListener('touchstart', (event) => {
+            handleSelection(event, true);
+        }, { passive: false }); // passive: false allows preventDefault()
+
+        // Desktop & fallback: click event
+        dropdown.addEventListener('click', (event) => {
+            handleSelection(event, false);
+        });
+
+        dropdown._clickHandlerInitialized = true;
+        debugLog('[ListsManager] Suggestions click/touch handlers initialized (iOS-compatible)');
     }
 
     /**
@@ -1740,6 +1803,8 @@ class ListsManager {
      * @param {string} value - Input value
      */
     handleProductInput(value) {
+        console.log('[iOS DEBUG 7] handleProductInput called, value:', value, 'length:', value?.length);
+
         // Clear previous debounce timer
         if (this._autocompleteTimer) {
             clearTimeout(this._autocompleteTimer);
@@ -1747,12 +1812,16 @@ class ListsManager {
 
         // Hide dropdown if query too short
         if (!value || value.length < 2) {
+            console.log('[iOS DEBUG 8] Query too short, hiding dropdown');
             this.hideProductSuggestions();
             return;
         }
 
+        console.log('[iOS DEBUG 9] Scheduling fetch in 300ms for query:', value);
+
         // Debounce API calls (300ms)
         this._autocompleteTimer = setTimeout(() => {
+            console.log('[iOS DEBUG 10] Debounce timeout fired, calling showProductSuggestions');
             this.showProductSuggestions(value);
         }, 300);
     }
@@ -1762,38 +1831,51 @@ class ListsManager {
      * @param {string} query - Search query
      */
     async showProductSuggestions(query) {
+        console.log('[iOS DEBUG 11] showProductSuggestions called, query:', query, 'length:', query?.length);
+
         if (query.length < 2) {
+            console.warn('[iOS DEBUG 12] Query too short in showProductSuggestions');
             this.hideProductSuggestions();
             return;
         }
 
         try {
             let suggestions = [];
+            console.log('[iOS DEBUG 13] isOnline:', this.isOnline);
 
             if (this.isOnline) {
                 // Online: fetch from API
-                const response = await fetch(
-                    `/api/v1/shopping-list-items/products/suggest?q=${encodeURIComponent(query)}&limit=10`
-                );
+                const url = `/api/v1/shopping-list-items/products/suggest?q=${encodeURIComponent(query)}&limit=10`;
+                console.log('[iOS DEBUG 14] Fetching URL:', url);
+
+                const response = await fetch(url);
+                console.log('[iOS DEBUG 15] Response status:', response.status, 'OK:', response.ok);
 
                 if (response.ok) {
                     const data = await response.json();
                     suggestions = data.suggestions || [];
+                    console.log('[iOS DEBUG 16] Got suggestions count:', suggestions.length);
 
                     // Cache suggestions for offline use
                     if (this.db && suggestions.length > 0) {
                         await this._cacheProductSuggestions(suggestions);
                     }
+                } else {
+                    console.error('[iOS DEBUG 17] API error, status:', response.status, response.statusText);
                 }
             } else {
+                console.log('[iOS DEBUG 18] Offline mode, searching cache');
                 // Offline: search in cached suggestions
                 suggestions = await this._searchCachedSuggestions(query);
+                console.log('[iOS DEBUG 18b] Cached suggestions count:', suggestions.length);
             }
 
+            console.log('[iOS DEBUG 19] Calling renderSuggestionsDropdown with', suggestions.length, 'items');
             this.renderSuggestionsDropdown(suggestions);
 
         } catch (error) {
-            console.error('[ListsManager] Error fetching suggestions:', error);
+            console.error('[iOS DEBUG 20] Exception in showProductSuggestions:', error.message, error.stack);
+            console.error('[Autocomplete] Error fetching suggestions:', error);
             // Try offline cache on error
             if (this.db) {
                 const cached = await this._searchCachedSuggestions(query);
@@ -1805,7 +1887,8 @@ class ListsManager {
     }
 
     /**
-     * Render suggestions dropdown
+     * Render suggestions dropdown (Portal pattern for iOS Safari fix)
+     * Dropdown is rendered in body with position: fixed and positioned via JS
      * @param {Array} suggestions - Product suggestions
      */
     renderSuggestionsDropdown(suggestions) {
@@ -1819,21 +1902,44 @@ class ListsManager {
 
         // Build dropdown HTML
         const html = suggestions.map((s, index) => `
-            <div class="suggestion-item px-3 py-2 hover:bg-base-200 cursor-pointer flex items-center gap-2"
-                 data-index="${index}"
-                 onclick="window.listsManager.selectSuggestion(${index})">
-                <div class="flex-1">
-                    <div class="font-medium text-sm">${this._escapeHtml(s.product_name)}</div>
-                    <div class="text-xs text-base-content/60">
-                        ${s.store_name ? `<span class="mr-2">🏪 ${this._escapeHtml(s.store_name)}</span>` : ''}
-                        ${s.product_group_name ? `<span>📦 ${this._escapeHtml(s.product_group_name)}</span>` : ''}
-                    </div>
+            <div class="suggestion-item px-3 py-2 hover:bg-base-200 cursor-pointer"
+                 data-index="${index}">
+                <div class="font-medium text-sm">${this._escapeHtml(s.product_name)}</div>
+                <div class="text-xs text-base-content/60">
+                    ${s.store_name ? `<span class="mr-2">🏪 ${this._escapeHtml(s.store_name)}</span>` : ''}
+                    ${s.product_group_name ? `<span>📦 ${this._escapeHtml(s.product_group_name)}</span>` : ''}
                 </div>
-                ${s.usage_count > 1 ? `<span class="badge badge-ghost badge-xs">${s.usage_count}x</span>` : ''}
             </div>
         `).join('');
 
         dropdown.innerHTML = html;
+
+        // Position dropdown below input field (Portal pattern)
+        const input = document.getElementById('item-product-name');
+        if (input) {
+            const inputRect = input.getBoundingClientRect();
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            // Calculate position (below input, aligned left)
+            let top = inputRect.bottom + 4; // 4px gap (mt-1)
+            let left = inputRect.left;
+            let width = inputRect.width;
+
+            // Ensure dropdown doesn't overflow viewport
+            const maxHeight = 240; // max-h-60 = 15rem = 240px
+            if (top + maxHeight > viewportHeight) {
+                // Show above input if not enough space below
+                top = inputRect.top - maxHeight - 4;
+            }
+
+            // Apply positioning
+            dropdown.style.top = `${top}px`;
+            dropdown.style.left = `${left}px`;
+            dropdown.style.width = `${width}px`;
+        }
+
+        // Show dropdown
         dropdown.classList.remove('hidden');
 
         // Store suggestions for selection
@@ -2055,10 +2161,19 @@ function openAddItemModal() {
 
     modal.showModal();
 
-    // Focus input after modal animation (iOS Safari fix)
+    // Focus input after modal animation (iOS Safari fix - увеличено с 100ms до 300ms)
     setTimeout(() => {
-        document.getElementById('item-product-name')?.focus();
-    }, 100);
+        const input = document.getElementById('item-product-name');
+        if (input) {
+            console.log('[iOS DEBUG] Attempting to focus input');
+            input.focus();
+            // Принудительный клик может помочь на iOS
+            input.click();
+            console.log('[iOS DEBUG] Input focused and clicked');
+        } else {
+            console.error('[iOS DEBUG] Input not found for focus');
+        }
+    }, 300);
 }
 
 /**

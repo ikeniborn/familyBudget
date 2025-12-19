@@ -70,11 +70,11 @@ modules:
   # ---------------------------------------------------------------------------
   budgetSSEClient:
     path: "frontend/web/static/js/budget/budgetSSEClient.js"
-    loc: 1288
-    description: "Server-Sent Events client for real-time updates"
+    loc: 1590
+    description: "Server-Sent Events client for real-time updates with multi-tab support and Safari iOS optimization"
     endpoints:
       - path: "/api/v1/budget/events/connect"
-        method: "EventSource"
+        method: "EventSource or fetch (Safari iOS)"
       - path: "/api/v1/budget/events/status"
         method: "GET"
       - path: "/api/v1/budget/events/disconnect"
@@ -90,9 +90,36 @@ modules:
       - article_created
       - article_updated
     ui_updates:
-      - "Navbar SSE indicator badge"
+      - "Navbar SSE indicator badge (7 states)"
       - "HTMX refresh of quick-stats"
       - "HTMX refresh of recent-transactions"
+    multi_tab_support:
+      leader_election: "Web Locks API + timeout fallback"
+      inter_tab_communication: "BroadcastChannel API"
+      safari_ios_note: "Отключено для Safari iOS - каждая вкладка независима"
+    safari_ios_mode:
+      description: "Специальный режим для Safari iOS из-за известных проблем"
+      detection: "_detectSafariIOS() - комплексная проверка User-Agent"
+      connection: "fetch-based SSE вместо EventSource (буферизация)"
+      multi_tab: "Отключено - Web Locks ненадёжны на iOS"
+      flag: "_safariIOSMode - устанавливается при инициализации"
+    key_methods:
+      connect: "async - устанавливает SSE соединение (только leader)"
+      _initMultiTab: "async - инициализирует multi-tab support (Safari iOS: пропускает Web Locks)"
+      _tryBecomeLeader: "async - Web Locks leader election (100ms timeout, non-Safari)"
+      _tryBecomeLeaderWithTimeout: "async - timeout-based election для Safari macOS (500-2000ms)"
+      _detectSafariIOS: "Комплексное определение Safari на iOS (User-Agent анализ)"
+      _isSafari: "Определяет Safari браузер (iOS и macOS)"
+      _needsLongerTimeout: "Определяет Safari и Yandex Browser (проблемы с Web Locks)"
+      _isConnectionStale: "Проверяет устаревшее соединение (45s без ping)"
+      _closeExistingConnection: "Закрывает соединение перед reconnect"
+      _createConnection: "async - EventSource или fetch-based SSE (Safari iOS)"
+      _useFetchEventSource: "async - fetch + ReadableStream SSE (Safari iOS primary)"
+      _updateStatusIndicator: "Обновляет UI badge (7 состояний)"
+    constants:
+      HEARTBEAT_INTERVAL: "3000ms - leader heartbeat"
+      LEADER_TIMEOUT: "10000ms - follower considers leader dead"
+      PING_TIMEOUT: "45000ms - connection staleness detection"
     functionality:
       $ref: "../functionality/realtime.yaml#/module"
 

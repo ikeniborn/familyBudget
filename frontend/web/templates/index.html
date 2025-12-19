@@ -17,10 +17,15 @@
             <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">для скрытия нажмите на область приветствия</p>
         </div>
 
-        <!-- Quick Stats Section -->
+        <!-- Quick Stats Section (collapsible on mobile) -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body py-4">
-                <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
+                <!-- Header с индикатором (кликабельный только на мобильных) -->
+                <div class="flex items-center justify-between cursor-pointer md:cursor-default"
+                     onclick="toggleQuickStats()" id="quick-stats-header">
+                    <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
+                    <span class="expand-indicator md:hidden">ещё 2</span>
+                </div>
                 <div id="quick-stats"
                      hx-get="/api/v1/analytics/quick-stats-html"
                      hx-trigger="load"
@@ -31,10 +36,15 @@
             </div>
         </div>
 
-        <!-- Account Balances Section -->
+        <!-- Account Balances Section (collapsible on mobile) -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body py-4">
-                <h2 class="card-title text-xl mb-2">💳 Баланс по счетам</h2>
+                <!-- Header с индикатором (кликабельный только на мобильных) -->
+                <div class="flex items-center justify-between cursor-pointer md:cursor-default"
+                     onclick="toggleAccountBalances()" id="account-balances-header">
+                    <h2 class="card-title text-xl mb-2">💳 Баланс по счетам</h2>
+                    <span class="expand-indicator md:hidden">ещё...</span>
+                </div>
                 <div id="account-balances"
                      hx-get="/api/v1/analytics/account-balances-html"
                      hx-trigger="load"
@@ -49,10 +59,75 @@
         <div class="grid grid-cols-1 gap-6">
             <!-- Quick Actions -->
             <div class="card bg-base-100 shadow-xl">
-                <div class="card-body">
-                    <h2 class="card-title text-xl mb-4">💡 Быстрые действия</h2>
+                <div class="card-body p-4 md:p-6">
+                    <h2 class="card-title text-lg md:text-xl mb-3 md:mb-4">💡 Быстрые действия</h2>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Mobile: Mini Cards Row (visible on < md) -->
+                    <div class="grid grid-cols-4 gap-2 md:hidden">
+                        <!-- Priority 1: Факт -->
+                        <button onclick="openAddTransactionModal()" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-success text-success-content hover:brightness-95 active:scale-95 transition-all shadow-md">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            <span class="text-xs font-medium">Факт</span>
+                        </button>
+
+                        <!-- Priority 2: Перевод -->
+                        <button onclick="openFactTransferModal()" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-warning text-warning-content hover:brightness-95 active:scale-95 transition-all shadow-md">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                            </svg>
+                            <span class="text-xs font-medium">Перевод</span>
+                        </button>
+
+                        <!-- Priority 3: Списки -->
+                        <a href="/lists" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-accent text-accent-content hover:brightness-95 active:scale-95 transition-all shadow-md">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                            </svg>
+                            <span class="text-xs font-medium">Списки</span>
+                        </a>
+
+                        <!-- More: Dropdown -->
+                        <div class="dropdown dropdown-end">
+                            <button tabindex="0" class="flex flex-col items-center gap-1 p-3 rounded-xl bg-base-200 hover:bg-base-300 active:scale-95 transition-all w-full">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"/>
+                                </svg>
+                                <span class="text-xs font-medium text-base-content/70">Ещё</span>
+                            </button>
+                            <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52 mt-2">
+                                <li>
+                                    <button onclick="openAddPlanModal(); document.activeElement.blur();" class="gap-2">
+                                        <svg class="w-4 h-4 text-info" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                        </svg>
+                                        План: Расход/Доход
+                                    </button>
+                                </li>
+                                <li>
+                                    <button onclick="openPlanTransferModal(); document.activeElement.blur();" class="gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                                        </svg>
+                                        План: Перевод
+                                    </button>
+                                </li>
+                                <div class="divider my-1"></div>
+                                <li data-offline-hidden="true">
+                                    <a href="/analytics" class="gap-2">
+                                        <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        Аналитика
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Desktop: Original 3-column layout (visible on >= md) -->
+                    <div class="hidden md:grid md:grid-cols-3 gap-4">
                         <!-- Факты -->
                         <div class="border border-success/30 rounded-lg p-3 bg-success/5">
                             <h3 class="text-sm font-semibold text-success mb-2 flex items-center gap-1">
@@ -282,6 +357,30 @@
 
 {% block extra_scripts %}
 {% if user %}
+<!-- Collapsible Sections CSS -->
+<style>
+/* Collapsible section indicators */
+.expand-indicator {
+    font-size: 0.6875rem;
+    color: oklch(var(--bc) / 0.4);
+    white-space: nowrap;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    background: oklch(var(--b2));
+}
+
+/* Hide indicator on desktop */
+@media (min-width: 768px) {
+    .expand-indicator {
+        display: none !important;
+    }
+    /* Гарантируем видимость всех карточек на desktop */
+    .stat-card, .balance-card {
+        display: block !important;
+    }
+}
+</style>
+
 <!-- Choices.js Library -->
 <link rel="stylesheet" href="/static/css/vendor/choices.min.css">
 <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
@@ -2548,6 +2647,118 @@ function refreshAccountBalances() {
         swap: 'innerHTML'
     });
 }
+
+// ============================================================================
+// Collapsible Sections (Mobile Only)
+// ============================================================================
+
+let quickStatsExpanded = false;
+let accountBalancesExpanded = false;
+
+function toggleQuickStats() {
+    if (window.innerWidth >= 768) return; // Только для мобильных
+
+    quickStatsExpanded = !quickStatsExpanded;
+    applyQuickStatsState();
+}
+
+function applyQuickStatsState() {
+    const container = document.getElementById('quick-stats');
+    const indicator = document.querySelector('#quick-stats-header .expand-indicator');
+
+    if (!container || !indicator) return;
+
+    const cards = container.querySelectorAll('.stat-card');
+    const hiddenCount = Math.max(0, cards.length - 2);
+
+    // Edge case: если карточек ≤2, скрыть индикатор
+    if (hiddenCount === 0) {
+        indicator.style.display = 'none';
+        return;
+    }
+
+    cards.forEach((card, index) => {
+        // Показать только первые 2 карточки (Доходы, Расходы) в свернутом виде
+        // Индексы: 0=Доходы, 1=Расходы, 2=Пополнение, 3=Списание
+        if (index >= 2) {
+            card.style.display = quickStatsExpanded ? '' : 'none';
+        }
+    });
+
+    indicator.textContent = quickStatsExpanded ? 'свернуть' : `ещё ${hiddenCount}`;
+}
+
+function toggleAccountBalances() {
+    if (window.innerWidth >= 768) return;
+
+    accountBalancesExpanded = !accountBalancesExpanded;
+    applyAccountBalancesState();
+}
+
+function applyAccountBalancesState() {
+    const container = document.getElementById('account-balances');
+    const indicator = document.querySelector('#account-balances-header .expand-indicator');
+
+    if (!container || !indicator) return;
+
+    // Получить все карточки и отсортировать по movement (убывание)
+    const cards = Array.from(container.querySelectorAll('.balance-card'));
+    const hiddenCount = Math.max(0, cards.length - 2);
+
+    // Edge case: если счетов ≤2, скрыть индикатор
+    if (hiddenCount === 0) {
+        indicator.style.display = 'none';
+        return;
+    }
+
+    const sortedCards = cards.sort((a, b) => {
+        const movementA = parseFloat(a.dataset.movement) || 0;
+        const movementB = parseFloat(b.dataset.movement) || 0;
+        return movementB - movementA; // Descending
+    });
+
+    // Показать только top-2 в свернутом виде
+    sortedCards.forEach((card, index) => {
+        if (index >= 2) {
+            card.style.display = accountBalancesExpanded ? '' : 'none';
+        }
+    });
+
+    indicator.textContent = accountBalancesExpanded ? 'свернуть' : `ещё ${hiddenCount}`;
+}
+
+// При загрузке данных через HTMX - применить начальное состояние (свернуто)
+document.addEventListener('htmx:afterSwap', (e) => {
+    if (window.innerWidth >= 768) return; // Desktop - ничего не делаем
+
+    const targetId = e.detail.target.id;
+
+    if (targetId === 'quick-stats') {
+        applyQuickStatsState();
+    }
+
+    if (targetId === 'account-balances') {
+        applyAccountBalancesState();
+    }
+});
+
+// Debounced resize handler для поворота экрана
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        if (window.innerWidth >= 768) {
+            // Desktop - сбрасываем inline styles (CSS !important покажет все)
+            document.querySelectorAll('.stat-card, .balance-card').forEach(card => {
+                card.style.display = '';
+            });
+        } else {
+            // Mobile - применить текущее состояние
+            applyQuickStatsState();
+            applyAccountBalancesState();
+        }
+    }, 100); // 100ms debounce
+});
 </script>
 
 <!-- Include Transfer Modal -->

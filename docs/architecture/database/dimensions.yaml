@@ -275,8 +275,8 @@ tables:
   t_d_shopping_list_item:
     model: ShoppingListItem
     file: "backend/app/models/shopping_list_item.py"
-    pattern: "SCD Type 1"
-    description: "Items in shopping lists"
+    pattern: "SCD Type 1 + Soft Delete"
+    description: "Items in shopping lists (uses soft delete pattern)"
 
     columns:
       - name: id
@@ -286,7 +286,7 @@ tables:
         fk:
           $ref: "#/tables/t_d_shopping_list"
         on_delete: CASCADE
-      - name: name
+      - name: product_name
         type: VARCHAR(255) NOT NULL
       - name: quantity
         type: DECIMAL(10,2)
@@ -302,20 +302,37 @@ tables:
         type: INTEGER
         fk:
           $ref: "#/tables/t_d_product_group"
-      - name: is_checked
+      - name: is_completed
         type: BOOLEAN DEFAULT FALSE
-      - name: checked_at
+        description: "Item marked as bought/purchased"
+      - name: completed_at
         type: TIMESTAMP
-      - name: checked_by_user_id
-        type: INTEGER
-        fk:
-          $ref: "#/tables/t_d_user"
+      - name: deleted_at
+        type: TIMESTAMP
+        description: "Soft delete timestamp (NULL = active, NOT NULL = deleted)"
+        note: "Items marked deleted instead of physical deletion"
+      - name: sync_hash
+        type: VARCHAR(64)
+        description: "Deduplication hash for offline sync"
       - name: sort_order
         type: INTEGER DEFAULT 0
       - name: created_at
         type: TIMESTAMP DEFAULT NOW()
       - name: updated_at
         type: TIMESTAMP
+
+    soft_delete:
+      enabled: true
+      column: deleted_at
+      purpose: |
+        Soft-deleted items preserved for:
+        - Autocomplete history (product name suggestions)
+        - Conflict resolution in offline sync
+        - Audit trail
+      query_pattern: |
+        All SELECT queries MUST filter deleted_at IS NULL.
+        COUNT queries MUST exclude soft-deleted items.
+        Changed in commit 6aa943bf to fix item count bug.
 
     indexes:
       - $ref: "./indexes.yaml#/indexes/idx_sli_shopping_list_id"

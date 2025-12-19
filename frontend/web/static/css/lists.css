@@ -558,6 +558,34 @@
 /* Modal Styles */
 /* ============================================== */
 
+/* Autocomplete dropdown inside modal needs special handling */
+/* The dropdown has position:absolute but modal-box has overflow:auto which clips it */
+
+/* When autocomplete is active, allow overflow */
+#item-modal.autocomplete-active .modal-box {
+    overflow: visible !important;
+}
+
+#item-modal.autocomplete-active .form-control.relative {
+    overflow: visible !important;
+}
+
+/* Autocomplete dropdown styling */
+#product-suggestions-dropdown {
+    /* Ensure dropdown appears above other modal content */
+    z-index: 9999;
+}
+
+/* Autocomplete suggestion items - touch optimization */
+#product-suggestions-dropdown .suggestion-item {
+    /* Prevent iOS Safari double-tap zoom and touch delays */
+    touch-action: manipulation;
+    /* Ensure cursor changes on hover */
+    cursor: pointer;
+    /* Ensure proper tap target size for mobile (minimum 44x44px recommended) */
+    min-height: 44px;
+}
+
 /* Desktop: use CSS variable heights for inputs/selects */
 .modal-box .form-control input,
 .modal-box .form-control select {

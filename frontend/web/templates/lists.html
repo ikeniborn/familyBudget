@@ -251,15 +251,11 @@
                 <label class="label py-1">
                     <span class="label-text font-medium text-xs sm:text-sm">🛒 Товар <span class="text-error">*</span></span>
                 </label>
-                <input type="text" name="product_name" id="item-product-name"
+                 <input type="text" name="product_name" id="item-product-name"
                        class="input input-bordered input-sm sm:input-md"
                        placeholder="Молоко 3.2%" required
-                       autocomplete="off">
-                <!-- Autocomplete dropdown -->
-                <div id="product-suggestions-dropdown"
-                     class="absolute top-full left-0 right-0 z-50 mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
-                    <!-- Suggestions will be rendered here -->
-                </div>
+                       autocomplete="new-password">
+                <!-- Autocomplete dropdown moved to body (Portal pattern for iOS Safari fix) -->
             </div>
 
             <!-- Store -->
@@ -328,6 +324,17 @@
     <form method="dialog" class="modal-backdrop">
         <button>close</button>
     </form>
+
+    <!-- ============================================== -->
+    <!-- AUTOCOMPLETE DROPDOWN (Inside Dialog Top Layer) -->
+    <!-- ============================================== -->
+    <!-- Dropdown inside <dialog> to be in same top layer as modal -->
+    <!-- Positioned via JavaScript using getBoundingClientRect() -->
+    <div id="product-suggestions-dropdown"
+         class="fixed bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"
+         style="pointer-events: auto; z-index: 9999;">
+        <!-- Suggestions will be rendered here by listsManager.js -->
+    </div>
 </dialog>
 
 <!-- Delete Confirmation Modal - compact on mobile -->

@@ -193,7 +193,8 @@ module:
   # SERVICE WORKER
   # ---------------------------------------------------------------------------
   service_worker:
-    path: "frontend/web/static/sw.js"
+    source: "sw.js"  # Root directory
+    served_as: "/sw.min.js"  # Minified at deploy
     features:
       - "Cache static assets"
       - "Handle push notifications"

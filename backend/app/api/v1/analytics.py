@@ -763,7 +763,8 @@ async def get_account_balances_html(
             "name": fc.name,
             "opening_balance": opening,
             "current_balance": current,
-            "is_negative": current < 0
+            "is_negative": current < 0,
+            "month_movement": abs(current - opening)  # для сортировки на мобильных (collapsible)
         })
 
     # Format money for mobile - with abbreviations: 1k, 1M, etc.
@@ -813,7 +814,7 @@ async def get_account_balances_html(
     balance_cards = ""
     for bal in balances:
         balance_cards += f"""
-        <div class="balance-card">
+        <div class="balance-card" data-movement="{bal['month_movement']:.2f}">
             <div class="balance-title" title="{bal['name']}">{bal['name']}</div>
             <div>
                 <div class="balance-row">

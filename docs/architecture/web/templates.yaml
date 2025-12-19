@@ -77,6 +77,74 @@ templates:
         trigger: "load"
         target: "#recent-transactions"
 
+    # Mobile Quick Actions (added 2025-12-19)
+    responsive_components:
+      quick_actions:
+        mobile_pattern: "Mini Cards Row"
+        mobile_breakpoint: "< 768px (md)"
+        mobile_layout:
+          type: "4-column grid"
+          height: "~80px"
+          priority_buttons:
+            - name: "Факт"
+              action: "openAddTransactionModal()"
+              color: "bg-success"
+            - name: "Перевод"
+              action: "openFactTransferModal()"
+              color: "bg-warning"
+            - name: "Списки"
+              action: "href: /lists"
+              color: "bg-accent"
+          dropdown_button:
+            name: "Ещё"
+            items:
+              - "План: Расход/Доход"
+              - "План: Перевод"
+              - "Аналитика"
+        desktop_layout:
+          type: "3-column grouped cards"
+          groups:
+            - "Факты (Расход/Доход, Перевод)"
+            - "Планы (Расход/Доход, Перевод)"
+            - "Прочее (Аналитика, Списки)"
+        design_rationale: |
+          Mobile layout optimized for one-handed use:
+          - Priority actions (Факт, Списки) accessible in 1 tap
+          - Secondary actions (План, Аналитика) behind dropdown
+          - Compact ~80px height vs ~350px original
+          - Design variants tested: tmp/quick/variant-*.html
+
+    # Collapsible Sections (added 2025-12-19)
+    collapsible_sections:
+      quick_stats:
+        mobile_breakpoint: "< 768px (md)"
+        collapsed_view: "2 cards (Доходы, Расходы)"
+        expanded_view: "4 cards (Доходы, Расходы, Пополнение, Списание)"
+        toggle_trigger: "tap on section header"
+        persist_state: false
+        initial_state: "collapsed"
+        js_functions:
+          - "toggleQuickStats()"
+          - "applyQuickStatsState()"
+
+      account_balances:
+        mobile_breakpoint: "< 768px (md)"
+        collapsed_view: "Top 2 accounts by month movement"
+        expanded_view: "All accounts"
+        toggle_trigger: "tap on section header"
+        persist_state: false
+        initial_state: "collapsed"
+        sort_criteria: "data-movement attribute (abs(current_balance - opening_balance), descending)"
+        edge_cases:
+          - "If ≤2 accounts: indicator hidden, all accounts visible"
+        js_functions:
+          - "toggleAccountBalances()"
+          - "applyAccountBalancesState()"
+
+      shared_handlers:
+        - "htmx:afterSwap → applies state after HTMX loads content"
+        - "window.resize (debounced 100ms) → reapplies state on screen rotation"
+
   facts:
     path: "frontend/web/templates/facts.html"
     extends: base
