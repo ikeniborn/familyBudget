@@ -2715,9 +2715,11 @@ function applyQuickStatsState() {
         }
     });
 
+    // Скрыть индикатор в развёрнутом состоянии, показать в свёрнутом
+    indicator.style.display = quickStatsExpanded ? 'none' : '';
     const indicatorText = indicator.querySelector('.indicator-text');
     if (indicatorText) {
-        indicatorText.textContent = quickStatsExpanded ? `−${hiddenCount}` : `+${hiddenCount}`;
+        indicatorText.textContent = `+${hiddenCount}`;
     }
 }
 
@@ -2757,9 +2759,11 @@ function applyAccountBalancesState() {
         }
     });
 
+    // Скрыть индикатор в развёрнутом состоянии, показать в свёрнутом
+    indicator.style.display = accountBalancesExpanded ? 'none' : '';
     const indicatorText = indicator.querySelector('.indicator-text');
     if (indicatorText) {
-        indicatorText.textContent = accountBalancesExpanded ? `−${hiddenCount}` : `+${hiddenCount}`;
+        indicatorText.textContent = `+${hiddenCount}`;
     }
 }
 
