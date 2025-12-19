@@ -65,7 +65,7 @@ routes:
       $ref: "../functionality/budget-management.yaml#/module"
     side_effects:
       - "BudgetFactHistory record created"
-      - "SSE broadcast: fact_created"
+      - "WebSocket broadcast: fact_created"
       - "Balance aggregation update"
     deduplication:
       field: "sync_hash"
@@ -116,7 +116,7 @@ routes:
     side_effects:
       - "Old BudgetFactHistory closed"
       - "New BudgetFactHistory created"
-      - "SSE broadcast: fact_updated"
+      - "WebSocket broadcast: fact_updated"
 
   # ---------------------------------------------------------------------------
   # DELETE
@@ -133,7 +133,7 @@ routes:
         message: "Transaction deleted"
     side_effects:
       - "BudgetFactHistory with change_type=DELETE"
-      - "SSE broadcast: fact_deleted"
+      - "WebSocket broadcast: fact_deleted"
 
   # ---------------------------------------------------------------------------
   # RECENT (HTMX)

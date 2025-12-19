@@ -42,7 +42,7 @@ routes:
     side_effects:
       - "Two BudgetFact records created"
       - "Two BudgetFactHistory records created"
-      - "SSE broadcast: transfer_created"
+      - "WebSocket broadcast: transfer_created"
       - "Balance aggregation update for both accounts"
     validation:
       - "from_financial_center_id != to_financial_center_id"

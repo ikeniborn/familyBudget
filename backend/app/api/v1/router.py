@@ -14,7 +14,7 @@ from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
     auth_router,
-    budget_sse_router,
+    budget_ws_router,
     consent_router,
     cost_centers_router,
     facts_router,
@@ -116,6 +116,7 @@ api_router.include_router(google_sheets_import_router)
 # Import Templates endpoints (Shopping Lists Feature) ✅
 api_router.include_router(import_templates_router)
 
-# Budget SSE endpoints (Real-time Updates for Facts/Plans/Transfers/Shopping Items) ✅
-# Note: Shopping List SSE consolidated here (single connection per user)
-api_router.include_router(budget_sse_router)
+# Budget WebSocket endpoints (Real-time Updates with Long Polling fallback) ✅
+# Primary: WebSocket (bidirectional, no buffering)
+# Fallback: Long Polling (10 sec interval)
+api_router.include_router(budget_ws_router)

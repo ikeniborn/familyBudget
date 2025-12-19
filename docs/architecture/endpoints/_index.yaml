@@ -74,9 +74,9 @@ groups:
     endpoints_count: 10
     auth_level: "admin"
 
-  - name: sse
-    file: "./sse.yaml"
-    prefix: "/api/v1/budget/events"
+  - name: websocket
+    file: "./websocket.yaml"
+    prefix: "/api/v1/budget/ws, /poll, /status"
     endpoints_count: 3
     auth_level: "user"
 

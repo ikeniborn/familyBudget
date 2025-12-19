@@ -112,7 +112,7 @@ routes:
     side_effects:
       - "BudgetFact records created"
       - "ImportStaging records cleared"
-      - "SSE broadcasts for each fact"
+      - "WebSocket broadcasts for each fact"
     flow:
       $ref: "../flows/csv-import.yaml"
 

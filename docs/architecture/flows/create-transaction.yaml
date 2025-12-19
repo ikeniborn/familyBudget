@@ -8,7 +8,7 @@ meta:
     - "Web UI (HTMX form)"
     - "Telegram Web App"
     - "API client"
-  outcome: "BudgetFact record created, SSE broadcast"
+  outcome: "BudgetFact record created, WebSocket broadcast"
 
 # ===========================================================================
 # FLOW DIAGRAM
@@ -94,7 +94,7 @@ diagram: |
   │        │                                                                │
   │        ▼                                                                │
   │ ┌─────────────┐                                                         │
-  │ │ SSE         │                                                         │
+  │ │ WebSocket   │                                                         │
   │ │ Broadcast   │───► All connected clients receive "fact_created"       │
   │ └──────┬──────┘                                                         │
   │        │                                                                │
@@ -203,7 +203,7 @@ steps:
       especially record_type (NOT NULL constraint).
       See CLAUDE.md "History Tables" section.
 
-  5_sse_broadcast:
+  5_ws_broadcast:
     name: "Real-time Notification"
     component:
       $ref: "../functionality/realtime.yaml#/module/services/0"
@@ -270,7 +270,7 @@ frontend:
     on_success:
       - "Close modal"
       - "Show success toast"
-      - "SSE auto-updates list"
+      - "WebSocket auto-updates list"
 
   telegram_webapp:
     file: "frontend/webapp/static/add.html"

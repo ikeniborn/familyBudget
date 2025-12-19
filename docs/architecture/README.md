@@ -84,7 +84,7 @@ docs/architecture/
 │   ├── notifications.yaml       # Push, reminders, broadcast
 │   ├── analytics.yaml           # Statistics, dashboards
 │   ├── admin.yaml               # User management, bulk ops
-│   ├── realtime.yaml            # SSE events
+│   ├── realtime.yaml            # WebSocket events
 │   └── offline.yaml             # IndexedDB, sync queue
 │
 ├── web/                         # Frontend components
@@ -106,7 +106,7 @@ docs/architecture/
 │   ├── import.yaml              # /import/*
 │   ├── analytics.yaml           # /analytics/*
 │   ├── admin.yaml               # /admin/*
-│   ├── sse.yaml                 # /budget/events/*
+│   ├── websocket.yaml           # /budget/ws, /poll, /status
 │   └── health.yaml              # /health, /ready, /ping
 │
 ├── database/                    # Database objects
@@ -124,7 +124,7 @@ docs/architecture/
 │   ├── _index.yaml              # Flow summary
 │   ├── create-transaction.yaml  # POST /facts flow
 │   ├── telegram-oauth.yaml      # Auth flow
-│   ├── sse-broadcast.yaml       # Real-time updates
+│   ├── ws-broadcast.yaml        # Real-time updates (WebSocket)
 │   ├── offline-sync.yaml        # Offline → online sync
 │   └── csv-import.yaml          # Import workflow
 │
@@ -162,10 +162,11 @@ docs/architecture/
 | Closure Table | Efficient hierarchical queries |
 | Star Schema | Fact table with dimension FKs |
 
-## Service Worker + SSE Integration
+## Service Worker + WebSocket Integration
 
-The application uses both Service Worker (for offline support) and Server-Sent Events (for real-time updates).
+The application uses both Service Worker (for offline support) and WebSocket (for real-time updates).
 All browser requests pass through the Service Worker, which applies different caching strategies.
+WebSocket connection is established directly (not through Service Worker).
 
 ### Architecture Diagram
 
@@ -175,15 +176,18 @@ All browser requests pass through the Service Worker, which applies different ca
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌────────────────┐   ┌─────────────────┐   ┌──────────────────────────┐   │
-│  │  HTMX Widgets  │   │ BudgetSSEClient │   │  IncrementalUpdates      │   │
-│  │  (quick-stats, │   │ (EventSource)   │   │  (direct DOM updates)    │   │
+│  │  HTMX Widgets  │   │ BudgetWSClient  │   │  IncrementalUpdates      │   │
+│  │  (quick-stats, │   │ (WebSocket)     │   │  (direct DOM updates)    │   │
 │  │  balances,     │   │                 │   │                          │   │
 │  │  transactions) │   │  Multi-tab:     │   │  Cache:                  │   │
 │  └───────┬────────┘   │  Web Locks +    │   │  - articles Map          │   │
 │          │            │  BroadcastChannel│   │  - financial_centers Map │   │
+│          │            │                 │   │                          │   │
+│          │            │  Fallback:      │   │                          │   │
+│          │            │  Long Polling   │   │                          │   │
 │          │            └────────┬────────┘   └────────────┬─────────────┘   │
 │          │                     │                         │                  │
-│          │    SSE event        │    onFactCreated()      │                  │
+│          │    WS event         │    onFactCreated()      │                  │
 │          │    ◄────────────────┤────────────────────────►│                  │
 │          │                     │    (uses cache for      │                  │
 │          │                     │     article names)      │                  │
@@ -207,17 +211,17 @@ All browser requests pass through the Service Worker, which applies different ca
                ▼                    ▼                       ▼
        ┌───────────────────────────────────────────────────────────┐
        │                         BACKEND                            │
-       │  /api/v1/* (REST)  +  /health  +  SSE (/budget/events)    │
+       │  /api/v1/* (REST)  +  /health  +  WebSocket (/budget/ws)  │
        └───────────────────────────────────────────────────────────┘
 ```
 
 ### Request Flow Optimization
 
-| Event | Before (v1) | After (v2) |
-|-------|-------------|------------|
-| fact_created | SSE → refreshAll() → 3 GET | SSE → IncrementalUpdates → 0 GET |
-| fact_updated | SSE → refreshAll() → 3 GET | SSE → debounced refresh → 3 GET (batched) |
-| fact_deleted | SSE → refreshAll() → 3 GET | SSE → DOM remove + debounced → 3 GET (batched) |
+| Event | Before (HTTP refresh) | After (WebSocket) |
+|-------|----------------------|-------------------|
+| fact_created | WS → refreshAll() → 3 GET | WS → IncrementalUpdates → 0 GET |
+| fact_updated | WS → refreshAll() → 3 GET | WS → debounced refresh → 3 GET (batched) |
+| fact_deleted | WS → refreshAll() → 3 GET | WS → DOM remove + debounced → 3 GET (batched) |
 
 **Result**: HTTP requests reduced by 75% (4→1 per transaction), UI latency <100ms.
 
@@ -226,13 +230,13 @@ All browser requests pass through the Service Worker, which applies different ca
 | File | Purpose |
 |------|---------|
 | `sw.js` | Service Worker with caching strategies |
-| `frontend/web/static/js/budget/budgetSSEClient.js` | SSE connection manager |
-| `frontend/web/static/js/budget/incrementalUpdates.js` | Direct DOM updates from SSE |
+| `frontend/web/static/js/budget/budgetWSClient.js` | WebSocket connection manager (with Long Polling fallback) |
+| `frontend/web/static/js/budget/incrementalUpdates.js` | Direct DOM updates from WebSocket events |
 | `frontend/web/static/js/htmxWidgets.js` | HTMX widget refresh with debouncing |
 
 ### Documentation
 
-- **SSE Events**: [flows/sse-broadcast.yaml](./flows/sse-broadcast.yaml)
+- **WebSocket Events**: [flows/ws-broadcast.yaml](./flows/ws-broadcast.yaml)
 - **Realtime Module**: [functionality/realtime.yaml](./functionality/realtime.yaml)
 - **JS Modules**: [web/js-modules.yaml](./web/js-modules.yaml)
 

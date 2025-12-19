@@ -174,7 +174,7 @@ module:
         - "INSERT INTO t_d_article"
         - "article_service.create_initial_history()"
         - "ArticleHierarchy auto-updated via trigger"
-        - "SSE broadcast to all clients"
+        - "WebSocket broadcast to all clients"
         - "Return ArticleResponse"
 
     update_article:
@@ -185,5 +185,5 @@ module:
         - "UPDATE t_d_article (SCD Type 1)"
         - "Close old ArticleHistory (is_current=False)"
         - "INSERT new ArticleHistory (is_current=True)"
-        - "SSE broadcast"
+        - "WebSocket broadcast"
         - "Return ArticleResponse"

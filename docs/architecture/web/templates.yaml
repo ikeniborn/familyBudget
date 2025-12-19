@@ -31,7 +31,7 @@ templates:
 
     includes:
       js_modules:
-        - $ref: "./js-modules.yaml#/modules/budgetSSEClient"
+        - $ref: "./js-modules.yaml#/modules/budgetWSClient"
         - $ref: "./js-modules.yaml#/modules/offlineManager"
         - $ref: "./js-modules.yaml#/modules/pushManager"
         - $ref: "./js-modules.yaml#/modules/networkDetector"
@@ -44,7 +44,7 @@ templates:
       - "Responsive navbar (desktop horizontal, mobile dropdown)"
       - "User profile dropdown"
       - "Theme toggle (light/dark)"
-      - "SSE status indicator"
+      - "WebSocket status indicator"
       - "Offline status indicator"
       - "Toast notification system"
       - "Cookie consent banner"

@@ -180,7 +180,7 @@ diagram: |
   │            │                                                            │
   │            ▼                                                            │
   │  ┌────────────────────┐                                                 │
-  │  │ SSE Broadcast:     │                                                 │
+  │  │ WS Broadcast:      │                                                 │
   │  │ fact_created × N   │                                                 │
   │  └─────────┬──────────┘                                                 │
   │            │                                                            │

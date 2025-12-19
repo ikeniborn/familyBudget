@@ -68,58 +68,86 @@ modules:
   # ---------------------------------------------------------------------------
   # BUDGET/REALTIME
   # ---------------------------------------------------------------------------
-  budgetSSEClient:
-    path: "frontend/web/static/js/budget/budgetSSEClient.js"
-    loc: 1590
-    description: "Server-Sent Events client for real-time updates with multi-tab support and Safari iOS optimization"
+  budgetWSClient:
+    path: "frontend/web/static/js/budget/budgetWSClient.js"
+    loc: 1200
+    description: "WebSocket client for real-time updates with Long Polling fallback and multi-tab support"
     endpoints:
-      - path: "/api/v1/budget/events/connect"
-        method: "EventSource or fetch (Safari iOS)"
-      - path: "/api/v1/budget/events/status"
+      - path: "/api/v1/budget/ws"
+        method: "WebSocket (with JWT token in query param)"
+      - path: "/api/v1/budget/poll"
+        method: "GET (Long Polling fallback)"
+      - path: "/api/v1/budget/status"
         method: "GET"
-      - path: "/api/v1/budget/events/disconnect"
-        method: "POST"
     events_handled:
       - fact_created
       - fact_updated
       - fact_deleted
+      - plan_created
+      - plan_updated
+      - plan_deleted
       - transfer_created
-      - shopping_list_item_created
-      - shopping_list_item_updated
-      - shopping_list_item_deleted
+      - transfer_deleted
+      - item_created
+      - item_updated
+      - item_deleted
+      - item_completed
       - article_created
       - article_updated
     ui_updates:
-      - "Navbar SSE indicator badge (7 states)"
+      - "Navbar status indicator badge (7 states)"
       - "HTMX refresh of quick-stats"
       - "HTMX refresh of recent-transactions"
     multi_tab_support:
       leader_election: "Web Locks API + timeout fallback"
       inter_tab_communication: "BroadcastChannel API"
+      channel_name: "budget-ws-channel"
       safari_ios_note: "Отключено для Safari iOS - каждая вкладка независима"
+    bidirectional:
+      description: "WebSocket enables client-to-server messages"
+      client_messages:
+        - type: "ping"
+          purpose: "Client keepalive, server responds with pong"
+        - type: "check_online"
+          purpose: "Check server availability for offline mode detection"
+    long_polling_fallback:
+      description: "Comet-style Long Polling when WebSocket fails"
+      interval: "10 seconds"
+      endpoint: "/api/v1/budget/poll"
     safari_ios_mode:
-      description: "Специальный режим для Safari iOS из-за известных проблем"
+      description: "Специальный режим для Safari iOS (per-tab connection)"
       detection: "_detectSafariIOS() - комплексная проверка User-Agent"
-      connection: "fetch-based SSE вместо EventSource (буферизация)"
+      connection: "WebSocket (не SSE с буферизацией)"
       multi_tab: "Отключено - Web Locks ненадёжны на iOS"
       flag: "_safariIOSMode - устанавливается при инициализации"
+      improvements_over_sse:
+        - "Нет буферизации (SSE буферизировал до 2KB)"
+        - "Bidirectional communication"
+        - "Long Polling fallback"
     key_methods:
-      connect: "async - устанавливает SSE соединение (только leader)"
-      _initMultiTab: "async - инициализирует multi-tab support (Safari iOS: пропускает Web Locks)"
-      _tryBecomeLeader: "async - Web Locks leader election (100ms timeout, non-Safari)"
-      _tryBecomeLeaderWithTimeout: "async - timeout-based election для Safari macOS (500-2000ms)"
-      _detectSafariIOS: "Комплексное определение Safari на iOS (User-Agent анализ)"
-      _isSafari: "Определяет Safari браузер (iOS и macOS)"
-      _needsLongerTimeout: "Определяет Safari и Yandex Browser (проблемы с Web Locks)"
+      connect: "async - устанавливает WebSocket соединение (только leader)"
+      disconnect: "Закрывает соединение и очищает ресурсы"
+      _initMultiTab: "async - инициализирует multi-tab support"
+      _createWebSocket: "async - создаёт WebSocket соединение"
+      _startLongPolling: "async - запускает Long Polling fallback"
+      _detectSafariIOS: "Комплексное определение Safari на iOS"
       _isConnectionStale: "Проверяет устаревшее соединение (45s без ping)"
-      _closeExistingConnection: "Закрывает соединение перед reconnect"
-      _createConnection: "async - EventSource или fetch-based SSE (Safari iOS)"
-      _useFetchEventSource: "async - fetch + ReadableStream SSE (Safari iOS primary)"
       _updateStatusIndicator: "Обновляет UI badge (7 состояний)"
+      _broadcastToFollowers: "Рассылает события follower вкладкам"
+      sendPing: "Отправляет ping серверу"
+      checkOnline: "Проверяет доступность сервера для offline режима"
     constants:
       HEARTBEAT_INTERVAL: "3000ms - leader heartbeat"
       LEADER_TIMEOUT: "10000ms - follower considers leader dead"
       PING_TIMEOUT: "45000ms - connection staleness detection"
+      POLL_INTERVAL: "10000ms - Long Polling interval"
+      CLIENT_PING_INTERVAL: "15000ms - client ping interval"
+    backward_compatibility:
+      description: |
+        Для обратной совместимости с существующим кодом экспортируются алиасы:
+        - window.BudgetSSEClient = BudgetWSClient
+        - window.budgetSSEClient = window.budgetWSClient
+      reason: "32+ файла используют window.budgetSSEClient"
     functionality:
       $ref: "../functionality/realtime.yaml#/module"
 
@@ -305,14 +333,14 @@ modules:
       - "Auto-refresh on network recovery"
     debouncing:
       delay: "300ms"
-      purpose: "Prevent multiple rapid refreshes from SSE events"
+      purpose: "Prevent multiple rapid refreshes from WebSocket events"
 
   incrementalUpdates:
     path: "frontend/web/static/js/budget/incrementalUpdates.js"
     loc: ~450
-    description: "SSE-driven incremental UI updates without HTTP requests"
+    description: "WebSocket-driven incremental UI updates without HTTP requests"
     purpose: |
-      Optimizes SSE event handling by updating UI directly from SSE payload
+      Optimizes WebSocket event handling by updating UI directly from event payload
       instead of triggering full HTMX widget refresh.
 
       Reduces HTTP requests: 4 → 1 per transaction (3-4x improvement)
@@ -320,7 +348,7 @@ modules:
 
     features:
       - "Reference data cache (articles, financial_centers)"
-      - "Incremental DOM updates from SSE payload"
+      - "Incremental DOM updates from WebSocket payload"
       - "Fallback to HTMXWidgets when cache unavailable"
       - "Debounced fallback refreshes"
 
@@ -344,10 +372,10 @@ modules:
       3. Debouncing prevents multiple rapid refreshes
 
     integration:
-      loaded_in: "base.html (after budgetSSEClient.js)"
+      loaded_in: "base.html (after budgetWSClient.js)"
       initialized_by: "DOMContentLoaded event"
       used_by:
-        - "index.html SSE handlers"
+        - "index.html WebSocket handlers"
         - "facts.html (debounced only, complex table)"
 
   confirmDialog:

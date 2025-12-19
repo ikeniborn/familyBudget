@@ -67,7 +67,7 @@ routes:
           status: "connected"
           pool_size: "integer"
           active_connections: "integer"
-        sse:
+        websocket:
           status: "active"
           connection_count: "integer"
         memory:

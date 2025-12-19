@@ -137,7 +137,7 @@ module:
       conflict_resolution: "last-write-wins (by timestamp)"
       deduplication: "sync_hash field"
 
-    sse_events:
+    websocket_events:
       - shopping_list_created
       - shopping_list_updated
       - shopping_list_deleted

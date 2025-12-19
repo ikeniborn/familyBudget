@@ -16,9 +16,9 @@ index_page:
     hx-swap: "innerHTML"
     template: "partials/quick_stats.html"
     refresh_on:
-      - "fact_created (SSE)"
-      - "fact_updated (SSE)"
-      - "fact_deleted (SSE)"
+      - "fact_created (WebSocket)"
+      - "fact_updated (WebSocket)"
+      - "fact_deleted (WebSocket)"
 
   account_balances:
     element: "#account-balances"
@@ -27,8 +27,8 @@ index_page:
     hx-swap: "innerHTML"
     template: "partials/account_balances.html"
     refresh_on:
-      - "fact_created (SSE)"
-      - "transfer_created (SSE)"
+      - "fact_created (WebSocket)"
+      - "transfer_created (WebSocket)"
 
   recent_transactions:
     element: "#recent-transactions"
@@ -37,8 +37,8 @@ index_page:
     hx-swap: "innerHTML"
     template: "partials/recent_transactions.html"
     refresh_on:
-      - "fact_created (SSE)"
-      - "fact_updated (SSE)"
+      - "fact_created (WebSocket)"
+      - "fact_updated (WebSocket)"
 
 # ---------------------------------------------------------------------------
 # FACTS PAGE

@@ -47,21 +47,26 @@ server {
         if_modified_since exact;
     }
 
-    # SSE endpoint - disable buffering for real-time events
-    location /api/v1/budget/events {
+    # WebSocket endpoint - dedicated location for budget WebSocket
+    location /api/v1/budget/ws {
         proxy_pass http://backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
 
-        # SSE-specific settings
-        proxy_buffering off;
-        proxy_cache off;
+        # WebSocket-specific settings
         proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_read_timeout 86400s;  # 24 hours for long-lived SSE connections
-        chunked_transfer_encoding off;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400s;  # 24 hours for long-lived WebSocket connections
+        proxy_send_timeout 86400s;
+
+        # Disable buffering for real-time communication
+        proxy_buffering off;
+
+        # Disable access log for WebSocket (JWT token in URL - security)
+        access_log off;
     }
 
     # Proxy all other requests to backend
