@@ -1734,7 +1734,39 @@ class ListsManager {
         input.addEventListener('compositionend', handler); // IME input (iOS, Android)
 
         input._autocompleteInitialized = true;
+
+        // Setup click handler for dropdown (iOS fix)
+        this._setupSuggestionsClickHandler();
+
         debugLog('[ListsManager] Product autocomplete initialized');
+    }
+
+    /**
+     * Setup click/touch handler for suggestions dropdown (iOS-compatible)
+     * Uses event delegation pattern for dynamic content
+     * @private
+     */
+    _setupSuggestionsClickHandler() {
+        const dropdown = document.getElementById('product-suggestions-dropdown');
+        if (!dropdown || dropdown._clickHandlerInitialized) {
+            return;
+        }
+
+        // Event delegation: listen on parent container
+        dropdown.addEventListener('click', (event) => {
+            // Find closest .suggestion-item (handles clicks on child elements)
+            const suggestionItem = event.target.closest('.suggestion-item');
+            if (!suggestionItem) return;
+
+            // Get suggestion index from data attribute
+            const index = parseInt(suggestionItem.dataset.index, 10);
+            if (!isNaN(index)) {
+                this.selectSuggestion(index);
+            }
+        });
+
+        dropdown._clickHandlerInitialized = true;
+        debugLog('[ListsManager] Suggestions click handler initialized (iOS-compatible)');
     }
 
     /**
@@ -1822,8 +1854,7 @@ class ListsManager {
         // Build dropdown HTML
         const html = suggestions.map((s, index) => `
             <div class="suggestion-item px-3 py-2 hover:bg-base-200 cursor-pointer flex items-center gap-2"
-                 data-index="${index}"
-                 onclick="window.listsManager.selectSuggestion(${index})">
+                 data-index="${index}">
                 <div class="flex-1">
                     <div class="font-medium text-sm">${this._escapeHtml(s.product_name)}</div>
                     <div class="text-xs text-base-content/60">
