@@ -938,7 +938,7 @@
         // Service Worker регистрация для Progressive Web App
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('/sw.min.js')
                     .then((registration) => {
                         debugLog('[PWA] Service Worker registered:', registration.scope);
 
