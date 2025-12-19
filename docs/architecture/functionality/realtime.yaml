@@ -222,6 +222,25 @@ module:
           - "_detectSafariIOS() - определение Safari iOS"
           - "_useFetchEventSource() - fetch-based SSE connection"
 
+      timing_fix_2025_12_19:
+        issue: "Race condition между DOMContentLoaded и window.load"
+        symptom: |
+          SSE не подключается при начальной загрузке страницы или навигации,
+          но работает при разблокировке экрана (screen off/on).
+        root_cause: |
+          connect() вызывается на DOMContentLoaded (DOM ready, ресурсы ещё грузятся).
+          Код регистрирует window.addEventListener('load', callback).
+          Если window.load уже сработал ДО регистрации → listener никогда не выполнится.
+        solution: |
+          Заменён event listener на polling механизм с проверкой document.readyState.
+          Polling каждые 100ms до readyState === 'complete', затем подключение.
+          Нет зависимости от timing событий - работает всегда.
+        code_location: "frontend/web/static/js/budget/budgetSSEClient.js:846-861"
+        why_screen_unlock_worked: |
+          При screen unlock страница уже полностью загружена (readyState === 'complete').
+          visibilitychange event → _checkConnectionHealth() → _forceReconnect()
+          Независимый код путь с активной проверкой здоровья соединения.
+
     connection_staleness:
       ping_interval: "10 секунд (сервер)"
       staleness_timeout: "45 секунд без ping = stale connection"

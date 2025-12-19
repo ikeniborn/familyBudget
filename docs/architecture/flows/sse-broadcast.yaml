@@ -437,13 +437,23 @@ multi_tab_flow:
     safari_ios_flow: |
       Safari iOS использует УПРОЩЁННУЮ стратегию из-за проблем с EventSource и Web Locks:
 
-      1. Tab calls connect()
-      2. await _initMultiTab()
-      3. _detectSafariIOS() возвращает true
-      4. isLeader = true (сразу, без Web Locks!)
-      5. _multiTabSupported = false (отключаем multi-tab)
-      6. _createConnection() вызывает _useFetchEventSource()
-      7. fetch() с ReadableStream устанавливает SSE соединение
+      1. Tab calls connect() (на DOMContentLoaded)
+      2. _detectSafariIOS() возвращает true
+      3. Проверяет document.readyState:
+         - Если 'complete': сразу _safariIOSDelayedConnect()
+         - Если НЕ 'complete': polling каждые 100ms до ready state
+      4. Когда readyState === 'complete':
+         - Вызывается _safariIOSDelayedConnect()
+         - 300ms задержка для "прогрева" сетевого стека
+         - Warm-up fetch к /events/status
+         - _createConnection() → _useFetchEventSource()
+      5. await _initMultiTab()
+      6. isLeader = true (сразу, без Web Locks!)
+      7. _multiTabSupported = false (отключаем multi-tab)
+      8. fetch() с ReadableStream устанавливает SSE соединение
+
+      FIX 2025-12-19: Polling вместо event listener предотвращает race condition
+      с window.load event. Гарантирует подключение независимо от timing событий.
 
       ВАЖНО: На Safari iOS каждая вкладка создаёт своё SSE соединение.
       Это может привести к большему количеству соединений на сервере,

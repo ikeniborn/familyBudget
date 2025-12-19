@@ -223,19 +223,36 @@ frontend:
       flag: "_safariIOSMode = true при инициализации"
       connect_flow: |
         1. connect() вызывается на DOMContentLoaded
-        2. Safari iOS: ждём window.load (DOMContentLoaded слишком рано!)
-        3. _safariIOSDelayedConnect(): 300ms задержка (сетевой стек должен "осесть")
-        4. Warm-up fetch к /events/status (прогрев сетевого стека)
-        5. _createConnection() → _useFetchEventSource()
-        6. fetch() устанавливает SSE соединение через ReadableStream
-        7. При 3+ неудачах → _startPollingFallback()
-        8. Polling каждые 5 секунд как last resort
-      timing_insight: |
-        Почему screen off/on работает, а page load нет:
-        - DOMContentLoaded: DOM готов, но ресурсы ещё грузятся
-        - window.load: Все ресурсы загружены, сетевой стек "прогрет"
-        - Screen on: Страница УЖЕ полностью загружена
-        Решение: ждать window.load + задержка 300ms для Safari iOS
+        2. Safari iOS: проверяет document.readyState
+        3. Если readyState === 'complete': сразу _safariIOSDelayedConnect()
+        4. Если readyState !== 'complete': polling каждые 100ms до ready
+        5. Когда readyState === 'complete': _safariIOSDelayedConnect()
+        6. 300ms задержка (сетевой стек должен "осесть")
+        7. Warm-up fetch к /events/status (прогрев сетевого стека)
+        8. _createConnection() → _useFetchEventSource()
+        9. fetch() устанавливает SSE соединение через ReadableStream
+        10. При 3+ неудачах → _startPollingFallback()
+        11. Polling каждые 5 секунд как last resort
+      timing_fix: |
+        FIX 2025-12-19: Устранён race condition с window.load event.
+
+        ПРОБЛЕМА:
+        - connect() вызывался на DOMContentLoaded
+        - Регистрировался listener для window.load event
+        - Если window.load уже сработал ДО регистрации listener → соединение не устанавливалось
+
+        РЕШЕНИЕ:
+        - Заменён window.addEventListener('load') на polling readyState
+        - Polling проверяет document.readyState каждые 100ms
+        - Нет зависимости от timing событий
+        - Гарантировано подключение когда страница готова
+
+        Почему screen off/on работало:
+        - Страница УЖЕ полностью загружена (readyState === 'complete')
+        - visibilitychange → _checkConnectionHealth() → независимый код путь
+        - Принудительное переподключение через _forceReconnect()
+
+        Code: frontend/web/static/js/budget/budgetSSEClient.js:846-861
 
   multi_tab_support:
     description: "Одно SSE соединение на браузер через Web Locks + BroadcastChannel"

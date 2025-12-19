@@ -843,12 +843,21 @@ class BudgetSSEClient {
                 return;
             }
 
-            // Wait for page to fully load (all resources, images, etc.)
-            console.log('[BudgetSSE] Safari iOS: Waiting for window.load event...');
-            window.addEventListener('load', () => {
-                console.log('[BudgetSSE] Safari iOS: Page load event fired, starting delayed connect');
-                this._safariIOSDelayedConnect();
-            }, { once: true });
+            // Wait for page to fully load using polling (avoids race condition)
+            // Race condition fix: window.load event may fire before addEventListener() call
+            // Polling ensures connection regardless of event timing
+            console.log('[BudgetSSE] Safari iOS: Polling for page readyState...');
+            const checkReadyState = () => {
+                console.log('[BudgetSSE] Safari iOS: readyState =', document.readyState);
+                if (document.readyState === 'complete') {
+                    console.log('[BudgetSSE] Safari iOS: Page ready, starting delayed connect');
+                    this._safariIOSDelayedConnect();
+                } else {
+                    // Poll every 100ms until page is ready
+                    setTimeout(checkReadyState, 100);
+                }
+            };
+            checkReadyState();  // Start polling immediately
             return;
         }
 
