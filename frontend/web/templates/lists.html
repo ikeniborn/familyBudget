@@ -324,6 +324,17 @@
     <form method="dialog" class="modal-backdrop">
         <button>close</button>
     </form>
+
+    <!-- ============================================== -->
+    <!-- AUTOCOMPLETE DROPDOWN (Inside Dialog Top Layer) -->
+    <!-- ============================================== -->
+    <!-- Dropdown inside <dialog> to be in same top layer as modal -->
+    <!-- Positioned via JavaScript using getBoundingClientRect() -->
+    <div id="product-suggestions-dropdown"
+         class="fixed bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"
+         style="pointer-events: auto; z-index: 9999;">
+        <!-- Suggestions will be rendered here by listsManager.js -->
+    </div>
 </dialog>
 
 <!-- Delete Confirmation Modal - compact on mobile -->
@@ -366,18 +377,6 @@
         <button>close</button>
     </form>
 </dialog>
-
-<!-- ============================================== -->
-<!-- AUTOCOMPLETE DROPDOWN PORTAL (iOS Safari Fix) -->
-<!-- ============================================== -->
-<!-- Dropdown rendered outside modal to fix iOS Safari position:fixed bug -->
-<!-- Positioned via JavaScript using getBoundingClientRect() -->
-<!-- z-index: max int32 to appear ABOVE dialog and all other elements -->
-<div id="product-suggestions-dropdown"
-     class="fixed bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"
-     style="pointer-events: auto; z-index: 2147483647 !important;">
-    <!-- Suggestions will be rendered here by listsManager.js -->
-</div>
 
 {% endblock %}
 
