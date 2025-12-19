@@ -1946,6 +1946,55 @@ class ListsManager {
             }
         }
 
+        // Check dropdown positioning and coordinates
+        const rect = dropdown.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const viewportWidth = window.innerWidth;
+        console.log('[iOS DEBUG 35] Dropdown rect:', {
+            top: rect.top,
+            left: rect.left,
+            bottom: rect.bottom,
+            right: rect.right,
+            width: rect.width,
+            height: rect.height
+        });
+        console.log('[iOS DEBUG 36] Viewport:', { width: viewportWidth, height: viewportHeight });
+        console.log('[iOS DEBUG 37] Is in viewport:', {
+            top: rect.top >= 0 && rect.top < viewportHeight,
+            bottom: rect.bottom > 0 && rect.bottom <= viewportHeight,
+            left: rect.left >= 0 && rect.left < viewportWidth,
+            right: rect.right > 0 && rect.right <= viewportWidth
+        });
+
+        // Check parent positioning
+        const formControl = dropdown.closest('.form-control');
+        if (formControl) {
+            const formControlRect = formControl.getBoundingClientRect();
+            console.log('[iOS DEBUG 38] Form-control (parent) rect:', {
+                top: formControlRect.top,
+                left: formControlRect.left,
+                width: formControlRect.width,
+                height: formControlRect.height
+            });
+            console.log('[iOS DEBUG 39] Form-control position:', window.getComputedStyle(formControl).position);
+        }
+
+        // Check modal backdrop (DaisyUI adds .modal-backdrop)
+        const modalBackdrop = document.querySelector('.modal-backdrop');
+        if (modalBackdrop) {
+            const backdropStyle = window.getComputedStyle(modalBackdrop);
+            console.log('[iOS DEBUG 40] Modal backdrop found, z-index:', backdropStyle.zIndex);
+            console.log('[iOS DEBUG 41] Backdrop display:', backdropStyle.display);
+        }
+
+        // Check if dropdown is covered by other elements
+        const elementAtDropdownPosition = document.elementFromPoint(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2
+        );
+        console.log('[iOS DEBUG 42] Element at dropdown center:', elementAtDropdownPosition?.tagName, elementAtDropdownPosition?.className);
+        console.log('[iOS DEBUG 43] Is dropdown itself?', elementAtDropdownPosition === dropdown);
+
         // Store suggestions for selection
         this._currentSuggestions = suggestions;
 
