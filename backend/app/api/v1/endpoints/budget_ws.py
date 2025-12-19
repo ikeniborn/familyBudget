@@ -48,6 +48,7 @@ from backend.app.db.session import get_session, get_session_context
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.core.dependencies import get_current_user
+from backend.app.services.jwt import create_access_token
 
 # Security constants
 MAX_CONNECTIONS_PER_USER = 10  # Max WebSocket connections per user
@@ -69,6 +70,31 @@ router = APIRouter(
     tags=["budget-websocket"],
     responses=get_common_responses(),
 )
+
+
+# ==================== HTTP ENDPOINTS ====================
+
+
+@router.post("/ws/token")
+async def get_ws_token(current_user: User = Depends(get_current_user)):
+    """
+    Get a short-lived token for WebSocket connection.
+
+    WebSocket doesn't support cookies, so client first obtains a token
+    via this HTTP endpoint (with cookie auth), then uses the token
+    to connect to the WebSocket endpoint.
+
+    Returns:
+        dict: {"token": "jwt_token_string"}
+    """
+    token = create_access_token(
+        user_id=current_user.id,
+        telegram_id=current_user.telegram_id
+    )
+    return {"token": token}
+
+
+# ==================== WEBSOCKET MANAGER ====================
 
 
 class BudgetWebSocketManager:
