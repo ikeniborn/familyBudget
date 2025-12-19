@@ -240,17 +240,19 @@ class BudgetWebSocketManager:
             )
         return removed
 
-    def update_activity(self, connection_id: str):
+    async def update_activity(self, connection_id: str):
         """
         Update last activity timestamp for a connection.
 
         Args:
             connection_id: The connection UUID to update
         """
-        for i, (uid, ws, cid, ts) in enumerate(self.connections):
-            if cid == connection_id:
-                self.connections[i] = (uid, ws, cid, time.time())
-                break
+        # Use lock to prevent race condition with concurrent disconnect/cleanup
+        async with self._lock:
+            for i, (uid, ws, cid, ts) in enumerate(self.connections):
+                if cid == connection_id:
+                    self.connections[i] = (uid, ws, cid, time.time())
+                    break
 
     async def cleanup_stale_connections(self) -> int:
         """
@@ -350,13 +352,15 @@ class BudgetWebSocketManager:
         }
         message = json.dumps(event)
 
-        for user_id, websocket, cid, last_activity in self.connections:
-            if cid == connection_id:
-                try:
-                    await websocket.send_text(message)
-                except Exception as e:
-                    logger.warning(f"Budget WS send failed for connection {connection_id[:8]}: {e}")
-                break
+        # Use lock to prevent race condition with concurrent disconnect/cleanup
+        async with self._lock:
+            for user_id, websocket, cid, last_activity in self.connections:
+                if cid == connection_id:
+                    try:
+                        await websocket.send_text(message)
+                    except Exception as e:
+                        logger.warning(f"Budget WS send failed for connection {connection_id[:8]}: {e}")
+                    break
 
     def get_connection_count(self) -> int:
         """Get number of active connections."""

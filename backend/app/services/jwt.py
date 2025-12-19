@@ -115,7 +115,7 @@ def create_ws_token(user_id: int) -> str:
     expire = datetime.utcnow() + timedelta(minutes=WS_TOKEN_EXPIRE_MINUTES)
 
     claims = {
-        "sub": user_id,  # Subject (user ID)
+        "sub": str(user_id),  # Subject (user ID as string per JWT spec)
         "type": "ws",  # Token type - WebSocket only
         "exp": expire,
         "iat": datetime.utcnow(),
@@ -144,8 +144,10 @@ def decode_ws_token(token: str) -> Optional[int]:
         if payload.get("type") != "ws":
             return None
 
-        return payload.get("sub")
-    except JWTError:
+        # Convert sub back to int (stored as string per JWT spec)
+        sub = payload.get("sub")
+        return int(sub) if sub else None
+    except (JWTError, ValueError, TypeError):
         return None
 
 
