@@ -124,15 +124,27 @@ class BudgetSSEClient {
     }
 
     /**
-     * Detect Safari browser (iOS and macOS)
-     * Safari has known issues with Web Locks API timing
+     * Detect browsers that need longer Web Locks timeout
+     * Safari (iOS/macOS) and Yandex Browser have known issues with Web Locks timing
+     * @returns {boolean}
+     * @private
+     */
+    _needsLongerTimeout() {
+        const ua = navigator.userAgent;
+        // Safari: contains Safari but not Chrome
+        const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/Chromium/.test(ua);
+        // Yandex Browser: contains YaBrowser
+        const isYandex = /YaBrowser/.test(ua);
+        return isSafari || isYandex;
+    }
+
+    /**
+     * Detect Safari browser (iOS and macOS) - legacy, use _needsLongerTimeout()
      * @returns {boolean}
      * @private
      */
     _isSafari() {
         const ua = navigator.userAgent;
-        // Safari on iOS: contains Safari but not Chrome/Firefox/etc
-        // Safari on macOS: contains Safari and not Chrome
         const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/Chromium/.test(ua);
         return isSafari;
     }
@@ -217,19 +229,19 @@ class BudgetSSEClient {
             }
 
             // Choose leader election strategy based on browser and connection pressure
-            // Safari (iOS and macOS) has known issues with Web Locks timing - use longer timeouts
-            if (this._isSafari()) {
+            // Safari and Yandex Browser have known issues with Web Locks timing - use longer timeouts
+            if (this._needsLongerTimeout()) {
                 if (connectionPressure >= 0.5) {
-                    // High connection pressure on Safari - MUST use Web Locks with longer timeout
-                    debugLog('[BudgetSSE] Safari with high connection pressure, using 2000ms timeout');
+                    // High connection pressure - use longer timeout
+                    debugLog('[BudgetSSE] Problematic browser with high pressure, using 2000ms timeout');
                     await this._tryBecomeLeaderWithTimeout(2000);
                 } else {
-                    // Normal connection pressure on Safari - use medium timeout
-                    debugLog('[BudgetSSE] Safari detected, using 500ms timeout for Web Locks');
+                    // Normal connection pressure - use medium timeout
+                    debugLog('[BudgetSSE] Problematic browser detected, using 500ms timeout');
                     await this._tryBecomeLeaderWithTimeout(500);
                 }
             } else {
-                // Non-Safari browsers (Chrome, Firefox, Edge) - standard handling
+                // Standard browsers (Chrome, Firefox, Edge) - fast handling
                 await this._tryBecomeLeader();
             }
         } catch (e) {
@@ -264,6 +276,9 @@ class BudgetSSEClient {
                         // No leader detected - this is the first tab, become leader
                         debugLog('[BudgetSSE] Timeout, no leader detected, becoming leader');
                         this.isLeader = true;
+                        // CRITICAL: Start heartbeat and notify other tabs
+                        this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
+                        this._startLeaderHeartbeat();
                     }
                     resolve();
                 }
@@ -322,12 +337,15 @@ class BudgetSSEClient {
                     // Check if any leader heartbeat received
                     if (Date.now() - this.lastLeaderHeartbeat < 5000) {
                         // Leader exists, stay as follower
-                        debugLog('[BudgetSSE] Safari iOS: Leader detected, staying follower');
+                        debugLog('[BudgetSSE] Timeout: Leader detected via heartbeat, staying follower');
                         this._startFollowerMode();
                     } else {
                         // No leader detected, become leader
-                        debugLog('[BudgetSSE] Safari iOS: No leader detected, becoming leader');
+                        debugLog('[BudgetSSE] Timeout: No leader detected, becoming leader');
                         this.isLeader = true;
+                        // CRITICAL: Start heartbeat and notify other tabs
+                        this._broadcastMessage({ type: 'leader_changed', timestamp: Date.now() });
+                        this._startLeaderHeartbeat();
                     }
                     resolve();
                 }
