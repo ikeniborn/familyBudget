@@ -71,6 +71,7 @@ class BudgetSSEClient {
         });
 
         // Visibility change handler - updated for multi-tab with connection reuse
+        // iOS 18 bug: EventSource error event doesn't fire after background
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') {
                 // Leader: keep connection alive, continue heartbeat
@@ -79,13 +80,20 @@ class BudgetSSEClient {
                     debugLog('[BudgetSSE] Tab hidden, leader keeping SSE connection active');
                 }
             } else if (document.visibilityState === 'visible') {
+                console.log('[BudgetSSE] Tab became visible, checking connection health');
+
+                // iOS 18 bug workaround: error event doesn't fire after background
+                // Force health check for Safari/iOS devices
+                if (this._safariIOSMode || this._needsLongerTimeout()) {
+                    this._checkConnectionHealth();
+                    return;
+                }
+
                 if (this.isLeader) {
                     // Check for stale connection (no ping received in 45s)
                     if (this._isConnectionStale()) {
                         debugLog('[BudgetSSE] Connection stale, forcing reconnect');
-                        this._closeExistingConnection();
-                        this.reconnectAttempts = 0;
-                        this._createConnection();
+                        this._forceReconnect();
                         return;
                     }
 
@@ -96,12 +104,17 @@ class BudgetSSEClient {
                         return;
                     }
 
+                    // Check fetch-based SSE connection
+                    if (this.fetchController && this.isConnected) {
+                        // Fetch connection might still be alive
+                        this._updateStatusIndicator();
+                        return;
+                    }
+
                     // Connection dead, need reconnect
                     if (!this.isConnected && this.enabled) {
                         debugLog('[BudgetSSE] Tab visible, leader reconnecting');
-                        this.reconnectAttempts = 0;
-                        this.limitReached = false;
-                        this._createConnection();
+                        this._forceReconnect();
                     }
                 }
                 // Follower: request status from leader
@@ -169,13 +182,17 @@ class BudgetSSEClient {
     }
 
     /**
-     * Detect Safari on iOS with comprehensive checks
+     * Detect Safari on iOS/iPadOS with comprehensive checks
      * Used for enabling Safari iOS specific mode (fetch-only SSE, no Web Locks)
      *
-     * Safari iOS has multiple known issues:
+     * Safari iOS/iPadOS has multiple known issues:
      * 1. EventSource buffers responses until ~2KB (onopen never fires for small responses)
      * 2. Web Locks API is unreliable and slow
      * 3. Cookies with withCredentials can be problematic
+     * 4. iOS 18+ has EventSource error event regression (doesn't fire after background)
+     *
+     * IMPORTANT: iPadOS in Desktop Mode masquerades as macOS Safari in User-Agent!
+     * Detection via maxTouchPoints is required.
      *
      * @returns {boolean}
      * @private
@@ -183,23 +200,44 @@ class BudgetSSEClient {
     _detectSafariIOS() {
         const ua = navigator.userAgent;
 
-        // Check for iOS device
+        // Standard iOS detection (iPhone, iPad in mobile mode, iPod)
         const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
 
-        // Also check for Safari-like behavior on iOS (not Chrome, not Firefox, etc)
-        // On iOS, all browsers use WebKit, but we specifically want Safari behavior
-        const isSafariLike = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua);
+        // iPadOS Desktop Mode detection
+        // In Desktop Mode, iPadOS presents as macOS Safari (no "iPad" in UA)
+        // But navigator.platform='MacIntel' with maxTouchPoints > 1 reveals it's a touch device
+        const isPadOSDesktop = navigator.platform === 'MacIntel' &&
+                               navigator.maxTouchPoints > 1;
 
-        // Additional check: iOS 17+ has specific SSE issues
-        const iosVersion = ua.match(/OS (\d+)/);
-        const isModerniOS = iosVersion && parseInt(iosVersion[1]) >= 17;
+        // Safari-like browser (not Chrome, Firefox, Edge on iOS)
+        // On iOS, all browsers use WebKit, but we want Safari-specific behavior
+        const isSafariLike = /Safari/.test(ua) &&
+                            !/Chrome/.test(ua) &&
+                            !/CriOS/.test(ua) &&
+                            !/FxiOS/.test(ua) &&
+                            !/EdgiOS/.test(ua);
 
-        // Safari iOS mode: iOS device with Safari-like browser
-        // We enable this mode for ALL iOS Safari versions due to long-standing issues
-        const isSafariIOS = isIOS && isSafariLike;
+        // Detect problematic Safari versions (17+ have known SSE issues)
+        const safariVersion = ua.match(/Version\/(\d+)/);
+        const isProblematicSafari = safariVersion && parseInt(safariVersion[1]) >= 17;
+
+        // Safari iOS/iPadOS mode: any iOS/iPadOS device with Safari-like browser
+        const isSafariIOS = (isIOS || isPadOSDesktop) && isSafariLike;
+
+        // Detailed logging for debugging
+        console.log('[BudgetSSE] Safari iOS detection:', {
+            isIOS,
+            isPadOSDesktop,
+            isSafariLike,
+            isProblematicSafari,
+            result: isSafariIOS,
+            platform: navigator.platform,
+            maxTouchPoints: navigator.maxTouchPoints,
+            userAgent: ua.substring(0, 100)
+        });
 
         if (isSafariIOS) {
-            debugLog('[BudgetSSE] Safari iOS detected, using optimized connection strategy');
+            debugLog('[BudgetSSE] Safari iOS/iPadOS detected, using optimized connection strategy');
         }
 
         return isSafariIOS;
@@ -233,12 +271,79 @@ class BudgetSSEClient {
     }
 
     /**
+     * Check connection health by calling status endpoint
+     * Used for iOS 18 bug workaround where error event doesn't fire after background
+     * @private
+     */
+    _checkConnectionHealth() {
+        if (!this.enabled) return;
+
+        console.log('[BudgetSSE] Checking connection health...');
+
+        // First check: connection staleness (no ping in 45s)
+        if (this._isConnectionStale()) {
+            console.log('[BudgetSSE] Connection stale (no ping in 45s), reconnecting');
+            this._forceReconnect();
+            return;
+        }
+
+        // For Safari iOS with fetch-based SSE, verify server is reachable
+        fetch('/api/v1/budget/events/status', {
+            credentials: 'include',
+            signal: AbortSignal.timeout(5000)  // 5s timeout
+        })
+            .then(r => {
+                if (!r.ok) {
+                    console.log('[BudgetSSE] Health check failed (HTTP', r.status, '), reconnecting');
+                    this._forceReconnect();
+                } else {
+                    console.log('[BudgetSSE] Health check OK');
+                    // If we think we're connected but actually not, reconnect
+                    if (!this.isConnected && this.enabled) {
+                        console.log('[BudgetSSE] Not connected despite health OK, reconnecting');
+                        this._forceReconnect();
+                    }
+                }
+            })
+            .catch((e) => {
+                console.log('[BudgetSSE] Health check error:', e.message, ', reconnecting');
+                this._forceReconnect();
+            });
+    }
+
+    /**
+     * Force reconnection by closing existing connection and starting fresh
+     * Resets all connection state including multi-tab initialization
+     * @private
+     */
+    _forceReconnect() {
+        console.log('[BudgetSSE] Force reconnecting...');
+
+        // Close existing connection
+        this._closeExistingConnection();
+
+        // Reset connection state
+        this.reconnectAttempts = 0;
+        this.limitReached = false;
+
+        // Reset multi-tab state to allow fresh leader election
+        // This is important for Safari/iOS where Web Locks may have failed
+        this._multiTabInitialized = false;
+
+        // Reconnect
+        this.connect();
+    }
+
+    /**
      * Initialize multi-tab support with BroadcastChannel and Web Locks
      * Called lazily from connect() to prevent 401 errors for unauthenticated users
      * Now waits for leader status to be determined before returning
      *
      * IMPORTANT: Safari iOS has a special code path that skips Web Locks entirely
      * due to unreliable behavior. On Safari iOS, each tab creates its own connection.
+     *
+     * SAFETY: Added 5-second safety timeout to prevent Web Locks from hanging forever.
+     * This ensures connection is established even if Web Locks API misbehaves.
      *
      * @private
      */
@@ -264,6 +369,21 @@ class BudgetSSEClient {
             return;
         }
 
+        // Safety timeout: if leader election takes too long, force direct connection
+        // This prevents Web Locks from hanging forever on problematic browsers
+        let safetyTimeoutFired = false;
+        const safetyTimeout = setTimeout(() => {
+            safetyTimeoutFired = true;
+            if (!this.isLeader && !this.isConnected) {
+                console.warn('[BudgetSSE] Safety timeout (5s): forcing leader status and connection');
+                this.isLeader = true;
+                this._multiTabSupported = false; // Disable multi-tab as fallback
+                if (this.enabled) {
+                    this._createConnection();
+                }
+            }
+        }, 5000); // 5 second safety net
+
         try {
             // Create BroadcastChannel for inter-tab communication
             this.channel = new BroadcastChannel('budget-sse-channel');
@@ -285,6 +405,12 @@ class BudgetSSEClient {
                 this.approachingLimit = connectionPressure >= 0.7;  // 70% of max
             }
 
+            // If safety timeout already fired, skip leader election
+            if (safetyTimeoutFired) {
+                console.log('[BudgetSSE] Safety timeout already fired, skipping leader election');
+                return;
+            }
+
             // Choose leader election strategy based on browser and connection pressure
             // Safari (macOS) and Yandex Browser have known issues with Web Locks timing
             if (this._needsLongerTimeout()) {
@@ -304,6 +430,9 @@ class BudgetSSEClient {
         } catch (e) {
             debugLog('[BudgetSSE] Multi-tab init failed:', e);
             this._multiTabSupported = false;
+        } finally {
+            // Clear safety timeout if we completed normally
+            clearTimeout(safetyTimeout);
         }
     }
 
@@ -946,23 +1075,45 @@ class BudgetSSEClient {
      * This is the primary connection method for Safari iOS due to EventSource buffering issues.
      * Also used as a fallback for other browsers when EventSource fails.
      *
+     * Features:
+     * - Retry counter with fallback to polling after 3 failures
+     * - Detailed logging for debugging iOS Safari issues
+     * - Proper error handling for various HTTP status codes
+     *
      * @private
      */
     async _useFetchEventSource() {
         const url = '/api/v1/budget/events';
-        console.log('[BudgetSSE] _useFetchEventSource called, Safari iOS:', this._safariIOSMode);
+
+        // Track fetch attempts for fallback to polling
+        this._fetchAttempts = (this._fetchAttempts || 0) + 1;
+
+        console.log('[BudgetSSE] _useFetchEventSource starting', {
+            attempt: this._fetchAttempts,
+            safariIOSMode: this._safariIOSMode,
+            enabled: this.enabled
+        });
+
+        // After 3 failed fetch attempts, switch to polling fallback
+        if (this._fetchAttempts > 3 && this._pollingFallbackAvailable()) {
+            console.warn('[BudgetSSE] Max fetch attempts (3) reached, switching to polling fallback');
+            this._startPollingFallback();
+            return;
+        }
 
         this.fetchController = new AbortController();
 
         // Set a connection timeout for fetch (Safari iOS might hang)
         const connectionTimeout = setTimeout(() => {
             if (!this.isConnected && this.fetchController) {
-                console.error('[BudgetSSE] Fetch connection timeout');
+                console.error('[BudgetSSE] Fetch connection timeout (15s)');
                 this.fetchController.abort();
             }
         }, 15000);  // 15 second timeout for connection
 
         try {
+            console.log('[BudgetSSE] Sending fetch request to', url);
+
             const response = await fetch(url, {
                 method: 'GET',
                 credentials: 'include',  // Send cookies (critical for auth)
@@ -974,6 +1125,13 @@ class BudgetSSEClient {
             });
 
             clearTimeout(connectionTimeout);
+
+            console.log('[BudgetSSE] Fetch response received', {
+                status: response.status,
+                ok: response.ok,
+                contentType: response.headers.get('content-type'),
+                hasBody: response.body !== null
+            });
 
             if (!response.ok) {
                 // Special handling for 401 - not authenticated
@@ -1000,10 +1158,11 @@ class BudgetSSEClient {
                 throw new Error('Response body is null - ReadableStream not supported');
             }
 
-            console.log('[BudgetSSE] Fetch connection established, status:', response.status);
+            console.log('[BudgetSSE] Fetch connection established successfully');
             this.isConnected = true;
             this.limitReached = false;
             this.reconnectAttempts = 0;
+            this._fetchAttempts = 0;  // Reset fetch attempts on success
             this._updateStatusIndicator();
             this._notifyHandlers('connect', {});
 
@@ -1208,10 +1367,14 @@ class BudgetSSEClient {
             this.fetchController = null;
         }
 
+        // Stop polling fallback if active
+        this._stopPollingFallback();
+
         this.isConnected = false;
         this.reconnectAttempts = 0;
         this.limitReached = false;  // Reset limit flag on disconnect
         this.connectionId = null;   // Clear connection ID
+        this._fetchAttempts = 0;    // Reset fetch attempts
         this._updateStatusIndicator();
         this._notifyHandlers('disconnect', {});
     }
@@ -1285,6 +1448,13 @@ class BudgetSSEClient {
             this.fetchController = null;
         }
 
+        // Stop polling silently (no logging during page unload)
+        if (this._pollingInterval) {
+            clearInterval(this._pollingInterval);
+            this._pollingInterval = null;
+        }
+        this._pollingActive = false;
+
         this.isConnected = false;
         // Don't call _notifyHandlers or _updateStatusIndicator
         // because tab is hidden/closing
@@ -1353,6 +1523,121 @@ class BudgetSSEClient {
 
             this._createConnection();
         }, delay);
+    }
+
+    // ==================== POLLING FALLBACK ====================
+
+    /**
+     * Check if polling fallback is available
+     * Polling is always available as a last resort for SSE
+     * @returns {boolean}
+     * @private
+     */
+    _pollingFallbackAvailable() {
+        return true;  // Always available
+    }
+
+    /**
+     * Start polling fallback for SSE events
+     * Used when both EventSource and fetch-based SSE fail (e.g., iOS Safari issues)
+     * Polls /api/v1/budget/events/poll every 5 seconds
+     *
+     * @private
+     */
+    _startPollingFallback() {
+        if (this._pollingActive) {
+            console.log('[BudgetSSE] Polling already active');
+            return;
+        }
+
+        console.log('[BudgetSSE] Starting polling fallback (5s interval)');
+        this._pollingActive = true;
+        this.isConnected = true;  // For UI indicator (show as connected)
+        this._updateStatusIndicator();
+        this._notifyHandlers('connect', { mode: 'polling' });
+
+        // Track last event timestamp for incremental polling
+        this._lastPollTimestamp = Date.now();
+
+        this._pollingInterval = setInterval(async () => {
+            if (!this.enabled || !this._pollingActive) {
+                this._stopPollingFallback();
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/v1/budget/events/poll', {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    signal: AbortSignal.timeout(10000),  // 10s timeout
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        console.error('[BudgetSSE] Polling: 401 - not authenticated');
+                        this._stopPollingFallback();
+                        this.enabled = false;
+                        this.isConnected = false;
+                        this._updateStatusIndicator();
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // Update last ping time (for staleness detection)
+                this.lastServerPing = Date.now();
+
+                // Process events if any
+                if (data.events && data.events.length > 0) {
+                    console.log('[BudgetSSE] Polling received', data.events.length, 'events');
+                    for (const event of data.events) {
+                        this._dispatchSSEEvent(event);
+                    }
+                }
+
+                // Update timestamp for next poll
+                if (data.timestamp) {
+                    this._lastPollTimestamp = new Date(data.timestamp).getTime();
+                }
+
+            } catch (error) {
+                console.error('[BudgetSSE] Polling error:', error.message);
+                // Don't stop polling on transient errors, just log
+                // But if we get many errors, switch to disconnected state
+                this._pollingErrors = (this._pollingErrors || 0) + 1;
+                if (this._pollingErrors > 5) {
+                    console.error('[BudgetSSE] Too many polling errors, stopping');
+                    this._stopPollingFallback();
+                    this.isConnected = false;
+                    this._updateStatusIndicator();
+                    // Try to reconnect with SSE after a delay
+                    setTimeout(() => {
+                        this._fetchAttempts = 0;
+                        this._pollingErrors = 0;
+                        this.connect();
+                    }, 30000);  // Wait 30s before retrying SSE
+                }
+            }
+        }, 5000);  // Poll every 5 seconds
+    }
+
+    /**
+     * Stop polling fallback
+     * @private
+     */
+    _stopPollingFallback() {
+        if (this._pollingInterval) {
+            console.log('[BudgetSSE] Stopping polling fallback');
+            clearInterval(this._pollingInterval);
+            this._pollingInterval = null;
+        }
+        this._pollingActive = false;
+        this._pollingErrors = 0;
     }
 
     // ==================== EVENT HANDLERS ====================

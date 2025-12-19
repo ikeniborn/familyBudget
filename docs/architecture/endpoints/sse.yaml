@@ -115,6 +115,35 @@ routes:
       body:
         message: "Disconnected"
 
+  # ---------------------------------------------------------------------------
+  # POLL (Fallback)
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/budget/events/poll"
+    method: GET
+    auth: user
+    description: "Polling fallback for SSE (iOS Safari workaround)"
+    implementation:
+      file: "backend/app/api/v1/endpoints/budget_sse.py"
+      added: "2025-12-19"
+    query_params:
+      - name: "since"
+        type: "string"
+        description: "ISO timestamp to get events since (future use)"
+    response:
+      status: 200
+      body:
+        events: "array (empty for now, future: cached events)"
+        timestamp: "ISO 8601"
+        user_id: "integer"
+        message: "Polling active, prefer SSE for real-time updates"
+    usage:
+      description: |
+        Last-resort fallback when SSE fails. Client polls every 5 seconds.
+        Currently serves as health check - confirms auth and server reachability.
+      triggered_by:
+        - "3+ failed fetch-based SSE attempts"
+        - "_startPollingFallback() in budgetSSEClient.js"
+
 # Critical Constraint
 critical_constraint:
   $ref: "../functionality/realtime.yaml#/critical_constraint"
@@ -137,19 +166,58 @@ frontend:
 
   safari_ios:
     description: |
-      Safari iOS требует полностью отдельной стратегии подключения.
+      Safari iOS/iPadOS требует полностью отдельной стратегии подключения.
       Стандартный EventSource и Web Locks API ненадёжны на iOS.
+      Updated: 2025-12-19 - добавлена поддержка iPadOS Desktop Mode.
 
     known_issues:
       - "EventSource буферизирует ответы до ~2KB (onopen никогда не срабатывает)"
       - "Web Locks API работает непредсказуемо, таймауты могут быть огромными"
       - "Cookies с withCredentials: true могут не работать корректно"
+      - "iOS 18 regression: error event не срабатывает после background/foreground"
+      - "iPadOS Desktop Mode маскируется под macOS Safari (нет 'iPad' в User-Agent)"
+
+    detection:
+      method: "_detectSafariIOS()"
+      checks:
+        - name: "Standard iOS"
+          check: "/iPad|iPhone|iPod/.test(ua) && !window.MSStream"
+        - name: "iPadOS Desktop Mode"
+          check: "navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1"
+          note: "iPadOS в Desktop Mode представляется как macOS, но имеет touchscreen"
+        - name: "Safari-like browser"
+          check: "/Safari/.test(ua) && !/Chrome|CriOS|FxiOS|EdgiOS/.test(ua)"
+      result: "(isIOS || isPadOSDesktop) && isSafariLike"
+
+    fallback_strategy:
+      name: "Cascading Fallback"
+      order:
+        1: "fetch-based SSE (primary for Safari iOS)"
+        2: "Retry fetch up to 3 times"
+        3: "Switch to polling fallback (/events/poll every 5s)"
+      implementation:
+        fetch_attempts: "_fetchAttempts counter"
+        switch_threshold: "3 failures"
+        polling_method: "_startPollingFallback()"
+
+    safety_mechanisms:
+      - name: "Web Locks Safety Timeout"
+        description: "5 second timeout prevents Web Locks from hanging forever"
+        implementation: "_initMultiTab() has safetyTimeout"
+        action: "Force leader status and create connection"
+      - name: "Visibility Health Check"
+        description: "iOS 18 bug: error event doesn't fire after background"
+        implementation: "_checkConnectionHealth() on visibilitychange"
+        action: "Verify connection staleness, call _forceReconnect() if needed"
+      - name: "Connection Staleness Detection"
+        description: "45 second timeout since last server ping"
+        implementation: "_isConnectionStale()"
 
     solution:
-      detection: "_detectSafariIOS() - проверка User-Agent (iPad|iPhone|iPod + Safari)"
-      connection_method: "fetch() + ReadableStream (пропуск EventSource)"
+      detection: "_detectSafariIOS() - поддержка iPadOS Desktop Mode через maxTouchPoints"
+      connection_method: "fetch() + ReadableStream → polling fallback"
       multi_tab: "Отключено - каждая вкладка создаёт своё соединение"
-      web_locks: "Пропускаются полностью"
+      web_locks: "Пропускаются с 5s safety timeout"
 
     implementation:
       flag: "_safariIOSMode = true при инициализации"
@@ -158,6 +226,8 @@ frontend:
         2. _initMultiTab() определяет Safari iOS и выходит сразу (isLeader = true)
         3. _createConnection() вызывает _useFetchEventSource() напрямую
         4. fetch() устанавливает SSE соединение через ReadableStream
+        5. При 3+ неудачах → _startPollingFallback()
+        6. Polling каждые 5 секунд как last resort
 
   multi_tab_support:
     description: "Одно SSE соединение на браузер через Web Locks + BroadcastChannel"

@@ -484,6 +484,46 @@ async def disconnect_sse_connection(
     return {"status": "disconnected" if removed else "not_found"}
 
 
+@router.get(
+    "/events/poll",
+    summary="Polling fallback for SSE",
+    description="Fallback endpoint for clients that can't use SSE (e.g., iOS Safari issues)",
+)
+async def poll_budget_events(
+    current_user: User = Depends(get_current_user),
+    since: str | None = Query(None, description="ISO timestamp to get events since"),
+) -> dict:
+    """
+    Polling fallback for SSE events.
+
+    This endpoint is used as a last resort fallback when:
+    - EventSource fails (iOS Safari buffering issues)
+    - Fetch-based SSE fails (network issues)
+    - Any other SSE connection problems
+
+    The client polls every 5 seconds. For the current implementation,
+    this endpoint serves as a health check - it confirms the user is
+    authenticated and the server is reachable.
+
+    Future enhancement: Store recent events in memory/Redis and return
+    events since the last poll.
+
+    Returns:
+        {
+            "events": [],  // Empty for now - events delivered via SSE
+            "timestamp": "2025-01-01T12:00:00.000000",
+            "user_id": 123,
+            "message": "Polling active, prefer SSE for real-time updates"
+        }
+    """
+    return {
+        "events": [],  # In future: return cached events since 'since' timestamp
+        "timestamp": datetime.utcnow().isoformat(),
+        "user_id": current_user.id,
+        "message": "Polling active, prefer SSE for real-time updates",
+    }
+
+
 # ==================== Background Cleanup Task ====================
 # Periodic cleanup of stale connections (zombie protection)
 
