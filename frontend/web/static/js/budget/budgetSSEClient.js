@@ -335,6 +335,39 @@ class BudgetSSEClient {
     }
 
     /**
+     * Safari iOS delayed connect - mirrors screen on/off timing
+     * Adds delay after page load to let iOS Safari's network stack settle
+     *
+     * Flow: wait for load → 300ms delay → warm-up fetch → SSE connect
+     * This mirrors what happens when screen turns on (page already loaded)
+     *
+     * @private
+     */
+    _safariIOSDelayedConnect() {
+        // Small delay to let iOS Safari's network stack settle
+        // Screen on/off works because page is already loaded and "settled"
+        setTimeout(() => {
+            console.log('[BudgetSSE] Safari iOS: Delay complete, doing warm-up fetch');
+
+            // Warm-up fetch (like _checkConnectionHealth does when screen turns on)
+            fetch('/api/v1/budget/events/status', {
+                credentials: 'include',
+                signal: AbortSignal.timeout(5000)
+            })
+                .then(() => {
+                    console.log('[BudgetSSE] Safari iOS: Warm-up fetch OK, connecting SSE');
+                    this.reconnectAttempts = 0;
+                    this._createConnection();
+                })
+                .catch((e) => {
+                    console.log('[BudgetSSE] Safari iOS: Warm-up fetch failed:', e.message, ', trying SSE anyway');
+                    this.reconnectAttempts = 0;
+                    this._createConnection();
+                });
+        }, 300);  // 300ms delay - enough to let network stack settle
+    }
+
+    /**
      * Initialize multi-tab support with BroadcastChannel and Web Locks
      * Called lazily from connect() to prevent 401 errors for unauthenticated users
      * Now waits for leader status to be determined before returning
@@ -797,14 +830,25 @@ class BudgetSSEClient {
             return;
         }
 
-        // Safari iOS: SIMPLIFIED PATH - BEFORE other guards
-        // Uses same logic as offline→online handler which works reliably
-        // Only checks !enabled; lets _createConnection() handle duplicate prevention
-        // This mirrors the working offline→online path exactly
+        // Safari iOS: DELAYED PATH - wait for page to fully load
+        // DOMContentLoaded is too early - iOS Safari's network stack isn't ready
+        // Screen off/on works because page is ALREADY loaded - we mirror this timing
         if (this._safariIOSMode) {
-            console.log('[BudgetSSE] Safari iOS: Using simplified direct connection (bypassing guards)');
-            this.reconnectAttempts = 0;
-            this._createConnection();
+            console.log('[BudgetSSE] Safari iOS: readyState =', document.readyState);
+
+            // If page is already complete (e.g., called from visibility change), connect immediately
+            if (document.readyState === 'complete') {
+                console.log('[BudgetSSE] Safari iOS: Page complete, starting delayed connect');
+                this._safariIOSDelayedConnect();
+                return;
+            }
+
+            // Wait for page to fully load (all resources, images, etc.)
+            console.log('[BudgetSSE] Safari iOS: Waiting for window.load event...');
+            window.addEventListener('load', () => {
+                console.log('[BudgetSSE] Safari iOS: Page load event fired, starting delayed connect');
+                this._safariIOSDelayedConnect();
+            }, { once: true });
             return;
         }
 

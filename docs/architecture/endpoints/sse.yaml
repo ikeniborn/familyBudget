@@ -222,12 +222,20 @@ frontend:
     implementation:
       flag: "_safariIOSMode = true при инициализации"
       connect_flow: |
-        1. connect() вызывается
-        2. _initMultiTab() определяет Safari iOS и выходит сразу (isLeader = true)
-        3. _createConnection() вызывает _useFetchEventSource() напрямую
-        4. fetch() устанавливает SSE соединение через ReadableStream
-        5. При 3+ неудачах → _startPollingFallback()
-        6. Polling каждые 5 секунд как last resort
+        1. connect() вызывается на DOMContentLoaded
+        2. Safari iOS: ждём window.load (DOMContentLoaded слишком рано!)
+        3. _safariIOSDelayedConnect(): 300ms задержка (сетевой стек должен "осесть")
+        4. Warm-up fetch к /events/status (прогрев сетевого стека)
+        5. _createConnection() → _useFetchEventSource()
+        6. fetch() устанавливает SSE соединение через ReadableStream
+        7. При 3+ неудачах → _startPollingFallback()
+        8. Polling каждые 5 секунд как last resort
+      timing_insight: |
+        Почему screen off/on работает, а page load нет:
+        - DOMContentLoaded: DOM готов, но ресурсы ещё грузятся
+        - window.load: Все ресурсы загружены, сетевой стек "прогрет"
+        - Screen on: Страница УЖЕ полностью загружена
+        Решение: ждать window.load + задержка 300ms для Safari iOS
 
   multi_tab_support:
     description: "Одно SSE соединение на браузер через Web Locks + BroadcastChannel"
