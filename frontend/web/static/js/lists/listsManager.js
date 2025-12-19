@@ -1719,13 +1719,9 @@ class ListsManager {
      * @private
      */
     _setupProductAutocomplete() {
-        console.log('[iOS DEBUG 1] _setupProductAutocomplete called');
-
         const input = document.getElementById('item-product-name');
-        console.log('[iOS DEBUG 2] Input found:', !!input, 'Already initialized:', !!input?._autocompleteInitialized);
 
         if (!input) {
-            console.error('[iOS DEBUG] Input element NOT FOUND!');
             return;
         }
 
@@ -1736,7 +1732,6 @@ class ListsManager {
         // }
 
         const handler = () => {
-            console.log('[iOS DEBUG 5] Input handler fired, value:', input.value, 'length:', input.value.length);
             this.handleProductInput(input.value);
         };
 
@@ -1744,8 +1739,6 @@ class ListsManager {
         input.addEventListener('input', handler);      // Primary (desktop & some mobile)
         input.addEventListener('keyup', handler);      // Fallback for mobile keyboards
         input.addEventListener('compositionend', handler); // IME input (iOS, Android)
-
-        console.log('[iOS DEBUG 6] Event listeners attached (input, keyup, compositionend)');
 
         input._autocompleteInitialized = true;
 
@@ -1803,8 +1796,6 @@ class ListsManager {
      * @param {string} value - Input value
      */
     handleProductInput(value) {
-        console.log('[iOS DEBUG 7] handleProductInput called, value:', value, 'length:', value?.length);
-
         // Clear previous debounce timer
         if (this._autocompleteTimer) {
             clearTimeout(this._autocompleteTimer);
@@ -1812,16 +1803,12 @@ class ListsManager {
 
         // Hide dropdown if query too short
         if (!value || value.length < 2) {
-            console.log('[iOS DEBUG 8] Query too short, hiding dropdown');
             this.hideProductSuggestions();
             return;
         }
 
-        console.log('[iOS DEBUG 9] Scheduling fetch in 300ms for query:', value);
-
         // Debounce API calls (300ms)
         this._autocompleteTimer = setTimeout(() => {
-            console.log('[iOS DEBUG 10] Debounce timeout fired, calling showProductSuggestions');
             this.showProductSuggestions(value);
         }, 300);
     }
@@ -1831,50 +1818,36 @@ class ListsManager {
      * @param {string} query - Search query
      */
     async showProductSuggestions(query) {
-        console.log('[iOS DEBUG 11] showProductSuggestions called, query:', query, 'length:', query?.length);
-
         if (query.length < 2) {
-            console.warn('[iOS DEBUG 12] Query too short in showProductSuggestions');
             this.hideProductSuggestions();
             return;
         }
 
         try {
             let suggestions = [];
-            console.log('[iOS DEBUG 13] isOnline:', this.isOnline);
 
             if (this.isOnline) {
                 // Online: fetch from API
                 const url = `/api/v1/shopping-list-items/products/suggest?q=${encodeURIComponent(query)}&limit=10`;
-                console.log('[iOS DEBUG 14] Fetching URL:', url);
-
                 const response = await fetch(url);
-                console.log('[iOS DEBUG 15] Response status:', response.status, 'OK:', response.ok);
 
                 if (response.ok) {
                     const data = await response.json();
                     suggestions = data.suggestions || [];
-                    console.log('[iOS DEBUG 16] Got suggestions count:', suggestions.length);
 
                     // Cache suggestions for offline use
                     if (this.db && suggestions.length > 0) {
                         await this._cacheProductSuggestions(suggestions);
                     }
-                } else {
-                    console.error('[iOS DEBUG 17] API error, status:', response.status, response.statusText);
                 }
             } else {
-                console.log('[iOS DEBUG 18] Offline mode, searching cache');
                 // Offline: search in cached suggestions
                 suggestions = await this._searchCachedSuggestions(query);
-                console.log('[iOS DEBUG 18b] Cached suggestions count:', suggestions.length);
             }
 
-            console.log('[iOS DEBUG 19] Calling renderSuggestionsDropdown with', suggestions.length, 'items');
             this.renderSuggestionsDropdown(suggestions);
 
         } catch (error) {
-            console.error('[iOS DEBUG 20] Exception in showProductSuggestions:', error.message, error.stack);
             console.error('[Autocomplete] Error fetching suggestions:', error);
             // Try offline cache on error
             if (this.db) {
@@ -2165,13 +2138,9 @@ function openAddItemModal() {
     setTimeout(() => {
         const input = document.getElementById('item-product-name');
         if (input) {
-            console.log('[iOS DEBUG] Attempting to focus input');
             input.focus();
             // Принудительный клик может помочь на iOS
             input.click();
-            console.log('[iOS DEBUG] Input focused and clicked');
-        } else {
-            console.error('[iOS DEBUG] Input not found for focus');
         }
     }, 300);
 }
