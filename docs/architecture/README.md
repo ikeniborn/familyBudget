@@ -257,5 +257,55 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-20**: Fixed critical WebSocket issues (see Known Issues & Fixes section below)
 - **2025-12-19**: Added Mobile Quick Actions (Mini Cards Row pattern) - responsive 4-column grid for mobile, preserving 3-column desktop layout (index.html:55-117)
 - **2025-12-19**: Updated shopping lists documentation to reflect soft delete pattern and item count filtering (commit 6aa943bf)
+
+## Known Issues & Fixes (2025-12-20)
+
+### Fixed Issues
+
+| Issue | Severity | Status | File |
+|-------|----------|--------|------|
+| Undefined `sse` variable in facts.py | 🔴 CRITICAL | ✅ Fixed | `backend/app/api/v1/endpoints/facts.py` |
+| Race condition in `send_to_connection()` | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/budget_ws.py` |
+| Race condition in `update_activity()` | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/budget_ws.py` |
+| Missing jitter in WebSocket reconnect | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
+| Long polling no exponential backoff | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
+
+### Issue Details
+
+**1. Undefined `sse` variable (CRITICAL)**
+- **Problem**: Plan broadcasts used undefined `sse` variable instead of `ws`
+- **Root cause**: Remnant from SSE → WebSocket migration
+- **Fix**: Changed `sse.broadcast_plan_*` to `ws.broadcast_plan_*` (lines 244, 1020, 1111, 1218)
+- **Result**: Plan operations now broadcast correctly
+
+**2. Race conditions in connection manager (HIGH)**
+- **Problem**: `send_to_connection()` and `update_activity()` had no lock protection
+- **Root cause**: `broadcast()` correctly used `async with self._lock`, but other methods didn't
+- **Fix**: Added async lock to both methods, made `update_activity()` async
+- **Result**: No IndexError or duplicate/missed messages during concurrent operations
+
+**3. Missing jitter in reconnect (MEDIUM)**
+- **Problem**: Exponential backoff without jitter caused thundering herd
+- **Root cause**: All disconnected clients retry at exact same intervals
+- **Fix**: Added ±10% jitter to reconnect delay
+- **Result**: Distributed reconnection load on server
+
+**4. Long polling without backoff (MEDIUM)**
+- **Problem**: Fixed 10s retry interval on errors
+- **Root cause**: No exponential backoff implementation
+- **Fix**: Added exponential backoff with jitter (1s → 30s max, 10 retries)
+- **Result**: Reduced server load on persistent failures
+
+### Known Limitations (Deferred)
+
+| Issue | Status | Notes |
+|-------|--------|-------|
+| IncrementalUpdates cache invalidation | ⏳ Deferred | Requires `article_created/updated` events on backend (not implemented) |
+
+### Documentation
+
+- **Realtime module**: [functionality/realtime.yaml](./functionality/realtime.yaml)
+- **WebSocket broadcast flow**: [flows/ws-broadcast.yaml](./flows/ws-broadcast.yaml)

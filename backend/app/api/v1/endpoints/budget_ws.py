@@ -550,7 +550,7 @@ async def budget_websocket_endpoint(
                 await ws_manager.send_to_connection(connection_id, "ping", {
                     "timestamp": datetime.utcnow().isoformat(),
                 })
-                ws_manager.update_activity(connection_id)
+                await ws_manager.update_activity(connection_id)
             except Exception:
                 break
 
@@ -574,14 +574,14 @@ async def budget_websocket_endpoint(
 
                     if msg_type == "ping":
                         # Client ping - respond with pong
-                        ws_manager.update_activity(connection_id)
+                        await ws_manager.update_activity(connection_id)
                         await ws_manager.send_to_connection(connection_id, "pong", {
                             "timestamp": datetime.utcnow().isoformat(),
                         })
 
                     elif msg_type == "check_online":
                         # Check online status for offline mode
-                        ws_manager.update_activity(connection_id)
+                        await ws_manager.update_activity(connection_id)
                         await ws_manager.send_to_connection(connection_id, "online_status", {
                             "online": True,
                             "timestamp": datetime.utcnow().isoformat(),

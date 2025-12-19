@@ -39,6 +39,10 @@ class BudgetWSClient {
         this.POLL_TIMEOUT = 10;  // seconds
         this._pollTimeout = null;
         this._pollingActive = false;
+        // Long polling retry with exponential backoff
+        this._pollRetryCount = 0;
+        this.MAX_POLL_RETRIES = 10;
+        this.BASE_POLL_RETRY_DELAY = 1000;  // 1 second
 
         // Client ping for bidirectional communication
         this.pingInterval = null;
@@ -1018,6 +1022,9 @@ class BudgetWSClient {
                 this.lastEventTimestamp = data.server_time;
             }
 
+            // Reset retry count on successful poll
+            this._pollRetryCount = 0;
+
             // Schedule next poll
             this._pollTimeout = setTimeout(() => this._pollLoop(), 100);
 
@@ -1029,8 +1036,19 @@ class BudgetWSClient {
 
             console.error('[BudgetWS] Long polling error:', error.message);
 
-            // Retry after interval
-            this._pollTimeout = setTimeout(() => this._pollLoop(), this.POLL_INTERVAL);
+            // Exponential backoff with jitter to prevent thundering herd
+            this._pollRetryCount++;
+            if (this._pollRetryCount <= this.MAX_POLL_RETRIES) {
+                const baseDelay = this.BASE_POLL_RETRY_DELAY * Math.pow(2, this._pollRetryCount - 1);
+                const jitter = baseDelay * 0.2 * Math.random(); // ±10% jitter
+                const delay = Math.min(baseDelay + jitter, 30000); // max 30s
+                debugLog('[BudgetWS] Long polling retry in', Math.round(delay), 'ms (attempt', this._pollRetryCount, ')');
+                this._pollTimeout = setTimeout(() => this._pollLoop(), delay);
+            } else {
+                console.error('[BudgetWS] Long polling max retries reached');
+                this._pollingActive = false;
+                this._updateStatusIndicator();
+            }
         }
     }
 
@@ -1190,12 +1208,12 @@ class BudgetWSClient {
             return;
         }
 
-        const delay = Math.min(
-            this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts),
-            this.maxReconnectDelay
-        );
+        // Calculate delay with exponential backoff and jitter to prevent thundering herd
+        const baseDelay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
+        const jitter = baseDelay * 0.2 * Math.random(); // ±10% jitter
+        const delay = Math.min(baseDelay + jitter, this.maxReconnectDelay);
 
-        debugLog('[BudgetWS] Reconnecting in', delay, 'ms (attempt', this.reconnectAttempts + 1, ')');
+        debugLog('[BudgetWS] Reconnecting in', Math.round(delay), 'ms (attempt', this.reconnectAttempts + 1, ')');
 
         this.reconnectTimeout = setTimeout(() => {
             this.reconnectTimeout = null;

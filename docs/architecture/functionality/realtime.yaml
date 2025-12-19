@@ -364,3 +364,58 @@ module:
     - $ref: "../web/templates.yaml#/templates/base"
     - $ref: "../web/templates.yaml#/templates/index"
     - $ref: "../web/templates.yaml#/templates/lists"
+
+  # ---------------------------------------------------------------------------
+  # KNOWN ISSUES (Fixed 2025-12-20)
+  # ---------------------------------------------------------------------------
+  known_issues_fixed:
+    - issue: "sse variable undefined in facts.py"
+      severity: "CRITICAL"
+      description: |
+        Plan broadcast calls used undefined 'sse' variable instead of 'ws'.
+        Remnant from SSE → WebSocket migration in 2024.
+        Affected lines: 244, 1020, 1111, 1218 in facts.py
+      fix: "Changed sse.broadcast_plan_* to ws.broadcast_plan_*"
+      status: fixed
+      date: "2025-12-20"
+
+    - issue: "Race conditions in connection manager"
+      severity: "HIGH"
+      description: |
+        send_to_connection() and update_activity() had no lock protection.
+        broadcast() correctly used async with self._lock, but other methods didn't.
+        Could cause IndexError or missed/duplicated messages during concurrent operations.
+      fix: |
+        Added async lock to both methods.
+        Made update_activity() async and updated all 3 callers to use await.
+      status: fixed
+      date: "2025-12-20"
+
+    - issue: "Missing jitter in reconnect"
+      severity: "MEDIUM"
+      description: |
+        Exponential backoff without jitter caused thundering herd problem.
+        All disconnected clients retry at exact same intervals.
+      fix: "Added ±10% jitter to reconnect delay calculation"
+      status: fixed
+      date: "2025-12-20"
+
+    - issue: "Long polling no exponential backoff"
+      severity: "MEDIUM"
+      description: |
+        Fixed 10s retry interval on errors caused excessive load on server.
+        No exponential backoff implementation.
+      fix: |
+        Added exponential backoff with jitter (1s → 30s max, 10 retries).
+        Reset retry count on successful poll.
+      status: fixed
+      date: "2025-12-20"
+
+  known_limitations:
+    - issue: "IncrementalUpdates cache invalidation"
+      severity: "LOW"
+      description: |
+        Article cache in incrementalUpdates.js is not invalidated when articles change.
+        Requires article_created/updated events from backend (not implemented).
+      status: deferred
+      notes: "Backend first needs to broadcast article_* events"
