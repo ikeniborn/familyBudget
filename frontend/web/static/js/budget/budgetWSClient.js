@@ -67,6 +67,16 @@ class BudgetWSClient {
         // Safari iOS detection (for special handling)
         this._safariIOSMode = this._detectSafariIOS();
 
+        // Force Long Polling for Safari iOS due to known WebSocket issues:
+        // - iOS 26: HTTP/2 CONNECT bug (sends CONNECT instead of GET)
+        // - iOS 15+: NSURLSession permessage-deflate compression issues
+        // - iOS 18.1+: iframe WebSocket "offline" errors
+        // Reference: https://discussions.apple.com/thread/256142477
+        if (this._safariIOSMode) {
+            console.log('[BudgetWS] Safari iOS detected - forcing Long Polling mode');
+            this.useLongPolling = true;
+        }
+
         // Close connection on page unload
         window.addEventListener('beforeunload', () => {
             this._silentClose();
@@ -124,7 +134,8 @@ class BudgetWSClient {
     // ==================== BROWSER DETECTION ====================
 
     /**
-     * Detect Safari on iOS/iPadOS
+     * Detect Safari on iOS/iPadOS or Yandex Browser on iOS
+     * These browsers have known WebSocket issues and need Long Polling fallback
      * @returns {boolean}
      * @private
      */
@@ -133,11 +144,13 @@ class BudgetWSClient {
         const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
         const isPadOSDesktop = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
         const isSafariLike = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua);
+        const isYandexIOS = /YaBrowser/.test(ua) && isIOS;
 
-        const result = (isIOS || isPadOSDesktop) && isSafariLike;
-        console.log('[BudgetWS] Safari iOS detection:', {
-            isIOS, isPadOSDesktop, isSafariLike, result,
-            ua: ua.substring(0, 100)
+        // Any iOS browser that uses WebKit (Safari, Yandex, etc.)
+        const result = (isIOS || isPadOSDesktop) && (isSafariLike || isYandexIOS);
+        console.log('[BudgetWS] iOS browser detection:', {
+            isIOS, isPadOSDesktop, isSafariLike, isYandexIOS, result,
+            ua: ua.substring(0, 120)
         });
         return result;
     }
