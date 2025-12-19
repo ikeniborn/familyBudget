@@ -11,6 +11,7 @@
 
 
 ВАЖНО! После всех изменений актуализируй /home/UF.RT.RU/i.y.tischenko/Документы/Git/familyBudget/docs/architecture
+По завершению всегда коммит и пуш.
 ---
 
 
