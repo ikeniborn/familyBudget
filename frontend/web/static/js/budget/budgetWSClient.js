@@ -35,8 +35,8 @@ class BudgetWSClient {
         this.useLongPolling = false;
         this.pollController = null;
         this.lastEventTimestamp = 0;
-        this.POLL_INTERVAL = 10000;  // 10 seconds
-        this.POLL_TIMEOUT = 10;  // seconds
+        this.POLL_INTERVAL = 5000;  // 5 seconds - faster updates, acceptable load
+        this.POLL_TIMEOUT = 5;  // seconds
         this._pollTimeout = null;
         this._pollingActive = false;
         // Long polling retry with exponential backoff
@@ -67,14 +67,13 @@ class BudgetWSClient {
         // Safari iOS detection (for special handling)
         this._safariIOSMode = this._detectSafariIOS();
 
-        // Force Long Polling for Safari iOS due to known WebSocket issues:
-        // - iOS 26: HTTP/2 CONNECT bug (sends CONNECT instead of GET)
-        // - iOS 15+: NSURLSession permessage-deflate compression issues
-        // - iOS 18.1+: iframe WebSocket "offline" errors
+        // Safari iOS WebSocket strategy:
+        // Server has permessage-deflate disabled (--ws-per-message-deflate false)
+        // Try WebSocket first with shorter timeout, fallback to Long Polling if fails
         // Reference: https://discussions.apple.com/thread/256142477
         if (this._safariIOSMode) {
-            console.log('[BudgetWS] Safari iOS detected - forcing Long Polling mode');
-            this.useLongPolling = true;
+            console.log('[BudgetWS] Safari iOS detected - WebSocket with fast fallback enabled');
+            this._iosWebSocketTimeout = 5000;  // 5 sec timeout (vs 10 sec default)
         }
 
         // Close connection on page unload
@@ -737,7 +736,9 @@ class BudgetWSClient {
             console.log('[BudgetWS] Creating WebSocket connection...');
             this.ws = new WebSocket(wsUrl);
 
-            // Connection timeout (10 seconds)
+            // Connection timeout (5 sec for iOS, 10 sec for others)
+            const timeout = this._iosWebSocketTimeout || 10000;
+            console.log('[BudgetWS] Connection timeout:', timeout, 'ms');
             const connectionTimeout = setTimeout(() => {
                 if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
                     console.error('[BudgetWS] Connection timeout, falling back to long polling');
@@ -746,7 +747,7 @@ class BudgetWSClient {
                     this.useLongPolling = true;
                     this._startLongPolling();
                 }
-            }, 10000);
+            }, timeout);
 
             this.ws.onopen = () => {
                 clearTimeout(connectionTimeout);
@@ -998,7 +999,7 @@ class BudgetWSClient {
             return;
         }
 
-        console.log('[BudgetWS] Starting long polling (10s interval)');
+        console.log('[BudgetWS] Starting long polling (5s interval)');
         this._pollingActive = true;
         this.isConnected = true;
         this._updateStatusIndicator();

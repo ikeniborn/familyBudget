@@ -58,7 +58,7 @@ STALE_CONNECTION_TIMEOUT = 60  # Seconds without activity before connection cons
 WS_KEEPALIVE_INTERVAL = 10.0  # Seconds between server ping messages
 
 # Long Polling constants
-POLL_TIMEOUT_DEFAULT = 10  # Default long poll timeout in seconds
+POLL_TIMEOUT_DEFAULT = 5  # Default long poll timeout in seconds (5s for iOS responsiveness)
 POLL_TIMEOUT_MAX = 30  # Maximum allowed poll timeout
 EVENT_BUFFER_MAX_SIZE = 1000  # Max events in buffer
 EVENT_BUFFER_MAX_AGE = 60  # Max age of events in seconds

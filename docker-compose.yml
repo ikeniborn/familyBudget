@@ -176,13 +176,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    # Workers fixed to 1 for SSE compatibility (in-memory ConnectionManager)
-    # See: backend/app/api/v1/endpoints/budget_sse.py:9
+    # Workers fixed to 1 for WebSocket compatibility (in-memory ConnectionManager)
+    # See: backend/app/api/v1/endpoints/budget_ws.py:9
+    # --ws-per-message-deflate false: Disable WebSocket compression for iOS Safari compatibility
+    # Reference: https://github.com/encode/uvicorn/issues/1298
     command: >
       uvicorn backend.app.main:app
       --host 0.0.0.0
       --port 8000
       --workers 1
+      --ws-per-message-deflate false
       --log-level ${LOG_LEVEL:-info}
       --access-log
       --proxy-headers
