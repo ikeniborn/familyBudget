@@ -147,6 +147,25 @@ key_classes:
         - "max-width: min(90vw, 400px)"
         - "z-index: 99999"
 
+  collapsible_sections:
+    expand_indicator:
+      selector: ".expand-indicator"
+      location: "frontend/web/templates/index.html:362-381 (inline style)"
+      description: "Mobile-only indicator for collapsible sections (Quick Stats, Account Balances)"
+      usage:
+        - "Quick Stats header (line 27): 'ещё 2'"
+        - "Account Balances header (line 46): 'ещё...'"
+      styles:
+        - "font-size: 0.6875rem (~11px)"
+        - "color: oklch(var(--bc) / 0.4) (40% opacity)"
+        - "padding: 0.125rem 0.375rem"
+        - "border-radius: 0.25rem"
+        - "background: oklch(var(--b2))"
+      responsive:
+        desktop: "display: none !important (md:hidden)"
+      js_controller: "toggleQuickStats(), toggleAccountBalances()"
+      variants_demo: "tmp/labels/expand-indicators.html (10 DaisyUI вариантов)"
+
   forms:
     input_bordered:
       description: "Form inputs"

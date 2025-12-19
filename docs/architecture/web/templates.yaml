@@ -145,6 +145,12 @@ templates:
         - "htmx:afterSwap → applies state after HTMX loads content"
         - "window.resize (debounced 100ms) → reapplies state on screen rotation"
 
+      indicator_component:
+        selector: ".expand-indicator"
+        css_location: "frontend/web/templates/index.html:362-381 (inline style)"
+        variants_demo: "tmp/labels/expand-indicators.html"
+        description: "10 DaisyUI-based design alternatives for expand indicator"
+
   facts:
     path: "frontend/web/templates/facts.html"
     extends: base
