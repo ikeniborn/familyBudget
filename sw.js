@@ -47,7 +47,7 @@ const OFFLINE_PAGE_ASSETS = [
   '/static/js/lists/googleSheetsImporter.min.js',
   '/static/js/lists/importManager.min.js',
   '/static/js/lists/hierarchyView.min.js',
-  '/static/js/lists/sseClient.min.js',
+  '/static/js/budget/budgetWSClient.min.js',
   '/static/js/lists/listsManager.min.js',
   // JS - shared (used by lists)
   '/shared/static/js/choicesProductGroupTree.min.js'
