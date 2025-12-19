@@ -158,6 +158,27 @@ module:
       - $ref: "../web/js-modules.yaml#/modules/offlineShoppingManager"
 
   # ---------------------------------------------------------------------------
+  # MOBILE COMPATIBILITY
+  # ---------------------------------------------------------------------------
+  mobile_compatibility:
+    ios_safari:
+      autocomplete:
+        implementation: event_delegation
+        reason: "Inline onclick handlers не работают для динамического контента"
+        commit: "0eedb351"
+        files_changed:
+          - "frontend/web/static/js/lists/listsManager.js"
+        tested_devices:
+          - "iPhone (iOS Safari)"
+          - "iPhone (Chrome)"
+          - "iPhone (Yandex Browser)"
+        related_fixes:
+          - commit: "32d78fda"
+            description: "Mobile zoom fix (viewport user-scalable=no)"
+          - commit: "2cf22f96"
+            description: "Modal overflow fix для autocomplete dropdown"
+
+  # ---------------------------------------------------------------------------
   # DEPENDENCIES
   # ---------------------------------------------------------------------------
   depends_on:
