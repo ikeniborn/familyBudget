@@ -92,17 +92,19 @@ async def get_shopping_lists_with_stats(
     # For each list, calculate statistics
     lists_with_stats = []
     for shopping_list in shopping_lists:
-        # Count total items
+        # Count total items (EXCLUDE soft-deleted)
         total_items_stmt = select(func.count()).where(
-            ShoppingListItem.shopping_list_id == shopping_list.id
+            ShoppingListItem.shopping_list_id == shopping_list.id,
+            ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted items
         )
         total_items_result = await session.execute(total_items_stmt)
         total_items = total_items_result.scalar_one()
 
-        # Count completed items
+        # Count completed items (EXCLUDE soft-deleted)
         completed_items_stmt = select(func.count()).where(
             ShoppingListItem.shopping_list_id == shopping_list.id,
-            ShoppingListItem.is_completed == True  # noqa: E712
+            ShoppingListItem.is_completed == True,  # noqa: E712
+            ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted items
         )
         completed_items_result = await session.execute(completed_items_stmt)
         completed_items = completed_items_result.scalar_one()
@@ -244,17 +246,19 @@ async def get_shopping_list_item_count(
         - Used for progress indicators
         - Returns (0, 0) if list has no items
     """
-    # Count total items
+    # Count total items (EXCLUDE soft-deleted)
     total_stmt = select(func.count()).where(
-        ShoppingListItem.shopping_list_id == shopping_list_id
+        ShoppingListItem.shopping_list_id == shopping_list_id,
+        ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted items
     )
     total_result = await session.execute(total_stmt)
     total_items = total_result.scalar_one()
 
-    # Count completed items
+    # Count completed items (EXCLUDE soft-deleted)
     completed_stmt = select(func.count()).where(
         ShoppingListItem.shopping_list_id == shopping_list_id,
-        ShoppingListItem.is_completed == True  # noqa: E712
+        ShoppingListItem.is_completed == True,  # noqa: E712
+        ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted items
     )
     completed_result = await session.execute(completed_stmt)
     completed_items = completed_result.scalar_one()
