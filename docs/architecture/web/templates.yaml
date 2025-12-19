@@ -208,6 +208,44 @@ templates:
       - "CSV import"
       - "Google Sheets import"
       - "Product group categorization"
+      - "Hide completed items filter"
+      - "Conditional delete completed button"
+    toolbar_sections:
+      table_controls:
+        id: "table-controls"
+        visibility: "Table view only"
+        buttons:
+          - "Отметить все (✅)"
+          - "Снять все (☐)"
+      hierarchy_controls:
+        id: "hierarchy-controls"
+        visibility: "Hierarchy view only"
+        buttons:
+          - "Развернуть (⬇️)"
+          - "Свернуть (⬆️)"
+      shared_controls:
+        id: "shared-controls"
+        visibility: "Both views"
+        buttons:
+          - id: "toggle-hide-completed-btn"
+            text: "Скрыть выполненные / Показать все (👁️)"
+          - id: "delete-completed-btn"
+            text: "Удалить выполненные (🗑️)"
+            hidden_by_default: true
+            shows_when: "есть выполненные товары"
+      view_toggle:
+        type: "join (button group)"
+        buttons:
+          - "Таблица (📋)"
+          - "Иерархия (🌳)"
+    responsive_design:
+      mobile:
+        - "Текст кнопок скрыт (показываются только иконки)"
+        - "Карточное представление вместо таблицы"
+        - "Тулбар горизонтально скроллится"
+      desktop:
+        - "Полный текст кнопок"
+        - "Табличное представление"
 
   notifications:
     path: "frontend/web/templates/notifications.html"

@@ -22,6 +22,7 @@ class ListsManager {
         this.hierarchyView = null; // HierarchyView instance
         this.db = null; // IndexedDBManager instance for offline support
         this.searchQuery = ''; // Search filter for items
+        this.hideCompleted = false; // Hide completed items filter
         // Note: SSE updates now handled by global budgetSSEClient
     }
 
@@ -167,6 +168,10 @@ class ListsManager {
         const clearBtn = document.getElementById('clear-search-btn');
         if (clearBtn) clearBtn.classList.add('hidden');
 
+        // Reset hide completed filter for new list
+        this.hideCompleted = false;
+        this.updateHideCompletedButton();
+
         // Reset HierarchyView expanded nodes for new list
         // Each list should start with fresh tree state
         if (this.hierarchyView) {
@@ -191,6 +196,9 @@ class ListsManager {
 
         // Load items for this list
         await this.loadShoppingListItems(listId);
+
+        // Update delete completed button visibility
+        this.updateDeleteCompletedButton();
 
         // Restore saved view preference from localStorage
         let savedView = 'table'; // default
@@ -553,15 +561,33 @@ class ListsManager {
             if (mobileContainer) mobileContainer.classList.add('table-content-hidden');
             emptyState.classList.remove('hidden');
 
-            // Update empty state message based on search
+            // Update empty state message based on search or hide completed
             const emptyTitle = emptyState.querySelector('h3');
             const emptyText = emptyState.querySelector('p');
+            const emptyButton = emptyState.querySelector('button');
+            const hasCompletedItems = this.currentItems.some(item => item.is_completed);
+
             if (this.searchQuery && this.searchQuery.trim() !== '') {
                 if (emptyTitle) emptyTitle.textContent = 'Ничего не найдено';
                 if (emptyText) emptyText.textContent = 'Попробуйте изменить поисковый запрос';
+                if (emptyButton) {
+                    emptyButton.textContent = '➕ Добавить товар';
+                    emptyButton.onclick = () => openAddItemModal();
+                }
+            } else if (this.hideCompleted && hasCompletedItems) {
+                if (emptyTitle) emptyTitle.textContent = 'Все товары выполнены';
+                if (emptyText) emptyText.textContent = 'Нажмите "Показать все" чтобы увидеть выполненные товары';
+                if (emptyButton) {
+                    emptyButton.textContent = '👁️ Показать все';
+                    emptyButton.onclick = () => toggleHideCompleted();
+                }
             } else {
                 if (emptyTitle) emptyTitle.textContent = 'Список пуст';
                 if (emptyText) emptyText.textContent = 'Добавьте первый товар или импортируйте из CSV';
+                if (emptyButton) {
+                    emptyButton.textContent = '➕ Добавить товар';
+                    emptyButton.onclick = () => openAddItemModal();
+                }
             }
             return;
         }
@@ -710,13 +736,19 @@ class ListsManager {
     }
 
     /**
-     * Filter items by search query
+     * Filter items by search query and hideCompleted flag
      * Searches in: product name, store name, group name, group ancestors
      * @returns {Array} Filtered items
      */
     filterItemsBySearch() {
+        // Start with all items or filter out completed if hideCompleted is active
+        let items = this.currentItems;
+        if (this.hideCompleted) {
+            items = items.filter(item => !item.is_completed);
+        }
+
         if (!this.searchQuery || this.searchQuery.trim() === '') {
-            return this.currentItems;
+            return items;
         }
 
         const query = this.searchQuery.toLowerCase().trim();
@@ -739,7 +771,7 @@ class ListsManager {
             return names;
         };
 
-        return this.currentItems.filter(item => {
+        return items.filter(item => {
             // Check product name
             if ((item.product_name || '').toLowerCase().includes(query)) {
                 return true;
@@ -801,6 +833,57 @@ class ListsManager {
             input.value = '';
         }
         this.setSearchQuery('');
+    }
+
+    /**
+     * Toggle hide completed items filter
+     */
+    toggleHideCompleted() {
+        this.hideCompleted = !this.hideCompleted;
+        this.updateHideCompletedButton();
+        this.renderCurrentView();
+    }
+
+    /**
+     * Update hide completed button state
+     */
+    updateHideCompletedButton() {
+        const btn = document.getElementById('toggle-hide-completed-btn');
+        if (!btn) return;
+
+        const iconSpan = btn.querySelector('span:first-child');
+        const textSpan = btn.querySelector('span:last-child');
+
+        if (this.hideCompleted) {
+            if (iconSpan) iconSpan.textContent = '👁️‍🗨️';
+            if (textSpan) textSpan.textContent = 'Показать все';
+            btn.title = 'Показать все товары';
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-outline');
+        } else {
+            if (iconSpan) iconSpan.textContent = '👁️';
+            if (textSpan) textSpan.textContent = 'Скрыть выполненные';
+            btn.title = 'Скрыть выполненные';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline');
+        }
+    }
+
+    /**
+     * Update delete completed button visibility
+     * Shows only when there are completed items
+     */
+    updateDeleteCompletedButton() {
+        const btn = document.getElementById('delete-completed-btn');
+        if (!btn) return;
+
+        const hasCompleted = this.currentItems.some(item => item.is_completed);
+
+        if (hasCompleted) {
+            btn.classList.remove('hidden');
+        } else {
+            btn.classList.add('hidden');
+        }
     }
 
     /**
@@ -1138,6 +1221,7 @@ class ListsManager {
         }
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
 
         try {
             // 2. Send to server or queue for offline
@@ -1303,6 +1387,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
+            this.updateDeleteCompletedButton();
 
             showToast(`Отмечено ${uncompletedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1351,6 +1436,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
+            this.updateDeleteCompletedButton();
 
             showToast(`Снято ${completedItems.length} отметок`, 'success');
         } catch (error) {
@@ -1399,6 +1485,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
+            this.updateDeleteCompletedButton();
 
             showToast(`Удалено ${completedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1581,6 +1668,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
         this.updateItemsCache();
 
         // Show notification
@@ -1618,6 +1706,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
         this.updateItemsCache();
     }
 
@@ -1654,6 +1743,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
         this.updateItemsCache();
 
         // Show notification
@@ -1694,6 +1784,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
         this.updateItemsCache();
     }
 
@@ -2297,6 +2388,13 @@ function unmarkAllCompleted() {
  */
 function deleteCompleted() {
     window.listsManager.deleteCompleted();
+}
+
+/**
+ * Toggle hide completed items filter
+ */
+function toggleHideCompleted() {
+    window.listsManager.toggleHideCompleted();
 }
 
 /**

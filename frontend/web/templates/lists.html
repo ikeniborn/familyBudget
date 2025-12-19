@@ -119,7 +119,7 @@
 
         <!-- Toolbar - compact scrollable on mobile -->
         <div class="toolbar">
-            <!-- Batch Actions (Table View Only) -->
+            <!-- Table-specific Actions (Table View Only) -->
             <div class="flex gap-1 sm:gap-2" id="table-controls">
                 <button class="btn btn-sm" onclick="markAllCompleted()" title="Отметить все как выполненные">
                     <span>✅</span><span class="hidden sm:inline ml-1">Отметить все</span>
@@ -127,18 +127,25 @@
                 <button class="btn btn-sm btn-outline" onclick="unmarkAllCompleted()" title="Снять все отметки">
                     <span>☐</span><span class="hidden sm:inline ml-1">Снять все</span>
                 </button>
-                <button class="btn btn-sm btn-error" onclick="deleteCompleted()" title="Удалить выполненные">
-                    <span>🗑️</span><span class="hidden sm:inline ml-1">Удалить выполненные</span>
-                </button>
             </div>
 
-            <!-- Hierarchy Controls (Hierarchy View Only) -->
+            <!-- Hierarchy-specific Controls (Hierarchy View Only) -->
             <div class="flex gap-1 sm:gap-2 hidden" id="hierarchy-controls">
                 <button class="btn btn-sm" onclick="expandAllNodes()" title="Развернуть все узлы">
                     <span>⬇️</span><span class="hidden sm:inline ml-1">Развернуть</span>
                 </button>
                 <button class="btn btn-sm" onclick="collapseAllNodes()" title="Свернуть все узлы">
                     <span>⬆️</span><span class="hidden sm:inline ml-1">Свернуть</span>
+                </button>
+            </div>
+
+            <!-- Shared Controls (visible in both views) -->
+            <div class="flex gap-1 sm:gap-2" id="shared-controls">
+                <button id="toggle-hide-completed-btn" class="btn btn-sm btn-outline" onclick="toggleHideCompleted()" title="Скрыть выполненные">
+                    <span>👁️</span><span class="hidden sm:inline ml-1">Скрыть выполненные</span>
+                </button>
+                <button id="delete-completed-btn" class="btn btn-sm btn-error hidden" onclick="deleteCompleted()" title="Удалить выполненные">
+                    <span>🗑️</span><span class="hidden sm:inline ml-1">Удалить выполненные</span>
                 </button>
             </div>
 

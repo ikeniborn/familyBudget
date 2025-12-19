@@ -196,7 +196,7 @@ modules:
   # ---------------------------------------------------------------------------
   listsManager:
     path: "frontend/web/static/js/lists/listsManager.js"
-    loc: 2359
+    loc: 2482
     description: "Shopping lists CRUD and view management"
     endpoints:
       - "/api/v1/shopping-lists"
@@ -208,6 +208,17 @@ modules:
       - "Dual view: table and hierarchy"
       - "Batch operations"
       - "Offline sync"
+      - "Hide completed items filter"
+      - "Conditional delete completed button"
+    state:
+      hideCompleted: "boolean - скрыть выполненные товары"
+      searchQuery: "string - поисковый запрос"
+      currentView: "string - 'table' или 'hierarchy'"
+    key_methods:
+      toggleHideCompleted: "Переключает фильтр скрытия выполненных"
+      updateHideCompletedButton: "Обновляет UI кнопки скрытия (иконка, текст)"
+      updateDeleteCompletedButton: "Показывает/скрывает кнопку удаления выполненных"
+      filterItemsBySearch: "Фильтрует по поиску И hideCompleted"
     depends_on:
       - hierarchyView
       - offlineShoppingManager

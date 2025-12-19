@@ -291,6 +291,9 @@ class HierarchyView {
     renderEmpty() {
         // Check if search is active
         const hasSearch = this.listsManager.searchQuery && this.listsManager.searchQuery.trim() !== '';
+        // Check if hide completed is active and there are completed items
+        const hideCompleted = this.listsManager.hideCompleted;
+        const hasCompletedItems = this.listsManager.currentItems.some(item => item.is_completed);
 
         if (hasSearch) {
             this.container.innerHTML = `
@@ -298,6 +301,17 @@ class HierarchyView {
                     <div class="text-6xl mb-4">🔍</div>
                     <h3 class="text-2xl font-bold mb-2">Ничего не найдено</h3>
                     <p class="text-base-content/70 mb-4">Попробуйте изменить поисковый запрос</p>
+                </div>
+            `;
+        } else if (hideCompleted && hasCompletedItems) {
+            this.container.innerHTML = `
+                <div class="text-center py-12">
+                    <div class="text-6xl mb-4">👁️‍🗨️</div>
+                    <h3 class="text-2xl font-bold mb-2">Все товары выполнены</h3>
+                    <p class="text-base-content/70 mb-4">Нажмите "Показать все" чтобы увидеть выполненные товары</p>
+                    <button class="btn btn-primary" onclick="toggleHideCompleted()">
+                        👁️ Показать все
+                    </button>
                 </div>
             `;
         } else {
