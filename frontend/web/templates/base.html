@@ -269,7 +269,7 @@
                 </div>
             </div>
 
-            <!-- Budget SSE Status Indicator (real-time sync status) -->
+            <!-- Budget WebSocket Status Indicator (real-time sync status) -->
             <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center" data-tip="Real-time синхронизация">
                 <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус синхронизации">
                     <span class="loading loading-ring loading-xs sm:loading-sm"></span>
@@ -1000,14 +1000,14 @@
                 await window.pushManager.init();
                 debugLog('[Offline] PushManager initialized');
 
-                // Initialize Budget SSE for real-time updates
-                // SSE updates the indicator in navbar and triggers UI refreshes
-                if (window.budgetSSEClient) {
-                    window.budgetSSEClient.connect();
-                    debugLog('[Offline] BudgetSSEClient connected');
+                // Initialize Budget WebSocket for real-time updates
+                // WebSocket updates the indicator in navbar and triggers UI refreshes
+                if (window.budgetWSClient) {
+                    window.budgetWSClient.connect();
+                    debugLog('[Offline] BudgetWSClient connected');
                 }
 
-                // Initialize IncrementalUpdates cache for SSE-driven UI updates
+                // Initialize IncrementalUpdates cache for WebSocket-driven UI updates
                 if (window.IncrementalUpdates) {
                     window.IncrementalUpdates.initCache().then(success => {
                         if (success) {

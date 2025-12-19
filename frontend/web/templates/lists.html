@@ -64,7 +64,7 @@
                     <p class="text-sm sm:text-base text-base-content/70 truncate" id="list-detail-description">...</p>
                     <div class="mt-1 sm:mt-2 flex gap-2 items-center">
                         <span class="badge badge-info badge-sm sm:badge-md" id="list-progress-badge">0 / 0 выполнено</span>
-                        <!-- Note: SSE status indicator consolidated into header (budget-sse-status-indicator) -->
+                        <!-- Note: WebSocket status indicator consolidated into header (budget-sse-status-indicator) -->
                     </div>
                 </div>
                 <div class="flex flex-wrap gap-1 sm:gap-2 w-full sm:w-auto">
@@ -406,7 +406,7 @@
 <!-- Hierarchy View Renderer -->
 <script src="/static/js/lists/hierarchyView.min.js?v=PLACEHOLDER"></script>
 
-<!-- Note: SSE updates now provided by global budgetSSEClient (from base.html) -->
+<!-- Note: Real-time updates now provided by global budgetWSClient (from base.html) -->
 
 <!-- Lists Manager (Core CRUD logic) -->
 <script src="/static/js/lists/listsManager.min.js?v=PLACEHOLDER"></script>

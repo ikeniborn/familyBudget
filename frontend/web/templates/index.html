@@ -2564,36 +2564,36 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<!-- SSE Event Handlers for index page (Budget SSE Client loaded in base.html) -->
+<!-- WebSocket Event Handlers for index page (Budget WS Client loaded in base.html) -->
 <script>
-// Register SSE event handlers for index page UI updates
-// Uses IncrementalUpdates for optimized SSE-driven updates when available
+// Register WebSocket event handlers for index page UI updates
+// Uses IncrementalUpdates for optimized WS-driven updates when available
 document.addEventListener('DOMContentLoaded', () => {
-    // Wait for budgetSSEClient to be available
+    // Wait for budgetWSClient to be available
     setTimeout(() => {
-        if (window.budgetSSEClient) {
+        if (window.budgetWSClient) {
             const hasIncrementalUpdates = !!window.IncrementalUpdates;
-            debugLog('[SSE] IncrementalUpdates available:', hasIncrementalUpdates);
+            debugLog('[WS] IncrementalUpdates available:', hasIncrementalUpdates);
 
             // Handler for fact events - use incremental updates or fallback to refresh
-            window.budgetSSEClient.on('fact_created', (data) => {
-                debugLog('[SSE] Fact created:', data.id);
+            window.budgetWSClient.on('fact_created', (data) => {
+                debugLog('[WS] Fact created:', data.id);
                 if (hasIncrementalUpdates) {
                     window.IncrementalUpdates.onFactCreated(data);
                 } else {
                     refreshDashboard();
                 }
             });
-            window.budgetSSEClient.on('fact_updated', (data) => {
-                debugLog('[SSE] Fact updated:', data.id);
+            window.budgetWSClient.on('fact_updated', (data) => {
+                debugLog('[WS] Fact updated:', data.id);
                 if (hasIncrementalUpdates) {
                     window.IncrementalUpdates.onFactUpdated(data);
                 } else {
                     refreshDashboard();
                 }
             });
-            window.budgetSSEClient.on('fact_deleted', (data) => {
-                debugLog('[SSE] Fact deleted:', data.id);
+            window.budgetWSClient.on('fact_deleted', (data) => {
+                debugLog('[WS] Fact deleted:', data.id);
                 if (hasIncrementalUpdates) {
                     window.IncrementalUpdates.onFactDeleted(data);
                 } else {
@@ -2602,24 +2602,24 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Handler for plan events - use incremental updates or fallback to refresh
-            window.budgetSSEClient.on('plan_created', (data) => {
-                debugLog('[SSE] Plan created:', data.id);
+            window.budgetWSClient.on('plan_created', (data) => {
+                debugLog('[WS] Plan created:', data.id);
                 if (hasIncrementalUpdates) {
                     window.IncrementalUpdates.onPlanCreated(data);
                 } else {
                     refreshQuickStats();
                 }
             });
-            window.budgetSSEClient.on('plan_updated', (data) => {
-                debugLog('[SSE] Plan updated:', data.id);
+            window.budgetWSClient.on('plan_updated', (data) => {
+                debugLog('[WS] Plan updated:', data.id);
                 if (hasIncrementalUpdates) {
                     window.IncrementalUpdates.onPlanUpdated(data);
                 } else {
                     refreshQuickStats();
                 }
             });
-            window.budgetSSEClient.on('plan_deleted', (data) => {
-                debugLog('[SSE] Plan deleted:', data.id);
+            window.budgetWSClient.on('plan_deleted', (data) => {
+                debugLog('[WS] Plan deleted:', data.id);
                 if (hasIncrementalUpdates) {
                     window.IncrementalUpdates.onPlanDeleted(data);
                 } else {
@@ -2628,8 +2628,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Handler for transfer events - use incremental updates or fallback
-            window.budgetSSEClient.on('transfer_created', (data) => {
-                debugLog('[SSE] Transfer created:', data.id);
+            window.budgetWSClient.on('transfer_created', (data) => {
+                debugLog('[WS] Transfer created:', data.id);
                 if (hasIncrementalUpdates) {
                     window.IncrementalUpdates.onTransferCreated(data);
                 } else {
@@ -2637,8 +2637,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     refreshAccountBalances();
                 }
             });
-            window.budgetSSEClient.on('transfer_deleted', (data) => {
-                debugLog('[SSE] Transfer deleted:', data.id);
+            window.budgetWSClient.on('transfer_deleted', (data) => {
+                debugLog('[WS] Transfer deleted:', data.id);
                 if (hasIncrementalUpdates) {
                     window.IncrementalUpdates.onTransferDeleted(data);
                 } else {

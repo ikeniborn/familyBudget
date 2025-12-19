@@ -23,7 +23,7 @@ class ListsManager {
         this.db = null; // IndexedDBManager instance for offline support
         this.searchQuery = ''; // Search filter for items
         this.hideCompleted = false; // Hide completed items filter
-        // Note: SSE updates now handled by global budgetSSEClient
+        // Note: Real-time updates now handled by global budgetWSClient
     }
 
     /**
@@ -59,8 +59,8 @@ class ListsManager {
                 debugLog('[ListsManager] OfflineShoppingManager initialized');
             }
 
-            // Note: SSE updates now handled by global budgetSSEClient (consolidation)
-            // budgetSSEClient calls listsManager.addItemToUI, updateItemInUI, etc. directly
+            // Note: Real-time updates now handled by global budgetWSClient (consolidation)
+            // budgetWSClient calls listsManager.addItemToUI, updateItemInUI, etc. directly
 
             // Listen for network status changes (sync when back online)
             window.addEventListener('offline-status-change', async (event) => {
@@ -68,7 +68,7 @@ class ListsManager {
                 this.updateOfflineUI(!online);
 
                 if (online) {
-                    // Note: SSE reconnection handled by global budgetSSEClient
+                    // Note: WebSocket reconnection handled by global budgetWSClient
 
                     if (this.offlineShopping) {
                         try {
@@ -90,7 +90,7 @@ class ListsManager {
                         }
                     }
                 }
-                // Note: SSE disconnect handled by global budgetSSEClient
+                // Note: WebSocket disconnect handled by global budgetWSClient
             });
 
             // Load reference data
@@ -133,7 +133,7 @@ class ListsManager {
     async showLandingView() {
         debugLog('[ListsManager] Showing landing view');
 
-        // Note: SSE stays connected globally via budgetSSEClient (no per-list disconnect needed)
+        // Note: WebSocket stays connected globally via budgetWSClient (no per-list disconnect needed)
 
         // Reset state
         this.currentListId = null;
@@ -222,7 +222,7 @@ class ListsManager {
         // Initialize Choices.js for product group selector in modal
         this.initProductGroupChoices();
 
-        // Note: SSE updates provided by global budgetSSEClient
+        // Note: Real-time updates provided by global budgetWSClient
         // Filtering by shopping_list_id is done in addItemToUI, updateItemInUI, etc.
     }
 
@@ -1633,12 +1633,12 @@ class ListsManager {
     }
 
     // ==========================================================
-    // SSE UI UPDATE METHODS
-    // Called by ShoppingListSSEClient for real-time updates
+    // REAL-TIME UI UPDATE METHODS
+    // Called by BudgetWSClient for real-time updates
     // ==========================================================
 
     /**
-     * Add item to UI (from SSE event)
+     * Add item to UI (from WebSocket event)
      * @param {Object} item - Item data from server (must contain shopping_list_id)
      */
     addItemToUI(item) {
@@ -1663,7 +1663,7 @@ class ListsManager {
 
         // Add to items array
         this.currentItems.push(item);
-        debugLog('[ListsManager] Added item from SSE:', item.id);
+        debugLog('[ListsManager] Added item from WebSocket:', item.id);
 
         // Re-render and update badge
         this.renderCurrentView();
@@ -1676,7 +1676,7 @@ class ListsManager {
     }
 
     /**
-     * Update item in UI (from SSE event)
+     * Update item in UI (from WebSocket event)
      * @param {Object} item - Updated item data from server (must contain shopping_list_id)
      */
     updateItemInUI(item) {
@@ -1701,7 +1701,7 @@ class ListsManager {
 
         // Update item in array
         this.currentItems[index] = { ...this.currentItems[index], ...item };
-        debugLog('[ListsManager] Updated item from SSE:', item.id);
+        debugLog('[ListsManager] Updated item from WebSocket:', item.id);
 
         // Re-render and update badge
         this.renderCurrentView();
@@ -1711,7 +1711,7 @@ class ListsManager {
     }
 
     /**
-     * Remove item from UI (from SSE event)
+     * Remove item from UI (from WebSocket event)
      * @param {number} itemId - Item ID to remove
      * @param {number} shoppingListId - Shopping list ID (for filtering)
      */
@@ -1735,7 +1735,7 @@ class ListsManager {
 
         const removedItem = this.currentItems[index];
         this.currentItems.splice(index, 1);
-        debugLog('[ListsManager] Removed item from SSE:', itemId);
+        debugLog('[ListsManager] Removed item from WebSocket:', itemId);
 
         // Also remove from selection if selected
         this.selectedItemIds.delete(itemId);
@@ -1751,7 +1751,7 @@ class ListsManager {
     }
 
     /**
-     * Toggle item completed status in UI (from SSE event)
+     * Toggle item completed status in UI (from WebSocket event)
      * @param {number} itemId - Item ID
      * @param {boolean} isCompleted - New completed status
      * @param {number} shoppingListId - Shopping list ID (for filtering)
@@ -1779,7 +1779,7 @@ class ListsManager {
         if (isCompleted) {
             item.completed_at = new Date().toISOString();
         }
-        debugLog('[ListsManager] Toggled item from SSE:', itemId, isCompleted);
+        debugLog('[ListsManager] Toggled item from WebSocket:', itemId, isCompleted);
 
         // Re-render and update badge
         this.renderCurrentView();
@@ -2336,7 +2336,7 @@ async function handleSaveItem(event) {
             }
         } else if (result.tempId && !result.id) {
             // CREATE offline: tempId exists but no real server ID
-            // Offline mode needs immediate update (no SSE in offline)
+            // Offline mode needs immediate update (no WebSocket in offline)
             const newItem = {
                 id: result.tempId,
                 ...data,
@@ -2354,7 +2354,7 @@ async function handleSaveItem(event) {
             manager.updateProgressBadge();
             await manager.updateItemsCache();
         }
-        // CREATE online (result.id exists): do nothing, SSE will add the item
+        // CREATE online (result.id exists): do nothing, WebSocket will add the item
 
     } catch (error) {
         console.error('[ListsManager] Error saving item:', error);

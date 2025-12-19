@@ -1,7 +1,7 @@
 /**
  * Incremental UI Updates Module
  *
- * Provides incremental DOM updates from SSE payload without HTTP requests.
+ * Provides incremental DOM updates from WebSocket payload without HTTP requests.
  * Uses in-memory cache for reference data (articles, financial centers).
  * Falls back to HTMX refresh when cache is unavailable.
  *
@@ -12,8 +12,8 @@
  *   // Initialize cache on page load
  *   await IncrementalUpdates.initCache();
  *
- *   // SSE handler
- *   window.budgetSSEClient.on('fact_created', (data) => {
+ *   // WebSocket handler
+ *   window.budgetWSClient.on('fact_created', (data) => {
  *       IncrementalUpdates.onFactCreated(data);
  *   });
  */
@@ -203,7 +203,7 @@
          * NOTE: Quick stats are aggregated values, so incremental update is complex.
          * For now, fallback to full refresh for stats accuracy.
          *
-         * @param {Object} fact - Fact data from SSE
+         * @param {Object} fact - Fact data from WebSocket
          * @param {string} action - 'add' | 'remove'
          */
         updateQuickStats(fact, action) {
@@ -264,7 +264,7 @@
 
         /**
          * Prepend new transaction to recent transactions list
-         * @param {Object} fact - Fact data from SSE
+         * @param {Object} fact - Fact data from WebSocket
          */
         prependRecentTransaction(fact) {
             const article = this.getArticle(fact.article_id);
@@ -387,8 +387,8 @@
         // ==================== HIGH-LEVEL EVENT HANDLERS ====================
 
         /**
-         * Handle fact_created SSE event
-         * @param {Object} data - Fact data from SSE
+         * Handle fact_created WebSocket event
+         * @param {Object} data - Fact data from WebSocket
          */
         onFactCreated(data) {
             // Only process facts, not plans (they have separate handlers)
@@ -414,8 +414,8 @@
         },
 
         /**
-         * Handle fact_updated SSE event
-         * @param {Object} data - Fact data from SSE
+         * Handle fact_updated WebSocket event
+         * @param {Object} data - Fact data from WebSocket
          */
         onFactUpdated(data) {
             // For updates, it's complex to track old vs new values
@@ -426,7 +426,7 @@
         },
 
         /**
-         * Handle fact_deleted SSE event
+         * Handle fact_deleted WebSocket event
          * @param {Object} data - { id: factId }
          */
         onFactDeleted(data) {
@@ -440,8 +440,8 @@
         },
 
         /**
-         * Handle plan_created SSE event
-         * @param {Object} data - Plan data from SSE
+         * Handle plan_created WebSocket event
+         * @param {Object} data - Plan data from WebSocket
          */
         onPlanCreated(data) {
             // Plans affect quick stats (Plan column)
@@ -452,8 +452,8 @@
         },
 
         /**
-         * Handle plan_updated SSE event
-         * @param {Object} data - Plan data from SSE
+         * Handle plan_updated WebSocket event
+         * @param {Object} data - Plan data from WebSocket
          */
         onPlanUpdated(data) {
             this.fallbackRefreshDebounced('quick-stats');
@@ -461,7 +461,7 @@
         },
 
         /**
-         * Handle plan_deleted SSE event
+         * Handle plan_deleted WebSocket event
          * @param {Object} data - { id: planId }
          */
         onPlanDeleted(data) {
@@ -470,7 +470,7 @@
         },
 
         /**
-         * Handle transfer_created SSE event
+         * Handle transfer_created WebSocket event
          * @param {Object} data - Transfer data
          */
         onTransferCreated(data) {
@@ -480,7 +480,7 @@
         },
 
         /**
-         * Handle transfer_deleted SSE event
+         * Handle transfer_deleted WebSocket event
          * @param {Object} data - Transfer data
          */
         onTransferDeleted(data) {

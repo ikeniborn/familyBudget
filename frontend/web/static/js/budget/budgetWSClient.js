@@ -9,7 +9,7 @@
  * - Multi-tab support (Web Locks + BroadcastChannel)
  * - Client ping/pong for connection health
  * - check_online for offline mode detection
- * - Backward compatible with BudgetSSEClient interface
+ * - Replaces legacy SSE implementation
  *
  * @version 2.0.0
  */
@@ -1402,19 +1402,14 @@ class BudgetWSClient {
     }
 }
 
-// ==================== BACKWARD COMPATIBILITY EXPORTS ====================
-// CRITICAL: Keep window.budgetSSEClient name for 32+ files that reference it
+// ==================== GLOBAL EXPORTS ====================
 
 if (typeof window !== 'undefined') {
-    // New class names
+    // Export class
     window.BudgetWSClient = BudgetWSClient;
 
-    // BACKWARD COMPATIBILITY: Keep SSE names for existing code
-    window.BudgetSSEClient = BudgetWSClient;  // Alias for offlineManager.js and others
-
-    // Create singleton instance with SAME NAME as before
+    // Create singleton instance
     window.budgetWSClient = new BudgetWSClient();
-    window.budgetSSEClient = window.budgetWSClient;  // Alias for existing code
 }
 
 // Debug log helper

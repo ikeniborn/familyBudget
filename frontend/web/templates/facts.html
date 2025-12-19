@@ -2271,7 +2271,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial update with delay to ensure offlineManager is initialized
     setTimeout(updateSaveButtonsVisibility, 1000);
 
-    // Register SSE event handlers for facts page (budgetSSEClient loaded in base.html)
+    // Register WebSocket event handlers for facts page (budgetWSClient loaded in base.html)
     // Use debounced refresh to prevent multiple rapid reloads
     let loadFactsDebounceTimer = null;
     const LOAD_FACTS_DEBOUNCE_DELAY = 300; // ms
@@ -2284,32 +2284,32 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     setTimeout(() => {
-        if (window.budgetSSEClient) {
+        if (window.budgetWSClient) {
             // Handler for fact events - refresh facts table with debouncing
-            window.budgetSSEClient.on('fact_created', (data) => {
-                debugLog('[SSE] Fact created:', data.id);
+            window.budgetWSClient.on('fact_created', (data) => {
+                debugLog('[WS] Fact created:', data.id);
                 loadFactsDebounced();
             });
-            window.budgetSSEClient.on('fact_updated', (data) => {
-                debugLog('[SSE] Fact updated:', data.id);
+            window.budgetWSClient.on('fact_updated', (data) => {
+                debugLog('[WS] Fact updated:', data.id);
                 loadFactsDebounced();
             });
-            window.budgetSSEClient.on('fact_deleted', (data) => {
-                debugLog('[SSE] Fact deleted:', data.id);
+            window.budgetWSClient.on('fact_deleted', (data) => {
+                debugLog('[WS] Fact deleted:', data.id);
                 loadFactsDebounced();
             });
 
             // Handler for transfer events - transfers create facts, refresh table
-            window.budgetSSEClient.on('transfer_created', (data) => {
-                debugLog('[SSE] Transfer created:', data.id);
+            window.budgetWSClient.on('transfer_created', (data) => {
+                debugLog('[WS] Transfer created:', data.id);
                 loadFactsDebounced();
             });
-            window.budgetSSEClient.on('transfer_deleted', (data) => {
-                debugLog('[SSE] Transfer deleted:', data.id);
+            window.budgetWSClient.on('transfer_deleted', (data) => {
+                debugLog('[WS] Transfer deleted:', data.id);
                 loadFactsDebounced();
             });
 
-            debugLog('[SSE] Facts page handlers registered with debouncing');
+            debugLog('[WS] Facts page handlers registered with debouncing');
         }
     }, 1000);
 });

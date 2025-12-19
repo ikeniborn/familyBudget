@@ -142,12 +142,9 @@ modules:
       PING_TIMEOUT: "45000ms - connection staleness detection"
       POLL_INTERVAL: "10000ms - Long Polling interval"
       CLIENT_PING_INTERVAL: "15000ms - client ping interval"
-    backward_compatibility:
-      description: |
-        Для обратной совместимости с существующим кодом экспортируются алиасы:
-        - window.BudgetSSEClient = BudgetWSClient
-        - window.budgetSSEClient = window.budgetWSClient
-      reason: "32+ файла используют window.budgetSSEClient"
+    exports:
+      class: "window.BudgetWSClient"
+      singleton: "window.budgetWSClient"
     functionality:
       $ref: "../functionality/realtime.yaml#/module"
 
