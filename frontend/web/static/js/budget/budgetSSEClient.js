@@ -883,7 +883,16 @@ class BudgetSSEClient {
             this.fetchController = null;
         }
 
-        // Precheck connection limit before attempting connection
+        // Safari iOS: Skip connection limit check - go straight to connecting
+        // The _checkConnectionLimit() fetch can hang on iOS Safari for minutes
+        // Server will return 429 if limit exceeded anyway
+        if (this._safariIOSMode) {
+            console.log('[BudgetSSE] Safari iOS: Skipping limit check, connecting directly');
+            this._useFetchEventSource();
+            return;
+        }
+
+        // Other browsers: Precheck connection limit before attempting connection
         console.log('[BudgetSSE] Checking connection limit...');
         const { canConnect, user_connections, limits } = await this._checkConnectionLimit();
         console.log('[BudgetSSE] Connection limit check result:', { canConnect, user_connections, limits });
@@ -899,15 +908,6 @@ class BudgetSSEClient {
 
         this.limitReached = false;
         const url = '/api/v1/budget/events';
-        console.log('[BudgetSSE] Connecting to:', url);
-
-        // Safari iOS: Use fetch-based SSE directly (EventSource has buffering issues)
-        // EventSource on Safari iOS buffers responses until ~2KB, so onopen never fires
-        if (this._safariIOSMode) {
-            console.log('[BudgetSSE] Safari iOS: Using fetch-based SSE (EventSource has buffering issues)');
-            this._useFetchEventSource();
-            return;
-        }
 
         // If we already know EventSource doesn't work - use fetch directly
         if (this.useFetchSSE) {
