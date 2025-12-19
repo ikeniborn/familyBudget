@@ -843,35 +843,39 @@ class BudgetSSEClient {
                 return;
             }
 
-            // Dual approach: event listener + polling fallback
-            // Primary: window.load event (fast path if it works)
-            // Fallback: polling after 500ms (safety net if event missed)
-            let connected = false;
+            // Triple-redundancy approach for Safari iOS reliability:
+            // 1. window.load event (fast path if works)
+            // 2. Polling fallback (if event fails)
+            // 3. Health check timeout (last resort if both fail)
 
-            const doConnect = () => {
-                if (!connected) {
-                    connected = true;
-                    const method = document.readyState === 'complete' ? 'polling' : 'event';
-                    console.log('[BudgetSSE] Safari iOS: Connecting via', method);
-                    this._safariIOSDelayedConnect();
-                }
-            };
+            console.log('[BudgetSSE] Safari iOS: Setting up triple-redundancy connection');
 
             // Primary: window.load event listener
-            console.log('[BudgetSSE] Safari iOS: Setting up dual connection (event + polling)');
-            window.addEventListener('load', doConnect, { once: true });
+            window.addEventListener('load', () => {
+                console.log('[BudgetSSE] Safari iOS: window.load fired, connecting');
+                this._safariIOSDelayedConnect();
+            }, { once: true });
 
-            // Fallback: polling starts after 500ms delay (give event a chance)
+            // Fallback 1: Polling after 500ms (safety net for event)
             setTimeout(() => {
                 const pollReadyState = () => {
-                    if (document.readyState === 'complete') {
-                        doConnect();
-                    } else if (!connected) {
+                    if (document.readyState === 'complete' && !this.isConnected) {
+                        console.log('[BudgetSSE] Safari iOS: polling detected ready state, connecting');
+                        this._safariIOSDelayedConnect();
+                    } else if (!this.isConnected && document.readyState !== 'complete') {
                         setTimeout(pollReadyState, 100);
                     }
                 };
                 pollReadyState();
             }, 500);
+
+            // Fallback 2: Health check timeout (last resort if event AND polling fail)
+            setTimeout(() => {
+                if (!this.isConnected && this.enabled) {
+                    console.log('[BudgetSSE] Safari iOS: 3s timeout, forcing health check');
+                    this._checkConnectionHealth();
+                }
+            }, 3000);  // Wait 3 seconds max before forcing health check
 
             return;
         }

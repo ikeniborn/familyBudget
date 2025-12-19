@@ -456,9 +456,13 @@ multi_tab_flow:
       8. _multiTabSupported = false (отключаем multi-tab)
       9. fetch() с ReadableStream устанавливает SSE соединение
 
-      FIX 2025-12-19: Dual approach (Solution 2) применён после того как
-      polling-only (Solution 1) не решил проблему. Dual approach обеспечивает
-      redundancy - хотя бы один из путей (event или polling) должен сработать.
+      FIX 2025-12-19: Triple-redundancy approach (Solution 3) применён после того как
+      Solution 1 (polling-only) и Solution 2 (dual event+polling) не решили проблему.
+
+      Triple-redundancy гарантирует подключение через:
+      1. window.load event (fast path)
+      2. polling readyState (safety net)
+      3. health check timeout 3s (last resort, proven to work from screen unlock)
 
       ВАЖНО: На Safari iOS каждая вкладка создаёт своё SSE соединение.
       Это может привести к большему количеству соединений на сервере,

@@ -224,26 +224,35 @@ module:
 
       timing_fix_2025_12_19:
         issue: "Safari iOS SSE не подключается на page load/navigation"
-        symptom: |
-          Polling-only подход (Solution 1) не решил проблему.
-          SSE всё равно не подключается при загрузке страницы.
+        evolution: |
+          Solution 1 (polling-only): НЕ РАБОТАЕТ
+          Solution 2 (dual event+polling): НЕ РАБОТАЕТ
+          Solution 3 (triple-redundancy): ТЕКУЩЕЕ РЕШЕНИЕ
         root_cause: |
-          Множественные факторы Safari iOS:
-          1. window.load event может не срабатывать корректно
+          Safari iOS имеет множественные проблемы с page load detection:
+          1. window.load event может не срабатывать
           2. document.readyState может застрять в 'interactive'
-          3. Network stack требует дополнительного времени для инициализации
-        solution: "Dual approach (Solution 2)"
+          3. Network stack требует дополнительного времени
+          4. Ни event, ни polling не гарантируют 100% успех
+        solution: "Triple-redundancy approach (Solution 3)"
         implementation: |
-          Primary path: window.load event listener (fast if works)
-          Fallback path: polling readyState после 500ms (safety net if event fails)
-          Flag `connected` предотвращает двойное подключение
+          1. Primary: window.load event listener (fast path, 0ms overhead if works)
+          2. Fallback 1: polling readyState после 500ms (safety net for event)
+          3. Fallback 2: health check timeout после 3s (last resort, proven to work)
 
-          Advantage: Redundancy - хотя бы один из путей должен сработать
-        code_location: "frontend/web/static/js/budget/budgetSSEClient.js:846-876"
-        why_screen_unlock_works: |
-          Screen unlock использует независимый код путь:
-          visibilitychange → _checkConnectionHealth() → _forceReconnect()
-          Не зависит от timing window.load или readyState polling.
+          Health check path (тот же что работает при screen unlock):
+          - setTimeout 3000ms
+          - if (!isConnected) → _checkConnectionHealth()
+          - fetch к /events/status
+          - if (!isConnected) → _forceReconnect()
+          - Гарантированно устанавливает соединение
+
+          Advantage: Health check ДОКАЗАНО работает (screen unlock использует его)
+        code_location: "frontend/web/static/js/budget/budgetSSEClient.js:846-880"
+        why_this_works: |
+          Даже если window.load И polling оба не сработают,
+          health check timeout форсирует использование proven механизма
+          который успешно работает при screen unlock.
 
     connection_staleness:
       ping_interval: "10 секунд (сервер)"

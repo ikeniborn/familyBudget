@@ -237,24 +237,30 @@ frontend:
         10. При 3+ неудачах → _startPollingFallback()
         11. Polling каждые 5 секунд как last resort
       timing_fix: |
-        FIX 2025-12-19: Dual approach (event + polling) для Safari iOS.
+        FIX 2025-12-19: Triple-redundancy approach для Safari iOS.
 
-        ПРОБЛЕМА:
-        - Polling-only подход не решил проблему
-        - window.load event может не срабатывать корректно
+        ЭВОЛЮЦИЯ РЕШЕНИЙ:
+        - Solution 1 (polling-only): НЕ РАБОТАЕТ
+        - Solution 2 (dual event+polling): НЕ РАБОТАЕТ
+        - Solution 3 (triple-redundancy): ТЕКУЩЕЕ
 
-        РЕШЕНИЕ (dual approach):
-        - Primary path: window.load event listener (быстрый путь если работает)
-        - Fallback path: polling readyState после 500ms delay (safety net)
-        - Flag предотвращает двойное подключение
-        - Гарантия: хотя бы один из путей сработает
+        РЕШЕНИЕ (triple-redundancy):
+        1. Primary: window.load event listener (fast path)
+        2. Fallback 1: polling readyState после 500ms (safety net)
+        3. Fallback 2: health check timeout после 3s (last resort)
 
-        Почему screen off/on работает:
-        - Страница УЖЕ полностью загружена (readyState === 'complete')
-        - visibilitychange → _checkConnectionHealth() → _forceReconnect()
-        - Независимый код путь с принудительным переподключением
+        Почему triple-redundancy:
+        - window.load может не сработать
+        - readyState может застрять в 'interactive'
+        - Health check ДОКАЗАНО работает (screen unlock успешно использует его)
+        - 3 секунды = достаточно для page load, но не слишком долго для UX
 
-        Code: frontend/web/static/js/budget/budgetSSEClient.js:846-876
+        Health check механизм (existing, proven):
+        - _checkConnectionHealth() → fetch к /events/status
+        - Если не connected → _forceReconnect()
+        - Это тот же путь который работает при screen unlock
+
+        Code: frontend/web/static/js/budget/budgetSSEClient.js:846-880
 
   multi_tab_support:
     description: "Одно SSE соединение на браузер через Web Locks + BroadcastChannel"
