@@ -114,6 +114,37 @@ templates:
           - Compact ~80px height vs ~350px original
           - Design variants tested: tmp/quick/variant-*.html
 
+    # Collapsible Sections (added 2025-12-19)
+    collapsible_sections:
+      quick_stats:
+        mobile_breakpoint: "< 768px (md)"
+        collapsed_view: "2 cards (Доходы, Расходы)"
+        expanded_view: "4 cards (Доходы, Расходы, Пополнение, Списание)"
+        toggle_trigger: "tap on section header"
+        persist_state: false
+        initial_state: "collapsed"
+        js_functions:
+          - "toggleQuickStats()"
+          - "applyQuickStatsState()"
+
+      account_balances:
+        mobile_breakpoint: "< 768px (md)"
+        collapsed_view: "Top 2 accounts by month movement"
+        expanded_view: "All accounts"
+        toggle_trigger: "tap on section header"
+        persist_state: false
+        initial_state: "collapsed"
+        sort_criteria: "data-movement attribute (abs(current_balance - opening_balance), descending)"
+        edge_cases:
+          - "If ≤2 accounts: indicator hidden, all accounts visible"
+        js_functions:
+          - "toggleAccountBalances()"
+          - "applyAccountBalancesState()"
+
+      shared_handlers:
+        - "htmx:afterSwap → applies state after HTMX loads content"
+        - "window.resize (debounced 100ms) → reapplies state on screen rotation"
+
   facts:
     path: "frontend/web/templates/facts.html"
     extends: base

@@ -17,10 +17,15 @@
             <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">для скрытия нажмите на область приветствия</p>
         </div>
 
-        <!-- Quick Stats Section -->
+        <!-- Quick Stats Section (collapsible on mobile) -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body py-4">
-                <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
+                <!-- Header с индикатором (кликабельный только на мобильных) -->
+                <div class="flex items-center justify-between cursor-pointer md:cursor-default"
+                     onclick="toggleQuickStats()" id="quick-stats-header">
+                    <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
+                    <span class="expand-indicator md:hidden">▼</span>
+                </div>
                 <div id="quick-stats"
                      hx-get="/api/v1/analytics/quick-stats-html"
                      hx-trigger="load"
@@ -31,10 +36,15 @@
             </div>
         </div>
 
-        <!-- Account Balances Section -->
+        <!-- Account Balances Section (collapsible on mobile) -->
         <div class="card bg-base-100 shadow-xl">
             <div class="card-body py-4">
-                <h2 class="card-title text-xl mb-2">💳 Баланс по счетам</h2>
+                <!-- Header с индикатором (кликабельный только на мобильных) -->
+                <div class="flex items-center justify-between cursor-pointer md:cursor-default"
+                     onclick="toggleAccountBalances()" id="account-balances-header">
+                    <h2 class="card-title text-xl mb-2">💳 Баланс по счетам</h2>
+                    <span class="expand-indicator md:hidden">▼</span>
+                </div>
                 <div id="account-balances"
                      hx-get="/api/v1/analytics/account-balances-html"
                      hx-trigger="load"
@@ -347,6 +357,27 @@
 
 {% block extra_scripts %}
 {% if user %}
+<!-- Collapsible Sections CSS -->
+<style>
+/* Collapsible section indicators */
+.expand-indicator {
+    font-size: 0.75rem;
+    color: oklch(var(--bc) / 0.5);
+    transition: transform 0.2s ease;
+}
+
+/* Hide indicator on desktop */
+@media (min-width: 768px) {
+    .expand-indicator {
+        display: none !important;
+    }
+    /* Гарантируем видимость всех карточек на desktop */
+    .stat-card, .balance-card {
+        display: block !important;
+    }
+}
+</style>
+
 <!-- Choices.js Library -->
 <link rel="stylesheet" href="/static/css/vendor/choices.min.css">
 <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
@@ -2613,6 +2644,108 @@ function refreshAccountBalances() {
         swap: 'innerHTML'
     });
 }
+
+// ============================================================================
+// Collapsible Sections (Mobile Only)
+// ============================================================================
+
+let quickStatsExpanded = false;
+let accountBalancesExpanded = false;
+
+function toggleQuickStats() {
+    if (window.innerWidth >= 768) return; // Только для мобильных
+
+    quickStatsExpanded = !quickStatsExpanded;
+    applyQuickStatsState();
+}
+
+function applyQuickStatsState() {
+    const container = document.getElementById('quick-stats');
+    const indicator = document.querySelector('#quick-stats-header .expand-indicator');
+
+    if (!container || !indicator) return;
+
+    container.querySelectorAll('.stat-card').forEach((card, index) => {
+        // Показать только первые 2 карточки (Доходы, Расходы) в свернутом виде
+        // Индексы: 0=Доходы, 1=Расходы, 2=Пополнение, 3=Списание
+        if (index >= 2) {
+            card.style.display = quickStatsExpanded ? '' : 'none';
+        }
+    });
+
+    indicator.textContent = quickStatsExpanded ? '▲' : '▼';
+}
+
+function toggleAccountBalances() {
+    if (window.innerWidth >= 768) return;
+
+    accountBalancesExpanded = !accountBalancesExpanded;
+    applyAccountBalancesState();
+}
+
+function applyAccountBalancesState() {
+    const container = document.getElementById('account-balances');
+    const indicator = document.querySelector('#account-balances-header .expand-indicator');
+
+    if (!container || !indicator) return;
+
+    // Получить все карточки и отсортировать по movement (убывание)
+    const cards = Array.from(container.querySelectorAll('.balance-card'));
+
+    // Edge case: если счетов ≤2, скрыть индикатор
+    if (cards.length <= 2) {
+        indicator.style.display = 'none';
+        return;
+    }
+
+    const sortedCards = cards.sort((a, b) => {
+        const movementA = parseFloat(a.dataset.movement) || 0;
+        const movementB = parseFloat(b.dataset.movement) || 0;
+        return movementB - movementA; // Descending
+    });
+
+    // Показать только top-2 в свернутом виде
+    sortedCards.forEach((card, index) => {
+        if (index >= 2) {
+            card.style.display = accountBalancesExpanded ? '' : 'none';
+        }
+    });
+
+    indicator.textContent = accountBalancesExpanded ? '▲' : '▼';
+}
+
+// При загрузке данных через HTMX - применить начальное состояние (свернуто)
+document.addEventListener('htmx:afterSwap', (e) => {
+    if (window.innerWidth >= 768) return; // Desktop - ничего не делаем
+
+    const targetId = e.detail.target.id;
+
+    if (targetId === 'quick-stats') {
+        applyQuickStatsState();
+    }
+
+    if (targetId === 'account-balances') {
+        applyAccountBalancesState();
+    }
+});
+
+// Debounced resize handler для поворота экрана
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+        if (window.innerWidth >= 768) {
+            // Desktop - сбрасываем inline styles (CSS !important покажет все)
+            document.querySelectorAll('.stat-card, .balance-card').forEach(card => {
+                card.style.display = '';
+            });
+        } else {
+            // Mobile - применить текущее состояние
+            applyQuickStatsState();
+            applyAccountBalancesState();
+        }
+    }, 100); // 100ms debounce
+});
 </script>
 
 <!-- Include Transfer Modal -->
