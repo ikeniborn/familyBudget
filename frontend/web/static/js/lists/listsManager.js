@@ -2016,6 +2016,24 @@ class ListsManager {
         console.log('[iOS DEBUG 46] Dropdown still in DOM?', !!dropdownInDOM);
         console.log('[iOS DEBUG 47] Dropdown has children?', dropdownInDOM?.children.length || 0);
 
+        // Check transform/clip-path that might hide element
+        if (dropdownInDOM) {
+            const dropdownStyle = window.getComputedStyle(dropdownInDOM);
+            console.log('[iOS DEBUG 48.1] Dropdown transform:', dropdownStyle.transform);
+            console.log('[iOS DEBUG 48.2] Dropdown clip-path:', dropdownStyle.clipPath);
+            console.log('[iOS DEBUG 48.3] Dropdown height:', dropdownStyle.height);
+            console.log('[iOS DEBUG 48.4] Dropdown max-height:', dropdownStyle.maxHeight);
+        }
+
+        // Check parent transforms/clip
+        if (formControl) {
+            const parentStyle = window.getComputedStyle(formControl);
+            console.log('[iOS DEBUG 48.5] Parent transform:', parentStyle.transform);
+            console.log('[iOS DEBUG 48.6] Parent clip-path:', parentStyle.clipPath);
+            console.log('[iOS DEBUG 48.7] Parent height:', parentStyle.height);
+            console.log('[iOS DEBUG 48.8] Parent overflow:', parentStyle.overflow);
+        }
+
         // Try to force visibility with inline styles
         if (dropdownInDOM) {
             dropdownInDOM.style.display = 'block';
@@ -2023,7 +2041,18 @@ class ListsManager {
             dropdownInDOM.style.opacity = '1';
             dropdownInDOM.style.zIndex = '99999';
             dropdownInDOM.style.backgroundColor = '#ff0000'; // RED for testing
-            console.log('[iOS DEBUG 48] Forced inline styles applied (red background)');
+            dropdownInDOM.style.border = '5px solid yellow'; // YELLOW border
+            dropdownInDOM.style.padding = '20px'; // Make it bigger
+            dropdownInDOM.style.minHeight = '100px'; // Force height
+
+            // Try position: fixed (escape parent flow)
+            dropdownInDOM.style.position = 'fixed';
+            dropdownInDOM.style.top = '100px';
+            dropdownInDOM.style.left = '20px';
+            dropdownInDOM.style.width = '300px';
+
+            console.log('[iOS DEBUG 48] Forced inline styles applied (red bg, yellow border, fixed position)');
+            console.log('[iOS DEBUG 49] Dropdown should be RED SQUARE at top-left of screen');
         }
 
         // Store suggestions for selection
