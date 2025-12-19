@@ -29,6 +29,10 @@ class BudgetSSEClient {
         this.fetchController = null;    // AbortController for fetch
         this.connectionTimer = null;    // Timer for connection timeout
 
+        // Safari iOS specific: always use fetch-based SSE (EventSource has buffering issues)
+        // Also skip Web Locks on Safari iOS - too unreliable
+        this._safariIOSMode = this._detectSafariIOS();
+
         // Flag for limit reached state
         this.limitReached = false;
 
@@ -162,6 +166,43 @@ class BudgetSSEClient {
     }
 
     /**
+     * Detect Safari on iOS with comprehensive checks
+     * Used for enabling Safari iOS specific mode (fetch-only SSE, no Web Locks)
+     *
+     * Safari iOS has multiple known issues:
+     * 1. EventSource buffers responses until ~2KB (onopen never fires for small responses)
+     * 2. Web Locks API is unreliable and slow
+     * 3. Cookies with withCredentials can be problematic
+     *
+     * @returns {boolean}
+     * @private
+     */
+    _detectSafariIOS() {
+        const ua = navigator.userAgent;
+
+        // Check for iOS device
+        const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+
+        // Also check for Safari-like behavior on iOS (not Chrome, not Firefox, etc)
+        // On iOS, all browsers use WebKit, but we specifically want Safari behavior
+        const isSafariLike = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua) && !/FxiOS/.test(ua);
+
+        // Additional check: iOS 17+ has specific SSE issues
+        const iosVersion = ua.match(/OS (\d+)/);
+        const isModerniOS = iosVersion && parseInt(iosVersion[1]) >= 17;
+
+        // Safari iOS mode: iOS device with Safari-like browser
+        // We enable this mode for ALL iOS Safari versions due to long-standing issues
+        const isSafariIOS = isIOS && isSafariLike;
+
+        if (isSafariIOS) {
+            debugLog('[BudgetSSE] Safari iOS detected, using optimized connection strategy');
+        }
+
+        return isSafariIOS;
+    }
+
+    /**
      * Check if connection is stale (no ping received in PING_TIMEOUT)
      * @returns {boolean}
      * @private
@@ -192,6 +233,10 @@ class BudgetSSEClient {
      * Initialize multi-tab support with BroadcastChannel and Web Locks
      * Called lazily from connect() to prevent 401 errors for unauthenticated users
      * Now waits for leader status to be determined before returning
+     *
+     * IMPORTANT: Safari iOS has a special code path that skips Web Locks entirely
+     * due to unreliable behavior. On Safari iOS, each tab creates its own connection.
+     *
      * @private
      */
     async _initMultiTab() {
@@ -200,6 +245,15 @@ class BudgetSSEClient {
             return;
         }
         this._multiTabInitialized = true;
+
+        // Safari iOS: Skip Web Locks entirely - they're unreliable
+        // Each tab will create its own connection (no multi-tab sharing)
+        if (this._safariIOSMode) {
+            debugLog('[BudgetSSE] Safari iOS: Skipping Web Locks, using per-tab connection');
+            this.isLeader = true;  // Always "leader" - each tab manages itself
+            this._multiTabSupported = false;  // Disable multi-tab for Safari iOS
+            return;
+        }
 
         if (!this._supportsMultiTab()) {
             debugLog('[BudgetSSE] Multi-tab not supported, using per-tab connection');
@@ -229,7 +283,7 @@ class BudgetSSEClient {
             }
 
             // Choose leader election strategy based on browser and connection pressure
-            // Safari and Yandex Browser have known issues with Web Locks timing - use longer timeouts
+            // Safari (macOS) and Yandex Browser have known issues with Web Locks timing
             if (this._needsLongerTimeout()) {
                 if (connectionPressure >= 0.5) {
                     // High connection pressure - use longer timeout
@@ -637,6 +691,9 @@ class BudgetSSEClient {
     /**
      * Create EventSource connection with Safari iOS fallback
      * Validates existing connection before creating new one (connection reuse)
+     *
+     * Safari iOS: Uses fetch-based SSE directly (EventSource has buffering issues)
+     *
      * @private
      */
     async _createConnection() {
@@ -678,6 +735,14 @@ class BudgetSSEClient {
         this.limitReached = false;
         const url = '/api/v1/budget/events';
         debugLog('[BudgetSSE] Connecting to:', url);
+
+        // Safari iOS: Use fetch-based SSE directly (EventSource has buffering issues)
+        // EventSource on Safari iOS buffers responses until ~2KB, so onopen never fires
+        if (this._safariIOSMode) {
+            debugLog('[BudgetSSE] Safari iOS: Using fetch-based SSE (EventSource has buffering issues)');
+            this._useFetchEventSource();
+            return;
+        }
 
         // If we already know EventSource doesn't work - use fetch directly
         if (this.useFetchSSE) {
@@ -859,18 +924,30 @@ class BudgetSSEClient {
     /**
      * Fetch-based SSE implementation for Safari iOS
      * Uses fetch API with ReadableStream instead of EventSource
+     *
+     * This is the primary connection method for Safari iOS due to EventSource buffering issues.
+     * Also used as a fallback for other browsers when EventSource fails.
+     *
      * @private
      */
     async _useFetchEventSource() {
         const url = '/api/v1/budget/events';
-        debugLog('[BudgetSSE] Using fetch-based SSE');
+        debugLog('[BudgetSSE] Using fetch-based SSE' + (this._safariIOSMode ? ' (Safari iOS mode)' : ''));
 
         this.fetchController = new AbortController();
+
+        // Set a connection timeout for fetch (Safari iOS might hang)
+        const connectionTimeout = setTimeout(() => {
+            if (!this.isConnected && this.fetchController) {
+                console.error('[BudgetSSE] Fetch connection timeout');
+                this.fetchController.abort();
+            }
+        }, 15000);  // 15 second timeout for connection
 
         try {
             const response = await fetch(url, {
                 method: 'GET',
-                credentials: 'include',  // Send cookies!
+                credentials: 'include',  // Send cookies (critical for auth)
                 headers: {
                     'Accept': 'text/event-stream',
                     'Cache-Control': 'no-cache',
@@ -878,7 +955,16 @@ class BudgetSSEClient {
                 signal: this.fetchController.signal,
             });
 
+            clearTimeout(connectionTimeout);
+
             if (!response.ok) {
+                // Special handling for 401 - not authenticated
+                if (response.status === 401) {
+                    console.error('[BudgetSSE] 401: Not authenticated');
+                    this.enabled = false;  // Disable SSE
+                    this._updateStatusIndicator();
+                    return;  // Don't reconnect - user needs to log in
+                }
                 // Special handling for 429 - connection limit reached
                 if (response.status === 429) {
                     console.error('[BudgetSSE] 429: Connection limit reached');
@@ -891,6 +977,12 @@ class BudgetSSEClient {
                 throw new Error(`HTTP ${response.status}`);
             }
 
+            // Verify response body is readable
+            if (!response.body) {
+                throw new Error('Response body is null - ReadableStream not supported');
+            }
+
+            debugLog('[BudgetSSE] Fetch connection established');
             this.isConnected = true;
             this.limitReached = false;
             this.reconnectAttempts = 0;
@@ -923,8 +1015,18 @@ class BudgetSSEClient {
             this._scheduleReconnect();
 
         } catch (error) {
+            clearTimeout(connectionTimeout);
+
             if (error.name === 'AbortError') {
                 debugLog('[BudgetSSE] Fetch aborted');
+                // Don't schedule reconnect for intentional aborts
+                // But do schedule if this was a timeout
+                if (!this.isConnected && this.enabled) {
+                    console.error('[BudgetSSE] Fetch timeout or abort, scheduling reconnect');
+                    this.isConnected = false;
+                    this._updateStatusIndicator();
+                    this._scheduleReconnect();
+                }
                 return;
             }
             console.error('[BudgetSSE] Fetch SSE error:', error);
@@ -1467,7 +1569,10 @@ class BudgetSSEClient {
             // Multi-tab status
             multiTabSupported: this._supportsMultiTab(),
             isLeader: this.isLeader,
-            hasChannel: this.channel !== null
+            hasChannel: this.channel !== null,
+            // Safari iOS specific
+            safariIOSMode: this._safariIOSMode,
+            useFetchSSE: this.useFetchSSE
         };
     }
 

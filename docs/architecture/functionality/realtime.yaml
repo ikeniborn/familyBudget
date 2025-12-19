@@ -173,8 +173,8 @@ module:
         - leader_changed: "Смена лидера"
         - status_request: "Запрос статуса от follower"
 
-    safari_handling:
-      description: "Специальная обработка для Safari (iOS и macOS)"
+    safari_macos_handling:
+      description: "Специальная обработка для Safari на macOS"
       detection: "_isSafari() - проверяет Safari в User-Agent (исключая Chrome)"
       web_locks_timeout: "500ms (норма) / 2000ms (high connection pressure)"
       connection_reuse: "Проверка EventSource.readyState при visibility change"
@@ -182,6 +182,45 @@ module:
       first_tab_fix: |
         При timeout проверяется lastLeaderHeartbeat.
         Если нет heartbeat за 5 сек - первая вкладка становится лидером.
+
+    safari_ios_handling:
+      description: |
+        Safari iOS требует полностью отдельной стратегии подключения из-за
+        множественных известных проблем с EventSource и Web Locks API.
+
+      known_issues:
+        - issue: "EventSource буферизация"
+          description: |
+            Safari iOS буферизирует SSE ответы до ~2KB перед обработкой.
+            Событие onopen НИКОГДА не срабатывает для маленьких ответов.
+          reference: "https://github.com/bigskysoftware/htmx/issues/2388"
+
+        - issue: "Web Locks ненадёжны"
+          description: |
+            Web Locks API на Safari iOS работает непредсказуемо.
+            Таймауты могут быть очень большими или lock никогда не срабатывает.
+          reference: "Safari/WebKit bug reports"
+
+        - issue: "Cookies и credentials"
+          description: |
+            EventSource с withCredentials: true может не работать корректно.
+            Проблемы с third-party cookie политиками в iOS 17+.
+
+      solution:
+        detection: "_detectSafariIOS() - комплексная проверка iOS + Safari"
+        strategy: |
+          1. Пропуск Web Locks - каждая вкладка создаёт своё соединение
+          2. Использование fetch-based SSE вместо EventSource
+          3. Прямое подключение без leader election
+        connection_method: "fetch() с ReadableStream вместо EventSource"
+        multi_tab: "Отключено - каждая вкладка независима"
+
+      implementation:
+        file: "frontend/web/static/js/budget/budgetSSEClient.js"
+        flag: "_safariIOSMode"
+        methods:
+          - "_detectSafariIOS() - определение Safari iOS"
+          - "_useFetchEventSource() - fetch-based SSE connection"
 
     connection_staleness:
       ping_interval: "10 секунд (сервер)"

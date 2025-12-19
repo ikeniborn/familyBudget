@@ -136,12 +136,28 @@ frontend:
       offline: "⚫ gray badge - Offline режим"
 
   safari_ios:
-    description: "Специальная обработка для Safari на iOS устройствах"
-    web_locks_timeout: "500-2000ms (на основе connection pressure)"
-    connection_reuse: "Проверка EventSource.readyState при visibility change"
-    race_condition_fix: |
-      connect() метод теперь async и ожидает завершения leader election
-      через await _initMultiTab() перед проверкой isLeader статуса.
+    description: |
+      Safari iOS требует полностью отдельной стратегии подключения.
+      Стандартный EventSource и Web Locks API ненадёжны на iOS.
+
+    known_issues:
+      - "EventSource буферизирует ответы до ~2KB (onopen никогда не срабатывает)"
+      - "Web Locks API работает непредсказуемо, таймауты могут быть огромными"
+      - "Cookies с withCredentials: true могут не работать корректно"
+
+    solution:
+      detection: "_detectSafariIOS() - проверка User-Agent (iPad|iPhone|iPod + Safari)"
+      connection_method: "fetch() + ReadableStream (пропуск EventSource)"
+      multi_tab: "Отключено - каждая вкладка создаёт своё соединение"
+      web_locks: "Пропускаются полностью"
+
+    implementation:
+      flag: "_safariIOSMode = true при инициализации"
+      connect_flow: |
+        1. connect() вызывается
+        2. _initMultiTab() определяет Safari iOS и выходит сразу (isLeader = true)
+        3. _createConnection() вызывает _useFetchEventSource() напрямую
+        4. fetch() устанавливает SSE соединение через ReadableStream
 
   multi_tab_support:
     description: "Одно SSE соединение на браузер через Web Locks + BroadcastChannel"
@@ -149,6 +165,7 @@ frontend:
     follower_tabs: "Получают события через BroadcastChannel от лидера"
     leader_heartbeat: "Каждые 3 секунды для обнаружения падения лидера"
     connection_staleness: "45 секунд без ping = stale, force reconnect"
+    safari_ios_exception: "На Safari iOS multi-tab отключен - каждая вкладка независима"
 
 # Connection Manager
 connection_manager:

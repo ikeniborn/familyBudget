@@ -379,10 +379,27 @@ multi_tab_flow:
       6. If lock acquired AFTER timeout - promote to leader
 
     safari_ios_flow: |
+      Safari iOS использует УПРОЩЁННУЮ стратегию из-за проблем с EventSource и Web Locks:
+
+      1. Tab calls connect()
+      2. await _initMultiTab()
+      3. _detectSafariIOS() возвращает true
+      4. isLeader = true (сразу, без Web Locks!)
+      5. _multiTabSupported = false (отключаем multi-tab)
+      6. _createConnection() вызывает _useFetchEventSource()
+      7. fetch() с ReadableStream устанавливает SSE соединение
+
+      ВАЖНО: На Safari iOS каждая вкладка создаёт своё SSE соединение.
+      Это может привести к большему количеству соединений на сервере,
+      но гарантирует работоспособность на проблемной платформе.
+
+    safari_macos_flow: |
+      Safari macOS использует Web Locks с увеличенными таймаутами:
+
       1. Tab calls connect()
       2. await _initMultiTab()
       3. Check connection pressure via /status endpoint
-      4. If pressure >= 50%: use 2000ms timeout (longer wait for Web Locks)
+      4. If pressure >= 50%: use 2000ms timeout
       5. If pressure < 50%: use 500ms timeout
       6. If timeout + no heartbeat: become leader
       7. If timeout + heartbeat detected: stay follower
@@ -433,14 +450,48 @@ multi_tab_flow:
       description: "Запрос статуса от follower"
       payload: "{ type: 'status_request' }"
 
-  safari_ios_race_condition_fix:
-    problem: |
+  safari_ios_comprehensive_fix:
+    original_problem: |
       connect() вызывал _initMultiTab() без await.
       К моменту проверки isLeader, Web Locks callback ещё не отработал.
       Результат: tab становился follower'ом без создания соединения.
 
-    solution: |
-      1. connect() теперь async
-      2. await this._initMultiTab() - ожидаем leader election
-      3. _tryBecomeLeader() возвращает Promise с timeout
-      4. Гарантируем определённый isLeader статус до проверки
+    additional_problems:
+      - problem: "EventSource буферизация"
+        description: |
+          Safari iOS буферизирует SSE ответы до ~2KB.
+          Событие onopen НИКОГДА не срабатывает для маленьких ответов.
+          Даже после 5 секунд timeout соединение казалось мёртвым.
+
+      - problem: "Web Locks ненадёжность"
+        description: |
+          Web Locks API на Safari iOS работает непредсказуемо.
+          Даже с timeout 2000ms lock мог не сработать вообще.
+
+      - problem: "Cookies и credentials"
+        description: |
+          EventSource с withCredentials: true не всегда корректно
+          отправляет cookies на Safari iOS (особенно iOS 17+).
+
+    comprehensive_solution:
+      summary: "Для Safari iOS пропускаем EventSource и Web Locks полностью"
+      steps:
+        - "_detectSafariIOS() определяет Safari iOS при инициализации"
+        - "_safariIOSMode флаг устанавливается в true"
+        - "_initMultiTab() сразу выходит с isLeader=true (пропуск Web Locks)"
+        - "_createConnection() вызывает _useFetchEventSource() напрямую"
+        - "fetch() + ReadableStream обрабатывает SSE события"
+
+      tradeoff: |
+        На Safari iOS каждая вкладка создаёт своё SSE соединение.
+        Это увеличивает количество соединений на сервере,
+        но гарантирует работоспособность на проблемной платформе.
+
+    detection_code: |
+      _detectSafariIOS() {
+          const ua = navigator.userAgent;
+          const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+          const isSafariLike = /Safari/.test(ua) && !/Chrome/.test(ua) &&
+                               !/CriOS/.test(ua) && !/FxiOS/.test(ua);
+          return isIOS && isSafariLike;
+      }
