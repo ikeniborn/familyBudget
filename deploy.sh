@@ -1152,13 +1152,8 @@ main() {
         if docker ps --format '{{.Names}}' 2>/dev/null | grep -q "familybudget-nginx"; then
             info "Service Worker updated - restarting nginx to apply changes..."
             docker compose restart nginx >/dev/null 2>&1 || warning "Failed to restart nginx"
-            # Wait for nginx to become healthy
-            sleep 3
-            if docker ps --filter "name=familybudget-nginx" --filter "health=healthy" --format '{{.Names}}' 2>/dev/null | grep -q "nginx"; then
-                success "Nginx restarted successfully (Service Worker changes applied)"
-            else
-                warning "Nginx may not be healthy - check manually"
-            fi
+            # Wait for nginx to become healthy (using proper retry logic)
+            wait_for_service "nginx" 30
         fi
     elif [[ -f "$DEPLOY_DIR/sw.js" ]]; then
         warning "Service Worker minified files missing - nginx will fallback to backend proxy"
