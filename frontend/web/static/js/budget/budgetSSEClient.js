@@ -862,6 +862,13 @@ class BudgetSSEClient {
             return;
         }
 
+        // Safari iOS: Always close existing connection first
+        // This mirrors _forceReconnect() which works reliably
+        // Prevents duplicate connect() calls from conflicting
+        if (this._safariIOSMode) {
+            this._closeExistingConnection();
+        }
+
         // Check if existing EventSource is still valid (connection reuse)
         if (this.eventSource) {
             if (this.eventSource.readyState === EventSource.OPEN) {
