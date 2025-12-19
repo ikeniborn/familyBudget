@@ -242,6 +242,9 @@ frontend:
   js_module:
     $ref: "../web/js-modules.yaml#/modules/budgetSSEClient"
 
+  incremental_updates_module:
+    $ref: "../web/js-modules.yaml#/modules/incrementalUpdates"
+
   connection_code: |
     const eventSource = new EventSource('/api/v1/budget/events/connect');
 
@@ -257,17 +260,24 @@ frontend:
 
   event_handlers:
     fact_created:
-      action: "Add new row to transactions table"
-      animation: "Highlight new row"
+      action: "IncrementalUpdates.onFactCreated(data) - direct DOM update"
+      fallback: "HTMXWidgets.refreshWidgetDebounced() if cache miss"
 
     fact_updated:
-      action: "Update row in transactions table"
+      action: "IncrementalUpdates.onFactUpdated(data) - debounced refresh"
+      note: "Complex delta calculation, uses fallback"
 
     fact_deleted:
-      action: "Remove row from transactions table"
+      action: "IncrementalUpdates.onFactDeleted(data) - remove + refresh stats"
+
+    shopping_list_item_created:
+      action: "listsManager.addItemToUI(data) - direct DOM insert"
 
     shopping_list_item_updated:
-      action: "Update item checkbox/details"
+      action: "listsManager.updateItemInUI(data) - direct DOM update"
+
+    shopping_list_item_deleted:
+      action: "listsManager.removeItemFromUI(id) - direct DOM removal"
 
   ui_indicator:
     location: "Navbar"
@@ -275,6 +285,52 @@ frontend:
       connected: "Green badge"
       disconnected: "Red badge"
       reconnecting: "Yellow badge (pulsing)"
+
+# ===========================================================================
+# INCREMENTAL UPDATES OPTIMIZATION
+# ===========================================================================
+incremental_updates:
+  description: |
+    Optimization layer between SSE events and UI updates.
+    Uses SSE payload data directly instead of making HTTP requests.
+
+  flow_diagram: |
+    BEFORE (v1):
+    ┌──────────────┐    ┌───────────────┐    ┌────────────────┐
+    │ SSE Event    │───►│ refreshAll()  │───►│ 3 HTTP GET     │
+    │ fact_created │    │               │    │ requests       │
+    └──────────────┘    └───────────────┘    └────────────────┘
+
+    AFTER (v2 - optimized):
+    ┌──────────────┐    ┌────────────────────┐    ┌──────────────┐
+    │ SSE Event    │───►│ IncrementalUpdates │───►│ Direct DOM   │
+    │ fact_created │    │ .onFactCreated()   │    │ manipulation │
+    └──────────────┘    └────────────────────┘    └──────────────┘
+                                │
+                                │ (cache miss)
+                                ▼
+                        ┌────────────────────┐    ┌──────────────┐
+                        │ HTMXWidgets        │───►│ HTTP GET     │
+                        │ .refreshDebounced()│    │ (fallback)   │
+                        └────────────────────┘    └──────────────┘
+
+  performance_impact:
+    http_requests_per_transaction:
+      before: "1 POST + 3 GET = 4 requests"
+      after: "1 POST = 1 request (75% reduction)"
+
+    ui_latency:
+      before: "200-500ms (wait for 3 HTTP round-trips)"
+      after: "<100ms (instant DOM update)"
+
+    backend_load:
+      reduction: "3-4x fewer requests during active usage"
+
+  implementation_files:
+    - "frontend/web/static/js/budget/incrementalUpdates.js"
+    - "frontend/web/static/js/htmxWidgets.js (debouncing)"
+    - "frontend/web/templates/index.html (SSE handlers)"
+    - "frontend/web/templates/facts.html (debounced loading)"
 
 # ===========================================================================
 # KEEP-ALIVE

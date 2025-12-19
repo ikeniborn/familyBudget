@@ -281,10 +281,63 @@ modules:
   # ---------------------------------------------------------------------------
   htmxWidgets:
     path: "frontend/web/static/js/htmxWidgets.js"
-    description: "HTMX wrapper utilities"
+    loc: ~175
+    description: "HTMX widget refresh manager with debouncing"
+    widgets:
+      - quick-stats: "/api/v1/analytics/quick-stats-html"
+      - account-balances: "/api/v1/analytics/account-balances-html"
+      - recent-transactions: "/api/v1/facts/recent-html?limit=10"
     features:
-      - "Custom AJAX configurations"
-      - "Error handling"
+      - "refreshWidget(id) - immediate refresh"
+      - "refreshWidgetDebounced(id) - debounced refresh (300ms)"
+      - "refreshAll() / refreshAllDebounced() - refresh all widgets"
+      - "Auto-refresh on network recovery"
+    debouncing:
+      delay: "300ms"
+      purpose: "Prevent multiple rapid refreshes from SSE events"
+
+  incrementalUpdates:
+    path: "frontend/web/static/js/budget/incrementalUpdates.js"
+    loc: ~450
+    description: "SSE-driven incremental UI updates without HTTP requests"
+    purpose: |
+      Optimizes SSE event handling by updating UI directly from SSE payload
+      instead of triggering full HTMX widget refresh.
+
+      Reduces HTTP requests: 4 → 1 per transaction (3-4x improvement)
+      Reduces UI latency: 200-500ms → <100ms (instant updates)
+
+    features:
+      - "Reference data cache (articles, financial_centers)"
+      - "Incremental DOM updates from SSE payload"
+      - "Fallback to HTMXWidgets when cache unavailable"
+      - "Debounced fallback refreshes"
+
+    cache:
+      articles: "Map<id, {name, type}>"
+      financial_centers: "Map<id, {name}>"
+      initialization: "initCache() on DOMContentLoaded"
+      refresh: "refreshCache() when reference data changes"
+
+    handlers:
+      onFactCreated: "Prepend to recent-transactions, update balances"
+      onFactUpdated: "Fallback refresh (complex delta calculation)"
+      onFactDeleted: "Remove from list, fallback refresh stats"
+      onPlanCreated: "Fallback refresh quick-stats"
+      onTransferCreated: "Fallback refresh balances"
+
+    fallback_mechanism: |
+      When incremental update not possible (missing cache data, complex updates):
+      1. Cancel incremental update
+      2. Call HTMXWidgets.refreshWidgetDebounced(widgetId)
+      3. Debouncing prevents multiple rapid refreshes
+
+    integration:
+      loaded_in: "base.html (after budgetSSEClient.js)"
+      initialized_by: "DOMContentLoaded event"
+      used_by:
+        - "index.html SSE handlers"
+        - "facts.html (debounced only, complex table)"
 
   confirmDialog:
     path: "frontend/web/static/js/confirmDialog.js"

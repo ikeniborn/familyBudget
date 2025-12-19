@@ -197,6 +197,7 @@
     <!-- Auth-required scripts (только для авторизованных) -->
     <script src="/static/js/offline/pushManager.min.js?v=PLACEHOLDER"></script>
     <script src="/static/js/budget/budgetSSEClient.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/budget/incrementalUpdates.js?v=PLACEHOLDER"></script>
     {% endif %}
 
     <!-- ECharts (for analytics pages) -->
@@ -1004,6 +1005,17 @@
                 if (window.budgetSSEClient) {
                     window.budgetSSEClient.connect();
                     debugLog('[Offline] BudgetSSEClient connected');
+                }
+
+                // Initialize IncrementalUpdates cache for SSE-driven UI updates
+                if (window.IncrementalUpdates) {
+                    window.IncrementalUpdates.initCache().then(success => {
+                        if (success) {
+                            debugLog('[Offline] IncrementalUpdates cache initialized');
+                        } else {
+                            debugLog('[Offline] IncrementalUpdates cache init failed, will fallback to HTMX');
+                        }
+                    });
                 }
 
                 // Update UI
