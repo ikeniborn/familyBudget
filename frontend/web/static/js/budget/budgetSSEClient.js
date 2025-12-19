@@ -791,12 +791,24 @@ class BudgetSSEClient {
     async connect() {
         console.log('[BudgetSSE] connect() called, enabled:', this.enabled, 'safariIOSMode:', this._safariIOSMode);
 
-        // Guard: SSE disabled
+        // Guard: SSE disabled (applies to all browsers)
         if (!this.enabled) {
             console.log('[BudgetSSE] SSE disabled');
             return;
         }
 
+        // Safari iOS: SIMPLIFIED PATH - BEFORE other guards
+        // Uses same logic as offline→online handler which works reliably
+        // Only checks !enabled; lets _createConnection() handle duplicate prevention
+        // This mirrors the working offline→online path exactly
+        if (this._safariIOSMode) {
+            console.log('[BudgetSSE] Safari iOS: Using simplified direct connection (bypassing guards)');
+            this.reconnectAttempts = 0;
+            this._createConnection();
+            return;
+        }
+
+        // Other browsers: full guards
         // Guard: already connected
         if (this.isConnected) {
             console.log('[BudgetSSE] Already connected');
@@ -806,16 +818,6 @@ class BudgetSSEClient {
         // Guard: connection in progress (fetchController or eventSource exists)
         if (this.fetchController || this.eventSource) {
             console.log('[BudgetSSE] Connection already in progress');
-            return;
-        }
-
-        // Safari iOS: SIMPLIFIED PATH
-        // Uses same logic as offline→online handler which works reliably
-        // Bypasses complex multi-tab logic that can get stuck
-        if (this._safariIOSMode) {
-            console.log('[BudgetSSE] Safari iOS: Using simplified direct connection');
-            this.reconnectAttempts = 0;
-            this._createConnection();
             return;
         }
 
