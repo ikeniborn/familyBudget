@@ -1931,6 +1931,8 @@ class ListsManager {
         console.log('[iOS DEBUG 27] Dropdown visibility:', window.getComputedStyle(dropdown).visibility);
         console.log('[iOS DEBUG 28] Dropdown position:', window.getComputedStyle(dropdown).position);
         console.log('[iOS DEBUG 29] Dropdown z-index:', window.getComputedStyle(dropdown).zIndex);
+        console.log('[iOS DEBUG 29.1] Dropdown opacity:', window.getComputedStyle(dropdown).opacity);
+        console.log('[iOS DEBUG 29.2] Dropdown pointer-events:', window.getComputedStyle(dropdown).pointerEvents);
 
         // Add class to modal to allow overflow (CSS fix for dropdown visibility)
         const modal = document.getElementById('item-modal');
@@ -1994,6 +1996,35 @@ class ListsManager {
         );
         console.log('[iOS DEBUG 42] Element at dropdown center:', elementAtDropdownPosition?.tagName, elementAtDropdownPosition?.className);
         console.log('[iOS DEBUG 43] Is dropdown itself?', elementAtDropdownPosition === dropdown);
+
+        // Check if element is inside dropdown
+        const isInsideDropdown = elementAtDropdownPosition?.closest('#product-suggestions-dropdown');
+        console.log('[iOS DEBUG 44] Is inside dropdown?', !!isInsideDropdown);
+
+        // Get ALL elements at this position (z-index stack)
+        const elementsAtPosition = document.elementsFromPoint(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2
+        );
+        console.log('[iOS DEBUG 45] Elements stack (top to bottom):');
+        elementsAtPosition.slice(0, 5).forEach((el, i) => {
+            console.log(`  [${i}]`, el.tagName, el.className || el.id, 'z-index:', window.getComputedStyle(el).zIndex);
+        });
+
+        // Final check: Is dropdown in DOM?
+        const dropdownInDOM = document.getElementById('product-suggestions-dropdown');
+        console.log('[iOS DEBUG 46] Dropdown still in DOM?', !!dropdownInDOM);
+        console.log('[iOS DEBUG 47] Dropdown has children?', dropdownInDOM?.children.length || 0);
+
+        // Try to force visibility with inline styles
+        if (dropdownInDOM) {
+            dropdownInDOM.style.display = 'block';
+            dropdownInDOM.style.visibility = 'visible';
+            dropdownInDOM.style.opacity = '1';
+            dropdownInDOM.style.zIndex = '99999';
+            dropdownInDOM.style.backgroundColor = '#ff0000'; // RED for testing
+            console.log('[iOS DEBUG 48] Forced inline styles applied (red background)');
+        }
 
         // Store suggestions for selection
         this._currentSuggestions = suggestions;
