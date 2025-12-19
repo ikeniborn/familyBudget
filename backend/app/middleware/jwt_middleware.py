@@ -57,7 +57,7 @@ class JWTAuthMiddleware(BaseHTTPMiddleware):
         "/analytics",  # Analytics page (uses CurrentUserOptional)
         "/favicon.ico",  # Browser favicon
         "/manifest.json",  # PWA manifest (required for install prompt)
-        "/sw.js",  # Service Worker (required for PWA caching)
+        "/sw.min.js",  # Service Worker minified (required for PWA caching)
         # Email/2FA authentication pages (public)
         "/register",  # Email registration page
         "/login-email",  # Email login page

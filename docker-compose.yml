@@ -164,7 +164,7 @@ services:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
       # PWA files (served by FastAPI StaticFiles)
-      - ./sw.js:/app/sw.js:ro  # Service Worker
+      - ./sw.min.js:/app/sw.min.js:ro  # Service Worker (minified)
       - ./manifest.json:/app/manifest.json:ro  # PWA Manifest
     ports:
       - "${BACKEND_PORT:-8000}:8000"

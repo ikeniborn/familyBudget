@@ -290,7 +290,8 @@ operation_types:
 # SERVICE WORKER INTEGRATION
 # ===========================================================================
 service_worker:
-  file: "frontend/web/static/sw.js"
+  source: "sw.js"  # Root directory
+  served_as: "/sw.min.js"  # Minified at deploy
 
   background_sync:
     description: "Sync when app is in background"

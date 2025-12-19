@@ -287,13 +287,13 @@ register_filters(templates.env)
 
 # PWA endpoints (must be before web_router to avoid being caught by catch-all routes)
 # Support both GET and HEAD methods - browsers use HEAD to check for Service Worker updates
-@app.api_route("/sw.js", methods=["GET", "HEAD"], include_in_schema=False)
+@app.api_route("/sw.min.js", methods=["GET", "HEAD"], include_in_schema=False)
 async def service_worker():
-    """Serve Service Worker for PWA"""
+    """Serve minified Service Worker for PWA"""
     from fastapi.responses import FileResponse
     from pathlib import Path
 
-    sw_path = Path("/app/sw.js")
+    sw_path = Path("/app/sw.min.js")
     if not sw_path.exists():
         raise HTTPException(status_code=404, detail="Service Worker not found")
 

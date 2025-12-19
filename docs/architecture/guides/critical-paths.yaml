@@ -171,7 +171,8 @@ offline:
       sync_queue: "FIFO processing"
 
     service_worker:
-      file: "frontend/web/static/sw.js"
+      source: "sw.js"  # Root directory
+      served_as: "/sw.min.js"  # Minified at deploy
       caching: "Cache first strategy"
       background_sync: "Background Sync API"
 
