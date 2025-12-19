@@ -225,8 +225,11 @@ frontend:
         1. connect() вызывается на DOMContentLoaded
         2. Safari iOS: проверяет document.readyState
         3. Если readyState === 'complete': сразу _safariIOSDelayedConnect()
-        4. Если readyState !== 'complete': polling каждые 100ms до ready
-        5. Когда readyState === 'complete': _safariIOSDelayedConnect()
+        4. Если readyState !== 'complete': dual approach
+           - Primary: window.load event listener (fast path)
+           - Fallback: polling после 500ms delay (safety net)
+           - Flag `connected` предотвращает двойное подключение
+        5. Когда page ready: _safariIOSDelayedConnect()
         6. 300ms задержка (сетевой стек должен "осесть")
         7. Warm-up fetch к /events/status (прогрев сетевого стека)
         8. _createConnection() → _useFetchEventSource()
@@ -234,25 +237,24 @@ frontend:
         10. При 3+ неудачах → _startPollingFallback()
         11. Polling каждые 5 секунд как last resort
       timing_fix: |
-        FIX 2025-12-19: Устранён race condition с window.load event.
+        FIX 2025-12-19: Dual approach (event + polling) для Safari iOS.
 
         ПРОБЛЕМА:
-        - connect() вызывался на DOMContentLoaded
-        - Регистрировался listener для window.load event
-        - Если window.load уже сработал ДО регистрации listener → соединение не устанавливалось
+        - Polling-only подход не решил проблему
+        - window.load event может не срабатывать корректно
 
-        РЕШЕНИЕ:
-        - Заменён window.addEventListener('load') на polling readyState
-        - Polling проверяет document.readyState каждые 100ms
-        - Нет зависимости от timing событий
-        - Гарантировано подключение когда страница готова
+        РЕШЕНИЕ (dual approach):
+        - Primary path: window.load event listener (быстрый путь если работает)
+        - Fallback path: polling readyState после 500ms delay (safety net)
+        - Flag предотвращает двойное подключение
+        - Гарантия: хотя бы один из путей сработает
 
-        Почему screen off/on работало:
+        Почему screen off/on работает:
         - Страница УЖЕ полностью загружена (readyState === 'complete')
-        - visibilitychange → _checkConnectionHealth() → независимый код путь
-        - Принудительное переподключение через _forceReconnect()
+        - visibilitychange → _checkConnectionHealth() → _forceReconnect()
+        - Независимый код путь с принудительным переподключением
 
-        Code: frontend/web/static/js/budget/budgetSSEClient.js:846-861
+        Code: frontend/web/static/js/budget/budgetSSEClient.js:846-876
 
   multi_tab_support:
     description: "Одно SSE соединение на браузер через Web Locks + BroadcastChannel"

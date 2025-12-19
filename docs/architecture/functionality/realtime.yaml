@@ -223,23 +223,27 @@ module:
           - "_useFetchEventSource() - fetch-based SSE connection"
 
       timing_fix_2025_12_19:
-        issue: "Race condition между DOMContentLoaded и window.load"
+        issue: "Safari iOS SSE не подключается на page load/navigation"
         symptom: |
-          SSE не подключается при начальной загрузке страницы или навигации,
-          но работает при разблокировке экрана (screen off/on).
+          Polling-only подход (Solution 1) не решил проблему.
+          SSE всё равно не подключается при загрузке страницы.
         root_cause: |
-          connect() вызывается на DOMContentLoaded (DOM ready, ресурсы ещё грузятся).
-          Код регистрирует window.addEventListener('load', callback).
-          Если window.load уже сработал ДО регистрации → listener никогда не выполнится.
-        solution: |
-          Заменён event listener на polling механизм с проверкой document.readyState.
-          Polling каждые 100ms до readyState === 'complete', затем подключение.
-          Нет зависимости от timing событий - работает всегда.
-        code_location: "frontend/web/static/js/budget/budgetSSEClient.js:846-861"
-        why_screen_unlock_worked: |
-          При screen unlock страница уже полностью загружена (readyState === 'complete').
-          visibilitychange event → _checkConnectionHealth() → _forceReconnect()
-          Независимый код путь с активной проверкой здоровья соединения.
+          Множественные факторы Safari iOS:
+          1. window.load event может не срабатывать корректно
+          2. document.readyState может застрять в 'interactive'
+          3. Network stack требует дополнительного времени для инициализации
+        solution: "Dual approach (Solution 2)"
+        implementation: |
+          Primary path: window.load event listener (fast if works)
+          Fallback path: polling readyState после 500ms (safety net if event fails)
+          Flag `connected` предотвращает двойное подключение
+
+          Advantage: Redundancy - хотя бы один из путей должен сработать
+        code_location: "frontend/web/static/js/budget/budgetSSEClient.js:846-876"
+        why_screen_unlock_works: |
+          Screen unlock использует независимый код путь:
+          visibilitychange → _checkConnectionHealth() → _forceReconnect()
+          Не зависит от timing window.load или readyState polling.
 
     connection_staleness:
       ping_interval: "10 секунд (сервер)"

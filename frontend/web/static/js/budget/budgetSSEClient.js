@@ -843,21 +843,36 @@ class BudgetSSEClient {
                 return;
             }
 
-            // Wait for page to fully load using polling (avoids race condition)
-            // Race condition fix: window.load event may fire before addEventListener() call
-            // Polling ensures connection regardless of event timing
-            console.log('[BudgetSSE] Safari iOS: Polling for page readyState...');
-            const checkReadyState = () => {
-                console.log('[BudgetSSE] Safari iOS: readyState =', document.readyState);
-                if (document.readyState === 'complete') {
-                    console.log('[BudgetSSE] Safari iOS: Page ready, starting delayed connect');
+            // Dual approach: event listener + polling fallback
+            // Primary: window.load event (fast path if it works)
+            // Fallback: polling after 500ms (safety net if event missed)
+            let connected = false;
+
+            const doConnect = () => {
+                if (!connected) {
+                    connected = true;
+                    const method = document.readyState === 'complete' ? 'polling' : 'event';
+                    console.log('[BudgetSSE] Safari iOS: Connecting via', method);
                     this._safariIOSDelayedConnect();
-                } else {
-                    // Poll every 100ms until page is ready
-                    setTimeout(checkReadyState, 100);
                 }
             };
-            checkReadyState();  // Start polling immediately
+
+            // Primary: window.load event listener
+            console.log('[BudgetSSE] Safari iOS: Setting up dual connection (event + polling)');
+            window.addEventListener('load', doConnect, { once: true });
+
+            // Fallback: polling starts after 500ms delay (give event a chance)
+            setTimeout(() => {
+                const pollReadyState = () => {
+                    if (document.readyState === 'complete') {
+                        doConnect();
+                    } else if (!connected) {
+                        setTimeout(pollReadyState, 100);
+                    }
+                };
+                pollReadyState();
+            }, 500);
+
             return;
         }
 

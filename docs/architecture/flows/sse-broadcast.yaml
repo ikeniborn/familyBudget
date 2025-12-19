@@ -441,19 +441,24 @@ multi_tab_flow:
       2. _detectSafariIOS() возвращает true
       3. Проверяет document.readyState:
          - Если 'complete': сразу _safariIOSDelayedConnect()
-         - Если НЕ 'complete': polling каждые 100ms до ready state
-      4. Когда readyState === 'complete':
-         - Вызывается _safariIOSDelayedConnect()
+         - Если НЕ 'complete': dual approach (event + polling)
+      4. Dual approach для page load:
+         a) Primary: window.load event listener
+         b) Fallback: polling после 500ms delay
+         c) Flag `connected` предотвращает двойное подключение
+         d) Один из путей вызывает _safariIOSDelayedConnect()
+      5. _safariIOSDelayedConnect():
          - 300ms задержка для "прогрева" сетевого стека
          - Warm-up fetch к /events/status
          - _createConnection() → _useFetchEventSource()
-      5. await _initMultiTab()
-      6. isLeader = true (сразу, без Web Locks!)
-      7. _multiTabSupported = false (отключаем multi-tab)
-      8. fetch() с ReadableStream устанавливает SSE соединение
+      6. await _initMultiTab()
+      7. isLeader = true (сразу, без Web Locks!)
+      8. _multiTabSupported = false (отключаем multi-tab)
+      9. fetch() с ReadableStream устанавливает SSE соединение
 
-      FIX 2025-12-19: Polling вместо event listener предотвращает race condition
-      с window.load event. Гарантирует подключение независимо от timing событий.
+      FIX 2025-12-19: Dual approach (Solution 2) применён после того как
+      polling-only (Solution 1) не решил проблему. Dual approach обеспечивает
+      redundancy - хотя бы один из путей (event или polling) должен сработать.
 
       ВАЖНО: На Safari iOS каждая вкладка создаёт своё SSE соединение.
       Это может привести к большему количеству соединений на сервере,
