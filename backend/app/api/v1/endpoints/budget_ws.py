@@ -44,7 +44,7 @@ from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import get_settings
-from backend.app.db.session import get_session, async_session_factory
+from backend.app.db.session import get_session, get_session_context
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.core.dependencies import get_current_user
@@ -440,11 +440,10 @@ async def verify_ws_token(token: str) -> User | None:
             return None
 
         # Get user from database
-        async for session in async_session_factory():
+        async with get_session_context() as session:
             user = await session.get(User, user_id)
             if user and getattr(user, "is_active", True):
                 return user
-            break
 
         return None
     except JWTError as e:
@@ -565,16 +564,13 @@ async def budget_websocket_endpoint(
 
             except asyncio.TimeoutError:
                 # Periodic user status check
-                async for session in async_session_factory():
+                async with get_session_context() as session:
                     db_user = await session.get(User, user_id)
                     if not db_user or not getattr(db_user, "is_active", True):
                         logger.warning(f"Budget WS disconnecting inactive user {user_id}")
                         disconnect_reason = "user_inactive"
-                        break
-                    break
-                else:
-                    continue  # User still active, continue loop
-                break  # User inactive, exit loop
+                        break  # Exit outer while loop
+                # User still active, continue loop
 
     except WebSocketDisconnect:
         disconnect_reason = "client_disconnect"
