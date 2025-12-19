@@ -24,7 +24,7 @@
                 <div class="flex items-center justify-between cursor-pointer md:cursor-default"
                      onclick="toggleQuickStats()" id="quick-stats-header">
                     <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
-                    <span class="expand-indicator md:hidden">▼</span>
+                    <span class="expand-indicator md:hidden">ещё 2</span>
                 </div>
                 <div id="quick-stats"
                      hx-get="/api/v1/analytics/quick-stats-html"
@@ -43,7 +43,7 @@
                 <div class="flex items-center justify-between cursor-pointer md:cursor-default"
                      onclick="toggleAccountBalances()" id="account-balances-header">
                     <h2 class="card-title text-xl mb-2">💳 Баланс по счетам</h2>
-                    <span class="expand-indicator md:hidden">▼</span>
+                    <span class="expand-indicator md:hidden">ещё...</span>
                 </div>
                 <div id="account-balances"
                      hx-get="/api/v1/analytics/account-balances-html"
@@ -361,9 +361,12 @@
 <style>
 /* Collapsible section indicators */
 .expand-indicator {
-    font-size: 0.75rem;
-    color: oklch(var(--bc) / 0.5);
-    transition: transform 0.2s ease;
+    font-size: 0.6875rem;
+    color: oklch(var(--bc) / 0.4);
+    white-space: nowrap;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    background: oklch(var(--b2));
 }
 
 /* Hide indicator on desktop */
@@ -2665,7 +2668,16 @@ function applyQuickStatsState() {
 
     if (!container || !indicator) return;
 
-    container.querySelectorAll('.stat-card').forEach((card, index) => {
+    const cards = container.querySelectorAll('.stat-card');
+    const hiddenCount = Math.max(0, cards.length - 2);
+
+    // Edge case: если карточек ≤2, скрыть индикатор
+    if (hiddenCount === 0) {
+        indicator.style.display = 'none';
+        return;
+    }
+
+    cards.forEach((card, index) => {
         // Показать только первые 2 карточки (Доходы, Расходы) в свернутом виде
         // Индексы: 0=Доходы, 1=Расходы, 2=Пополнение, 3=Списание
         if (index >= 2) {
@@ -2673,7 +2685,7 @@ function applyQuickStatsState() {
         }
     });
 
-    indicator.textContent = quickStatsExpanded ? '▲' : '▼';
+    indicator.textContent = quickStatsExpanded ? 'свернуть' : `ещё ${hiddenCount}`;
 }
 
 function toggleAccountBalances() {
@@ -2691,9 +2703,10 @@ function applyAccountBalancesState() {
 
     // Получить все карточки и отсортировать по movement (убывание)
     const cards = Array.from(container.querySelectorAll('.balance-card'));
+    const hiddenCount = Math.max(0, cards.length - 2);
 
     // Edge case: если счетов ≤2, скрыть индикатор
-    if (cards.length <= 2) {
+    if (hiddenCount === 0) {
         indicator.style.display = 'none';
         return;
     }
@@ -2711,7 +2724,7 @@ function applyAccountBalancesState() {
         }
     });
 
-    indicator.textContent = accountBalancesExpanded ? '▲' : '▼';
+    indicator.textContent = accountBalancesExpanded ? 'свернуть' : `ещё ${hiddenCount}`;
 }
 
 // При загрузке данных через HTMX - применить начальное состояние (свернуто)
