@@ -1334,6 +1334,27 @@ class OfflineManager {
     }
 
     /**
+     * Update data of a pending item in the sync queue
+     * @param {number} itemId - IndexedDB sync queue item ID
+     * @param {Object} updatedData - New data object to replace existing data
+     * @returns {Promise<void>}
+     */
+    async updatePendingItemData(itemId, updatedData) {
+        _offlineLog('[OfflineManager] Updating pending item data:', itemId);
+        await this.db.updateSyncQueueItem(itemId, { data: updatedData });
+    }
+
+    /**
+     * Remove a pending item from the sync queue
+     * @param {number} itemId - IndexedDB sync queue item ID
+     * @returns {Promise<void>}
+     */
+    async removePendingItem(itemId) {
+        _offlineLog('[OfflineManager] Removing pending item:', itemId);
+        await this.db.deleteSyncQueueItem(itemId);
+    }
+
+    /**
      * Sync all pending items in queue
      * @returns {Promise<Object>} Sync results {synced, failed, items}
      */

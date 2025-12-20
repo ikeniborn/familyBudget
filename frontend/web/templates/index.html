@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% from "components/modal_transaction.html" import transaction_modal %}
 {% from "components/modal_plan.html" import plan_modal %}
+{% from "components/modal_edit_plan.html" import edit_plan_modal %}
 
 {% block content %}
 <div class="space-y-6">
@@ -236,6 +237,7 @@
                             <table class="table table-zebra table-sm">
                                 <thead>
                                     <tr>
+                                        <th class="w-8"></th>
                                         <th>Тип</th>
                                         <th>Дата</th>
                                         <th>Счёт</th>
@@ -338,6 +340,9 @@
     <!-- Modal: Добавить план -->
     {{ plan_modal('modal_add_plan') }}
 
+    <!-- Modal: Редактировать запись (факт или план) -->
+    {{ edit_plan_modal('edit-modal') }}
+
     <!-- Modal: Confirm Welcome Section Close -->
     <dialog id="modal_welcome_close_confirm" class="modal">
         <div class="modal-box">
@@ -392,6 +397,15 @@
 let transactionCategoryTreeSelect = null;
 let planCategoryTreeSelect = null;
 
+// Edit modal instances and state
+let editCategoryTreeSelect = null;
+let editDateCalendar = null;
+let editReminderCalendar = null;
+let allCategories = [];  // Cache for categories
+let remindersMap = new Map();  // Cache for reminders (fact_id -> reminder)
+let currentEditingRecordType = null;  // 'fact' or 'plan'
+let currentEditingPendingId = null;  // IndexedDB ID for pending records (null if online record)
+
 // allCostCenters is declared in transfer.js - DO NOT redeclare here to avoid conflicts
 
 // Открыть модальное окно фактического перевода
@@ -433,6 +447,839 @@ function openPlanTransferModal() {
 }
 // Ensure function is globally accessible for onclick handlers
 window.openPlanTransferModal = openPlanTransferModal;
+
+// ==================== Edit Modal Functions (Dashboard) ====================
+
+// CalendarWidget instance for edit reminder date
+let editReminderCalendarWidget = null;
+
+/**
+ * Set edit modal mode (show/hide reminder section based on record type)
+ * @param {string} recordType - 'fact' or 'plan'
+ */
+function setEditModalMode(recordType) {
+    const reminderContainer = document.getElementById('edit-reminder-container');
+    const reminderSettings = document.getElementById('edit-reminder-settings');
+
+    currentEditingRecordType = recordType;
+
+    if (recordType === 'fact') {
+        // Hide reminder section for facts
+        if (reminderContainer) reminderContainer.classList.add('hidden');
+        if (reminderSettings) reminderSettings.classList.add('hidden');
+    } else {
+        // Show reminder section for plans
+        if (reminderContainer) reminderContainer.classList.remove('hidden');
+    }
+}
+
+/**
+ * Load categories for edit modal (cached)
+ */
+async function loadCategoriesForEdit() {
+    if (allCategories.length > 0) return allCategories;
+
+    try {
+        const response = await fetch('/api/v1/articles', { credentials: 'include' });
+        if (response.ok) {
+            allCategories = await response.json();
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+    }
+    return allCategories;
+}
+
+/**
+ * Load reminders for specific fact IDs
+ * @param {number[]} factIds - Array of fact IDs to load reminders for
+ */
+async function loadRemindersForEdit(factIds) {
+    remindersMap.clear();
+    if (!factIds || factIds.length === 0) return;
+
+    try {
+        const response = await fetch('/api/v1/reminders/?limit=100', { credentials: 'include' });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const factIdSet = new Set(factIds);
+
+        if (data.items && Array.isArray(data.items)) {
+            data.items.forEach(reminder => {
+                if (reminder && reminder.fact_id && factIdSet.has(reminder.fact_id)) {
+                    remindersMap.set(reminder.fact_id, reminder);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading reminders:', error);
+    }
+}
+
+/**
+ * Open edit modal for online record from dashboard
+ * @param {number} factId - The fact ID to edit
+ */
+async function openEditFromDashboard(factId) {
+    try {
+        // Fetch fact data from API
+        const response = await fetch(`/api/v1/facts/${factId}`, { credentials: 'include' });
+        if (!response.ok) {
+            showToast('Ошибка загрузки записи', 'error');
+            return;
+        }
+
+        const fact = await response.json();
+        const recordType = fact.record_type || 'fact';
+
+        // Reset pending record tracking
+        currentEditingPendingId = null;
+
+        // Set mode (show/hide reminder section)
+        setEditModalMode(recordType);
+
+        // Load categories and reminders in parallel
+        await Promise.all([
+            loadCategoriesForEdit(),
+            recordType === 'plan' ? loadRemindersForEdit([factId]) : Promise.resolve()
+        ]);
+
+        // Fill basic fields
+        document.getElementById('edit-id').value = fact.id;
+        document.getElementById('edit-amount').value = parseFloat(fact.amount);
+        document.getElementById('edit-date').value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
+        document.getElementById('edit-description').value = fact.description || '';
+        document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
+        document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
+
+        // Determine category type from allCategories
+        const selectedArticle = allCategories.find(a => a.id === fact.article_id);
+        const categoryType = selectedArticle ? selectedArticle.type : 'expense';
+
+        // Set category type radio buttons
+        document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
+            const radio = btn.querySelector('input[type="radio"]');
+            if (btn.dataset.type === categoryType) {
+                btn.classList.add('btn-active');
+                radio.checked = true;
+            } else {
+                btn.classList.remove('btn-active');
+                radio.checked = false;
+            }
+        });
+
+        // Destroy previous ChoicesCategoryTree instance if exists
+        if (editCategoryTreeSelect) {
+            editCategoryTreeSelect.destroy();
+            editCategoryTreeSelect = null;
+        }
+
+        // Initialize ChoicesCategoryTree for edit modal
+        const editSelect = document.getElementById('edit-article');
+        if (editSelect) {
+            editSelect.innerHTML = '<option value="" disabled hidden>-- Выберите категорию --</option>';
+
+            editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
+                type: categoryType,
+                showLeafOnly: true,
+                onCategoryChange: (category) => {
+                    console.log('Category changed in edit modal:', category);
+                }
+            });
+
+            // Wait for initialization to complete, then set selected value
+            const initCheckInterval = setInterval(async () => {
+                if (editCategoryTreeSelect &&
+                    editCategoryTreeSelect.choices &&
+                    editCategoryTreeSelect.categoryMap &&
+                    editCategoryTreeSelect.categoryMap.size > 0) {
+
+                    const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
+
+                    if (choicesStore.length > 0) {
+                        clearInterval(initCheckInterval);
+
+                        if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
+                            await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+                        } else {
+                            console.warn('[Edit Modal] Category not found in map:', fact.article_id);
+                        }
+                    }
+                }
+            }, 150);
+
+            // Safety timeout
+            setTimeout(() => clearInterval(initCheckInterval), 10000);
+        }
+
+        // Initialize CalendarWidget for edit modal date input
+        const editDateInput = document.getElementById('edit-date');
+        if (editDateInput) {
+            if (editDateCalendar) {
+                editDateCalendar.destroy();
+                editDateCalendar = null;
+            }
+
+            editDateCalendar = new BudgetShared.CalendarWidget({
+                mode: 'single',
+                inputElement: editDateInput,
+                onSelect: (date) => {
+                    console.log('Выбрана дата для edit modal:', date);
+                }
+            });
+        }
+
+        // Handle reminder for plans
+        if (recordType === 'plan') {
+            const reminderCheckbox = document.getElementById('edit-enable-reminder');
+            const reminderSettingsDiv = document.getElementById('edit-reminder-settings');
+            const reminderStatusBadge = document.getElementById('edit-reminder-status');
+
+            // Reset reminder fields
+            if (reminderCheckbox) reminderCheckbox.checked = false;
+            resetEditReminderFields();
+            if (reminderSettingsDiv) reminderSettingsDiv.classList.add('hidden');
+            if (reminderStatusBadge) {
+                reminderStatusBadge.classList.add('hidden');
+                reminderStatusBadge.className = 'badge badge-sm badge-ghost hidden';
+                reminderStatusBadge.textContent = '';
+            }
+
+            // Check existing reminder from pre-loaded map
+            const reminder = remindersMap.get(factId);
+            if (reminder) {
+                if (reminderCheckbox) reminderCheckbox.checked = true;
+                populateEditReminderFields(reminder.reminder_datetime);
+                if (reminderSettingsDiv) reminderSettingsDiv.classList.remove('hidden');
+                initEditReminderCalendarWidget();
+
+                // Show status badge
+                if (reminderStatusBadge && reminder.status) {
+                    const badge = getReminderStatusBadge(reminder.status);
+                    reminderStatusBadge.textContent = badge.text;
+                    reminderStatusBadge.className = `badge badge-sm ${badge.class}`;
+                    reminderStatusBadge.classList.remove('hidden');
+                }
+            }
+        }
+
+        // Setup category type buttons handlers
+        setupEditCategoryTypeButtons();
+
+        document.getElementById('edit-modal').showModal();
+    } catch (error) {
+        console.error('Error opening edit modal:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    }
+}
+window.openEditFromDashboard = openEditFromDashboard;
+
+/**
+ * Open edit modal for pending (offline) record
+ * @param {number} itemId - IndexedDB sync queue item ID
+ * @param {string} entity - 'fact' or 'plan'
+ */
+async function openEditPendingRecord(itemId, entity) {
+    try {
+        // Get pending items from IndexedDB
+        const { items } = await window.offlineManager.getAllUnsyncedItems();
+        const item = items.find(i => i.id === itemId);
+
+        if (!item) {
+            showToast('Запись не найдена', 'error');
+            return;
+        }
+
+        const recordType = entity || item.entity || 'fact';
+        currentEditingPendingId = itemId;
+
+        // Set mode (show/hide reminder section)
+        setEditModalMode(recordType);
+
+        // Load categories
+        await loadCategoriesForEdit();
+
+        // Fill basic fields from pending data
+        const data = item.data || {};
+        document.getElementById('edit-id').value = item.id; // Use IndexedDB ID
+        document.getElementById('edit-amount').value = parseFloat(data.amount) || 0;
+        document.getElementById('edit-date').value = data.fact_date ? BudgetShared.DateFormatter.formatForDisplay(data.fact_date) : '';
+        document.getElementById('edit-description').value = data.description || '';
+        document.getElementById('edit-financial-center').value = data.financial_center_id || '';
+        document.getElementById('edit-cost-center').value = data.cost_center_id || '';
+
+        // Determine category type from allCategories
+        const selectedArticle = allCategories.find(a => a.id === data.article_id);
+        const categoryType = selectedArticle ? selectedArticle.type : 'expense';
+
+        // Set category type radio buttons
+        document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
+            const radio = btn.querySelector('input[type="radio"]');
+            if (btn.dataset.type === categoryType) {
+                btn.classList.add('btn-active');
+                radio.checked = true;
+            } else {
+                btn.classList.remove('btn-active');
+                radio.checked = false;
+            }
+        });
+
+        // Destroy previous ChoicesCategoryTree instance if exists
+        if (editCategoryTreeSelect) {
+            editCategoryTreeSelect.destroy();
+            editCategoryTreeSelect = null;
+        }
+
+        // Initialize ChoicesCategoryTree for edit modal
+        const editSelect = document.getElementById('edit-article');
+        if (editSelect) {
+            editSelect.innerHTML = '<option value="" disabled hidden>-- Выберите категорию --</option>';
+
+            editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
+                type: categoryType,
+                showLeafOnly: true,
+                onCategoryChange: (category) => {
+                    console.log('Category changed in edit modal:', category);
+                }
+            });
+
+            // Wait for initialization, then set value
+            if (data.article_id) {
+                const initCheckInterval = setInterval(async () => {
+                    if (editCategoryTreeSelect &&
+                        editCategoryTreeSelect.categoryMap &&
+                        editCategoryTreeSelect.categoryMap.size > 0) {
+
+                        const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
+                        if (choicesStore.length > 0) {
+                            clearInterval(initCheckInterval);
+                            if (editCategoryTreeSelect.categoryMap.has(data.article_id)) {
+                                await editCategoryTreeSelect.setSelectedCategory(data.article_id);
+                            }
+                        }
+                    }
+                }, 150);
+                setTimeout(() => clearInterval(initCheckInterval), 10000);
+            }
+        }
+
+        // Initialize CalendarWidget for edit modal date input
+        const editDateInput = document.getElementById('edit-date');
+        if (editDateInput) {
+            if (editDateCalendar) {
+                editDateCalendar.destroy();
+                editDateCalendar = null;
+            }
+
+            editDateCalendar = new BudgetShared.CalendarWidget({
+                mode: 'single',
+                inputElement: editDateInput,
+                onSelect: (date) => {
+                    console.log('Выбрана дата для edit modal:', date);
+                }
+            });
+        }
+
+        // Handle reminder for plans (pending records don't have server-side reminders)
+        if (recordType === 'plan') {
+            const reminderCheckbox = document.getElementById('edit-enable-reminder');
+            const reminderSettingsDiv = document.getElementById('edit-reminder-settings');
+
+            if (reminderCheckbox) reminderCheckbox.checked = false;
+            resetEditReminderFields();
+            if (reminderSettingsDiv) reminderSettingsDiv.classList.add('hidden');
+
+            // If pending plan has reminder data, populate it
+            if (data.reminder_datetime) {
+                if (reminderCheckbox) reminderCheckbox.checked = true;
+                populateEditReminderFields(data.reminder_datetime);
+                if (reminderSettingsDiv) reminderSettingsDiv.classList.remove('hidden');
+                initEditReminderCalendarWidget();
+            }
+        }
+
+        // Setup category type buttons handlers
+        setupEditCategoryTypeButtons();
+
+        document.getElementById('edit-modal').showModal();
+    } catch (error) {
+        console.error('Error opening edit modal for pending record:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    }
+}
+window.openEditPendingRecord = openEditPendingRecord;
+
+/**
+ * Close edit modal
+ */
+function closeEditModal() {
+    document.getElementById('edit-modal').close();
+    document.getElementById('edit-form').reset();
+    currentEditingPendingId = null;
+    currentEditingRecordType = null;
+}
+window.closeEditModal = closeEditModal;
+
+/**
+ * Setup category type buttons handlers for edit modal
+ */
+function setupEditCategoryTypeButtons() {
+    const typeButtons = document.querySelectorAll('.edit-category-type-btn');
+
+    typeButtons.forEach(button => {
+        // Remove any existing listeners to prevent duplicates
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+
+        newButton.addEventListener('click', async function() {
+            // Remove btn-active from all buttons
+            document.querySelectorAll('.edit-category-type-btn').forEach(btn => btn.classList.remove('btn-active'));
+
+            // Add btn-active to current button
+            this.classList.add('btn-active');
+
+            // Check corresponding radio button
+            const radio = this.querySelector('input[type="radio"]');
+            if (radio) {
+                radio.checked = true;
+            }
+
+            // Reload categories with new type
+            const newType = this.dataset.type;
+            console.log('Edit modal category type changed to:', newType);
+
+            if (editCategoryTreeSelect && allCategories.length > 0) {
+                editCategoryTreeSelect.updateType(newType);
+            }
+        });
+    });
+}
+
+/**
+ * Toggle reminder settings visibility
+ */
+function toggleEditReminderSettings() {
+    const checkbox = document.getElementById('edit-enable-reminder');
+    const settingsDiv = document.getElementById('edit-reminder-settings');
+
+    if (checkbox && settingsDiv) {
+        if (checkbox.checked) {
+            settingsDiv.classList.remove('hidden');
+            initEditReminderCalendarWidget();
+        } else {
+            settingsDiv.classList.add('hidden');
+        }
+    }
+}
+window.toggleEditReminderSettings = toggleEditReminderSettings;
+
+/**
+ * Initialize CalendarWidget for edit modal reminder date
+ */
+function initEditReminderCalendarWidget() {
+    const dateInput = document.getElementById('edit-reminder-date');
+    if (!dateInput) return;
+
+    // Destroy existing widget if any
+    if (editReminderCalendarWidget) {
+        editReminderCalendarWidget.destroy();
+        editReminderCalendarWidget = null;
+    }
+
+    // Create new CalendarWidget
+    if (typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+        editReminderCalendarWidget = new BudgetShared.CalendarWidget({
+            inputElement: dateInput,
+            mode: 'single',
+            minDate: new Date(),
+            onSelect: (date) => {
+                updateEditReminderDatetime();
+            }
+        });
+    }
+
+    // Add event listeners to update combined datetime
+    const hourSelect = document.getElementById('edit-reminder-hour');
+    const minuteSelect = document.getElementById('edit-reminder-minute');
+
+    if (hourSelect) {
+        hourSelect.removeEventListener('change', updateEditReminderDatetime);
+        hourSelect.addEventListener('change', updateEditReminderDatetime);
+    }
+    if (minuteSelect) {
+        minuteSelect.removeEventListener('change', updateEditReminderDatetime);
+        minuteSelect.addEventListener('change', updateEditReminderDatetime);
+    }
+}
+
+/**
+ * Update hidden edit reminder_datetime field from separate fields
+ */
+function updateEditReminderDatetime() {
+    const dateInput = document.getElementById('edit-reminder-date');
+    const hourSelect = document.getElementById('edit-reminder-hour');
+    const minuteSelect = document.getElementById('edit-reminder-minute');
+    const hiddenInput = document.getElementById('edit-reminder-datetime');
+
+    if (!dateInput || !hourSelect || !minuteSelect || !hiddenInput) return;
+
+    const dateValue = dateInput.value;
+    const hourValue = hourSelect.value;
+    const minuteValue = minuteSelect.value;
+
+    if (dateValue && hourValue && minuteValue) {
+        const isoDate = BudgetShared.DateFormatter.formatForAPI(dateValue);
+        if (isoDate) {
+            hiddenInput.value = `${isoDate}T${hourValue}:${minuteValue}`;
+        }
+    } else {
+        hiddenInput.value = '';
+    }
+}
+
+/**
+ * Populate edit reminder fields from ISO datetime
+ * @param {string} isoDatetime - ISO datetime string
+ */
+function populateEditReminderFields(isoDatetime) {
+    if (!isoDatetime) return;
+
+    const date = new Date(isoDatetime);
+    if (isNaN(date.getTime())) return;
+
+    const dateInput = document.getElementById('edit-reminder-date');
+    const hourSelect = document.getElementById('edit-reminder-hour');
+    const minuteSelect = document.getElementById('edit-reminder-minute');
+
+    if (dateInput) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        dateInput.value = `${day}.${month}.${year}`;
+    }
+
+    if (hourSelect) {
+        hourSelect.value = String(date.getHours()).padStart(2, '0');
+    }
+
+    if (minuteSelect) {
+        const minutes = date.getMinutes();
+        const roundedMinutes = Math.round(minutes / 5) * 5;
+        minuteSelect.value = String(roundedMinutes % 60).padStart(2, '0');
+    }
+
+    updateEditReminderDatetime();
+}
+
+/**
+ * Reset edit reminder fields
+ */
+function resetEditReminderFields() {
+    const dateInput = document.getElementById('edit-reminder-date');
+    const hourSelect = document.getElementById('edit-reminder-hour');
+    const minuteSelect = document.getElementById('edit-reminder-minute');
+    const hiddenInput = document.getElementById('edit-reminder-datetime');
+
+    if (dateInput) dateInput.value = '';
+    if (hourSelect) hourSelect.value = '';
+    if (minuteSelect) minuteSelect.value = '';
+    if (hiddenInput) hiddenInput.value = '';
+}
+
+/**
+ * Get status badge text and class
+ * @param {string} status - Reminder status
+ * @returns {{text: string, class: string}}
+ */
+function getReminderStatusBadge(status) {
+    const statusMap = {
+        'pending': { text: 'Ожидает', class: 'badge-info' },
+        'sent': { text: 'Отправлено', class: 'badge-success' },
+        'failed': { text: 'Ошибка', class: 'badge-error' },
+        'cancelled': { text: 'Отменено', class: 'badge-ghost' }
+    };
+    return statusMap[status] || { text: status, class: 'badge-ghost' };
+}
+
+/**
+ * Create reminder for a plan
+ * @param {number} factId - Fact ID
+ * @param {string} reminderDatetime - ISO datetime string
+ * @returns {Promise<boolean>}
+ */
+async function createReminder(factId, reminderDatetime) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ reminder_datetime: reminderDatetime })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Failed to create reminder:', error);
+            return false;
+        }
+
+        console.log('[Reminder] Created reminder for plan:', factId);
+        return true;
+    } catch (error) {
+        console.error('Error creating reminder:', error);
+        return false;
+    }
+}
+
+/**
+ * Update reminder for a plan
+ * @param {number} factId - Fact ID
+ * @param {string} reminderDatetime - ISO datetime string
+ * @returns {Promise<boolean>}
+ */
+async function updateReminder(factId, reminderDatetime) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ reminder_datetime: reminderDatetime })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Failed to update reminder:', error);
+            return false;
+        }
+
+        console.log('[Reminder] Updated reminder for plan:', factId);
+        return true;
+    } catch (error) {
+        console.error('Error updating reminder:', error);
+        return false;
+    }
+}
+
+/**
+ * Delete reminder for a plan
+ * @param {number} factId - Fact ID
+ * @returns {Promise<boolean>}
+ */
+async function deleteReminder(factId) {
+    try {
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (response.status === 404) {
+            return true; // Already deleted
+        }
+
+        if (!response.ok) {
+            console.error('Failed to delete reminder, status:', response.status);
+            return false;
+        }
+
+        console.log('[Reminder] Deleted reminder for plan:', factId);
+        return true;
+    } catch (error) {
+        console.error('Error deleting reminder:', error);
+        return false;
+    }
+}
+
+/**
+ * Update fact from edit modal (handles both online and pending records)
+ * @param {Event} event - Form submit event
+ */
+async function updateFact(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const recordId = formData.get('id');
+    const displayDate = formData.get('fact_date');
+
+    // Validation: Check date format
+    if (!displayDate || !BudgetShared.DateFormatter.isValidDisplayFormat(displayDate)) {
+        showToast('Неверный формат даты. Используйте формат ДД.ММ.ГГГГ', 'error');
+        return;
+    }
+
+    // Build data object
+    const data = {
+        amount: parseFloat(formData.get('amount')),
+        fact_date: BudgetShared.DateFormatter.formatForAPI(displayDate),
+        article_id: parseInt(formData.get('article_id')),
+        description: formData.get('description') || null
+    };
+
+    // Add center fields if selected
+    const financialCenterId = formData.get('financial_center_id');
+    const costCenterId = formData.get('cost_center_id');
+
+    if (financialCenterId) {
+        data.financial_center_id = parseInt(financialCenterId);
+    }
+
+    if (costCenterId) {
+        data.cost_center_id = parseInt(costCenterId);
+    }
+
+    // Handle pending record update
+    if (currentEditingPendingId !== null) {
+        try {
+            // Get reminder settings for plans
+            if (currentEditingRecordType === 'plan') {
+                const enableReminder = formData.get('enable_reminder') === 'on';
+                const reminderDatetime = formData.get('reminder_datetime');
+                if (enableReminder && reminderDatetime) {
+                    data.reminder_datetime = reminderDatetime;
+                }
+            }
+
+            // Update pending record in IndexedDB
+            await window.offlineManager.updatePendingItemData(currentEditingPendingId, data);
+
+            closeEditModal();
+            await loadPendingRecords();
+            showToast('Запись обновлена (ожидает синхронизации)', 'success');
+            return;
+        } catch (error) {
+            console.error('Error updating pending record:', error);
+            showToast('Ошибка обновления записи: ' + error.message, 'error');
+            return;
+        }
+    }
+
+    // Handle online record update
+    const enableReminder = formData.get('enable_reminder') === 'on';
+    const reminderDatetime = formData.get('reminder_datetime');
+
+    try {
+        const response = await fetch(`/api/v1/admin/facts/${recordId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            let errorMsg = 'Ошибка сохранения';
+
+            if (error.detail && typeof error.detail === 'object') {
+                if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
+                    errorMsg = error.detail.errors.map(e => e.message || e.msg || 'Unknown error').join('; ');
+                } else if (typeof error.detail.message === 'string') {
+                    errorMsg = error.detail.message;
+                } else if (typeof error.detail === 'string') {
+                    errorMsg = error.detail;
+                } else if (Array.isArray(error.detail)) {
+                    errorMsg = error.detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join(', ');
+                }
+            } else if (typeof error.detail === 'string') {
+                errorMsg = error.detail;
+            }
+
+            throw new Error(errorMsg);
+        }
+
+        // Handle reminder update for plans
+        if (currentEditingRecordType === 'plan') {
+            const existingReminder = remindersMap.get(parseInt(recordId));
+
+            if (enableReminder && reminderDatetime) {
+                if (existingReminder) {
+                    const updated = await updateReminder(recordId, reminderDatetime);
+                    if (!updated) {
+                        showToast('Предупреждение: не удалось обновить напоминание', 'warning');
+                    }
+                } else {
+                    const created = await createReminder(recordId, reminderDatetime);
+                    if (!created) {
+                        showToast('Предупреждение: не удалось создать напоминание', 'warning');
+                    }
+                }
+            } else if (!enableReminder && existingReminder) {
+                const deleted = await deleteReminder(recordId);
+                if (!deleted) {
+                    showToast('Предупреждение: не удалось удалить напоминание', 'warning');
+                }
+            }
+        }
+
+        closeEditModal();
+
+        // Refresh dashboard data
+        htmx.trigger('#recent-transactions', 'load');
+        htmx.trigger('#quick-stats', 'load');
+        htmx.trigger('#account-balances', 'load');
+
+        showToast('Запись успешно обновлена', 'success');
+    } catch (error) {
+        console.error('Error updating fact:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    }
+}
+window.updateFact = updateFact;
+
+/**
+ * Delete record from edit modal
+ */
+async function deleteFromEditModal() {
+    const recordId = document.getElementById('edit-id').value;
+    if (!recordId) return;
+
+    // Confirm deletion
+    if (!confirm('Вы уверены, что хотите удалить эту запись? Это действие необратимо.')) {
+        return;
+    }
+
+    // Handle pending record deletion
+    if (currentEditingPendingId !== null) {
+        try {
+            await window.offlineManager.removePendingItem(currentEditingPendingId);
+            closeEditModal();
+            await loadPendingRecords();
+            showToast('Запись удалена из очереди', 'success');
+            return;
+        } catch (error) {
+            console.error('Error deleting pending record:', error);
+            showToast('Ошибка удаления: ' + error.message, 'error');
+            return;
+        }
+    }
+
+    // Handle online record deletion
+    try {
+        const response = await fetch(`/api/v1/facts/${recordId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        closeEditModal();
+
+        // Refresh dashboard data
+        htmx.trigger('#recent-transactions', 'load');
+        htmx.trigger('#quick-stats', 'load');
+        htmx.trigger('#account-balances', 'load');
+        await loadPendingRecords();
+
+        showToast('Запись успешно удалена', 'success');
+    } catch (error) {
+        console.error('Error deleting fact:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    }
+}
+window.deleteFromEditModal = deleteFromEditModal;
+
+// ==================== End Edit Modal Functions ====================
 
 // Открыть модальное окно добавления факта с инициализацией даты
 function openAddTransactionModal() {
@@ -1585,6 +2432,7 @@ async function loadPendingRecords() {
                 // Desktop table row
                 tableRows.push(`
                     <tr>
+                        <td class="text-center opacity-30" title="Переводы нельзя редактировать">—</td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
@@ -1620,6 +2468,7 @@ async function loadPendingRecords() {
                 // Desktop table row
                 tableRows.push(`
                     <tr>
+                        <td class="text-center opacity-30" title="Переводы нельзя редактировать">—</td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
@@ -1679,9 +2528,21 @@ async function loadPendingRecords() {
                 // Format amount with +/- sign based on type
                 const formattedAmount = formatAmount(item.data.amount, factType);
 
+                // Edit button for pending records
+                const editButton = `
+                    <button class="btn btn-xs btn-ghost btn-square"
+                            onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')"
+                            title="Редактировать">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                        </svg>
+                    </button>
+                `;
+
                 // Desktop table row
                 tableRows.push(`
                     <tr>
+                        <td class="text-center">${editButton}</td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
@@ -1696,7 +2557,8 @@ async function loadPendingRecords() {
                 // Mobile list item
                 const line2Parts = [shortDate, cfoName, description].filter(p => p && p !== '—');
                 mobileItems.push(`
-                    <div class="py-2">
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="openEditPendingRecord(${item.id}, '${item.entity}')">
                         <div class="flex items-center gap-2">
                             ${typeLabelXs}
                             <span class="flex-1 font-medium truncate">${categoryName}</span>

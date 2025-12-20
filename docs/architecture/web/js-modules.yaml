@@ -153,7 +153,7 @@ modules:
   # ---------------------------------------------------------------------------
   offlineManager:
     path: "frontend/web/static/js/offline/offlineManager.js"
-    loc: 1473
+    loc: 1500
     description: "Main offline mode manager"
     endpoints:
       - "/api/v1/users/me"
@@ -163,6 +163,12 @@ modules:
       - idb
       - networkDetector
       - conflictResolver
+    public_methods:
+      getAllUnsyncedItems: "Get all pending + failed items for display"
+      updatePendingItemData: "Update data of a pending item in sync queue"
+      removePendingItem: "Remove a pending item from sync queue"
+      syncQueue: "Sync all pending items"
+      clearAll: "Clear all offline data (dangerous)"
     functionality:
       $ref: "../functionality/offline.yaml#/module"
 
