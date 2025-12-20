@@ -316,7 +316,13 @@ class OfflineManager {
             return window.currentUser.id;
         }
 
-        // Option 2: Fetch from /api/v1/users/me
+        // Option 2: Skip API call if offline
+        if (!navigator.onLine) {
+            _offlineLog('[OfflineManager] Offline mode - skipping user fetch, using fallback');
+            return 0;  // Backend will set correct user_id from JWT when syncing
+        }
+
+        // Option 3: Fetch from /api/v1/users/me
         try {
             const response = await fetch('/api/v1/users/me', {
                 credentials: 'include'
@@ -330,7 +336,7 @@ class OfflineManager {
                 return user.id;
             }
         } catch (error) {
-            console.error('[OfflineManager] Failed to get user ID:', error);
+            _offlineLog('[OfflineManager] Failed to get user ID:', error.message);
         }
 
         // Fallback: return 0 (backend will set correct user_id from JWT)
