@@ -590,6 +590,48 @@ async function loadEditCostCenters(selectedId = null) {
 }
 
 /**
+ * Populate dropdowns with data from pending record when offline
+ * @param {Object} data - Pending record data with names and IDs
+ */
+function populateOfflineDropdowns(data) {
+    // Populate financial center dropdown
+    const fcSelect = document.getElementById('edit-financial-center');
+    if (fcSelect && data.financial_center_id) {
+        // Clear and add single option
+        fcSelect.innerHTML = '<option value="">-- Не выбрано --</option>';
+        const fcOption = document.createElement('option');
+        fcOption.value = data.financial_center_id;
+        fcOption.textContent = data.financial_center_name || `ID: ${data.financial_center_id}`;
+        fcOption.selected = true;
+        fcSelect.appendChild(fcOption);
+    }
+
+    // Populate cost center dropdown
+    const ccSelect = document.getElementById('edit-cost-center');
+    if (ccSelect && data.cost_center_id) {
+        // Clear and add single option
+        ccSelect.innerHTML = '<option value="">-- Не выбрано --</option>';
+        const ccOption = document.createElement('option');
+        ccOption.value = data.cost_center_id;
+        ccOption.textContent = data.cost_center_name || `ID: ${data.cost_center_id}`;
+        ccOption.selected = true;
+        ccSelect.appendChild(ccOption);
+    }
+
+    // Add article to allCategories cache if not present
+    if (data.article_id && data.article_name) {
+        const exists = allCategories.find(a => a.id === data.article_id);
+        if (!exists) {
+            allCategories.push({
+                id: data.article_id,
+                name: data.article_name,
+                type: data.fact_type || 'expense'
+            });
+        }
+    }
+}
+
+/**
  * Open edit modal for online record from dashboard
  * @param {number} factId - The fact ID to edit
  */
@@ -772,12 +814,21 @@ async function openEditPendingRecord(itemId, entity) {
         // Get data for loading selects
         const data = item.data || {};
 
-        // Load categories and dropdowns in parallel
-        await Promise.all([
+        // Try to load from API, but gracefully handle offline mode
+        // Use Promise.allSettled to continue even if some requests fail
+        const results = await Promise.allSettled([
             loadCategoriesForEdit(),
             loadEditFinancialCenters(data.financial_center_id),
             loadEditCostCenters(data.cost_center_id)
         ]);
+
+        // Check if we're offline (all requests failed)
+        const allFailed = results.every(r => r.status === 'rejected');
+        if (allFailed) {
+            console.log('[openEditPendingRecord] Offline mode - using cached data from pending record');
+            // Populate dropdowns with single option from pending record data
+            populateOfflineDropdowns(data);
+        }
 
         // Fill basic fields from pending data
         document.getElementById('edit-id').value = item.id; // Use IndexedDB ID
@@ -785,8 +836,12 @@ async function openEditPendingRecord(itemId, entity) {
         document.getElementById('edit-date').value = data.fact_date ? BudgetShared.DateFormatter.formatForDisplay(data.fact_date) : '';
         document.getElementById('edit-description').value = data.description || '';
 
-        // Determine category type from allCategories
-        const selectedArticle = allCategories.find(a => a.id === data.article_id);
+        // Determine category type from allCategories or from pending data
+        let selectedArticle = allCategories.find(a => a.id === data.article_id);
+        // If offline and no cached categories, use fact_type from data
+        if (!selectedArticle && data.fact_type) {
+            selectedArticle = { type: data.fact_type };
+        }
         const categoryType = selectedArticle ? selectedArticle.type : 'expense';
 
         // Set category type radio buttons
@@ -1205,17 +1260,44 @@ async function updateFact(event) {
     // Handle pending record update
     if (currentEditingPendingId !== null) {
         try {
+            // Get original pending item to preserve display names and other fields
+            const { items } = await window.offlineManager.getAllUnsyncedItems();
+            const originalItem = items.find(i => i.id === currentEditingPendingId);
+            const originalData = originalItem?.data || {};
+
+            // Get display names from form selects
+            const fcSelect = document.getElementById('edit-financial-center');
+            const ccSelect = document.getElementById('edit-cost-center');
+            const financialCenterName = fcSelect?.selectedOptions[0]?.text || originalData.financial_center_name;
+            const costCenterName = ccSelect?.selectedOptions[0]?.text || originalData.cost_center_name;
+
+            // Get article name from category tree
+            let articleName = originalData.article_name;
+            if (editCategoryTreeSelect?.getSelectedCategory) {
+                const selected = editCategoryTreeSelect.getSelectedCategory();
+                if (selected) articleName = selected.name;
+            }
+
+            // Merge new data with original, preserving display names and type info
+            const mergedData = {
+                ...originalData,
+                ...data,
+                article_name: articleName,
+                financial_center_name: financialCenterName,
+                cost_center_name: costCenterName
+            };
+
             // Get reminder settings for plans
             if (currentEditingRecordType === 'plan') {
                 const enableReminder = formData.get('enable_reminder') === 'on';
                 const reminderDatetime = formData.get('reminder_datetime');
                 if (enableReminder && reminderDatetime) {
-                    data.reminder_datetime = reminderDatetime;
+                    mergedData.reminder_datetime = reminderDatetime;
                 }
             }
 
-            // Update pending record in IndexedDB
-            await window.offlineManager.updatePendingItemData(currentEditingPendingId, data);
+            // Update pending record in IndexedDB with merged data
+            await window.offlineManager.updatePendingItemData(currentEditingPendingId, mergedData);
 
             closeEditModal();
             await loadPendingRecords();
