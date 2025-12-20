@@ -531,6 +531,7 @@ async def get_recent_facts_html(
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
+                        <th class="w-8"></th>
                         <th>Тип</th>
                         <th>Дата</th>
                         <th>Счёт</th>
@@ -595,9 +596,19 @@ async def get_recent_facts_html(
             offline_icon = "☁️" if fact.is_offline_sync else ""
             offline_title = "Создано offline" if fact.is_offline_sync else ""
 
-            # Desktop table row
+            # Desktop table row with edit button
+            edit_button = f'''
+                <button class="btn btn-xs btn-ghost btn-square"
+                        onclick="openEditFromDashboard({fact.id})"
+                        title="Редактировать">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </button>
+            '''
             table_html += f"""
                     <tr>
+                        <td class="text-center">{edit_button}</td>
                         <td>{record_type_badge_sm}</td>
                         <td class="whitespace-nowrap">{fact_date_full}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
@@ -621,7 +632,8 @@ async def get_recent_facts_html(
             offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
 
             mobile_html += f"""
-            <div class="py-2">
+            <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                 onclick="openEditFromDashboard({fact.id})">
                 <div class="flex items-center gap-2">
                     {record_type_badge}
                     <span class="flex-1 font-medium truncate">{article.name}</span>
