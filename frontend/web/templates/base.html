@@ -280,7 +280,7 @@
             <div id="push-bell-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center">
                 <button id="push-bell-btn"
                         class="btn btn-ghost btn-circle btn-sm sm:btn-md hidden"
-                        onclick="window.pushManager && window.pushManager.toggleSubscription()"
+                        onclick="window.budgetPushManager && window.budgetPushManager.toggleSubscription()"
                         aria-label="Управление push-уведомлениями">
                     <svg id="push-bell-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
@@ -989,7 +989,7 @@
     <script>
         // Initialize offline manager
         window.offlineManager = new OfflineManager();
-        // pushManager singleton уже создан в pushManager.js
+        // budgetPushManager singleton уже создан в pushManager.js
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async () => {
@@ -1009,7 +1009,7 @@
                 initLog('offline_mgr_done');
 
                 initLog('push_mgr_start');
-                await window.pushManager.init();
+                await window.budgetPushManager.init();
                 initLog('push_mgr_done');
 
                 // Initialize Budget WebSocket for real-time updates
@@ -1383,7 +1383,7 @@
             const laterBtn = document.getElementById('push-permission-later');
             const closeBtn = document.getElementById('push-permission-close');
 
-            if (!banner || !window.pushManager) return;
+            if (!banner || !window.budgetPushManager) return;
 
             // Check if we should show the banner
             const BANNER_DISMISSED_KEY = 'push-banner-dismissed';
@@ -1395,8 +1395,8 @@
                     debugLog('[Push Banner] Not supported');
                     return false;
                 }
-                // Don't show if pushManager reports not supported (e.g., invalid VAPID key)
-                if (window.pushManager && !window.pushManager.isSupported) {
+                // Don't show if budgetPushManager reports not supported (e.g., invalid VAPID key)
+                if (window.budgetPushManager && !window.budgetPushManager.isSupported) {
                     debugLog('[Push Banner] PushManager reports not supported');
                     return false;
                 }
@@ -1441,7 +1441,7 @@
                     debugLog('[Push Banner] Enable clicked');
                     hideBanner();
                     try {
-                        const granted = await window.pushManager.requestPermission();
+                        const granted = await window.budgetPushManager.requestPermission();
                         if (granted) {
                             showToast('Уведомления включены', 'success');
                         } else {

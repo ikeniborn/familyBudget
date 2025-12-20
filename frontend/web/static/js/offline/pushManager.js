@@ -430,9 +430,10 @@ class PushNotificationManager {
 if (typeof window !== 'undefined') {
     window.PushNotificationManager = PushNotificationManager;
     // Create singleton instance
-    window.pushManager = new PushNotificationManager();
+    // NOTE: Cannot use 'pushManager' - conflicts with Safari iOS native PushManager API
+    window.budgetPushManager = new PushNotificationManager();
 
     // Auto-init REMOVED - initialization is handled by base.html
-    // This ensures pushManager only initializes for authenticated users
+    // This ensures budgetPushManager only initializes for authenticated users
     // (when loaded inside {% if user %} block)
 }
