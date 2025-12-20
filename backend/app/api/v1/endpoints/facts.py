@@ -182,6 +182,45 @@ async def create_fact(
     # Shared Family Budget: All users can use all articles (no ownership check)
     # Articles are shared references accessible to all authenticated users
 
+    # Validate: Financial center must exist and be active (required field)
+    fc_stmt = select(FinancialCenter).where(
+        FinancialCenter.id == fact_data.financial_center_id
+    )
+    fc_result = await session.execute(fc_stmt)
+    financial_center = fc_result.scalar_one_or_none()
+
+    if not financial_center:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Счёт с id={fact_data.financial_center_id} не найден"
+        )
+
+    if not financial_center.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Счёт '{financial_center.name}' архивирован. Выберите активный счёт."
+        )
+
+    # Validate: Cost center exists and is active if provided (optional field)
+    if fact_data.cost_center_id:
+        cc_stmt = select(CostCenter).where(
+            CostCenter.id == fact_data.cost_center_id
+        )
+        cc_result = await session.execute(cc_stmt)
+        cost_center = cc_result.scalar_one_or_none()
+
+        if not cost_center:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Место затрат с id={fact_data.cost_center_id} не найдено"
+            )
+
+        if not cost_center.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Место затрат '{cost_center.name}' архивировано"
+            )
+
     # Create new fact
     # Convert amount to absolute value (always store positive)
     fact_dict = fact_data.model_dump()

@@ -51,7 +51,7 @@ routes:
         article_id: "integer (required)"
         amount: "decimal (required, > 0)"
         fact_date: "YYYY-MM-DD (required)"
-        financial_center_id: "integer (optional)"
+        financial_center_id: "integer (required)"
         cost_center_id: "integer (optional)"
         description: "string (optional)"
         record_type: "fact | plan (default: fact)"
@@ -61,6 +61,21 @@ routes:
       body:
         id: "integer"
         # ... all fields
+    errors:
+      - status: 404
+        detail: "Article not found"
+      - status: 422
+        detail: "Счёт с id=X не найден"
+        description: "Financial center does not exist"
+      - status: 422
+        detail: "Счёт 'Name' архивирован. Выберите активный счёт."
+        description: "Financial center is archived"
+      - status: 422
+        detail: "Место затрат с id=X не найдено"
+        description: "Cost center does not exist (if provided)"
+      - status: 422
+        detail: "Место затрат 'Name' архивировано"
+        description: "Cost center is archived (if provided)"
     service:
       $ref: "../functionality/budget-management.yaml#/module"
     side_effects:

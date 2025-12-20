@@ -273,6 +273,7 @@ When adding new components:
 | Missing jitter in WebSocket reconnect | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | Long polling no exponential backoff | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | iOS badge flickers yellow/green every 3s | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
+| 409 Conflict при создании факта (FK violation) | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/facts.py` |
 
 ### Issue Details
 
@@ -310,6 +311,15 @@ When adding new components:
   2. Added status indicator debouncing (500ms) to prevent visual flickering
   3. Increased client ping frequency on iOS (8s vs 15s default) to keep connections alive
 - **Result**: Stable green badge on iOS (Safari, Chrome, Firefox, Yandex, PWA)
+
+**6. 409 Conflict при создании факта (HIGH)**
+- **Problem**: При FK violation возвращался 409 без информации о причине ошибки
+- **Root cause**: IntegrityError ловился middleware и конвертировался в 409 с общим сообщением "Database constraint violation"
+- **Fix**: Добавлена явная проверка FK (financial_center_id, cost_center_id) ДО INSERT с понятными ошибками 422
+- **Validation added**:
+  - `financial_center_id`: обязательное поле, проверка exists + is_active
+  - `cost_center_id`: опциональное поле, если указано - проверка exists + is_active
+- **Result**: Понятные 422 ошибки вида "Счёт 'Name' архивирован. Выберите активный счёт."
 
 ### Known Limitations (Deferred)
 
