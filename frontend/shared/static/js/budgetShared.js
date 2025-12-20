@@ -1756,6 +1756,20 @@ class ChoicesCategoryTree {
             return;
         }
 
+        // Check if we're offline - skip API call and use cache or empty
+        if (!navigator.onLine) {
+            debugLog('[ChoicesCategoryTree] Offline mode - skipping API call, using cache');
+            // Try to find any cached data for this type (without FC filter)
+            const fallbackKey = `${this.options.type}:${this.options.showInactive}:all`;
+            const fallback = ChoicesCategoryTree._cache.get(fallbackKey);
+            if (fallback) {
+                this.categories = fallback.data;
+                return;
+            }
+            this.categories = [];
+            return;
+        }
+
         // Create new request with optional financial_center_id filter
         let url = `${this.options.apiBaseUrl}/articles?type=${this.options.type}&sort_by=usage_count&limit=1000&include_inactive=${this.options.showInactive}`;
         if (this.options.financialCenterId) {

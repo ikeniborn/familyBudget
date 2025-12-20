@@ -312,6 +312,31 @@ modules:
       - "Hint loading"
 
   # ---------------------------------------------------------------------------
+  # UNIFIED SAVE (inline in index.html)
+  # ---------------------------------------------------------------------------
+  unifiedSave:
+    path: "frontend/web/templates/index.html (inline script)"
+    loc: ~50
+    description: "Unified save function for modals with online/offline support"
+    functions:
+      unifiedSave: |
+        Main dispatcher for form saves. Chooses between:
+        - Online: form.requestSubmit() triggers form's submit handler
+        - Offline: calls saveTransactionOffline/savePlanOffline/saveTransferOffline
+        Re-enables button after failed validation to allow retry.
+      saveTransaction: "Wrapper for transaction modal, disables button then calls unifiedSave"
+      savePlan: "Wrapper for plan modal, disables button then calls unifiedSave"
+      saveTransfer: "Wrapper for transfer modal, disables button then calls unifiedSave"
+    button_state:
+      on_click: "Button disabled + loading class added"
+      on_validation_fail: "Button re-enabled, loading class removed"
+      on_submit_success: "Button reset by form handler's finally block"
+    offline_handlers:
+      saveTransactionOffline: "Saves transaction to IndexedDB queue"
+      savePlanOffline: "Saves plan to IndexedDB queue"
+      saveTransferOffline: "Saves transfer to IndexedDB queue"
+
+  # ---------------------------------------------------------------------------
   # ADMIN
   # ---------------------------------------------------------------------------
   adminFactsCommon:

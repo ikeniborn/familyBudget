@@ -639,21 +639,27 @@
         });
 
         // Toast notification system (responsive, always on top including modals)
+        // When a dialog is open, toast is placed INSIDE the modal-box to appear above it
+        // (HTML5 <dialog> creates a "top layer" that ignores z-index)
         function showToast(message, type = 'info', duration = 2000) {
-            // Check if a modal dialog is open (dialog[open] in top layer)
-            const openModal = document.querySelector('dialog[open]');
             let container;
 
-            if (openModal) {
-                // Modal is open - create/get toast container inside modal
-                container = openModal.querySelector('.modal-toast-container');
+            // Check if there's an open dialog (modal)
+            const openDialog = document.querySelector('dialog[open]');
+            if (openDialog) {
+                // Create or find toast-container inside the modal-box
+                container = openDialog.querySelector('.dialog-toast-container');
                 if (!container) {
                     container = document.createElement('div');
-                    container.className = 'modal-toast-container fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
-                    openModal.appendChild(container);
+                    container.className = 'dialog-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none';
+                    const modalBox = openDialog.querySelector('.modal-box');
+                    if (modalBox) {
+                        modalBox.insertBefore(container, modalBox.firstChild);
+                    } else {
+                        openDialog.prepend(container);
+                    }
                 }
             } else {
-                // No modal open - use main toast container
                 container = document.getElementById('toast-container');
             }
 
@@ -691,30 +697,31 @@
                     if (toast.parentNode === container) {
                         container.removeChild(toast);
                     }
-                    // Clean up empty modal container
-                    if (container.classList.contains('modal-toast-container') && container.children.length === 0) {
-                        container.remove();
-                    }
                 }, 300);
             }, duration);
         }
 
         // Toast with action button (for offline mode prompts)
+        // When a dialog is open, toast is placed INSIDE the modal-box to appear above it
         function showToastWithAction({ message, type = 'info', duration = 5000, action }) {
-            // Use main toast container (or modal container if dialog is open)
-            const openModal = document.querySelector('dialog[open]');
             let container;
 
-            if (openModal) {
-                // Modal is open - create/get toast container inside modal
-                container = openModal.querySelector('.modal-toast-container');
+            // Check if there's an open dialog (modal)
+            const openDialog = document.querySelector('dialog[open]');
+            if (openDialog) {
+                // Create or find toast-container inside the modal-box
+                container = openDialog.querySelector('.dialog-toast-container');
                 if (!container) {
                     container = document.createElement('div');
-                    container.className = 'modal-toast-container fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
-                    openModal.appendChild(container);
+                    container.className = 'dialog-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none';
+                    const modalBox = openDialog.querySelector('.modal-box');
+                    if (modalBox) {
+                        modalBox.insertBefore(container, modalBox.firstChild);
+                    } else {
+                        openDialog.prepend(container);
+                    }
                 }
             } else {
-                // No modal open - use main toast container
                 container = document.getElementById('toast-container');
             }
 
@@ -787,10 +794,6 @@
                 setTimeout(() => {
                     if (toast.parentNode === container) {
                         container.removeChild(toast);
-                    }
-                    // Clean up empty modal container
-                    if (container.classList.contains('modal-toast-container') && container.children.length === 0) {
-                        container.remove();
                     }
                 }, 300);
             }, duration);

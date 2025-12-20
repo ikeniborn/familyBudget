@@ -81,12 +81,21 @@ class TransferCreate(BaseModel):
     def validate_date_for_record_type(self):
         """Validate transfer date based on record_type.
 
-        - fact: date cannot be in the future
+        - fact: date cannot be in the future (with +1 day timezone tolerance)
         - plan: date can be any date (including future)
+
+        Uses SYSTEM_TIMEZONE from config for consistent validation.
+        Allows +1 day tolerance for timezone differences (same as FactCreate).
         """
-        from datetime import date as dt_date
-        if self.record_type == "fact" and self.transfer_date > dt_date.today():
-            raise ValueError("Transfer date cannot be in the future for record_type='fact'")
+        from datetime import timedelta
+        from backend.app.utils.timezone import now_local
+
+        if self.record_type == "fact":
+            today = now_local().date()  # Uses SYSTEM_TIMEZONE from config
+            # Allow +1 day tolerance for timezone differences
+            # (user in UTC+14 can be up to 14 hours ahead of UTC server time)
+            if self.transfer_date > today + timedelta(days=1):
+                raise ValueError("Transfer date cannot be in the future for record_type='fact'")
         return self
 
 

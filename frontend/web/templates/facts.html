@@ -1676,7 +1676,9 @@ async function updateFact(event) {
     const formattedDate = BudgetShared.DateFormatter.formatForAPI(factDateInput);
 
     // VALIDATION: Факты не могут иметь дату в будущем (plans могут)
-    const selectedDate = new Date(formattedDate);
+    // Парсим дату как локальную (избегаем UTC интерпретации new Date("YYYY-MM-DD"))
+    const [year, month, day] = formattedDate.split('-').map(Number);
+    const selectedDate = new Date(year, month - 1, day); // month is 0-indexed
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Сбросить время для сравнения только даты
 
@@ -1957,7 +1959,9 @@ async function createFact(event) {
     // VALIDATION: Факты не могут иметь дату в будущем
     const factDateInput = formData.get('fact_date');
     const formattedDate = BudgetShared.DateFormatter.formatForAPI(factDateInput);
-    const selectedDate = new Date(formattedDate);
+    // Парсим дату как локальную (избегаем UTC интерпретации new Date("YYYY-MM-DD"))
+    const [year, month, day] = formattedDate.split('-').map(Number);
+    const selectedDate = new Date(year, month - 1, day); // month is 0-indexed
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 

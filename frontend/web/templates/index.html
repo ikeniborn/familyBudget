@@ -3260,6 +3260,10 @@ async function unifiedSave(button, type) {
             form.requestSubmit();  // Triggers form submit with validation
         } else {
             form?.reportValidity();
+            // Re-enable button after failed validation
+            // so user can fix errors and try again
+            button.disabled = false;
+            button.classList.remove('loading');
         }
     } else {
         // Offline: save locally

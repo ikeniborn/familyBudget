@@ -966,6 +966,10 @@ class ListsManager {
             this.choicesInstances.store.destroy();
         }
 
+        // Clear select completely - Choices.js will populate via choices[] parameter
+        // This prevents duplicates when destroy() restores original HTML with static <option>
+        select.innerHTML = '';
+
         // Build choices array
         const choices = this.buildStoreChoices();
 
@@ -1038,6 +1042,10 @@ class ListsManager {
         if (this.choicesInstances.productGroup) {
             this.choicesInstances.productGroup.destroy();
         }
+
+        // Clear select completely - Choices.js will populate via choices[] parameter
+        // This prevents duplicates when destroy() restores original HTML with static <option>
+        select.innerHTML = '';
 
         // Build choices array with HTML labels for proper rendering
         const choices = this.buildProductGroupChoices();
