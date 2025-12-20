@@ -1115,6 +1115,10 @@ class BudgetWSClient {
             this.channel = null;
         }
         this.isLeader = false;
+        // CRITICAL: Reset multi-tab init flag to allow re-initialization on reconnect
+        // Without this, Safari iOS mode breaks: _initMultiTab() sets isLeader=true,
+        // but disconnect() sets isLeader=false, and _initMultiTab() won't be called again
+        this._multiTabInitialized = false;
 
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
@@ -1158,6 +1162,7 @@ class BudgetWSClient {
             this.channel = null;
         }
         this.isLeader = false;
+        this._multiTabInitialized = false;
 
         // Notify server via sendBeacon
         if (this.connectionId) {
