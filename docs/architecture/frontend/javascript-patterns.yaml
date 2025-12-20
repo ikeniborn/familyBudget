@@ -169,8 +169,8 @@ patterns:
       files:
         - "frontend/web/templates/base.html:setSubmitLoading()"
         - "frontend/web/templates/index.html:saveTransaction/savePlan/saveTransfer()"
-        - "frontend/web/templates/facts.html:saveTransaction()"
-        - "frontend/web/templates/plan.html:savePlan()"
+        - "frontend/web/templates/facts.html:saveTransaction/saveTransfer()"
+        - "frontend/web/templates/plan.html:savePlan/saveTransfer()"
       related_commits:
         - commit: "c667ff75"
           description: "Double-click prevention for modal save buttons"
