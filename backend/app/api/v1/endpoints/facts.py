@@ -515,6 +515,13 @@ async def get_recent_facts_html(
 
         # No filter by record_type - show both facts and plans
 
+        # OPTIMIZATION: Filter by fact_date to enable partition pruning
+        # Without this filter, PostgreSQL locks ALL 96 partitions (2023-01 to 2030-12)
+        # causing "out of shared memory" errors during concurrent requests.
+        # Filtering to last 90 days reduces locks from 96 to ~3 partitions.
+        cutoff_date = date.today() - timedelta(days=90)
+        statement = statement.where(BudgetFact.fact_date >= cutoff_date)
+
         # Order by most recent (by creation time in DB, not transaction date)
         # This shows newest added transactions first, regardless of their fact_date
         statement = statement.order_by(BudgetFact.created_at.desc())
