@@ -166,6 +166,65 @@ async def batch_delete_items(
     return count
 
 
+async def restore_item(
+    session: AsyncSession,
+    item_id: int,
+    user_id: Optional[int] = None,
+) -> Optional[ShoppingListItem]:
+    """
+    Restore a soft-deleted shopping list item.
+
+    Sets deleted_at=None, increments version for optimistic locking.
+    Idempotent: returns the item unchanged if already active.
+
+    Args:
+        session: AsyncSession for database operations
+        item_id: ShoppingListItem ID to restore
+        user_id: Optional user ID for audit (last_modified_by)
+
+    Returns:
+        Restored ShoppingListItem or None if not found
+
+    Example:
+        >>> # Restore item 123
+        >>> item = await restore_item(session=session, item_id=123, user_id=456)
+        >>> if item:
+        ...     print(f"Restored: {item.product_name}")
+
+    Notes:
+        - SHARED model: Any user can restore any item
+        - Idempotent: If item is already active, returns it unchanged
+        - Increments version for optimistic locking
+        - Sets sync_status to "synced"
+    """
+    statement = select(ShoppingListItem).where(ShoppingListItem.id == item_id)
+    result = await session.execute(statement)
+    item = result.scalar_one_or_none()
+
+    if not item:
+        return None
+
+    # Idempotent: if already active, return as-is
+    if item.deleted_at is None:
+        return item
+
+    # Restore: clear deleted_at
+    now = datetime.utcnow()
+    item.deleted_at = None
+    item.version += 1
+    item.updated_at = now
+    item.sync_status = "synced"
+
+    if user_id:
+        item.last_modified_by = user_id
+
+    session.add(item)
+    await session.commit()
+    await session.refresh(item)
+
+    return item
+
+
 async def mark_items_pending(
     session: AsyncSession,
     item_ids: List[int],

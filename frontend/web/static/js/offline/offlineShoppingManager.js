@@ -243,10 +243,19 @@ class OfflineShoppingManager {
                     debugLog('[OfflineShoppingManager] Updated item online:', result);
                     return result;
                 } else {
-                    throw new Error('Failed to update item online');
+                    // HTTP error (4xx, 5xx) - server error, NOT network error
+                    console.error(`[OfflineShoppingManager] Server error: ${response.status}`);
+                    this._showServerErrorToast(`Ошибка сервера (${response.status}). Попробуйте ещё раз.`);
+                    throw new Error(`Server error: ${response.status}`);
                 }
             } catch (error) {
-                console.error('[OfflineShoppingManager] Error updating item online, saving offline:', error);
+                // Distinguish server errors from network errors
+                if (error.message && error.message.startsWith('Server error:')) {
+                    // Server returned an error - re-throw, don't save offline
+                    throw error;
+                }
+                // Network error (fetch failed) - save offline
+                console.error('[OfflineShoppingManager] Network error, saving offline:', error);
                 return await this._updateItemOffline(itemId, itemData);
             }
         } else {
@@ -982,6 +991,17 @@ class OfflineShoppingManager {
 
         if (typeof showToast === 'function') {
             showToast(message, 'warning', 5000);
+        }
+    }
+
+    /**
+     * Show server error toast (for HTTP 4xx/5xx errors)
+     * @param {string} message - Error message
+     * @private
+     */
+    _showServerErrorToast(message) {
+        if (typeof showToast === 'function') {
+            showToast(message, 'error', 5000);
         }
     }
 }

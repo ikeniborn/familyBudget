@@ -234,19 +234,36 @@ module:
         - leader_changed: "Смена лидера"
         - status_request: "Запрос статуса от follower"
 
-    safari_ios_handling:
+    ios_device_handling:
       description: |
-        Safari iOS использует per-tab connection (без Web Locks).
-        WebSocket работает значительно лучше чем SSE на Safari iOS.
-      detection: "_detectSafariIOS()"
+        Все iOS браузеры используют per-tab connection (без Web Locks).
+        Все iOS браузеры основаны на WebKit (требование Apple App Store).
+        Web Locks API ненадёжен на всех iOS браузерах - пропускаем multi-tab.
+      affected_browsers:
+        - "Safari iOS"
+        - "Chrome iOS (CriOS)"
+        - "Firefox iOS (FxiOS)"
+        - "Yandex iOS (YaBrowser)"
+        - "Edge iOS (EdgiOS)"
+        - "PWA на iOS"
+      detection: "_detectIOSDevice()"
       strategy: |
         1. Пропуск Web Locks - каждая вкладка создаёт своё WebSocket соединение
         2. Long Polling fallback если WebSocket не работает
         3. Прямое подключение без leader election
+        4. Более частый client ping (8 сек вместо 15) для поддержания соединения
+        5. Debouncing status indicator (500ms) для предотвращения мерцания
       improvements_over_sse:
         - "Нет буферизации (SSE буферизировал до 2KB)"
         - "Нет проблем с EventSource API"
         - "Bidirectional communication для проверки соединения"
+      known_issue_fixed:
+        date: "2025-12-20"
+        issue: "Badge мерцает жёлтым и зелёным каждые 3 секунды на iOS"
+        fix: |
+          1. Определять ВСЕ iOS браузеры (не только Safari/Yandex)
+          2. Добавить debouncing для status indicator
+          3. Более частый ping для iOS (8 сек вместо 15)
 
     connection_staleness:
       ping_interval: "10 секунд (сервер)"

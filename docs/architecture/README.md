@@ -272,6 +272,8 @@ When adding new components:
 | Race condition in `update_activity()` | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/budget_ws.py` |
 | Missing jitter in WebSocket reconnect | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | Long polling no exponential backoff | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
+| iOS badge flickers yellow/green every 3s | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
+| 409 Conflict при создании факта (FK violation) | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/facts.py` |
 
 ### Issue Details
 
@@ -298,6 +300,26 @@ When adding new components:
 - **Root cause**: No exponential backoff implementation
 - **Fix**: Added exponential backoff with jitter (1s → 30s max, 10 retries)
 - **Result**: Reduced server load on persistent failures
+
+**5. iOS badge flickers yellow/green every 3s (MEDIUM)**
+- **Problem**: WebSocket status badge rapidly cycles between yellow (reconnecting) and green (connected) on iOS devices
+- **Root cause**: Two issues combined:
+  1. `_detectSafariIOS()` only detected Safari and Yandex, missing Chrome iOS (CriOS), Firefox iOS (FxiOS), Edge iOS (EdgiOS)
+  2. Rapid WebSocket disconnect/reconnect cycles on iOS caused visible badge flickering
+- **Fix**: Three changes in `budgetWSClient.js`:
+  1. Renamed `_detectSafariIOS()` to `_detectIOSDevice()` - detects ALL iOS browsers (all use WebKit)
+  2. Added status indicator debouncing (500ms) to prevent visual flickering
+  3. Increased client ping frequency on iOS (8s vs 15s default) to keep connections alive
+- **Result**: Stable green badge on iOS (Safari, Chrome, Firefox, Yandex, PWA)
+
+**6. 409 Conflict при создании факта (HIGH)**
+- **Problem**: При FK violation возвращался 409 без информации о причине ошибки
+- **Root cause**: IntegrityError ловился middleware и конвертировался в 409 с общим сообщением "Database constraint violation"
+- **Fix**: Добавлена явная проверка FK (financial_center_id, cost_center_id) ДО INSERT с понятными ошибками 422
+- **Validation added**:
+  - `financial_center_id`: обязательное поле, проверка exists + is_active
+  - `cost_center_id`: опциональное поле, если указано - проверка exists + is_active
+- **Result**: Понятные 422 ошибки вида "Счёт 'Name' архивирован. Выберите активный счёт."
 
 ### Known Limitations (Deferred)
 

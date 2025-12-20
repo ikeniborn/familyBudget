@@ -127,6 +127,55 @@ patterns:
         - "frontend/web/static/css/choices-tailwind.css"
 
   # ---------------------------------------------------------------------------
+  # DOUBLE-CLICK PREVENTION
+  # ---------------------------------------------------------------------------
+  double_click_prevention:
+    submit_buttons:
+      name: "Защита от двойного клика на submit кнопках"
+      pattern: button_disable_on_click
+      when_to_use:
+        - "Все кнопки сохранения в модальных окнах"
+        - "Любые кнопки отправляющие данные на сервер"
+        - "Кнопки с type='button' использующие onclick"
+      implementation:
+        example: |
+          // В wrapper функции (onclick handler)
+          function saveHandler(button) {
+              if (button.disabled) return; // Уже обрабатывается
+              button.disabled = true;
+              button.classList.add('loading');
+
+              const form = document.getElementById(button.dataset.formId);
+              if (form && form.checkValidity()) {
+                  form.requestSubmit();
+              } else {
+                  // Разблокировать если валидация не прошла
+                  button.disabled = false;
+                  button.classList.remove('loading');
+                  form?.reportValidity();
+              }
+          }
+
+          // Разблокировка в submit handler (finally блок)
+          form.addEventListener('submit', async (e) => {
+              e.preventDefault();
+              setSubmitLoading(e.target, true);
+              try {
+                  // ... submit logic ...
+              } finally {
+                  setSubmitLoading(e.target, false);
+              }
+          });
+      files:
+        - "frontend/web/templates/base.html:setSubmitLoading()"
+        - "frontend/web/templates/index.html:saveTransaction/savePlan/saveTransfer()"
+        - "frontend/web/templates/facts.html:saveTransaction()"
+        - "frontend/web/templates/plan.html:savePlan()"
+      related_commits:
+        - commit: "c667ff75"
+          description: "Double-click prevention for modal save buttons"
+
+  # ---------------------------------------------------------------------------
   # DEBOUNCING & THROTTLING
   # ---------------------------------------------------------------------------
   performance:
@@ -230,6 +279,14 @@ anti_patterns:
       }
     reason: "Memory leaks, дублирование обработчиков"
     use_instead: "Initialization flags pattern"
+
+  - name: "Submit кнопки без защиты от двойного клика"
+    avoid: |
+      function saveHandler(button) {
+          form.requestSubmit(); // Кнопка остаётся активной!
+      }
+    reason: "Двойной клик создаёт дублирующиеся записи"
+    use_instead: "Double-click prevention pattern (disable button before submit)"
 
 # ---------------------------------------------------------------------------
 # TESTING GUIDELINES

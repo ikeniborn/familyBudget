@@ -797,8 +797,10 @@
         }
 
         // Submit button loading state management (prevents double submit)
+        // Supports both .save-btn (onclick buttons) and type="submit" buttons
         function setSubmitLoading(form, isLoading) {
-            const submitBtn = form.querySelector('button[type="submit"]');
+            const submitBtn = form.querySelector('.save-btn')
+                           || form.querySelector('button[type="submit"]');
             if (!submitBtn) return;
 
             if (isLoading) {

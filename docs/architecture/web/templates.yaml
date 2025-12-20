@@ -66,6 +66,7 @@ templates:
       - modal_transaction
       - modal_plan
       - modal_transfer
+      - modal_edit_plan  # Used for editing both facts and plans from dashboard
     api_calls:
       - endpoint: "/api/v1/analytics/quick-stats-html"
         trigger: "load"
@@ -151,6 +152,49 @@ templates:
         variants_demo: "tmp/labels/expand-indicators.html"
         description: "10 DaisyUI-based design alternatives for expand indicator"
 
+    # Record Editing from Dashboard (added 2025-12-20)
+    record_editing:
+      description: "Editing records (facts/plans) directly from dashboard"
+      entry_points:
+        recent_transactions:
+          desktop: "Click edit icon (✏️) in first column"
+          mobile: "Tap on entire transaction row"
+          function: "openEditFromDashboard(factId)"
+        pending_records:
+          desktop: "Click edit icon (✏️) in first column (not available for transfers)"
+          mobile: "Tap on entire record row (not available for transfers)"
+          function: "openEditPendingRecord(itemId, entity)"
+      modal_behavior:
+        id: "edit-modal"
+        component: "modal_edit_plan"
+        reminder_section:
+          for_facts: "Hidden (id='edit-reminder-container' gets hidden class)"
+          for_plans: "Visible (reminder can be set/updated/deleted)"
+      js_functions:
+        - "setEditModalMode(recordType) - Show/hide reminder section"
+        - "loadCategoriesForEdit() - Load categories (cached)"
+        - "loadRemindersForEdit(factIds) - Load reminders for plans"
+        - "openEditFromDashboard(factId) - Edit online record"
+        - "openEditPendingRecord(itemId, entity) - Edit pending (IndexedDB) record"
+        - "closeEditModal() - Close edit modal"
+        - "updateFact(event) - Save changes (online and pending records)"
+        - "deleteFromEditModal() - Delete record from modal"
+      api_calls:
+        read:
+          - "GET /api/v1/facts/{id} - Load fact data"
+          - "GET /api/v1/reminders/?limit=100 - Load reminders"
+          - "GET /api/v1/articles - Load categories"
+        write:
+          - "PUT /api/v1/admin/facts/{id} - Update fact"
+          - "POST /api/v1/reminders/{id} - Create reminder"
+          - "PUT /api/v1/reminders/{id} - Update reminder"
+          - "DELETE /api/v1/reminders/{id} - Delete reminder"
+          - "DELETE /api/v1/facts/{id} - Delete fact"
+      offline_support:
+        pending_records:
+          update: "offlineManager.updatePendingItemData(itemId, data)"
+          delete: "offlineManager.removePendingItem(itemId)"
+
   facts:
     path: "frontend/web/templates/facts.html"
     extends: base
@@ -208,6 +252,8 @@ templates:
       - $ref: "./js-modules.yaml#/modules/hierarchyView"
       - $ref: "./js-modules.yaml#/modules/csvImporter"
       - $ref: "./js-modules.yaml#/modules/offlineShoppingManager"
+    vendor_libs:
+      - "Choices.js"
     features:
       - "Dual view: table and tree"
       - "Offline support"
@@ -216,6 +262,16 @@ templates:
       - "Product group categorization"
       - "Hide completed items filter"
       - "Conditional delete completed button"
+      - "Choices.js searchable selectors for store and product group"
+    form_selectors:
+      store:
+        element_id: "item-store"
+        type: "Choices.js"
+        features: ["search", "alphabetical sort", "choices-tailwind theme"]
+      product_group:
+        element_id: "item-product-group"
+        type: "Choices.js"
+        features: ["search", "hierarchical display", "leaf-only selection"]
     toolbar_sections:
       table_controls:
         id: "table-controls"
@@ -467,6 +523,11 @@ partials:
 
   recent_transactions:
     path: "frontend/web/templates/partials/recent_transactions.html"
-    description: "Last 10 transactions list"
+    description: "Last 10 transactions list with inline edit capability"
     loaded_by: "index.html"
     endpoint: "/api/v1/facts/recent-html"
+    features:
+      - "Desktop: edit icon (✏️) column opens edit modal"
+      - "Mobile: tap on row opens edit modal"
+      - "Both fact and plan record types supported"
+    onclick_handler: "openEditFromDashboard(factId)"

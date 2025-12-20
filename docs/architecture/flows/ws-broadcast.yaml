@@ -464,6 +464,35 @@ error_handling:
     threshold: "60 seconds without activity"
     action: "Close WebSocket, remove from pool"
 
+  endpoint_broadcast_errors:
+    description: |
+      Broadcast вызовы в API endpoints ОБЯЗАТЕЛЬНО оборачивать в try/except,
+      чтобы ошибки broadcast не приводили к HTTP 500 в API response.
+
+    pattern: |
+      # Правильный паттерн (используется во всех endpoints):
+      try:
+          ws = _get_ws_broadcast()
+          await ws.broadcast_item_updated(item_data=response.model_dump(mode="json"))
+      except Exception as e:
+          logger.warning(f"WebSocket broadcast failed for item {item_id}: {e}")
+          # Don't fail the request if broadcast fails
+
+    affected_files:
+      - "backend/app/api/v1/endpoints/facts.py"
+      - "backend/app/api/v1/endpoints/shopping_list_items.py"
+
+    common_causes:
+      - "JSON serialization failure (Decimal type)"
+      - "Connection closed during broadcast"
+      - "Network timeout"
+
+    json_serialization:
+      problem: "Decimal type not JSON serializable by default"
+      solution: |
+        1. Use model_dump(mode="json") when passing Pydantic models
+        2. json.dumps(event, default=str) in ws_manager.broadcast()
+
 # ===========================================================================
 # SCALING CONSIDERATIONS
 # ===========================================================================

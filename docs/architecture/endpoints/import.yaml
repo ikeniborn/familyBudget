@@ -169,18 +169,57 @@ routes:
   # ---------------------------------------------------------------------------
   # BANK PROVIDERS
   # ---------------------------------------------------------------------------
-  - path: "/api/v1/import/bank-providers"
+  - path: "/api/v1/import/banks"
     method: GET
     auth: user
-    description: "List supported bank providers"
+    description: "List active bank providers"
     response:
       status: 200
       body:
         - id: "integer"
           name: "string"
           code: "string"
-          auto_detect: "boolean"
-          sample_format: "string"
+          active: "boolean"
+
+  - path: "/api/v1/import/banks"
+    method: POST
+    auth: user
+    description: "Create new bank provider"
+    request:
+      body:
+        code: "string (unique, 2-50 chars, alphanumeric + underscore)"
+        name: "string (2-255 chars)"
+    response:
+      status: 201
+      body:
+        id: "integer"
+        code: "string"
+        name: "string"
+        active: "boolean"
+    errors:
+      - status: 400
+        detail: "Bank with this code already exists"
+
+  - path: "/api/v1/import/banks/{bank_id}"
+    method: DELETE
+    auth: user
+    description: "Delete bank provider with cascade (deletes all related data)"
+    cascade_deletes:
+      - "ImportStaging records for this bank"
+      - "ImportFileUpload records for this bank"
+      - "ImportColumnMapping records for all users"
+    response:
+      status: 200
+      body:
+        message: "string"
+        bank_id: "integer"
+        cascade_deleted:
+          staging: "integer"
+          uploads: "integer"
+          mappings: "integer"
+    errors:
+      - status: 404
+        detail: "Bank not found"
 
 # Models
 models:

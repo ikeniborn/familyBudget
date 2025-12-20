@@ -168,8 +168,17 @@ class ListsManager {
         const clearBtn = document.getElementById('clear-search-btn');
         if (clearBtn) clearBtn.classList.add('hidden');
 
-        // Reset hide completed filter for new list
+        // Restore hide completed preference from localStorage
         this.hideCompleted = false;
+        try {
+            const storedHide = localStorage.getItem('lists_hide_completed_preference');
+            if (storedHide === 'true') {
+                this.hideCompleted = true;
+                debugLog('[ListsManager] Restored hide completed preference:', this.hideCompleted);
+            }
+        } catch (e) {
+            // localStorage may be unavailable in private browsing
+        }
         this.updateHideCompletedButton();
 
         // Reset HierarchyView expanded nodes for new list
@@ -219,7 +228,8 @@ class ListsManager {
             this.switchView('table');
         }
 
-        // Initialize Choices.js for product group selector in modal
+        // Initialize Choices.js for store and product group selectors in modal
+        this.initStoreChoices();
         this.initProductGroupChoices();
 
         // Note: Real-time updates provided by global budgetWSClient
@@ -837,9 +847,19 @@ class ListsManager {
 
     /**
      * Toggle hide completed items filter
+     * Saves preference to localStorage for persistence across sessions
      */
     toggleHideCompleted() {
         this.hideCompleted = !this.hideCompleted;
+
+        // Save preference to localStorage
+        try {
+            localStorage.setItem('lists_hide_completed_preference', this.hideCompleted.toString());
+            debugLog('[ListsManager] Saved hide completed preference:', this.hideCompleted);
+        } catch (e) {
+            // localStorage may be unavailable in private browsing
+        }
+
         this.updateHideCompletedButton();
         this.renderCurrentView();
     }
@@ -900,29 +920,70 @@ class ListsManager {
 
     /**
      * Populate store select dropdown
+     * Note: This method prepares the select element for Choices.js
+     * The actual options are populated via buildStoreChoices() in initStoreChoices()
+     *
+     * IMPORTANT: Do NOT create <option> elements here!
+     * Choices.js reads both existing <option> elements AND the choices[] parameter,
+     * which causes duplicates. We use choices[] parameter only.
      */
     populateStoreSelect() {
         const select = document.getElementById('item-store');
         if (!select) return;
 
-        // Clear and add empty placeholder option (disabled, hidden)
+        // Clear select completely - Choices.js will populate via choices[] parameter
         select.innerHTML = '';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.disabled = true;
-        placeholder.selected = true;
-        placeholder.hidden = true;
-        select.appendChild(placeholder);
+    }
 
-        // Add store options
-        this.stores
+    /**
+     * Build choices array for stores
+     * Simple flat list sorted alphabetically
+     * @returns {Array} Choices array for Choices.js
+     */
+    buildStoreChoices() {
+        // Sort stores alphabetically
+        const sortedStores = [...this.stores]
             .filter(store => store.is_active)
-            .forEach(store => {
-                const option = document.createElement('option');
-                option.value = store.id;
-                option.textContent = store.name;
-                select.appendChild(option);
-            });
+            .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+        return sortedStores.map(store => ({
+            value: store.id.toString(),
+            label: this.escapeHtml(store.name),
+            selected: false,
+            disabled: false
+        }));
+    }
+
+    /**
+     * Initialize Choices.js for store selector
+     */
+    initStoreChoices() {
+        const select = document.getElementById('item-store');
+        if (!select) return;
+
+        // Destroy existing instance
+        if (this.choicesInstances.store) {
+            this.choicesInstances.store.destroy();
+        }
+
+        // Build choices array
+        const choices = this.buildStoreChoices();
+
+        // Create Choices.js instance with choices-tailwind styling
+        this.choicesInstances.store = new Choices(select, {
+            searchEnabled: true,
+            searchPlaceholderValue: 'Поиск магазина...',
+            noResultsText: 'Магазин не найден',
+            itemSelectText: '',
+            allowHTML: false, // No HTML needed (flat list)
+            shouldSort: false, // Maintain our alphabetical order
+            placeholder: true,
+            placeholderValue: 'Магазин',
+            choices: choices,
+            classNames: {
+                containerOuter: ['choices', 'choices-tailwind'] // Apply tailwind theme
+            }
+        });
     }
 
     /**
@@ -1913,16 +1974,30 @@ class ListsManager {
 
             if (this.isOnline) {
                 // Online: fetch from API
-                const url = `/api/v1/shopping-list-items/products/suggest?q=${encodeURIComponent(query)}&limit=10`;
+                // Include shopping_list_id to get deleted items for restore
+                const params = new URLSearchParams({
+                    q: query,
+                    limit: '10'
+                });
+
+                // Add shopping_list_id if we have a current list (enables restore of deleted items)
+                if (this.currentListId) {
+                    params.append('shopping_list_id', this.currentListId);
+                    params.append('include_deleted', 'true');
+                }
+
+                const url = `/api/v1/shopping-list-items/products/suggest?${params}`;
                 const response = await fetch(url);
 
                 if (response.ok) {
                     const data = await response.json();
                     suggestions = data.suggestions || [];
 
-                    // Cache suggestions for offline use
+                    // Cache suggestions for offline use (only active ones)
                     if (this.db && suggestions.length > 0) {
-                        await this._cacheProductSuggestions(suggestions);
+                        await this._cacheProductSuggestions(
+                            suggestions.filter(s => !s.is_deleted)
+                        );
                     }
                 }
             } else {
@@ -1959,13 +2034,20 @@ class ListsManager {
         }
 
         // Build dropdown HTML
+        // Deleted items are visually marked with warning border and restore badge
         const html = suggestions.map((s, index) => `
-            <div class="suggestion-item px-3 py-2 hover:bg-base-200 cursor-pointer"
-                 data-index="${index}">
-                <div class="font-medium text-sm">${this._escapeHtml(s.product_name)}</div>
+            <div class="suggestion-item px-3 py-2 hover:bg-base-200 cursor-pointer ${s.is_deleted ? 'bg-base-200/50 border-l-2 border-warning' : ''}"
+                 data-index="${index}"
+                 data-is-deleted="${s.is_deleted || false}"
+                 data-item-id="${s.id || ''}">
+                <div class="flex items-center gap-2">
+                    <span class="font-medium text-sm">${this._escapeHtml(s.product_name)}</span>
+                    ${s.is_deleted ? '<span class="badge badge-warning badge-xs">восстановить</span>' : ''}
+                </div>
                 <div class="text-xs text-base-content/60">
                     ${s.store_name ? `<span class="mr-2">🏪 ${this._escapeHtml(s.store_name)}</span>` : ''}
                     ${s.product_group_name ? `<span>📦 ${this._escapeHtml(s.product_group_name)}</span>` : ''}
+                    ${s.is_deleted && s.quantity ? `<span class="ml-2">📊 ${s.quantity}${s.unit || ''}</span>` : ''}
                 </div>
             </div>
         `).join('');
@@ -2008,38 +2090,130 @@ class ListsManager {
 
     /**
      * Select a suggestion from dropdown
+     * Handles both regular suggestions (fill form) and deleted items (restore via API)
      * @param {number} index - Suggestion index
      */
-    selectSuggestion(index) {
+    async selectSuggestion(index) {
         const suggestion = this._currentSuggestions?.[index];
         if (!suggestion) return;
 
-        // Fill form fields
+        // If item is deleted - restore it via API instead of filling form
+        if (suggestion.is_deleted && suggestion.id) {
+            await this._restoreDeletedItem(suggestion);
+            return;
+        }
+
+        // Regular suggestion - fill form with values
+        this._fillFormFromSuggestion(suggestion);
+        this.hideProductSuggestions();
+
+        debugLog('[ListsManager] Selected suggestion:', suggestion.product_name);
+    }
+
+    /**
+     * Restore a soft-deleted item via API
+     * @param {Object} suggestion - Suggestion with id and is_deleted=true
+     * @private
+     */
+    async _restoreDeletedItem(suggestion) {
+        if (!suggestion.id) {
+            console.error('[ListsManager] Cannot restore: no item ID');
+            return;
+        }
+
+        try {
+            debugLog('[ListsManager] Restoring deleted item:', suggestion.id, suggestion.product_name);
+
+            const response = await fetch(`/api/v1/shopping-list-items/${suggestion.id}/restore`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'same-origin'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `HTTP ${response.status}`);
+            }
+
+            const restoredItem = await response.json();
+
+            // Hide dropdown and close modal
+            this.hideProductSuggestions();
+            const modal = document.getElementById('item-modal');
+            if (modal) modal.close();
+
+            // Show success toast
+            showToast(`Товар "${suggestion.product_name}" восстановлен`, 'success');
+
+            // Reload items to show restored item
+            if (this.currentListId) {
+                await this.loadItems(this.currentListId);
+            }
+
+            debugLog('[ListsManager] Restored item:', restoredItem);
+
+        } catch (error) {
+            console.error('[ListsManager] Error restoring item:', error);
+            showToast(`Ошибка восстановления: ${error.message}`, 'error');
+
+            // Fallback: fill form for creating new item
+            this._fillFormFromSuggestion(suggestion);
+            this.hideProductSuggestions();
+        }
+    }
+
+    /**
+     * Fill form fields from suggestion
+     * @param {Object} suggestion - Product suggestion
+     * @private
+     */
+    _fillFormFromSuggestion(suggestion) {
         const productNameInput = document.getElementById('item-product-name');
         const storeSelect = document.getElementById('item-store');
         const productGroupSelect = document.getElementById('item-product-group');
+        const quantityInput = document.getElementById('item-quantity');
+        const unitSelect = document.getElementById('item-unit');
+        const commentInput = document.getElementById('item-comment');
 
+        // Product name
         if (productNameInput) {
             productNameInput.value = suggestion.product_name;
         }
 
-        if (storeSelect && suggestion.store_id) {
-            storeSelect.value = suggestion.store_id;
+        // Store (Choices.js)
+        if (suggestion.store_id) {
+            if (this.choicesInstances?.store) {
+                this.choicesInstances.store.setChoiceByValue(String(suggestion.store_id));
+            } else if (storeSelect) {
+                storeSelect.value = suggestion.store_id;
+            }
         }
 
-        if (productGroupSelect && suggestion.product_group_id) {
-            // For Choices.js select
+        // Product group (Choices.js)
+        if (suggestion.product_group_id) {
             if (this.choicesInstances?.productGroup) {
                 this.choicesInstances.productGroup.setChoiceByValue(String(suggestion.product_group_id));
-            } else {
+            } else if (productGroupSelect) {
                 productGroupSelect.value = suggestion.product_group_id;
             }
         }
 
-        // Hide dropdown
-        this.hideProductSuggestions();
+        // Quantity (from deleted item)
+        if (suggestion.quantity && quantityInput) {
+            quantityInput.value = suggestion.quantity;
+        }
 
-        debugLog('[ListsManager] Selected suggestion:', suggestion.product_name);
+        // Unit (from deleted item)
+        if (suggestion.unit && unitSelect) {
+            unitSelect.value = suggestion.unit;
+        }
+
+        // Comment (from deleted item)
+        if (suggestion.comment && commentInput) {
+            commentInput.value = suggestion.comment;
+        }
     }
 
     /**
@@ -2208,6 +2382,14 @@ function openAddItemModal() {
     document.getElementById('item-id').value = '';
     document.getElementById('item-modal-title').textContent = '📝 Добавить товар';
 
+    // Reset Choices.js instances (form.reset() doesn't affect Choices.js)
+    if (window.listsManager?.choicesInstances?.store) {
+        window.listsManager.choicesInstances.store.setChoiceByValue('');
+    }
+    if (window.listsManager?.choicesInstances?.productGroup) {
+        window.listsManager.choicesInstances.productGroup.setChoiceByValue('');
+    }
+
     // Reset quantity input step to default (integer)
     const quantityInput = document.getElementById('item-quantity');
     if (quantityInput) {
@@ -2242,8 +2424,6 @@ function openEditItemModal(itemId) {
 
     const modal = document.getElementById('item-modal');
     document.getElementById('item-id').value = item.id;
-    document.getElementById('item-store').value = item.store_id;
-    document.getElementById('item-product-group').value = item.product_group_id;
     document.getElementById('item-product-name').value = item.product_name;
     document.getElementById('item-quantity').value = item.quantity !== null ? item.quantity : '';
     document.getElementById('item-unit').value = item.unit || '';
@@ -2254,7 +2434,10 @@ function openEditItemModal(itemId) {
     const quantityInput = document.getElementById('item-quantity');
     window.listsManager.updateQuantityInputStep(item.unit || '', quantityInput);
 
-    // Update Choices.js instance
+    // Update Choices.js instances for store and product group
+    if (window.listsManager.choicesInstances.store) {
+        window.listsManager.choicesInstances.store.setChoiceByValue(item.store_id.toString());
+    }
     if (window.listsManager.choicesInstances.productGroup) {
         window.listsManager.choicesInstances.productGroup.setChoiceByValue(item.product_group_id.toString());
     }

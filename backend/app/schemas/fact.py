@@ -11,6 +11,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from backend.app.utils.timezone import now_local
+
 
 class FactCreate(BaseModel):
     """
@@ -122,7 +124,7 @@ class FactCreate(BaseModel):
         """
         fact_date = self.fact_date
         record_type = self.record_type
-        today = date.today()
+        today = now_local().date()  # Uses SYSTEM_TIMEZONE from config
 
         # Check if date is too old (more than 10 years ago) - applies to both fact and plan
         ten_years_ago = today - timedelta(days=365 * 10)
@@ -269,7 +271,7 @@ class FactUpdate(BaseModel):
         if v is None:
             return None
 
-        today = date.today()
+        today = now_local().date()  # Uses SYSTEM_TIMEZONE from config
 
         if v > today:
             raise ValueError("Fact date cannot be in the future")

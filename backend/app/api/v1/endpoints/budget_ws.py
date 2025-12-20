@@ -312,7 +312,7 @@ class BudgetWebSocketManager:
             "data": data,
             "timestamp": datetime.utcnow().isoformat(),
         }
-        message = json.dumps(event)
+        message = json.dumps(event, default=str)
 
         async with self._lock:
             connections = list(self.connections)
@@ -352,7 +352,7 @@ class BudgetWebSocketManager:
             "data": data,
             "timestamp": datetime.utcnow().isoformat(),
         }
-        message = json.dumps(event)
+        message = json.dumps(event, default=str)
 
         # Use lock to prevent race condition with concurrent disconnect/cleanup
         async with self._lock:

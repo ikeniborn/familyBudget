@@ -27,11 +27,12 @@ module:
 
     - name: shopping_list_item_service
       path: "backend/app/services/shopping_list_item_service.py"
-      loc: 493
+      loc: 553
       functions:
         - create_item
         - update_item
         - delete_items_batch   # Soft delete (sets deleted_at timestamp)
+        - restore_item         # Restore soft-deleted item (sets deleted_at=NULL)
         - sync_batch           # Offline sync
         - get_items_by_list
         - get_pending_sync_items  # Excludes soft-deleted items
@@ -41,6 +42,11 @@ module:
         Uses soft delete pattern: items marked with deleted_at timestamp instead of physical deletion.
         Soft-deleted items preserved for autocomplete history and conflict resolution.
         All queries filter deleted_at IS NULL to exclude soft-deleted items.
+
+        restore_item() function:
+        - Idempotent: returns item unchanged if already active
+        - Sets deleted_at=NULL, version++, sync_status='synced'
+        - Used by frontend when user selects deleted item from autocomplete suggestions
 
     - name: store_service
       path: "backend/app/services/store_service.py"
@@ -161,13 +167,61 @@ module:
   # UI FEATURES
   # ---------------------------------------------------------------------------
   ui_features:
+    form_selectors:
+      description: "Селекторы в форме добавления/редактирования товара"
+      store_selector:
+        element_id: "item-store"
+        type: "Choices.js"
+        features:
+          - "Поиск по названию магазина"
+          - "Алфавитная сортировка"
+          - "Tailwind-совместимые стили (choices-tailwind)"
+        initialization: "initStoreChoices() в showDetailView()"
+        data_source: "this.stores (загружается из /api/v1/stores)"
+        note: "Добавлено в v6.x, ранее использовался обычный HTML select"
+
+      product_group_selector:
+        element_id: "item-product-group"
+        type: "Choices.js"
+        features:
+          - "Поиск по названию группы"
+          - "Иерархическое отображение (leaf → parent chain)"
+          - "Только leaf-группы доступны для выбора"
+          - "Tailwind-совместимые стили (choices-tailwind)"
+        initialization: "initProductGroupChoices() в showDetailView()"
+        data_source: "this.productGroups (загружается из /api/v1/product-groups)"
+
+      product_name_autocomplete:
+        element_id: "item-name"
+        type: "Custom autocomplete dropdown"
+        features:
+          - "Поиск по названию товара (min 2 символа)"
+          - "Показывает удалённые товары из текущего списка (приоритет)"
+          - "Показывает активные товары из всех списков (агрегированные)"
+          - "Визуальная индикация удалённых (⚠️ badge 'восстановить')"
+          - "Восстановление удалённого товара при выборе"
+          - "Авто-заполнение формы (store, group, quantity, unit, comment)"
+        initialization: "Event listener на input#item-name в showDetailView()"
+        data_source: "GET /api/v1/shopping-list-items/products/suggest"
+        functions:
+          - showProductSuggestions: "Fetch и кеширование подсказок"
+          - renderSuggestionsDropdown: "Рендер dropdown с визуальной индикацией"
+          - selectSuggestion: "Обработка выбора (restore или form fill)"
+          - _restoreDeletedItem: "PUT /restore API call"
+          - _fillFormFromSuggestion: "Заполнение полей формы"
+        notes: |
+          Два типа подсказок:
+          1. is_deleted=true: При выборе вызывается PUT /restore (восстановление)
+          2. is_deleted=false: Заполняются поля формы (product_name, store, group, etc.)
+
+          Дедупликация: (product_name, store_id, product_group_id)
+          Приоритет: удалённые товары показываются первыми
+
     views:
       table_view:
         description: "Табличное представление списка товаров"
         mobile: "Карточный вид вместо таблицы"
-        controls:
-          - "Отметить все (✅) - отметить все товары как выполненные"
-          - "Снять все (☐) - снять все отметки"
+        controls: []  # Перемещены в shared_controls (v6.x)
 
       hierarchy_view:
         description: "Иерархическое представление по магазинам/группам"
@@ -177,19 +231,12 @@ module:
 
     shared_controls:
       description: "Кнопки доступные в обоих режимах (table и hierarchy)"
+      button_order:
+        - delete_completed    # 🗑️ (hidden по умолчанию)
+        - mark_all_completed  # ✅
+        - unmark_all_completed  # ☐
+        - toggle_hide_completed  # 👁️
       buttons:
-        toggle_hide_completed:
-          id: "toggle-hide-completed-btn"
-          icon_inactive: "👁️"
-          icon_active: "👁️‍🗨️"
-          text_inactive: "Скрыть выполненные"
-          text_active: "Показать все"
-          function: "toggleHideCompleted()"
-          behavior: |
-            При нажатии скрывает все выполненные товары.
-            Меняет текст и иконку на "Показать все".
-            Состояние сохраняется в listsManager.hideCompleted.
-
         delete_completed:
           id: "delete-completed-btn"
           icon: "🗑️"
@@ -202,6 +249,40 @@ module:
           behavior: |
             Удаляет все выполненные товары с подтверждением.
             Использует batch-delete endpoint.
+
+        mark_all_completed:
+          icon: "✅"
+          text: "Отметить все"
+          function: "markAllCompleted()"
+          note: "Перемещена из table_view в shared_controls (v6.x)"
+          behavior: |
+            Отмечает все товары как выполненные.
+            Работает в обоих views (table и hierarchy).
+
+        unmark_all_completed:
+          icon: "☐"
+          text: "Снять все"
+          function: "unmarkAllCompleted()"
+          note: "Перемещена из table_view в shared_controls (v6.x)"
+          behavior: |
+            Снимает отметку со всех товаров.
+            Работает в обоих views (table и hierarchy).
+
+        toggle_hide_completed:
+          id: "toggle-hide-completed-btn"
+          icon_inactive: "👁️"
+          icon_active: "👁️‍🗨️"
+          text_inactive: "Скрыть выполненные"
+          text_active: "Показать все"
+          function: "toggleHideCompleted()"
+          localStorage_key: "lists_hide_completed_preference"
+          localStorage_type: "boolean string ('true'|'false')"
+          behavior: |
+            При нажатии скрывает все выполненные товары.
+            Меняет текст и иконку на "Показать все".
+            Состояние сохраняется в localStorage (lists_hide_completed_preference).
+            При открытии списка восстанавливается из localStorage.
+            Паттерн: try/catch для приватного режима браузера.
 
     responsive_design:
       mobile:

@@ -124,12 +124,9 @@ constraints:
         description: "Amount must be non-zero"
 
       - name: ck_bf_record_type
-        condition: "record_type IN ('income', 'expense', 'transfer_out', 'transfer_in')"
-        description: "Valid record type"
-
-      - name: ck_bf_transfer_requires_id
-        condition: "(record_type IN ('transfer_out', 'transfer_in') AND transfer_id IS NOT NULL) OR (record_type NOT IN ('transfer_out', 'transfer_in') AND transfer_id IS NULL)"
-        description: "Transfer records require transfer_id, non-transfers must not have it"
+        condition: "record_type IN ('fact', 'plan')"
+        description: "Valid record type (fact = actual, plan = planned)"
+        note: "Updated 2025-12-20: previously used income/expense/transfer_out/transfer_in"
 
       - name: ck_bf_fact_date_range
         condition: "fact_date >= '2023-01-01' AND fact_date < '2031-01-01'"

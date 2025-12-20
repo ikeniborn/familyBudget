@@ -39,6 +39,12 @@
                         </svg>
                         Добавить
                     </button>
+                    <button type="button" id="delete-bank-btn" class="btn btn-outline btn-error btn-sm gap-1" onclick="showDeleteBankModal()" title="Удалить выбранный банк" style="display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Удалить
+                    </button>
                 </div>
             </div>
             <!-- Dynamic action buttons and info (shown after bank selection) -->
@@ -392,6 +398,36 @@
     </form>
 </dialog>
 
+<!-- Delete Bank Modal -->
+<dialog id="delete-bank-modal" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg text-error mb-4">⚠️ Удаление банка</h3>
+        <p class="py-2">
+            Вы уверены, что хотите удалить банк <strong id="delete-bank-name" class="text-error"></strong>?
+        </p>
+        <div class="alert alert-warning my-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 w-6 h-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+                <span class="font-semibold">Будут удалены все связанные данные:</span>
+                <ul class="list-disc ml-6 mt-2 text-sm">
+                    <li>Настройки маппинга колонок</li>
+                    <li>История загрузок файлов</li>
+                    <li>Записи в staging таблице</li>
+                </ul>
+            </div>
+        </div>
+        <div class="modal-action">
+            <button type="button" class="btn btn-error" onclick="confirmDeleteBank()">Удалить</button>
+            <button type="button" class="btn" onclick="closeDeleteBankModal()">Отмена</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="closeDeleteBankModal()">закрыть</button>
+    </form>
+</dialog>
+
 <!-- Custom Confirm Dialog Modal -->
 <dialog id="confirm-dialog" class="modal">
     <div class="modal-box">
@@ -509,6 +545,70 @@ function closeCreateBankModal() {
     document.getElementById('create-bank-modal').close();
 }
 
+function showDeleteBankModal() {
+    const bankId = document.getElementById('bank-selector').value;
+    if (!bankId) {
+        showNotification('Сначала выберите банк', 'warning');
+        return;
+    }
+
+    const bankName = document.getElementById('bank-selector').selectedOptions[0].text;
+    document.getElementById('delete-bank-name').textContent = bankName;
+    document.getElementById('delete-bank-modal').showModal();
+}
+
+function closeDeleteBankModal() {
+    document.getElementById('delete-bank-modal').close();
+}
+
+async function confirmDeleteBank() {
+    const bankId = document.getElementById('bank-selector').value;
+    if (!bankId) return;
+
+    try {
+        const response = await fetch(`/api/v1/import/banks/${bankId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Не удалось удалить банк');
+        }
+
+        const result = await response.json();
+        closeDeleteBankModal();
+
+        // Clear selectedBankId BEFORE reloading banks to prevent stale references
+        selectedBankId = null;
+
+        // Reload banks list (deleted bank will be removed)
+        await loadBanks();
+
+        // Reset UI without calling resetWorkflow() (no notification needed)
+        document.getElementById('bank-selector').value = '';
+        document.getElementById('delete-bank-btn').style.display = 'none';
+        document.getElementById('bank-selection-result').style.display = 'none';
+
+        // Reset workflow state silently (no notification)
+        document.getElementById('step-2-upload').style.display = 'none';
+        document.getElementById('step-3-mapping').style.display = 'none';
+        document.getElementById('step-4-enrichment').style.display = 'none';
+        updateProgressIndicator(1);
+
+        // Reset global variables
+        uploadedFileId = null;
+        savedMappingId = null;
+        savedTransformations = null;
+
+        showNotification(result.message, 'success');
+
+    } catch (error) {
+        console.error('Error deleting bank:', error);
+        showNotification(`Ошибка: ${error.message}`, 'error');
+    }
+}
+
 async function createBank(event) {
     event.preventDefault();
 
@@ -550,14 +650,20 @@ async function createBank(event) {
 
 async function onBankSelected() {
     const bankId = document.getElementById('bank-selector').value;
+    const deleteBtn = document.getElementById('delete-bank-btn');
+
     if (bankId) {
         selectedBankId = parseInt(bankId);
 
-        // Try to load saved mapping for later
-        await loadSavedMapping(selectedBankId);
+        // Show delete button when bank is selected
+        deleteBtn.style.display = 'inline-flex';
 
         // Check staging and update UI (show buttons in step 1)
+        // Note: mapping is loaded later in showMappingStep() when actually needed
         await checkStagingAndUpdateUI();
+    } else {
+        // Hide delete button when no bank selected
+        deleteBtn.style.display = 'none';
     }
 }
 
@@ -765,6 +871,14 @@ function showConfirmDialog(message, title = 'Подтверждение') {
 let savedTransformations = null;  // Store saved transformations separately
 
 async function loadSavedMapping(bankId) {
+    // Skip if no bank ID or if selectedBankId was cleared (e.g., during deletion)
+    if (!bankId || selectedBankId === null) {
+        savedMappingId = null;
+        savedTransformations = null;
+        updateApplyMappingButtonState();
+        return;
+    }
+
     try {
         const response = await fetch(`/api/v1/import/mappings/${bankId}`, {
             credentials: 'include'
@@ -943,6 +1057,10 @@ async function analyzeFile(fileId) {
 
 // ========== Step 3: Column Mapping ==========
 async function showMappingStep(isUpdateMode = false) {
+    // Load saved mapping for this bank (if exists)
+    // This is the right place to load it - when we actually need it
+    await loadSavedMapping(selectedBankId);
+
     // Hide Step 2, Show Step 3 mapping
     document.getElementById('step-2-upload').style.display = 'none';
     document.getElementById('step-3-mapping').style.display = 'block';

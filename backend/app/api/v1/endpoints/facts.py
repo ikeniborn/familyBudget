@@ -182,6 +182,45 @@ async def create_fact(
     # Shared Family Budget: All users can use all articles (no ownership check)
     # Articles are shared references accessible to all authenticated users
 
+    # Validate: Financial center must exist and be active (required field)
+    fc_stmt = select(FinancialCenter).where(
+        FinancialCenter.id == fact_data.financial_center_id
+    )
+    fc_result = await session.execute(fc_stmt)
+    financial_center = fc_result.scalar_one_or_none()
+
+    if not financial_center:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Счёт с id={fact_data.financial_center_id} не найден"
+        )
+
+    if not financial_center.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Счёт '{financial_center.name}' архивирован. Выберите активный счёт."
+        )
+
+    # Validate: Cost center exists and is active if provided (optional field)
+    if fact_data.cost_center_id:
+        cc_stmt = select(CostCenter).where(
+            CostCenter.id == fact_data.cost_center_id
+        )
+        cc_result = await session.execute(cc_stmt)
+        cost_center = cc_result.scalar_one_or_none()
+
+        if not cost_center:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Место затрат с id={fact_data.cost_center_id} не найдено"
+            )
+
+        if not cost_center.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Место затрат '{cost_center.name}' архивировано"
+            )
+
     # Create new fact
     # Convert amount to absolute value (always store positive)
     fact_dict = fact_data.model_dump()
@@ -531,6 +570,7 @@ async def get_recent_facts_html(
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
+                        <th class="w-8"></th>
                         <th>Тип</th>
                         <th>Дата</th>
                         <th>Счёт</th>
@@ -595,9 +635,11 @@ async def get_recent_facts_html(
             offline_icon = "☁️" if fact.is_offline_sync else ""
             offline_title = "Создано offline" if fact.is_offline_sync else ""
 
-            # Desktop table row
+            # Desktop table row with edit button (pencil emoji)
+            edit_button = f'''<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard({fact.id})">✏️</button>'''
             table_html += f"""
                     <tr>
+                        <td class="text-center">{edit_button}</td>
                         <td>{record_type_badge_sm}</td>
                         <td class="whitespace-nowrap">{fact_date_full}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
@@ -621,7 +663,8 @@ async def get_recent_facts_html(
             offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
 
             mobile_html += f"""
-            <div class="py-2">
+            <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                 onclick="openEditFromDashboard({fact.id})">
                 <div class="flex items-center gap-2">
                     {record_type_badge}
                     <span class="flex-1 font-medium truncate">{article.name}</span>

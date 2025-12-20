@@ -151,6 +151,76 @@ async def create_bank(
         raise HTTPException(400, str(e))
 
 
+@router.delete("/banks/{bank_id}", status_code=200)
+async def delete_bank(
+    bank_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Delete bank provider (hard delete with cascade).
+
+    Permanently deletes the bank and all related data:
+    - ImportStaging records for this bank
+    - ImportFileUpload records for this bank
+    - ImportColumnMapping records for all users
+
+    **Parameters:**
+    - bank_id: Bank provider ID to delete
+
+    **Returns:**
+    - Success message with cascade deletion counts
+
+    **Example:**
+    ```
+    DELETE /api/v1/import/banks/6
+    Response 200: {
+        "message": "Bank 'my_bank' deleted successfully",
+        "bank_id": 6,
+        "cascade_deleted": {
+            "staging": 10,
+            "uploads": 2,
+            "mappings": 1
+        }
+    }
+    ```
+
+    **Errors:**
+    - 404: Bank not found
+    """
+    logger.info(f"Deleting bank {bank_id} by user {current_user.id}")
+
+    try:
+        # Get bank name before deletion for response message
+        bank = await BankProviderService.get_by_id(session, bank_id)
+        if not bank:
+            raise HTTPException(404, f"Bank with id={bank_id} not found")
+
+        bank_code = bank.code
+
+        result = await BankProviderService.delete_bank(session, bank_id)
+
+        logger.info(
+            f"Deleted bank id={bank_id}, code='{bank_code}': "
+            f"staging={result['deleted_staging']}, "
+            f"uploads={result['deleted_uploads']}, "
+            f"mappings={result['deleted_mappings']}"
+        )
+
+        return {
+            "message": f"Bank '{bank_code}' deleted successfully",
+            "bank_id": bank_id,
+            "cascade_deleted": {
+                "staging": result["deleted_staging"],
+                "uploads": result["deleted_uploads"],
+                "mappings": result["deleted_mappings"]
+            }
+        }
+    except ValueError as e:
+        logger.warning(f"Failed to delete bank {bank_id}: {e}")
+        raise HTTPException(404, str(e))
+
+
 @router.post("/upload", response_model=FileUploadResponse, status_code=201)
 async def upload_file(
     current_user: CurrentUser,
