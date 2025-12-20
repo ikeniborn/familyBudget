@@ -206,6 +206,13 @@ class UserResponse(BaseModel):
         examples=[False, True]
     )
 
+    has_password: bool = Field(
+        default=False,
+        description="Whether user has a password set (for email login). "
+                    "Used by frontend to show/hide 'Reset Password' button.",
+        examples=[True, False]
+    )
+
     first_name: Optional[str] = Field(
         default=None,
         description="User's first name from Telegram",
@@ -270,6 +277,7 @@ class UserResponse(BaseModel):
                 "email": "john@example.com",
                 "username": "johndoe",
                 "two_factor_enabled": True,
+                "has_password": True,
                 "first_name": "John",
                 "last_name": "Doe",
                 "photo_url": "/static/avatars/1.jpg",

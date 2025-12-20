@@ -57,11 +57,13 @@ module:
   # ---------------------------------------------------------------------------
   operations:
     user_management:
-      - "List all users"
+      - "List all users (includes has_password field)"
       - "Create user"
       - "Update user role (admin/user)"
       - "Deactivate/reactivate user"
       - "View user history"
+      - "Reset password (requires has_password=true)"
+      - "Reset 2FA (requires two_factor_enabled=true)"
 
     article_management:
       - "Create/update/archive/restore articles"

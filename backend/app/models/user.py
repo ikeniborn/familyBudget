@@ -255,6 +255,15 @@ class User(SQLModel, table=True):
     # - two_factor_secret: Never store in history (security)
     # - backup_codes: Never store in history (security)
 
+    @property
+    def has_password(self) -> bool:
+        """Check if user has a password set.
+
+        Used by frontend to show/hide 'Reset Password' button.
+        Returns True if password_hash is set, False otherwise.
+        """
+        return self.password_hash is not None
+
     def __repr__(self) -> str:
         """String representation of User model."""
         return (
