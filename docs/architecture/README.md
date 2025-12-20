@@ -276,6 +276,7 @@ When adding new components:
 | 409 Conflict при создании факта (FK violation) | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/facts.py` |
 | 409 Conflict для дат вне 2023-2030 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_add_auto_partition_creation.py` |
 | Дублирование магазинов в Choices.js dropdown | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/lists/listsManager.js` |
+| Excessive console errors in offline mode | 🟡 MEDIUM | ✅ Fixed | `budgetWSClient.js`, `offlineManager.js` |
 
 ### Issue Details
 
@@ -340,6 +341,20 @@ When adding new components:
 - **Fix**: Добавлен `select.innerHTML = ''` после `destroy()` в функциях `initStoreChoices()` и `initProductGroupChoices()`
 - **Files**: `frontend/web/static/js/lists/listsManager.js`
 - **Result**: Магазины и группы товаров отображаются без дубликатов
+
+**9. Excessive console errors in offline mode (MEDIUM)**
+- **Problem**: При включении офлайн-режима в консоли появляется много ERROR-сообщений: `ERR_INTERNET_DISCONNECTED`, `[BudgetWS] Token fetch: Failed`, `Poll: HTTP 503`
+- **Root cause**:
+  1. `budgetWSClient.js` использовал `console.error` для штатного fallback-поведения (переход на long polling)
+  2. WS клиент пытался подключиться даже когда браузер сообщал об отсутствии сети
+  3. `offlineManager.js` вызывал `reconnectWS()` без проверки реального статуса сети
+- **Fix**:
+  1. Заменили `console.error` на `console.warn` для fallback-сообщений
+  2. Добавили проверку `navigator.onLine` перед попыткой подключения в `_createConnection()` и `_startLongPolling()`
+  3. Добавили проверку `isOnline` в `reconnectWS()` перед включением WS клиента
+  4. HTTP 503 ошибки логируются как `console.warn` вместо `console.error`
+- **Files**: `frontend/web/static/js/budget/budgetWSClient.js`, `frontend/web/static/js/offline/offlineManager.js`
+- **Result**: В офлайн-режиме нет лишних ERROR-сообщений, только предупреждения для ожидаемого поведения
 
 ### Known Limitations (Deferred)
 
