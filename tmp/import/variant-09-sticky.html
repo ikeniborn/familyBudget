@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вариант 9: Sticky Header + Floating Toolbar</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            background: oklch(var(--b1));
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .floating-toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 30;
+            animation: slideUp 0.3s ease;
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateX(-50%) translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(-50%) translateY(0);
+                opacity: 1;
+            }
+        }
+        .column-toggle:checked + span {
+            background: oklch(var(--p));
+            color: white;
+        }
+        .filter-badge {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .filter-badge:hover {
+            opacity: 0.8;
+        }
+        .filter-badge.active {
+            ring: 2px;
+            ring-offset: 2px;
+        }
+        .virtual-scroll-container {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="bg-base-200 min-h-screen">
+    <!--
+    ============================================================
+    ВАРИАНТ 9: Sticky Header + Floating Toolbar
+    ============================================================
+
+    КОНЦЕПЦИЯ:
+    - Sticky table header при скролле
+    - Floating bulk toolbar появляется при выборе записей
+    - Column visibility toggle для скрытия ненужных колонок
+    - Quick filters в header (по статусу, по дате)
+    - Виртуальный скроллинг для больших списков
+
+    HTMX ИНТЕГРАЦИЯ:
+    - hx-post для bulk-update выбранных записей
+    - hx-trigger="change" для inline редактирования
+    - hx-swap="none" с событиями для toast уведомлений
+
+    ПРЕИМУЩЕСТВА:
+    + Улучшенный UX текущей таблицы
+    + Header всегда виден при скролле
+    + Bulk toolbar не занимает место пока не нужен
+    + Быстрые фильтры для навигации
+
+    НЕДОСТАТКИ:
+    - Добавляет сложность к существующему решению
+    - Floating toolbar может перекрывать контент
+    - Требует аккуратного управления состоянием
+    ============================================================
+    -->
+
+    <div class="p-6">
+        <!-- Header -->
+        <div class="mb-6 max-w-7xl mx-auto">
+            <h1 class="text-3xl font-bold mb-2">Вариант 9: Sticky Header + Floating Toolbar</h1>
+            <p class="text-base-content/70">Улучшенный UX с фиксированным header и всплывающей панелью массовых операций</p>
+        </div>
+
+        <!-- Controls Bar -->
+        <div class="bg-base-100 p-4 rounded-t-lg shadow max-w-7xl mx-auto sticky-header">
+            <div class="flex flex-wrap gap-4 items-center">
+                <!-- Search -->
+                <input type="text" placeholder="Поиск по описанию..." class="input input-bordered input-sm w-64" id="search-input" oninput="filterTable()">
+
+                <!-- Quick Filters -->
+                <div class="flex gap-2">
+                    <span class="filter-badge badge badge-lg" onclick="filterByStatus('')" id="filter-all">Все (8)</span>
+                    <span class="filter-badge badge badge-lg badge-error" onclick="filterByStatus('incomplete')" id="filter-incomplete">Не заполнено</span>
+                    <span class="filter-badge badge badge-lg badge-warning" onclick="filterByStatus('partial')" id="filter-partial">Частично</span>
+                    <span class="filter-badge badge badge-lg badge-success" onclick="filterByStatus('ready')" id="filter-ready">Готово</span>
+                </div>
+
+                <!-- Column Toggle -->
+                <div class="dropdown dropdown-end">
+                    <label tabindex="0" class="btn btn-ghost btn-sm gap-1">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                        </svg>
+                        Колонки
+                    </label>
+                    <div tabindex="0" class="dropdown-content z-[1] p-4 shadow-lg bg-base-100 rounded-box w-52">
+                        <div class="space-y-2">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" class="checkbox checkbox-sm column-toggle" checked data-column="csv_category" onchange="toggleColumn(this)">
+                                <span>Категория CSV</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" class="checkbox checkbox-sm column-toggle" checked data-column="info1" onchange="toggleColumn(this)">
+                                <span>Инфо 1</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" class="checkbox checkbox-sm column-toggle" checked data-column="info2" onchange="toggleColumn(this)">
+                                <span>Инфо 2</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" class="checkbox checkbox-sm column-toggle" checked data-column="cost_center" onchange="toggleColumn(this)">
+                                <span>МЗ</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" class="checkbox checkbox-sm column-toggle" checked data-column="comment" onchange="toggleColumn(this)">
+                                <span>Комментарий</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-grow"></div>
+
+                <!-- Stats -->
+                <div class="stats shadow stats-horizontal">
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg" id="stat-total">8</div>
+                        <div class="stat-title text-xs">Всего</div>
+                    </div>
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg text-success" id="stat-ready">0</div>
+                        <div class="stat-title text-xs">Готово</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-success gap-2" onclick="executeImport()">
+                    Импортировать
+                </button>
+            </div>
+        </div>
+
+        <!-- Table with Virtual Scroll -->
+        <div class="bg-base-100 rounded-b-lg shadow max-w-7xl mx-auto virtual-scroll-container">
+            <table class="table table-sm w-full">
+                <thead class="sticky top-0 bg-base-200 z-10">
+                    <tr>
+                        <th class="w-10">
+                            <input type="checkbox" class="checkbox checkbox-sm" id="select-all" onchange="toggleSelectAll(this)">
+                        </th>
+                        <th>Дата</th>
+                        <th>Сумма</th>
+                        <th class="min-w-[200px]">Описание</th>
+                        <th class="column-csv_category">Категория CSV</th>
+                        <th class="column-info1">Инфо 1</th>
+                        <th class="column-info2">Инфо 2</th>
+                        <th class="column-comment">Комментарий</th>
+                        <th class="w-36">Категория</th>
+                        <th class="w-32">Счёт</th>
+                        <th class="column-cost_center w-32">МЗ</th>
+                        <th>Статус</th>
+                        <th class="w-10"></th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Rows will be rendered here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Floating Bulk Toolbar -->
+    <div id="floating-toolbar" class="floating-toolbar hidden">
+        <div class="bg-base-100 shadow-2xl rounded-lg p-4 flex items-center gap-4 border">
+            <span class="font-semibold">Выбрано: <span id="selected-count" class="text-primary">0</span></span>
+
+            <div class="divider divider-horizontal m-0"></div>
+
+            <select class="select select-bordered select-sm w-40" id="bulk-article">
+                <option value="">Категория...</option>
+            </select>
+
+            <select class="select select-bordered select-sm w-32" id="bulk-fc">
+                <option value="">Счёт...</option>
+            </select>
+
+            <select class="select select-bordered select-sm w-32" id="bulk-cc">
+                <option value="">МЗ...</option>
+            </select>
+
+            <button class="btn btn-primary btn-sm" onclick="applyBulkEdit()">
+                Применить
+            </button>
+
+            <button class="btn btn-error btn-sm btn-outline" onclick="deleteSelected()">
+                Удалить
+            </button>
+
+            <button class="btn btn-ghost btn-sm" onclick="clearSelection()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Mock данные
+        const stagingRecords = [
+            { id: 1, fact_date: '2024-12-15', amount: -1500.00, description: 'Пятерочка покупки', csv_category: 'Супермаркеты', info1: 'MCC 5411', info2: '', article_id: null, financial_center_id: 1, cost_center_id: null, user_comment: '' },
+            { id: 2, fact_date: '2024-12-14', amount: -2300.50, description: 'Яндекс.Такси', csv_category: 'Транспорт', info1: 'MCC 4121', info2: '', article_id: 2, financial_center_id: 1, cost_center_id: null, user_comment: '' },
+            { id: 3, fact_date: '2024-12-14', amount: 50000.00, description: 'Зарплата декабрь', csv_category: 'Переводы', info1: '', info2: '', article_id: 4, financial_center_id: 1, cost_center_id: null, user_comment: '' },
+            { id: 4, fact_date: '2024-12-13', amount: -890.00, description: 'Кафе "Му-Му"', csv_category: 'Рестораны', info1: 'MCC 5812', info2: '', article_id: null, financial_center_id: null, cost_center_id: null, user_comment: '' },
+            { id: 5, fact_date: '2024-12-12', amount: -4500.00, description: 'Wildberries заказ', csv_category: 'Маркетплейсы', info1: '', info2: '', article_id: null, financial_center_id: 1, cost_center_id: null, user_comment: '' },
+            { id: 6, fact_date: '2024-12-11', amount: -350.00, description: 'Spotify подписка', csv_category: 'Подписки', info1: '', info2: '', article_id: 3, financial_center_id: 1, cost_center_id: null, user_comment: '' },
+            { id: 7, fact_date: '2024-12-10', amount: 15000.00, description: 'Фриланс проект', csv_category: 'Переводы', info1: '', info2: '', article_id: 5, financial_center_id: null, cost_center_id: 1, user_comment: '' },
+            { id: 8, fact_date: '2024-12-09', amount: -1200.00, description: 'Лента продукты', csv_category: 'Супермаркеты', info1: 'MCC 5411', info2: '', article_id: 1, financial_center_id: 1, cost_center_id: null, user_comment: '' }
+        ];
+
+        const articles = [
+            { id: 1, name: 'Продукты', type: 'expense' },
+            { id: 2, name: 'Транспорт', type: 'expense' },
+            { id: 3, name: 'Развлечения', type: 'expense' },
+            { id: 4, name: 'Зарплата', type: 'income' },
+            { id: 5, name: 'Фриланс', type: 'income' }
+        ];
+
+        const financialCenters = [
+            { id: 1, name: 'Тинькофф' },
+            { id: 2, name: 'Сбербанк' },
+            { id: 3, name: 'Наличные' }
+        ];
+
+        const costCenters = [
+            { id: 1, name: 'Работа' },
+            { id: 2, name: 'Личное' },
+            { id: 3, name: 'Семья' }
+        ];
+
+        let currentFilter = '';
+
+        function getStatus(record) {
+            if (record.article_id && record.financial_center_id) return 'ready';
+            if (record.article_id || record.financial_center_id) return 'partial';
+            return 'incomplete';
+        }
+
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', minimumFractionDigits: 0 }).format(amount);
+        }
+
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString('ru-RU');
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            populateBulkSelects();
+
+            stagingRecords.forEach(record => {
+                const status = getStatus(record);
+                const isExpense = record.amount < 0;
+                const filteredArticles = articles.filter(a => isExpense ? a.type === 'expense' : a.type === 'income');
+                const row = document.createElement('tr');
+                row.dataset.id = record.id;
+                row.dataset.status = status;
+
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="checkbox checkbox-sm record-checkbox" data-id="${record.id}" onchange="updateSelection()">
+                    </td>
+                    <td class="text-sm">${formatDate(record.fact_date)}</td>
+                    <td class="font-semibold ${record.amount < 0 ? 'text-error' : 'text-success'}">${formatAmount(record.amount)}</td>
+                    <td class="max-w-[200px] truncate" title="${record.description}">${record.description}</td>
+                    <td class="column-csv_category text-xs text-base-content/70">${record.csv_category}</td>
+                    <td class="column-info1 text-xs text-base-content/70">${record.info1 || '—'}</td>
+                    <td class="column-info2 text-xs text-base-content/70">${record.info2 || '—'}</td>
+                    <td class="column-comment">
+                        <input type="text" class="input input-bordered input-xs w-full" value="${record.user_comment || ''}"
+                               placeholder="..." onblur="updateField(${record.id}, 'user_comment', this.value)">
+                    </td>
+                    <td>
+                        <select class="select select-bordered select-xs w-full" onchange="updateField(${record.id}, 'article_id', this.value)">
+                            <option value="">—</option>
+                            ${filteredArticles.map(a => `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${a.name}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <select class="select select-bordered select-xs w-full" onchange="updateField(${record.id}, 'financial_center_id', this.value)">
+                            <option value="">—</option>
+                            ${financialCenters.map(fc => `<option value="${fc.id}" ${fc.id === record.financial_center_id ? 'selected' : ''}>${fc.name}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td class="column-cost_center">
+                        <select class="select select-bordered select-xs w-full" onchange="updateField(${record.id}, 'cost_center_id', this.value)">
+                            <option value="">—</option>
+                            ${costCenters.map(cc => `<option value="${cc.id}" ${cc.id === record.cost_center_id ? 'selected' : ''}>${cc.name}</option>`).join('')}
+                        </select>
+                    </td>
+                    <td>
+                        <span class="badge ${status === 'ready' ? 'badge-success' : status === 'partial' ? 'badge-warning' : 'badge-error'} badge-sm">
+                            ${status === 'ready' ? '✓' : status === 'partial' ? '◐' : '○'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-ghost btn-xs text-error" onclick="deleteRecord(${record.id})">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            updateStats();
+            updateFilterBadges();
+        }
+
+        function populateBulkSelects() {
+            const articleSelect = document.getElementById('bulk-article');
+            articleSelect.innerHTML = '<option value="">Категория...</option>' +
+                articles.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+
+            const fcSelect = document.getElementById('bulk-fc');
+            fcSelect.innerHTML = '<option value="">Счёт...</option>' +
+                financialCenters.map(fc => `<option value="${fc.id}">${fc.name}</option>`).join('');
+
+            const ccSelect = document.getElementById('bulk-cc');
+            ccSelect.innerHTML = '<option value="">МЗ...</option>' +
+                costCenters.map(cc => `<option value="${cc.id}">${cc.name}</option>`).join('');
+        }
+
+        function updateField(recordId, field, value) {
+            const record = stagingRecords.find(r => r.id === recordId);
+            if (record) {
+                record[field] = field.includes('_id') ? (value ? parseInt(value) : null) : value;
+                renderTable();
+            }
+        }
+
+        function updateStats() {
+            const readyCount = stagingRecords.filter(r => getStatus(r) === 'ready').length;
+            document.getElementById('stat-total').textContent = stagingRecords.length;
+            document.getElementById('stat-ready').textContent = readyCount;
+        }
+
+        function updateFilterBadges() {
+            const counts = { incomplete: 0, partial: 0, ready: 0 };
+            stagingRecords.forEach(r => counts[getStatus(r)]++);
+
+            document.getElementById('filter-all').textContent = `Все (${stagingRecords.length})`;
+            document.getElementById('filter-incomplete').textContent = `Не заполнено (${counts.incomplete})`;
+            document.getElementById('filter-partial').textContent = `Частично (${counts.partial})`;
+            document.getElementById('filter-ready').textContent = `Готово (${counts.ready})`;
+
+            // Update active state
+            document.querySelectorAll('.filter-badge').forEach(badge => badge.classList.remove('ring-2', 'ring-offset-2'));
+            const activeId = currentFilter ? `filter-${currentFilter}` : 'filter-all';
+            document.getElementById(activeId).classList.add('ring-2', 'ring-offset-2');
+        }
+
+        function filterByStatus(status) {
+            currentFilter = status;
+            filterTable();
+            updateFilterBadges();
+        }
+
+        function filterTable() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+
+            document.querySelectorAll('#table-body tr').forEach(row => {
+                const record = stagingRecords.find(r => r.id === parseInt(row.dataset.id));
+                const matchesSearch = record.description.toLowerCase().includes(searchTerm);
+                const matchesStatus = !currentFilter || row.dataset.status === currentFilter;
+                row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+            });
+        }
+
+        function toggleColumn(checkbox) {
+            const column = checkbox.dataset.column;
+            const cells = document.querySelectorAll(`.column-${column}`);
+            cells.forEach(cell => cell.style.display = checkbox.checked ? '' : 'none');
+        }
+
+        function toggleSelectAll(checkbox) {
+            document.querySelectorAll('.record-checkbox').forEach(cb => {
+                if (cb.closest('tr').style.display !== 'none') {
+                    cb.checked = checkbox.checked;
+                }
+            });
+            updateSelection();
+        }
+
+        function updateSelection() {
+            const count = document.querySelectorAll('.record-checkbox:checked').length;
+            document.getElementById('selected-count').textContent = count;
+            document.getElementById('floating-toolbar').classList.toggle('hidden', count === 0);
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('select-all').checked = false;
+            updateSelection();
+        }
+
+        function applyBulkEdit() {
+            const articleId = document.getElementById('bulk-article').value;
+            const fcId = document.getElementById('bulk-fc').value;
+            const ccId = document.getElementById('bulk-cc').value;
+
+            document.querySelectorAll('.record-checkbox:checked').forEach(cb => {
+                const record = stagingRecords.find(r => r.id === parseInt(cb.dataset.id));
+                if (record) {
+                    if (articleId) record.article_id = parseInt(articleId);
+                    if (fcId) record.financial_center_id = parseInt(fcId);
+                    if (ccId) record.cost_center_id = parseInt(ccId);
+                }
+            });
+
+            clearSelection();
+            renderTable();
+        }
+
+        function deleteSelected() {
+            if (!confirm('Удалить выбранные записи?')) return;
+
+            const idsToDelete = [];
+            document.querySelectorAll('.record-checkbox:checked').forEach(cb => {
+                idsToDelete.push(parseInt(cb.dataset.id));
+            });
+
+            idsToDelete.forEach(id => {
+                const index = stagingRecords.findIndex(r => r.id === id);
+                if (index !== -1) stagingRecords.splice(index, 1);
+            });
+
+            clearSelection();
+            renderTable();
+        }
+
+        function deleteRecord(id) {
+            if (confirm('Удалить запись?')) {
+                const index = stagingRecords.findIndex(r => r.id === id);
+                if (index !== -1) {
+                    stagingRecords.splice(index, 1);
+                    renderTable();
+                }
+            }
+        }
+
+        function executeImport() {
+            const readyRecords = stagingRecords.filter(r => getStatus(r) === 'ready');
+            if (readyRecords.length === 0) {
+                alert('Нет готовых записей');
+                return;
+            }
+            alert(`Импортировано ${readyRecords.length} записей`);
+        }
+
+        // Initial render
+        renderTable();
+    </script>
+</body>
+</html>

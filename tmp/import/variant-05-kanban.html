@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вариант 5: Kanban Status Columns</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .kanban-column {
+            min-height: calc(100vh - 280px);
+        }
+        .kanban-card {
+            transition: all 0.2s ease;
+            cursor: grab;
+        }
+        .kanban-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .kanban-card.dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+        .drop-zone {
+            transition: all 0.2s ease;
+        }
+        .drop-zone.drag-over {
+            background-color: oklch(var(--p) / 0.1);
+            border-color: oklch(var(--p));
+        }
+        .column-header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="bg-base-200 min-h-screen p-6">
+    <!--
+    ============================================================
+    ВАРИАНТ 5: Kanban Status Columns
+    ============================================================
+
+    КОНЦЕПЦИЯ:
+    - 3 колонки по статусу: "Не заполнено", "Частично", "Готово к импорту"
+    - Drag & drop между колонками
+    - Карточки с inline quick-edit
+    - Фокус на workflow: заполнил → готово
+    - Визуальный прогресс работы
+
+    ПРЕИМУЩЕСТВА:
+    + Очень наглядный workflow
+    + Мотивирует завершить все записи
+    + Естественный drag & drop UX
+    + Легко видеть прогресс
+
+    НЕДОСТАТКИ:
+    - Занимает много горизонтального пространства
+    - Сложно обрабатывать много записей в одной колонке
+    - Drag & drop может быть неудобен для массовых операций
+    ============================================================
+    -->
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold mb-2">Вариант 5: Kanban Status Columns</h1>
+            <p class="text-base-content/70">Перетаскивайте карточки между колонками по мере заполнения данных</p>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="bg-base-100 p-4 rounded-lg shadow mb-6">
+            <div class="flex flex-wrap gap-4 items-center">
+                <input type="text" placeholder="Поиск..." class="input input-bordered input-sm w-64" id="search-input" oninput="filterCards()">
+
+                <div class="flex-grow"></div>
+
+                <div class="stats shadow stats-horizontal">
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg" id="stat-total">8</div>
+                        <div class="stat-title text-xs">Всего</div>
+                    </div>
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg text-error" id="stat-incomplete">0</div>
+                        <div class="stat-title text-xs">Не заполнено</div>
+                    </div>
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg text-warning" id="stat-partial">0</div>
+                        <div class="stat-title text-xs">Частично</div>
+                    </div>
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg text-success" id="stat-ready">0</div>
+                        <div class="stat-title text-xs">Готово</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-success gap-2" onclick="executeImport()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Импортировать готовые
+                </button>
+            </div>
+        </div>
+
+        <!-- Kanban Board -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Column: Incomplete -->
+            <div class="kanban-column">
+                <div class="column-header bg-error/10 p-4 rounded-t-lg border-b-4 border-error">
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-error"></span>
+                        Не заполнено
+                        <span class="badge badge-error" id="count-incomplete">0</span>
+                    </h3>
+                </div>
+                <div class="bg-base-100 p-4 rounded-b-lg min-h-[400px] drop-zone"
+                     id="column-incomplete"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event, 'incomplete')">
+                    <!-- Cards will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Column: Partial -->
+            <div class="kanban-column">
+                <div class="column-header bg-warning/10 p-4 rounded-t-lg border-b-4 border-warning">
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-warning"></span>
+                        Частично заполнено
+                        <span class="badge badge-warning" id="count-partial">0</span>
+                    </h3>
+                </div>
+                <div class="bg-base-100 p-4 rounded-b-lg min-h-[400px] drop-zone"
+                     id="column-partial"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event, 'partial')">
+                    <!-- Cards will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Column: Ready -->
+            <div class="kanban-column">
+                <div class="column-header bg-success/10 p-4 rounded-t-lg border-b-4 border-success">
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full bg-success"></span>
+                        Готово к импорту
+                        <span class="badge badge-success" id="count-ready">0</span>
+                    </h3>
+                </div>
+                <div class="bg-base-100 p-4 rounded-b-lg min-h-[400px] drop-zone"
+                     id="column-ready"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event, 'ready')">
+                    <!-- Cards will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Edit Modal -->
+    <dialog id="quick-edit-modal" class="modal">
+        <div class="modal-box max-w-md">
+            <h3 class="font-bold text-lg mb-4" id="modal-title">Быстрое редактирование</h3>
+            <div id="modal-record-info" class="mb-4"></div>
+            <form id="quick-edit-form" class="space-y-3">
+                <input type="hidden" id="edit-record-id">
+                <select class="select select-bordered w-full" id="edit-article">
+                    <option value="">-- Категория --</option>
+                </select>
+                <select class="select select-bordered w-full" id="edit-fc">
+                    <option value="">-- Счёт --</option>
+                </select>
+                <div class="modal-action">
+                    <button type="submit" class="btn btn-primary btn-sm">Сохранить</button>
+                    <button type="button" class="btn btn-sm" onclick="closeQuickEdit()">Отмена</button>
+                </div>
+            </form>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button>close</button>
+        </form>
+    </dialog>
+
+    <script>
+        // Mock данные
+        const stagingRecords = [
+            { id: 1, fact_date: '2024-12-15', amount: -1500.00, description: 'Пятерочка покупки', csv_category: 'Супермаркеты', article_id: null, financial_center_id: 1 },
+            { id: 2, fact_date: '2024-12-14', amount: -2300.50, description: 'Яндекс.Такси', csv_category: 'Транспорт', article_id: 2, financial_center_id: 1 },
+            { id: 3, fact_date: '2024-12-14', amount: 50000.00, description: 'Зарплата декабрь', csv_category: 'Переводы', article_id: 4, financial_center_id: 1 },
+            { id: 4, fact_date: '2024-12-13', amount: -890.00, description: 'Кафе "Му-Му"', csv_category: 'Рестораны', article_id: null, financial_center_id: null },
+            { id: 5, fact_date: '2024-12-12', amount: -4500.00, description: 'Wildberries заказ', csv_category: 'Маркетплейсы', article_id: null, financial_center_id: 1 },
+            { id: 6, fact_date: '2024-12-11', amount: -350.00, description: 'Spotify подписка', csv_category: 'Подписки', article_id: 3, financial_center_id: 1 },
+            { id: 7, fact_date: '2024-12-10', amount: 15000.00, description: 'Фриланс проект', csv_category: 'Переводы', article_id: 5, financial_center_id: null },
+            { id: 8, fact_date: '2024-12-09', amount: -1200.00, description: 'Лента продукты', csv_category: 'Супермаркеты', article_id: 1, financial_center_id: 1 }
+        ];
+
+        const articles = [
+            { id: 1, name: 'Продукты', type: 'expense' },
+            { id: 2, name: 'Транспорт', type: 'expense' },
+            { id: 3, name: 'Развлечения', type: 'expense' },
+            { id: 4, name: 'Зарплата', type: 'income' },
+            { id: 5, name: 'Фриланс', type: 'income' }
+        ];
+
+        const financialCenters = [
+            { id: 1, name: 'Тинькофф' },
+            { id: 2, name: 'Сбербанк' },
+            { id: 3, name: 'Наличные' }
+        ];
+
+        let draggedId = null;
+
+        function getStatus(record) {
+            if (record.article_id && record.financial_center_id) return 'ready';
+            if (record.article_id || record.financial_center_id) return 'partial';
+            return 'incomplete';
+        }
+
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('ru-RU', {
+                style: 'currency',
+                currency: 'RUB',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'short'
+            });
+        }
+
+        function getArticleName(id) {
+            const article = articles.find(a => a.id === id);
+            return article ? article.name : null;
+        }
+
+        function getFCName(id) {
+            const fc = financialCenters.find(f => f.id === id);
+            return fc ? fc.name : null;
+        }
+
+        function renderKanban() {
+            const columns = {
+                incomplete: document.getElementById('column-incomplete'),
+                partial: document.getElementById('column-partial'),
+                ready: document.getElementById('column-ready')
+            };
+
+            // Clear columns
+            Object.values(columns).forEach(col => col.innerHTML = '');
+
+            // Group records by status
+            const grouped = { incomplete: [], partial: [], ready: [] };
+            stagingRecords.forEach(record => {
+                const status = getStatus(record);
+                grouped[status].push(record);
+            });
+
+            // Render cards
+            Object.entries(grouped).forEach(([status, records]) => {
+                records.forEach(record => {
+                    const card = createKanbanCard(record);
+                    columns[status].appendChild(card);
+                });
+            });
+
+            updateStats();
+        }
+
+        function createKanbanCard(record) {
+            const card = document.createElement('div');
+            card.className = 'kanban-card bg-base-200 rounded-lg p-3 mb-3';
+            card.draggable = true;
+            card.dataset.id = record.id;
+
+            card.ondragstart = (e) => handleDragStart(e, record.id);
+            card.ondragend = handleDragEnd;
+
+            const articleName = getArticleName(record.article_id);
+            const fcName = getFCName(record.financial_center_id);
+
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs text-base-content/60">${formatDate(record.fact_date)}</span>
+                    <span class="font-bold ${record.amount < 0 ? 'text-error' : 'text-success'}">
+                        ${formatAmount(record.amount)}
+                    </span>
+                </div>
+                <p class="text-sm font-medium mb-2 line-clamp-2">${record.description}</p>
+                <div class="flex flex-wrap gap-1 mb-2">
+                    <span class="badge badge-ghost badge-xs">${record.csv_category}</span>
+                </div>
+                <div class="space-y-1 text-xs">
+                    <div class="flex justify-between">
+                        <span class="text-base-content/50">Категория:</span>
+                        <span class="${articleName ? 'text-success' : 'text-error'}">${articleName || 'Не указана'}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-base-content/50">Счёт:</span>
+                        <span class="${fcName ? 'text-success' : 'text-error'}">${fcName || 'Не указан'}</span>
+                    </div>
+                </div>
+                <div class="flex gap-1 mt-3">
+                    <button class="btn btn-xs btn-ghost flex-1" onclick="openQuickEdit(${record.id})">
+                        Редактировать
+                    </button>
+                    <button class="btn btn-xs btn-ghost text-error" onclick="deleteRecord(${record.id})">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function handleDragStart(e, recordId) {
+            draggedId = recordId;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.drop-zone').forEach(zone => {
+                zone.classList.remove('drag-over');
+            });
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function handleDrop(e, targetStatus) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+
+            if (!draggedId) return;
+
+            const record = stagingRecords.find(r => r.id === draggedId);
+            if (!record) return;
+
+            // Validate drop - can only move to ready if fully filled
+            if (targetStatus === 'ready' && (!record.article_id || !record.financial_center_id)) {
+                openQuickEdit(draggedId);
+                return;
+            }
+
+            // If moving from ready to other column, clear fields accordingly
+            if (targetStatus === 'incomplete') {
+                record.article_id = null;
+                record.financial_center_id = null;
+            } else if (targetStatus === 'partial') {
+                // Keep at least one field
+            }
+
+            draggedId = null;
+            renderKanban();
+        }
+
+        function openQuickEdit(recordId) {
+            const record = stagingRecords.find(r => r.id === recordId);
+            if (!record) return;
+
+            const modal = document.getElementById('quick-edit-modal');
+            const isExpense = record.amount < 0;
+
+            document.getElementById('modal-record-info').innerHTML = `
+                <div class="text-2xl font-bold ${record.amount < 0 ? 'text-error' : 'text-success'} mb-1">
+                    ${formatAmount(record.amount)}
+                </div>
+                <p class="text-sm">${record.description}</p>
+            `;
+
+            document.getElementById('edit-record-id').value = recordId;
+
+            // Populate article select
+            const articleSelect = document.getElementById('edit-article');
+            articleSelect.innerHTML = '<option value="">-- Категория --</option>';
+            articles.filter(a => isExpense ? a.type === 'expense' : a.type === 'income').forEach(a => {
+                articleSelect.innerHTML += `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${a.name}</option>`;
+            });
+
+            // Populate FC select
+            const fcSelect = document.getElementById('edit-fc');
+            fcSelect.innerHTML = '<option value="">-- Счёт --</option>';
+            financialCenters.forEach(fc => {
+                fcSelect.innerHTML += `<option value="${fc.id}" ${fc.id === record.financial_center_id ? 'selected' : ''}>${fc.name}</option>`;
+            });
+
+            modal.showModal();
+        }
+
+        function closeQuickEdit() {
+            document.getElementById('quick-edit-modal').close();
+        }
+
+        document.getElementById('quick-edit-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const recordId = parseInt(document.getElementById('edit-record-id').value);
+            const record = stagingRecords.find(r => r.id === recordId);
+
+            if (record) {
+                const articleVal = document.getElementById('edit-article').value;
+                const fcVal = document.getElementById('edit-fc').value;
+
+                record.article_id = articleVal ? parseInt(articleVal) : null;
+                record.financial_center_id = fcVal ? parseInt(fcVal) : null;
+            }
+
+            closeQuickEdit();
+            renderKanban();
+        });
+
+        function updateStats() {
+            const counts = { incomplete: 0, partial: 0, ready: 0 };
+            stagingRecords.forEach(record => {
+                counts[getStatus(record)]++;
+            });
+
+            document.getElementById('stat-total').textContent = stagingRecords.length;
+            document.getElementById('stat-incomplete').textContent = counts.incomplete;
+            document.getElementById('stat-partial').textContent = counts.partial;
+            document.getElementById('stat-ready').textContent = counts.ready;
+
+            document.getElementById('count-incomplete').textContent = counts.incomplete;
+            document.getElementById('count-partial').textContent = counts.partial;
+            document.getElementById('count-ready').textContent = counts.ready;
+        }
+
+        function filterCards() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            document.querySelectorAll('.kanban-card').forEach(card => {
+                const record = stagingRecords.find(r => r.id === parseInt(card.dataset.id));
+                card.style.display = record.description.toLowerCase().includes(term) ? 'block' : 'none';
+            });
+        }
+
+        function deleteRecord(id) {
+            if (confirm('Удалить запись?')) {
+                const index = stagingRecords.findIndex(r => r.id === id);
+                if (index !== -1) {
+                    stagingRecords.splice(index, 1);
+                    renderKanban();
+                }
+            }
+        }
+
+        function executeImport() {
+            const readyRecords = stagingRecords.filter(r => getStatus(r) === 'ready');
+            if (readyRecords.length === 0) {
+                alert('Нет готовых к импорту записей');
+                return;
+            }
+            alert(`Импортировано ${readyRecords.length} записей`);
+        }
+
+        // Initial render
+        renderKanban();
+    </script>
+</body>
+</html>

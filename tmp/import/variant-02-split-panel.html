@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вариант 2: Master-Detail Split Panel</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .record-item {
+            transition: all 0.15s ease;
+        }
+        .record-item:hover {
+            background-color: oklch(var(--b2));
+        }
+        .record-item.active {
+            background-color: oklch(var(--p) / 0.1);
+            border-left: 3px solid oklch(var(--p));
+        }
+        .status-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+        .split-container {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 1.5rem;
+            height: calc(100vh - 200px);
+        }
+        .list-panel {
+            overflow-y: auto;
+        }
+        .detail-panel {
+            overflow-y: auto;
+        }
+        @media (max-width: 1024px) {
+            .split-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body class="bg-base-200 min-h-screen p-6">
+    <!--
+    ============================================================
+    ВАРИАНТ 2: Master-Detail Split Panel
+    ============================================================
+
+    КОНЦЕПЦИЯ:
+    - Двухпанельный интерфейс (список + детали)
+    - Левая панель: компактный список записей (дата, сумма, статус)
+    - Правая панель: полная форма редактирования выбранной записи
+    - Клавиатурная навигация между записями (↑/↓)
+    - Автосохранение при переходе к следующей записи
+
+    ПРЕИМУЩЕСТВА:
+    + Фокус на одной записи за раз
+    + Полная форма без скролла
+    + Keyboard-friendly workflow
+    + Легко сравнивать записи в списке
+
+    НЕДОСТАТКИ:
+    - Требует больше экранного пространства
+    - Медленнее для массового редактирования
+    - Сложнее на мобильных устройствах
+    ============================================================
+    -->
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold mb-2">Вариант 2: Master-Detail Split Panel</h1>
+            <p class="text-base-content/70">Список слева, детальное редактирование справа</p>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="stats shadow mb-6">
+            <div class="stat py-2 px-4">
+                <div class="stat-title text-xs">Всего</div>
+                <div class="stat-value text-xl" id="stat-total">8</div>
+            </div>
+            <div class="stat py-2 px-4">
+                <div class="stat-title text-xs">Выбрано</div>
+                <div class="stat-value text-xl text-primary" id="stat-selected">0</div>
+            </div>
+            <div class="stat py-2 px-4">
+                <div class="stat-title text-xs">Готово</div>
+                <div class="stat-value text-xl text-success" id="stat-ready">0</div>
+            </div>
+            <div class="stat py-2 px-4">
+                <div class="flex gap-2">
+                    <button class="btn btn-success btn-sm" onclick="executeImport()">Импортировать</button>
+                    <button class="btn btn-error btn-sm btn-outline" onclick="clearSelected()">Очистить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Split Container -->
+        <div class="split-container">
+            <!-- Left Panel: Records List -->
+            <div class="bg-base-100 rounded-lg shadow list-panel">
+                <div class="sticky top-0 bg-base-100 p-4 border-b z-10">
+                    <div class="flex items-center gap-2 mb-3">
+                        <input type="checkbox" class="checkbox checkbox-sm" id="select-all" onchange="toggleSelectAll(this)">
+                        <input type="text" placeholder="Поиск..." class="input input-bordered input-sm flex-grow" id="search-input" oninput="filterList()">
+                    </div>
+                    <div class="flex gap-2 text-xs text-base-content/50">
+                        <span>↑↓ навигация</span>
+                        <span>|</span>
+                        <span>Enter редактирование</span>
+                        <span>|</span>
+                        <span>Space выбор</span>
+                    </div>
+                </div>
+
+                <div id="records-list" class="p-2">
+                    <!-- Records will be rendered here -->
+                </div>
+            </div>
+
+            <!-- Right Panel: Detail Form -->
+            <div class="bg-base-100 rounded-lg shadow detail-panel p-6" id="detail-panel">
+                <div id="detail-content">
+                    <div class="flex flex-col items-center justify-center h-64 text-base-content/50">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <p>Выберите запись для редактирования</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock данные
+        const stagingRecords = [
+            { id: 1, fact_date: '2024-12-15', amount: -1500.00, description: 'Пятерочка покупки', csv_category: 'Супермаркеты', article_id: null, financial_center_id: 1, cost_center_id: null, user_comment: '' },
+            { id: 2, fact_date: '2024-12-14', amount: -2300.50, description: 'Яндекс.Такси', csv_category: 'Транспорт', article_id: 2, financial_center_id: 1, cost_center_id: null, user_comment: 'Поездка в аэропорт' },
+            { id: 3, fact_date: '2024-12-14', amount: 50000.00, description: 'Зарплата декабрь', csv_category: 'Переводы', article_id: 4, financial_center_id: 1, cost_center_id: null, user_comment: '' },
+            { id: 4, fact_date: '2024-12-13', amount: -890.00, description: 'Кафе "Му-Му"', csv_category: 'Рестораны', article_id: null, financial_center_id: null, cost_center_id: null, user_comment: '' },
+            { id: 5, fact_date: '2024-12-12', amount: -4500.00, description: 'Wildberries заказ', csv_category: 'Маркетплейсы', article_id: null, financial_center_id: 1, cost_center_id: null, user_comment: '' },
+            { id: 6, fact_date: '2024-12-11', amount: -350.00, description: 'Spotify подписка', csv_category: 'Подписки', article_id: 3, financial_center_id: 1, cost_center_id: null, user_comment: 'Семейная подписка' },
+            { id: 7, fact_date: '2024-12-10', amount: 15000.00, description: 'Фриланс проект', csv_category: 'Переводы', article_id: 5, financial_center_id: null, cost_center_id: 1, user_comment: '' },
+            { id: 8, fact_date: '2024-12-09', amount: -1200.00, description: 'Лента продукты', csv_category: 'Супермаркеты', article_id: 1, financial_center_id: 1, cost_center_id: null, user_comment: '' }
+        ];
+
+        const articles = [
+            { id: 1, name: 'Продукты', type: 'expense' },
+            { id: 2, name: 'Транспорт', type: 'expense' },
+            { id: 3, name: 'Развлечения', type: 'expense' },
+            { id: 4, name: 'Зарплата', type: 'income' },
+            { id: 5, name: 'Фриланс', type: 'income' }
+        ];
+
+        const financialCenters = [
+            { id: 1, name: 'Тинькофф' },
+            { id: 2, name: 'Сбербанк' },
+            { id: 3, name: 'Наличные' }
+        ];
+
+        const costCenters = [
+            { id: 1, name: 'Работа' },
+            { id: 2, name: 'Личное' },
+            { id: 3, name: 'Семья' }
+        ];
+
+        let selectedRecordId = null;
+        let currentIndex = 0;
+
+        function getStatus(record) {
+            if (record.article_id && record.financial_center_id) return 'ready';
+            if (record.article_id || record.financial_center_id) return 'partial';
+            return 'incomplete';
+        }
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'ready': return 'bg-success';
+                case 'partial': return 'bg-warning';
+                default: return 'bg-error';
+            }
+        }
+
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('ru-RU', {
+                style: 'currency',
+                currency: 'RUB',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString('ru-RU', {
+                day: 'numeric',
+                month: 'short'
+            });
+        }
+
+        function renderList() {
+            const container = document.getElementById('records-list');
+            container.innerHTML = '';
+
+            stagingRecords.forEach((record, index) => {
+                const status = getStatus(record);
+                const isActive = record.id === selectedRecordId;
+
+                const item = document.createElement('div');
+                item.className = `record-item p-3 rounded cursor-pointer ${isActive ? 'active' : ''}`;
+                item.dataset.id = record.id;
+                item.dataset.index = index;
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <input type="checkbox" class="checkbox checkbox-sm record-checkbox" data-id="${record.id}" onclick="event.stopPropagation()" onchange="updateStats()">
+                        <div class="status-indicator ${getStatusColor(status)}"></div>
+                        <div class="flex-grow min-w-0">
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm text-base-content/60">${formatDate(record.fact_date)}</span>
+                                <span class="font-semibold ${record.amount < 0 ? 'text-error' : 'text-success'}">
+                                    ${formatAmount(record.amount)}
+                                </span>
+                            </div>
+                            <p class="text-sm truncate">${record.description}</p>
+                        </div>
+                    </div>
+                `;
+
+                item.onclick = () => selectRecord(record.id, index);
+                container.appendChild(item);
+            });
+
+            updateStats();
+        }
+
+        function selectRecord(id, index) {
+            selectedRecordId = id;
+            currentIndex = index;
+            renderList();
+            renderDetailForm();
+        }
+
+        function renderDetailForm() {
+            const record = stagingRecords.find(r => r.id === selectedRecordId);
+            if (!record) return;
+
+            const container = document.getElementById('detail-content');
+            const isExpense = record.amount < 0;
+            const filteredArticles = articles.filter(a => isExpense ? a.type === 'expense' : a.type === 'income');
+
+            container.innerHTML = `
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <div class="text-3xl font-bold ${record.amount < 0 ? 'text-error' : 'text-success'} mb-2">
+                            ${formatAmount(record.amount)}
+                        </div>
+                        <div class="text-base-content/60">${record.fact_date}</div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="btn btn-sm btn-ghost" onclick="navigateRecord(-1)" ${currentIndex === 0 ? 'disabled' : ''}>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                            </svg>
+                        </button>
+                        <span class="flex items-center text-sm text-base-content/50">${currentIndex + 1} / ${stagingRecords.length}</span>
+                        <button class="btn btn-sm btn-ghost" onclick="navigateRecord(1)" ${currentIndex === stagingRecords.length - 1 ? 'disabled' : ''}>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div class="bg-base-200 rounded-lg p-4 mb-6">
+                    <h3 class="font-semibold mb-2">Описание из CSV</h3>
+                    <p class="text-lg">${record.description}</p>
+                    <span class="badge badge-ghost mt-2">${record.csv_category}</span>
+                </div>
+
+                <!-- Editable Form -->
+                <form class="space-y-4" onsubmit="event.preventDefault()">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">Категория *</span>
+                        </label>
+                        <select class="select select-bordered w-full" id="detail-article" onchange="updateRecord('article_id', this.value)">
+                            <option value="">-- Выберите категорию --</option>
+                            ${filteredArticles.map(a =>
+                                `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${a.name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">Счёт *</span>
+                        </label>
+                        <select class="select select-bordered w-full" id="detail-fc" onchange="updateRecord('financial_center_id', this.value)">
+                            <option value="">-- Выберите счёт --</option>
+                            ${financialCenters.map(fc =>
+                                `<option value="${fc.id}" ${fc.id === record.financial_center_id ? 'selected' : ''}>${fc.name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">Место затрат</span>
+                        </label>
+                        <select class="select select-bordered w-full" id="detail-cc" onchange="updateRecord('cost_center_id', this.value)">
+                            <option value="">-- Не указано --</option>
+                            ${costCenters.map(cc =>
+                                `<option value="${cc.id}" ${cc.id === record.cost_center_id ? 'selected' : ''}>${cc.name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text font-semibold">Комментарий</span>
+                        </label>
+                        <textarea class="textarea textarea-bordered" id="detail-comment" placeholder="Добавьте комментарий..." onblur="updateRecord('user_comment', this.value)">${record.user_comment || ''}</textarea>
+                    </div>
+
+                    <div class="flex gap-2 pt-4">
+                        <button type="button" class="btn btn-primary flex-1" onclick="saveAndNext()">
+                            Сохранить и далее
+                        </button>
+                        <button type="button" class="btn btn-ghost" onclick="deleteCurrentRecord()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            `;
+        }
+
+        function updateRecord(field, value) {
+            const record = stagingRecords.find(r => r.id === selectedRecordId);
+            if (record) {
+                record[field] = value ? (field.includes('_id') ? parseInt(value) : value) : null;
+                renderList();
+            }
+        }
+
+        function navigateRecord(delta) {
+            const newIndex = currentIndex + delta;
+            if (newIndex >= 0 && newIndex < stagingRecords.length) {
+                selectRecord(stagingRecords[newIndex].id, newIndex);
+            }
+        }
+
+        function saveAndNext() {
+            if (currentIndex < stagingRecords.length - 1) {
+                navigateRecord(1);
+            } else {
+                alert('Это последняя запись');
+            }
+        }
+
+        function deleteCurrentRecord() {
+            if (confirm('Удалить запись?')) {
+                const index = stagingRecords.findIndex(r => r.id === selectedRecordId);
+                if (index !== -1) {
+                    stagingRecords.splice(index, 1);
+                    selectedRecordId = null;
+                    renderList();
+                    document.getElementById('detail-content').innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-64 text-base-content/50">
+                            <p>Запись удалена</p>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function updateStats() {
+            const checkboxes = document.querySelectorAll('.record-checkbox:checked');
+            const readyCount = stagingRecords.filter(r => getStatus(r) === 'ready').length;
+
+            document.getElementById('stat-total').textContent = stagingRecords.length;
+            document.getElementById('stat-selected').textContent = checkboxes.length;
+            document.getElementById('stat-ready').textContent = readyCount;
+        }
+
+        function toggleSelectAll(checkbox) {
+            document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = checkbox.checked);
+            updateStats();
+        }
+
+        function filterList() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            document.querySelectorAll('.record-item').forEach(item => {
+                const record = stagingRecords.find(r => r.id === parseInt(item.dataset.id));
+                item.style.display = record.description.toLowerCase().includes(term) ? 'block' : 'none';
+            });
+        }
+
+        function executeImport() {
+            const selected = document.querySelectorAll('.record-checkbox:checked');
+            const readyIds = [];
+            selected.forEach(cb => {
+                const record = stagingRecords.find(r => r.id === parseInt(cb.dataset.id));
+                if (record && getStatus(record) === 'ready') readyIds.push(record.id);
+            });
+            if (readyIds.length === 0) {
+                alert('Нет готовых записей');
+                return;
+            }
+            alert(`Импортировано ${readyIds.length} записей`);
+        }
+
+        function clearSelected() {
+            document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = false);
+            updateStats();
+        }
+
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+
+            switch(e.key) {
+                case 'ArrowUp':
+                    e.preventDefault();
+                    navigateRecord(-1);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    navigateRecord(1);
+                    break;
+                case ' ':
+                    e.preventDefault();
+                    if (selectedRecordId) {
+                        const cb = document.querySelector(`.record-checkbox[data-id="${selectedRecordId}"]`);
+                        if (cb) {
+                            cb.checked = !cb.checked;
+                            updateStats();
+                        }
+                    }
+                    break;
+            }
+        });
+
+        // Initial render
+        renderList();
+    </script>
+</body>
+</html>
