@@ -83,6 +83,8 @@ services:
       - "pg_stat_statements.track=all"  # Track all queries (including nested)
       - "-c"
       - "pg_stat_statements.max=10000"  # Store up to 10k distinct queries
+      - "-c"
+      - "max_locks_per_transaction=256"  # Default 64 - increased to prevent out of shared memory errors
 
   # Backend Application (FastAPI + HTMX)
   backend:

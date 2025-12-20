@@ -130,3 +130,37 @@ related:
 services:
   - $ref: "../functionality/budget-management.yaml#/module/services"
   - $ref: "../functionality/authentication.yaml#/module/services"
+
+# PostgreSQL Configuration
+postgresql_config:
+  description: "Critical PostgreSQL parameters configured in docker-compose.yml"
+  parameters:
+    max_connections:
+      value: 100
+      description: "Maximum concurrent connections"
+
+    shared_buffers:
+      value: "256MB"
+      description: "Shared memory for caching"
+
+    max_locks_per_transaction:
+      value: 256
+      default: 64
+      description: |
+        Maximum locks per transaction. Increased from default 64 to 256
+        to prevent "out of shared memory" errors during concurrent operations.
+        Error fixed: asyncpg.exceptions.OutOfMemoryError
+
+    effective_cache_size:
+      value: "1GB"
+      description: "Expected memory available for disk caching"
+
+  troubleshooting:
+    out_of_shared_memory:
+      symptom: "asyncpg.exceptions.OutOfMemoryError: out of shared memory"
+      hint: "You might need to increase max_locks_per_transaction"
+      solution: |
+        1. Check current value: SHOW max_locks_per_transaction;
+        2. Update docker-compose.yml command section
+        3. Recreate postgres container: docker compose up -d postgres --force-recreate
+        4. Verify new value: SHOW max_locks_per_transaction;
