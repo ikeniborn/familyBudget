@@ -156,6 +156,37 @@ routes:
       - "User must re-setup 2FA via security settings"
 
   # ===========================================================================
+  # USER STATISTICS
+  # ===========================================================================
+  - path: "/api/v1/admin/users/stats/summary"
+    method: GET
+    auth: admin
+    description: "Get per-user statistics"
+    response:
+      status: 200
+      body:
+        - user_id: "integer"
+          username: "string"
+          first_name: "string"
+          total_facts: "integer"
+          total_articles: "integer"
+          last_fact_date: "datetime (nullable)"
+
+  - path: "/api/v1/admin/users/stats/system"
+    method: GET
+    auth: admin
+    description: "Get system-wide statistics (Shared Family Budget)"
+    response:
+      status: 200
+      body:
+        total_users: "integer"
+        total_active_users: "integer"
+        total_facts: "integer"
+        total_articles: "integer"
+        last_fact_date: "datetime (nullable)"
+    note: "All metrics are GLOBAL - no user_id filtering per Shared Family Budget Model"
+
+  # ===========================================================================
   # BULK OPERATIONS
   # ===========================================================================
   - path: "/api/v1/admin/articles/bulk-archive"

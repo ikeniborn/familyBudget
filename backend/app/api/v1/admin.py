@@ -367,8 +367,7 @@ async def get_system_stats(
     total_active_users = active_users_result.scalar() or 0
 
     # Total articles (Shared References - NO user_id filter!)
-    articles_count_query = select(func.count(Article.id)).where(
-    )
+    articles_count_query = select(func.count(Article.id))
     articles_count_result = await session.execute(articles_count_query)
     total_articles = articles_count_result.scalar() or 0
 
