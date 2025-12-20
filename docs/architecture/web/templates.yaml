@@ -508,6 +508,15 @@ templates:
           - "Statistics (total, selected, ready)"
           - "Category type filter (expense/income)"
           - "Execute import button"
+        filter_elements:
+          filter-csv-cat:
+            type: "select"
+            purpose: "Filter by CSV category (auto-populated from data)"
+            height: "3rem"
+          filter-status:
+            type: "select"
+            purpose: "Filter by fill status (empty/partial/complete)"
+            height: "3rem"
         enrichment_fields:
           - "article_id (required)"
           - "financial_center_id (required)"
