@@ -577,16 +577,31 @@ async function confirmDeleteBank() {
         }
 
         const result = await response.json();
-        showNotification(result.message, 'success');
         closeDeleteBankModal();
 
-        // Reset bank selection and hide delete button
+        // Clear selectedBankId BEFORE reloading banks to prevent stale references
+        selectedBankId = null;
+
+        // Reload banks list (deleted bank will be removed)
         await loadBanks();
+
+        // Reset UI without calling resetWorkflow() (no notification needed)
         document.getElementById('bank-selector').value = '';
         document.getElementById('delete-bank-btn').style.display = 'none';
         document.getElementById('bank-selection-result').style.display = 'none';
-        selectedBankId = null;
-        resetWorkflow();
+
+        // Reset workflow state silently (no notification)
+        document.getElementById('step-2-upload').style.display = 'none';
+        document.getElementById('step-3-mapping').style.display = 'none';
+        document.getElementById('step-4-enrichment').style.display = 'none';
+        updateProgressIndicator(1);
+
+        // Reset global variables
+        uploadedFileId = null;
+        savedMappingId = null;
+        savedTransformations = null;
+
+        showNotification(result.message, 'success');
 
     } catch (error) {
         console.error('Error deleting bank:', error);
@@ -858,6 +873,14 @@ function showConfirmDialog(message, title = 'Подтверждение') {
 let savedTransformations = null;  // Store saved transformations separately
 
 async function loadSavedMapping(bankId) {
+    // Skip if no bank ID or if selectedBankId was cleared (e.g., during deletion)
+    if (!bankId || selectedBankId === null) {
+        savedMappingId = null;
+        savedTransformations = null;
+        updateApplyMappingButtonState();
+        return;
+    }
+
     try {
         const response = await fetch(`/api/v1/import/mappings/${bankId}`, {
             credentials: 'include'
