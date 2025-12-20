@@ -274,7 +274,7 @@ When adding new components:
 | Long polling no exponential backoff | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | iOS badge flickers yellow/green every 3s | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | 409 Conflict при создании факта (FK violation) | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/facts.py` |
-| 409 Conflict для дат вне 2023-2030 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_add_auto_partition_creation.py` |
+| 409 Conflict для дат вне 2010-2040 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_fix_auto_partition_trigger.py` |
 | Дублирование магазинов в Choices.js dropdown | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/lists/listsManager.js` |
 | Excessive console errors in offline mode | 🟡 MEDIUM | ✅ Fixed | `budgetWSClient.js`, `offlineManager.js` |
 
@@ -328,12 +328,17 @@ When adding new components:
 - **Problem**: Попытка создать транзакцию с датой 2020 года вызывает 409 Conflict
 - **Root cause**: Таблица `t_f_budget_fact` партиционирована по месяцам, партиции созданы только для 2023-2030
 - **PostgreSQL error**: `no partition of relation "t_f_budget_fact" found for row`
-- **Fix**: Создан BEFORE INSERT trigger `trg_budget_fact_ensure_partition` с функцией `ensure_budget_fact_partition(DATE)`:
-  - Автоматически проверяет существование партиции
-  - Создаёт недостающую партицию с правильными границами
-  - Создаёт GIN индекс на description для новой партиции
-- **Migration**: `backend/db/migrations/versions/20251220_y0a1b2c3d4e5_add_auto_partition_creation.py`
-- **Result**: Транзакции с любыми датами (прошлыми и будущими) создаются успешно
+- **Initial attempt (FAILED)**: BEFORE INSERT trigger на партиционированной таблице
+  - **Почему не работает**: PostgreSQL сначала определяет целевую партицию, потом вызывает триггер
+  - Если партиции нет → ошибка ДО вызова триггера
+- **Fix**: Pre-create партиции для широкого диапазона дат (2010-2040)
+  - Функция `ensure_budget_fact_partition(DATE)` для создания партиций
+  - Удаление неэффективных триггеров с партиций
+  - Создание партиций на 30 лет (360 партиций)
+- **Migrations**:
+  - `20251220_y0a1b2c3d4e5_add_auto_partition_creation.py` - функция (содержит ошибочный триггер)
+  - `20251220_z1b2c3d4e5f6_fix_auto_partition_trigger.py` - удаляет триггеры, создаёт партиции
+- **Result**: Транзакции с датами 2010-2040 создаются успешно
 
 **8. Дублирование магазинов в Choices.js dropdown (MEDIUM)**
 - **Problem**: На странице `/lists` в модальном окне добавления товара магазины дублируются в выпадающем списке
