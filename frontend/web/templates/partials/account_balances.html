@@ -4,6 +4,7 @@
 
     Variables expected:
     - balances: list of balance objects with:
+        - id: financial center ID (int) - used for data-fc-id attribute
         - name: account name
         - opening_balance: opening balance (float)
         - current_balance: current balance (float)
@@ -138,7 +139,7 @@
 
 <div class="balances-grid">
     {% for bal in balances %}
-    <div class="balance-card">
+    <div class="balance-card" data-fc-id="{{ bal.id }}">
         <div class="balance-title" title="{{ bal.name }}">{{ bal.name }}</div>
         <div>
             <div class="balance-row">

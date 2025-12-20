@@ -656,9 +656,11 @@ partials:
 
   account_balances:
     path: "frontend/web/templates/partials/account_balances.html"
-    description: "Account balance cards"
+    description: "Account balance cards with data-fc-id for IncrementalUpdates"
     loaded_by: "index.html"
     endpoint: "/api/v1/analytics/account-balances-html"
+    data_attributes:
+      - "data-fc-id: Financial center ID for IncrementalUpdates.updateAccountBalance()"
 
   recent_transactions:
     path: "frontend/web/templates/partials/recent_transactions.html"
