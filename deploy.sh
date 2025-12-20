@@ -1183,15 +1183,14 @@ main() {
     if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
         info "Checking Service Worker cache version..."
 
-        sw_placeholder_count=$(grep -c "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null || echo 0)
-
-        if [[ $sw_placeholder_count -gt 0 ]]; then
+        # Use grep -q for reliable boolean check (avoids multiline count issues)
+        if grep -q "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
             warning "Service Worker still contains CACHE_VERSION_PLACEHOLDER"
             warning "Cache busting did not update sw.min.js"
             echo ""
         else
-            # Extract actual version
-            sw_version=$(grep -o "CACHE_VERSION.*=.*'v-[^']*'" "$DEPLOY_DIR/sw.min.js" 2>/dev/null | grep -o "v-[^']*" | head -1)
+            # Extract actual version (format: CACHE_VERSION="v20251220_1203" with double quotes)
+            sw_version=$(grep -oE 'CACHE_VERSION="v[0-9_]+"' "$DEPLOY_DIR/sw.min.js" 2>/dev/null | sed 's/CACHE_VERSION="//' | sed 's/"$//' | head -1)
             if [[ -n "$sw_version" ]]; then
                 success "Service Worker cache version: $sw_version"
             else
