@@ -321,6 +321,7 @@ templates:
       desktop:
         - "Полный текст кнопок"
         - "Табличное представление"
+        - "Кнопки 'Снять все' и 'Скрыть выполненные' выровнены по ширине (sm:min-w-44)"
 
   notifications:
     path: "frontend/web/templates/notifications.html"
