@@ -68,15 +68,23 @@ class BudgetWSClient {
         this._multiTabSupported = null;  // Cached support check
         this._multiTabInitialized = false;  // Lazy init flag
 
-        // Safari iOS detection (for special handling)
-        this._safariIOSMode = this._detectSafariIOS();
+        // Status indicator debouncing to prevent visual flickering on iOS
+        this._lastIndicatorState = null;
+        this._indicatorDebounceTimer = null;
+        this.INDICATOR_DEBOUNCE_MS = 500;  // Minimum 500ms between visual updates
 
-        // Safari iOS WebSocket strategy:
+        // iOS device detection (for special handling)
+        // All iOS browsers (Safari, Chrome, Firefox, Yandex) use WebKit and have same issues
+        this._iosDeviceMode = this._detectIOSDevice();
+
+        // iOS WebSocket strategy:
         // Server has permessage-deflate disabled (--ws-per-message-deflate false)
         // Try WebSocket first with shorter timeout, fallback to Long Polling if fails
+        // More frequent pings to keep connection alive on iOS
         // Reference: https://discussions.apple.com/thread/256142477
-        if (this._safariIOSMode) {
+        if (this._iosDeviceMode) {
             this._iosWebSocketTimeout = 5000;  // 5 sec timeout (vs 10 sec default)
+            this.CLIENT_PING_INTERVAL = 8000;  // 8 seconds (vs 15 default) - keep iOS connection alive
         }
 
         // Close connection on page unload
@@ -133,20 +141,23 @@ class BudgetWSClient {
     // ==================== BROWSER DETECTION ====================
 
     /**
-     * Detect Safari on iOS/iPadOS or Yandex Browser on iOS
-     * These browsers have known WebSocket issues and need Long Polling fallback
+     * Detect ANY iOS/iPadOS device regardless of browser
+     * All iOS browsers use WebKit engine (Apple requirement)
+     * Web Locks API is unreliable on all iOS browsers
+     * Chrome iOS (CriOS), Firefox iOS (FxiOS), Edge iOS (EdgiOS) all have same issues
      * @returns {boolean}
      * @private
      */
-    _detectSafariIOS() {
+    _detectIOSDevice() {
         const ua = navigator.userAgent;
-        const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
-        const isPadOSDesktop = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-        const isSafariLike = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua);
-        const isYandexIOS = /YaBrowser/.test(ua) && isIOS;
 
-        // Any iOS browser that uses WebKit (Safari, Yandex, etc.)
-        return (isIOS || isPadOSDesktop) && (isSafariLike || isYandexIOS);
+        // Standard iOS detection
+        const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+
+        // iPadOS in desktop mode (reports as MacIntel but has touch)
+        const isPadOSDesktop = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+
+        return isIOS || isPadOSDesktop;
     }
 
     /**
@@ -190,7 +201,7 @@ class BudgetWSClient {
         this._multiTabInitialized = true;
 
         // Safari iOS: Skip Web Locks entirely
-        if (this._safariIOSMode) {
+        if (this._iosDeviceMode) {
             this.isLeader = true;
             this._multiTabSupported = false;
             this._logHistory('safari_ios_leader_set');
@@ -676,7 +687,7 @@ class BudgetWSClient {
         if (!this._multiTabInitialized) {
             this._logHistory('multitab_init_start');
             await this._initMultiTab();
-            this._logHistory(`multitab_init_done_leader=${this.isLeader}_safari=${this._safariIOSMode}`);
+            this._logHistory(`multitab_init_done_leader=${this.isLeader}_safari=${this._iosDeviceMode}`);
         }
 
         // Only leader creates connection
@@ -771,7 +782,12 @@ class BudgetWSClient {
 
             this.ws.onclose = (event) => {
                 clearTimeout(connectionTimeout);
-                this._logHistory(`ws_closed_${event.code}`);
+                // Log detailed close info for iOS debugging
+                // Close codes: https://developer.mozilla.org/en-US/docs/Web/API/CloseEvent/code
+                // 1000 = Normal, 1001 = Going Away, 1006 = Abnormal (no close frame)
+                const reason = event.reason || 'none';
+                const clean = event.wasClean ? 'clean' : 'unclean';
+                this._logHistory(`ws_closed_code=${event.code}_reason=${reason}_${clean}`);
                 this.isConnected = false;
                 this.connectionId = null;
                 this._stopClientPing();
@@ -1421,53 +1437,123 @@ class BudgetWSClient {
             multiTabSupported: this._supportsMultiTab(),
             isLeader: this.isLeader,
             hasChannel: this.channel !== null,
-            safariIOSMode: this._safariIOSMode,
+            safariIOSMode: this._iosDeviceMode,
             useLongPolling: this.useLongPolling
         };
     }
 
     /**
-     * Update status indicator
+     * Update status indicator with debouncing to prevent flickering on iOS
+     * iOS Safari/Chrome/Firefox can rapidly cycle through disconnect/reconnect states
+     * Debouncing prevents visual flickering while still showing connection state
      * @private
      */
     _updateStatusIndicator() {
         const indicator = document.getElementById('budget-sse-status-indicator');
         if (!indicator) return;
 
+        // Determine current state
+        let state;
+        if (!this.enabled) {
+            state = 'disabled';
+        } else if (this.isConnected && this.approachingLimit) {
+            state = 'warning';
+        } else if (this.isConnected) {
+            state = 'connected';
+        } else if (!this.isLeader && this._supportsMultiTab() && this.lastLeaderHeartbeat > 0) {
+            state = 'connected_via_leader';
+        } else if (this.limitReached) {
+            state = 'limit_reached';
+        } else if (this.reconnectAttempts > 0 && this.reconnectAttempts < this.maxReconnectAttempts) {
+            state = 'reconnecting';
+        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            state = 'error';
+        } else {
+            state = 'connecting';
+        }
+
+        // Skip update if state hasn't changed (prevents unnecessary DOM updates)
+        if (state === this._lastIndicatorState) {
+            return;
+        }
+
+        // Debounce rapid state changes to prevent visual flickering
+        // Exception: always show 'connected' immediately (good news should show fast)
+        if (state !== 'connected' && state !== 'connected_via_leader' && this._indicatorDebounceTimer) {
+            return;
+        }
+
+        this._lastIndicatorState = state;
+
+        // Clear any pending debounce timer
+        if (this._indicatorDebounceTimer) {
+            clearTimeout(this._indicatorDebounceTimer);
+            this._indicatorDebounceTimer = null;
+        }
+
+        // Apply the visual update
+        this._applyIndicatorState(indicator, state);
+
+        // Set debounce timer for next update (except for connected states)
+        if (state !== 'connected' && state !== 'connected_via_leader') {
+            this._indicatorDebounceTimer = setTimeout(() => {
+                this._indicatorDebounceTimer = null;
+            }, this.INDICATOR_DEBOUNCE_MS);
+        }
+    }
+
+    /**
+     * Apply visual state to indicator element
+     * @param {HTMLElement} indicator
+     * @param {string} state - One of: disabled, warning, connected, connected_via_leader,
+     *                         limit_reached, reconnecting, error, connecting
+     * @private
+     */
+    _applyIndicatorState(indicator, state) {
         const sizeClasses = 'badge-sm sm:badge-md';
 
-        if (!this.enabled) {
-            indicator.className = `badge badge-ghost ${sizeClasses}`;
-            indicator.innerHTML = '&#9899;';
-            indicator.title = 'Offline mode - real-time disabled';
-        } else if (this.isConnected && this.approachingLimit) {
-            indicator.className = `badge badge-warning ${sizeClasses}`;
-            indicator.innerHTML = '&#9888;&#65039;';
-            indicator.title = 'Many connections. Close unused tabs';
-        } else if (this.isConnected) {
-            indicator.className = `badge badge-success ${sizeClasses}`;
-            indicator.innerHTML = '&#128994;';
-            indicator.title = 'Real-time sync active' + (this.useLongPolling ? ' (polling)' : '');
-        } else if (!this.isLeader && this._supportsMultiTab() && this.lastLeaderHeartbeat > 0) {
-            indicator.className = `badge badge-success ${sizeClasses}`;
-            indicator.innerHTML = '&#128994;';
-            indicator.title = 'Sync via another tab';
-        } else if (this.limitReached) {
-            indicator.className = `badge badge-error ${sizeClasses}`;
-            indicator.innerHTML = '&#128308;';
-            indicator.title = 'Connection limit reached. Close other tabs';
-        } else if (this.reconnectAttempts > 0 && this.reconnectAttempts < this.maxReconnectAttempts) {
-            indicator.className = `badge badge-warning ${sizeClasses}`;
-            indicator.innerHTML = '<span class="loading loading-ring loading-xs sm:loading-sm"></span>';
-            indicator.title = `Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})`;
-        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            indicator.className = `badge badge-error ${sizeClasses}`;
-            indicator.innerHTML = '&#128308;';
-            indicator.title = 'Connection error. Refresh page';
-        } else {
-            indicator.className = `badge badge-neutral ${sizeClasses}`;
-            indicator.innerHTML = '<span class="loading loading-ring loading-xs sm:loading-sm"></span>';
-            indicator.title = 'Connecting...';
+        switch (state) {
+            case 'disabled':
+                indicator.className = `badge badge-ghost ${sizeClasses}`;
+                indicator.innerHTML = '&#9899;';
+                indicator.title = 'Offline mode - real-time disabled';
+                break;
+            case 'warning':
+                indicator.className = `badge badge-warning ${sizeClasses}`;
+                indicator.innerHTML = '&#9888;&#65039;';
+                indicator.title = 'Many connections. Close unused tabs';
+                break;
+            case 'connected':
+                indicator.className = `badge badge-success ${sizeClasses}`;
+                indicator.innerHTML = '&#128994;';
+                indicator.title = 'Real-time sync active' + (this.useLongPolling ? ' (polling)' : '');
+                break;
+            case 'connected_via_leader':
+                indicator.className = `badge badge-success ${sizeClasses}`;
+                indicator.innerHTML = '&#128994;';
+                indicator.title = 'Sync via another tab';
+                break;
+            case 'limit_reached':
+                indicator.className = `badge badge-error ${sizeClasses}`;
+                indicator.innerHTML = '&#128308;';
+                indicator.title = 'Connection limit reached. Close other tabs';
+                break;
+            case 'reconnecting':
+                indicator.className = `badge badge-warning ${sizeClasses}`;
+                indicator.innerHTML = '<span class="loading loading-ring loading-xs sm:loading-sm"></span>';
+                indicator.title = `Reconnecting (${this.reconnectAttempts}/${this.maxReconnectAttempts})`;
+                break;
+            case 'error':
+                indicator.className = `badge badge-error ${sizeClasses}`;
+                indicator.innerHTML = '&#128308;';
+                indicator.title = 'Connection error. Refresh page';
+                break;
+            case 'connecting':
+            default:
+                indicator.className = `badge badge-warning ${sizeClasses}`;
+                indicator.innerHTML = '<span class="loading loading-ring loading-xs sm:loading-sm"></span>';
+                indicator.title = 'Connecting...';
+                break;
         }
     }
 
@@ -1495,7 +1581,7 @@ class BudgetWSClient {
             lastLeaderHeartbeat: this.lastLeaderHeartbeat ? new Date(this.lastLeaderHeartbeat).toISOString() : null,
 
             // Browser detection
-            safariIOSMode: this._safariIOSMode,
+            safariIOSMode: this._iosDeviceMode,
             needsLongerTimeout: this._needsLongerTimeout(),
             userAgent: navigator.userAgent,
 
