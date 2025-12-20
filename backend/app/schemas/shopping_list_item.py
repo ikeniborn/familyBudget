@@ -653,8 +653,26 @@ class ProductSuggestion(BaseModel):
     Schema for product autocomplete suggestion.
 
     Based on historical shopping list items.
+    Supports restore of soft-deleted items.
     """
 
+    # Fields for restore functionality
+    id: Optional[int] = Field(
+        default=None,
+        description="Item ID for restore (null for aggregated active items)"
+    )
+
+    is_deleted: bool = Field(
+        default=False,
+        description="True if item is soft-deleted and can be restored"
+    )
+
+    shopping_list_id: Optional[int] = Field(
+        default=None,
+        description="Shopping list ID (for restore context)"
+    )
+
+    # Product identification
     product_name: str = Field(
         ...,
         description="Product name from history"
@@ -680,6 +698,23 @@ class ProductSuggestion(BaseModel):
         description="Product group name from last purchase"
     )
 
+    # Item details for form pre-fill
+    quantity: Optional[Decimal] = Field(
+        default=None,
+        description="Quantity from deleted item (for restore)"
+    )
+
+    unit: Optional[str] = Field(
+        default=None,
+        description="Unit from deleted item (for restore)"
+    )
+
+    comment: Optional[str] = Field(
+        default=None,
+        description="Comment from deleted item (for restore)"
+    )
+
+    # Usage statistics
     last_used: Optional[datetime] = Field(
         default=None,
         description="When this product was last added to a list"

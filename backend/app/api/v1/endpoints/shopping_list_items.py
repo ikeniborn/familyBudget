@@ -235,6 +235,14 @@ async def suggest_products(
         max_length=100,
         description="Search query (min 2 characters)"
     ),
+    shopping_list_id: Optional[int] = Query(
+        default=None,
+        description="Filter by shopping list ID (enables restore of deleted items)"
+    ),
+    include_deleted: bool = Query(
+        default=True,
+        description="Include soft-deleted items from current list (for restore)"
+    ),
     limit: int = Query(
         default=10,
         ge=1,
@@ -253,10 +261,13 @@ async def suggest_products(
     - Returns unique products with store and product group info
     - Sorted by last usage, then by usage count
     - Includes usage count for relevance
+    - **NEW:** When shopping_list_id is provided, includes soft-deleted items
+      from that list (marked with is_deleted=true) for restore functionality
 
     **Example:**
     ```
     GET /api/v1/shopping-list-items/products/suggest?q=мол&limit=10
+    GET /api/v1/shopping-list-items/products/suggest?q=мол&shopping_list_id=5&include_deleted=true
     ```
 
     **Response:**
@@ -264,13 +275,19 @@ async def suggest_products(
     {
       "suggestions": [
         {
+          "id": 123,
+          "is_deleted": true,
+          "shopping_list_id": 5,
           "product_name": "Молоко",
           "store_id": 1,
           "store_name": "Ашан",
           "product_group_id": 5,
           "product_group_name": "Молочные продукты",
+          "quantity": 2,
+          "unit": "л",
+          "comment": "3.2%",
           "last_used": "2025-01-10T12:00:00",
-          "usage_count": 15
+          "usage_count": 1
         }
       ],
       "query": "мол",
@@ -282,9 +299,63 @@ async def suggest_products(
     # Note: pg_trgm similarity doesn't work with Cyrillic when DB collate is 'C'
     search_pattern = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
-    # Build query with joins for store and product group names
-    # Aggregate by product_name, store_id, product_group_id
-    query = (
+    suggestions: list[ProductSuggestion] = []
+
+    # Query 1: Soft-deleted items from current list (priority - can be restored)
+    if shopping_list_id and include_deleted:
+        deleted_query = (
+            select(
+                ShoppingListItem.id,
+                ShoppingListItem.shopping_list_id,
+                ShoppingListItem.product_name,
+                ShoppingListItem.store_id,
+                ShoppingListItem.product_group_id,
+                ShoppingListItem.quantity,
+                ShoppingListItem.unit,
+                ShoppingListItem.comment,
+                Store.name.label("store_name"),
+                ProductGroup.name.label("product_group_name"),
+                ShoppingListItem.deleted_at.label("last_used"),
+            )
+            .join(Store, ShoppingListItem.store_id == Store.id, isouter=True)
+            .join(
+                ProductGroup,
+                ShoppingListItem.product_group_id == ProductGroup.id,
+                isouter=True
+            )
+            .where(
+                ShoppingListItem.shopping_list_id == shopping_list_id,
+                ShoppingListItem.product_name.ilike(f"%{search_pattern}%"),
+                ShoppingListItem.deleted_at.is_not(None),  # Only soft-deleted
+            )
+            .order_by(ShoppingListItem.deleted_at.desc())  # Most recently deleted first
+            .limit(limit)
+        )
+
+        deleted_result = await session.execute(deleted_query)
+        deleted_rows = deleted_result.all()
+
+        for row in deleted_rows:
+            suggestions.append(
+                ProductSuggestion(
+                    id=row.id,
+                    is_deleted=True,
+                    shopping_list_id=row.shopping_list_id,
+                    product_name=row.product_name,
+                    store_id=row.store_id,
+                    store_name=row.store_name,
+                    product_group_id=row.product_group_id,
+                    product_group_name=row.product_group_name,
+                    quantity=row.quantity,
+                    unit=row.unit,
+                    comment=row.comment,
+                    last_used=row.last_used,
+                    usage_count=1,
+                )
+            )
+
+    # Query 2: Active items (aggregated across all lists)
+    active_query = (
         select(
             ShoppingListItem.product_name,
             ShoppingListItem.store_id,
@@ -297,8 +368,6 @@ async def suggest_products(
         .join(Store, ShoppingListItem.store_id == Store.id, isouter=True)
         .join(ProductGroup, ShoppingListItem.product_group_id == ProductGroup.id, isouter=True)
         .where(
-            # Case-insensitive substring search using ILIKE
-            # Works with any locale including 'C' (POSIX)
             ShoppingListItem.product_name.ilike(f"%{search_pattern}%"),
             ShoppingListItem.deleted_at.is_(None),  # Exclude soft-deleted
         )
@@ -309,7 +378,6 @@ async def suggest_products(
             Store.name,
             ProductGroup.name,
         )
-        # Sort by last usage (most recent first), then by usage count
         .order_by(
             func.max(ShoppingListItem.created_at).desc(),
             func.count().desc()
@@ -317,28 +385,50 @@ async def suggest_products(
         .limit(limit)
     )
 
-    result = await session.execute(query)
-    rows = result.all()
+    active_result = await session.execute(active_query)
+    active_rows = active_result.all()
 
-    suggestions = [
-        ProductSuggestion(
-            product_name=row.product_name,
-            store_id=row.store_id,
-            store_name=row.store_name,
-            product_group_id=row.product_group_id,
-            product_group_name=row.product_group_name,
-            last_used=row.last_used,
-            usage_count=row.usage_count,
+    for row in active_rows:
+        suggestions.append(
+            ProductSuggestion(
+                id=None,  # Aggregated - no specific item ID
+                is_deleted=False,
+                shopping_list_id=None,
+                product_name=row.product_name,
+                store_id=row.store_id,
+                store_name=row.store_name,
+                product_group_id=row.product_group_id,
+                product_group_name=row.product_group_name,
+                quantity=None,
+                unit=None,
+                comment=None,
+                last_used=row.last_used,
+                usage_count=row.usage_count,
+            )
         )
-        for row in rows
-    ]
 
-    logger.debug(f"Product suggestions for '{q}': {len(suggestions)} results")
+    # Deduplicate: prefer deleted items (have specific ID for restore)
+    seen: set[tuple[str, Optional[int], Optional[int]]] = set()
+    unique_suggestions: list[ProductSuggestion] = []
+
+    for s in suggestions:
+        key = (s.product_name.lower(), s.store_id, s.product_group_id)
+        if key not in seen:
+            seen.add(key)
+            unique_suggestions.append(s)
+            if len(unique_suggestions) >= limit:
+                break
+
+    logger.debug(
+        f"Product suggestions for '{q}' (list={shopping_list_id}): "
+        f"{len(unique_suggestions)} results "
+        f"({sum(1 for s in unique_suggestions if s.is_deleted)} deleted)"
+    )
 
     return ProductSuggestionsResponse(
-        suggestions=suggestions,
+        suggestions=unique_suggestions,
         query=q,
-        count=len(suggestions),
+        count=len(unique_suggestions),
     )
 
 
@@ -535,6 +625,66 @@ async def delete_shopping_list_item(
         logger.warning(f"WebSocket broadcast failed for deleted item {item_id}: {e}")
 
     return None  # 204 No Content
+
+
+# ==================== RESTORE ENDPOINT ====================
+
+
+@router.put(
+    "/{item_id}/restore",
+    response_model=ShoppingListItemResponse,
+    summary="Restore soft-deleted item",
+    description="Restore a soft-deleted shopping list item (sets deleted_at=NULL)",
+)
+async def restore_shopping_list_item(
+    item_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> ShoppingListItemResponse:
+    """
+    Restore a soft-deleted shopping list item.
+
+    Sets deleted_at=NULL, increments version for optimistic locking.
+    Idempotent: if item is already active, returns it unchanged.
+
+    **Shared references architecture:** Any user can restore any item.
+
+    **Returns:**
+    - Restored ShoppingListItemResponse
+
+    **Errors:**
+    - 404: Item not found
+    """
+    item = await shopping_list_item_service.restore_item(
+        session=session,
+        item_id=item_id,
+        user_id=current_user.id,
+    )
+
+    if not item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Shopping list item {item_id} not found",
+        )
+
+    logger.info(
+        f"Restored shopping list item {item_id} ({item.product_name}) "
+        f"version: {item.version} by user {current_user.id}"
+    )
+
+    response = ShoppingListItemResponse.model_validate(item)
+
+    # Broadcast SSE event (item "appeared" back)
+    try:
+        ws = _get_ws_broadcast()
+        await ws.broadcast_item_created(item_data=response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for restored item {item_id}: {e}")
+
+    return response
+
+
+# ==================== BATCH OPERATIONS ====================
 
 
 @router.post(

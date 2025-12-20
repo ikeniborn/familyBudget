@@ -27,11 +27,12 @@ module:
 
     - name: shopping_list_item_service
       path: "backend/app/services/shopping_list_item_service.py"
-      loc: 493
+      loc: 553
       functions:
         - create_item
         - update_item
         - delete_items_batch   # Soft delete (sets deleted_at timestamp)
+        - restore_item         # Restore soft-deleted item (sets deleted_at=NULL)
         - sync_batch           # Offline sync
         - get_items_by_list
         - get_pending_sync_items  # Excludes soft-deleted items
@@ -41,6 +42,11 @@ module:
         Uses soft delete pattern: items marked with deleted_at timestamp instead of physical deletion.
         Soft-deleted items preserved for autocomplete history and conflict resolution.
         All queries filter deleted_at IS NULL to exclude soft-deleted items.
+
+        restore_item() function:
+        - Idempotent: returns item unchanged if already active
+        - Sets deleted_at=NULL, version++, sync_status='synced'
+        - Used by frontend when user selects deleted item from autocomplete suggestions
 
     - name: store_service
       path: "backend/app/services/store_service.py"
@@ -184,6 +190,32 @@ module:
           - "Tailwind-совместимые стили (choices-tailwind)"
         initialization: "initProductGroupChoices() в showDetailView()"
         data_source: "this.productGroups (загружается из /api/v1/product-groups)"
+
+      product_name_autocomplete:
+        element_id: "item-name"
+        type: "Custom autocomplete dropdown"
+        features:
+          - "Поиск по названию товара (min 2 символа)"
+          - "Показывает удалённые товары из текущего списка (приоритет)"
+          - "Показывает активные товары из всех списков (агрегированные)"
+          - "Визуальная индикация удалённых (⚠️ badge 'восстановить')"
+          - "Восстановление удалённого товара при выборе"
+          - "Авто-заполнение формы (store, group, quantity, unit, comment)"
+        initialization: "Event listener на input#item-name в showDetailView()"
+        data_source: "GET /api/v1/shopping-list-items/products/suggest"
+        functions:
+          - showProductSuggestions: "Fetch и кеширование подсказок"
+          - renderSuggestionsDropdown: "Рендер dropdown с визуальной индикацией"
+          - selectSuggestion: "Обработка выбора (restore или form fill)"
+          - _restoreDeletedItem: "PUT /restore API call"
+          - _fillFormFromSuggestion: "Заполнение полей формы"
+        notes: |
+          Два типа подсказок:
+          1. is_deleted=true: При выборе вызывается PUT /restore (восстановление)
+          2. is_deleted=false: Заполняются поля формы (product_name, store, group, etc.)
+
+          Дедупликация: (product_name, store_id, product_group_id)
+          Приоритет: удалённые товары показываются первыми
 
     views:
       table_view:
