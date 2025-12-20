@@ -46,10 +46,23 @@ templates:
       - "Theme toggle (light/dark)"
       - "WebSocket status indicator"
       - "Offline status indicator"
-      - "Toast notification system"
+      - "Toast notification system (modal-aware)"
       - "Cookie consent banner"
       - "Push notification banner"
       - "Service Worker registration"
+
+    toast_system:
+      description: "Toast notifications that work inside modals"
+      behavior:
+        - "When no dialog is open: toast appears in main #toast-container (z-[99999])"
+        - "When dialog is open: toast appears INSIDE the dialog's modal-box (.dialog-toast-container)"
+        - "This is necessary because HTML5 <dialog> creates 'top layer' above all z-index"
+      functions:
+        - showToast: "Standard toast with auto-dismiss"
+        - showToastWithAction: "Toast with action button"
+      classes:
+        main_container: "fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[99999]"
+        dialog_container: "dialog-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-50"
 
   # ---------------------------------------------------------------------------
   # PAGE TEMPLATES

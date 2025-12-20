@@ -639,10 +639,30 @@
         });
 
         // Toast notification system (responsive, always on top including modals)
-        // Note: Always use main #toast-container (outside dialog) because HTML5 <dialog>
-        // creates a "top layer" that ignores z-index. Toast inside dialog won't appear on top.
+        // When a dialog is open, toast is placed INSIDE the modal-box to appear above it
+        // (HTML5 <dialog> creates a "top layer" that ignores z-index)
         function showToast(message, type = 'info', duration = 2000) {
-            const container = document.getElementById('toast-container');
+            let container;
+
+            // Check if there's an open dialog (modal)
+            const openDialog = document.querySelector('dialog[open]');
+            if (openDialog) {
+                // Create or find toast-container inside the modal-box
+                container = openDialog.querySelector('.dialog-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.className = 'dialog-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none';
+                    const modalBox = openDialog.querySelector('.modal-box');
+                    if (modalBox) {
+                        modalBox.insertBefore(container, modalBox.firstChild);
+                    } else {
+                        openDialog.prepend(container);
+                    }
+                }
+            } else {
+                container = document.getElementById('toast-container');
+            }
+
             if (!container) return;
 
             // Create toast element
@@ -682,10 +702,29 @@
         }
 
         // Toast with action button (for offline mode prompts)
-        // Note: Always use main #toast-container (outside dialog) because HTML5 <dialog>
-        // creates a "top layer" that ignores z-index. Toast inside dialog won't appear on top.
+        // When a dialog is open, toast is placed INSIDE the modal-box to appear above it
         function showToastWithAction({ message, type = 'info', duration = 5000, action }) {
-            const container = document.getElementById('toast-container');
+            let container;
+
+            // Check if there's an open dialog (modal)
+            const openDialog = document.querySelector('dialog[open]');
+            if (openDialog) {
+                // Create or find toast-container inside the modal-box
+                container = openDialog.querySelector('.dialog-toast-container');
+                if (!container) {
+                    container = document.createElement('div');
+                    container.className = 'dialog-toast-container fixed top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none';
+                    const modalBox = openDialog.querySelector('.modal-box');
+                    if (modalBox) {
+                        modalBox.insertBefore(container, modalBox.firstChild);
+                    } else {
+                        openDialog.prepend(container);
+                    }
+                }
+            } else {
+                container = document.getElementById('toast-container');
+            }
+
             if (!container) return;
 
             // Create toast element

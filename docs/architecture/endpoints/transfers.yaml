@@ -48,6 +48,8 @@ routes:
       - "from_financial_center_id != to_financial_center_id"
       - "Both financial centers must exist and be active"
       - "amount > 0"
+      - "For record_type='fact': transfer_date <= today + 1 day (timezone tolerance)"
+      - "Uses SYSTEM_TIMEZONE from config for date comparison (same as facts.py)"
 
   # ---------------------------------------------------------------------------
   # GET TRANSFER
