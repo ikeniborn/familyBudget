@@ -639,24 +639,10 @@
         });
 
         // Toast notification system (responsive, always on top including modals)
+        // Note: Always use main #toast-container (outside dialog) because HTML5 <dialog>
+        // creates a "top layer" that ignores z-index. Toast inside dialog won't appear on top.
         function showToast(message, type = 'info', duration = 2000) {
-            // Check if a modal dialog is open (dialog[open] in top layer)
-            const openModal = document.querySelector('dialog[open]');
-            let container;
-
-            if (openModal) {
-                // Modal is open - create/get toast container inside modal
-                container = openModal.querySelector('.modal-toast-container');
-                if (!container) {
-                    container = document.createElement('div');
-                    container.className = 'modal-toast-container fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
-                    openModal.appendChild(container);
-                }
-            } else {
-                // No modal open - use main toast container
-                container = document.getElementById('toast-container');
-            }
-
+            const container = document.getElementById('toast-container');
             if (!container) return;
 
             // Create toast element
@@ -691,33 +677,15 @@
                     if (toast.parentNode === container) {
                         container.removeChild(toast);
                     }
-                    // Clean up empty modal container
-                    if (container.classList.contains('modal-toast-container') && container.children.length === 0) {
-                        container.remove();
-                    }
                 }, 300);
             }, duration);
         }
 
         // Toast with action button (for offline mode prompts)
+        // Note: Always use main #toast-container (outside dialog) because HTML5 <dialog>
+        // creates a "top layer" that ignores z-index. Toast inside dialog won't appear on top.
         function showToastWithAction({ message, type = 'info', duration = 5000, action }) {
-            // Use main toast container (or modal container if dialog is open)
-            const openModal = document.querySelector('dialog[open]');
-            let container;
-
-            if (openModal) {
-                // Modal is open - create/get toast container inside modal
-                container = openModal.querySelector('.modal-toast-container');
-                if (!container) {
-                    container = document.createElement('div');
-                    container.className = 'modal-toast-container fixed top-[4.5rem] left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-2 pointer-events-none';
-                    openModal.appendChild(container);
-                }
-            } else {
-                // No modal open - use main toast container
-                container = document.getElementById('toast-container');
-            }
-
+            const container = document.getElementById('toast-container');
             if (!container) return;
 
             // Create toast element
@@ -787,10 +755,6 @@
                 setTimeout(() => {
                     if (toast.parentNode === container) {
                         container.removeChild(toast);
-                    }
-                    // Clean up empty modal container
-                    if (container.classList.contains('modal-toast-container') && container.children.length === 0) {
-                        container.remove();
                     }
                 }, 300);
             }, duration);

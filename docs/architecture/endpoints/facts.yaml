@@ -57,11 +57,15 @@ routes:
         record_type: "fact | plan (default: fact)"
         sync_hash: "string (optional, for offline deduplication)"
     validation:
-      date_timezone: "SYSTEM_TIMEZONE (from config, default Europe/Moscow)"
+      date_timezone: "SYSTEM_TIMEZONE (from config, default UTC)"
       date_rules:
-        - "For record_type=fact: fact_date <= today (in SYSTEM_TIMEZONE)"
+        - "For record_type=fact: fact_date <= today + 1 day (timezone tolerance)"
         - "For record_type=plan: future dates allowed"
         - "Both: date must be within 10 years from today"
+      timezone_tolerance: |
+        +1 day tolerance allows users in timezones ahead of UTC (up to UTC+14)
+        to create transactions with their local "today" date even when
+        server time (UTC) is still on the previous day.
     response:
       status: 201
       body:

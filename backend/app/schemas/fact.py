@@ -134,7 +134,9 @@ class FactCreate(BaseModel):
             )
 
         # For 'fact' records: date cannot be in future
-        if record_type == "fact" and fact_date > today:
+        # Allow +1 day tolerance for timezone differences
+        # (user in UTC+14 can be up to 14 hours ahead of UTC server time)
+        if record_type == "fact" and fact_date > today + timedelta(days=1):
             raise ValueError("Fact date cannot be in the future for actual transactions")
 
         return self
@@ -273,7 +275,8 @@ class FactUpdate(BaseModel):
 
         today = now_local().date()  # Uses SYSTEM_TIMEZONE from config
 
-        if v > today:
+        # Allow +1 day tolerance for timezone differences
+        if v > today + timedelta(days=1):
             raise ValueError("Fact date cannot be in the future")
 
         # Check if date is too old (more than 10 years ago)
