@@ -161,6 +161,30 @@ module:
   # UI FEATURES
   # ---------------------------------------------------------------------------
   ui_features:
+    form_selectors:
+      description: "Селекторы в форме добавления/редактирования товара"
+      store_selector:
+        element_id: "item-store"
+        type: "Choices.js"
+        features:
+          - "Поиск по названию магазина"
+          - "Алфавитная сортировка"
+          - "Tailwind-совместимые стили (choices-tailwind)"
+        initialization: "initStoreChoices() в showDetailView()"
+        data_source: "this.stores (загружается из /api/v1/stores)"
+        note: "Добавлено в v6.x, ранее использовался обычный HTML select"
+
+      product_group_selector:
+        element_id: "item-product-group"
+        type: "Choices.js"
+        features:
+          - "Поиск по названию группы"
+          - "Иерархическое отображение (leaf → parent chain)"
+          - "Только leaf-группы доступны для выбора"
+          - "Tailwind-совместимые стили (choices-tailwind)"
+        initialization: "initProductGroupChoices() в showDetailView()"
+        data_source: "this.productGroups (загружается из /api/v1/product-groups)"
+
     views:
       table_view:
         description: "Табличное представление списка товаров"

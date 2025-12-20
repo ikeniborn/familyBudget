@@ -227,7 +227,7 @@ modules:
   # ---------------------------------------------------------------------------
   listsManager:
     path: "frontend/web/static/js/lists/listsManager.js"
-    loc: 2482
+    loc: 2550
     description: "Shopping lists CRUD and view management"
     endpoints:
       - "/api/v1/shopping-lists"
@@ -241,18 +241,27 @@ modules:
       - "Offline sync"
       - "Hide completed items filter"
       - "Conditional delete completed button"
+      - "Choices.js for store and product group selectors"
     state:
       hideCompleted: "boolean - скрыть выполненные товары"
       searchQuery: "string - поисковый запрос"
       currentView: "string - 'table' или 'hierarchy'"
+      choicesInstances:
+        store: "Choices.js instance for store selector"
+        productGroup: "Choices.js instance for product group selector"
     key_methods:
       toggleHideCompleted: "Переключает фильтр скрытия выполненных"
       updateHideCompletedButton: "Обновляет UI кнопки скрытия (иконка, текст)"
       updateDeleteCompletedButton: "Показывает/скрывает кнопку удаления выполненных"
       filterItemsBySearch: "Фильтрует по поиску И hideCompleted"
+      initStoreChoices: "Инициализирует Choices.js для выбора магазина"
+      buildStoreChoices: "Строит массив опций для Choices.js (stores)"
+      initProductGroupChoices: "Инициализирует Choices.js для выбора группы товаров"
+      buildProductGroupChoices: "Строит массив опций для Choices.js (product groups)"
     depends_on:
       - hierarchyView
       - offlineShoppingManager
+      - "Choices.js (vendor)"
     functionality:
       $ref: "../functionality/shopping-lists.yaml#/module"
 

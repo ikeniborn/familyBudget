@@ -252,6 +252,8 @@ templates:
       - $ref: "./js-modules.yaml#/modules/hierarchyView"
       - $ref: "./js-modules.yaml#/modules/csvImporter"
       - $ref: "./js-modules.yaml#/modules/offlineShoppingManager"
+    vendor_libs:
+      - "Choices.js"
     features:
       - "Dual view: table and tree"
       - "Offline support"
@@ -260,6 +262,16 @@ templates:
       - "Product group categorization"
       - "Hide completed items filter"
       - "Conditional delete completed button"
+      - "Choices.js searchable selectors for store and product group"
+    form_selectors:
+      store:
+        element_id: "item-store"
+        type: "Choices.js"
+        features: ["search", "alphabetical sort", "choices-tailwind theme"]
+      product_group:
+        element_id: "item-product-group"
+        type: "Choices.js"
+        features: ["search", "hierarchical display", "leaf-only selection"]
     toolbar_sections:
       table_controls:
         id: "table-controls"

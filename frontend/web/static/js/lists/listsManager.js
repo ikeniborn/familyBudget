@@ -228,7 +228,8 @@ class ListsManager {
             this.switchView('table');
         }
 
-        // Initialize Choices.js for product group selector in modal
+        // Initialize Choices.js for store and product group selectors in modal
+        this.initStoreChoices();
         this.initProductGroupChoices();
 
         // Note: Real-time updates provided by global budgetWSClient
@@ -919,29 +920,70 @@ class ListsManager {
 
     /**
      * Populate store select dropdown
+     * Note: This method prepares the select element for Choices.js
+     * The actual options are populated via buildStoreChoices() in initStoreChoices()
+     *
+     * IMPORTANT: Do NOT create <option> elements here!
+     * Choices.js reads both existing <option> elements AND the choices[] parameter,
+     * which causes duplicates. We use choices[] parameter only.
      */
     populateStoreSelect() {
         const select = document.getElementById('item-store');
         if (!select) return;
 
-        // Clear and add empty placeholder option (disabled, hidden)
+        // Clear select completely - Choices.js will populate via choices[] parameter
         select.innerHTML = '';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.disabled = true;
-        placeholder.selected = true;
-        placeholder.hidden = true;
-        select.appendChild(placeholder);
+    }
 
-        // Add store options
-        this.stores
+    /**
+     * Build choices array for stores
+     * Simple flat list sorted alphabetically
+     * @returns {Array} Choices array for Choices.js
+     */
+    buildStoreChoices() {
+        // Sort stores alphabetically
+        const sortedStores = [...this.stores]
             .filter(store => store.is_active)
-            .forEach(store => {
-                const option = document.createElement('option');
-                option.value = store.id;
-                option.textContent = store.name;
-                select.appendChild(option);
-            });
+            .sort((a, b) => a.name.localeCompare(b.name, 'ru'));
+
+        return sortedStores.map(store => ({
+            value: store.id.toString(),
+            label: this.escapeHtml(store.name),
+            selected: false,
+            disabled: false
+        }));
+    }
+
+    /**
+     * Initialize Choices.js for store selector
+     */
+    initStoreChoices() {
+        const select = document.getElementById('item-store');
+        if (!select) return;
+
+        // Destroy existing instance
+        if (this.choicesInstances.store) {
+            this.choicesInstances.store.destroy();
+        }
+
+        // Build choices array
+        const choices = this.buildStoreChoices();
+
+        // Create Choices.js instance with choices-tailwind styling
+        this.choicesInstances.store = new Choices(select, {
+            searchEnabled: true,
+            searchPlaceholderValue: 'Поиск магазина...',
+            noResultsText: 'Магазин не найден',
+            itemSelectText: '',
+            allowHTML: false, // No HTML needed (flat list)
+            shouldSort: false, // Maintain our alphabetical order
+            placeholder: true,
+            placeholderValue: 'Магазин',
+            choices: choices,
+            classNames: {
+                containerOuter: ['choices', 'choices-tailwind'] // Apply tailwind theme
+            }
+        });
     }
 
     /**
@@ -2042,15 +2084,20 @@ class ListsManager {
             productNameInput.value = suggestion.product_name;
         }
 
-        if (storeSelect && suggestion.store_id) {
-            storeSelect.value = suggestion.store_id;
+        // For Choices.js store select
+        if (suggestion.store_id) {
+            if (this.choicesInstances?.store) {
+                this.choicesInstances.store.setChoiceByValue(String(suggestion.store_id));
+            } else if (storeSelect) {
+                storeSelect.value = suggestion.store_id;
+            }
         }
 
-        if (productGroupSelect && suggestion.product_group_id) {
-            // For Choices.js select
+        // For Choices.js product group select
+        if (suggestion.product_group_id) {
             if (this.choicesInstances?.productGroup) {
                 this.choicesInstances.productGroup.setChoiceByValue(String(suggestion.product_group_id));
-            } else {
+            } else if (productGroupSelect) {
                 productGroupSelect.value = suggestion.product_group_id;
             }
         }
@@ -2227,6 +2274,14 @@ function openAddItemModal() {
     document.getElementById('item-id').value = '';
     document.getElementById('item-modal-title').textContent = '📝 Добавить товар';
 
+    // Reset Choices.js instances (form.reset() doesn't affect Choices.js)
+    if (window.listsManager?.choicesInstances?.store) {
+        window.listsManager.choicesInstances.store.setChoiceByValue('');
+    }
+    if (window.listsManager?.choicesInstances?.productGroup) {
+        window.listsManager.choicesInstances.productGroup.setChoiceByValue('');
+    }
+
     // Reset quantity input step to default (integer)
     const quantityInput = document.getElementById('item-quantity');
     if (quantityInput) {
@@ -2261,8 +2316,6 @@ function openEditItemModal(itemId) {
 
     const modal = document.getElementById('item-modal');
     document.getElementById('item-id').value = item.id;
-    document.getElementById('item-store').value = item.store_id;
-    document.getElementById('item-product-group').value = item.product_group_id;
     document.getElementById('item-product-name').value = item.product_name;
     document.getElementById('item-quantity').value = item.quantity !== null ? item.quantity : '';
     document.getElementById('item-unit').value = item.unit || '';
@@ -2273,7 +2326,10 @@ function openEditItemModal(itemId) {
     const quantityInput = document.getElementById('item-quantity');
     window.listsManager.updateQuantityInputStep(item.unit || '', quantityInput);
 
-    // Update Choices.js instance
+    // Update Choices.js instances for store and product group
+    if (window.listsManager.choicesInstances.store) {
+        window.listsManager.choicesInstances.store.setChoiceByValue(item.store_id.toString());
+    }
     if (window.listsManager.choicesInstances.productGroup) {
         window.listsManager.choicesInstances.productGroup.setChoiceByValue(item.product_group_id.toString());
     }
