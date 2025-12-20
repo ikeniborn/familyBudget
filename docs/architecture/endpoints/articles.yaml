@@ -53,7 +53,7 @@ routes:
     side_effects:
       - "ArticleHistory record created"
       - "ArticleHierarchy updated (closure table)"
-      - "SSE broadcast: article_created"
+      - "WebSocket broadcast: article_created"
 
   # ---------------------------------------------------------------------------
   # READ
@@ -106,7 +106,7 @@ routes:
     side_effects:
       - "Old ArticleHistory closed (is_current=False)"
       - "New ArticleHistory created (is_current=True)"
-      - "SSE broadcast: article_updated"
+      - "WebSocket broadcast: article_updated"
 
   # ---------------------------------------------------------------------------
   # DELETE (ADMIN ONLY)

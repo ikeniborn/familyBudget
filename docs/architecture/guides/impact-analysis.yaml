@@ -98,8 +98,8 @@ dependency_tracing:
             - "models: какие модели затронуты"
             - "htmx_triggers: какие UI компоненты"
 
-        - step: "Проверить SSE события"
-          file: "endpoints/sse.yaml"
+        - step: "Проверить WebSocket события"
+          file: "endpoints/websocket.yaml"
           look_for: "events связанные с facts"
 
         - step: "Проверить frontend интеграцию"
@@ -349,12 +349,12 @@ examples:
         - "Security: проверка token revocation"
 
   example_3:
-    change: "Добавить SSE событие 'article_archived'"
+    change: "Добавить WebSocket событие 'article_archived'"
     analysis:
       affected_components:
         - "backend/app/api/v1/endpoints/articles.py"
-        - "backend/app/api/v1/endpoints/budget_sse.py"
-        - "frontend/web/static/js/budget/budgetSSEClient.js"
+        - "backend/app/api/v1/endpoints/budget_ws.py"
+        - "frontend/web/static/js/budget/budgetWSClient.js"
 
       risk_level: "LOW"
       reasoning: |
@@ -363,6 +363,6 @@ examples:
         - Легко тестируется
 
       testing_plan:
-        - "Unit: test_article_archive_broadcasts_sse"
-        - "Integration: test_sse_article_archived_event"
+        - "Unit: test_article_archive_broadcasts_ws"
+        - "Integration: test_ws_article_archived_event"
         - "Manual: проверка UI обновления"

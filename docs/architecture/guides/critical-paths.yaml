@@ -90,38 +90,45 @@ database:
     - "Изменение partitioning scheme"
 
 # ===========================================================================
-# SSE / REAL-TIME
+# WEBSOCKET / REAL-TIME
 # ===========================================================================
 realtime:
   criticality: "MEDIUM-HIGH"
-  description: "Server-Sent Events система"
+  description: "WebSocket система с Long Polling fallback"
 
   single_worker_constraint:
     status: "CRITICAL"
-    reason: "In-memory ConnectionManager"
+    reason: "In-memory BudgetWebSocketManager"
     config: "WORKERS=1 (захардкожено)"
     impact: "Масштабирование ограничено"
 
   critical_components:
     connection_manager:
-      file: "backend/app/api/v1/endpoints/budget_sse.py"
-      state: "In-memory Dict[user_id, Set[Queue]]"
+      file: "backend/app/api/v1/endpoints/budget_ws.py"
+      state: "In-memory list[(user_id, websocket, connection_id, timestamp)]"
       failure_mode: "Worker restart = потеря всех соединений"
+
+    event_buffer:
+      description: "Ring buffer для Long Polling fallback"
+      max_events: 1000
+      max_age: "60 seconds"
 
     broadcast_points:
       files:
         - "backend/app/api/v1/endpoints/facts.py"
         - "backend/app/api/v1/endpoints/transfers.py"
-        - "backend/app/api/v1/endpoints/shopping.py"
-      pattern: "await connection_manager.broadcast()"
+        - "backend/app/api/v1/endpoints/shopping_list_items.py"
+      pattern: "await ws_manager.broadcast()"
 
   frontend_dependency:
-    file: "frontend/web/static/js/budget/budgetSSEClient.js"
+    file: "frontend/web/static/js/budget/budgetWSClient.js"
     reconnect_logic: "Exponential backoff"
+    fallback: "Long Polling (10 sec interval)"
     ui_indicator: "Navbar connection status"
 
   failure_scenarios:
     server_restart: "Все клиенты переподключаются"
+    websocket_failure: "Switch to Long Polling fallback"
     network_issue: "Client-side reconnect"
     worker_crash: "Потеря соединений, требуется reconnect"
 
@@ -228,8 +235,8 @@ dependency_map:
     - file: "backend/app/core/auth.py"
       affects: "User authentication flow"
 
-    - file: "backend/app/api/v1/endpoints/budget_sse.py"
-      affects: "Real-time updates"
+    - file: "backend/app/api/v1/endpoints/budget_ws.py"
+      affects: "Real-time updates (WebSocket + Long Polling)"
 
     - file: "backend/app/services/transfer_service.py"
       affects: "Financial data integrity"
@@ -272,10 +279,10 @@ monitoring:
     watch_for:
       - "RuntimeWarning: coroutine was never awaited"
       - "IntegrityError"
-      - "ConnectionResetError (SSE)"
+      - "WebSocketDisconnect"
       - "sqlalchemy.exc.OperationalError"
 
   performance:
     slow_queries: "> 100ms"
-    sse_connections: "Monitor total count"
+    ws_connections: "Monitor total count"
     memory_usage: "Watch for leaks"

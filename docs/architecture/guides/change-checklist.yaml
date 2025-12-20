@@ -251,14 +251,14 @@ checklists:
     verification:
       - "Страница отображается корректно"
       - "HTMX запросы работают"
-      - "SSE обновления приходят"
+      - "WebSocket обновления приходят"
       - "Offline режим работает (если применимо)"
 
   # ===========================================================================
-  # ADD SSE EVENT
+  # ADD WEBSOCKET EVENT
   # ===========================================================================
-  add_sse_event:
-    name: "Добавление SSE события"
+  add_ws_event:
+    name: "Добавление WebSocket события"
     when: "Нужно добавить real-time уведомление"
 
     steps:
@@ -273,14 +273,19 @@ checklists:
         action: "Добавить broadcast в endpoint"
         file_pattern: "backend/app/api/v1/endpoints/{resource}.py"
         example: |
-          await connection_manager.broadcast(
+          await ws_manager.broadcast(
               "resource_created",
               {"id": resource.id, "name": resource.name}
           )
+          event_buffer.add_event(
+              "resource_created",
+              {"id": resource.id, "name": resource.name},
+              time.time()
+          )
 
       - order: 3
-        action: "Добавить handler в budgetSSEClient.js"
-        file: "frontend/web/static/js/budget/budgetSSEClient.js"
+        action: "Добавить handler в budgetWSClient.js"
+        file: "frontend/web/static/js/budget/budgetWSClient.js"
         example: |
           case 'resource_created':
               this.handleResourceCreated(data);
@@ -289,11 +294,11 @@ checklists:
       - order: 4
         action: "Обновить документацию"
         files:
-          - "docs/architecture/endpoints/sse.yaml"
-          - "docs/architecture/flows/sse-broadcast.yaml"
+          - "docs/architecture/endpoints/websocket.yaml"
+          - "docs/architecture/flows/ws-broadcast.yaml"
 
     critical_note: |
-      SSE работает только с WORKERS=1!
+      WebSocket работает только с WORKERS=1!
       События не доставляются между воркерами.
 
   # ===========================================================================
@@ -353,11 +358,11 @@ common_mistakes:
     fix: "Скопировать ВСЕ поля из основной модели"
     reference: "CLAUDE.md#history-tables"
 
-  multi_worker_sse:
-    description: "SSE с несколькими workers"
+  multi_worker_ws:
+    description: "WebSocket с несколькими workers"
     symptom: "События не доходят до части клиентов"
     fix: "WORKERS=1 или Redis Pub/Sub"
-    reference: "CLAUDE.md#sse-single-worker-requirement"
+    reference: "CLAUDE.md (WebSocket Single Worker Requirement)"
 
   missing_migration:
     description: "Забыли создать миграцию"

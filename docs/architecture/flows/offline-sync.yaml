@@ -318,7 +318,7 @@ service_worker:
 # ===========================================================================
 ui_indicators:
   sync_status:
-    location: "Navbar, near SSE indicator"
+    location: "Navbar, near WebSocket indicator"
     states:
       synced:
         icon: "✓"

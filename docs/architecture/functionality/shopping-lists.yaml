@@ -137,7 +137,7 @@ module:
       conflict_resolution: "last-write-wins (by timestamp)"
       deduplication: "sync_hash field"
 
-    sse_events:
+    websocket_events:
       - shopping_list_created
       - shopping_list_updated
       - shopping_list_deleted
@@ -156,6 +156,62 @@ module:
       - $ref: "../web/js-modules.yaml#/modules/hierarchyView"
       - $ref: "../web/js-modules.yaml#/modules/csvImporter"
       - $ref: "../web/js-modules.yaml#/modules/offlineShoppingManager"
+
+  # ---------------------------------------------------------------------------
+  # UI FEATURES
+  # ---------------------------------------------------------------------------
+  ui_features:
+    views:
+      table_view:
+        description: "Табличное представление списка товаров"
+        mobile: "Карточный вид вместо таблицы"
+        controls:
+          - "Отметить все (✅) - отметить все товары как выполненные"
+          - "Снять все (☐) - снять все отметки"
+
+      hierarchy_view:
+        description: "Иерархическое представление по магазинам/группам"
+        controls:
+          - "Развернуть (⬇️) - развернуть все узлы"
+          - "Свернуть (⬆️) - свернуть все узлы"
+
+    shared_controls:
+      description: "Кнопки доступные в обоих режимах (table и hierarchy)"
+      buttons:
+        toggle_hide_completed:
+          id: "toggle-hide-completed-btn"
+          icon_inactive: "👁️"
+          icon_active: "👁️‍🗨️"
+          text_inactive: "Скрыть выполненные"
+          text_active: "Показать все"
+          function: "toggleHideCompleted()"
+          behavior: |
+            При нажатии скрывает все выполненные товары.
+            Меняет текст и иконку на "Показать все".
+            Состояние сохраняется в listsManager.hideCompleted.
+
+        delete_completed:
+          id: "delete-completed-btn"
+          icon: "🗑️"
+          text: "Удалить выполненные"
+          function: "deleteCompleted()"
+          visibility: |
+            Скрыта по умолчанию (класс hidden).
+            Показывается автоматически когда есть выполненные товары.
+            Управляется методом updateDeleteCompletedButton().
+          behavior: |
+            Удаляет все выполненные товары с подтверждением.
+            Использует batch-delete endpoint.
+
+    responsive_design:
+      mobile:
+        - "Текст кнопок скрыт (показываются только иконки)"
+        - "Карточное представление вместо таблицы"
+        - "Тулбар горизонтально скроллится при нехватке места"
+      desktop:
+        - "Полный текст кнопок виден"
+        - "Табличное представление"
+        - "Тулбар фиксированной ширины"
 
   # ---------------------------------------------------------------------------
   # MOBILE COMPATIBILITY

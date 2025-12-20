@@ -22,7 +22,8 @@ class ListsManager {
         this.hierarchyView = null; // HierarchyView instance
         this.db = null; // IndexedDBManager instance for offline support
         this.searchQuery = ''; // Search filter for items
-        // Note: SSE updates now handled by global budgetSSEClient
+        this.hideCompleted = false; // Hide completed items filter
+        // Note: Real-time updates now handled by global budgetWSClient
     }
 
     /**
@@ -58,8 +59,8 @@ class ListsManager {
                 debugLog('[ListsManager] OfflineShoppingManager initialized');
             }
 
-            // Note: SSE updates now handled by global budgetSSEClient (consolidation)
-            // budgetSSEClient calls listsManager.addItemToUI, updateItemInUI, etc. directly
+            // Note: Real-time updates now handled by global budgetWSClient (consolidation)
+            // budgetWSClient calls listsManager.addItemToUI, updateItemInUI, etc. directly
 
             // Listen for network status changes (sync when back online)
             window.addEventListener('offline-status-change', async (event) => {
@@ -67,7 +68,7 @@ class ListsManager {
                 this.updateOfflineUI(!online);
 
                 if (online) {
-                    // Note: SSE reconnection handled by global budgetSSEClient
+                    // Note: WebSocket reconnection handled by global budgetWSClient
 
                     if (this.offlineShopping) {
                         try {
@@ -89,7 +90,7 @@ class ListsManager {
                         }
                     }
                 }
-                // Note: SSE disconnect handled by global budgetSSEClient
+                // Note: WebSocket disconnect handled by global budgetWSClient
             });
 
             // Load reference data
@@ -132,7 +133,7 @@ class ListsManager {
     async showLandingView() {
         debugLog('[ListsManager] Showing landing view');
 
-        // Note: SSE stays connected globally via budgetSSEClient (no per-list disconnect needed)
+        // Note: WebSocket stays connected globally via budgetWSClient (no per-list disconnect needed)
 
         // Reset state
         this.currentListId = null;
@@ -167,6 +168,10 @@ class ListsManager {
         const clearBtn = document.getElementById('clear-search-btn');
         if (clearBtn) clearBtn.classList.add('hidden');
 
+        // Reset hide completed filter for new list
+        this.hideCompleted = false;
+        this.updateHideCompletedButton();
+
         // Reset HierarchyView expanded nodes for new list
         // Each list should start with fresh tree state
         if (this.hierarchyView) {
@@ -192,6 +197,9 @@ class ListsManager {
         // Load items for this list
         await this.loadShoppingListItems(listId);
 
+        // Update delete completed button visibility
+        this.updateDeleteCompletedButton();
+
         // Restore saved view preference from localStorage
         let savedView = 'table'; // default
         try {
@@ -214,7 +222,7 @@ class ListsManager {
         // Initialize Choices.js for product group selector in modal
         this.initProductGroupChoices();
 
-        // Note: SSE updates provided by global budgetSSEClient
+        // Note: Real-time updates provided by global budgetWSClient
         // Filtering by shopping_list_id is done in addItemToUI, updateItemInUI, etc.
     }
 
@@ -553,15 +561,33 @@ class ListsManager {
             if (mobileContainer) mobileContainer.classList.add('table-content-hidden');
             emptyState.classList.remove('hidden');
 
-            // Update empty state message based on search
+            // Update empty state message based on search or hide completed
             const emptyTitle = emptyState.querySelector('h3');
             const emptyText = emptyState.querySelector('p');
+            const emptyButton = emptyState.querySelector('button');
+            const hasCompletedItems = this.currentItems.some(item => item.is_completed);
+
             if (this.searchQuery && this.searchQuery.trim() !== '') {
                 if (emptyTitle) emptyTitle.textContent = 'Ничего не найдено';
                 if (emptyText) emptyText.textContent = 'Попробуйте изменить поисковый запрос';
+                if (emptyButton) {
+                    emptyButton.textContent = '➕ Добавить товар';
+                    emptyButton.onclick = () => openAddItemModal();
+                }
+            } else if (this.hideCompleted && hasCompletedItems) {
+                if (emptyTitle) emptyTitle.textContent = 'Все товары выполнены';
+                if (emptyText) emptyText.textContent = 'Нажмите "Показать все" чтобы увидеть выполненные товары';
+                if (emptyButton) {
+                    emptyButton.textContent = '👁️ Показать все';
+                    emptyButton.onclick = () => toggleHideCompleted();
+                }
             } else {
                 if (emptyTitle) emptyTitle.textContent = 'Список пуст';
                 if (emptyText) emptyText.textContent = 'Добавьте первый товар или импортируйте из CSV';
+                if (emptyButton) {
+                    emptyButton.textContent = '➕ Добавить товар';
+                    emptyButton.onclick = () => openAddItemModal();
+                }
             }
             return;
         }
@@ -710,13 +736,19 @@ class ListsManager {
     }
 
     /**
-     * Filter items by search query
+     * Filter items by search query and hideCompleted flag
      * Searches in: product name, store name, group name, group ancestors
      * @returns {Array} Filtered items
      */
     filterItemsBySearch() {
+        // Start with all items or filter out completed if hideCompleted is active
+        let items = this.currentItems;
+        if (this.hideCompleted) {
+            items = items.filter(item => !item.is_completed);
+        }
+
         if (!this.searchQuery || this.searchQuery.trim() === '') {
-            return this.currentItems;
+            return items;
         }
 
         const query = this.searchQuery.toLowerCase().trim();
@@ -739,7 +771,7 @@ class ListsManager {
             return names;
         };
 
-        return this.currentItems.filter(item => {
+        return items.filter(item => {
             // Check product name
             if ((item.product_name || '').toLowerCase().includes(query)) {
                 return true;
@@ -801,6 +833,57 @@ class ListsManager {
             input.value = '';
         }
         this.setSearchQuery('');
+    }
+
+    /**
+     * Toggle hide completed items filter
+     */
+    toggleHideCompleted() {
+        this.hideCompleted = !this.hideCompleted;
+        this.updateHideCompletedButton();
+        this.renderCurrentView();
+    }
+
+    /**
+     * Update hide completed button state
+     */
+    updateHideCompletedButton() {
+        const btn = document.getElementById('toggle-hide-completed-btn');
+        if (!btn) return;
+
+        const iconSpan = btn.querySelector('span:first-child');
+        const textSpan = btn.querySelector('span:last-child');
+
+        if (this.hideCompleted) {
+            if (iconSpan) iconSpan.textContent = '👁️‍🗨️';
+            if (textSpan) textSpan.textContent = 'Показать все';
+            btn.title = 'Показать все товары';
+            btn.classList.add('btn-primary');
+            btn.classList.remove('btn-outline');
+        } else {
+            if (iconSpan) iconSpan.textContent = '👁️';
+            if (textSpan) textSpan.textContent = 'Скрыть выполненные';
+            btn.title = 'Скрыть выполненные';
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline');
+        }
+    }
+
+    /**
+     * Update delete completed button visibility
+     * Shows only when there are completed items
+     */
+    updateDeleteCompletedButton() {
+        const btn = document.getElementById('delete-completed-btn');
+        if (!btn) return;
+
+        const hasCompleted = this.currentItems.some(item => item.is_completed);
+
+        if (hasCompleted) {
+            btn.classList.remove('hidden');
+        } else {
+            btn.classList.add('hidden');
+        }
     }
 
     /**
@@ -1138,6 +1221,7 @@ class ListsManager {
         }
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
 
         try {
             // 2. Send to server or queue for offline
@@ -1303,6 +1387,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
+            this.updateDeleteCompletedButton();
 
             showToast(`Отмечено ${uncompletedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1351,6 +1436,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
+            this.updateDeleteCompletedButton();
 
             showToast(`Снято ${completedItems.length} отметок`, 'success');
         } catch (error) {
@@ -1399,6 +1485,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
+            this.updateDeleteCompletedButton();
 
             showToast(`Удалено ${completedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1546,12 +1633,12 @@ class ListsManager {
     }
 
     // ==========================================================
-    // SSE UI UPDATE METHODS
-    // Called by ShoppingListSSEClient for real-time updates
+    // REAL-TIME UI UPDATE METHODS
+    // Called by BudgetWSClient for real-time updates
     // ==========================================================
 
     /**
-     * Add item to UI (from SSE event)
+     * Add item to UI (from WebSocket event)
      * @param {Object} item - Item data from server (must contain shopping_list_id)
      */
     addItemToUI(item) {
@@ -1576,11 +1663,12 @@ class ListsManager {
 
         // Add to items array
         this.currentItems.push(item);
-        debugLog('[ListsManager] Added item from SSE:', item.id);
+        debugLog('[ListsManager] Added item from WebSocket:', item.id);
 
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
         this.updateItemsCache();
 
         // Show notification
@@ -1588,7 +1676,7 @@ class ListsManager {
     }
 
     /**
-     * Update item in UI (from SSE event)
+     * Update item in UI (from WebSocket event)
      * @param {Object} item - Updated item data from server (must contain shopping_list_id)
      */
     updateItemInUI(item) {
@@ -1613,16 +1701,17 @@ class ListsManager {
 
         // Update item in array
         this.currentItems[index] = { ...this.currentItems[index], ...item };
-        debugLog('[ListsManager] Updated item from SSE:', item.id);
+        debugLog('[ListsManager] Updated item from WebSocket:', item.id);
 
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
         this.updateItemsCache();
     }
 
     /**
-     * Remove item from UI (from SSE event)
+     * Remove item from UI (from WebSocket event)
      * @param {number} itemId - Item ID to remove
      * @param {number} shoppingListId - Shopping list ID (for filtering)
      */
@@ -1646,7 +1735,7 @@ class ListsManager {
 
         const removedItem = this.currentItems[index];
         this.currentItems.splice(index, 1);
-        debugLog('[ListsManager] Removed item from SSE:', itemId);
+        debugLog('[ListsManager] Removed item from WebSocket:', itemId);
 
         // Also remove from selection if selected
         this.selectedItemIds.delete(itemId);
@@ -1654,6 +1743,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
         this.updateItemsCache();
 
         // Show notification
@@ -1661,7 +1751,7 @@ class ListsManager {
     }
 
     /**
-     * Toggle item completed status in UI (from SSE event)
+     * Toggle item completed status in UI (from WebSocket event)
      * @param {number} itemId - Item ID
      * @param {boolean} isCompleted - New completed status
      * @param {number} shoppingListId - Shopping list ID (for filtering)
@@ -1689,11 +1779,12 @@ class ListsManager {
         if (isCompleted) {
             item.completed_at = new Date().toISOString();
         }
-        debugLog('[ListsManager] Toggled item from SSE:', itemId, isCompleted);
+        debugLog('[ListsManager] Toggled item from WebSocket:', itemId, isCompleted);
 
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateDeleteCompletedButton();
         this.updateItemsCache();
     }
 
@@ -1719,24 +1810,13 @@ class ListsManager {
      * @private
      */
     _setupProductAutocomplete() {
-        console.log('[iOS DEBUG 1] _setupProductAutocomplete called');
-
         const input = document.getElementById('item-product-name');
-        console.log('[iOS DEBUG 2] Input found:', !!input, 'Already initialized:', !!input?._autocompleteInitialized);
 
         if (!input) {
-            console.error('[iOS DEBUG] Input element NOT FOUND!');
             return;
         }
 
-        // УДАЛЕНА проверка _autocompleteInitialized для диагностики
-        // if (input._autocompleteInitialized) {
-        //     console.warn('[iOS DEBUG] Skipping - already initialized');
-        //     return;
-        // }
-
         const handler = () => {
-            console.log('[iOS DEBUG 5] Input handler fired, value:', input.value, 'length:', input.value.length);
             this.handleProductInput(input.value);
         };
 
@@ -1744,8 +1824,6 @@ class ListsManager {
         input.addEventListener('input', handler);      // Primary (desktop & some mobile)
         input.addEventListener('keyup', handler);      // Fallback for mobile keyboards
         input.addEventListener('compositionend', handler); // IME input (iOS, Android)
-
-        console.log('[iOS DEBUG 6] Event listeners attached (input, keyup, compositionend)');
 
         input._autocompleteInitialized = true;
 
@@ -1803,8 +1881,6 @@ class ListsManager {
      * @param {string} value - Input value
      */
     handleProductInput(value) {
-        console.log('[iOS DEBUG 7] handleProductInput called, value:', value, 'length:', value?.length);
-
         // Clear previous debounce timer
         if (this._autocompleteTimer) {
             clearTimeout(this._autocompleteTimer);
@@ -1812,16 +1888,12 @@ class ListsManager {
 
         // Hide dropdown if query too short
         if (!value || value.length < 2) {
-            console.log('[iOS DEBUG 8] Query too short, hiding dropdown');
             this.hideProductSuggestions();
             return;
         }
 
-        console.log('[iOS DEBUG 9] Scheduling fetch in 300ms for query:', value);
-
         // Debounce API calls (300ms)
         this._autocompleteTimer = setTimeout(() => {
-            console.log('[iOS DEBUG 10] Debounce timeout fired, calling showProductSuggestions');
             this.showProductSuggestions(value);
         }, 300);
     }
@@ -1831,50 +1903,36 @@ class ListsManager {
      * @param {string} query - Search query
      */
     async showProductSuggestions(query) {
-        console.log('[iOS DEBUG 11] showProductSuggestions called, query:', query, 'length:', query?.length);
-
         if (query.length < 2) {
-            console.warn('[iOS DEBUG 12] Query too short in showProductSuggestions');
             this.hideProductSuggestions();
             return;
         }
 
         try {
             let suggestions = [];
-            console.log('[iOS DEBUG 13] isOnline:', this.isOnline);
 
             if (this.isOnline) {
                 // Online: fetch from API
                 const url = `/api/v1/shopping-list-items/products/suggest?q=${encodeURIComponent(query)}&limit=10`;
-                console.log('[iOS DEBUG 14] Fetching URL:', url);
-
                 const response = await fetch(url);
-                console.log('[iOS DEBUG 15] Response status:', response.status, 'OK:', response.ok);
 
                 if (response.ok) {
                     const data = await response.json();
                     suggestions = data.suggestions || [];
-                    console.log('[iOS DEBUG 16] Got suggestions count:', suggestions.length);
 
                     // Cache suggestions for offline use
                     if (this.db && suggestions.length > 0) {
                         await this._cacheProductSuggestions(suggestions);
                     }
-                } else {
-                    console.error('[iOS DEBUG 17] API error, status:', response.status, response.statusText);
                 }
             } else {
-                console.log('[iOS DEBUG 18] Offline mode, searching cache');
                 // Offline: search in cached suggestions
                 suggestions = await this._searchCachedSuggestions(query);
-                console.log('[iOS DEBUG 18b] Cached suggestions count:', suggestions.length);
             }
 
-            console.log('[iOS DEBUG 19] Calling renderSuggestionsDropdown with', suggestions.length, 'items');
             this.renderSuggestionsDropdown(suggestions);
 
         } catch (error) {
-            console.error('[iOS DEBUG 20] Exception in showProductSuggestions:', error.message, error.stack);
             console.error('[Autocomplete] Error fetching suggestions:', error);
             // Try offline cache on error
             if (this.db) {
@@ -2165,13 +2223,9 @@ function openAddItemModal() {
     setTimeout(() => {
         const input = document.getElementById('item-product-name');
         if (input) {
-            console.log('[iOS DEBUG] Attempting to focus input');
             input.focus();
             // Принудительный клик может помочь на iOS
             input.click();
-            console.log('[iOS DEBUG] Input focused and clicked');
-        } else {
-            console.error('[iOS DEBUG] Input not found for focus');
         }
     }, 300);
 }
@@ -2282,7 +2336,7 @@ async function handleSaveItem(event) {
             }
         } else if (result.tempId && !result.id) {
             // CREATE offline: tempId exists but no real server ID
-            // Offline mode needs immediate update (no SSE in offline)
+            // Offline mode needs immediate update (no WebSocket in offline)
             const newItem = {
                 id: result.tempId,
                 ...data,
@@ -2300,7 +2354,7 @@ async function handleSaveItem(event) {
             manager.updateProgressBadge();
             await manager.updateItemsCache();
         }
-        // CREATE online (result.id exists): do nothing, SSE will add the item
+        // CREATE online (result.id exists): do nothing, WebSocket will add the item
 
     } catch (error) {
         console.error('[ListsManager] Error saving item:', error);
@@ -2334,6 +2388,13 @@ function unmarkAllCompleted() {
  */
 function deleteCompleted() {
     window.listsManager.deleteCompleted();
+}
+
+/**
+ * Toggle hide completed items filter
+ */
+function toggleHideCompleted() {
+    window.listsManager.toggleHideCompleted();
 }
 
 /**

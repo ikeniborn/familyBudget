@@ -24,7 +24,9 @@
                 <div class="flex items-center justify-between cursor-pointer md:cursor-default"
                      onclick="toggleQuickStats()" id="quick-stats-header">
                     <h2 class="card-title text-xl mb-2">📊 Быстрая статистика</h2>
-                    <span class="expand-indicator md:hidden">ещё 2</span>
+                    <span class="expand-indicator badge badge-outline badge-sm opacity-60 hover:opacity-100 cursor-pointer transition-opacity md:hidden">
+                        <span class="indicator-text">+2</span>
+                    </span>
                 </div>
                 <div id="quick-stats"
                      hx-get="/api/v1/analytics/quick-stats-html"
@@ -43,7 +45,9 @@
                 <div class="flex items-center justify-between cursor-pointer md:cursor-default"
                      onclick="toggleAccountBalances()" id="account-balances-header">
                     <h2 class="card-title text-xl mb-2">💳 Баланс по счетам</h2>
-                    <span class="expand-indicator md:hidden">ещё...</span>
+                    <span class="expand-indicator badge badge-outline badge-sm opacity-60 hover:opacity-100 cursor-pointer transition-opacity md:hidden">
+                        <span class="indicator-text">+...</span>
+                    </span>
                 </div>
                 <div id="account-balances"
                      hx-get="/api/v1/analytics/account-balances-html"
@@ -359,17 +363,7 @@
 {% if user %}
 <!-- Collapsible Sections CSS -->
 <style>
-/* Collapsible section indicators */
-.expand-indicator {
-    font-size: 0.6875rem;
-    color: oklch(var(--bc) / 0.4);
-    white-space: nowrap;
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    background: oklch(var(--b2));
-}
-
-/* Hide indicator on desktop */
+/* Hide expand indicator on desktop (DaisyUI badge styling used) */
 @media (min-width: 768px) {
     .expand-indicator {
         display: none !important;
@@ -2570,51 +2564,87 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<!-- SSE Event Handlers for index page (Budget SSE Client loaded in base.html) -->
+<!-- WebSocket Event Handlers for index page (Budget WS Client loaded in base.html) -->
 <script>
-// Register SSE event handlers for index page UI updates
+// Register WebSocket event handlers for index page UI updates
+// Uses IncrementalUpdates for optimized WS-driven updates when available
 document.addEventListener('DOMContentLoaded', () => {
-    // Wait for budgetSSEClient to be available
+    // Wait for budgetWSClient to be available
     setTimeout(() => {
-        if (window.budgetSSEClient) {
-            // Handler for fact events - refresh dashboard
-            window.budgetSSEClient.on('fact_created', (data) => {
-                debugLog('[SSE] Fact created, refreshing dashboard');
-                refreshDashboard();
+        if (window.budgetWSClient) {
+            const hasIncrementalUpdates = !!window.IncrementalUpdates;
+            debugLog('[WS] IncrementalUpdates available:', hasIncrementalUpdates);
+
+            // Handler for fact events - use incremental updates or fallback to refresh
+            window.budgetWSClient.on('fact_created', (data) => {
+                debugLog('[WS] Fact created:', data.id);
+                if (hasIncrementalUpdates) {
+                    window.IncrementalUpdates.onFactCreated(data);
+                } else {
+                    refreshDashboard();
+                }
             });
-            window.budgetSSEClient.on('fact_updated', (data) => {
-                debugLog('[SSE] Fact updated, refreshing dashboard');
-                refreshDashboard();
+            window.budgetWSClient.on('fact_updated', (data) => {
+                debugLog('[WS] Fact updated:', data.id);
+                if (hasIncrementalUpdates) {
+                    window.IncrementalUpdates.onFactUpdated(data);
+                } else {
+                    refreshDashboard();
+                }
             });
-            window.budgetSSEClient.on('fact_deleted', (data) => {
-                debugLog('[SSE] Fact deleted, refreshing dashboard');
-                refreshDashboard();
+            window.budgetWSClient.on('fact_deleted', (data) => {
+                debugLog('[WS] Fact deleted:', data.id);
+                if (hasIncrementalUpdates) {
+                    window.IncrementalUpdates.onFactDeleted(data);
+                } else {
+                    refreshDashboard();
+                }
             });
 
-            // Handler for plan events - refresh stats
-            window.budgetSSEClient.on('plan_created', (data) => {
-                debugLog('[SSE] Plan created, refreshing stats');
-                refreshQuickStats();
+            // Handler for plan events - use incremental updates or fallback to refresh
+            window.budgetWSClient.on('plan_created', (data) => {
+                debugLog('[WS] Plan created:', data.id);
+                if (hasIncrementalUpdates) {
+                    window.IncrementalUpdates.onPlanCreated(data);
+                } else {
+                    refreshQuickStats();
+                }
             });
-            window.budgetSSEClient.on('plan_updated', (data) => {
-                debugLog('[SSE] Plan updated, refreshing stats');
-                refreshQuickStats();
+            window.budgetWSClient.on('plan_updated', (data) => {
+                debugLog('[WS] Plan updated:', data.id);
+                if (hasIncrementalUpdates) {
+                    window.IncrementalUpdates.onPlanUpdated(data);
+                } else {
+                    refreshQuickStats();
+                }
             });
-            window.budgetSSEClient.on('plan_deleted', (data) => {
-                debugLog('[SSE] Plan deleted, refreshing stats');
-                refreshQuickStats();
+            window.budgetWSClient.on('plan_deleted', (data) => {
+                debugLog('[WS] Plan deleted:', data.id);
+                if (hasIncrementalUpdates) {
+                    window.IncrementalUpdates.onPlanDeleted(data);
+                } else {
+                    refreshQuickStats();
+                }
             });
 
-            // Handler for transfer events - refresh balances
-            window.budgetSSEClient.on('transfer_created', (data) => {
-                debugLog('[SSE] Transfer created, refreshing balances');
-                refreshRecentTransactions();
-                refreshAccountBalances();
+            // Handler for transfer events - use incremental updates or fallback
+            window.budgetWSClient.on('transfer_created', (data) => {
+                debugLog('[WS] Transfer created:', data.id);
+                if (hasIncrementalUpdates) {
+                    window.IncrementalUpdates.onTransferCreated(data);
+                } else {
+                    refreshRecentTransactions();
+                    refreshAccountBalances();
+                }
             });
-            window.budgetSSEClient.on('transfer_deleted', (data) => {
-                debugLog('[SSE] Transfer deleted, refreshing balances');
-                refreshRecentTransactions();
-                refreshAccountBalances();
+            window.budgetWSClient.on('transfer_deleted', (data) => {
+                debugLog('[WS] Transfer deleted:', data.id);
+                if (hasIncrementalUpdates) {
+                    window.IncrementalUpdates.onTransferDeleted(data);
+                } else {
+                    refreshRecentTransactions();
+                    refreshAccountBalances();
+                }
             });
         }
     }, 1000);
@@ -2685,7 +2715,12 @@ function applyQuickStatsState() {
         }
     });
 
-    indicator.textContent = quickStatsExpanded ? 'свернуть' : `ещё ${hiddenCount}`;
+    // Скрыть индикатор в развёрнутом состоянии, показать в свёрнутом
+    indicator.style.display = quickStatsExpanded ? 'none' : '';
+    const indicatorText = indicator.querySelector('.indicator-text');
+    if (indicatorText) {
+        indicatorText.textContent = `+${hiddenCount}`;
+    }
 }
 
 function toggleAccountBalances() {
@@ -2724,7 +2759,12 @@ function applyAccountBalancesState() {
         }
     });
 
-    indicator.textContent = accountBalancesExpanded ? 'свернуть' : `ещё ${hiddenCount}`;
+    // Скрыть индикатор в развёрнутом состоянии, показать в свёрнутом
+    indicator.style.display = accountBalancesExpanded ? 'none' : '';
+    const indicatorText = indicator.querySelector('.indicator-text');
+    if (indicatorText) {
+        indicatorText.textContent = `+${hiddenCount}`;
+    }
 }
 
 // При загрузке данных через HTMX - применить начальное состояние (свернуто)

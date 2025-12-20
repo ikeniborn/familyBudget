@@ -20,9 +20,9 @@ from backend.app.middleware import JWTAuthMiddleware, limiter
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from backend.app.scheduler import start_scheduler, stop_scheduler
-from backend.app.api.v1.endpoints.budget_sse import (
-    start_cleanup_task,
-    stop_cleanup_task,
+from backend.app.api.v1.endpoints.budget_ws import (
+    start_ws_cleanup_task,
+    stop_ws_cleanup_task,
     set_push_db_session_factory,
 )
 from backend.app.middleware.csp_middleware import CSPMiddleware
@@ -61,7 +61,7 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized successfully")
 
-    # Initialize push notification session factory
+    # Initialize push notification session factory (WebSocket)
     set_push_db_session_factory(get_session)
     logger.info("Push notification session factory initialized")
 
@@ -69,9 +69,9 @@ async def lifespan(app: FastAPI):
     await start_scheduler()
     logger.info("Background scheduler started successfully")
 
-    # Start SSE cleanup background task (zombie connection protection)
-    start_cleanup_task()
-    logger.info("SSE cleanup task started successfully")
+    # Start WebSocket cleanup background task (zombie connection protection)
+    start_ws_cleanup_task()
+    logger.info("WebSocket cleanup task started successfully")
 
     # Auto-fetch Telegram bot username if not configured
     if settings.TELEGRAM_BOT_USERNAME is None:
@@ -102,9 +102,9 @@ async def lifespan(app: FastAPI):
     # Shutdown
     logger.info("Application shutting down")
 
-    # Stop SSE cleanup background task
-    stop_cleanup_task()
-    logger.info("SSE cleanup task stopped")
+    # Stop WebSocket cleanup background task
+    stop_ws_cleanup_task()
+    logger.info("WebSocket cleanup task stopped")
 
     # Stop background scheduler
     await stop_scheduler()

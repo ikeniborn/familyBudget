@@ -7,7 +7,7 @@ summary:
     - name: "User Operations"
       flows: [create-transaction, telegram-oauth]
     - name: "Real-time"
-      flows: [sse-broadcast]
+      flows: [ws-broadcast]
     - name: "Offline"
       flows: [offline-sync]
     - name: "Import"
@@ -32,14 +32,14 @@ flows:
       - $ref: "../functionality/authentication.yaml"
       - $ref: "../database/support.yaml#/tables/t_refresh_token"
 
-  sse_broadcast:
-    file: "./sse-broadcast.yaml"
-    description: "Real-time event broadcasting"
+  ws_broadcast:
+    file: "./ws-broadcast.yaml"
+    description: "Real-time event broadcasting via WebSocket"
     trigger: "Data mutation (create, update, delete)"
     components:
       - $ref: "../functionality/realtime.yaml"
-      - $ref: "../endpoints/sse.yaml"
-      - $ref: "../web/js-modules.yaml#/modules/budgetSSEClient"
+      - $ref: "../endpoints/websocket.yaml"
+      - $ref: "../web/js-modules.yaml#/modules/budgetWSClient"
 
   offline_sync:
     file: "./offline-sync.yaml"

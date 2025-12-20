@@ -69,7 +69,7 @@ modules:
   # Real-time
   - name: realtime
     file: "./realtime.yaml"
-    description: "SSE события, BudgetConnectionManager"
+    description: "WebSocket события, BudgetWebSocketManager"
     services: []  # In-memory manager in endpoint
     critical: true
     notes: "WORKERS=1 required (single uvicorn worker)"

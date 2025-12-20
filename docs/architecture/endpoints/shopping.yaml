@@ -110,7 +110,7 @@ routes:
     service:
       $ref: "../functionality/shopping-lists.yaml#/module/services/1"
     side_effects:
-      - "SSE broadcast: shopping_list_item_created"
+      - "WebSocket broadcast: shopping_list_item_created"
 
   - path: "/api/v1/shopping-list-items/{id}"
     method: PUT
@@ -126,7 +126,7 @@ routes:
     response:
       status: 200
     side_effects:
-      - "SSE broadcast: shopping_list_item_updated"
+      - "WebSocket broadcast: shopping_list_item_updated"
 
   - path: "/api/v1/shopping-list-items"
     method: DELETE
@@ -140,7 +140,7 @@ routes:
       body:
         deleted_count: "integer"
     side_effects:
-      - "SSE broadcast: shopping_list_item_deleted"
+      - "WebSocket broadcast: shopping_list_item_deleted"
     notes: |
       Uses soft delete pattern: sets deleted_at timestamp instead of physical deletion.
       Soft-deleted items preserved for autocomplete history and conflict resolution.

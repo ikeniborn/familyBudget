@@ -77,7 +77,7 @@ class OfflineManager {
         if (typeof SmartNetworkDetector !== 'undefined') {
             this.networkDetector = new SmartNetworkDetector({
                 heartbeatUrl: '/health',
-                // Интервалы увеличены после внедрения SSE (real-time updates через SSE,
+                // Интервалы увеличены после внедрения WebSocket (real-time updates через WebSocket,
                 // health check нужен только для определения offline режима)
                 heartbeatIntervals: [5000, 10000, 30000],  // Прогрессивные интервалы: 5s, 10s, 30s
                 heartbeatTimeout: 5000,    // 5 сек timeout
@@ -160,18 +160,18 @@ class OfflineManager {
         if (newStatus === 'offline') {
             // Переход в offline
             this._showToastDebounced('Работаем оффлайн', 'warning');
-            // Disconnect SSE - нет смысла держать соединение в offline режиме
-            this.disconnectSSE();
-            _offlineLog('[OfflineManager] SSE disconnected (offline mode)');
+            // Disconnect WebSocket - нет смысла держать соединение в offline режиме
+            this.disconnectWS();
+            _offlineLog('[OfflineManager] WebSocket disconnected (offline mode)');
             // Note: offline-status-change is dispatched at the end of function for all cases
         } else if (oldStatus === 'offline' && (newStatus === 'online' || newStatus === 'degraded')) {
             // Восстановление соединения
             // НЕ показываем toast "Соединение восстановлено" сразу
             // Объединенный toast покажется после sync с результатами
 
-            // Reconnect SSE - восстановить real-time соединение
-            this.reconnectSSE();
-            _offlineLog('[OfflineManager] SSE reconnected (online mode)');
+            // Reconnect WebSocket - восстановить real-time соединение
+            this.reconnectWS();
+            _offlineLog('[OfflineManager] WebSocket reconnected (online mode)');
 
             // Запустить синхронизацию
             if (this.supportsBackgroundSync()) {
@@ -1379,10 +1379,10 @@ class OfflineManager {
         _offlineLog('[OfflineManager] Auto offline recovery event received (toast/sync already handled by status change)');
     }
 
-    // ==================== SSE INTEGRATION ====================
+    // ==================== WEBSOCKET INTEGRATION ====================
 
     /**
-     * Callback for SSE events to refresh UI
+     * Callback for WebSocket events to refresh UI
      * Set this from the page to handle real-time updates
      * @type {Function|null}
      * @param {string} eventType - Event type (fact_created, fact_updated, fact_deleted, etc.)
@@ -1391,15 +1391,15 @@ class OfflineManager {
     refreshUICallback = null;
 
     /**
-     * Initialize Budget SSE client for real-time updates
+     * Initialize Budget WebSocket client for real-time updates
      * Call this after OfflineManager.init() on pages that need real-time updates
-     * @param {Object} options - SSE options
+     * @param {Object} options - WebSocket options
      * @param {Function} options.onFact - Callback for fact events (created/updated/deleted)
      * @param {Function} options.onPlan - Callback for plan events (created/updated/deleted)
      * @param {Function} options.onTransfer - Callback for transfer events (created/deleted)
      * @param {boolean} options.autoConnect - Whether to auto-connect (default: true)
      */
-    initSSE(options = {}) {
+    initWS(options = {}) {
         const {
             onFact = null,
             onPlan = null,
@@ -1421,47 +1421,47 @@ class OfflineManager {
             };
         }
 
-        // Check if BudgetSSEClient is available
-        if (typeof window.budgetSSEClient === 'undefined') {
-            _offlineWarn('[OfflineManager] BudgetSSEClient not loaded - SSE disabled');
+        // Check if BudgetWSClient is available
+        if (typeof window.budgetWSClient === 'undefined') {
+            _offlineWarn('[OfflineManager] BudgetWSClient not loaded - WebSocket disabled');
             return;
         }
 
         // Auto-connect if requested
         if (autoConnect) {
-            window.budgetSSEClient.connect();
+            window.budgetWSClient.connect();
         }
 
-        _offlineLog('[OfflineManager] SSE integration initialized');
+        _offlineLog('[OfflineManager] WebSocket integration initialized');
     }
 
     /**
-     * Disconnect SSE client (disables auto-reconnect)
+     * Disconnect WebSocket client (disables auto-reconnect)
      */
-    disconnectSSE() {
-        if (typeof window.budgetSSEClient !== 'undefined') {
+    disconnectWS() {
+        if (typeof window.budgetWSClient !== 'undefined') {
             // Use setEnabled(false) to prevent auto-reconnect from visibility/online events
-            window.budgetSSEClient.setEnabled(false);
+            window.budgetWSClient.setEnabled(false);
         }
     }
 
     /**
-     * Reconnect SSE client (re-enables and connects)
+     * Reconnect WebSocket client (re-enables and connects)
      */
-    reconnectSSE() {
-        if (typeof window.budgetSSEClient !== 'undefined') {
+    reconnectWS() {
+        if (typeof window.budgetWSClient !== 'undefined') {
             // Use setEnabled(true) to re-enable auto-reconnect and connect
-            window.budgetSSEClient.setEnabled(true);
+            window.budgetWSClient.setEnabled(true);
         }
     }
 
     /**
-     * Get SSE connection status
-     * @returns {Object|null} SSE status or null if not available
+     * Get WebSocket connection status
+     * @returns {Object|null} WebSocket status or null if not available
      */
-    getSSEStatus() {
-        if (typeof window.budgetSSEClient !== 'undefined') {
-            return window.budgetSSEClient.getStatus();
+    getWSStatus() {
+        if (typeof window.budgetWSClient !== 'undefined') {
+            return window.budgetWSClient.getStatus();
         }
         return null;
     }

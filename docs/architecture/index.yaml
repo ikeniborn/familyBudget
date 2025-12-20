@@ -82,7 +82,7 @@ sections:
 
       - name: realtime
         file: "./functionality/realtime.yaml"
-        description: "SSE события, real-time обновления"
+        description: "WebSocket события, real-time обновления"
 
       - name: offline
         file: "./functionality/offline.yaml"
@@ -158,9 +158,9 @@ sections:
         file: "./endpoints/admin.yaml"
         prefix: "/api/v1/admin"
 
-      - name: sse
-        file: "./endpoints/sse.yaml"
-        prefix: "/api/v1/budget/events"
+      - name: websocket
+        file: "./endpoints/websocket.yaml"
+        prefix: "/api/v1/budget/ws, /poll"
 
       - name: health
         file: "./endpoints/health.yaml"
@@ -219,15 +219,15 @@ sections:
     diagrams:
       - name: create_transaction
         file: "./flows/create-transaction.yaml"
-        description: "POST /facts → BudgetFact → SSE broadcast"
+        description: "POST /facts → BudgetFact → WebSocket broadcast"
 
       - name: telegram_oauth
         file: "./flows/telegram-oauth.yaml"
         description: "Telegram Login Widget → JWT → Cookie"
 
-      - name: sse_broadcast
-        file: "./flows/sse-broadcast.yaml"
-        description: "Change → BudgetConnectionManager → All clients"
+      - name: ws_broadcast
+        file: "./flows/ws-broadcast.yaml"
+        description: "Change → BudgetWebSocketManager → All clients"
 
       - name: offline_sync
         file: "./flows/offline-sync.yaml"
@@ -284,8 +284,8 @@ quick_links:
     - label: "Real-time Updates"
       files:
         - "./functionality/realtime.yaml"
-        - "./endpoints/sse.yaml"
-        - "./web/js-modules.yaml#/modules/budgetSSEClient"
+        - "./endpoints/websocket.yaml"
+        - "./web/js-modules.yaml#/modules/budgetWSClient"
 
   # Change scenarios
   scenarios:

@@ -21,6 +21,10 @@
     'use strict';
 
     const HTMXWidgets = {
+        // Debounce state
+        _debounceTimers: {},
+        _debounceDelay: 300, // ms - prevents multiple rapid refreshes
+
         // Widget configurations
         widgets: {
             'quick-stats': {
@@ -95,6 +99,46 @@
          */
         refreshTransactions() {
             this.refreshWidget('recent-transactions');
+        },
+
+        /**
+         * Refresh a single widget with debouncing
+         * Prevents multiple rapid refreshes of the same widget
+         * @param {string} widgetId - Widget identifier
+         */
+        refreshWidgetDebounced(widgetId) {
+            clearTimeout(this._debounceTimers[widgetId]);
+            this._debounceTimers[widgetId] = setTimeout(() => {
+                this.refreshWidget(widgetId);
+            }, this._debounceDelay);
+        },
+
+        /**
+         * Refresh all widgets with debouncing
+         * Each widget is debounced independently
+         */
+        refreshAllDebounced() {
+            Object.keys(this.widgets).forEach(widgetId => {
+                this.refreshWidgetDebounced(widgetId);
+            });
+        },
+
+        /**
+         * Cancel pending debounced refresh for a widget
+         * @param {string} widgetId - Widget identifier
+         */
+        cancelDebouncedRefresh(widgetId) {
+            clearTimeout(this._debounceTimers[widgetId]);
+        },
+
+        /**
+         * Cancel all pending debounced refreshes
+         */
+        cancelAllDebouncedRefreshes() {
+            Object.keys(this._debounceTimers).forEach(widgetId => {
+                clearTimeout(this._debounceTimers[widgetId]);
+            });
+            this._debounceTimers = {};
         },
 
         /**

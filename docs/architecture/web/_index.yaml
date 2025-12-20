@@ -60,7 +60,7 @@ directory_structure:
         - "partials/*.html (HTMX fragments)"
       static:
         js:
-          - "budget/ (budgetSSEClient)"
+          - "budget/ (budgetWSClient)"
           - "offline/ (offlineManager, idb, etc)"
           - "lists/ (listsManager, hierarchyView)"
           - "transfer.js"

@@ -24,7 +24,12 @@ from backend.app.services.hierarchy_service import (
     restore_recursive,
 )
 from backend.app.services.import_executor import ImportExecutor
-from backend.app.services.jwt import create_access_token, decode_access_token
+from backend.app.services.jwt import (
+    create_access_token,
+    create_ws_token,
+    decode_access_token,
+    decode_ws_token,
+)
 from backend.app.services.reminder_service import ReminderService
 from backend.app.services.scd2_service import (
     create_new_version,
@@ -40,7 +45,9 @@ from backend.app.services.tinkoff_csv_parser import TinkoffCSVParser
 
 __all__ = [
     "create_access_token",
+    "create_ws_token",
     "decode_access_token",
+    "decode_ws_token",
     "validate_telegram_auth",
     # SCD Type 2 service
     "create_new_version",
