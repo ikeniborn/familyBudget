@@ -183,13 +183,17 @@ class BudgetWSClient {
      * @private
      */
     async _initMultiTab() {
-        if (this._multiTabInitialized) return;
+        if (this._multiTabInitialized) {
+            this._logHistory('multitab_already_init');
+            return;
+        }
         this._multiTabInitialized = true;
 
         // Safari iOS: Skip Web Locks entirely
         if (this._safariIOSMode) {
             this.isLeader = true;
             this._multiTabSupported = false;
+            this._logHistory('safari_ios_leader_set');
             return;
         }
 
@@ -653,26 +657,42 @@ class BudgetWSClient {
      * Connect to WebSocket endpoint
      */
     async connect() {
-        if (!this.enabled) return;
-        if (this.isConnected) return;
-        if (this.ws || this._pollingActive) return;
+        this._logHistory('connect_start');
+
+        if (!this.enabled) {
+            this._logHistory('connect_skip_disabled');
+            return;
+        }
+        if (this.isConnected) {
+            this._logHistory('connect_skip_connected');
+            return;
+        }
+        if (this.ws || this._pollingActive) {
+            this._logHistory('connect_skip_active');
+            return;
+        }
 
         // Initialize multi-tab support
         if (!this._multiTabInitialized) {
+            this._logHistory('multitab_init_start');
             await this._initMultiTab();
+            this._logHistory(`multitab_init_done_leader=${this.isLeader}_safari=${this._safariIOSMode}`);
         }
 
         // Only leader creates connection
         if (this._supportsMultiTab()) {
             if (this.isLeader) {
+                this._logHistory('creating_connection_leader');
                 this._createConnection();
             } else {
+                this._logHistory('follower_waiting');
                 this._updateStatusIndicator();
             }
             return;
         }
 
-        // Fallback: per-tab connection
+        // Fallback: per-tab connection (Safari iOS uses this path)
+        this._logHistory('creating_connection_fallback');
         this._createConnection();
     }
 
@@ -1509,14 +1529,20 @@ class BudgetWSClient {
             `WS State: ${diag.wsState}`,
             `Long Polling: ${diag.useLongPolling}`,
             `Polling Active: ${diag.pollingActive}`,
+            ``,
             `Safari iOS: ${diag.safariIOSMode}`,
             `Leader: ${diag.isLeader}`,
+            `MultiTab Init: ${diag.multiTabInitialized}`,
+            `MultiTab Supported: ${diag.multiTabSupported}`,
+            `Has Channel: ${diag.hasChannel}`,
+            ``,
             `Reconnects: ${diag.reconnectAttempts}`,
+            `Limit Reached: ${diag.limitReached}`,
             ``,
             `Last Error: ${diag.lastError ? diag.lastError.message : 'none'}`,
             ``,
-            `History:`,
-            ...diag.history.map(h => `  ${new Date(h.time).toLocaleTimeString()}: ${h.event}`)
+            `History (${diag.history.length}):`,
+            ...diag.history.slice(-10).map(h => `  ${new Date(h.time).toLocaleTimeString()}: ${h.event}`)
         ];
         alert('[BudgetWS Diagnostics]\n\n' + lines.join('\n'));
     }
