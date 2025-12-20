@@ -37,6 +37,58 @@ def get_reminder_service() -> ReminderService:
     return ReminderService()
 
 
+# NOTE: General route "/" must be defined BEFORE parameterized routes "/{fact_id}"
+# to ensure FastAPI matches them correctly (routes are matched in definition order)
+@router.get("/", response_model=ReminderListResponse)
+async def list_reminders(
+    status_filter: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    service: ReminderService = Depends(get_reminder_service),
+):
+    """
+    List all reminders for current user.
+
+    Args:
+        status_filter: Optional status filter (pending, sent, failed, cancelled)
+        skip: Pagination offset
+        limit: Pagination limit (max 100)
+        current_user: Authenticated user
+        session: Database session
+        service: Reminder service
+
+    Returns:
+        Paginated list of reminders with plan info
+    """
+    # Validate status
+    if status_filter and status_filter not in ("pending", "sent", "failed", "cancelled"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid status: {status_filter}. Must be one of: pending, sent, failed, cancelled",
+        )
+
+    # Limit max results
+    if limit > 100:
+        limit = 100
+
+    items, total = await service.list_user_reminders(
+        session=session,
+        user_id=current_user.id,
+        status=status_filter,
+        skip=skip,
+        limit=limit,
+    )
+
+    return ReminderListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+    )
+
+
 @router.post("/{fact_id}", response_model=ReminderResponse, status_code=status.HTTP_201_CREATED)
 async def create_reminder(
     fact_id: int,
@@ -241,53 +293,3 @@ async def delete_reminder(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=error_msg,
             )
-
-
-@router.get("/", response_model=ReminderListResponse)
-async def list_reminders(
-    status: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 50,
-    current_user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session),
-    service: ReminderService = Depends(get_reminder_service),
-):
-    """
-    List all reminders for current user.
-
-    Args:
-        status: Optional status filter (pending, sent, failed, cancelled)
-        skip: Pagination offset
-        limit: Pagination limit (max 100)
-        current_user: Authenticated user
-        session: Database session
-        service: Reminder service
-
-    Returns:
-        Paginated list of reminders with plan info
-    """
-    # Validate status
-    if status and status not in ("pending", "sent", "failed", "cancelled"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid status: {status}. Must be one of: pending, sent, failed, cancelled",
-        )
-
-    # Limit max results
-    if limit > 100:
-        limit = 100
-
-    items, total = await service.list_user_reminders(
-        session=session,
-        user_id=current_user.id,
-        status=status,
-        skip=skip,
-        limit=limit,
-    )
-
-    return ReminderListResponse(
-        items=items,
-        total=total,
-        skip=skip,
-        limit=limit,
-    )

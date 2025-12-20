@@ -2343,11 +2343,17 @@ async def get_plans_monthly_comparison(
 
     async def get_month_data(month_date: date, record_type: str = "plan") -> dict:
         """Get data for a specific month with specified record_type."""
+        # Calculate month end date for range comparison
+        # Using date range instead of date_trunc for PostgreSQL type compatibility
+        _, last_day = cal_module.monthrange(month_date.year, month_date.month)
+        month_end = date(month_date.year, month_date.month, last_day)
+
         # Base conditions (without article filters for type totals)
         # Shared family budget - NO user_id filter (consistent with quick-stats-html)
         base_conditions = [
             Fact.record_type == record_type,
-            func.date_trunc("month", Fact.fact_date) == month_date
+            Fact.fact_date >= month_date,
+            Fact.fact_date <= month_end
         ]
 
         if financial_center_id is not None:
