@@ -508,6 +508,8 @@ templates:
           - "Statistics (total, selected, ready)"
           - "Category type filter (expense/income)"
           - "Execute import button"
+          - "Spreadsheet-like cell selection and editing"
+          - "Resizable columns with localStorage persistence"
         filter_sidebar:
           id: "filter-sidebar"
           collapsible: true
@@ -526,6 +528,40 @@ templates:
           id: "bulk-panel-filtered"
           select_height: "3rem"
           purpose: "Bulk apply values to filtered records"
+        spreadsheet_features:
+          column_resize:
+            storage_key: "staging-column-widths"
+            min_width: "50px"
+            persistence: "localStorage"
+          cell_selection:
+            single_click: "Select cell"
+            shift_click: "Select range"
+            ctrl_click: "Toggle cell selection"
+            readonly_click: "Select entire row"
+            header_click: "Select entire column"
+          context_menu:
+            id: "spreadsheet-context-menu"
+            actions:
+              - "Fill Down (Ctrl+D)"
+              - "Fill Selection"
+              - "Copy (Ctrl+C)"
+              - "Paste (Ctrl+V)"
+              - "Clear (Delete)"
+              - "Select Column"
+              - "Select Similar (by CSV category)"
+          keyboard_shortcuts:
+            ctrl_d: "Fill Down"
+            ctrl_c: "Copy"
+            ctrl_v: "Paste"
+            delete: "Clear selection"
+            escape: "Clear all selection"
+          status_bar:
+            id: "spreadsheet-status-bar"
+            displays:
+              - "Selected cells count"
+              - "Filled fields / Total fields"
+              - "Ready for import count"
+              - "Last action message (5s timeout)"
         enrichment_fields:
           - "article_id (required)"
           - "financial_center_id (required)"
@@ -595,6 +631,14 @@ templates:
           concept: "Two view modes with toggle button"
           pros: ["Flexibility", "Compact for overview", "Detail for editing"]
           cons: ["Two modes to maintain", "User must know about toggle"]
+
+        - file: "variant-11-spreadsheet.html"
+          name: "Spreadsheet (Excel-like)"
+          concept: "Excel-like cell selection, Fill Down, Copy/Paste"
+          pros: ["Familiar UX for Excel users", "Fast bulk editing", "Column resize", "Keyboard shortcuts"]
+          cons: ["Mobile-unfriendly", "Learning curve for non-Excel users"]
+          status: "IMPLEMENTED"
+          implementation_date: "2025-12"
 
 # ---------------------------------------------------------------------------
 # COMPONENTS (Jinja2 Macros)
