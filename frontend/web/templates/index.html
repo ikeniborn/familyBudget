@@ -2819,6 +2819,7 @@ async function splitTransferToFacts(itemId, side = 'from') {
     }
 
     // Expense fact data (FROM side)
+    // Use 'debit' type to match transfer category type (transfer uses debit/credit, not expense/income)
     const expenseData = {
         fact_date: data.transfer_date,
         amount: data.amount,
@@ -2828,11 +2829,12 @@ async function splitTransferToFacts(itemId, side = 'from') {
         financial_center_name: data.from_financial_center_name,
         article_id: data.from_article_id,
         article_name: data.from_article_name,
-        fact_type: 'expense',
+        fact_type: 'debit',
         cost_center_id: data.from_cost_center_id || null
     };
 
     // Income fact data (TO side)
+    // Use 'credit' type to match transfer category type (transfer uses debit/credit, not expense/income)
     const incomeData = {
         fact_date: data.transfer_date,
         amount: data.amount,
@@ -2842,7 +2844,7 @@ async function splitTransferToFacts(itemId, side = 'from') {
         financial_center_name: data.to_financial_center_name,
         article_id: data.to_article_id,
         article_name: data.to_article_name,
-        fact_type: 'income',
+        fact_type: 'credit',
         cost_center_id: data.to_cost_center_id || null
     };
 

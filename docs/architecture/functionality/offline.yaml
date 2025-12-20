@@ -192,8 +192,8 @@ module:
       description: "Редактирование pending transfers"
       behavior:
         - "При клике на edit перевод разделяется на 2 независимых факта"
-        - "Expense fact создаётся из FROM стороны перевода"
-        - "Income fact создаётся из TO стороны перевода"
+        - "Debit fact (fact_type='debit') создаётся из FROM стороны перевода"
+        - "Credit fact (fact_type='credit') создаётся из TO стороны перевода"
         - "Оба факта добавляются в entity store (facts) с хешами для синхронизации"
         - "Оригинальный transfer удаляется из syncQueue и transfers store"
         - "После разделения факты редактируются и синхронизируются независимо"
@@ -201,6 +201,9 @@ module:
         - "Кнопка редактирования добавлена к обеим строкам перевода (debit/credit)"
         - "Mobile view: tap по строке открывает редактирование"
         - "Tooltip предупреждает о разделении перевода"
+      category_types:
+        debit: "Списание (FROM сторона) - категории с type='debit'"
+        credit: "Пополнение (TO сторона) - категории с type='credit'"
       functions:
         - "splitTransferToFacts(itemId, side)"
         - "handleTransferEditClick(itemId, side)"
