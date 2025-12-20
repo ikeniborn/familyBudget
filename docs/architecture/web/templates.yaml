@@ -453,6 +453,131 @@ templates:
       - "Connection count"
       - "Error logs"
 
+  admin_import:
+    path: "frontend/web/templates/admin_import.html"
+    extends: base
+    description: "Multi-bank CSV import with enrichment workflow"
+    requires_admin: false
+    js_modules:
+      - $ref: "./js-modules.yaml#/modules/importManager"
+    vendor_libs:
+      - "Choices.js"
+    features:
+      - "4-step workflow: Bank -> Upload -> Mapping -> Enrichment"
+      - "Auto-detect bank format and encoding"
+      - "Configurable column mapping"
+      - "Inline staging table editing"
+      - "Bulk operations on selected records"
+      - "Progress indicators"
+    api_calls:
+      - "POST /api/v1/import/upload"
+      - "GET /api/v1/import/files/{id}/analyze"
+      - "GET /api/v1/import/mappings/{bank_id}"
+      - "POST /api/v1/import/mappings"
+      - "POST /api/v1/import/files/{id}/parse"
+      - "GET /api/v1/admin/staging"
+      - "PATCH /api/v1/admin/staging/{id}"
+      - "POST /api/v1/admin/staging/bulk-update"
+      - "POST /api/v1/admin/staging/execute"
+    workflow_steps:
+      step_1_bank_selection:
+        description: "Select bank provider or create new"
+        features:
+          - "Bank dropdown with add/delete buttons"
+          - "Check for existing staging records"
+          - "Skip to enrichment if staging exists"
+      step_2_upload:
+        description: "Upload CSV file"
+        features:
+          - "File upload (max 100MB)"
+          - "Auto-detect encoding"
+          - "Mapping mode selection (create/update/use existing)"
+      step_3_mapping:
+        description: "Configure column mapping"
+        features:
+          - "Delimiter selector (semicolon, comma, tab)"
+          - "Date format selector"
+          - "Number format selector (RU, US, DE)"
+          - "CSV preview table (first 5 rows)"
+          - "Column mapping table"
+      step_4_enrichment:
+        description: "Enrich staging records before import"
+        features:
+          - "Editable staging table"
+          - "Bulk operations toolbar"
+          - "Statistics (total, selected, ready)"
+          - "Category type filter (expense/income)"
+          - "Execute import button"
+        enrichment_fields:
+          - "article_id (required)"
+          - "financial_center_id (required)"
+          - "cost_center_id (optional)"
+          - "user_comment"
+          - "record_type (fact/plan)"
+    ui_refactoring_variants:
+      description: "10 alternative UI designs for enrichment table"
+      location: "tmp/import/"
+      variants:
+        - file: "variant-01-cards.html"
+          name: "Card-Based Layout"
+          concept: "Each record as a card in responsive grid"
+          pros: ["Visual status indicators", "Mobile-friendly", "Good for overview"]
+          cons: ["More vertical space", "Harder to compare records"]
+
+        - file: "variant-02-split-panel.html"
+          name: "Master-Detail Split Panel"
+          concept: "List on left, edit form on right"
+          pros: ["Focus on one record", "Keyboard navigation", "Full form without scroll"]
+          cons: ["Requires wide screen", "Slower for bulk editing"]
+
+        - file: "variant-03-modal-edit.html"
+          name: "Modal Edit Form"
+          concept: "Compact table + modal for editing"
+          pros: ["Clean table", "Familiar UX pattern", "Easy to add fields"]
+          cons: ["Extra click to edit", "Modal can be annoying"]
+
+        - file: "variant-04-accordion.html"
+          name: "Expandable Accordion Rows"
+          concept: "Rows expand to show edit form"
+          pros: ["Context preserved", "No modal needed", "Can compare records"]
+          cons: ["Vertical scroll increases", "Animation may lag"]
+
+        - file: "variant-05-kanban.html"
+          name: "Kanban Status Columns"
+          concept: "3 columns by status: Incomplete -> Partial -> Ready"
+          pros: ["Visual workflow", "Drag & drop", "Progress motivation"]
+          cons: ["Horizontal space", "Hard with many records"]
+
+        - file: "variant-06-popover.html"
+          name: "Inline Popover Edit"
+          concept: "Compact cells with popover on click"
+          pros: ["Very compact", "Scales to 100+ records", "Keyboard-friendly"]
+          cons: ["Popover may overlap", "Touch-unfriendly"]
+
+        - file: "variant-07-grouped.html"
+          name: "Grouped Collapsible Table"
+          concept: "Auto-group by CSV category with bulk apply"
+          pros: ["Logical organization", "Fast group processing", "Clear progress"]
+          cons: ["Needs good CSV categories", "May create too many groups"]
+
+        - file: "variant-08-wizard.html"
+          name: "Step-by-Step Wizard"
+          concept: "Focus mode: one record at a time with steps"
+          pros: ["Maximum focus", "Guided workflow", "Good for beginners"]
+          cons: ["Slow for many records", "Needs bulk mode fallback"]
+
+        - file: "variant-09-sticky.html"
+          name: "Sticky Header + Floating Toolbar"
+          concept: "Enhanced current table with sticky elements"
+          pros: ["Header always visible", "Bulk toolbar on demand", "Quick filters"]
+          cons: ["More UI complexity", "Floating elements may overlap"]
+
+        - file: "variant-10-toggle.html"
+          name: "Compact/Detail View Toggle"
+          concept: "Two view modes with toggle button"
+          pros: ["Flexibility", "Compact for overview", "Detail for editing"]
+          cons: ["Two modes to maintain", "User must know about toggle"]
+
 # ---------------------------------------------------------------------------
 # COMPONENTS (Jinja2 Macros)
 # ---------------------------------------------------------------------------
@@ -531,9 +656,11 @@ partials:
 
   account_balances:
     path: "frontend/web/templates/partials/account_balances.html"
-    description: "Account balance cards"
+    description: "Account balance cards with data-fc-id for IncrementalUpdates"
     loaded_by: "index.html"
     endpoint: "/api/v1/analytics/account-balances-html"
+    data_attributes:
+      - "data-fc-id: Financial center ID for IncrementalUpdates.updateAccountBalance()"
 
   recent_transactions:
     path: "frontend/web/templates/partials/recent_transactions.html"

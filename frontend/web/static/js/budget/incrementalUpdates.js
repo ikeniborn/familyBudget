@@ -65,7 +65,6 @@
                             type: article.type // expense, income, debit, credit
                         });
                     });
-                    console.debug('[IncrementalUpdates] Cached', this._articlesMap.size, 'articles');
                 }
 
                 if (fcsRes.ok) {
@@ -80,7 +79,6 @@
                             name: fc.name
                         });
                     });
-                    console.debug('[IncrementalUpdates] Cached', this._financialCentersMap.size, 'financial centers');
                 }
 
                 this._cacheInitialized = true;

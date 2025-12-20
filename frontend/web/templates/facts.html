@@ -2155,6 +2155,27 @@ function saveTransaction(button) {
     }
 }
 
+/**
+ * Save transfer on facts page (simplified version - online only)
+ * Note: Offline save functionality is only available on the main page (index.html)
+ * @param {HTMLButtonElement} button - Save button with data-form-id
+ */
+function saveTransfer(button) {
+    if (button.disabled) return; // Already processing - prevent double-click
+    button.disabled = true;
+    button.classList.add('loading');
+
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        // Re-enable button if validation fails
+        button.disabled = false;
+        button.classList.remove('loading');
+        form?.reportValidity();
+    }
+}
+
 // Listen for offline mode changes
 window.addEventListener('network-status-change', updateSaveButtonsVisibility);
 window.addEventListener('offline-status-change', updateSaveButtonsVisibility);

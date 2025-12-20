@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вариант 7: Grouped Collapsible Table</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .group-header {
+            cursor: pointer;
+            user-select: none;
+        }
+        .group-header:hover {
+            background-color: oklch(var(--b2));
+        }
+        .group-content {
+            transition: all 0.2s ease;
+        }
+        .group-content.collapsed {
+            display: none;
+        }
+        .expand-arrow {
+            transition: transform 0.2s ease;
+        }
+        .group-header.expanded .expand-arrow {
+            transform: rotate(90deg);
+        }
+    </style>
+</head>
+<body class="bg-base-200 min-h-screen p-6">
+    <!--
+    ============================================================
+    ВАРИАНТ 7: Grouped Collapsible Table
+    ============================================================
+
+    КОНЦЕПЦИЯ:
+    - Автоматическая группировка по: CSV категории / дате / статусу
+    - Collapsible group headers
+    - Bulk apply для всей группы одним кликом
+    - Визуальное разделение записей по группам
+    - Прогресс-бары для каждой группы
+
+    ПРЕИМУЩЕСТВА:
+    + Логическая организация похожих записей
+    + Быстрая обработка группы одинаковых транзакций
+    + Наглядный прогресс по группам
+    + Легко скрыть уже обработанные группы
+
+    НЕДОСТАТКИ:
+    - Требует правильной категоризации в CSV
+    - Может создать слишком много групп
+    - Сложнее найти конкретную запись
+    ============================================================
+    -->
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold mb-2">Вариант 7: Grouped Collapsible Table</h1>
+            <p class="text-base-content/70">Записи сгруппированы по категории из CSV для удобной массовой обработки</p>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="bg-base-100 p-4 rounded-lg shadow mb-6">
+            <div class="flex flex-wrap gap-4 items-center">
+                <div class="form-control">
+                    <select class="select select-bordered select-sm" id="group-by" onchange="renderGroups()">
+                        <option value="csv_category">Группировать по: Категория CSV</option>
+                        <option value="fact_date">Группировать по: Дата</option>
+                        <option value="status">Группировать по: Статус</option>
+                    </select>
+                </div>
+
+                <input type="text" placeholder="Поиск..." class="input input-bordered input-sm flex-grow max-w-xs" id="search-input" oninput="filterRecords()">
+
+                <button class="btn btn-sm btn-ghost" onclick="expandAllGroups()">Развернуть все</button>
+                <button class="btn btn-sm btn-ghost" onclick="collapseAllGroups()">Свернуть все</button>
+
+                <div class="flex-grow"></div>
+
+                <div class="stats shadow stats-horizontal">
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg" id="stat-total">8</div>
+                        <div class="stat-title text-xs">Всего</div>
+                    </div>
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg text-success" id="stat-ready">0</div>
+                        <div class="stat-title text-xs">Готово</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-success gap-2" onclick="executeImport()">
+                    Импортировать
+                </button>
+            </div>
+        </div>
+
+        <!-- Grouped Content -->
+        <div id="groups-container" class="space-y-4">
+            <!-- Groups will be rendered here -->
+        </div>
+    </div>
+
+    <script>
+        // Mock данные
+        const stagingRecords = [
+            { id: 1, fact_date: '2024-12-15', amount: -1500.00, description: 'Пятерочка покупки', csv_category: 'Супермаркеты', article_id: null, financial_center_id: 1 },
+            { id: 2, fact_date: '2024-12-14', amount: -2300.50, description: 'Яндекс.Такси', csv_category: 'Транспорт', article_id: 2, financial_center_id: 1 },
+            { id: 3, fact_date: '2024-12-14', amount: 50000.00, description: 'Зарплата декабрь', csv_category: 'Переводы', article_id: 4, financial_center_id: 1 },
+            { id: 4, fact_date: '2024-12-13', amount: -890.00, description: 'Кафе "Му-Му"', csv_category: 'Рестораны', article_id: null, financial_center_id: null },
+            { id: 5, fact_date: '2024-12-12', amount: -4500.00, description: 'Wildberries заказ', csv_category: 'Маркетплейсы', article_id: null, financial_center_id: 1 },
+            { id: 6, fact_date: '2024-12-11', amount: -350.00, description: 'Spotify подписка', csv_category: 'Подписки', article_id: 3, financial_center_id: 1 },
+            { id: 7, fact_date: '2024-12-10', amount: 15000.00, description: 'Фриланс проект', csv_category: 'Переводы', article_id: 5, financial_center_id: null },
+            { id: 8, fact_date: '2024-12-09', amount: -1200.00, description: 'Лента продукты', csv_category: 'Супермаркеты', article_id: 1, financial_center_id: 1 }
+        ];
+
+        const articles = [
+            { id: 1, name: 'Продукты', type: 'expense' },
+            { id: 2, name: 'Транспорт', type: 'expense' },
+            { id: 3, name: 'Развлечения', type: 'expense' },
+            { id: 4, name: 'Зарплата', type: 'income' },
+            { id: 5, name: 'Фриланс', type: 'income' }
+        ];
+
+        const financialCenters = [
+            { id: 1, name: 'Тинькофф' },
+            { id: 2, name: 'Сбербанк' },
+            { id: 3, name: 'Наличные' }
+        ];
+
+        function getStatus(record) {
+            if (record.article_id && record.financial_center_id) return 'ready';
+            if (record.article_id || record.financial_center_id) return 'partial';
+            return 'incomplete';
+        }
+
+        function getStatusText(status) {
+            switch(status) {
+                case 'ready': return 'Готово';
+                case 'partial': return 'Частично';
+                default: return 'Не заполнено';
+            }
+        }
+
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('ru-RU', {
+                style: 'currency',
+                currency: 'RUB',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString('ru-RU');
+        }
+
+        function getArticleName(id) {
+            const article = articles.find(a => a.id === id);
+            return article ? article.name : null;
+        }
+
+        function getFCName(id) {
+            const fc = financialCenters.find(f => f.id === id);
+            return fc ? fc.name : null;
+        }
+
+        function groupRecords(records, groupBy) {
+            const groups = {};
+
+            records.forEach(record => {
+                let key;
+                if (groupBy === 'csv_category') {
+                    key = record.csv_category;
+                } else if (groupBy === 'fact_date') {
+                    key = record.fact_date;
+                } else if (groupBy === 'status') {
+                    key = getStatusText(getStatus(record));
+                }
+
+                if (!groups[key]) {
+                    groups[key] = [];
+                }
+                groups[key].push(record);
+            });
+
+            return groups;
+        }
+
+        function renderGroups() {
+            const container = document.getElementById('groups-container');
+            const groupBy = document.getElementById('group-by').value;
+            const groups = groupRecords(stagingRecords, groupBy);
+
+            container.innerHTML = '';
+
+            Object.entries(groups).forEach(([groupName, records]) => {
+                const readyCount = records.filter(r => getStatus(r) === 'ready').length;
+                const progress = Math.round((readyCount / records.length) * 100);
+
+                const groupEl = document.createElement('div');
+                groupEl.className = 'bg-base-100 rounded-lg shadow overflow-hidden';
+                groupEl.dataset.group = groupName;
+
+                // Determine if all records in group are expenses or incomes
+                const isAllExpense = records.every(r => r.amount < 0);
+                const isAllIncome = records.every(r => r.amount > 0);
+                const filteredArticles = isAllExpense ? articles.filter(a => a.type === 'expense') :
+                                         isAllIncome ? articles.filter(a => a.type === 'income') : articles;
+
+                groupEl.innerHTML = `
+                    <!-- Group Header -->
+                    <div class="group-header expanded p-4 flex items-center gap-4" onclick="toggleGroup('${groupName}')">
+                        <svg class="expand-arrow w-5 h-5 text-base-content/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+
+                        <div class="flex-grow">
+                            <div class="flex items-center gap-2">
+                                <span class="font-bold text-lg">${groupName}</span>
+                                <span class="badge badge-ghost">${records.length} записей</span>
+                                <span class="badge ${progress === 100 ? 'badge-success' : progress > 0 ? 'badge-warning' : 'badge-error'}">
+                                    ${readyCount}/${records.length} готово
+                                </span>
+                            </div>
+                            <div class="w-full max-w-xs bg-base-200 rounded-full h-2 mt-2">
+                                <div class="bg-success h-2 rounded-full transition-all" style="width: ${progress}%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Apply for Group -->
+                        <div class="flex gap-2" onclick="event.stopPropagation()">
+                            <select class="select select-bordered select-sm" id="group-article-${groupName.replace(/\s/g, '_')}"
+                                    onchange="applyToGroup('${groupName}', 'article_id', this.value)">
+                                <option value="">Категория...</option>
+                                ${filteredArticles.map(a =>
+                                    `<option value="${a.id}">${a.name}</option>`
+                                ).join('')}
+                            </select>
+                            <select class="select select-bordered select-sm" id="group-fc-${groupName.replace(/\s/g, '_')}"
+                                    onchange="applyToGroup('${groupName}', 'financial_center_id', this.value)">
+                                <option value="">Счёт...</option>
+                                ${financialCenters.map(fc =>
+                                    `<option value="${fc.id}">${fc.name}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Group Content -->
+                    <div class="group-content" id="content-${groupName.replace(/\s/g, '_')}">
+                        <table class="table table-sm w-full">
+                            <thead>
+                                <tr class="bg-base-200">
+                                    <th><input type="checkbox" class="checkbox checkbox-xs" onchange="toggleGroupSelection('${groupName}', this)"></th>
+                                    <th>Дата</th>
+                                    <th>Сумма</th>
+                                    <th>Описание</th>
+                                    <th>Категория</th>
+                                    <th>Счёт</th>
+                                    <th>Статус</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${records.map(record => {
+                                    const status = getStatus(record);
+                                    const isExpense = record.amount < 0;
+                                    const recordArticles = isExpense ? articles.filter(a => a.type === 'expense') : articles.filter(a => a.type === 'income');
+
+                                    return `
+                                        <tr data-id="${record.id}">
+                                            <td><input type="checkbox" class="checkbox checkbox-xs record-checkbox" data-id="${record.id}" onchange="updateStats()"></td>
+                                            <td class="text-sm">${formatDate(record.fact_date)}</td>
+                                            <td class="font-semibold ${record.amount < 0 ? 'text-error' : 'text-success'}">${formatAmount(record.amount)}</td>
+                                            <td class="max-w-xs truncate">${record.description}</td>
+                                            <td>
+                                                <select class="select select-bordered select-xs w-full" onchange="updateField(${record.id}, 'article_id', this.value)">
+                                                    <option value="">—</option>
+                                                    ${recordArticles.map(a =>
+                                                        `<option value="${a.id}" ${a.id === record.article_id ? 'selected' : ''}>${a.name}</option>`
+                                                    ).join('')}
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <select class="select select-bordered select-xs w-full" onchange="updateField(${record.id}, 'financial_center_id', this.value)">
+                                                    <option value="">—</option>
+                                                    ${financialCenters.map(fc =>
+                                                        `<option value="${fc.id}" ${fc.id === record.financial_center_id ? 'selected' : ''}>${fc.name}</option>`
+                                                    ).join('')}
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <span class="badge ${status === 'ready' ? 'badge-success' : status === 'partial' ? 'badge-warning' : 'badge-error'} badge-xs">
+                                                    ${getStatusText(status)}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-ghost btn-xs text-error" onclick="deleteRecord(${record.id})">
+                                                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                    </svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.appendChild(groupEl);
+            });
+
+            updateStats();
+        }
+
+        function toggleGroup(groupName) {
+            const safeGroupName = groupName.replace(/\s/g, '_');
+            const header = document.querySelector(`[data-group="${groupName}"] .group-header`);
+            const content = document.getElementById(`content-${safeGroupName}`);
+
+            header.classList.toggle('expanded');
+            content.classList.toggle('collapsed');
+        }
+
+        function expandAllGroups() {
+            document.querySelectorAll('.group-header').forEach(h => h.classList.add('expanded'));
+            document.querySelectorAll('.group-content').forEach(c => c.classList.remove('collapsed'));
+        }
+
+        function collapseAllGroups() {
+            document.querySelectorAll('.group-header').forEach(h => h.classList.remove('expanded'));
+            document.querySelectorAll('.group-content').forEach(c => c.classList.add('collapsed'));
+        }
+
+        function applyToGroup(groupName, field, value) {
+            if (!value) return;
+
+            const groupBy = document.getElementById('group-by').value;
+            const groups = groupRecords(stagingRecords, groupBy);
+            const records = groups[groupName];
+
+            if (records) {
+                records.forEach(record => {
+                    record[field] = parseInt(value);
+                });
+                renderGroups();
+            }
+        }
+
+        function toggleGroupSelection(groupName, checkbox) {
+            const groupEl = document.querySelector(`[data-group="${groupName}"]`);
+            groupEl.querySelectorAll('.record-checkbox').forEach(cb => {
+                cb.checked = checkbox.checked;
+            });
+            updateStats();
+        }
+
+        function updateField(recordId, field, value) {
+            const record = stagingRecords.find(r => r.id === recordId);
+            if (record) {
+                record[field] = value ? parseInt(value) : null;
+                renderGroups();
+            }
+        }
+
+        function updateStats() {
+            const readyCount = stagingRecords.filter(r => getStatus(r) === 'ready').length;
+            document.getElementById('stat-total').textContent = stagingRecords.length;
+            document.getElementById('stat-ready').textContent = readyCount;
+        }
+
+        function filterRecords() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            document.querySelectorAll('#groups-container tr[data-id]').forEach(row => {
+                const record = stagingRecords.find(r => r.id === parseInt(row.dataset.id));
+                row.style.display = record.description.toLowerCase().includes(term) ? '' : 'none';
+            });
+        }
+
+        function deleteRecord(id) {
+            if (confirm('Удалить запись?')) {
+                const index = stagingRecords.findIndex(r => r.id === id);
+                if (index !== -1) {
+                    stagingRecords.splice(index, 1);
+                    renderGroups();
+                }
+            }
+        }
+
+        function executeImport() {
+            const selected = document.querySelectorAll('.record-checkbox:checked');
+            const readyIds = [];
+            selected.forEach(cb => {
+                const record = stagingRecords.find(r => r.id === parseInt(cb.dataset.id));
+                if (record && getStatus(record) === 'ready') readyIds.push(record.id);
+            });
+            if (readyIds.length === 0) {
+                alert('Нет готовых записей среди выбранных');
+                return;
+            }
+            alert(`Импортировано ${readyIds.length} записей`);
+        }
+
+        // Initial render
+        renderGroups();
+    </script>
+</body>
+</html>

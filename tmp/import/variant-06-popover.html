@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вариант 6: Inline Popover Edit</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.4.19/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .editable-cell {
+            cursor: pointer;
+            position: relative;
+        }
+        .editable-cell:hover {
+            background-color: oklch(var(--p) / 0.1);
+        }
+        .editable-cell.empty {
+            color: oklch(var(--er));
+        }
+        .editable-cell.filled {
+            color: oklch(var(--su));
+        }
+        .cell-popover {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            z-index: 100;
+            min-width: 200px;
+            background: oklch(var(--b1));
+            border: 1px solid oklch(var(--bc) / 0.2);
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            padding: 0.5rem;
+            display: none;
+        }
+        .cell-popover.open {
+            display: block;
+        }
+        .status-icon {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body class="bg-base-200 min-h-screen p-6">
+    <!--
+    ============================================================
+    ВАРИАНТ 6: Inline Popover Edit
+    ============================================================
+
+    КОНЦЕПЦИЯ:
+    - Компактная таблица с иконками/короткими значениями
+    - Клик на ячейку открывает popover с select/input
+    - Визуальные индикаторы незаполненных полей
+    - Tabindex для keyboard навигации
+    - Компактный интерфейс для большого количества записей
+
+    ПРЕИМУЩЕСТВА:
+    + Очень компактная таблица
+    + Быстрое редактирование без модалок
+    + Хорошо масштабируется для 100+ записей
+    + Keyboard-friendly
+
+    НЕДОСТАТКИ:
+    - Popover может перекрывать другие строки
+    - Сложнее для touch-устройств
+    - Требует аккуратного позиционирования
+    ============================================================
+    -->
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold mb-2">Вариант 6: Inline Popover Edit</h1>
+            <p class="text-base-content/70">Кликайте на ячейки для редактирования через всплывающее окно</p>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="bg-base-100 p-4 rounded-lg shadow mb-6">
+            <div class="flex flex-wrap gap-4 items-center">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" class="checkbox checkbox-sm" id="select-all" onchange="toggleSelectAll(this)">
+                    <span class="text-sm">Все</span>
+                </div>
+
+                <input type="text" placeholder="Поиск..." class="input input-bordered input-sm flex-grow max-w-xs" id="search-input" oninput="filterTable()">
+
+                <div class="flex-grow"></div>
+
+                <div class="flex gap-2 items-center">
+                    <div class="flex items-center gap-1 text-xs text-base-content/50">
+                        <span class="w-3 h-3 rounded-full bg-error"></span> Не заполнено
+                    </div>
+                    <div class="flex items-center gap-1 text-xs text-base-content/50">
+                        <span class="w-3 h-3 rounded-full bg-warning"></span> Частично
+                    </div>
+                    <div class="flex items-center gap-1 text-xs text-base-content/50">
+                        <span class="w-3 h-3 rounded-full bg-success"></span> Готово
+                    </div>
+                </div>
+
+                <div class="stats shadow stats-horizontal">
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg" id="stat-total">8</div>
+                        <div class="stat-title text-xs">Всего</div>
+                    </div>
+                    <div class="stat py-1 px-3">
+                        <div class="stat-value text-lg text-success" id="stat-ready">0</div>
+                        <div class="stat-title text-xs">Готово</div>
+                    </div>
+                </div>
+
+                <button class="btn btn-success gap-2" onclick="executeImport()">
+                    Импортировать
+                </button>
+            </div>
+        </div>
+
+        <!-- Compact Table -->
+        <div class="bg-base-100 rounded-lg shadow overflow-visible">
+            <table class="table table-sm w-full">
+                <thead>
+                    <tr class="bg-base-200">
+                        <th class="w-10"></th>
+                        <th class="w-10">Ст.</th>
+                        <th>Дата</th>
+                        <th>Сумма</th>
+                        <th class="max-w-xs">Описание</th>
+                        <th class="w-32">Категория</th>
+                        <th class="w-32">Счёт</th>
+                        <th class="w-32">МЗ</th>
+                        <th class="w-10"></th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Rows will be rendered here -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="text-xs text-base-content/50 mt-4">
+            Подсказка: Tab для перехода между ячейками, Enter для открытия popover, Escape для закрытия
+        </div>
+    </div>
+
+    <script>
+        // Mock данные
+        const stagingRecords = [
+            { id: 1, fact_date: '2024-12-15', amount: -1500.00, description: 'Пятерочка покупки', csv_category: 'Супермаркеты', article_id: null, financial_center_id: 1, cost_center_id: null },
+            { id: 2, fact_date: '2024-12-14', amount: -2300.50, description: 'Яндекс.Такси', csv_category: 'Транспорт', article_id: 2, financial_center_id: 1, cost_center_id: null },
+            { id: 3, fact_date: '2024-12-14', amount: 50000.00, description: 'Зарплата декабрь', csv_category: 'Переводы', article_id: 4, financial_center_id: 1, cost_center_id: null },
+            { id: 4, fact_date: '2024-12-13', amount: -890.00, description: 'Кафе "Му-Му"', csv_category: 'Рестораны', article_id: null, financial_center_id: null, cost_center_id: null },
+            { id: 5, fact_date: '2024-12-12', amount: -4500.00, description: 'Wildberries заказ', csv_category: 'Маркетплейсы', article_id: null, financial_center_id: 1, cost_center_id: null },
+            { id: 6, fact_date: '2024-12-11', amount: -350.00, description: 'Spotify подписка', csv_category: 'Подписки', article_id: 3, financial_center_id: 1, cost_center_id: null },
+            { id: 7, fact_date: '2024-12-10', amount: 15000.00, description: 'Фриланс проект', csv_category: 'Переводы', article_id: 5, financial_center_id: null, cost_center_id: 1 },
+            { id: 8, fact_date: '2024-12-09', amount: -1200.00, description: 'Лента продукты', csv_category: 'Супермаркеты', article_id: 1, financial_center_id: 1, cost_center_id: null }
+        ];
+
+        const articles = [
+            { id: 1, name: 'Продукты', type: 'expense' },
+            { id: 2, name: 'Транспорт', type: 'expense' },
+            { id: 3, name: 'Развлечения', type: 'expense' },
+            { id: 4, name: 'Зарплата', type: 'income' },
+            { id: 5, name: 'Фриланс', type: 'income' }
+        ];
+
+        const financialCenters = [
+            { id: 1, name: 'Тинькофф' },
+            { id: 2, name: 'Сбербанк' },
+            { id: 3, name: 'Наличные' }
+        ];
+
+        const costCenters = [
+            { id: 1, name: 'Работа' },
+            { id: 2, name: 'Личное' },
+            { id: 3, name: 'Семья' }
+        ];
+
+        let activePopover = null;
+
+        function getStatus(record) {
+            if (record.article_id && record.financial_center_id) return 'ready';
+            if (record.article_id || record.financial_center_id) return 'partial';
+            return 'incomplete';
+        }
+
+        function getStatusIcon(status) {
+            switch(status) {
+                case 'ready':
+                    return '<svg class="status-icon text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                case 'partial':
+                    return '<svg class="status-icon text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+                default:
+                    return '<svg class="status-icon text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>';
+            }
+        }
+
+        function formatAmount(amount) {
+            return new Intl.NumberFormat('ru-RU', {
+                style: 'currency',
+                currency: 'RUB',
+                minimumFractionDigits: 0
+            }).format(amount);
+        }
+
+        function formatDate(dateStr) {
+            return new Date(dateStr).toLocaleDateString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit'
+            });
+        }
+
+        function getArticleName(id) {
+            const article = articles.find(a => a.id === id);
+            return article ? article.name : null;
+        }
+
+        function getFCName(id) {
+            const fc = financialCenters.find(f => f.id === id);
+            return fc ? fc.name : null;
+        }
+
+        function getCCName(id) {
+            const cc = costCenters.find(c => c.id === id);
+            return cc ? cc.name : null;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
+            tbody.innerHTML = '';
+
+            stagingRecords.forEach(record => {
+                const status = getStatus(record);
+                const isExpense = record.amount < 0;
+                const row = document.createElement('tr');
+                row.dataset.id = record.id;
+
+                const articleName = getArticleName(record.article_id);
+                const fcName = getFCName(record.financial_center_id);
+                const ccName = getCCName(record.cost_center_id);
+
+                row.innerHTML = `
+                    <td>
+                        <input type="checkbox" class="checkbox checkbox-xs record-checkbox" data-id="${record.id}" onchange="updateStats()">
+                    </td>
+                    <td>${getStatusIcon(status)}</td>
+                    <td class="text-xs">${formatDate(record.fact_date)}</td>
+                    <td class="font-semibold ${record.amount < 0 ? 'text-error' : 'text-success'}">
+                        ${formatAmount(record.amount)}
+                    </td>
+                    <td class="max-w-xs">
+                        <div class="truncate" title="${record.description}">${record.description}</div>
+                        <div class="text-xs text-base-content/50">${record.csv_category}</div>
+                    </td>
+                    <td class="editable-cell ${articleName ? 'filled' : 'empty'}" tabindex="0"
+                        onclick="openPopover(event, ${record.id}, 'article', ${isExpense})"
+                        onkeydown="handleCellKeydown(event, ${record.id}, 'article', ${isExpense})">
+                        <span>${articleName || '—'}</span>
+                        <div class="cell-popover" id="popover-${record.id}-article"></div>
+                    </td>
+                    <td class="editable-cell ${fcName ? 'filled' : 'empty'}" tabindex="0"
+                        onclick="openPopover(event, ${record.id}, 'fc')"
+                        onkeydown="handleCellKeydown(event, ${record.id}, 'fc')">
+                        <span>${fcName || '—'}</span>
+                        <div class="cell-popover" id="popover-${record.id}-fc"></div>
+                    </td>
+                    <td class="editable-cell ${ccName ? 'filled' : ''}" tabindex="0"
+                        onclick="openPopover(event, ${record.id}, 'cc')"
+                        onkeydown="handleCellKeydown(event, ${record.id}, 'cc')">
+                        <span>${ccName || '—'}</span>
+                        <div class="cell-popover" id="popover-${record.id}-cc"></div>
+                    </td>
+                    <td>
+                        <button class="btn btn-ghost btn-xs text-error" onclick="deleteRecord(${record.id})">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            updateStats();
+        }
+
+        function openPopover(event, recordId, fieldType, isExpense = true) {
+            event.stopPropagation();
+
+            // Close any open popover
+            closeAllPopovers();
+
+            const record = stagingRecords.find(r => r.id === recordId);
+            if (!record) return;
+
+            const popover = document.getElementById(`popover-${recordId}-${fieldType}`);
+            let options = [];
+            let currentValue = null;
+
+            if (fieldType === 'article') {
+                options = articles.filter(a => isExpense ? a.type === 'expense' : a.type === 'income');
+                currentValue = record.article_id;
+            } else if (fieldType === 'fc') {
+                options = financialCenters;
+                currentValue = record.financial_center_id;
+            } else if (fieldType === 'cc') {
+                options = costCenters;
+                currentValue = record.cost_center_id;
+            }
+
+            popover.innerHTML = `
+                <select class="select select-sm select-bordered w-full" autofocus
+                        onchange="updateField(${recordId}, '${fieldType}', this.value)"
+                        onblur="closeAllPopovers()">
+                    <option value="">— Не выбрано —</option>
+                    ${options.map(opt =>
+                        `<option value="${opt.id}" ${opt.id === currentValue ? 'selected' : ''}>${opt.name}</option>`
+                    ).join('')}
+                </select>
+            `;
+
+            popover.classList.add('open');
+            activePopover = popover;
+
+            // Focus the select
+            setTimeout(() => {
+                const select = popover.querySelector('select');
+                if (select) select.focus();
+            }, 10);
+        }
+
+        function handleCellKeydown(event, recordId, fieldType, isExpense) {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openPopover(event, recordId, fieldType, isExpense);
+            }
+        }
+
+        function closeAllPopovers() {
+            document.querySelectorAll('.cell-popover.open').forEach(p => {
+                p.classList.remove('open');
+            });
+            activePopover = null;
+        }
+
+        function updateField(recordId, fieldType, value) {
+            const record = stagingRecords.find(r => r.id === recordId);
+            if (!record) return;
+
+            const fieldMap = {
+                'article': 'article_id',
+                'fc': 'financial_center_id',
+                'cc': 'cost_center_id'
+            };
+
+            record[fieldMap[fieldType]] = value ? parseInt(value) : null;
+            closeAllPopovers();
+            renderTable();
+        }
+
+        function updateStats() {
+            const readyCount = stagingRecords.filter(r => getStatus(r) === 'ready').length;
+            document.getElementById('stat-total').textContent = stagingRecords.length;
+            document.getElementById('stat-ready').textContent = readyCount;
+        }
+
+        function toggleSelectAll(checkbox) {
+            document.querySelectorAll('.record-checkbox').forEach(cb => cb.checked = checkbox.checked);
+        }
+
+        function filterTable() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            document.querySelectorAll('#table-body tr').forEach(row => {
+                const record = stagingRecords.find(r => r.id === parseInt(row.dataset.id));
+                row.style.display = record.description.toLowerCase().includes(term) ? '' : 'none';
+            });
+        }
+
+        function deleteRecord(id) {
+            if (confirm('Удалить запись?')) {
+                const index = stagingRecords.findIndex(r => r.id === id);
+                if (index !== -1) {
+                    stagingRecords.splice(index, 1);
+                    renderTable();
+                }
+            }
+        }
+
+        function executeImport() {
+            const selected = document.querySelectorAll('.record-checkbox:checked');
+            const readyIds = [];
+            selected.forEach(cb => {
+                const record = stagingRecords.find(r => r.id === parseInt(cb.dataset.id));
+                if (record && getStatus(record) === 'ready') readyIds.push(record.id);
+            });
+            if (readyIds.length === 0) {
+                alert('Нет готовых записей среди выбранных');
+                return;
+            }
+            alert(`Импортировано ${readyIds.length} записей`);
+        }
+
+        // Close popover on click outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.editable-cell')) {
+                closeAllPopovers();
+            }
+        });
+
+        // Close popover on Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeAllPopovers();
+            }
+        });
+
+        // Initial render
+        renderTable();
+    </script>
+</body>
+</html>
