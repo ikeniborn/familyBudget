@@ -208,8 +208,11 @@ async def create_shopping_list_item(
 
     # Broadcast SSE event to all connected clients
     response = ShoppingListItemResponse.model_validate(item)
-    ws = _get_ws_broadcast()
-    await ws.broadcast_item_created(item_data=response.model_dump())
+    try:
+        ws = _get_ws_broadcast()
+        await ws.broadcast_item_created(item_data=response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for created item {item.id}: {e}")
 
     return response
 
@@ -463,8 +466,11 @@ async def update_shopping_list_item(
 
     # Broadcast SSE event to all connected clients
     response = ShoppingListItemResponse.model_validate(item)
-    ws = _get_ws_broadcast()
-    await ws.broadcast_item_updated(item_data=response.model_dump())
+    try:
+        ws = _get_ws_broadcast()
+        await ws.broadcast_item_updated(item_data=response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for updated item {item_id}: {e}")
 
     return response
 
@@ -522,8 +528,11 @@ async def delete_shopping_list_item(
     )
 
     # Broadcast SSE event to all connected clients
-    ws = _get_ws_broadcast()
-    await ws.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
+    try:
+        ws = _get_ws_broadcast()
+        await ws.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for deleted item {item_id}: {e}")
 
     return None  # 204 No Content
 
@@ -589,14 +598,17 @@ async def batch_complete_items(
     )
 
     # Broadcast SSE events to all connected clients
-    ws = _get_ws_broadcast()
-    for list_id, item_ids in items_by_list.items():
-        for item_id in item_ids:
-            await ws.broadcast_item_completed(
-                item_id=item_id,
-                shopping_list_id=list_id,
-                is_completed=request.is_completed,
-            )
+    try:
+        ws = _get_ws_broadcast()
+        for list_id, item_ids in items_by_list.items():
+            for item_id in item_ids:
+                await ws.broadcast_item_completed(
+                    item_id=item_id,
+                    shopping_list_id=list_id,
+                    is_completed=request.is_completed,
+                )
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for batch complete: {e}")
 
     return {
         "message": f"Marked {count} items as {'completed' if request.is_completed else 'incomplete'}",
@@ -666,10 +678,13 @@ async def batch_delete_items(
     logger.info(f"Batch deleted {count} items by user {current_user.id}")
 
     # Broadcast SSE events to all connected clients
-    ws = _get_ws_broadcast()
-    for list_id, item_ids in items_by_list.items():
-        for item_id in item_ids:
-            await ws.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
+    try:
+        ws = _get_ws_broadcast()
+        for list_id, item_ids in items_by_list.items():
+            for item_id in item_ids:
+                await ws.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
+    except Exception as e:
+        logger.warning(f"WebSocket broadcast failed for batch delete: {e}")
 
     return {"message": f"Deleted {count} items", "count": count}
 
