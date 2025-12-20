@@ -137,20 +137,24 @@ routes:
   - path: "/api/v1/analytics/plan-hints"
     method: GET
     auth: user
-    description: "Suggestions for budget planning"
+    description: "Hints for plan creation modal (previous month sums)"
     query_params:
-      article_id: "integer (optional)"
-      month: "YYYY-MM (optional)"
+      period: "YYYY-MM (required) - Month for which to get hints"
+      article_type: "expense | income | debit | credit (default: expense)"
+      article_id: "integer (optional) - Category ID"
+      financial_center_id: "integer (optional) - Account filter"
     response:
       status: 200
       body:
-        average_monthly:
-          - article_id: "integer"
-            article_name: "string"
-            average_amount: "decimal"
-        last_year_same_month:
-          - article_id: "integer"
-            amount: "decimal"
+        prev_period_plan_sum: "decimal (nullable) - Sum of plans for previous month"
+        prev_period_fact_sum: "decimal (nullable) - Sum of facts for previous month"
+        prev_period: "string - Previous period in YYYY-MM format"
+        article_id: "integer (nullable) - Category ID"
+        article_name: "string (nullable) - Category name"
+        article_type: "string - expense/income/debit/credit"
+    notes: |
+      Used by plan.html and transfer.js to show clickable hint buttons.
+      Example: period=2025-12 → returns November 2025 sums
 
   # ---------------------------------------------------------------------------
   # TRENDS
