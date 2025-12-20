@@ -508,6 +508,11 @@ templates:
           - "Statistics (total, selected, ready)"
           - "Category type filter (expense/income)"
           - "Execute import button"
+        filter_sidebar:
+          id: "filter-sidebar"
+          collapsible: true
+          toggle_function: "toggleFilterSidebar()"
+          state_persistence: "localStorage.filterSidebarCollapsed"
         filter_elements:
           filter-csv-cat:
             type: "select"
@@ -517,6 +522,10 @@ templates:
             type: "select"
             purpose: "Filter by fill status (empty/partial/complete)"
             height: "3rem"
+        bulk_panel_filtered:
+          id: "bulk-panel-filtered"
+          select_height: "3rem"
+          purpose: "Bulk apply values to filtered records"
         enrichment_fields:
           - "article_id (required)"
           - "financial_center_id (required)"

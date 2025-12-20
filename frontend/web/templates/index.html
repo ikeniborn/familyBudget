@@ -2618,7 +2618,7 @@ async function loadPendingRecords() {
                 // Desktop table row
                 tableRows.push(`
                     <tr>
-                        <td class="text-center opacity-30" title="Переводы нельзя редактировать">—</td>
+                        <td class="text-center"><button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button></td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
@@ -2633,7 +2633,8 @@ async function loadPendingRecords() {
                 // Mobile list item (debit)
                 const debitLine2Parts = [shortDate, fromCfo, description].filter(p => p && p !== '—');
                 mobileItems.push(`
-                    <div class="py-2">
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="handleTransferEditClick(${item.id}, 'from')">
                         <div class="flex items-center gap-2">
                             ${typeLabelXs}
                             <span class="flex-1 font-medium truncate">${fromCategory}</span>
@@ -2654,14 +2655,14 @@ async function loadPendingRecords() {
                 // Desktop table row
                 tableRows.push(`
                     <tr>
-                        <td class="text-center opacity-30" title="Переводы нельзя редактировать">—</td>
+                        <td class="text-center"><button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button></td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
                         <td class="text-warning font-medium">${creditAmount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
-                        <td class="text-center opacity-30">—</td>
+                        ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
                 `);
@@ -2669,11 +2670,13 @@ async function loadPendingRecords() {
                 // Mobile list item (credit)
                 const creditLine2Parts = [shortDate, toCfo, description].filter(p => p && p !== '—');
                 mobileItems.push(`
-                    <div class="py-2">
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="handleTransferEditClick(${item.id}, 'to')">
                         <div class="flex items-center gap-2">
                             ${typeLabelXs}
                             <span class="flex-1 font-medium truncate">${toCategory}</span>
                             <span class="text-warning font-bold whitespace-nowrap">${creditAmount}</span>
+                            ${statusBadgeMobile}
                         </div>
                         <div class="text-xs text-base-content/60 mt-1 truncate">
                             ${creditLine2Parts.join(' • ')}
@@ -2760,6 +2763,153 @@ async function loadPendingRecords() {
         console.error('[Pending Records] Error loading:', error);
     }
 }
+
+/**
+ * Split pending transfer into two separate facts (expense + income)
+ * @param {number} itemId - IndexedDB sync queue item ID
+ * @param {string} side - 'from' (expense) or 'to' (income) - which to open for editing
+ * @returns {Promise<number|null>} - ID of the fact to edit, or null on error
+ */
+async function splitTransferToFacts(itemId, side = 'from') {
+    const { items } = await window.offlineManager.getAllUnsyncedItems();
+    const transferItem = items.find(i => i.id === itemId && i.entity === 'transfer');
+
+    if (!transferItem) {
+        showToast('Перевод не найден', 'error');
+        return null;
+    }
+
+    const data = transferItem.data;
+    const db = window.offlineManager.db;
+    const entity = data.record_type === 'plan' ? 'plan' : 'fact';
+
+    // Helper: create fact with proper hashes for sync
+    async function createFactWithHashes(factData, tempId) {
+        // 1. Generate content hash for deduplication
+        const contentHash = db.generateContentHash(factData);
+
+        // 2. Generate sync hash = MD5(content_hash|user_id|created_date)
+        const userId = await window.offlineManager.getCurrentUserId();
+        const createdDate = new Date().toISOString().split('T')[0];
+        const syncHash = db._md5(`${contentHash}|${userId}|${createdDate}`);
+
+        // 3. Add to facts entity store (REQUIRED for sync to work!)
+        await db.addFact({
+            tempId,
+            data: factData,
+            contentHash,
+            syncHash,
+            synced: false,
+            createdAt: Date.now(),
+            error: null,
+            serverId: null
+        });
+
+        // 4. Add to sync queue
+        return await db.addToSyncQueue({
+            operation: 'create',
+            entity: entity,
+            tempId,
+            data: factData,
+            status: 'pending',
+            timestamp: Date.now(),
+            retryCount: 0,
+            error: null
+        });
+    }
+
+    // Expense fact data (FROM side)
+    const expenseData = {
+        fact_date: data.transfer_date,
+        amount: data.amount,
+        record_type: data.record_type,
+        description: data.description || '',
+        financial_center_id: data.from_financial_center_id,
+        financial_center_name: data.from_financial_center_name,
+        article_id: data.from_article_id,
+        article_name: data.from_article_name,
+        fact_type: 'expense',
+        cost_center_id: data.from_cost_center_id || null
+    };
+
+    // Income fact data (TO side)
+    const incomeData = {
+        fact_date: data.transfer_date,
+        amount: data.amount,
+        record_type: data.record_type,
+        description: data.description || '',
+        financial_center_id: data.to_financial_center_id,
+        financial_center_name: data.to_financial_center_name,
+        article_id: data.to_article_id,
+        article_name: data.to_article_name,
+        fact_type: 'income',
+        cost_center_id: data.to_cost_center_id || null
+    };
+
+    // Generate unique temp IDs
+    const expenseTempId = `offline_${entity}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const incomeTempId = `offline_${entity}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_2`;
+
+    let expenseItemId = null;
+    let incomeItemId = null;
+
+    try {
+        // Create both facts with proper hashes
+        expenseItemId = await createFactWithHashes(expenseData, expenseTempId);
+        incomeItemId = await createFactWithHashes(incomeData, incomeTempId);
+
+        // Remove original transfer from sync queue
+        await window.offlineManager.removePendingItem(itemId);
+
+        // Also remove from transfers entity store
+        if (transferItem.tempId) {
+            try {
+                await db.deleteTransfer(transferItem.tempId);
+            } catch (e) {
+                console.warn('Could not delete transfer from entity store:', e);
+            }
+        }
+
+        return side === 'from' ? expenseItemId : incomeItemId;
+    } catch (error) {
+        // Rollback on failure
+        console.error('Error splitting transfer:', error);
+        if (expenseItemId) {
+            try { await window.offlineManager.removePendingItem(expenseItemId); } catch (e) {}
+            try { await db.deleteFact(expenseTempId); } catch (e) {}
+        }
+        if (incomeItemId) {
+            try { await window.offlineManager.removePendingItem(incomeItemId); } catch (e) {}
+            try { await db.deleteFact(incomeTempId); } catch (e) {}
+        }
+        throw error;
+    }
+}
+
+/**
+ * Handle click on transfer edit button - split and open edit modal
+ * @param {number} itemId - IndexedDB sync queue item ID
+ * @param {string} side - 'from' (expense) or 'to' (income)
+ */
+async function handleTransferEditClick(itemId, side) {
+    try {
+        showToast('Разделяю перевод на две записи...', 'info');
+
+        const factIdToEdit = await splitTransferToFacts(itemId, side);
+        if (!factIdToEdit) return;
+
+        await loadPendingRecords();
+        showToast('Перевод разделён на две записи', 'success');
+
+        const { items } = await window.offlineManager.getAllUnsyncedItems();
+        const newFact = items.find(i => i.id === factIdToEdit);
+        await openEditPendingRecord(factIdToEdit, newFact?.entity || 'fact');
+    } catch (error) {
+        console.error('Error splitting transfer:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    }
+}
+window.handleTransferEditClick = handleTransferEditClick;
 
 // Get record type badge HTML (matching recent-transactions-card style)
 function getRecordTypeLabel(entity) {

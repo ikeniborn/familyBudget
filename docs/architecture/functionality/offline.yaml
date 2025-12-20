@@ -176,6 +176,36 @@ module:
       description: "Elements hidden when offline"
 
   # ---------------------------------------------------------------------------
+  # PENDING RECORDS
+  # ---------------------------------------------------------------------------
+  pending_records:
+    location: "index.html #pending-records-card"
+    description: "Pending records awaiting sync"
+    features:
+      - "Desktop table view"
+      - "Mobile list view"
+      - "Edit pending facts/plans"
+      - "Delete pending records"
+      - "Retry failed sync"
+
+    transfer_editing:
+      description: "Редактирование pending transfers"
+      behavior:
+        - "При клике на edit перевод разделяется на 2 независимых факта"
+        - "Expense fact создаётся из FROM стороны перевода"
+        - "Income fact создаётся из TO стороны перевода"
+        - "Оба факта добавляются в entity store (facts) с хешами для синхронизации"
+        - "Оригинальный transfer удаляется из syncQueue и transfers store"
+        - "После разделения факты редактируются и синхронизируются независимо"
+      ui_changes:
+        - "Кнопка редактирования добавлена к обеим строкам перевода (debit/credit)"
+        - "Mobile view: tap по строке открывает редактирование"
+        - "Tooltip предупреждает о разделении перевода"
+      functions:
+        - "splitTransferToFacts(itemId, side)"
+        - "handleTransferEditClick(itemId, side)"
+
+  # ---------------------------------------------------------------------------
   # FLOWS
   # ---------------------------------------------------------------------------
   flows:

@@ -257,7 +257,7 @@ When adding new components:
 
 ## Recent Changes
 
-- **2025-12-20**: Import page filter elements height set to 3rem (`#filter-csv-cat`, `#filter-status`) for improved UX
+- **2025-12-20**: Import page UX improvements: collapsible filter sidebar, filter elements height 3rem, bulk-panel-filtered selects height 3rem
 - **2025-12-20**: Fixed critical WebSocket issues (see Known Issues & Fixes section below)
 - **2025-12-19**: Added Mobile Quick Actions (Mini Cards Row pattern) - responsive 4-column grid for mobile, preserving 3-column desktop layout (index.html:55-117)
 - **2025-12-19**: Updated shopping lists documentation to reflect soft delete pattern and item count filtering (commit 6aa943bf)

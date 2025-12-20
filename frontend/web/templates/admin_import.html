@@ -18,6 +18,44 @@
     top: 0;
     height: calc(100vh - 4rem);
     overflow-y: auto;
+    transition: all 0.3s ease;
+}
+
+/* Collapsible sidebar */
+.filter-sidebar.collapsed {
+    width: 3rem;
+    min-width: 3rem;
+    padding: 0.5rem;
+    overflow: hidden;
+}
+.filter-sidebar.collapsed .filter-content {
+    display: none;
+}
+.filter-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 0.5rem;
+    margin: -0.5rem -0.5rem 0.5rem -0.5rem;
+    border-radius: 0.5rem;
+    transition: background 0.2s ease;
+}
+.filter-sidebar-header:hover {
+    background: oklch(var(--b2));
+}
+.filter-sidebar.collapsed .filter-sidebar-header {
+    justify-content: center;
+    margin: 0;
+}
+.filter-sidebar.collapsed .filter-title {
+    display: none;
+}
+.filter-toggle-icon {
+    transition: transform 0.3s ease;
+}
+.filter-sidebar.collapsed .filter-toggle-icon {
+    transform: rotate(180deg);
 }
 
 /* Filter chips */
@@ -55,6 +93,8 @@
 .bulk-panel-filtered select {
     background: oklch(var(--b1));
     color: oklch(var(--bc));
+    height: 3rem;
+    min-height: 3rem;
 }
 
 /* Workflow steps */
@@ -390,105 +430,112 @@
             <!-- Main content: Sidebar + Table -->
             <div class="flex gap-4">
                 <!-- Filter Sidebar -->
-                <div class="filter-sidebar rounded-lg">
-                    <h3 class="font-semibold text-lg mb-4">🔍 Фильтры</h3>
-
-                    <!-- Search by description -->
-                    <div class="form-control mb-4">
-                        <label class="label py-1">
-                            <span class="label-text text-xs">Поиск по описанию</span>
-                        </label>
-                        <input type="text" id="filter-search" class="input input-bordered input-sm w-full"
-                               placeholder="Введите текст..." oninput="applyFilters()">
+                <div class="filter-sidebar rounded-lg" id="filter-sidebar">
+                    <!-- Collapsible Header -->
+                    <div class="filter-sidebar-header" onclick="toggleFilterSidebar()">
+                        <h3 class="font-semibold text-lg filter-title">🔍 Фильтры</h3>
+                        <span class="filter-toggle-icon text-lg">◀</span>
                     </div>
 
-                    <!-- CSV Category filter -->
-                    <div class="form-control mb-4">
-                        <label class="label py-1">
-                            <span class="label-text text-xs">Категория (CSV)</span>
-                        </label>
-                        <select id="filter-csv-cat" class="select select-bordered select-sm w-full" style="height: 3rem; min-height: 3rem;" onchange="applyFilters()">
-                            <option value="">Все категории</option>
+                    <!-- Filter Content (collapsible) -->
+                    <div class="filter-content">
+                        <!-- Search by description -->
+                        <div class="form-control mb-4">
+                            <label class="label py-1">
+                                <span class="label-text text-xs">Поиск по описанию</span>
+                            </label>
+                            <input type="text" id="filter-search" class="input input-bordered input-sm w-full"
+                                   placeholder="Введите текст..." oninput="applyFilters()">
+                        </div>
+
+                        <!-- CSV Category filter -->
+                        <div class="form-control mb-4">
+                            <label class="label py-1">
+                                <span class="label-text text-xs">Категория (CSV)</span>
+                            </label>
+                            <select id="filter-csv-cat" class="select select-bordered select-sm w-full" style="height: 3rem; min-height: 3rem;" onchange="applyFilters()">
+                                <option value="">Все категории</option>
+                                <!-- Populated dynamically -->
+                            </select>
+                        </div>
+
+                        <!-- Amount type (expense/income) -->
+                        <div class="form-control mb-4">
+                            <label class="label py-1">
+                                <span class="label-text text-xs">Тип суммы</span>
+                            </label>
+                            <div class="flex flex-col gap-1">
+                                <label class="label cursor-pointer justify-start gap-2 py-1">
+                                    <input type="radio" name="filter-amount" class="radio radio-sm" value="" checked onchange="applyFilters()">
+                                    <span class="label-text">Все</span>
+                                </label>
+                                <label class="label cursor-pointer justify-start gap-2 py-1">
+                                    <input type="radio" name="filter-amount" class="radio radio-sm radio-error" value="expense" onchange="applyFilters()">
+                                    <span class="label-text text-error">💸 Расходы</span>
+                                </label>
+                                <label class="label cursor-pointer justify-start gap-2 py-1">
+                                    <input type="radio" name="filter-amount" class="radio radio-sm radio-success" value="income" onchange="applyFilters()">
+                                    <span class="label-text text-success">💰 Доходы</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Fill status filter -->
+                        <div class="form-control mb-4">
+                            <label class="label py-1">
+                                <span class="label-text text-xs">Статус заполнения</span>
+                            </label>
+                            <select id="filter-status" class="select select-bordered select-sm w-full" style="height: 3rem; min-height: 3rem;" onchange="applyFilters()">
+                                <option value="">Все статусы</option>
+                                <option value="empty">○ Не заполнено</option>
+                                <option value="partial">◐ Частично</option>
+                                <option value="complete">● Готово</option>
+                            </select>
+                        </div>
+
+                        <!-- Empty fields checkboxes -->
+                        <div class="form-control mb-4">
+                            <label class="label py-1">
+                                <span class="label-text text-xs">Пустые поля</span>
+                            </label>
+                            <div class="flex flex-col gap-1">
+                                <label class="label cursor-pointer justify-start gap-2 py-1">
+                                    <input type="checkbox" id="filter-empty-type" class="checkbox checkbox-sm" onchange="applyFilters()">
+                                    <span class="label-text">Без типа</span>
+                                </label>
+                                <label class="label cursor-pointer justify-start gap-2 py-1">
+                                    <input type="checkbox" id="filter-empty-article" class="checkbox checkbox-sm" onchange="applyFilters()">
+                                    <span class="label-text">Без категории</span>
+                                </label>
+                                <label class="label cursor-pointer justify-start gap-2 py-1">
+                                    <input type="checkbox" id="filter-empty-fc" class="checkbox checkbox-sm" onchange="applyFilters()">
+                                    <span class="label-text">Без счёта</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="divider my-2"></div>
+
+                        <!-- Active filters chips -->
+                        <div id="active-filters" class="mb-4 flex flex-wrap gap-1">
                             <!-- Populated dynamically -->
-                        </select>
-                    </div>
-
-                    <!-- Amount type (expense/income) -->
-                    <div class="form-control mb-4">
-                        <label class="label py-1">
-                            <span class="label-text text-xs">Тип суммы</span>
-                        </label>
-                        <div class="flex flex-col gap-1">
-                            <label class="label cursor-pointer justify-start gap-2 py-1">
-                                <input type="radio" name="filter-amount" class="radio radio-sm" value="" checked onchange="applyFilters()">
-                                <span class="label-text">Все</span>
-                            </label>
-                            <label class="label cursor-pointer justify-start gap-2 py-1">
-                                <input type="radio" name="filter-amount" class="radio radio-sm radio-error" value="expense" onchange="applyFilters()">
-                                <span class="label-text text-error">💸 Расходы</span>
-                            </label>
-                            <label class="label cursor-pointer justify-start gap-2 py-1">
-                                <input type="radio" name="filter-amount" class="radio radio-sm radio-success" value="income" onchange="applyFilters()">
-                                <span class="label-text text-success">💰 Доходы</span>
-                            </label>
                         </div>
-                    </div>
 
-                    <!-- Fill status filter -->
-                    <div class="form-control mb-4">
-                        <label class="label py-1">
-                            <span class="label-text text-xs">Статус заполнения</span>
-                        </label>
-                        <select id="filter-status" class="select select-bordered select-sm w-full" style="height: 3rem; min-height: 3rem;" onchange="applyFilters()">
-                            <option value="">Все статусы</option>
-                            <option value="empty">○ Не заполнено</option>
-                            <option value="partial">◐ Частично</option>
-                            <option value="complete">● Готово</option>
-                        </select>
-                    </div>
-
-                    <!-- Empty fields checkboxes -->
-                    <div class="form-control mb-4">
-                        <label class="label py-1">
-                            <span class="label-text text-xs">Пустые поля</span>
-                        </label>
-                        <div class="flex flex-col gap-1">
-                            <label class="label cursor-pointer justify-start gap-2 py-1">
-                                <input type="checkbox" id="filter-empty-type" class="checkbox checkbox-sm" onchange="applyFilters()">
-                                <span class="label-text">Без типа</span>
-                            </label>
-                            <label class="label cursor-pointer justify-start gap-2 py-1">
-                                <input type="checkbox" id="filter-empty-article" class="checkbox checkbox-sm" onchange="applyFilters()">
-                                <span class="label-text">Без категории</span>
-                            </label>
-                            <label class="label cursor-pointer justify-start gap-2 py-1">
-                                <input type="checkbox" id="filter-empty-fc" class="checkbox checkbox-sm" onchange="applyFilters()">
-                                <span class="label-text">Без счёта</span>
-                            </label>
+                        <!-- Filter counter -->
+                        <div class="text-center p-3 bg-base-200 rounded-lg">
+                            <div class="text-sm text-base-content/70">Найдено:</div>
+                            <div class="text-2xl font-bold">
+                                <span id="filtered-count">0</span>
+                                <span class="text-base-content/50 text-sm">из</span>
+                                <span id="total-count">0</span>
+                            </div>
                         </div>
+
+                        <!-- Clear filters button -->
+                        <button class="btn btn-ghost btn-sm w-full mt-3" onclick="clearAllFilters()" id="clear-filters-btn" style="display: none;">
+                            ✕ Сбросить фильтры
+                        </button>
                     </div>
-
-                    <div class="divider my-2"></div>
-
-                    <!-- Active filters chips -->
-                    <div id="active-filters" class="mb-4 flex flex-wrap gap-1">
-                        <!-- Populated dynamically -->
-                    </div>
-
-                    <!-- Filter counter -->
-                    <div class="text-center p-3 bg-base-200 rounded-lg">
-                        <div class="text-sm text-base-content/70">Найдено:</div>
-                        <div class="text-2xl font-bold">
-                            <span id="filtered-count">0</span>
-                            <span class="text-base-content/50 text-sm">из</span>
-                            <span id="total-count">0</span>
-                        </div>
-                    </div>
-
-                    <!-- Clear filters button -->
-                    <button class="btn btn-ghost btn-sm w-full mt-3" onclick="clearAllFilters()" id="clear-filters-btn" style="display: none;">
-                        ✕ Сбросить фильтры
-                    </button>
                 </div>
 
                 <!-- Main content area -->
@@ -2760,6 +2807,24 @@ function applyFilters() {
     updateWorkflowSteps();
     updateStats();
 }
+
+/**
+ * Toggle filter sidebar collapsed state
+ */
+function toggleFilterSidebar() {
+    const sidebar = document.getElementById('filter-sidebar');
+    sidebar.classList.toggle('collapsed');
+    // Save state to localStorage
+    localStorage.setItem('filterSidebarCollapsed', sidebar.classList.contains('collapsed'));
+}
+
+// Restore sidebar state on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebar = document.getElementById('filter-sidebar');
+    if (sidebar && localStorage.getItem('filterSidebarCollapsed') === 'true') {
+        sidebar.classList.add('collapsed');
+    }
+});
 
 /**
  * Clear all filters and show all records
