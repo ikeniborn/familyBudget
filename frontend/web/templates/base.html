@@ -808,10 +808,12 @@
 
             if (isLoading) {
                 submitBtn.disabled = true;
+                submitBtn.classList.add('loading');
                 submitBtn.dataset.originalHtml = submitBtn.innerHTML;
                 submitBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Сохранение...';
             } else {
                 submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
                 if (submitBtn.dataset.originalHtml) {
                     submitBtn.innerHTML = submitBtn.dataset.originalHtml;
                 }

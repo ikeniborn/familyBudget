@@ -157,13 +157,14 @@ patterns:
           }
 
           // Разблокировка в submit handler (finally блок)
+          // setSubmitLoading управляет: disabled, .loading class, innerHTML
           form.addEventListener('submit', async (e) => {
               e.preventDefault();
               setSubmitLoading(e.target, true);
               try {
                   // ... submit logic ...
               } finally {
-                  setSubmitLoading(e.target, false);
+                  setSubmitLoading(e.target, false);  // Убирает .loading class
               }
           });
       files:
