@@ -658,10 +658,8 @@ async function onBankSelected() {
         // Show delete button when bank is selected
         deleteBtn.style.display = 'inline-flex';
 
-        // Try to load saved mapping for later
-        await loadSavedMapping(selectedBankId);
-
         // Check staging and update UI (show buttons in step 1)
+        // Note: mapping is loaded later in showMappingStep() when actually needed
         await checkStagingAndUpdateUI();
     } else {
         // Hide delete button when no bank selected
@@ -1059,6 +1057,10 @@ async function analyzeFile(fileId) {
 
 // ========== Step 3: Column Mapping ==========
 async function showMappingStep(isUpdateMode = false) {
+    // Load saved mapping for this bank (if exists)
+    // This is the right place to load it - when we actually need it
+    await loadSavedMapping(selectedBankId);
+
     // Hide Step 2, Show Step 3 mapping
     document.getElementById('step-2-upload').style.display = 'none';
     document.getElementById('step-3-mapping').style.display = 'block';
