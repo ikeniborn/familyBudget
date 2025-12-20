@@ -194,19 +194,20 @@ update_env_version() {
     fi
 }
 
-# Update all version files
-# Args: new_version, repo_dir
+# Update all version files in DEPLOYMENT DIRECTORY ONLY
+# IMPORTANT: This function ONLY updates files in /opt/budget (DEPLOY_DIR)
+# Repository files (~/familyBudget) are NEVER modified to keep git clean
+# Args: new_version
 update_all_version_files() {
     local new_version="$1"
-    local repo_dir="${2:-$SCRIPT_DIR}"
 
     info "Updating version to $new_version in all files..."
 
-    # Update VERSION file (in repo)
-    update_version_file "$new_version" "${repo_dir}/VERSION"
+    # Update VERSION file in DEPLOY_DIR only (NOT in repository!)
+    update_version_file "$new_version" "${DEPLOY_DIR}/VERSION"
 
-    # Update package.json (in repo)
-    update_package_json "$new_version" "${repo_dir}/package.json"
+    # Update package.json in DEPLOY_DIR only (NOT in repository!)
+    update_package_json "$new_version" "${DEPLOY_DIR}/package.json"
 
     # Update .env in deployment directory (if exists)
     if [[ -f "$DEPLOY_DIR/.env" ]]; then
@@ -334,16 +335,15 @@ save_deployed_version() {
 # =============================================================================
 
 # Process version bump and update all files
+# IMPORTANT: This function must be called AFTER sync_code_to_deploy()
+# because it reads and updates version files in DEPLOY_DIR only
 # This is the main entry point called from deploy.sh
-# Args: repo_dir
 # Returns: Sets and exports CURRENT_VERSION, NEW_VERSION, DOCKER_REBUILD_NEEDED variables
 process_version_bump() {
-    local repo_dir="${1:-$SCRIPT_DIR}"
-
     step "Version Management"
 
-    # Get current version
-    CURRENT_VERSION=$(get_current_version "${repo_dir}/VERSION")
+    # Get current version from DEPLOY_DIR (after sync)
+    CURRENT_VERSION=$(get_current_version "${DEPLOY_DIR}/VERSION")
     info "Current version: $CURRENT_VERSION"
 
     # Determine new version
@@ -362,14 +362,14 @@ process_version_bump() {
         info "Bumping $bump_type version: $CURRENT_VERSION → $NEW_VERSION"
     fi
 
-    # Update version files if version changed
+    # Update version files in DEPLOY_DIR only (NOT in repository!)
     if [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
-        update_all_version_files "$NEW_VERSION" "$repo_dir"
+        update_all_version_files "$NEW_VERSION"
     fi
 
-    # Check if Docker rebuild needed
+    # Check if Docker rebuild needed (comparing DEPLOY_DIR with saved checksums)
     DOCKER_REBUILD_NEEDED=false
-    if needs_docker_rebuild "$repo_dir"; then
+    if needs_docker_rebuild "$DEPLOY_DIR"; then
         DOCKER_REBUILD_NEEDED=true
         info "Docker images will be rebuilt"
     else

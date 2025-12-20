@@ -882,12 +882,6 @@ main() {
     # This allows deployment to run unattended after parameter selection
     collect_deployment_parameters
 
-    # VERSION MANAGEMENT
-    # Process version bump (minor by default unless --major/--patch/--no-version specified)
-    # This updates VERSION, package.json, .env and determines if Docker rebuild is needed
-    process_version_bump "$SCRIPT_DIR"
-    echo ""
-
     # PRE-FLIGHT CHECK: Verify npm environment exists BEFORE sync
     # This prevents issues if rsync accidentally deletes .npm-isolated/
     print_message info "Pre-flight check: Verifying production npm environment..."
@@ -904,6 +898,14 @@ main() {
 
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
+    echo ""
+
+    # VERSION MANAGEMENT (AFTER SYNC!)
+    # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
+    # 1. Reads current version from DEPLOY_DIR (copied from repo)
+    # 2. Updates VERSION, package.json, .env ONLY in /opt/budget
+    # 3. Repository files are NEVER modified - keeps git clean
+    process_version_bump
     echo ""
 
     # CRITICAL: Regenerate nginx config IMMEDIATELY after sync
