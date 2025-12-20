@@ -50,12 +50,18 @@ routes:
       body:
         article_id: "integer (required)"
         amount: "decimal (required, > 0)"
-        fact_date: "YYYY-MM-DD (required)"
+        fact_date: "YYYY-MM-DD (required, cannot be in future for record_type=fact)"
         financial_center_id: "integer (required)"
         cost_center_id: "integer (optional)"
         description: "string (optional)"
         record_type: "fact | plan (default: fact)"
         sync_hash: "string (optional, for offline deduplication)"
+    validation:
+      date_timezone: "SYSTEM_TIMEZONE (from config, default Europe/Moscow)"
+      date_rules:
+        - "For record_type=fact: fact_date <= today (in SYSTEM_TIMEZONE)"
+        - "For record_type=plan: future dates allowed"
+        - "Both: date must be within 10 years from today"
     response:
       status: 201
       body:
