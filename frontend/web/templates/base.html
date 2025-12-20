@@ -993,18 +993,34 @@
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async () => {
-            try {
-                await window.offlineManager.init();
-                debugLog('[Offline] OfflineManager initialized');
+            // Helper to log to budgetWSClient history (visible in diagnostic tap)
+            const initLog = (msg) => {
+                if (window.budgetWSClient && window.budgetWSClient._logHistory) {
+                    window.budgetWSClient._logHistory('init:' + msg);
+                }
+                debugLog('[Init]', msg);
+            };
 
+            try {
+                initLog('dom_ready');
+
+                initLog('offline_mgr_start');
+                await window.offlineManager.init();
+                initLog('offline_mgr_done');
+
+                initLog('push_mgr_start');
                 await window.pushManager.init();
-                debugLog('[Offline] PushManager initialized');
+                initLog('push_mgr_done');
 
                 // Initialize Budget WebSocket for real-time updates
-                // WebSocket updates the indicator in navbar and triggers UI refreshes
+                initLog('ws_check');
                 if (window.budgetWSClient) {
+                    initLog('ws_connect_call');
                     window.budgetWSClient.connect();
-                    debugLog('[Offline] BudgetWSClient connected');
+                    initLog('ws_connect_done');
+                } else {
+                    initLog('ws_undefined!');
+                    console.error('[Init] budgetWSClient is undefined!');
                 }
 
                 // Initialize IncrementalUpdates cache for WebSocket-driven UI updates
@@ -1032,6 +1048,10 @@
                     });
                 }
             } catch (error) {
+                // Log to budgetWSClient history so it's visible in diagnostic tap
+                if (window.budgetWSClient && window.budgetWSClient._logHistory) {
+                    window.budgetWSClient._logHistory('init:ERROR:' + error.message);
+                }
                 console.error('[Offline] Initialization error:', error);
             }
         });
