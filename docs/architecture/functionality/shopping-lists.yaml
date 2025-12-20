@@ -165,9 +165,7 @@ module:
       table_view:
         description: "Табличное представление списка товаров"
         mobile: "Карточный вид вместо таблицы"
-        controls:
-          - "Отметить все (✅) - отметить все товары как выполненные"
-          - "Снять все (☐) - снять все отметки"
+        controls: []  # Перемещены в shared_controls (v6.x)
 
       hierarchy_view:
         description: "Иерархическое представление по магазинам/группам"
@@ -177,19 +175,12 @@ module:
 
     shared_controls:
       description: "Кнопки доступные в обоих режимах (table и hierarchy)"
+      button_order:
+        - delete_completed    # 🗑️ (hidden по умолчанию)
+        - mark_all_completed  # ✅
+        - unmark_all_completed  # ☐
+        - toggle_hide_completed  # 👁️
       buttons:
-        toggle_hide_completed:
-          id: "toggle-hide-completed-btn"
-          icon_inactive: "👁️"
-          icon_active: "👁️‍🗨️"
-          text_inactive: "Скрыть выполненные"
-          text_active: "Показать все"
-          function: "toggleHideCompleted()"
-          behavior: |
-            При нажатии скрывает все выполненные товары.
-            Меняет текст и иконку на "Показать все".
-            Состояние сохраняется в listsManager.hideCompleted.
-
         delete_completed:
           id: "delete-completed-btn"
           icon: "🗑️"
@@ -202,6 +193,40 @@ module:
           behavior: |
             Удаляет все выполненные товары с подтверждением.
             Использует batch-delete endpoint.
+
+        mark_all_completed:
+          icon: "✅"
+          text: "Отметить все"
+          function: "markAllCompleted()"
+          note: "Перемещена из table_view в shared_controls (v6.x)"
+          behavior: |
+            Отмечает все товары как выполненные.
+            Работает в обоих views (table и hierarchy).
+
+        unmark_all_completed:
+          icon: "☐"
+          text: "Снять все"
+          function: "unmarkAllCompleted()"
+          note: "Перемещена из table_view в shared_controls (v6.x)"
+          behavior: |
+            Снимает отметку со всех товаров.
+            Работает в обоих views (table и hierarchy).
+
+        toggle_hide_completed:
+          id: "toggle-hide-completed-btn"
+          icon_inactive: "👁️"
+          icon_active: "👁️‍🗨️"
+          text_inactive: "Скрыть выполненные"
+          text_active: "Показать все"
+          function: "toggleHideCompleted()"
+          localStorage_key: "lists_hide_completed_preference"
+          localStorage_type: "boolean string ('true'|'false')"
+          behavior: |
+            При нажатии скрывает все выполненные товары.
+            Меняет текст и иконку на "Показать все".
+            Состояние сохраняется в localStorage (lists_hide_completed_preference).
+            При открытии списка восстанавливается из localStorage.
+            Паттерн: try/catch для приватного режима браузера.
 
     responsive_design:
       mobile:

@@ -168,8 +168,17 @@ class ListsManager {
         const clearBtn = document.getElementById('clear-search-btn');
         if (clearBtn) clearBtn.classList.add('hidden');
 
-        // Reset hide completed filter for new list
+        // Restore hide completed preference from localStorage
         this.hideCompleted = false;
+        try {
+            const storedHide = localStorage.getItem('lists_hide_completed_preference');
+            if (storedHide === 'true') {
+                this.hideCompleted = true;
+                debugLog('[ListsManager] Restored hide completed preference:', this.hideCompleted);
+            }
+        } catch (e) {
+            // localStorage may be unavailable in private browsing
+        }
         this.updateHideCompletedButton();
 
         // Reset HierarchyView expanded nodes for new list
@@ -837,9 +846,19 @@ class ListsManager {
 
     /**
      * Toggle hide completed items filter
+     * Saves preference to localStorage for persistence across sessions
      */
     toggleHideCompleted() {
         this.hideCompleted = !this.hideCompleted;
+
+        // Save preference to localStorage
+        try {
+            localStorage.setItem('lists_hide_completed_preference', this.hideCompleted.toString());
+            debugLog('[ListsManager] Saved hide completed preference:', this.hideCompleted);
+        } catch (e) {
+            // localStorage may be unavailable in private browsing
+        }
+
         this.updateHideCompletedButton();
         this.renderCurrentView();
     }
