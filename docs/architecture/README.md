@@ -275,6 +275,7 @@ When adding new components:
 | iOS badge flickers yellow/green every 3s | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | 409 Conflict при создании факта (FK violation) | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/facts.py` |
 | 409 Conflict для дат вне 2023-2030 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_add_auto_partition_creation.py` |
+| Дублирование магазинов в Choices.js dropdown | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/lists/listsManager.js` |
 
 ### Issue Details
 
@@ -332,6 +333,13 @@ When adding new components:
   - Создаёт GIN индекс на description для новой партиции
 - **Migration**: `backend/db/migrations/versions/20251220_y0a1b2c3d4e5_add_auto_partition_creation.py`
 - **Result**: Транзакции с любыми датами (прошлыми и будущими) создаются успешно
+
+**8. Дублирование магазинов в Choices.js dropdown (MEDIUM)**
+- **Problem**: На странице `/lists` в модальном окне добавления товара магазины дублируются в выпадающем списке
+- **Root cause**: При reinitialize Choices.js, `destroy()` восстанавливает оригинальный HTML `<select>` со статическими `<option>` элементами. Затем `new Choices()` читает и DOM options и `choices[]` параметр, что приводит к дубликатам
+- **Fix**: Добавлен `select.innerHTML = ''` после `destroy()` в функциях `initStoreChoices()` и `initProductGroupChoices()`
+- **Files**: `frontend/web/static/js/lists/listsManager.js`
+- **Result**: Магазины и группы товаров отображаются без дубликатов
 
 ### Known Limitations (Deferred)
 

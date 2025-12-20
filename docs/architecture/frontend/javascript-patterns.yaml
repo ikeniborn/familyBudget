@@ -288,6 +288,26 @@ anti_patterns:
     reason: "Двойной клик создаёт дублирующиеся записи"
     use_instead: "Double-click prevention pattern (disable button before submit)"
 
+  - name: "Choices.js reinitialize без очистки select"
+    avoid: |
+      if (this.choicesInstance) {
+          this.choicesInstance.destroy();
+      }
+      this.choicesInstance = new Choices(select, { choices: [...] });
+    reason: "destroy() восстанавливает оригинальный HTML <select> со статическими <option>, new Choices() читает и DOM и choices[] → дубликаты"
+    use_instead: |
+      if (this.choicesInstance) {
+          this.choicesInstance.destroy();
+      }
+      select.innerHTML = ''; // Очистить после destroy!
+      this.choicesInstance = new Choices(select, { choices: [...] });
+    files:
+      - "frontend/web/static/js/lists/listsManager.js:initStoreChoices()"
+      - "frontend/web/static/js/lists/listsManager.js:initProductGroupChoices()"
+    related_commits:
+      - commit: "fix(lists): prevent store/product group duplication"
+        description: "Added select.innerHTML = '' after destroy()"
+
 # ---------------------------------------------------------------------------
 # TESTING GUIDELINES
 # ---------------------------------------------------------------------------

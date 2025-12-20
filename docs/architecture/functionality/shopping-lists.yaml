@@ -178,7 +178,14 @@ module:
           - "Tailwind-совместимые стили (choices-tailwind)"
         initialization: "initStoreChoices() в showDetailView()"
         data_source: "this.stores (загружается из /api/v1/stores)"
-        note: "Добавлено в v6.x, ранее использовался обычный HTML select"
+        note: |
+          Добавлено в v6.x, ранее использовался обычный HTML select.
+
+          IMPORTANT: При reinitialize Choices.js (destroy + new):
+          1. destroy() восстанавливает оригинальный HTML <select>
+          2. select.innerHTML = '' для очистки статических <option>
+          3. new Choices(select, { choices: [...] })
+          Без шага 2 будут дубликаты (Choices.js читает и DOM и choices[]).
 
       product_group_selector:
         element_id: "item-product-group"
