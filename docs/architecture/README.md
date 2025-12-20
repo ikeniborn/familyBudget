@@ -274,6 +274,7 @@ When adding new components:
 | Long polling no exponential backoff | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | iOS badge flickers yellow/green every 3s | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | 409 Conflict при создании факта (FK violation) | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/facts.py` |
+| 409 Conflict для дат вне 2023-2030 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_add_auto_partition_creation.py` |
 
 ### Issue Details
 
@@ -320,6 +321,17 @@ When adding new components:
   - `financial_center_id`: обязательное поле, проверка exists + is_active
   - `cost_center_id`: опциональное поле, если указано - проверка exists + is_active
 - **Result**: Понятные 422 ошибки вида "Счёт 'Name' архивирован. Выберите активный счёт."
+
+**7. 409 Conflict для дат вне 2023-2030 (HIGH)**
+- **Problem**: Попытка создать транзакцию с датой 2020 года вызывает 409 Conflict
+- **Root cause**: Таблица `t_f_budget_fact` партиционирована по месяцам, партиции созданы только для 2023-2030
+- **PostgreSQL error**: `no partition of relation "t_f_budget_fact" found for row`
+- **Fix**: Создан BEFORE INSERT trigger `trg_budget_fact_ensure_partition` с функцией `ensure_budget_fact_partition(DATE)`:
+  - Автоматически проверяет существование партиции
+  - Создаёт недостающую партицию с правильными границами
+  - Создаёт GIN индекс на description для новой партиции
+- **Migration**: `backend/db/migrations/versions/20251220_y0a1b2c3d4e5_add_auto_partition_creation.py`
+- **Result**: Транзакции с любыми датами (прошлыми и будущими) создаются успешно
 
 ### Known Limitations (Deferred)
 

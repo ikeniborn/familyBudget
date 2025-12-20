@@ -14,15 +14,25 @@ tables:
     partitioning:
       type: RANGE
       column: fact_date
-      partitions: 96
+      partitions: "96+ (auto-created)"
       range:
-        from: "2023-01-01"
-        to: "2030-12-31"
+        initial: "2023-01-01 to 2030-12-31"
+        dynamic: "Any date supported via auto-partition"
       partition_naming: "t_f_budget_fact_YYYY_MM"
+      auto_partition:
+        enabled: true
+        trigger: "trg_budget_fact_ensure_partition"
+        function: "ensure_budget_fact_partition(DATE)"
+        description: |
+          BEFORE INSERT trigger automatically creates missing partitions.
+          Supports dates outside initial 2023-2030 range.
+        indexes_created:
+          - "GIN index on description (gin_trgm_ops)"
       benefits:
         - "Fast date range queries (partition pruning)"
         - "Easy archival (DROP PARTITION)"
         - "Parallel scans per partition"
+        - "No 409 errors for dates outside initial range"
 
     columns:
       - name: id
