@@ -39,20 +39,30 @@ module:
   transfer_logic:
     description: |
       Transfer creates TWO linked BudgetFact records:
-      1. Expense from source financial_center (negative)
-      2. Income to destination financial_center (positive)
+      1. Debit from source financial_center (money leaves account)
+      2. Credit to destination financial_center (money enters account)
 
     implementation:
       - "Generate unique transfer_id (UUID)"
-      - "Create expense fact (from_financial_center)"
-      - "Create income fact (to_financial_center)"
+      - "Create debit fact (from_financial_center) with article type 'debit'"
+      - "Create credit fact (to_financial_center) with article type 'credit'"
       - "Link via transfer_id field"
       - "Both facts have same amount, date, description"
+
+    category_types:
+      description: |
+        Transfers use special category types (debit/credit) different from
+        regular transactions (expense/income):
+        - debit: Списание - FROM side, money leaving account
+        - credit: Пополнение - TO side, money entering account
+      types:
+        - "debit (FROM side)"
+        - "credit (TO side)"
 
     fields:
       transfer_id:
         type: "UUID"
-        description: "Links paired expense/income facts"
+        description: "Links paired debit/credit facts"
       record_type:
         values: ["fact", "plan"]
         description: "Actual transfer or planned transfer"

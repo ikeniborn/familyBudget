@@ -548,8 +548,8 @@ function renderActions(user) {
         ? `<button class="btn btn-sm btn-outline btn-error gap-1" onclick="reset2fa(${user.id})" title="Сбросить 2FA">🔐 Сброс 2FA</button>`
         : '';
 
-    // Reset password button (only if password is set - email users)
-    const resetPasswordBtn = user.email
+    // Reset password button (only if password is set)
+    const resetPasswordBtn = user.has_password
         ? `<button class="btn btn-sm btn-outline btn-warning gap-1" onclick="resetPassword(${user.id})" title="Сбросить пароль">🔑 Сброс пароля</button>`
         : '';
 

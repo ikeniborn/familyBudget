@@ -157,6 +157,55 @@ routes:
       Example: period=2025-12 → returns November 2025 sums
 
   # ---------------------------------------------------------------------------
+  # PLAN MONTHLY COMPARISON
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/plans/monthly-comparison"
+    method: GET
+    auth: user
+    description: "Compare current month plans with previous month facts/plans"
+    query_params:
+      planning_month: "YYYY-MM (required) - Month for comparison"
+      financial_center_id: "integer (optional)"
+      article_type: "expense | income | debit | credit (optional)"
+      article_id: "integer (optional)"
+    response:
+      status: 200
+      body:
+        current_month:
+          month: "YYYY-MM"
+          month_name: "string (e.g., 'План Декабрь 2025')"
+          record_type: "plan"
+          by_type:
+            expense: "decimal"
+            income: "decimal"
+            debit: "decimal"
+            credit: "decimal"
+          by_category:
+            - category_id: "integer"
+              category_name: "string"
+              category_type: "string"
+              amount: "decimal"
+          total_records: "integer"
+        previous_month:
+          month: "YYYY-MM"
+          month_name: "string (e.g., 'Факт Ноябрь 2025')"
+          record_type: "fact | plan"
+          by_type: "same structure"
+          by_category: "same structure"
+        categories_comparison:
+          - category_id: "integer"
+            category_name: "string"
+            current_amount: "decimal"
+            previous_amount: "decimal"
+            change: "decimal"
+            change_percent: "decimal"
+    notes: |
+      Uses date range comparison instead of date_trunc for PostgreSQL compatibility.
+      Previous month shows 'fact' data if current month is current/past,
+      'plan' data if current month is in the future.
+      FIX (2025-12-21): Replaced date_trunc with date range to avoid type mismatch.
+
+  # ---------------------------------------------------------------------------
   # TRENDS
   # ---------------------------------------------------------------------------
   - path: "/api/v1/analytics/trends"

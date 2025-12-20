@@ -1476,6 +1476,12 @@ class OfflineManager {
      * Reconnect WebSocket client (re-enables and connects)
      */
     reconnectWS() {
+        // Don't reconnect if we're not actually online
+        if (!this.isOnline) {
+            _offlineLog('[OfflineManager] Skip reconnectWS - still offline');
+            return;
+        }
+
         if (typeof window.budgetWSClient !== 'undefined') {
             // Use setEnabled(true) to re-enable auto-reconnect and connect
             window.budgetWSClient.setEnabled(true);

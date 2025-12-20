@@ -257,6 +257,8 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-20**: Import Step 4 Spreadsheet Enhancement: Excel-like cell selection, Fill Down (Ctrl+D), Copy/Paste (Ctrl+C/V), resizable columns with localStorage, context menu, keyboard shortcuts, status bar
+- **2025-12-20**: Import page UX improvements: collapsible filter sidebar, filter elements height 3rem, bulk-panel-filtered selects height 3rem
 - **2025-12-20**: Fixed critical WebSocket issues (see Known Issues & Fixes section below)
 - **2025-12-19**: Added Mobile Quick Actions (Mini Cards Row pattern) - responsive 4-column grid for mobile, preserving 3-column desktop layout (index.html:55-117)
 - **2025-12-19**: Updated shopping lists documentation to reflect soft delete pattern and item count filtering (commit 6aa943bf)
@@ -274,8 +276,9 @@ When adding new components:
 | Long polling no exponential backoff | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | iOS badge flickers yellow/green every 3s | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 | 409 Conflict при создании факта (FK violation) | 🟠 HIGH | ✅ Fixed | `backend/app/api/v1/endpoints/facts.py` |
-| 409 Conflict для дат вне 2023-2030 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_add_auto_partition_creation.py` |
+| 409 Conflict для дат вне 2010-2040 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_fix_auto_partition_trigger.py` |
 | Дублирование магазинов в Choices.js dropdown | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/lists/listsManager.js` |
+| Excessive console errors in offline mode | 🟡 MEDIUM | ✅ Fixed | `budgetWSClient.js`, `offlineManager.js` |
 
 ### Issue Details
 
@@ -327,12 +330,17 @@ When adding new components:
 - **Problem**: Попытка создать транзакцию с датой 2020 года вызывает 409 Conflict
 - **Root cause**: Таблица `t_f_budget_fact` партиционирована по месяцам, партиции созданы только для 2023-2030
 - **PostgreSQL error**: `no partition of relation "t_f_budget_fact" found for row`
-- **Fix**: Создан BEFORE INSERT trigger `trg_budget_fact_ensure_partition` с функцией `ensure_budget_fact_partition(DATE)`:
-  - Автоматически проверяет существование партиции
-  - Создаёт недостающую партицию с правильными границами
-  - Создаёт GIN индекс на description для новой партиции
-- **Migration**: `backend/db/migrations/versions/20251220_y0a1b2c3d4e5_add_auto_partition_creation.py`
-- **Result**: Транзакции с любыми датами (прошлыми и будущими) создаются успешно
+- **Initial attempt (FAILED)**: BEFORE INSERT trigger на партиционированной таблице
+  - **Почему не работает**: PostgreSQL сначала определяет целевую партицию, потом вызывает триггер
+  - Если партиции нет → ошибка ДО вызова триггера
+- **Fix**: Pre-create партиции для широкого диапазона дат (2010-2040)
+  - Функция `ensure_budget_fact_partition(DATE)` для создания партиций
+  - Удаление неэффективных триггеров с партиций
+  - Создание партиций на 30 лет (360 партиций)
+- **Migrations**:
+  - `20251220_y0a1b2c3d4e5_add_auto_partition_creation.py` - функция (содержит ошибочный триггер)
+  - `20251220_z1b2c3d4e5f6_fix_auto_partition_trigger.py` - удаляет триггеры, создаёт партиции
+- **Result**: Транзакции с датами 2010-2040 создаются успешно
 
 **8. Дублирование магазинов в Choices.js dropdown (MEDIUM)**
 - **Problem**: На странице `/lists` в модальном окне добавления товара магазины дублируются в выпадающем списке
@@ -340,6 +348,20 @@ When adding new components:
 - **Fix**: Добавлен `select.innerHTML = ''` после `destroy()` в функциях `initStoreChoices()` и `initProductGroupChoices()`
 - **Files**: `frontend/web/static/js/lists/listsManager.js`
 - **Result**: Магазины и группы товаров отображаются без дубликатов
+
+**9. Excessive console errors in offline mode (MEDIUM)**
+- **Problem**: При включении офлайн-режима в консоли появляется много ERROR-сообщений: `ERR_INTERNET_DISCONNECTED`, `[BudgetWS] Token fetch: Failed`, `Poll: HTTP 503`
+- **Root cause**:
+  1. `budgetWSClient.js` использовал `console.error` для штатного fallback-поведения (переход на long polling)
+  2. WS клиент пытался подключиться даже когда браузер сообщал об отсутствии сети
+  3. `offlineManager.js` вызывал `reconnectWS()` без проверки реального статуса сети
+- **Fix**:
+  1. Заменили `console.error` на `console.warn` для fallback-сообщений
+  2. Добавили проверку `navigator.onLine` перед попыткой подключения в `_createConnection()` и `_startLongPolling()`
+  3. Добавили проверку `isOnline` в `reconnectWS()` перед включением WS клиента
+  4. HTTP 503 ошибки логируются как `console.warn` вместо `console.error`
+- **Files**: `frontend/web/static/js/budget/budgetWSClient.js`, `frontend/web/static/js/offline/offlineManager.js`
+- **Result**: В офлайн-режиме нет лишних ERROR-сообщений, только предупреждения для ожидаемого поведения
 
 ### Known Limitations (Deferred)
 

@@ -22,6 +22,8 @@ routes:
           last_name: "string"
           is_admin: "boolean"
           is_active: "boolean"
+          two_factor_enabled: "boolean"
+          has_password: "boolean (computed from password_hash)"
           created_at: "datetime"
           last_login_at: "datetime"
     service:
@@ -111,6 +113,78 @@ routes:
           change_type: "string"
           changed_fields: "array"
           valid_from: "datetime"
+
+  - path: "/api/v1/admin/users/{id}/reset-password"
+    method: PUT
+    auth: admin
+    description: "Reset user password (clears password_hash)"
+    path_params:
+      id: "integer"
+    response:
+      status: 200
+      body: "Full user object with has_password=false"
+    errors:
+      - status: 404
+        detail: "User not found"
+      - status: 400
+        detail: "Password is not set for this user"
+    constraints:
+      - "User must have has_password=true"
+    side_effects:
+      - "User.password_hash = NULL"
+      - "User must set new password via security settings"
+
+  - path: "/api/v1/admin/users/{id}/reset-2fa"
+    method: PUT
+    auth: admin
+    description: "Reset user 2FA (clears two_factor_secret)"
+    path_params:
+      id: "integer"
+    response:
+      status: 200
+      body: "Full user object with two_factor_enabled=false"
+    errors:
+      - status: 404
+        detail: "User not found"
+      - status: 400
+        detail: "2FA is not enabled for this user"
+    constraints:
+      - "User must have two_factor_enabled=true"
+    side_effects:
+      - "User.two_factor_secret = NULL"
+      - "User.two_factor_enabled = False"
+      - "User must re-setup 2FA via security settings"
+
+  # ===========================================================================
+  # USER STATISTICS
+  # ===========================================================================
+  - path: "/api/v1/admin/users/stats/summary"
+    method: GET
+    auth: admin
+    description: "Get per-user statistics"
+    response:
+      status: 200
+      body:
+        - user_id: "integer"
+          username: "string"
+          first_name: "string"
+          total_facts: "integer"
+          total_articles: "integer"
+          last_fact_date: "datetime (nullable)"
+
+  - path: "/api/v1/admin/users/stats/system"
+    method: GET
+    auth: admin
+    description: "Get system-wide statistics (Shared Family Budget)"
+    response:
+      status: 200
+      body:
+        total_users: "integer"
+        total_active_users: "integer"
+        total_facts: "integer"
+        total_articles: "integer"
+        last_fact_date: "datetime (nullable)"
+    note: "All metrics are GLOBAL - no user_id filtering per Shared Family Budget Model"
 
   # ===========================================================================
   # BULK OPERATIONS

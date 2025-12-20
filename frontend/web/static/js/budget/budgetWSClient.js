@@ -714,6 +714,13 @@ class BudgetWSClient {
     async _createConnection() {
         if (!this.enabled) return;
 
+        // Quick check: don't attempt if browser says offline
+        if (!navigator.onLine) {
+            debugLog('[BudgetWS] Browser reports offline, skipping connection attempt');
+            this._updateStatusIndicator();
+            return;
+        }
+
         // If already using long polling, continue with that
         if (this.useLongPolling) {
             this._startLongPolling();
@@ -729,7 +736,7 @@ class BudgetWSClient {
         // Get auth token for WebSocket
         const token = await this._getWSToken();
         if (!token) {
-            console.error('[BudgetWS] No token, falling back to long polling');
+            console.warn('[BudgetWS] No token, falling back to long polling');
             this.useLongPolling = true;
             this._startLongPolling();
             return;
@@ -1029,6 +1036,12 @@ class BudgetWSClient {
     _startLongPolling() {
         if (this._pollingActive) return;
 
+        // Quick check: don't start polling if browser says offline
+        if (!navigator.onLine) {
+            debugLog('[BudgetWS] Browser reports offline, skipping long polling');
+            return;
+        }
+
         this._logHistory('poll_start');
         this._pollingActive = true;
         this.isConnected = true;
@@ -1097,7 +1110,12 @@ class BudgetWSClient {
                 return;
             }
 
-            this._setError(`Poll: ${error.message}`);
+            // For HTTP 503 (server unavailable), use warn instead of error - this is expected when offline
+            if (error.message && error.message.includes('503')) {
+                console.warn('[BudgetWS] Poll: server unavailable (503)');
+            } else {
+                this._setError(`Poll: ${error.message}`);
+            }
 
             // Exponential backoff with jitter to prevent thundering herd
             this._pollRetryCount++;
