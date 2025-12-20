@@ -1287,10 +1287,19 @@ async function updateFact(event) {
 
         closeEditModal();
 
-        // Refresh dashboard data
-        htmx.trigger('#recent-transactions', 'load');
-        htmx.trigger('#quick-stats', 'load');
-        htmx.trigger('#account-balances', 'load');
+        // Refresh dashboard data using htmx.ajax (same as creation flow)
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+            target: '#quick-stats',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+            target: '#account-balances',
+            swap: 'innerHTML'
+        });
 
         showToast('Запись успешно обновлена', 'success');
     } catch (error) {
@@ -1341,10 +1350,19 @@ async function deleteFromEditModal() {
 
         closeEditModal();
 
-        // Refresh dashboard data
-        htmx.trigger('#recent-transactions', 'load');
-        htmx.trigger('#quick-stats', 'load');
-        htmx.trigger('#account-balances', 'load');
+        // Refresh dashboard data using htmx.ajax (same as creation flow)
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+            target: '#quick-stats',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+            target: '#account-balances',
+            swap: 'innerHTML'
+        });
         await loadPendingRecords();
 
         showToast('Запись успешно удалена', 'success');
@@ -2615,15 +2633,7 @@ async function loadPendingRecords() {
                 const formattedAmount = formatAmount(item.data.amount, factType);
 
                 // Edit button for pending records
-                const editButton = `
-                    <button class="btn btn-xs btn-ghost btn-square"
-                            onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')"
-                            title="Редактировать">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                    </button>
-                `;
+                const editButton = `<button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>`;
 
                 // Desktop table row
                 tableRows.push(`
