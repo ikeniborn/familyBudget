@@ -3277,10 +3277,25 @@ async function unifiedSave(button, type) {
     }
 }
 
-// Wrapper functions for each modal type
-function saveTransaction(button) { unifiedSave(button, 'transaction'); }
-function savePlan(button) { unifiedSave(button, 'plan'); }
-function saveTransfer(button) { unifiedSave(button, 'transfer'); }
+// Wrapper functions for each modal type (with double-click prevention)
+function saveTransaction(button) {
+    if (button.disabled) return; // Already processing
+    button.disabled = true;
+    button.classList.add('loading');
+    unifiedSave(button, 'transaction');
+}
+function savePlan(button) {
+    if (button.disabled) return;
+    button.disabled = true;
+    button.classList.add('loading');
+    unifiedSave(button, 'plan');
+}
+function saveTransfer(button) {
+    if (button.disabled) return;
+    button.disabled = true;
+    button.classList.add('loading');
+    unifiedSave(button, 'transfer');
+}
 
 // ==================== OFFLINE SAVE FUNCTIONS ====================
 // These functions save records to the local queue WITHOUT immediately uploading to server

@@ -2131,15 +2131,22 @@ function updateSaveButtonsVisibility() {
 }
 
 /**
- * Unified save function for facts.html - submits form to server
+ * Unified save function for facts.html - submits form to server (with double-click prevention)
  * Note: Offline save functionality is only available on the main page (index.html)
  * @param {HTMLButtonElement} button - Save button with data-form-id
  */
 function saveTransaction(button) {
+    if (button.disabled) return; // Already processing - prevent double-click
+    button.disabled = true;
+    button.classList.add('loading');
+
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
+        // Re-enable button if validation fails
+        button.disabled = false;
+        button.classList.remove('loading');
         form?.reportValidity();
     }
 }
