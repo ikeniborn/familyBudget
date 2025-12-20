@@ -520,6 +520,76 @@ async function loadRemindersForEdit(factIds) {
 }
 
 /**
+ * Load financial centers for edit modal
+ * @param {number|null} selectedId - ID to pre-select
+ */
+async function loadEditFinancialCenters(selectedId = null) {
+    const select = document.getElementById('edit-financial-center');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', { credentials: 'include' });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const centers = data.financial_centers || [];
+
+        // Clear options except first
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        // Add options
+        centers.forEach(fc => {
+            const option = document.createElement('option');
+            option.value = fc.id;
+            option.textContent = fc.name;
+            if (selectedId && fc.id === selectedId) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading financial centers for edit:', error);
+    }
+}
+
+/**
+ * Load cost centers for edit modal
+ * @param {number|null} selectedId - ID to pre-select
+ */
+async function loadEditCostCenters(selectedId = null) {
+    const select = document.getElementById('edit-cost-center');
+    if (!select) return;
+
+    try {
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', { credentials: 'include' });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const centers = data.cost_centers || [];
+
+        // Clear options except first
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+
+        // Add options
+        centers.forEach(cc => {
+            const option = document.createElement('option');
+            option.value = cc.id;
+            option.textContent = cc.name;
+            if (selectedId && cc.id === selectedId) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading cost centers for edit:', error);
+    }
+}
+
+/**
  * Open edit modal for online record from dashboard
  * @param {number} factId - The fact ID to edit
  */
@@ -541,9 +611,11 @@ async function openEditFromDashboard(factId) {
         // Set mode (show/hide reminder section)
         setEditModalMode(recordType);
 
-        // Load categories and reminders in parallel
+        // Load categories, reminders, and dropdowns in parallel
         await Promise.all([
             loadCategoriesForEdit(),
+            loadEditFinancialCenters(fact.financial_center_id),
+            loadEditCostCenters(fact.cost_center_id),
             recordType === 'plan' ? loadRemindersForEdit([factId]) : Promise.resolve()
         ]);
 
@@ -552,8 +624,6 @@ async function openEditFromDashboard(factId) {
         document.getElementById('edit-amount').value = parseFloat(fact.amount);
         document.getElementById('edit-date').value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
         document.getElementById('edit-description').value = fact.description || '';
-        document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
-        document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
 
         // Determine category type from allCategories
         const selectedArticle = allCategories.find(a => a.id === fact.article_id);
@@ -699,17 +769,21 @@ async function openEditPendingRecord(itemId, entity) {
         // Set mode (show/hide reminder section)
         setEditModalMode(recordType);
 
-        // Load categories
-        await loadCategoriesForEdit();
+        // Get data for loading selects
+        const data = item.data || {};
+
+        // Load categories and dropdowns in parallel
+        await Promise.all([
+            loadCategoriesForEdit(),
+            loadEditFinancialCenters(data.financial_center_id),
+            loadEditCostCenters(data.cost_center_id)
+        ]);
 
         // Fill basic fields from pending data
-        const data = item.data || {};
         document.getElementById('edit-id').value = item.id; // Use IndexedDB ID
         document.getElementById('edit-amount').value = parseFloat(data.amount) || 0;
         document.getElementById('edit-date').value = data.fact_date ? BudgetShared.DateFormatter.formatForDisplay(data.fact_date) : '';
         document.getElementById('edit-description').value = data.description || '';
-        document.getElementById('edit-financial-center').value = data.financial_center_id || '';
-        document.getElementById('edit-cost-center').value = data.cost_center_id || '';
 
         // Determine category type from allCategories
         const selectedArticle = allCategories.find(a => a.id === data.article_id);
@@ -2074,6 +2148,16 @@ function setTransactionDate(daysOffset) {
 // ============ Plan Hints Functions ============
 
 // ============ Fact Hints Functions ============
+
+/**
+ * Stub for loadPlanHints - plan hints not implemented on dashboard
+ * Full implementation exists in plan.html
+ * @param {Object|null} category - Selected category (unused in stub)
+ */
+function loadPlanHints(category = null) {
+    // Plan hints are not shown on dashboard - this is a stub to prevent errors
+    debugLog('[loadPlanHints] Stub called on dashboard - hints not displayed');
+}
 
 let factHintsTimeout = null;
 let factHintsController = null;
