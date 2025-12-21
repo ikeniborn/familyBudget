@@ -449,6 +449,13 @@ module:
       name: "_isOfflineModeActive()"
       description: |
         Проверяет window.offlineManager.networkDetector.autoOfflineMode.
+        При недоступности offlineManager использует fallback на localStorage:
+        localStorage.getItem('budget_auto_offline_mode') === 'true'.
+
+        Fallback необходим из-за timing issue при навигации между страницами:
+        DOMContentLoaded listeners запускаются параллельно, и budgetWSClient.connect()
+        может быть вызван до завершения offlineManager.init().
+
         Используется во всех точках подключения/переподключения.
 
     affected_methods:
@@ -467,17 +474,24 @@ module:
 
     fixed_issue:
       date: "2025-12-21"
-      issue: "WebSocket пытается переподключиться в offline режиме"
+      issue: "WebSocket и ListsManager делают запросы в offline режиме"
       severity: "MEDIUM"
       description: |
         При включении offline режима на главной странице и переходе на /lists:
         - WebSocket пытался получить token и падал с ERR_INTERNET_DISCONNECTED
         - Long polling продолжал делать запросы и получал 503
+        - ListsManager делал API запросы (stores, product-groups, shopping-lists)
         - Console заспамливался ошибками
 
-        Причина: проверялся только navigator.onLine, но не autoOfflineMode.
+        Root cause: timing issue при навигации между страницами.
+        DOMContentLoaded listeners запускаются параллельно, и budgetWSClient.connect()
+        вызывался до завершения offlineManager.init().
+        Проверка offlineManager.networkDetector.autoOfflineMode возвращала false
+        так как networkDetector ещё не был инициализирован.
       fix: |
-        Добавлен _isOfflineModeActive() helper который проверяет
-        offlineManager.networkDetector.autoOfflineMode.
-        Проверка добавлена во все методы подключения/переподключения.
+        1. Добавлен _isOfflineModeActive() helper с localStorage fallback:
+           - Сначала проверяет offlineManager.networkDetector.autoOfflineMode
+           - При недоступности читает localStorage('budget_auto_offline_mode')
+        2. Обновлён ListsManager.isOnline getter с аналогичным fallback
+        3. Проверки добавлены во все методы подключения/переподключения
       status: fixed

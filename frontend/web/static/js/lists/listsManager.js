@@ -28,11 +28,21 @@ class ListsManager {
 
     /**
      * Check if currently online
-     * Uses offlineManager's network detector if available
+     * Uses offlineManager's network detector if available, with localStorage fallback
+     * for timing issues during page navigation when networkDetector isn't initialized yet
      */
     get isOnline() {
         if (window.offlineManager && window.offlineManager.networkDetector) {
             return window.offlineManager.networkDetector.getStatus() !== 'offline';
+        }
+        // Fallback: check localStorage directly for autoOfflineMode
+        // offlineManager.networkDetector may not be initialized yet during page load
+        try {
+            if (localStorage.getItem('budget_auto_offline_mode') === 'true') {
+                return false;
+            }
+        } catch (e) {
+            // Ignore localStorage errors
         }
         return navigator.onLine;
     }

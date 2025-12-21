@@ -175,18 +175,27 @@ class BudgetWSClient {
     // ==================== OFFLINE MODE DETECTION ====================
 
     /**
-     * Check if auto offline mode is active via OfflineManager
+     * Check if auto offline mode is active via OfflineManager or localStorage fallback
      * This prevents WebSocket from attempting connections when offline mode is enabled
+     * Fallback to localStorage is needed for timing issues during page navigation
+     * when offlineManager may not be initialized yet
      * @returns {boolean}
      * @private
      */
     _isOfflineModeActive() {
+        // Check offlineManager if available (preferred)
         if (window.offlineManager &&
             window.offlineManager.networkDetector &&
             window.offlineManager.networkDetector.autoOfflineMode) {
             return true;
         }
-        return false;
+        // Fallback: check localStorage directly for timing issues during page navigation
+        // offlineManager may not be initialized yet when budgetWSClient.connect() is called
+        try {
+            return localStorage.getItem('budget_auto_offline_mode') === 'true';
+        } catch (e) {
+            return false;
+        }
     }
 
     // ==================== MULTI-TAB SUPPORT ====================
