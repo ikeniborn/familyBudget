@@ -728,10 +728,10 @@ class CSVImporter {
         // Build errors list (if any)
         const errorsSection = result.errors.length > 0 ? `
             <div class="collapse collapse-arrow bg-error/10 mb-4">
-                <input type="checkbox" checked />
-                <div class="collapse-title font-medium text-error">
+                <input type="checkbox" id="import-errors-toggle" class="peer" checked />
+                <label for="import-errors-toggle" class="collapse-title font-medium text-error cursor-pointer">
                     ❌ Ошибки (${result.errors.length})
-                </div>
+                </label>
                 <div class="collapse-content">
                     <ul class="list-disc list-inside text-sm space-y-1">
                         ${result.errors.slice(0, 10).map(e => `
@@ -746,10 +746,10 @@ class CSVImporter {
         // Build warnings list (if any)
         const warningsSection = result.warnings.length > 0 ? `
             <div class="collapse collapse-arrow bg-warning/10 mb-4">
-                <input type="checkbox" />
-                <div class="collapse-title font-medium text-warning">
+                <input type="checkbox" id="import-warnings-toggle" class="peer" />
+                <label for="import-warnings-toggle" class="collapse-title font-medium text-warning cursor-pointer">
                     ⚠️ Предупреждения (${result.warnings.length})
-                </div>
+                </label>
                 <div class="collapse-content">
                     <ul class="list-disc list-inside text-sm space-y-1">
                         ${result.warnings.slice(0, 10).map(w => `
