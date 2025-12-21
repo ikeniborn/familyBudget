@@ -198,7 +198,19 @@ class GoogleSheetsImporter {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.detail || `HTTP ${response.status}`);
+                // Handle Pydantic validation errors (detail is array of objects)
+                let errorMessage;
+                if (Array.isArray(error.detail)) {
+                    // Extract messages from Pydantic validation errors
+                    errorMessage = error.detail.map(e => e.msg || JSON.stringify(e)).join(', ');
+                } else if (typeof error.detail === 'string') {
+                    errorMessage = error.detail;
+                } else if (error.detail) {
+                    errorMessage = JSON.stringify(error.detail);
+                } else {
+                    errorMessage = `HTTP ${response.status}`;
+                }
+                throw new Error(errorMessage);
             }
 
             const fetchResult = await response.json();

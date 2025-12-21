@@ -14,6 +14,7 @@ meta:
     - "✅ New stores/groups not in dropdowns (reload after import)"
     - "✅ Google Sheets OAuth window (improved redirect detection)"
     - "✅ Backend returns metadata about created references"
+    - "✅ [object Object] error display (proper Pydantic error handling)"
 
 # ===========================================================================
 # FLOW STAGES
@@ -135,6 +136,12 @@ google_sheets:
       detection: "content-type: text/html"
       meaning: "Login page or error page instead of CSV"
       error_message: "Google Sheets вернул HTML вместо CSV. Проверьте доступ."
+
+    pydantic_validation_errors:
+      problem: "FastAPI returns {detail: [{loc, msg, type}]} for validation errors"
+      old_behavior: "throw new Error(error.detail) → displays '[object Object]' in toast"
+      new_behavior: "Extract messages from array: error.detail.map(e => e.msg).join(', ')"
+      fix_location: "googleSheetsImporter.js:handleUrlSubmit() error handling block"
 
 # ===========================================================================
 # FILES INVOLVED

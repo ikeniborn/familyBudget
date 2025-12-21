@@ -297,6 +297,12 @@ modules:
     description: "Google Sheets integration"
     endpoints:
       - "/api/v1/shopping-lists/google-sheets/fetch"
+    error_handling: |
+      Properly handles Pydantic validation errors from FastAPI:
+      - Array format: error.detail.map(e => e.msg).join(', ')
+      - String format: error.detail
+      - Object format: JSON.stringify(error.detail)
+      - Fallback: HTTP status code
 
   importManager:
     path: "frontend/web/static/js/lists/importManager.js"
