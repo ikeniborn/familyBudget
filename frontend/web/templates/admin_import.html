@@ -112,45 +112,6 @@
     z-index: 9999;
 }
 
-/* Workflow steps */
-.workflow-step {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    border: 2px solid oklch(var(--b3));
-    background: oklch(var(--b1));
-    transition: all 0.2s ease;
-}
-.workflow-step.active {
-    background: oklch(var(--p) / 0.1);
-    border-color: oklch(var(--p));
-}
-.workflow-step.completed {
-    background: oklch(var(--su) / 0.1);
-    border-color: oklch(var(--su));
-}
-.step-number {
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: 50%;
-    background: oklch(var(--b3));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.75rem;
-}
-.workflow-step.active .step-number {
-    background: oklch(var(--p));
-    color: oklch(var(--pc));
-}
-.workflow-step.completed .step-number {
-    background: oklch(var(--su));
-    color: oklch(var(--suc));
-}
-
 /* Empty field highlight */
 .empty-field {
     background: oklch(var(--wa) / 0.15) !important;
@@ -579,26 +540,10 @@ body.resizing-columns * {
                 </div>
             </div>
 
-            <!-- Workflow Steps Indicator -->
-            <div class="flex gap-4 mb-4" id="workflow-steps">
-                <div class="workflow-step active" id="wf-step-filter">
-                    <div class="step-number">1</div>
-                    <span class="text-sm font-medium">Фильтрация</span>
-                </div>
-                <div class="workflow-step" id="wf-step-fill">
-                    <div class="step-number">2</div>
-                    <span class="text-sm font-medium">Заполнение</span>
-                </div>
-                <div class="workflow-step" id="wf-step-apply">
-                    <div class="step-number">3</div>
-                    <span class="text-sm font-medium">Применение</span>
-                </div>
-            </div>
-
             <!-- Main content: Sidebar + Table -->
             <div class="flex gap-4">
                 <!-- Filter Sidebar -->
-                <div class="filter-sidebar rounded-lg" id="filter-sidebar">
+                <div class="filter-sidebar collapsed rounded-lg" id="filter-sidebar">
                     <!-- Collapsible Header -->
                     <div class="filter-sidebar-header" onclick="toggleFilterSidebar()">
                         <h3 class="font-semibold text-lg filter-title">🔍 Фильтры</h3>
@@ -708,8 +653,8 @@ body.resizing-columns * {
 
                 <!-- Main content area -->
                 <div class="flex-1 min-w-0">
-                    <!-- Bulk Panel for Filtered Records (hidden by default) -->
-                    <div id="bulk-panel-filtered" class="bulk-panel-filtered hidden">
+                    <!-- Bulk Panel for Filtered Records (always visible) -->
+                    <div id="bulk-panel-filtered" class="bulk-panel-filtered">
                         <div class="flex items-center justify-between flex-wrap gap-4">
                             <div class="flex items-center gap-2">
                                 <span class="text-lg font-semibold">⚡ Применить к</span>
@@ -833,28 +778,28 @@ body.resizing-columns * {
 
 <!-- Spreadsheet Context Menu (hidden by default) -->
 <div id="spreadsheet-context-menu" class="spreadsheet-context-menu hidden">
-    <div class="context-menu-item" onclick="spreadsheetFillDown()">
+    <div class="context-menu-item" data-action="fill-down">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
         </svg>
         Заполнить вниз
         <kbd>Ctrl+D</kbd>
     </div>
-    <div class="context-menu-item" onclick="spreadsheetFillSelection()">
+    <div class="context-menu-item" data-action="fill-selection">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
         </svg>
         Применить ко всем выбранным
     </div>
     <div class="context-menu-divider"></div>
-    <div class="context-menu-item" onclick="spreadsheetCopy()">
+    <div class="context-menu-item" data-action="copy">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
         </svg>
         Копировать
         <kbd>Ctrl+C</kbd>
     </div>
-    <div class="context-menu-item" onclick="spreadsheetPaste()">
+    <div class="context-menu-item" data-action="paste">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
         </svg>
@@ -862,7 +807,7 @@ body.resizing-columns * {
         <kbd>Ctrl+V</kbd>
     </div>
     <div class="context-menu-divider"></div>
-    <div class="context-menu-item" onclick="spreadsheetClearSelection()">
+    <div class="context-menu-item" data-action="clear">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
         </svg>
@@ -870,13 +815,13 @@ body.resizing-columns * {
         <kbd>Delete</kbd>
     </div>
     <div class="context-menu-divider"></div>
-    <div class="context-menu-item" onclick="spreadsheetSelectColumn()">
+    <div class="context-menu-item" data-action="select-column">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/>
         </svg>
         Выбрать весь столбец
     </div>
-    <div class="context-menu-item" onclick="spreadsheetSelectSimilar()">
+    <div class="context-menu-item" data-action="select-similar">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2"/>
         </svg>
@@ -2856,7 +2801,6 @@ function applyFilters() {
     renderStagingTable();
     updateActiveFilters();
     updateBulkPanel();
-    updateWorkflowSteps();
     updateStats();
 }
 
@@ -2870,11 +2814,12 @@ function toggleFilterSidebar() {
     localStorage.setItem('filterSidebarCollapsed', sidebar.classList.contains('collapsed'));
 }
 
-// Restore sidebar state on page load
+// Restore sidebar state on page load (default: collapsed)
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('filter-sidebar');
-    if (sidebar && localStorage.getItem('filterSidebarCollapsed') === 'true') {
-        sidebar.classList.add('collapsed');
+    // Sidebar is collapsed by default (in HTML), expand only if user previously expanded it
+    if (sidebar && localStorage.getItem('filterSidebarCollapsed') === 'false') {
+        sidebar.classList.remove('collapsed');
     }
 });
 
@@ -2935,54 +2880,12 @@ function updateActiveFilters() {
 }
 
 /**
- * Update bulk panel visibility based on active filters
+ * Update bulk panel counter (panel is always visible)
  */
 function updateBulkPanel() {
-    const panel = document.getElementById('bulk-panel-filtered');
-    const hasFilters = hasActiveFilters() && filteredRecords.length > 0 && filteredRecords.length < stagingRecords.length;
-
-    if (hasFilters) {
-        panel.classList.remove('hidden');
-        document.getElementById('bulk-filtered-count').textContent = filteredRecords.length;
-    } else {
-        panel.classList.add('hidden');
-    }
-}
-
-/**
- * Update workflow step indicators
- */
-function updateWorkflowSteps() {
-    const hasFilters = hasActiveFilters();
-    const hasBulkValues = (
-        document.getElementById('bulk-filtered-type')?.value ||
-        getBulkFilteredArticleId() ||
-        document.getElementById('bulk-filtered-fc')?.value ||
-        document.getElementById('bulk-filtered-cc')?.value ||
-        document.getElementById('bulk-filtered-record-type')?.value
-    );
-
-    const stepFilter = document.getElementById('wf-step-filter');
-    const stepFill = document.getElementById('wf-step-fill');
-    const stepApply = document.getElementById('wf-step-apply');
-
-    // Reset all steps
-    [stepFilter, stepFill, stepApply].forEach(s => {
-        s.classList.remove('active', 'completed');
-    });
-
-    if (!hasFilters) {
-        // Step 1 active: no filters yet
-        stepFilter.classList.add('active');
-    } else if (!hasBulkValues) {
-        // Step 2 active: filters applied, need to select values
-        stepFilter.classList.add('completed');
-        stepFill.classList.add('active');
-    } else {
-        // Step 3 active: ready to apply
-        stepFilter.classList.add('completed');
-        stepFill.classList.add('completed');
-        stepApply.classList.add('active');
+    const countEl = document.getElementById('bulk-filtered-count');
+    if (countEl) {
+        countEl.textContent = filteredRecords.length;
     }
 }
 
@@ -3024,8 +2927,6 @@ function updateBulkFilteredArticles() {
     articleSelect.innerHTML = '<option value="">Категория</option>' +
         flatList.map(a => `<option value="${a.id}">${a.indent}${a.name}</option>`).join('');
     articleSelect.disabled = false;
-
-    updateWorkflowSteps();
 }
 
 /**
@@ -3396,12 +3297,19 @@ function onResizeEnd(e) {
 
 /**
  * Initialize cell selection functionality
+ * Uses idempotent initialization pattern per docs/architecture/frontend/javascript-patterns.yaml
  */
+let _cellSelectionInitialized = false;
+
 function initCellSelection() {
+    if (_cellSelectionInitialized) return;
+
     const tbody = document.getElementById('staging-table-body');
     if (!tbody) return;
 
     tbody.addEventListener('click', onCellClick);
+
+    _cellSelectionInitialized = true;
 }
 
 function onCellClick(e) {
@@ -3559,15 +3467,49 @@ function restoreSpreadsheetSelection() {
 
 /**
  * Initialize context menu functionality
+ * Uses event delegation pattern per docs/architecture/frontend/javascript-patterns.yaml
  */
+let _contextMenuInitialized = false;
+
 function initContextMenu() {
+    if (_contextMenuInitialized) return;
+
     const tbody = document.getElementById('staging-table-body');
     if (!tbody) return;
 
     tbody.addEventListener('contextmenu', onSpreadsheetContextMenu);
 
-    // Hide menu on click anywhere
-    document.addEventListener('click', hideSpreadsheetContextMenu);
+    // Hide menu on click anywhere (except on menu items)
+    document.addEventListener('click', onDocumentClickForContextMenu);
+
+    _contextMenuInitialized = true;
+}
+
+/**
+ * Document click handler - handles both menu item clicks and menu hiding
+ * Uses event delegation instead of inline onclick handlers
+ */
+function onDocumentClickForContextMenu(e) {
+    const menuItem = e.target.closest('.context-menu-item');
+
+    if (menuItem) {
+        // Handle menu item click via event delegation
+        e.stopPropagation();
+        const action = menuItem.dataset.action;
+
+        switch(action) {
+            case 'fill-down': spreadsheetFillDown(); break;
+            case 'fill-selection': spreadsheetFillSelection(); break;
+            case 'copy': spreadsheetCopy(); break;
+            case 'paste': spreadsheetPaste(); break;
+            case 'clear': spreadsheetClearSelection(); break;
+            case 'select-column': spreadsheetSelectColumn(); break;
+            case 'select-similar': spreadsheetSelectSimilar(); break;
+        }
+    } else {
+        // Hide menu on click outside
+        hideSpreadsheetContextMenu();
+    }
 }
 
 function onSpreadsheetContextMenu(e) {
@@ -3618,9 +3560,16 @@ function hideSpreadsheetContextMenu() {
 
 /**
  * Initialize keyboard shortcuts
+ * Uses idempotent initialization pattern
  */
+let _keyboardShortcutsInitialized = false;
+
 function initKeyboardShortcuts() {
+    if (_keyboardShortcutsInitialized) return;
+
     document.addEventListener('keydown', onSpreadsheetKeyDown);
+
+    _keyboardShortcutsInitialized = true;
 }
 
 function onSpreadsheetKeyDown(e) {
