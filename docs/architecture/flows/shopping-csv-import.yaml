@@ -15,6 +15,7 @@ meta:
     - "✅ Google Sheets OAuth window (improved redirect detection)"
     - "✅ Backend returns metadata about created references"
     - "✅ [object Object] error display (proper Pydantic error handling)"
+    - "✅ HTTP 307 redirect handling (manual redirect following)"
 
 # ===========================================================================
 # FLOW STAGES
@@ -129,8 +130,15 @@ google_sheets:
     private_sheet:
       detection: "HTTP 302/307 redirect to accounts.google.com/oauth"
       old_behavior: "httpx follows redirect → opens OAuth window in browser (bad UX)"
-      new_behavior: "follow_redirects=False → detect redirect → raise clear error"
+      new_behavior: "Manual redirect following with OAuth domain detection"
       error_message: "Лист требует авторизацию. Сделайте его публичным: Файл → Доступ → Доступ по ссылке"
+
+    google_cdn_redirects:
+      problem: "Google Sheets uses 307 redirects to doc-*.googleusercontent.com CDN"
+      old_behavior: "follow_redirects=False + raise_for_status() on 307 = HTTP error"
+      new_behavior: "Manual redirect loop: follow non-OAuth redirects, block OAuth"
+      max_redirects: 5
+      fix_location: "google_sheets_parser.py:fetch_google_sheets_as_csv()"
 
     html_response:
       detection: "content-type: text/html"
