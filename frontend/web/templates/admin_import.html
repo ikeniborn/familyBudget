@@ -2970,7 +2970,16 @@ async function applyBulkToFiltered() {
 
     const ids = filteredRecords.map(r => r.id);
 
-    // Build update payload
+    // Build flat request body matching BulkUpdateRequest schema
+    const requestBody = {
+        staging_ids: ids
+    };
+    if (articleId) requestBody.article_id = parseInt(articleId);
+    if (fcId) requestBody.financial_center_id = parseInt(fcId);
+    if (ccId) requestBody.cost_center_id = parseInt(ccId);
+    if (recordType) requestBody.record_type = recordType;
+
+    // Track which fields are being updated (for local state sync)
     const updates = {};
     if (articleId) updates.article_id = parseInt(articleId);
     if (fcId) updates.financial_center_id = parseInt(fcId);
@@ -2992,12 +3001,22 @@ async function applyBulkToFiltered() {
             const response = await fetch('/api/v1/admin/staging/bulk-update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids, updates })
+                body: JSON.stringify(requestBody)
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Ошибка обновления');
+                const errorData = await response.json();
+                // Handle Pydantic validation errors (422) with nested detail
+                let errorMessage = 'Ошибка обновления';
+                if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (Array.isArray(errorData.detail)) {
+                    // Pydantic validation error format: [{loc, msg, type}, ...]
+                    errorMessage = errorData.detail.map(e => e.msg).join('; ');
+                } else if (errorData.detail?.msg) {
+                    errorMessage = errorData.detail.msg;
+                }
+                throw new Error(errorMessage);
             }
 
             const result = await response.json();
