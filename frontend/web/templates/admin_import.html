@@ -316,22 +316,6 @@ body.resizing-columns * {
     font-style: italic;
 }
 
-/* Keyboard hints */
-.keyboard-hints {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.75rem;
-    color: oklch(var(--bc) / 0.6);
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-}
-.keyboard-hints kbd {
-    background: oklch(var(--b2));
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-size: 0.6875rem;
-    margin-right: 0.25rem;
-}
 </style>
 
 <!-- Main content (hidden on mobile) -->
@@ -716,107 +700,42 @@ body.resizing-columns * {
                                 <span class="filter-count-badge" id="bulk-filtered-count">0</span>
                                 <span>отфильтрованным записям:</span>
                             </div>
-                            <div class="flex gap-2 flex-wrap items-end">
-                                <select id="bulk-filtered-type" class="select select-sm w-32" onchange="updateBulkFilteredArticles()">
-                                    <option value="">Тип</option>
-                                    <option value="expense">💸 Расход</option>
-                                    <option value="income">💰 Доход</option>
-                                </select>
-                                <select id="bulk-filtered-article" class="select select-sm w-48" disabled>
-                                    <option value="">Категория</option>
-                                </select>
-                                <select id="bulk-filtered-fc" class="select select-sm w-36">
-                                    <option value="">Счёт</option>
-                                </select>
-                                <select id="bulk-filtered-cc" class="select select-sm w-36">
-                                    <option value="">МЗ</option>
-                                </select>
-                                <select id="bulk-filtered-record-type" class="select select-sm w-28">
-                                    <option value="">Тип записи</option>
-                                    <option value="fact">Факт</option>
-                                    <option value="plan">План</option>
-                                </select>
-                                <button class="btn btn-sm btn-accent" onclick="applyBulkToFiltered()">
-                                    Применить
-                                </button>
+                            <div class="flex gap-3 flex-wrap items-center">
+                                <!-- Группа: Тип + Категория -->
+                                <div class="flex items-center gap-1">
+                                    <select id="bulk-filtered-type" class="select select-sm w-28" onchange="updateBulkFilteredArticles()">
+                                        <option value="">Тип</option>
+                                        <option value="expense">💸 Расход</option>
+                                        <option value="income">💰 Доход</option>
+                                    </select>
+                                    <select id="bulk-filtered-article" class="select select-sm w-44">
+                                        <option value="">Категория</option>
+                                    </select>
+                                </div>
+                                <!-- Группа: Счёт + МЗ -->
+                                <div class="flex items-center gap-1">
+                                    <select id="bulk-filtered-fc" class="select select-sm w-32">
+                                        <option value="">Счёт</option>
+                                    </select>
+                                    <select id="bulk-filtered-cc" class="select select-sm w-32">
+                                        <option value="">МЗ</option>
+                                    </select>
+                                </div>
+                                <!-- Группа: Тип записи + Кнопка -->
+                                <div class="flex items-center gap-1">
+                                    <select id="bulk-filtered-record-type" class="select select-sm w-24">
+                                        <option value="">Тип</option>
+                                        <option value="fact">Факт</option>
+                                        <option value="plan">План</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-accent" onclick="applyBulkToFiltered()">
+                                        Применить
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Original Bulk Operations Toolbar (for selected records) -->
-                    <div class="bg-base-200 p-4 rounded-lg mb-4" id="bulk-toolbar">
-                        <div class="flex flex-wrap gap-4 items-end">
-                            <div class="form-control w-48">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">Тип категории</span>
-                                </label>
-                                <select id="bulk-article-type" class="select select-bordered w-full select-sm" onchange="updateBulkCategoryType()" style="height: 3rem; min-height: 3rem;">
-                                    <option value="">-- Все типы --</option>
-                                    <option value="expense" style="color: rgb(239, 68, 68);">💸 Расходы</option>
-                                    <option value="income" style="color: rgb(34, 197, 94);">💰 Доходы</option>
-                                </select>
-                            </div>
-
-                            <div class="form-control w-64">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">Категория</span>
-                                </label>
-                                <select id="bulk-article" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;" disabled>
-                                    <option value="">-- Выберите тип --</option>
-                                </select>
-                            </div>
-
-                            <div class="form-control w-48">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">Счет</span>
-                                </label>
-                                <select id="bulk-fc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
-                                    <option value="">-- Не выбрано --</option>
-                                </select>
-                            </div>
-
-                            <div class="form-control w-48">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">МЗ</span>
-                                </label>
-                                <select id="bulk-cc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
-                                    <option value="">-- Не выбрано --</option>
-                                </select>
-                            </div>
-
-                            <div class="form-control w-36">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">Тип записи</span>
-                                </label>
-                                <select id="bulk-record-type" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
-                                    <option value="">-- Не выбрано --</option>
-                                    <option value="fact">Факт</option>
-                                    <option value="plan">План</option>
-                                </select>
-                            </div>
-
-                            <button class="btn btn-primary btn-sm" onclick="applyBulkUpdate()">
-                                Применить к выбранным
-                            </button>
-
-                            <div class="divider divider-horizontal"></div>
-
-                            <button class="btn btn-error btn-sm btn-outline" onclick="deleteSelectedRecords()">
-                                🗑️ Удалить выбранные
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Keyboard Hints -->
-                    <div class="keyboard-hints mb-2">
-                        <span><kbd>Click</kbd> Выбрать ячейку</span>
-                        <span><kbd>Shift+Click</kbd> Диапазон</span>
-                        <span><kbd>Ctrl+Click</kbd> Добавить</span>
-                        <span><kbd>Ctrl+D</kbd> Fill Down</span>
-                        <span><kbd>Ctrl+C/V</kbd> Копировать/Вставить</span>
-                        <span><kbd>Delete</kbd> Очистить</span>
-                        <span><kbd>ПКМ</kbd> Меню</span>
-                    </div>
 
                     <!-- Staging Table -->
                     <div class="overflow-x-auto">
@@ -1118,9 +1037,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadFinancialCenters();
     await loadCostCenters();
     await loadArticles();
-
-    // Populate bulk selectors after data is loaded
-    updateBulkCategoryType();
 });
 
 // ========== Step 1: Bank Selection ==========
@@ -1420,6 +1336,9 @@ async function loadStagingTableByBank() {
         // Populate Filter First UI elements
         populateCsvCategoryFilter();
         populateBulkFilteredSelects();
+
+        // Initialize ChoicesCategoryTree for bulk filtered panel
+        initBulkFilteredCategoryTree();
 
         renderStagingTable();
         updateProgressIndicator(4);
@@ -2035,6 +1954,9 @@ async function loadStagingTable() {
         populateCsvCategoryFilter();
         populateBulkFilteredSelects();
 
+        // Initialize ChoicesCategoryTree for bulk filtered panel
+        initBulkFilteredCategoryTree();
+
         renderStagingTable();
 
         // Hide Step 3, Show Step 4 enrichment
@@ -2221,62 +2143,23 @@ function createStagingRow(record, index) {
 }
 
 function createArticleSelect(record) {
-    const select = document.createElement('select');
-    select.id = `article-${record.id}`;
-    select.className = 'select select-bordered select-sm w-full';
-    select.style.height = '3rem';
-    select.style.minHeight = '3rem';
+    const wrapper = document.createElement('div');
+    wrapper.id = `article-${record.id}`;
+    wrapper.className = 'flex items-center gap-1 cursor-pointer hover:bg-base-200 rounded px-2 py-1 min-h-[3rem]';
+    wrapper.onclick = () => openCategoryPicker(record.id);
 
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = '-- Выберите --';
-    select.appendChild(emptyOption);
+    // Display current category name or placeholder
+    const article = allArticles.find(a => a.id === record.article_id);
+    const displayName = article ? article.name : '-- Выберите --';
 
-    // Использовать тип из rowArticleTypes (уже заполнен в createTypeSelect)
-    // Fallback на определение по сумме (не должен срабатывать при нормальном flow)
-    const amount = parseFloat(record.amount_string.replace(',', '.'));
-    const defaultType = amount < 0 ? 'expense' : 'income';
-    const recordType = rowArticleTypes[record.id] || defaultType;
+    wrapper.innerHTML = `
+        <span class="flex-1 truncate ${article ? '' : 'text-base-content/50'}">${displayName}</span>
+        <svg class="w-4 h-4 text-base-content/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+        </svg>
+    `;
 
-    const filteredArticles = allArticles.filter(a => a.type === recordType);
-
-    // Build tree and flatten with hierarchy
-    const tree = buildArticleTree(filteredArticles);
-    const flatNodes = flattenArticleTree(tree);
-
-    flatNodes.forEach(node => {
-        const option = document.createElement('option');
-        option.value = node.id;
-
-        // Simplified indentation: use single symbol per level
-        const indent = '›  '.repeat(node.level);
-        const icon = node.isLeaf ? '▸' : '📂';
-        option.textContent = `${indent}${icon} ${node.name}`;
-
-        // Apply color coding by article type
-        const color = getArticleTypeColorStyle(node.type);
-        if (color) {
-            option.style.color = color;
-        }
-
-        // Set selected value
-        if (record.article_id === node.id) {
-            option.selected = true;
-        }
-
-        // Disable parent categories with visual styling
-        if (!node.isLeaf) {
-            option.disabled = true;
-            option.style.fontWeight = 'bold';
-            option.style.opacity = '0.7';
-        }
-
-        select.appendChild(option);
-    });
-
-    select.onchange = () => updateStagingField(record.id, 'article_id', select.value);
-
-    return select;
+    return wrapper;
 }
 
 function createFCSelect(record) {
@@ -2569,122 +2452,6 @@ function toggleSelectAll(sourceCheckbox) {
     document.getElementById('header-select-all').checked = selectAll;
 
     updateStats();
-}
-
-function updateBulkCategoryType() {
-    const typeSelect = document.getElementById('bulk-article-type');
-    const articleSelect = document.getElementById('bulk-article');
-
-    articleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
-    articleSelect.disabled = false;
-
-    // Фильтрация только по expense/income (debit/credit не используются при импорте)
-    const filtered = typeSelect.value
-        ? allArticles.filter(a => a.type === typeSelect.value)
-        : allArticles.filter(a => a.type === 'expense' || a.type === 'income');
-
-    // Build tree and flatten with hierarchy
-    const tree = buildArticleTree(filtered);
-    const flatNodes = flattenArticleTree(tree);
-
-    // Группировка только expense → income
-    const groupedByType = {
-        'expense': [],
-        'income': []
-    };
-
-    flatNodes.forEach(node => {
-        if (groupedByType[node.type]) {
-            groupedByType[node.type].push(node);
-        }
-    });
-
-    // Flatten back in type order: expense → income
-    const sortedNodes = [
-        ...groupedByType['expense'],
-        ...groupedByType['income']
-    ];
-
-    sortedNodes.forEach(node => {
-        const option = document.createElement('option');
-        option.value = node.id;
-
-        // Simplified indentation: use single symbol per level
-        const indent = '›  '.repeat(node.level);
-        const icon = node.isLeaf ? '▸' : '📂';
-        option.textContent = `${indent}${icon} ${node.name}`;
-
-        // Apply color coding by article type
-        const color = getArticleTypeColorStyle(node.type);
-        if (color) {
-            option.style.color = color;
-        }
-
-        // Disable parent categories with visual styling
-        if (!node.isLeaf) {
-            option.disabled = true;
-            option.style.fontWeight = 'bold';
-            option.style.opacity = '0.7';
-        }
-
-        articleSelect.appendChild(option);
-    });
-}
-
-async function applyBulkUpdate() {
-    const selectedIds = getSelectedIds();
-    if (selectedIds.length === 0) {
-        showNotification('Выберите записи', 'error');
-        return;
-    }
-
-    const articleId = document.getElementById('bulk-article').value || null;
-    const fcId = document.getElementById('bulk-fc').value || null;
-    const ccId = document.getElementById('bulk-cc').value || null;
-    const recordType = document.getElementById('bulk-record-type').value || null;
-
-    if (!articleId && !fcId && !ccId && !recordType) {
-        showNotification('Выберите хотя бы одно поле для обновления', 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/v1/admin/staging/bulk-update', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                staging_ids: selectedIds,
-                article_id: articleId ? parseInt(articleId) : null,
-                financial_center_id: fcId ? parseInt(fcId) : null,
-                cost_center_id: ccId ? parseInt(ccId) : null,
-                record_type: recordType
-            })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Bulk update failed');
-        }
-
-        // После успешного обновления - синхронизировать типы для выбранных строк
-        if (articleId) {
-            const selectedArticle = allArticles.find(a => a.id === parseInt(articleId));
-            if (selectedArticle) {
-                selectedIds.forEach(id => {
-                    rowArticleTypes[id] = selectedArticle.type;
-                });
-            }
-        }
-
-        showNotification(`Обновлено ${selectedIds.length} записей`, 'success');
-        await loadStagingTable();
-        document.getElementById('header-select-all').checked = false;
-
-    } catch (error) {
-        console.error('Bulk update error:', error);
-        showNotification(`Ошибка: ${error.message}`, 'error');
-    }
 }
 
 // ========== Individual Field Updates ==========
@@ -3210,7 +2977,7 @@ function updateWorkflowSteps() {
     const hasFilters = hasActiveFilters();
     const hasBulkValues = (
         document.getElementById('bulk-filtered-type')?.value ||
-        document.getElementById('bulk-filtered-article')?.value ||
+        getBulkFilteredArticleId() ||
         document.getElementById('bulk-filtered-fc')?.value ||
         document.getElementById('bulk-filtered-cc')?.value ||
         document.getElementById('bulk-filtered-record-type')?.value
@@ -3310,7 +3077,7 @@ async function applyBulkToFiltered() {
     }
 
     const articleType = document.getElementById('bulk-filtered-type')?.value || null;
-    const articleId = document.getElementById('bulk-filtered-article')?.value || null;
+    const articleId = getBulkFilteredArticleId();
     const fcId = document.getElementById('bulk-filtered-fc')?.value || null;
     const ccId = document.getElementById('bulk-filtered-cc')?.value || null;
     const recordType = document.getElementById('bulk-filtered-record-type')?.value || null;
@@ -3475,15 +3242,6 @@ async function loadFinancialCenters() {
             }
 
             financialCenters = fcArray;
-
-            // Populate bulk FC selector
-            const bulkFc = document.getElementById('bulk-fc');
-            financialCenters.forEach(fc => {
-                const option = document.createElement('option');
-                option.value = fc.id;
-                option.textContent = fc.name;
-                bulkFc.appendChild(option);
-            });
         }
     } catch (error) {
         console.error('Error loading financial centers:', error);
@@ -3506,15 +3264,6 @@ async function loadCostCenters() {
             }
 
             costCenters = ccArray;
-
-            // Populate bulk CC selector
-            const bulkCc = document.getElementById('bulk-cc');
-            costCenters.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.id;
-                option.textContent = cc.name;
-                bulkCc.appendChild(option);
-            });
         }
     } catch (error) {
         console.error('Error loading cost centers:', error);
@@ -4279,5 +4028,165 @@ document.addEventListener('DOMContentLoaded', function() {
     // Delay initialization to allow table to render
     setTimeout(initSpreadsheetModules, 100);
 });
+
+// ==========================================================================
+// CATEGORY PICKER MODULE: Modal for selecting category in table cells
+// ==========================================================================
+
+let categoryPickerTree = null;
+let categoryPickerRecordId = null;
+let bulkFilteredCategoryTree = null;
+
+/**
+ * Open category picker modal for a specific staging record
+ */
+function openCategoryPicker(recordId) {
+    categoryPickerRecordId = recordId;
+    const type = rowArticleTypes[recordId] || 'expense';
+
+    // Destroy and reinitialize with correct type
+    if (categoryPickerTree) {
+        categoryPickerTree.destroy();
+        categoryPickerTree = null;
+    }
+
+    // Clear the select element before reinitializing
+    const selectEl = document.getElementById('category-picker-select');
+    if (selectEl) {
+        selectEl.innerHTML = '';
+    }
+
+    categoryPickerTree = new BudgetShared.ChoicesCategoryTree(
+        '#category-picker-select',
+        {
+            type: type,
+            showLeafOnly: true,
+            onCategoryChange: (category) => {
+                // Update path display
+                if (category) {
+                    // Get parent chain for path
+                    const parentChain = categoryPickerTree.getParentChain(category.id);
+                    const pathText = parentChain.length > 0
+                        ? parentChain.map(p => p.name).join(' › ') + ' › ' + category.name
+                        : category.name;
+                    document.getElementById('category-picker-path').textContent = pathText;
+                } else {
+                    document.getElementById('category-picker-path').textContent = '';
+                }
+            }
+        }
+    );
+
+    // Pre-select current value if exists
+    const record = stagingRecords.find(r => r.id === recordId);
+    if (record?.article_id) {
+        setTimeout(() => {
+            categoryPickerTree.setSelectedCategory(record.article_id);
+        }, 100);
+    }
+
+    // Clear path
+    document.getElementById('category-picker-path').textContent = '';
+
+    document.getElementById('category-picker-modal').showModal();
+}
+
+/**
+ * Close category picker modal
+ */
+function closeCategoryPicker() {
+    document.getElementById('category-picker-modal').close();
+    categoryPickerRecordId = null;
+}
+
+/**
+ * Apply selected category from picker modal
+ */
+async function applyCategoryPicker() {
+    if (!categoryPickerRecordId || !categoryPickerTree) return;
+
+    const category = categoryPickerTree.getSelectedCategory();
+    if (!category) {
+        showNotification('Выберите категорию', 'warning');
+        return;
+    }
+
+    await updateStagingField(categoryPickerRecordId, 'article_id', category.id);
+    closeCategoryPicker();
+}
+
+/**
+ * Initialize ChoicesCategoryTree for bulk filtered panel
+ */
+function initBulkFilteredCategoryTree() {
+    // Destroy previous instance if exists
+    if (bulkFilteredCategoryTree) {
+        bulkFilteredCategoryTree.destroy();
+        bulkFilteredCategoryTree = null;
+    }
+
+    // Clear the select element before reinitializing
+    const selectEl = document.getElementById('bulk-filtered-article');
+    if (selectEl) {
+        selectEl.innerHTML = '';
+    }
+
+    const type = document.getElementById('bulk-filtered-type')?.value || 'expense';
+
+    bulkFilteredCategoryTree = new BudgetShared.ChoicesCategoryTree(
+        '#bulk-filtered-article',
+        {
+            type: type,
+            showLeafOnly: true,
+            onCategoryChange: (category) => {
+                // Category selected - ready for bulk apply
+            }
+        }
+    );
+}
+
+/**
+ * Update bulk filtered articles when type changes
+ */
+function updateBulkFilteredArticles() {
+    const type = document.getElementById('bulk-filtered-type')?.value;
+    if (bulkFilteredCategoryTree && type) {
+        bulkFilteredCategoryTree.updateType(type);
+    } else if (!bulkFilteredCategoryTree) {
+        // Initialize if not exists
+        initBulkFilteredCategoryTree();
+    }
+}
+
+/**
+ * Get selected article ID from bulk filtered ChoicesCategoryTree
+ */
+function getBulkFilteredArticleId() {
+    if (bulkFilteredCategoryTree) {
+        const category = bulkFilteredCategoryTree.getSelectedCategory();
+        return category ? category.id : null;
+    }
+    return null;
+}
 </script>
+
+<!-- Category Picker Modal for Staging Table -->
+<dialog id="category-picker-modal" class="modal">
+    <div class="modal-box w-96">
+        <h3 class="font-bold text-lg mb-4">Выберите категорию</h3>
+        <div class="form-control">
+            <select id="category-picker-select" class="select select-bordered w-full">
+                <!-- ChoicesCategoryTree -->
+            </select>
+            <div id="category-picker-path" class="text-sm text-base-content/60 mt-2 min-h-[1.5rem]"></div>
+        </div>
+        <div class="modal-action">
+            <button class="btn btn-ghost" onclick="closeCategoryPicker()">Отмена</button>
+            <button class="btn btn-primary" onclick="applyCategoryPicker()">Выбрать</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
 {% endblock %}

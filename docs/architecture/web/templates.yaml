@@ -504,9 +504,9 @@ templates:
         description: "Enrich staging records before import"
         features:
           - "Editable staging table"
-          - "Bulk operations toolbar"
-          - "Statistics (total, selected, ready)"
-          - "Category type filter (expense/income)"
+          - "Bulk operations on filtered records"
+          - "Category picker modal with ChoicesCategoryTree"
+          - "Statistics (total, filtered, ready)"
           - "Execute import button"
           - "Spreadsheet-like cell selection and editing"
           - "Resizable columns with localStorage persistence"
@@ -528,6 +528,15 @@ templates:
           id: "bulk-panel-filtered"
           select_height: "3rem"
           purpose: "Bulk apply values to filtered records"
+          category_picker: "ChoicesCategoryTree with type filtering"
+        category_picker_modal:
+          id: "category-picker-modal"
+          uses: "BudgetShared.ChoicesCategoryTree"
+          type_filter: "from rowArticleTypes[record.id]"
+          features:
+            - "Fuzzy search"
+            - "Type-based filtering"
+            - "Path display"
         spreadsheet_features:
           column_resize:
             storage_key: "staging-column-widths"
