@@ -253,15 +253,19 @@ routes:
     notes: |
       Aggregation depends on period or date range:
       - period=month: Groups by days (from 1st of month to today)
-      - period=quarter: Groups by weeks with ISO week numbers (from Q start to today)
+      - period=quarter: Groups by weeks using date_trunc('week') (from Q start to today)
       - period=year: Groups by months using date_trunc('month') (from Jan 1 to today)
       - Custom date range ≤31 days: Groups by days
-      - Custom date range 32-91 days: Groups by weeks
-      - Custom date range >91 days: Groups by months
+      - Custom date range 32-91 days: Groups by weeks using date_trunc('week')
+      - Custom date range >91 days: Groups by months using date_trunc('month')
 
       FIX (2025-12-21): Changed period='year' to use date_trunc('month') for correct
       monthly aggregation. Previously used Fact.fact_date which only counted
       transactions on the 1st of each month.
+
+      FIX (2025-12-21): Changed period='quarter' to use date_trunc('week') for
+      consistency with custom date range 32-91 days. Updated week rendering to look
+      up data by week_start (Monday) directly instead of iterating through days.
 
 # Frontend
 frontend:
