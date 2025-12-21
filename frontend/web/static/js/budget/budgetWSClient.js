@@ -47,6 +47,7 @@ class BudgetWSClient {
         this._pollRetryCount = 0;
         this.MAX_POLL_RETRIES = 10;
         this.BASE_POLL_RETRY_DELAY = 1000;  // 1 second
+        this._consecutive503Count = 0;  // Track consecutive 503 errors for offline mode detection
 
         // Client ping for bidirectional communication
         this.pingInterval = null;
@@ -170,6 +171,32 @@ class BudgetWSClient {
         const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/Chromium/.test(ua);
         const isYandex = /YaBrowser/.test(ua);
         return isSafari || isYandex;
+    }
+
+    // ==================== OFFLINE MODE DETECTION ====================
+
+    /**
+     * Check if auto offline mode is active via OfflineManager or localStorage fallback
+     * This prevents WebSocket from attempting connections when offline mode is enabled
+     * Fallback to localStorage is needed for timing issues during page navigation
+     * when offlineManager may not be initialized yet
+     * @returns {boolean}
+     * @private
+     */
+    _isOfflineModeActive() {
+        // Check offlineManager if available (preferred)
+        if (window.offlineManager &&
+            window.offlineManager.networkDetector &&
+            window.offlineManager.networkDetector.autoOfflineMode) {
+            return true;
+        }
+        // Fallback: check localStorage directly for timing issues during page navigation
+        // offlineManager may not be initialized yet when budgetWSClient.connect() is called
+        try {
+            return localStorage.getItem('budget_auto_offline_mode') === 'true';
+        } catch (e) {
+            return false;
+        }
     }
 
     // ==================== MULTI-TAB SUPPORT ====================
@@ -670,6 +697,14 @@ class BudgetWSClient {
     async connect() {
         this._logHistory('connect_start');
 
+        // Skip connection if offline mode is active
+        if (this._isOfflineModeActive()) {
+            this._logHistory('connect_skip_offline_mode');
+            debugLog('[BudgetWS] Skipping connect - offline mode active');
+            this._updateStatusIndicator();
+            return;
+        }
+
         if (!this.enabled) {
             this._logHistory('connect_skip_disabled');
             return;
@@ -713,6 +748,13 @@ class BudgetWSClient {
      */
     async _createConnection() {
         if (!this.enabled) return;
+
+        // Skip if offline mode is active
+        if (this._isOfflineModeActive()) {
+            debugLog('[BudgetWS] Skipping connection - offline mode active');
+            this._updateStatusIndicator();
+            return;
+        }
 
         // Quick check: don't attempt if browser says offline
         if (!navigator.onLine) {
@@ -1036,6 +1078,12 @@ class BudgetWSClient {
     _startLongPolling() {
         if (this._pollingActive) return;
 
+        // Skip if offline mode is active
+        if (this._isOfflineModeActive()) {
+            debugLog('[BudgetWS] Skipping long polling - offline mode active');
+            return;
+        }
+
         // Quick check: don't start polling if browser says offline
         if (!navigator.onLine) {
             debugLog('[BudgetWS] Browser reports offline, skipping long polling');
@@ -1058,6 +1106,13 @@ class BudgetWSClient {
      */
     async _pollLoop() {
         if (!this.enabled || !this._pollingActive) {
+            this._stopLongPolling();
+            return;
+        }
+
+        // Stop polling if offline mode became active
+        if (this._isOfflineModeActive()) {
+            debugLog('[BudgetWS] Stopping poll loop - offline mode active');
             this._stopLongPolling();
             return;
         }
@@ -1100,6 +1155,7 @@ class BudgetWSClient {
 
             // Reset retry count on successful poll
             this._pollRetryCount = 0;
+            this._consecutive503Count = 0;  // Reset 503 counter on success
 
             // Schedule next poll
             this._pollTimeout = setTimeout(() => this._pollLoop(), 100);
@@ -1113,6 +1169,14 @@ class BudgetWSClient {
             // For HTTP 503 (server unavailable), use warn instead of error - this is expected when offline
             if (error.message && error.message.includes('503')) {
                 console.warn('[BudgetWS] Poll: server unavailable (503)');
+                // Track consecutive 503 errors - stop polling if offline mode is active
+                this._consecutive503Count++;
+                if (this._consecutive503Count >= 3 && this._isOfflineModeActive()) {
+                    debugLog('[BudgetWS] Multiple 503 errors + offline mode active, stopping poll');
+                    this._stopLongPolling();
+                    this._updateStatusIndicator();
+                    return;
+                }
             } else {
                 this._setError(`Poll: ${error.message}`);
             }
@@ -1224,7 +1288,9 @@ class BudgetWSClient {
             debugLog('[BudgetWS] Sending disconnect beacon for:', this.connectionId);
 
             if (navigator.sendBeacon) {
-                navigator.sendBeacon('/api/v1/budget/ws/disconnect', payload);
+                // Use Blob to set correct Content-Type for JSON body
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon('/api/v1/budget/ws/disconnect', blob);
             } else {
                 fetch('/api/v1/budget/ws/disconnect', {
                     method: 'POST',
@@ -1264,7 +1330,7 @@ class BudgetWSClient {
         this.enabled = enabled;
         if (!enabled) {
             this.disconnect();
-        } else if (!this.isConnected) {
+        } else if (!this.isConnected && !this._isOfflineModeActive()) {
             this.connect();
         }
     }
@@ -1274,6 +1340,13 @@ class BudgetWSClient {
      * @private
      */
     _scheduleReconnect() {
+        // Skip reconnect if offline mode is active
+        if (this._isOfflineModeActive()) {
+            debugLog('[BudgetWS] Skipping reconnect - offline mode active');
+            this._updateStatusIndicator();
+            return;
+        }
+
         if (!navigator.onLine) {
             debugLog('[BudgetWS] Offline, waiting for network');
             this._updateStatusIndicator();
@@ -1679,6 +1752,11 @@ if (typeof window !== 'undefined') {
     window.addEventListener('online', () => {
         const client = window.budgetWSClient;
         if (client && client.enabled && !client.isConnected) {
+            // Skip reconnect if offline mode is active (user explicitly enabled offline mode)
+            if (client._isOfflineModeActive()) {
+                debugLog('[BudgetWS] Skipping reconnect - offline mode active');
+                return;
+            }
             // Reset state for clean reconnect
             client.reconnectAttempts = 0;
             client._multiTabInitialized = false;

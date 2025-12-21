@@ -1,14 +1,9 @@
 {% extends "base.html" %}
 {% from "components/modal_confirm.html" import confirm_modal %}
-{% from "components/mobile_alert.html" import mobile_restriction_alert %}
 {% from "components/status_filter.html" import status_filter_buttons %}
 
 {% block content %}
-<!-- Mobile restriction alert (from macro) -->
-{{ mobile_restriction_alert() }}
-
-<!-- Main content (hidden on mobile) -->
-<div class="hidden md:block space-y-6">
+<div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
         <h1 class="text-3xl font-bold mb-2">🗂️ Управление группами товаров</h1>
@@ -50,7 +45,6 @@
             </div>
         </div>
     </div>
-</div>
 </div>
 
 {% if user.is_admin %}

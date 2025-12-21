@@ -31,7 +31,10 @@ from backend.app.services.csv_column_matcher import (
 )
 from backend.app.services.csv_detector import detect_csv_format
 from backend.app.services.csv_security import sanitize_csv_row
-from backend.app.services.csv_validator import validate_csv_rows
+from backend.app.services.csv_validator import (
+    validate_csv_rows,
+    aggregate_duplicate_rows,
+)
 from backend.app.schemas.shopping_list_item import ShoppingListItemCreate
 from backend.app.models.shopping_list_item import ShoppingListItem
 
@@ -180,6 +183,10 @@ async def preview_csv_import(
         if mapped_row:  # Only add non-empty rows
             mapped_rows.append(mapped_row)
 
+    # Aggregate duplicates if requested (before validation)
+    if request.aggregate_duplicates:
+        mapped_rows = aggregate_duplicate_rows(mapped_rows)
+
     # Validate column mapping
     is_valid, missing_required, mapped_fields = validate_mapping(request.column_mapping)
 
@@ -192,13 +199,29 @@ async def preview_csv_import(
     # Validate rows
     validation_result = await validate_csv_rows(session, mapped_rows)
 
-    # Build preview rows (max 20)
+    # Filter reference errors if create_missing_references is enabled
+    # These are not real errors since references will be created during import
+    filtered_errors = validation_result.errors
+    if request.create_missing_references:
+        filtered_errors = [e for e in validation_result.errors if e.error_type != "reference"]
+
+    # Recalculate valid/invalid counts based on filtered errors
+    valid_rows = 0
+    invalid_rows = 0
+    for idx in range(len(mapped_rows)):
+        row_has_error = any(e.row_index == idx for e in filtered_errors)
+        if row_has_error:
+            invalid_rows += 1
+        else:
+            valid_rows += 1
+
+    # Build preview rows (ALL rows - filtering/pagination handled on frontend)
     preview_rows = []
-    for idx, row in enumerate(mapped_rows[:20]):
-        # Find errors for this row
+    for idx, row in enumerate(mapped_rows):
+        # Find errors for this row (filtered)
         row_errors = [
             e.to_dict()
-            for e in validation_result.errors
+            for e in filtered_errors
             if e.row_index == idx
         ]
         row_warnings = [
@@ -222,11 +245,11 @@ async def preview_csv_import(
         })
 
     return CSVPreviewResponse(
-        is_valid=validation_result.is_valid,
-        valid_rows=validation_result.valid_rows,
-        invalid_rows=validation_result.invalid_rows,
-        total_rows=validation_result.total_rows,
-        errors=[e.to_dict() for e in validation_result.errors],
+        is_valid=len(filtered_errors) == 0,
+        valid_rows=valid_rows,
+        invalid_rows=invalid_rows,
+        total_rows=len(mapped_rows),
+        errors=[e.to_dict() for e in filtered_errors],
         warnings=[w.to_dict() for w in validation_result.warnings],
         preview_rows=preview_rows,
     )
@@ -301,6 +324,10 @@ async def execute_csv_import(
         if mapped_row:
             mapped_rows.append(mapped_row)
 
+    # Aggregate duplicates if requested (before validation)
+    if request.aggregate_duplicates:
+        mapped_rows = aggregate_duplicate_rows(mapped_rows)
+
     # Validate rows
     validation_result = await validate_csv_rows(session, mapped_rows)
 
@@ -321,10 +348,19 @@ async def execute_csv_import(
     stores_cache = {}
     product_groups_cache = {}
 
+    # ✅ NEW: Track created references for response metadata
+    created_stores_dict = {}  # name.lower() → Store object
+    created_product_groups_dict = {}  # name.lower() → ProductGroup object
+
     # Import valid rows
     for idx, row in enumerate(mapped_rows):
         # Check if row has errors
         row_errors = [e for e in validation_result.errors if e.row_index == idx]
+
+        # Filter out reference errors if create_missing_references is enabled
+        # (references will be created during import, so these are not real errors)
+        if request.create_missing_references:
+            row_errors = [e for e in row_errors if e.error_type != "reference"]
 
         if row_errors and request.skip_invalid:
             skipped_count += 1
@@ -352,12 +388,43 @@ async def execute_csv_import(
         try:
             if request.create_missing_references:
                 # Auto-create missing stores and product groups
+
+                # Check if store existed before calling get_or_create
+                store_exists = store_name.lower() in stores_cache
+
                 store_id = await get_or_create_store(
                     session, store_name, current_user.id, stores_cache
                 )
+
+                # ✅ NEW: Track if store was created
+                if not store_exists and store_name.lower() not in created_stores_dict:
+                    # Fetch full Store object for response
+                    from sqlmodel import select
+                    from backend.app.models.store import Store
+
+                    store_stmt = select(Store).where(Store.id == store_id)
+                    store_result = await session.execute(store_stmt)
+                    store_obj = store_result.scalar_one_or_none()
+                    if store_obj:
+                        created_stores_dict[store_name.lower()] = store_obj
+
+                # Check if product group existed before calling get_or_create
+                pg_exists = product_group_name.lower() in product_groups_cache
+
                 product_group_id = await get_or_create_product_group(
                     session, product_group_name, current_user.id, product_groups_cache
                 )
+
+                # ✅ NEW: Track if product group was created
+                if not pg_exists and product_group_name.lower() not in created_product_groups_dict:
+                    # Fetch full ProductGroup object for response
+                    from backend.app.models.product_group import ProductGroup
+
+                    pg_stmt = select(ProductGroup).where(ProductGroup.id == product_group_id)
+                    pg_result = await session.execute(pg_stmt)
+                    pg_obj = pg_result.scalar_one_or_none()
+                    if pg_obj:
+                        created_product_groups_dict[product_group_name.lower()] = pg_obj
             else:
                 # Validate that references exist (old behavior)
                 store_error = await validate_store_reference(
@@ -437,6 +504,19 @@ async def execute_csv_import(
             detail=f"Failed to commit import: {str(e)}",
         )
 
+    # Prepare metadata for created references
+    from backend.app.schemas.store import StoreResponse
+    from backend.app.schemas.product_group import ProductGroupResponse
+
+    created_stores_list = [
+        StoreResponse.model_validate(store)
+        for store in created_stores_dict.values()
+    ]
+    created_product_groups_list = [
+        ProductGroupResponse.model_validate(pg)
+        for pg in created_product_groups_dict.values()
+    ]
+
     return CSVImportResponse(
         success=error_count == 0,
         imported_count=imported_count,
@@ -445,4 +525,7 @@ async def execute_csv_import(
         total_rows=len(mapped_rows),
         errors=errors,
         warnings=warnings,
+        # ✅ NEW: Return created references metadata
+        created_stores=created_stores_list,
+        created_product_groups=created_product_groups_list,
     )

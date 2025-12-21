@@ -8,14 +8,19 @@ Validates CSV data before import:
 - Duplicate detection
 """
 
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
 
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.models.store import Store
 from backend.app.models.product_group import ProductGroup
+from backend.app.models.product_group_hierarchy import ProductGroupHierarchy
+from backend.app.models.product_group_history import ProductGroupHistory
+from backend.app.models.store import Store
+from backend.app.models.store_history import StoreHistory
+from backend.app.utils.code_generator import generate_code
 
 
 class ValidationError:
@@ -272,14 +277,37 @@ async def get_or_create_store(
         stores_cache[store_name] = store.id
         return store.id
 
-    # Create new store
+    # Create new store with auto-generated code
+    generated_code = await generate_code(session, Store)
+
     new_store = Store(
         creator_id=creator_id,
         name=store_name,
+        code=generated_code,
         is_active=True,
     )
     session.add(new_store)
     await session.flush()  # Flush to get ID before commit
+
+    # Create initial history record INLINE (no commit - will be committed with import)
+    # Using FAR_FUTURE constant for SCD Type 2 valid_to field
+    FAR_FUTURE = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    store_history = StoreHistory(
+        store_id=new_store.id,
+        creator_id=new_store.creator_id,
+        name=new_store.name,
+        address=new_store.address,
+        description=new_store.description,
+        code=new_store.code,
+        is_active=new_store.is_active,
+        valid_from=datetime.utcnow(),
+        valid_to=FAR_FUTURE,
+        is_current=True,
+        change_type="CREATE",
+        changed_fields=None,
+        changed_by_user_id=None,
+    )
+    session.add(store_history)
 
     # Add to cache
     stores_cache[store_name] = new_store.id
@@ -327,19 +355,115 @@ async def get_or_create_product_group(
         product_groups_cache[product_group_name] = product_group.id
         return product_group.id
 
-    # Create new product group as root (parent_id=NULL)
+    # Create new product group as root (parent_id=NULL) with auto-generated code
+    generated_code = await generate_code(session, ProductGroup)
+
     new_product_group = ProductGroup(
         creator_id=creator_id,
         name=product_group_name,
         parent_id=None,  # Create as root group
+        code=generated_code,
         is_active=True,
     )
     session.add(new_product_group)
     await session.flush()  # Flush to get ID before commit
 
+    # Create initial history record INLINE (no commit - will be committed with import)
+    FAR_FUTURE = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    pg_history = ProductGroupHistory(
+        product_group_id=new_product_group.id,
+        creator_id=new_product_group.creator_id,
+        parent_id=new_product_group.parent_id,
+        name=new_product_group.name,
+        description=new_product_group.description,
+        code=new_product_group.code,
+        is_active=new_product_group.is_active,
+        valid_from=datetime.utcnow(),
+        valid_to=FAR_FUTURE,
+        is_current=True,
+        change_type="CREATE",
+        changed_fields=None,
+        changed_by_user_id=None,
+    )
+    session.add(pg_history)
+
+    # Create hierarchy self-reference INLINE (no commit)
+    # Root groups only need self-reference (depth=0)
+    hierarchy_self_ref = ProductGroupHierarchy(
+        ancestor_id=new_product_group.id,
+        descendant_id=new_product_group.id,
+        depth=0,
+    )
+    session.add(hierarchy_self_ref)
+
     # Add to cache
     product_groups_cache[product_group_name] = new_product_group.id
     return new_product_group.id
+
+
+def aggregate_duplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Aggregate duplicate rows: sum quantity, merge comments.
+
+    Key: (store, product_group, product_name) - case-insensitive
+    - quantity: summed
+    - comment: merged via comma
+    - unit: first non-empty value
+
+    Args:
+        rows: List of row dictionaries with mapped field names
+
+    Returns:
+        List of aggregated rows (fewer rows if duplicates existed)
+    """
+    aggregated: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for row in rows:
+        store = row.get("store", "").strip()
+        product_group = row.get("product_group", "").strip()
+        product_name = row.get("product_name", "").strip()
+
+        # Skip incomplete rows
+        if not store or not product_group or not product_name:
+            # Keep incomplete rows as-is (they will fail validation anyway)
+            key = (store.lower(), product_group.lower(), f"__incomplete_{id(row)}")
+            aggregated[key] = row.copy()
+            continue
+
+        key = (store.lower(), product_group.lower(), product_name.lower())
+
+        if key in aggregated:
+            existing = aggregated[key]
+
+            # Sum quantity
+            try:
+                existing_qty = float(
+                    str(existing.get("quantity") or "0").replace(",", ".")
+                )
+                new_qty = float(str(row.get("quantity") or "0").replace(",", "."))
+                total = existing_qty + new_qty
+                existing["quantity"] = str(total) if total > 0 else None
+            except (ValueError, TypeError):
+                # Keep existing quantity if parsing fails
+                pass
+
+            # Merge comments via comma
+            existing_comment = (existing.get("comment") or "").strip()
+            new_comment = (row.get("comment") or "").strip()
+            if new_comment:
+                if existing_comment:
+                    existing["comment"] = f"{existing_comment}, {new_comment}"
+                else:
+                    existing["comment"] = new_comment
+
+            # Unit: take first non-empty value
+            if not existing.get("unit") and row.get("unit"):
+                existing["unit"] = row.get("unit")
+        else:
+            # First occurrence - preserve original case
+            aggregated[key] = row.copy()
+
+    return list(aggregated.values())
 
 
 def detect_duplicates(rows: list[dict[str, Any]]) -> list[ValidationError]:

@@ -1227,3 +1227,118 @@ img[loading="lazy"] {
     aspect-ratio: 16 / 9;
     object-fit: cover;
 }
+
+/* ============================================== */
+/* FAB Speed Dial Menu */
+/* ============================================== */
+
+/* FAB Menu Container */
+.fab-menu {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* FAB items - hidden when closed */
+.fab-menu.closed .fab-item {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+    pointer-events: none;
+}
+
+/* FAB items - visible when open */
+.fab-menu.open .fab-item {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    pointer-events: auto;
+}
+
+/* Individual FAB item transition */
+.fab-item {
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Staggered animation delays for cascade effect */
+.fab-item:nth-child(2) { transition-delay: 0.05s; }
+.fab-item:nth-child(3) { transition-delay: 0.1s; }
+.fab-item:nth-child(4) { transition-delay: 0.15s; }
+
+/* Main FAB button - rotates on open */
+.fab-main {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.fab-menu.open .fab-main {
+    transform: rotate(90deg);
+}
+
+/* FAB backdrop transition */
+#lists-fab-backdrop {
+    transition: opacity 0.3s ease-out;
+}
+
+/* FAB touch optimization */
+.fab-main,
+.fab-item button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* FAB accessibility - visible focus states */
+.fab-main:focus,
+.fab-item button:focus {
+    outline: 3px solid var(--fallback-p, oklch(var(--p)));
+    outline-offset: 2px;
+}
+
+/* Mobile: slightly smaller FAB */
+@media (max-width: 640px) {
+    .fab-menu {
+        bottom: 1rem;
+        right: 1rem;
+    }
+
+    .fab-main {
+        width: 48px;
+        height: 48px;
+    }
+
+    .fab-item button {
+        width: 40px;
+        height: 40px;
+    }
+
+    .fab-item .badge {
+        font-size: 0.6875rem;
+        padding: 0.125rem 0.375rem;
+    }
+}
+
+/* iOS safe area support for FAB */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+    .fab-menu {
+        bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    }
+
+    @media (max-width: 640px) {
+        .fab-menu {
+            bottom: calc(1rem + env(safe-area-inset-bottom));
+        }
+    }
+}
+
+/* Reduced motion support for FAB */
+@media (prefers-reduced-motion: reduce) {
+    .fab-menu,
+    .fab-item,
+    .fab-main,
+    #lists-fab-backdrop {
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print: hide FAB */
+@media print {
+    .fab-menu,
+    #lists-fab-backdrop {
+        display: none !important;
+    }
+}

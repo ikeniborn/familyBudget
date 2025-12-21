@@ -8,6 +8,8 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
+from backend.app.schemas.store import StoreResponse
+from backend.app.schemas.product_group import ProductGroupResponse
 
 
 class CSVAnalyzeRequest(BaseModel):
@@ -109,6 +111,10 @@ class CSVImportRequest(BaseModel):
     create_missing_references: bool = Field(
         default=False, description="Auto-create missing stores and product groups"
     )
+    aggregate_duplicates: bool = Field(
+        default=False,
+        description="Aggregate duplicates: sum quantity, merge comments",
+    )
 
     class Config:
         json_schema_extra = {
@@ -143,6 +149,16 @@ class CSVImportResponse(BaseModel):
     # Detailed results
     errors: list[dict[str, Any]] = Field(default_factory=list, description="Errors")
     warnings: list[dict[str, Any]] = Field(default_factory=list, description="Warnings")
+
+    # ✅ NEW: Metadata about created references
+    created_stores: list[StoreResponse] = Field(
+        default_factory=list,
+        description="Stores created during import (if create_missing_references=true)"
+    )
+    created_product_groups: list[ProductGroupResponse] = Field(
+        default_factory=list,
+        description="Product groups created during import (if create_missing_references=true)"
+    )
 
     class Config:
         json_schema_extra = {
@@ -180,6 +196,16 @@ class CSVPreviewRequest(BaseModel):
         description="Column mapping (CSV column → field name)"
     )
 
+    # Optional: behavior flags for preview calculation
+    create_missing_references: bool = Field(
+        default=False,
+        description="If true, reference errors won't count as invalid rows",
+    )
+    aggregate_duplicates: bool = Field(
+        default=False,
+        description="If true, duplicates will be aggregated before validation",
+    )
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -192,6 +218,8 @@ class CSVPreviewRequest(BaseModel):
                     "Группа": "product_group",
                     "Товар": "product_name",
                 },
+                "create_missing_references": False,
+                "aggregate_duplicates": False,
             }
         }
 

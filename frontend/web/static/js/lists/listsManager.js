@@ -28,11 +28,21 @@ class ListsManager {
 
     /**
      * Check if currently online
-     * Uses offlineManager's network detector if available
+     * Uses offlineManager's network detector if available, with localStorage fallback
+     * for timing issues during page navigation when networkDetector isn't initialized yet
      */
     get isOnline() {
         if (window.offlineManager && window.offlineManager.networkDetector) {
             return window.offlineManager.networkDetector.getStatus() !== 'offline';
+        }
+        // Fallback: check localStorage directly for autoOfflineMode
+        // offlineManager.networkDetector may not be initialized yet during page load
+        try {
+            if (localStorage.getItem('budget_auto_offline_mode') === 'true') {
+                return false;
+            }
+        } catch (e) {
+            // Ignore localStorage errors
         }
         return navigator.onLine;
     }
@@ -140,6 +150,9 @@ class ListsManager {
         this.currentItems = [];
         this.selectedItemIds.clear();
 
+        // Hide FAB menu (only visible in detail view)
+        this.hideFAB();
+
         // Show landing view, hide detail view
         document.getElementById('landing-view').classList.remove('hidden');
         document.getElementById('detail-view').classList.add('hidden');
@@ -207,7 +220,7 @@ class ListsManager {
         await this.loadShoppingListItems(listId);
 
         // Update delete completed button visibility
-        this.updateDeleteCompletedButton();
+        this.updateFABVisibility();
 
         // Restore saved view preference from localStorage
         let savedView = 'table'; // default
@@ -890,19 +903,38 @@ class ListsManager {
     }
 
     /**
-     * Update delete completed button visibility
-     * Shows only when there are completed items
+     * Update FAB visibility
+     * Shows FAB only when in detail view and there are items
      */
-    updateDeleteCompletedButton() {
-        const btn = document.getElementById('delete-completed-btn');
-        if (!btn) return;
+    updateFABVisibility() {
+        const fabMenu = document.getElementById('lists-fab-menu');
+        const fabBackdrop = document.getElementById('lists-fab-backdrop');
+        if (!fabMenu) return;
 
-        const hasCompleted = this.currentItems.some(item => item.is_completed);
-
-        if (hasCompleted) {
-            btn.classList.remove('hidden');
+        // Show FAB only when there are items in the list
+        if (this.currentItems.length > 0 && this.currentListId) {
+            fabMenu.classList.remove('hidden');
         } else {
-            btn.classList.add('hidden');
+            fabMenu.classList.add('hidden');
+            // Also hide backdrop if FAB is hidden
+            if (fabBackdrop) {
+                fabBackdrop.classList.add('hidden');
+            }
+        }
+    }
+
+    /**
+     * Hide FAB menu (when switching to landing view)
+     */
+    hideFAB() {
+        const fabMenu = document.getElementById('lists-fab-menu');
+        const fabBackdrop = document.getElementById('lists-fab-backdrop');
+        if (fabMenu) {
+            fabMenu.classList.add('hidden', 'closed');
+            fabMenu.classList.remove('open');
+        }
+        if (fabBackdrop) {
+            fabBackdrop.classList.add('hidden', 'opacity-0', 'pointer-events-none');
         }
     }
 
@@ -1290,7 +1322,7 @@ class ListsManager {
         }
         this.renderCurrentView();
         this.updateProgressBadge();
-        this.updateDeleteCompletedButton();
+        this.updateFABVisibility();
 
         try {
             // 2. Send to server or queue for offline
@@ -1456,7 +1488,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
-            this.updateDeleteCompletedButton();
+            this.updateFABVisibility();
 
             showToast(`Отмечено ${uncompletedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1505,7 +1537,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
-            this.updateDeleteCompletedButton();
+            this.updateFABVisibility();
 
             showToast(`Снято ${completedItems.length} отметок`, 'success');
         } catch (error) {
@@ -1515,17 +1547,14 @@ class ListsManager {
     }
 
     /**
-     * Delete all completed items
+     * Delete all completed items (internal - without confirm dialog)
+     * Called from deleteCompletedWithConfirm() after user confirmation
      */
     async deleteCompleted() {
         const completedItems = this.currentItems.filter(item => item.is_completed);
 
         if (completedItems.length === 0) {
             showToast('Нет отмеченных товаров', 'info');
-            return;
-        }
-
-        if (!confirm(`Удалить ${completedItems.length} отмеченных товаров?`)) {
             return;
         }
 
@@ -1554,7 +1583,7 @@ class ListsManager {
                 this.renderItemsTable();
             }
             this.updateProgressBadge();
-            this.updateDeleteCompletedButton();
+            this.updateFABVisibility();
 
             showToast(`Удалено ${completedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1737,7 +1766,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
-        this.updateDeleteCompletedButton();
+        this.updateFABVisibility();
         this.updateItemsCache();
 
         // Show notification
@@ -1775,7 +1804,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
-        this.updateDeleteCompletedButton();
+        this.updateFABVisibility();
         this.updateItemsCache();
     }
 
@@ -1812,7 +1841,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
-        this.updateDeleteCompletedButton();
+        this.updateFABVisibility();
         this.updateItemsCache();
 
         // Show notification
@@ -1853,7 +1882,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
-        this.updateDeleteCompletedButton();
+        this.updateFABVisibility();
         this.updateItemsCache();
     }
 
@@ -2390,12 +2419,11 @@ function openAddItemModal() {
     document.getElementById('item-id').value = '';
     document.getElementById('item-modal-title').textContent = '📝 Добавить товар';
 
-    // Reset Choices.js instances (form.reset() doesn't affect Choices.js)
-    if (window.listsManager?.choicesInstances?.store) {
-        window.listsManager.choicesInstances.store.setChoiceByValue('');
-    }
-    if (window.listsManager?.choicesInstances?.productGroup) {
-        window.listsManager.choicesInstances.productGroup.setChoiceByValue('');
+    // Reinitialize Choices.js with latest data (fixes issue after CSV import)
+    // This ensures newly created stores/groups are visible
+    if (window.listsManager) {
+        window.listsManager.initStoreChoices();
+        window.listsManager.initProductGroupChoices();
     }
 
     // Reset quantity input step to default (integer)
@@ -2442,7 +2470,14 @@ function openEditItemModal(itemId) {
     const quantityInput = document.getElementById('item-quantity');
     window.listsManager.updateQuantityInputStep(item.unit || '', quantityInput);
 
-    // Update Choices.js instances for store and product group
+    // Reinitialize Choices.js with latest data (fixes issue after CSV import)
+    // This ensures newly created stores/groups are visible
+    if (window.listsManager) {
+        window.listsManager.initStoreChoices();
+        window.listsManager.initProductGroupChoices();
+    }
+
+    // Set selected values for store and product group (after reinitialization)
     if (window.listsManager.choicesInstances.store) {
         window.listsManager.choicesInstances.store.setChoiceByValue(item.store_id.toString());
     }
@@ -2561,31 +2596,115 @@ function toggleSelectAll() {
 }
 
 /**
- * Mark all items as completed
- */
-function markAllCompleted() {
-    window.listsManager.markAllCompleted();
-}
-
-/**
- * Unmark all items (remove completed status)
- */
-function unmarkAllCompleted() {
-    window.listsManager.unmarkAllCompleted();
-}
-
-/**
- * Delete all completed items
- */
-function deleteCompleted() {
-    window.listsManager.deleteCompleted();
-}
-
-/**
  * Toggle hide completed items filter
  */
 function toggleHideCompleted() {
     window.listsManager.toggleHideCompleted();
+}
+
+// ============================================================================
+// FAB SPEED DIAL FUNCTIONS
+// ============================================================================
+
+/**
+ * Toggle FAB menu (open/close)
+ */
+function toggleListsFAB() {
+    const menu = document.getElementById('lists-fab-menu');
+    const backdrop = document.getElementById('lists-fab-backdrop');
+    if (!menu || !backdrop) return;
+
+    const isOpen = menu.classList.contains('open');
+
+    if (isOpen) {
+        // Close FAB
+        menu.classList.remove('open');
+        menu.classList.add('closed');
+        backdrop.classList.add('opacity-0', 'pointer-events-none', 'hidden');
+    } else {
+        // Open FAB
+        menu.classList.remove('closed');
+        menu.classList.add('open');
+        backdrop.classList.remove('opacity-0', 'pointer-events-none', 'hidden');
+    }
+}
+
+/**
+ * Mark all items as completed - with confirmation dialog
+ */
+async function markAllCompletedWithConfirm() {
+    toggleListsFAB(); // Close FAB first
+
+    const manager = window.listsManager;
+    if (!manager) return;
+
+    const uncompletedCount = manager.currentItems.filter(item => !item.is_completed).length;
+
+    if (uncompletedCount === 0) {
+        showToast('Все товары уже отмечены', 'info');
+        return;
+    }
+
+    const confirmed = await showConfirmDialog(
+        `Отметить все ${uncompletedCount} товаров как выполненные?`,
+        '✅ Отметить все'
+    );
+
+    if (confirmed) {
+        await manager.markAllCompleted();
+    }
+}
+
+/**
+ * Unmark all items - with confirmation dialog
+ */
+async function unmarkAllCompletedWithConfirm() {
+    toggleListsFAB(); // Close FAB first
+
+    const manager = window.listsManager;
+    if (!manager) return;
+
+    const completedCount = manager.currentItems.filter(item => item.is_completed).length;
+
+    if (completedCount === 0) {
+        showToast('Нет отмеченных товаров', 'info');
+        return;
+    }
+
+    const confirmed = await showConfirmDialog(
+        `Снять отметки с ${completedCount} товаров?`,
+        '☐ Снять отметки'
+    );
+
+    if (confirmed) {
+        await manager.unmarkAllCompleted();
+    }
+}
+
+/**
+ * Delete all completed items - with confirmation dialog
+ */
+async function deleteCompletedWithConfirm() {
+    toggleListsFAB(); // Close FAB first
+
+    const manager = window.listsManager;
+    if (!manager) return;
+
+    const completedItems = manager.currentItems.filter(item => item.is_completed);
+
+    if (completedItems.length === 0) {
+        showToast('Нет отмеченных товаров', 'info');
+        return;
+    }
+
+    const confirmed = await showConfirmDialog(
+        `Удалить ${completedItems.length} отмеченных товаров?\nЭто действие необратимо.`,
+        '🗑️ Удаление товаров'
+    );
+
+    if (confirmed) {
+        await manager.deleteCompleted();
+    }
 }
 
 /**

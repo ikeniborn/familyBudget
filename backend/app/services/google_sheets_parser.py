@@ -83,7 +83,8 @@ async def parse_google_sheets_url(url: str) -> Tuple[str, Optional[str]]:
 async def fetch_google_sheets_as_csv(
     spreadsheet_id: str,
     sheet_gid: Optional[str] = None,
-    timeout: int = 30
+    timeout: int = 30,
+    max_redirects: int = 5
 ) -> bytes:
     """
     Fetch Google Sheets as CSV via export URL.
@@ -95,6 +96,7 @@ async def fetch_google_sheets_as_csv(
         spreadsheet_id: Google Sheets spreadsheet ID
         sheet_gid: Sheet GID (optional, defaults to first sheet)
         timeout: Request timeout in seconds (default: 30)
+        max_redirects: Maximum number of redirects to follow (default: 5)
 
     Returns:
         CSV file content as bytes
@@ -120,13 +122,67 @@ async def fetch_google_sheets_as_csv(
         f"spreadsheet_id={spreadsheet_id}, gid={sheet_gid or 'default'}"
     )
 
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         try:
-            response = await client.get(url, params=params)
+            # Manual redirect handling to detect OAuth redirects
+            current_url = url
+            current_params = params
+            redirect_count = 0
+
+            while redirect_count < max_redirects:
+                response = await client.get(current_url, params=current_params)
+
+                # Handle redirects manually
+                if response.status_code in (301, 302, 303, 307, 308):
+                    redirect_url = response.headers.get("Location", "")
+
+                    # Check if redirect is to Google OAuth/login
+                    if any(
+                        domain in redirect_url.lower()
+                        for domain in ["accounts.google.com", "oauth", "login"]
+                    ):
+                        logger.error(
+                            f"OAuth redirect detected for spreadsheet {spreadsheet_id}. "
+                            f"Redirect to: {redirect_url[:100]}"
+                        )
+                        raise GoogleSheetsError(
+                            "Google Sheets требует авторизацию. "
+                            "Сделайте лист публичным: Файл → Доступ → Доступ по ссылке → Просмотр"
+                        )
+
+                    # Follow non-OAuth redirect
+                    logger.debug(
+                        f"Following redirect {redirect_count + 1}: {redirect_url[:100]}"
+                    )
+                    current_url = redirect_url
+                    current_params = None  # Params already in redirect URL
+                    redirect_count += 1
+                    continue
+
+                # Not a redirect, break out of loop
+                break
+            else:
+                # Too many redirects
+                raise GoogleSheetsError(
+                    f"Слишком много редиректов ({max_redirects}). "
+                    "Проверьте ссылку на Google Sheets."
+                )
+
             response.raise_for_status()
 
-            # Validate response is text content (CSV)
+            # Check for HTML content (login pages)
             content_type = response.headers.get("content-type", "").lower()
+            if "html" in content_type:
+                logger.error(
+                    f"HTML response detected for spreadsheet {spreadsheet_id}. "
+                    f"Content-Type: {content_type}"
+                )
+                raise GoogleSheetsError(
+                    "Google Sheets вернул HTML вместо CSV. "
+                    "Лист возможно приватный или требует авторизацию."
+                )
+
+            # Validate response is text content (CSV)
             if "text" not in content_type:
                 logger.error(
                     f"Unexpected content type: {content_type}. "

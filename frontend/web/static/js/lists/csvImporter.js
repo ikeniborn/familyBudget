@@ -38,6 +38,31 @@ class CSVImporter {
         this.onBackToStep1 = null;
         // Global variable name to use for onclick handlers (default: 'csvImporter')
         this.globalVarName = 'csvImporter';
+
+        // Import options (preserved across revalidations)
+        this.importOptions = {
+            skipInvalid: false,
+            skipDuplicates: false,
+            createMissingReferences: false,
+            aggregateDuplicates: false,
+        };
+
+        // Preview pagination state
+        this.previewPagination = {
+            currentPage: 1,
+            rowsPerPage: 15,
+            rowsPerPageOptions: [10, 15, 25, 50, 100],
+        };
+
+        // Preview filter state
+        this.previewFilters = {
+            store: '',
+            group: '',
+            product: '',
+        };
+
+        // All preview rows (for client-side filtering/pagination)
+        this.allPreviewRows = [];
     }
 
     /**
@@ -576,8 +601,11 @@ class CSVImporter {
 
     /**
      * Call preview API for validation
+     * @param {Object} options - Optional behavior flags
+     * @param {boolean} options.create_missing_references - Filter reference errors
+     * @param {boolean} options.aggregate_duplicates - Aggregate duplicate rows
      */
-    async callPreviewAPI() {
+    async callPreviewAPI(options = {}) {
         // Encode file content to base64
         const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
 
@@ -588,6 +616,8 @@ class CSVImporter {
             encoding: this.detectionResult.encoding,
             has_header: this.detectionResult.has_header,
             column_mapping: this.columnMapping,
+            create_missing_references: options.create_missing_references || false,
+            aggregate_duplicates: options.aggregate_duplicates || false,
         };
 
         debugLog('[CSVImporter] Calling preview API with:', requestData);
@@ -611,34 +641,224 @@ class CSVImporter {
     }
 
     /**
-     * Render preview results with validation
+     * Revalidate with current checkbox options
+     * Called when checkboxes change to update valid_rows count
      */
-    renderPreviewResults() {
-        const result = this.validationResult;
-        const step1OnClick = this.getStep1OnClick();
+    async revalidateWithOptions() {
+        // Read current checkbox states and save to importOptions
+        const createMissingCheckbox = document.getElementById('create-missing-checkbox');
+        const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
+        const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox');
+        const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
+
+        // Save all checkbox states to preserve across rerender
+        this.importOptions.createMissingReferences = createMissingCheckbox ? createMissingCheckbox.checked : false;
+        this.importOptions.aggregateDuplicates = aggregateDuplicatesCheckbox ? aggregateDuplicatesCheckbox.checked : false;
+        this.importOptions.skipInvalid = skipInvalidCheckbox ? skipInvalidCheckbox.checked : false;
+        this.importOptions.skipDuplicates = skipDuplicatesCheckbox ? skipDuplicatesCheckbox.checked : false;
+
+        const options = {
+            create_missing_references: this.importOptions.createMissingReferences,
+            aggregate_duplicates: this.importOptions.aggregateDuplicates,
+        };
+
+        debugLog('[CSVImporter] Revalidating with options:', options);
+
+        // Show loading on button
+        const importButton = document.getElementById('import-button');
+        if (importButton) {
+            importButton.disabled = true;
+            importButton.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Пересчёт...';
+        }
+
+        try {
+            // Save previous row count to compare (for aggregation info toast)
+            const prevRowCount = this.validationResult?.total_rows || 0;
+
+            await this.callPreviewAPI(options);
+
+            // Show aggregation info toast if enabled and rows were merged
+            const newRowCount = this.validationResult?.total_rows || 0;
+            if (this.importOptions.aggregateDuplicates && prevRowCount > 0 && prevRowCount > newRowCount) {
+                const mergedCount = prevRowCount - newRowCount;
+                showToast(
+                    `✓ Агрегация: ${prevRowCount} строк → ${newRowCount} строк (${mergedCount} дубликатов объединено)`,
+                    'info',
+                    5000
+                );
+            }
+
+            this.renderPreviewResults();
+        } catch (error) {
+            console.error('[CSVImporter] Error revalidating:', error);
+            showToast(`Ошибка пересчёта: ${error.message}`, 'error');
+        }
+    }
+
+    /**
+     * Get unique values for filter dropdowns from preview rows
+     * @param {string} field - Field name (store, product_group, product_name)
+     * @returns {string[]} Sorted unique values
+     */
+    getUniqueFilterValues(field) {
+        const values = new Set();
+        for (const row of this.allPreviewRows) {
+            const value = row.data[field];
+            if (value && value.trim()) {
+                values.add(value.trim());
+            }
+        }
+        return Array.from(values).sort((a, b) => a.localeCompare(b, 'ru'));
+    }
+
+    /**
+     * Apply filters and pagination to preview rows
+     * @returns {{filteredRows: Array, totalFiltered: number, startIndex: number, endIndex: number}}
+     */
+    getFilteredPaginatedRows() {
+        // Apply filters
+        let filteredRows = this.allPreviewRows.filter(row => {
+            // Store filter (exact match from dropdown)
+            if (this.previewFilters.store) {
+                const storeValue = row.data.store || '';
+                if (storeValue !== this.previewFilters.store) {
+                    return false;
+                }
+            }
+
+            // Group filter (exact match from dropdown)
+            if (this.previewFilters.group) {
+                const groupValue = row.data.product_group || '';
+                if (groupValue !== this.previewFilters.group) {
+                    return false;
+                }
+            }
+
+            // Product filter (substring search, case-insensitive)
+            if (this.previewFilters.product) {
+                const productValue = (row.data.product_name || '').toLowerCase();
+                const searchTerm = this.previewFilters.product.toLowerCase();
+                if (!productValue.includes(searchTerm)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
+        const totalFiltered = filteredRows.length;
+
+        // Apply pagination
+        const startIndex = (this.previewPagination.currentPage - 1) * this.previewPagination.rowsPerPage;
+        const endIndex = Math.min(startIndex + this.previewPagination.rowsPerPage, totalFiltered);
+        const paginatedRows = filteredRows.slice(startIndex, endIndex);
+
+        return {
+            filteredRows: paginatedRows,
+            totalFiltered,
+            startIndex,
+            endIndex,
+            totalPages: Math.ceil(totalFiltered / this.previewPagination.rowsPerPage),
+        };
+    }
+
+    /**
+     * Handle filter change
+     * @param {string} filterType - Filter type (store, group, product)
+     * @param {string} value - Filter value
+     */
+    handleFilterChange(filterType, value) {
+        this.previewFilters[filterType] = value;
+        // Reset to first page when filter changes
+        this.previewPagination.currentPage = 1;
+        // Re-render only the table part
+        this.updatePreviewTable();
+    }
+
+    /**
+     * Handle rows per page change
+     * @param {number} value - New rows per page value
+     */
+    handleRowsPerPageChange(value) {
+        this.previewPagination.rowsPerPage = parseInt(value, 10);
+        // Reset to first page when page size changes
+        this.previewPagination.currentPage = 1;
+        this.updatePreviewTable();
+    }
+
+    /**
+     * Handle page change
+     * @param {number} page - New page number
+     */
+    handlePageChange(page) {
+        const { totalPages } = this.getFilteredPaginatedRows();
+        if (page >= 1 && page <= totalPages) {
+            this.previewPagination.currentPage = page;
+            this.updatePreviewTable();
+        }
+    }
+
+    /**
+     * Clear all filters
+     */
+    clearFilters() {
+        this.previewFilters = { store: '', group: '', product: '' };
+        this.previewPagination.currentPage = 1;
+        this.updatePreviewTable();
+
+        // Reset filter inputs
+        const storeFilter = document.getElementById('preview-filter-store');
+        const groupFilter = document.getElementById('preview-filter-group');
+        const productFilter = document.getElementById('preview-filter-product');
+        if (storeFilter) storeFilter.value = '';
+        if (groupFilter) groupFilter.value = '';
+        if (productFilter) productFilter.value = '';
+    }
+
+    /**
+     * Update only the preview table (for filter/pagination changes)
+     */
+    updatePreviewTable() {
+        const tableContainer = document.getElementById('preview-table-container');
+        if (!tableContainer) return;
+
+        tableContainer.innerHTML = this.renderPreviewTableHTML();
+    }
+
+    /**
+     * Render the preview table HTML with filters and pagination
+     * @returns {string} HTML string for the preview table section
+     */
+    renderPreviewTableHTML() {
         const varName = this.globalVarName;
+        const result = this.validationResult;
 
-        // Determine overall status
-        const statusClass = result.is_valid ? 'alert-success' : 'alert-warning';
-        const statusIcon = result.is_valid
-            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
-            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
-        const statusText = result.is_valid
-            ? 'Все данные валидны и готовы к импорту'
-            : `Обнаружены проблемы: ${result.invalid_rows} строк с ошибками`;
+        // Get filter options
+        const storeOptions = this.getUniqueFilterValues('store');
+        const groupOptions = this.getUniqueFilterValues('product_group');
 
-        // Build preview table rows
-        const previewTableRows = result.preview_rows.map(row => {
+        // Get filtered/paginated rows
+        const { filteredRows, totalFiltered, startIndex, endIndex, totalPages } = this.getFilteredPaginatedRows();
+        const currentPage = this.previewPagination.currentPage;
+        const rowsPerPage = this.previewPagination.rowsPerPage;
+
+        // Build header cells
+        const mappedFields = Object.entries(this.columnMapping)
+            .filter(([_, field]) => field)
+            .map(([csvCol, field]) => ({ csvCol, field }));
+
+        const headerCells = mappedFields.map(({ csvCol, field }) => {
+            const fieldLabel = this.getFieldLabel(field);
+            return `<th title="CSV: ${this.escapeHtml(csvCol)}">${fieldLabel}</th>`;
+        }).join('');
+
+        // Build table rows
+        const tableRows = filteredRows.map(row => {
             const rowClass = this.getRowValidationClass(row.validation_status);
             const statusBadge = this.getStatusBadge(row.validation_status);
 
-            // Get mapped field names for display
-            const mappedFields = Object.entries(this.columnMapping)
-                .filter(([_, field]) => field)
-                .map(([_, field]) => field);
-
             // Build data cells
-            const dataCells = mappedFields.map(field => {
+            const dataCells = mappedFields.map(({ field }) => {
                 const value = row.data[field] || '';
                 const hasError = row.errors?.some(e => e.field === field);
                 const hasWarning = row.warnings?.some(w => w.field === field);
@@ -655,30 +875,226 @@ class CSVImporter {
 
             return `
                 <tr class="${rowClass}" ${issueTooltip}>
-                    <td class="text-center">${row.row_index + 1}</td>
+                    <td class="text-center sticky left-0 bg-base-100 z-10">${row.row_index + 1}</td>
                     <td class="text-center">${statusBadge}</td>
                     ${dataCells}
                 </tr>
             `;
         }).join('');
 
-        // Build header cells
-        const mappedFields = Object.entries(this.columnMapping)
-            .filter(([_, field]) => field)
-            .map(([csvCol, field]) => ({ csvCol, field }));
+        // Build rows per page selector
+        const rowsPerPageOptions = this.previewPagination.rowsPerPageOptions.map(opt =>
+            `<option value="${opt}" ${opt === rowsPerPage ? 'selected' : ''}>${opt}</option>`
+        ).join('');
 
-        const headerCells = mappedFields.map(({ csvCol, field }) => {
-            const fieldLabel = this.getFieldLabel(field);
-            return `<th title="CSV: ${this.escapeHtml(csvCol)}">${fieldLabel}</th>`;
-        }).join('');
+        // Build pagination buttons
+        let paginationHTML = '';
+        if (totalPages > 1) {
+            const pageButtons = [];
+
+            // Previous button
+            pageButtons.push(`
+                <button class="join-item btn btn-sm ${currentPage === 1 ? 'btn-disabled' : ''}"
+                        onclick="window.${varName}.handlePageChange(${currentPage - 1})"
+                        ${currentPage === 1 ? 'disabled' : ''}>«</button>
+            `);
+
+            // Page numbers with ellipsis
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            if (startPage > 1) {
+                pageButtons.push(`
+                    <button class="join-item btn btn-sm" onclick="window.${varName}.handlePageChange(1)">1</button>
+                `);
+                if (startPage > 2) {
+                    pageButtons.push(`<span class="join-item btn btn-sm btn-disabled">...</span>`);
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                pageButtons.push(`
+                    <button class="join-item btn btn-sm ${i === currentPage ? 'btn-active' : ''}"
+                            onclick="window.${varName}.handlePageChange(${i})">${i}</button>
+                `);
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    pageButtons.push(`<span class="join-item btn btn-sm btn-disabled">...</span>`);
+                }
+                pageButtons.push(`
+                    <button class="join-item btn btn-sm" onclick="window.${varName}.handlePageChange(${totalPages})">${totalPages}</button>
+                `);
+            }
+
+            // Next button
+            pageButtons.push(`
+                <button class="join-item btn btn-sm ${currentPage === totalPages ? 'btn-disabled' : ''}"
+                        onclick="window.${varName}.handlePageChange(${currentPage + 1})"
+                        ${currentPage === totalPages ? 'disabled' : ''}>»</button>
+            `);
+
+            paginationHTML = `
+                <div class="flex justify-center mt-4">
+                    <div class="join">${pageButtons.join('')}</div>
+                </div>
+            `;
+        }
+
+        // Check if any filters are active
+        const hasActiveFilters = this.previewFilters.store || this.previewFilters.group || this.previewFilters.product;
+
+        return `
+            <h4 class="font-bold mb-2">Предпросмотр данных (${result.total_rows} ${this.pluralize(result.total_rows, 'строка', 'строки', 'строк')}):</h4>
+
+            <!-- Filters -->
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 mb-3 p-3 bg-base-200 rounded-lg">
+                <!-- Store filter -->
+                <div class="form-control">
+                    <label class="label py-0.5">
+                        <span class="label-text text-xs">🏪 Магазин</span>
+                    </label>
+                    <select id="preview-filter-store"
+                            class="select select-bordered select-sm min-h-[3rem]"
+                            onchange="window.${varName}.handleFilterChange('store', this.value)">
+                        <option value="">Все магазины</option>
+                        ${storeOptions.map(opt => `
+                            <option value="${this.escapeHtml(opt)}" ${this.previewFilters.store === opt ? 'selected' : ''}>
+                                ${this.escapeHtml(opt)}
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+
+                <!-- Group filter -->
+                <div class="form-control">
+                    <label class="label py-0.5">
+                        <span class="label-text text-xs">📦 Группа</span>
+                    </label>
+                    <select id="preview-filter-group"
+                            class="select select-bordered select-sm min-h-[3rem]"
+                            onchange="window.${varName}.handleFilterChange('group', this.value)">
+                        <option value="">Все группы</option>
+                        ${groupOptions.map(opt => `
+                            <option value="${this.escapeHtml(opt)}" ${this.previewFilters.group === opt ? 'selected' : ''}>
+                                ${this.escapeHtml(opt)}
+                            </option>
+                        `).join('')}
+                    </select>
+                </div>
+
+                <!-- Product filter (substring search) -->
+                <div class="form-control">
+                    <label class="label py-0.5">
+                        <span class="label-text text-xs">🛒 Товар</span>
+                    </label>
+                    <input type="text"
+                           id="preview-filter-product"
+                           class="input input-bordered input-sm min-h-[3rem]"
+                           placeholder="Поиск по названию..."
+                           value="${this.escapeHtml(this.previewFilters.product)}"
+                           oninput="window.${varName}.handleFilterChange('product', this.value)">
+                </div>
+
+                <!-- Rows per page selector -->
+                <div class="form-control">
+                    <label class="label py-0.5">
+                        <span class="label-text text-xs">📋 Строк на странице</span>
+                    </label>
+                    <select id="preview-rows-per-page"
+                            class="select select-bordered select-sm min-h-[3rem]"
+                            onchange="window.${varName}.handleRowsPerPageChange(this.value)">
+                        ${rowsPerPageOptions}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Filter status and clear button -->
+            ${hasActiveFilters || totalFiltered !== result.total_rows ? `
+            <div class="flex items-center justify-between mb-2 text-sm">
+                <span class="text-base-content/70">
+                    Показано ${totalFiltered} из ${result.total_rows} строк
+                    ${hasActiveFilters ? ' (фильтр применён)' : ''}
+                </span>
+                ${hasActiveFilters ? `
+                <button class="btn btn-xs btn-ghost" onclick="window.${varName}.clearFilters()">
+                    ✕ Сбросить фильтры
+                </button>
+                ` : ''}
+            </div>
+            ` : ''}
+
+            <!-- Table -->
+            <div class="overflow-x-auto">
+                <table class="table table-sm table-zebra">
+                    <thead>
+                        <tr>
+                            <th class="text-center sticky left-0 bg-base-200 z-10">№</th>
+                            <th class="text-center">Статус</th>
+                            ${headerCells}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows.length > 0 ? tableRows : `
+                            <tr>
+                                <td colspan="${mappedFields.length + 2}" class="text-center py-4 text-base-content/50">
+                                    ${hasActiveFilters ? 'Нет записей, соответствующих фильтру' : 'Нет данных для отображения'}
+                                </td>
+                            </tr>
+                        `}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination info and controls -->
+            ${totalFiltered > 0 ? `
+            <div class="flex flex-col sm:flex-row items-center justify-between mt-3 gap-2">
+                <span class="text-sm text-base-content/70">
+                    Показано ${startIndex + 1}–${endIndex} из ${totalFiltered}
+                </span>
+                ${paginationHTML}
+            </div>
+            ` : ''}
+        `;
+    }
+
+    /**
+     * Render preview results with validation
+     */
+    renderPreviewResults() {
+        const result = this.validationResult;
+        const step1OnClick = this.getStep1OnClick();
+        const varName = this.globalVarName;
+
+        // Store all preview rows for client-side filtering/pagination
+        this.allPreviewRows = result.preview_rows;
+
+        // Reset pagination and filters on new validation
+        this.previewPagination.currentPage = 1;
+        this.previewFilters = { store: '', group: '', product: '' };
+
+        // Determine overall status
+        const statusClass = result.is_valid ? 'alert-success' : 'alert-warning';
+        const statusIcon = result.is_valid
+            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />'
+            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
+        const statusText = result.is_valid
+            ? 'Все данные валидны и готовы к импорту'
+            : `Обнаружены проблемы: ${result.invalid_rows} строк с ошибками`;
 
         // Build errors list (if any)
         const errorsSection = result.errors.length > 0 ? `
             <div class="collapse collapse-arrow bg-error/10 mb-4">
-                <input type="checkbox" checked />
-                <div class="collapse-title font-medium text-error">
+                <input type="checkbox" id="import-errors-toggle" class="peer" checked />
+                <label for="import-errors-toggle" class="collapse-title font-medium text-error cursor-pointer">
                     ❌ Ошибки (${result.errors.length})
-                </div>
+                </label>
                 <div class="collapse-content">
                     <ul class="list-disc list-inside text-sm space-y-1">
                         ${result.errors.slice(0, 10).map(e => `
@@ -693,10 +1109,10 @@ class CSVImporter {
         // Build warnings list (if any)
         const warningsSection = result.warnings.length > 0 ? `
             <div class="collapse collapse-arrow bg-warning/10 mb-4">
-                <input type="checkbox" />
-                <div class="collapse-title font-medium text-warning">
+                <input type="checkbox" id="import-warnings-toggle" class="peer" />
+                <label for="import-warnings-toggle" class="collapse-title font-medium text-warning cursor-pointer">
                     ⚠️ Предупреждения (${result.warnings.length})
-                </div>
+                </label>
                 <div class="collapse-content">
                     <ul class="list-disc list-inside text-sm space-y-1">
                         ${result.warnings.slice(0, 10).map(w => `
@@ -746,34 +1162,34 @@ class CSVImporter {
                     </div>
                 </div>
 
+                <!-- Aggregation Notice -->
+                ${this.importOptions.aggregateDuplicates ? `
+                <div class="alert alert-info mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <strong>Агрегация включена</strong>
+                        <p class="text-sm">Дубликаты объединены: количество суммируется, комментарии объединяются через запятую.</p>
+                    </div>
+                </div>
+                ` : ''}
+
                 <!-- Errors and Warnings -->
                 ${errorsSection}
                 ${warningsSection}
 
-                <!-- Preview Table -->
-                <div class="mb-6">
-                    <h4 class="font-bold mb-2">Предпросмотр данных (первые ${result.preview_rows.length} строк):</h4>
-                    <div class="overflow-x-auto">
-                        <table class="table table-sm table-zebra">
-                            <thead>
-                                <tr>
-                                    <th class="text-center">№</th>
-                                    <th class="text-center">Статус</th>
-                                    ${headerCells}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${previewTableRows}
-                            </tbody>
-                        </table>
-                    </div>
+                <!-- Preview Table with Filters and Pagination -->
+                <div id="preview-table-container" class="mb-6">
+                    ${this.renderPreviewTableHTML()}
                 </div>
 
                 <!-- Import Options -->
                 ${result.invalid_rows > 0 ? `
                 <div class="form-control mb-4">
                     <label class="label cursor-pointer justify-start gap-2">
-                        <input type="checkbox" id="skip-invalid-checkbox" class="checkbox checkbox-primary" />
+                        <input type="checkbox" id="skip-invalid-checkbox" class="checkbox checkbox-primary"
+                               ${this.importOptions.skipInvalid ? 'checked' : ''} />
                         <span class="label-text">Пропустить строки с ошибками (${result.invalid_rows})</span>
                     </label>
                 </div>
@@ -782,16 +1198,32 @@ class CSVImporter {
                 ${result.warnings.length > 0 ? `
                 <div class="form-control mb-4">
                     <label class="label cursor-pointer justify-start gap-2">
-                        <input type="checkbox" id="skip-duplicates-checkbox" class="checkbox checkbox-warning" />
+                        <input type="checkbox" id="skip-duplicates-checkbox" class="checkbox checkbox-warning"
+                               ${this.importOptions.skipDuplicates ? 'checked' : ''} />
                         <span class="label-text">Пропустить дубликаты (${result.warnings.length})</span>
                     </label>
                 </div>
                 ` : ''}
 
+                <!-- Aggregate duplicates - always visible -->
+                <div class="form-control mb-4">
+                    <label class="label cursor-pointer justify-start gap-2">
+                        <input type="checkbox" id="aggregate-duplicates-checkbox" class="checkbox checkbox-info"
+                               ${this.importOptions.aggregateDuplicates ? 'checked' : ''}
+                               onchange="window.${varName}.revalidateWithOptions()" />
+                        <span class="label-text">Агрегировать количество дубликатов</span>
+                    </label>
+                    <label class="label pt-0">
+                        <span class="label-text-alt text-xs opacity-70">Суммировать количество, объединить комментарии через запятую</span>
+                    </label>
+                </div>
+
                 <!-- Create missing references option -->
                 <div class="form-control mb-4">
                     <label class="label cursor-pointer justify-start gap-2">
-                        <input type="checkbox" id="create-missing-checkbox" class="checkbox checkbox-success" />
+                        <input type="checkbox" id="create-missing-checkbox" class="checkbox checkbox-success"
+                               ${this.importOptions.createMissingReferences ? 'checked' : ''}
+                               onchange="window.${varName}.revalidateWithOptions()" />
                         <span class="label-text">Загрузить с новой группой или магазином</span>
                     </label>
                     <label class="label pt-0">
@@ -803,7 +1235,7 @@ class CSVImporter {
                     <button class="btn btn-outline" onclick="window.${varName}.renderStep3()">
                         ← Назад
                     </button>
-                    <button class="btn btn-success" onclick="window.${varName}.executeImport()" ${result.valid_rows === 0 ? 'disabled' : ''}>
+                    <button id="import-button" class="btn btn-success" onclick="window.${varName}.executeImport()" ${result.valid_rows === 0 ? 'disabled' : ''}>
                         ✓ Импортировать ${result.valid_rows} ${this.pluralize(result.valid_rows, 'строку', 'строки', 'строк')}
                     </button>
                 </div>
@@ -923,9 +1355,11 @@ class CSVImporter {
             const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox');
             const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
             const createMissingCheckbox = document.getElementById('create-missing-checkbox');
+            const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
             const skipInvalid = skipInvalidCheckbox ? skipInvalidCheckbox.checked : false;
             const skipDuplicates = skipDuplicatesCheckbox ? skipDuplicatesCheckbox.checked : false;
             const createMissing = createMissingCheckbox ? createMissingCheckbox.checked : false;
+            const aggregateDuplicates = aggregateDuplicatesCheckbox ? aggregateDuplicatesCheckbox.checked : false;
 
             // Show loading
             showToast('Импорт данных...', 'info');
@@ -944,6 +1378,7 @@ class CSVImporter {
                 skip_duplicates: skipDuplicates,
                 skip_invalid: skipInvalid,
                 create_missing_references: createMissing,
+                aggregate_duplicates: aggregateDuplicates,
             };
 
             debugLog('[CSVImporter] Executing import with:', requestData);
@@ -974,11 +1409,44 @@ class CSVImporter {
                     5000
                 );
 
+                // ✅ FIX: Load stores and product groups BEFORE rendering items table
+                // Otherwise new stores/groups won't be found in cache and show "N/A"
+                if (result.created_stores && result.created_stores.length > 0) {
+                    debugLog('[CSVImporter] Reloading stores (before render)...', result.created_stores);
+                    await this.listsManager.loadStores();
+                }
+
+                if (result.created_product_groups && result.created_product_groups.length > 0) {
+                    debugLog('[CSVImporter] Reloading product groups (before render)...', result.created_product_groups);
+                    await this.listsManager.loadProductGroups();
+                }
+
                 // Reload shopping list items
                 await this.listsManager.loadShoppingListItems(currentListId);
 
-                // Re-render items table
+                // Re-render items table (now with updated stores/productGroups cache)
                 this.listsManager.renderItemsTable();
+
+                // Reinitialize Choices.js dropdowns for modal forms
+                if (result.created_stores && result.created_stores.length > 0) {
+                    this.listsManager.initStoreChoices();
+                }
+
+                if (result.created_product_groups && result.created_product_groups.length > 0) {
+                    this.listsManager.initProductGroupChoices();
+                }
+
+                // Show created references in success toast
+                const createdRefs = [];
+                if (result.created_stores?.length > 0) {
+                    createdRefs.push(`Магазины: ${result.created_stores.map(s => s.name).join(', ')}`);
+                }
+                if (result.created_product_groups?.length > 0) {
+                    createdRefs.push(`Группы: ${result.created_product_groups.map(g => g.name).join(', ')}`);
+                }
+                if (createdRefs.length > 0) {
+                    showToast(`📦 Создано:\n${createdRefs.join('\n')}`, 'info', 5000);
+                }
 
                 // Close import accordion
                 const importWizardContainer = document.getElementById('import-wizard-container');

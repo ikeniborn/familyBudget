@@ -51,6 +51,34 @@ templates:
       - "Push notification banner"
       - "Service Worker registration"
 
+    mobile_menu:
+      id: "mobile-menu-dropdown"
+      description: "Hamburger menu for mobile devices (< 1024px)"
+      visible_items:
+        always:
+          - "User info (avatar, name)"
+          - "🏠 Главная"
+          - "📊 Аналитика"
+          - "💸 Факт"
+          - "📋 План"
+          - "🛒 Списки"
+          - "🔐 Безопасность"
+          - "Справочники (section title)"
+          - "🏪 Магазины"
+          - "📦 Группы товаров"
+          - "🚪 Выйти"
+        tablets_only:
+          description: "Visible on tablets and larger (hidden md:block, ≥768px)"
+          items:
+            - "📂 Прочее (section title)"
+            - "🔔 Уведомления"
+            - "📥 Импорт"
+            - "📁 Категории"
+            - "💼 Места затрат"
+            - "🏢 Счета"
+            - "👥 Пользователи (admin only)"
+      note: "Stores and Product Groups are visible on all screen sizes; other admin pages are tablet+ only"
+
     toast_system:
       description: "Toast notifications that work inside modals"
       behavior:
@@ -265,6 +293,7 @@ templates:
       - $ref: "./js-modules.yaml#/modules/hierarchyView"
       - $ref: "./js-modules.yaml#/modules/csvImporter"
       - $ref: "./js-modules.yaml#/modules/offlineShoppingManager"
+      - $ref: "./js-modules.yaml#/modules/confirmDialog"
     vendor_libs:
       - "Choices.js"
     features:
@@ -273,8 +302,8 @@ templates:
       - "CSV import"
       - "Google Sheets import"
       - "Product group categorization"
-      - "Hide completed items filter"
-      - "Conditional delete completed button"
+      - "Hide completed items filter (in toolbar)"
+      - "FAB Speed Dial for batch operations"
       - "Choices.js searchable selectors for store and product group"
     form_selectors:
       store:
@@ -285,13 +314,38 @@ templates:
         element_id: "item-product-group"
         type: "Choices.js"
         features: ["search", "hierarchical display", "leaf-only selection"]
+    fab_speed_dial:
+      id: "lists-fab-menu"
+      icon: "⋮ (vertical dots, rotates 90° on open)"
+      visibility: "Detail view only, when items exist"
+      backdrop_id: "lists-fab-backdrop"
+      actions:
+        - id: "deleteCompletedWithConfirm"
+          label: "Удалить выполненные"
+          icon: "🗑️"
+          color: "btn-error"
+          confirm_dialog: true
+          condition: "has completed items"
+        - id: "markAllCompletedWithConfirm"
+          label: "Отметить все"
+          icon: "✅"
+          color: "btn-success"
+          confirm_dialog: true
+        - id: "unmarkAllCompletedWithConfirm"
+          label: "Снять все отметки"
+          icon: "☐"
+          color: "btn-warning"
+          confirm_dialog: true
+      css:
+        file: "frontend/web/static/css/lists.css"
+        section: "FAB Speed Dial Menu"
+        features:
+          - "Cascade animation with staggered delays"
+          - "Main button rotation on open"
+          - "Backdrop with opacity transition"
+          - "iOS safe area support"
+          - "Reduced motion support"
     toolbar_sections:
-      table_controls:
-        id: "table-controls"
-        visibility: "Table view only"
-        buttons:
-          - "Отметить все (✅)"
-          - "Снять все (☐)"
       hierarchy_controls:
         id: "hierarchy-controls"
         visibility: "Hierarchy view only"
@@ -304,24 +358,28 @@ templates:
         buttons:
           - id: "toggle-hide-completed-btn"
             text: "Скрыть выполненные / Показать все (👁️)"
-          - id: "delete-completed-btn"
-            text: "Удалить выполненные (🗑️)"
-            hidden_by_default: true
-            shows_when: "есть выполненные товары"
+        note: "Batch operations (mark all, unmark all, delete completed) moved to FAB"
       view_toggle:
         type: "join (button group)"
         buttons:
           - "Таблица (📋)"
           - "Иерархия (🌳)"
+    modals:
+      - create-list-modal
+      - item-modal
+      - delete-confirm-modal
+      - delete-list-modal
+      - confirm-modal  # For FAB action confirmations
     responsive_design:
       mobile:
         - "Текст кнопок скрыт (показываются только иконки)"
         - "Карточное представление вместо таблицы"
         - "Тулбар горизонтально скроллится"
+        - "FAB с iOS safe area поддержкой"
       desktop:
         - "Полный текст кнопок"
         - "Табличное представление"
-        - "Кнопки 'Снять все' и 'Скрыть выполненные' выровнены по ширине (sm:min-w-44)"
+        - "FAB с анимациями"
 
   notifications:
     path: "frontend/web/templates/notifications.html"
@@ -504,15 +562,16 @@ templates:
         description: "Enrich staging records before import"
         features:
           - "Editable staging table"
-          - "Bulk operations toolbar"
-          - "Statistics (total, selected, ready)"
-          - "Category type filter (expense/income)"
+          - "Bulk operations on filtered records"
+          - "Category picker modal with ChoicesCategoryTree"
+          - "Statistics (total, filtered, ready)"
           - "Execute import button"
           - "Spreadsheet-like cell selection and editing"
           - "Resizable columns with localStorage persistence"
         filter_sidebar:
           id: "filter-sidebar"
           collapsible: true
+          default_state: "collapsed"
           toggle_function: "toggleFilterSidebar()"
           state_persistence: "localStorage.filterSidebarCollapsed"
         filter_elements:
@@ -526,9 +585,34 @@ templates:
             height: "3rem"
         bulk_panel_filtered:
           id: "bulk-panel-filtered"
+          visibility: "always"
           select_height: "3rem"
-          purpose: "Bulk apply values to filtered records"
+          purpose: "Bulk apply values to all or filtered records"
+          category_picker: "ChoicesCategoryTree with type filtering"
+          behavior:
+            - "Applies values to all filtered records (not just selected)"
+            - "Resets header checkbox after operation"
+            - "Highlights updated rows with flash animation"
+        category_picker_float:
+          id: "category-picker-float"
+          uses: "BudgetShared.ChoicesCategoryTree"
+          type_filter: "from rowArticleTypes[record.id]"
+          positioning: "fixed, near clicked cell"
+          close_on: "selection or click outside"
+          features:
+            - "Fuzzy search"
+            - "Type-based filtering"
+            - "Auto-save on selection"
+            - "Path display"
         spreadsheet_features:
+          sticky_checkbox_column:
+            description: "Checkbox column stays fixed during horizontal scroll"
+            css_selector: 'th[data-col="checkbox"], td[data-col="checkbox"]'
+            styles:
+              - "position: sticky"
+              - "left: 0"
+              - "z-index: 2 (3 for header)"
+              - "background: oklch(var(--b1)) with zebra matching"
           column_resize:
             storage_key: "staging-column-widths"
             min_width: "50px"

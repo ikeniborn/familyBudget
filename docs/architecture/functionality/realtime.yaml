@@ -436,3 +436,89 @@ module:
         Requires article_created/updated events from backend (not implemented).
       status: deferred
       notes: "Backend first needs to broadcast article_* events"
+
+  # ---------------------------------------------------------------------------
+  # OFFLINE MODE INTEGRATION
+  # ---------------------------------------------------------------------------
+  offline_mode_integration:
+    description: |
+      BudgetWSClient интегрирован с SmartNetworkDetector/OfflineManager.
+      При включении autoOfflineMode WebSocket отключается и не пытается переподключиться.
+
+    helper_method:
+      name: "_isOfflineModeActive()"
+      description: |
+        Проверяет window.offlineManager.networkDetector.autoOfflineMode.
+        При недоступности offlineManager использует fallback на localStorage:
+        localStorage.getItem('budget_auto_offline_mode') === 'true'.
+
+        Fallback необходим из-за timing issue при навигации между страницами:
+        DOMContentLoaded listeners запускаются параллельно, и budgetWSClient.connect()
+        может быть вызван до завершения offlineManager.init().
+
+        Используется во всех точках подключения/переподключения.
+
+    affected_methods:
+      - name: "connect()"
+        behavior: "Не подключается если autoOfflineMode = true"
+      - name: "_createConnection()"
+        behavior: "Не создаёт соединение если autoOfflineMode = true"
+      - name: "_startLongPolling()"
+        behavior: "Не запускает polling если autoOfflineMode = true"
+      - name: "_pollLoop()"
+        behavior: "Останавливает polling если autoOfflineMode = true"
+      - name: "_scheduleReconnect()"
+        behavior: "Не планирует переподключение если autoOfflineMode = true"
+      - name: "setEnabled(true)"
+        behavior: "Не подключается если autoOfflineMode = true"
+
+    fixed_issue:
+      date: "2025-12-21"
+      issue: "WebSocket и ListsManager делают запросы в offline режиме"
+      severity: "MEDIUM"
+      description: |
+        При включении offline режима на главной странице и переходе на /lists:
+        - WebSocket пытался получить token и падал с ERR_INTERNET_DISCONNECTED
+        - Long polling продолжал делать запросы и получал 503
+        - ListsManager делал API запросы (stores, product-groups, shopping-lists)
+        - Console заспамливался ошибками
+
+        Root cause: timing issue при навигации между страницами.
+        DOMContentLoaded listeners запускаются параллельно, и budgetWSClient.connect()
+        вызывался до завершения offlineManager.init().
+        Проверка offlineManager.networkDetector.autoOfflineMode возвращала false
+        так как networkDetector ещё не был инициализирован.
+      fix: |
+        1. Добавлен _isOfflineModeActive() helper с localStorage fallback:
+           - Сначала проверяет offlineManager.networkDetector.autoOfflineMode
+           - При недоступности читает localStorage('budget_auto_offline_mode')
+        2. Обновлён ListsManager.isOnline getter с аналогичным fallback
+        3. Проверки добавлены во все методы подключения/переподключения
+      status: fixed
+
+    fixed_issue_2:
+      date: "2025-12-21"
+      issue: "WebSocket переподключается при навигации в offline режиме"
+      severity: "MEDIUM"
+      description: |
+        При включении offline режима на главной странице и переходе на /lists:
+        - Global 'online' event listener пытался переподключить WebSocket
+        - Long polling продолжал делать запросы и получал 503 ошибки
+        - Console заспамливался ошибками "503 Service Unavailable"
+
+        Root cause:
+        1. Global 'online' event listener не проверял _isOfflineModeActive() перед connect()
+        2. Long polling не останавливался после множественных 503 ошибок в offline режиме
+      fix: |
+        1. Добавлена проверка _isOfflineModeActive() в global 'online' event listener:
+           - Если offline режим активен, reconnect пропускается
+           - Добавлен debugLog для отслеживания
+        2. Добавлен счётчик _consecutive503Count для отслеживания 503 ошибок:
+           - После 3 consecutive 503 + offline режим → polling останавливается
+           - Счётчик сбрасывается при успешном poll
+        3. При остановке вызывается _updateStatusIndicator() для обновления UI
+      status: fixed
+      affected_code:
+        - "budgetWSClient.js: constructor - добавлен _consecutive503Count = 0"
+        - "budgetWSClient.js: global 'online' listener - добавлена проверка _isOfflineModeActive()"
+        - "budgetWSClient.js: _pollLoop() - добавлена логика остановки при 503 + offline"

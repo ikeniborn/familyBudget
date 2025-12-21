@@ -97,43 +97,19 @@
     min-height: 3rem;
 }
 
-/* Workflow steps */
-.workflow-step {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    border: 2px solid oklch(var(--b3));
-    background: oklch(var(--b1));
-    transition: all 0.2s ease;
+/* Inline category picker in table cells */
+.article-cell-picker {
+    min-width: 180px;
 }
-.workflow-step.active {
-    background: oklch(var(--p) / 0.1);
-    border-color: oklch(var(--p));
+.article-cell-picker .choices {
+    margin: 0;
 }
-.workflow-step.completed {
-    background: oklch(var(--su) / 0.1);
-    border-color: oklch(var(--su));
+.article-cell-picker .choices__inner {
+    min-height: 2.5rem;
+    padding: 0.25rem 0.5rem;
 }
-.step-number {
-    width: 1.5rem;
-    height: 1.5rem;
-    border-radius: 50%;
-    background: oklch(var(--b3));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 0.75rem;
-}
-.workflow-step.active .step-number {
-    background: oklch(var(--p));
-    color: oklch(var(--pc));
-}
-.workflow-step.completed .step-number {
-    background: oklch(var(--su));
-    color: oklch(var(--suc));
+.article-cell-picker .choices__list--dropdown {
+    z-index: 9999;
 }
 
 /* Empty field highlight */
@@ -172,7 +148,8 @@
 /* Table layout for column resizing */
 .staging-table {
     table-layout: fixed;
-    width: 100%;
+    min-width: 1740px;  /* Sum of all column widths */
+    width: max-content;
     border-collapse: collapse;
 }
 
@@ -242,6 +219,21 @@ body.resizing-columns * {
 }
 .staging-table th[data-col]:hover {
     background: oklch(var(--b2));
+}
+
+/* Sticky checkbox column - always visible during horizontal scroll */
+.staging-table th[data-col="checkbox"],
+.staging-table td[data-col="checkbox"] {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: oklch(var(--b1));
+}
+.staging-table thead th[data-col="checkbox"] {
+    z-index: 3;  /* Higher z-index for header to stay above body cells */
+}
+.staging-table tbody tr:nth-child(even) td[data-col="checkbox"] {
+    background: oklch(var(--b2));  /* Match zebra striping */
 }
 
 /* Context menu */
@@ -316,22 +308,6 @@ body.resizing-columns * {
     font-style: italic;
 }
 
-/* Keyboard hints */
-.keyboard-hints {
-    display: flex;
-    gap: 1rem;
-    font-size: 0.75rem;
-    color: oklch(var(--bc) / 0.6);
-    flex-wrap: wrap;
-    margin-top: 0.5rem;
-}
-.keyboard-hints kbd {
-    background: oklch(var(--b2));
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-size: 0.6875rem;
-    margin-right: 0.25rem;
-}
 </style>
 
 <!-- Main content (hidden on mobile) -->
@@ -579,26 +555,10 @@ body.resizing-columns * {
                 </div>
             </div>
 
-            <!-- Workflow Steps Indicator -->
-            <div class="flex gap-4 mb-4" id="workflow-steps">
-                <div class="workflow-step active" id="wf-step-filter">
-                    <div class="step-number">1</div>
-                    <span class="text-sm font-medium">Фильтрация</span>
-                </div>
-                <div class="workflow-step" id="wf-step-fill">
-                    <div class="step-number">2</div>
-                    <span class="text-sm font-medium">Заполнение</span>
-                </div>
-                <div class="workflow-step" id="wf-step-apply">
-                    <div class="step-number">3</div>
-                    <span class="text-sm font-medium">Применение</span>
-                </div>
-            </div>
-
             <!-- Main content: Sidebar + Table -->
             <div class="flex gap-4">
                 <!-- Filter Sidebar -->
-                <div class="filter-sidebar rounded-lg" id="filter-sidebar">
+                <div class="filter-sidebar collapsed rounded-lg" id="filter-sidebar">
                     <!-- Collapsible Header -->
                     <div class="filter-sidebar-header" onclick="toggleFilterSidebar()">
                         <h3 class="font-semibold text-lg filter-title">🔍 Фильтры</h3>
@@ -708,115 +668,53 @@ body.resizing-columns * {
 
                 <!-- Main content area -->
                 <div class="flex-1 min-w-0">
-                    <!-- Bulk Panel for Filtered Records (hidden by default) -->
-                    <div id="bulk-panel-filtered" class="bulk-panel-filtered hidden">
+                    <!-- Bulk Panel for Filtered Records (always visible) -->
+                    <div id="bulk-panel-filtered" class="bulk-panel-filtered">
                         <div class="flex items-center justify-between flex-wrap gap-4">
                             <div class="flex items-center gap-2">
                                 <span class="text-lg font-semibold">⚡ Применить к</span>
                                 <span class="filter-count-badge" id="bulk-filtered-count">0</span>
                                 <span>отфильтрованным записям:</span>
                             </div>
-                            <div class="flex gap-2 flex-wrap items-end">
-                                <select id="bulk-filtered-type" class="select select-sm w-32" onchange="updateBulkFilteredArticles()">
-                                    <option value="">Тип</option>
-                                    <option value="expense">💸 Расход</option>
-                                    <option value="income">💰 Доход</option>
-                                </select>
-                                <select id="bulk-filtered-article" class="select select-sm w-48" disabled>
-                                    <option value="">Категория</option>
-                                </select>
-                                <select id="bulk-filtered-fc" class="select select-sm w-36">
-                                    <option value="">Счёт</option>
-                                </select>
-                                <select id="bulk-filtered-cc" class="select select-sm w-36">
-                                    <option value="">МЗ</option>
-                                </select>
-                                <select id="bulk-filtered-record-type" class="select select-sm w-28">
-                                    <option value="">Тип записи</option>
-                                    <option value="fact">Факт</option>
-                                    <option value="plan">План</option>
-                                </select>
-                                <button class="btn btn-sm btn-accent" onclick="applyBulkToFiltered()">
-                                    Применить
-                                </button>
+                            <div class="flex gap-3 flex-wrap items-center">
+                                <!-- Группа: Тип + Категория -->
+                                <div class="flex items-center gap-1">
+                                    <select id="bulk-filtered-type" class="select select-sm w-28" onchange="updateBulkFilteredArticles()">
+                                        <option value="">Тип</option>
+                                        <option value="expense">💸 Расход</option>
+                                        <option value="income">💰 Доход</option>
+                                    </select>
+                                    <select id="bulk-filtered-article" class="select select-sm w-64">
+                                        <option value="">Категория</option>
+                                    </select>
+                                </div>
+                                <!-- Группа: Счёт + МЗ -->
+                                <div class="flex items-center gap-1">
+                                    <select id="bulk-filtered-fc" class="select select-sm w-32">
+                                        <option value="">Счёт</option>
+                                    </select>
+                                    <select id="bulk-filtered-cc" class="select select-sm w-32">
+                                        <option value="">МЗ</option>
+                                    </select>
+                                </div>
+                                <!-- Группа: Тип записи + Кнопки -->
+                                <div class="flex items-center gap-1">
+                                    <select id="bulk-filtered-record-type" class="select select-sm w-24">
+                                        <option value="">Тип</option>
+                                        <option value="fact">Факт</option>
+                                        <option value="plan">План</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-accent" onclick="applyBulkToFiltered()">
+                                        Применить
+                                    </button>
+                                    <button class="btn btn-sm btn-error" onclick="deleteFilteredRecords()">
+                                        🗑️ Удалить
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Original Bulk Operations Toolbar (for selected records) -->
-                    <div class="bg-base-200 p-4 rounded-lg mb-4" id="bulk-toolbar">
-                        <div class="flex flex-wrap gap-4 items-end">
-                            <div class="form-control w-48">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">Тип категории</span>
-                                </label>
-                                <select id="bulk-article-type" class="select select-bordered w-full select-sm" onchange="updateBulkCategoryType()" style="height: 3rem; min-height: 3rem;">
-                                    <option value="">-- Все типы --</option>
-                                    <option value="expense" style="color: rgb(239, 68, 68);">💸 Расходы</option>
-                                    <option value="income" style="color: rgb(34, 197, 94);">💰 Доходы</option>
-                                </select>
-                            </div>
-
-                            <div class="form-control w-64">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">Категория</span>
-                                </label>
-                                <select id="bulk-article" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;" disabled>
-                                    <option value="">-- Выберите тип --</option>
-                                </select>
-                            </div>
-
-                            <div class="form-control w-48">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">Счет</span>
-                                </label>
-                                <select id="bulk-fc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
-                                    <option value="">-- Не выбрано --</option>
-                                </select>
-                            </div>
-
-                            <div class="form-control w-48">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">МЗ</span>
-                                </label>
-                                <select id="bulk-cc" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
-                                    <option value="">-- Не выбрано --</option>
-                                </select>
-                            </div>
-
-                            <div class="form-control w-36">
-                                <label class="label py-0">
-                                    <span class="label-text text-xs">Тип записи</span>
-                                </label>
-                                <select id="bulk-record-type" class="select select-bordered w-full select-sm" style="height: 3rem; min-height: 3rem;">
-                                    <option value="">-- Не выбрано --</option>
-                                    <option value="fact">Факт</option>
-                                    <option value="plan">План</option>
-                                </select>
-                            </div>
-
-                            <button class="btn btn-primary btn-sm" onclick="applyBulkUpdate()">
-                                Применить к выбранным
-                            </button>
-
-                            <div class="divider divider-horizontal"></div>
-
-                            <button class="btn btn-error btn-sm btn-outline" onclick="deleteSelectedRecords()">
-                                🗑️ Удалить выбранные
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Keyboard Hints -->
-                    <div class="keyboard-hints mb-2">
-                        <span><kbd>Click</kbd> Выбрать ячейку</span>
-                        <span><kbd>Shift+Click</kbd> Диапазон</span>
-                        <span><kbd>Ctrl+Click</kbd> Добавить</span>
-                        <span><kbd>Ctrl+D</kbd> Fill Down</span>
-                        <span><kbd>Ctrl+C/V</kbd> Копировать/Вставить</span>
-                        <span><kbd>Delete</kbd> Очистить</span>
-                        <span><kbd>ПКМ</kbd> Меню</span>
-                    </div>
 
                     <!-- Staging Table -->
                     <div class="overflow-x-auto">
@@ -869,7 +767,7 @@ body.resizing-columns * {
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                             </svg>
-                            Импортировать выбранные записи
+                            Импортировать
                         </button>
                         <button class="btn btn-error btn-outline gap-2" onclick="clearStaging()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -895,28 +793,28 @@ body.resizing-columns * {
 
 <!-- Spreadsheet Context Menu (hidden by default) -->
 <div id="spreadsheet-context-menu" class="spreadsheet-context-menu hidden">
-    <div class="context-menu-item" onclick="spreadsheetFillDown()">
+    <div class="context-menu-item" data-action="fill-down">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
         </svg>
         Заполнить вниз
         <kbd>Ctrl+D</kbd>
     </div>
-    <div class="context-menu-item" onclick="spreadsheetFillSelection()">
+    <div class="context-menu-item" data-action="fill-selection">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
         </svg>
         Применить ко всем выбранным
     </div>
     <div class="context-menu-divider"></div>
-    <div class="context-menu-item" onclick="spreadsheetCopy()">
+    <div class="context-menu-item" data-action="copy">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
         </svg>
         Копировать
         <kbd>Ctrl+C</kbd>
     </div>
-    <div class="context-menu-item" onclick="spreadsheetPaste()">
+    <div class="context-menu-item" data-action="paste">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
         </svg>
@@ -924,7 +822,7 @@ body.resizing-columns * {
         <kbd>Ctrl+V</kbd>
     </div>
     <div class="context-menu-divider"></div>
-    <div class="context-menu-item" onclick="spreadsheetClearSelection()">
+    <div class="context-menu-item" data-action="clear">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
         </svg>
@@ -932,13 +830,13 @@ body.resizing-columns * {
         <kbd>Delete</kbd>
     </div>
     <div class="context-menu-divider"></div>
-    <div class="context-menu-item" onclick="spreadsheetSelectColumn()">
+    <div class="context-menu-item" data-action="select-column">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"/>
         </svg>
         Выбрать весь столбец
     </div>
-    <div class="context-menu-item" onclick="spreadsheetSelectSimilar()">
+    <div class="context-menu-item" data-action="select-similar">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2"/>
         </svg>
@@ -1118,9 +1016,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     await loadFinancialCenters();
     await loadCostCenters();
     await loadArticles();
-
-    // Populate bulk selectors after data is loaded
-    updateBulkCategoryType();
 });
 
 // ========== Step 1: Bank Selection ==========
@@ -1420,6 +1315,9 @@ async function loadStagingTableByBank() {
         // Populate Filter First UI elements
         populateCsvCategoryFilter();
         populateBulkFilteredSelects();
+
+        // Initialize ChoicesCategoryTree for bulk filtered panel
+        initBulkFilteredCategoryTree();
 
         renderStagingTable();
         updateProgressIndicator(4);
@@ -2035,6 +1933,9 @@ async function loadStagingTable() {
         populateCsvCategoryFilter();
         populateBulkFilteredSelects();
 
+        // Initialize ChoicesCategoryTree for bulk filtered panel
+        initBulkFilteredCategoryTree();
+
         renderStagingTable();
 
         // Hide Step 3, Show Step 4 enrichment
@@ -2221,62 +2122,23 @@ function createStagingRow(record, index) {
 }
 
 function createArticleSelect(record) {
+    const wrapper = document.createElement('div');
+    wrapper.id = `article-${record.id}`;
+    wrapper.className = 'article-cell-picker';
+
+    // Create hidden select element
     const select = document.createElement('select');
-    select.id = `article-${record.id}`;
+    select.id = `article-select-${record.id}`;
     select.className = 'select select-bordered select-sm w-full';
-    select.style.height = '3rem';
-    select.style.minHeight = '3rem';
 
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = '-- Выберите --';
-    select.appendChild(emptyOption);
+    wrapper.appendChild(select);
 
-    // Использовать тип из rowArticleTypes (уже заполнен в createTypeSelect)
-    // Fallback на определение по сумме (не должен срабатывать при нормальном flow)
-    const amount = parseFloat(record.amount_string.replace(',', '.'));
-    const defaultType = amount < 0 ? 'expense' : 'income';
-    const recordType = rowArticleTypes[record.id] || defaultType;
+    // Initialize ChoicesCategoryTree after appending to DOM
+    setTimeout(() => {
+        initCellCategoryPicker(record.id);
+    }, 50);
 
-    const filteredArticles = allArticles.filter(a => a.type === recordType);
-
-    // Build tree and flatten with hierarchy
-    const tree = buildArticleTree(filteredArticles);
-    const flatNodes = flattenArticleTree(tree);
-
-    flatNodes.forEach(node => {
-        const option = document.createElement('option');
-        option.value = node.id;
-
-        // Simplified indentation: use single symbol per level
-        const indent = '›  '.repeat(node.level);
-        const icon = node.isLeaf ? '▸' : '📂';
-        option.textContent = `${indent}${icon} ${node.name}`;
-
-        // Apply color coding by article type
-        const color = getArticleTypeColorStyle(node.type);
-        if (color) {
-            option.style.color = color;
-        }
-
-        // Set selected value
-        if (record.article_id === node.id) {
-            option.selected = true;
-        }
-
-        // Disable parent categories with visual styling
-        if (!node.isLeaf) {
-            option.disabled = true;
-            option.style.fontWeight = 'bold';
-            option.style.opacity = '0.7';
-        }
-
-        select.appendChild(option);
-    });
-
-    select.onchange = () => updateStagingField(record.id, 'article_id', select.value);
-
-    return select;
+    return wrapper;
 }
 
 function createFCSelect(record) {
@@ -2442,9 +2304,7 @@ function createTypeSelect(record) {
 
 async function updateRowArticleOptions(recordId, resetArticle = false) {
     const typeSelect = document.getElementById(`article-type-${recordId}`);
-    const articleSelect = document.getElementById(`article-${recordId}`);
-
-    if (!typeSelect || !articleSelect) return;
+    if (!typeSelect) return;
 
     const selectedType = typeSelect.value;
 
@@ -2458,46 +2318,8 @@ async function updateRowArticleOptions(recordId, resetArticle = false) {
         }
     }
 
-    // Очистить и перестроить опции
-    articleSelect.innerHTML = '';
-
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = '-- Выберите --';
-    articleSelect.appendChild(emptyOption);
-
-    // Фильтровать по выбранному типу
-    const filteredArticles = allArticles.filter(a => a.type === selectedType);
-    const tree = buildArticleTree(filteredArticles);
-    const flatNodes = flattenArticleTree(tree);
-
-    flatNodes.forEach(node => {
-        const option = document.createElement('option');
-        option.value = node.id;
-        const indent = '›  '.repeat(node.level);
-        const icon = node.isLeaf ? '▸' : '📂';
-        option.textContent = `${indent}${icon} ${node.name}`;
-
-        const color = getArticleTypeColorStyle(node.type);
-        if (color) option.style.color = color;
-
-        if (!node.isLeaf) {
-            option.disabled = true;
-            option.style.fontWeight = 'bold';
-            option.style.opacity = '0.7';
-        }
-
-        articleSelect.appendChild(option);
-    });
-
-    // Восстановить значение если категория подходит по типу
-    const record = stagingRecords.find(r => r.id === recordId);
-    if (record && record.article_id) {
-        const validOption = flatNodes.find(n => n.id === record.article_id && n.isLeaf);
-        if (validOption) {
-            articleSelect.value = record.article_id;
-        }
-    }
+    // Update the ChoicesCategoryTree with new type
+    updateCellCategoryType(recordId, selectedType);
 
     updateStats();
 }
@@ -2569,122 +2391,6 @@ function toggleSelectAll(sourceCheckbox) {
     document.getElementById('header-select-all').checked = selectAll;
 
     updateStats();
-}
-
-function updateBulkCategoryType() {
-    const typeSelect = document.getElementById('bulk-article-type');
-    const articleSelect = document.getElementById('bulk-article');
-
-    articleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
-    articleSelect.disabled = false;
-
-    // Фильтрация только по expense/income (debit/credit не используются при импорте)
-    const filtered = typeSelect.value
-        ? allArticles.filter(a => a.type === typeSelect.value)
-        : allArticles.filter(a => a.type === 'expense' || a.type === 'income');
-
-    // Build tree and flatten with hierarchy
-    const tree = buildArticleTree(filtered);
-    const flatNodes = flattenArticleTree(tree);
-
-    // Группировка только expense → income
-    const groupedByType = {
-        'expense': [],
-        'income': []
-    };
-
-    flatNodes.forEach(node => {
-        if (groupedByType[node.type]) {
-            groupedByType[node.type].push(node);
-        }
-    });
-
-    // Flatten back in type order: expense → income
-    const sortedNodes = [
-        ...groupedByType['expense'],
-        ...groupedByType['income']
-    ];
-
-    sortedNodes.forEach(node => {
-        const option = document.createElement('option');
-        option.value = node.id;
-
-        // Simplified indentation: use single symbol per level
-        const indent = '›  '.repeat(node.level);
-        const icon = node.isLeaf ? '▸' : '📂';
-        option.textContent = `${indent}${icon} ${node.name}`;
-
-        // Apply color coding by article type
-        const color = getArticleTypeColorStyle(node.type);
-        if (color) {
-            option.style.color = color;
-        }
-
-        // Disable parent categories with visual styling
-        if (!node.isLeaf) {
-            option.disabled = true;
-            option.style.fontWeight = 'bold';
-            option.style.opacity = '0.7';
-        }
-
-        articleSelect.appendChild(option);
-    });
-}
-
-async function applyBulkUpdate() {
-    const selectedIds = getSelectedIds();
-    if (selectedIds.length === 0) {
-        showNotification('Выберите записи', 'error');
-        return;
-    }
-
-    const articleId = document.getElementById('bulk-article').value || null;
-    const fcId = document.getElementById('bulk-fc').value || null;
-    const ccId = document.getElementById('bulk-cc').value || null;
-    const recordType = document.getElementById('bulk-record-type').value || null;
-
-    if (!articleId && !fcId && !ccId && !recordType) {
-        showNotification('Выберите хотя бы одно поле для обновления', 'error');
-        return;
-    }
-
-    try {
-        const response = await fetch('/api/v1/admin/staging/bulk-update', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                staging_ids: selectedIds,
-                article_id: articleId ? parseInt(articleId) : null,
-                financial_center_id: fcId ? parseInt(fcId) : null,
-                cost_center_id: ccId ? parseInt(ccId) : null,
-                record_type: recordType
-            })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Bulk update failed');
-        }
-
-        // После успешного обновления - синхронизировать типы для выбранных строк
-        if (articleId) {
-            const selectedArticle = allArticles.find(a => a.id === parseInt(articleId));
-            if (selectedArticle) {
-                selectedIds.forEach(id => {
-                    rowArticleTypes[id] = selectedArticle.type;
-                });
-            }
-        }
-
-        showNotification(`Обновлено ${selectedIds.length} записей`, 'success');
-        await loadStagingTable();
-        document.getElementById('header-select-all').checked = false;
-
-    } catch (error) {
-        console.error('Bulk update error:', error);
-        showNotification(`Ошибка: ${error.message}`, 'error');
-    }
 }
 
 // ========== Individual Field Updates ==========
@@ -3110,7 +2816,6 @@ function applyFilters() {
     renderStagingTable();
     updateActiveFilters();
     updateBulkPanel();
-    updateWorkflowSteps();
     updateStats();
 }
 
@@ -3124,11 +2829,12 @@ function toggleFilterSidebar() {
     localStorage.setItem('filterSidebarCollapsed', sidebar.classList.contains('collapsed'));
 }
 
-// Restore sidebar state on page load
+// Restore sidebar state on page load (default: collapsed)
 document.addEventListener('DOMContentLoaded', function() {
     const sidebar = document.getElementById('filter-sidebar');
-    if (sidebar && localStorage.getItem('filterSidebarCollapsed') === 'true') {
-        sidebar.classList.add('collapsed');
+    // Sidebar is collapsed by default (in HTML), expand only if user previously expanded it
+    if (sidebar && localStorage.getItem('filterSidebarCollapsed') === 'false') {
+        sidebar.classList.remove('collapsed');
     }
 });
 
@@ -3189,54 +2895,12 @@ function updateActiveFilters() {
 }
 
 /**
- * Update bulk panel visibility based on active filters
+ * Update bulk panel counter (panel is always visible)
  */
 function updateBulkPanel() {
-    const panel = document.getElementById('bulk-panel-filtered');
-    const hasFilters = hasActiveFilters() && filteredRecords.length > 0 && filteredRecords.length < stagingRecords.length;
-
-    if (hasFilters) {
-        panel.classList.remove('hidden');
-        document.getElementById('bulk-filtered-count').textContent = filteredRecords.length;
-    } else {
-        panel.classList.add('hidden');
-    }
-}
-
-/**
- * Update workflow step indicators
- */
-function updateWorkflowSteps() {
-    const hasFilters = hasActiveFilters();
-    const hasBulkValues = (
-        document.getElementById('bulk-filtered-type')?.value ||
-        document.getElementById('bulk-filtered-article')?.value ||
-        document.getElementById('bulk-filtered-fc')?.value ||
-        document.getElementById('bulk-filtered-cc')?.value ||
-        document.getElementById('bulk-filtered-record-type')?.value
-    );
-
-    const stepFilter = document.getElementById('wf-step-filter');
-    const stepFill = document.getElementById('wf-step-fill');
-    const stepApply = document.getElementById('wf-step-apply');
-
-    // Reset all steps
-    [stepFilter, stepFill, stepApply].forEach(s => {
-        s.classList.remove('active', 'completed');
-    });
-
-    if (!hasFilters) {
-        // Step 1 active: no filters yet
-        stepFilter.classList.add('active');
-    } else if (!hasBulkValues) {
-        // Step 2 active: filters applied, need to select values
-        stepFilter.classList.add('completed');
-        stepFill.classList.add('active');
-    } else {
-        // Step 3 active: ready to apply
-        stepFilter.classList.add('completed');
-        stepFill.classList.add('completed');
-        stepApply.classList.add('active');
+    const countEl = document.getElementById('bulk-filtered-count');
+    if (countEl) {
+        countEl.textContent = filteredRecords.length;
     }
 }
 
@@ -3278,8 +2942,6 @@ function updateBulkFilteredArticles() {
     articleSelect.innerHTML = '<option value="">Категория</option>' +
         flatList.map(a => `<option value="${a.id}">${a.indent}${a.name}</option>`).join('');
     articleSelect.disabled = false;
-
-    updateWorkflowSteps();
 }
 
 /**
@@ -3310,7 +2972,7 @@ async function applyBulkToFiltered() {
     }
 
     const articleType = document.getElementById('bulk-filtered-type')?.value || null;
-    const articleId = document.getElementById('bulk-filtered-article')?.value || null;
+    const articleId = getBulkFilteredArticleId();
     const fcId = document.getElementById('bulk-filtered-fc')?.value || null;
     const ccId = document.getElementById('bulk-filtered-cc')?.value || null;
     const recordType = document.getElementById('bulk-filtered-record-type')?.value || null;
@@ -3323,7 +2985,16 @@ async function applyBulkToFiltered() {
 
     const ids = filteredRecords.map(r => r.id);
 
-    // Build update payload
+    // Build flat request body matching BulkUpdateRequest schema
+    const requestBody = {
+        staging_ids: ids
+    };
+    if (articleId) requestBody.article_id = parseInt(articleId);
+    if (fcId) requestBody.financial_center_id = parseInt(fcId);
+    if (ccId) requestBody.cost_center_id = parseInt(ccId);
+    if (recordType) requestBody.record_type = recordType;
+
+    // Track which fields are being updated (for local state sync)
     const updates = {};
     if (articleId) updates.article_id = parseInt(articleId);
     if (fcId) updates.financial_center_id = parseInt(fcId);
@@ -3345,12 +3016,22 @@ async function applyBulkToFiltered() {
             const response = await fetch('/api/v1/admin/staging/bulk-update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids, updates })
+                body: JSON.stringify(requestBody)
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.detail || 'Ошибка обновления');
+                const errorData = await response.json();
+                // Handle Pydantic validation errors (422) with nested detail
+                let errorMessage = 'Ошибка обновления';
+                if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (Array.isArray(errorData.detail)) {
+                    // Pydantic validation error format: [{loc, msg, type}, ...]
+                    errorMessage = errorData.detail.map(e => e.msg).join('; ');
+                } else if (errorData.detail?.msg) {
+                    errorMessage = errorData.detail.msg;
+                }
+                throw new Error(errorMessage);
             }
 
             const result = await response.json();
@@ -3377,6 +3058,9 @@ async function applyBulkToFiltered() {
     renderStagingTable();
     updateStats();
 
+    // Reset header checkbox after bulk operation
+    document.getElementById('header-select-all').checked = false;
+
     // Highlight updated rows
     ids.forEach(id => {
         const row = document.getElementById(`staging-row-${id}`);
@@ -3385,6 +3069,50 @@ async function applyBulkToFiltered() {
             setTimeout(() => row.classList.remove('highlight-row'), 500);
         }
     });
+}
+
+/**
+ * Delete all filtered records
+ */
+async function deleteFilteredRecords() {
+    if (filteredRecords.length === 0) {
+        showNotification('Нет отфильтрованных записей для удаления', 'warning');
+        return;
+    }
+
+    const confirmed = await showConfirmDialog(
+        `Удалить ${filteredRecords.length} отфильтрованных записей?`,
+        'Подтверждение удаления'
+    );
+    if (!confirmed) return;
+
+    const ids = filteredRecords.map(r => r.id);
+
+    try {
+        showNotification('Удаление записей...', 'loading');
+
+        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ staging_ids: ids })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Ошибка удаления');
+        }
+
+        const result = await response.json();
+        showNotification(result.message || `Удалено ${ids.length} записей`, 'success');
+
+        // Reload table
+        await loadStagingTable();
+
+    } catch (error) {
+        console.error('Delete filtered error:', error);
+        showNotification(`Ошибка: ${error.message}`, 'error');
+    }
 }
 
 function updateProgressIndicator(currentStep) {
@@ -3475,15 +3203,6 @@ async function loadFinancialCenters() {
             }
 
             financialCenters = fcArray;
-
-            // Populate bulk FC selector
-            const bulkFc = document.getElementById('bulk-fc');
-            financialCenters.forEach(fc => {
-                const option = document.createElement('option');
-                option.value = fc.id;
-                option.textContent = fc.name;
-                bulkFc.appendChild(option);
-            });
         }
     } catch (error) {
         console.error('Error loading financial centers:', error);
@@ -3506,15 +3225,6 @@ async function loadCostCenters() {
             }
 
             costCenters = ccArray;
-
-            // Populate bulk CC selector
-            const bulkCc = document.getElementById('bulk-cc');
-            costCenters.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.id;
-                option.textContent = cc.name;
-                bulkCc.appendChild(option);
-            });
         }
     } catch (error) {
         console.error('Error loading cost centers:', error);
@@ -3624,12 +3334,19 @@ function onResizeEnd(e) {
 
 /**
  * Initialize cell selection functionality
+ * Uses idempotent initialization pattern per docs/architecture/frontend/javascript-patterns.yaml
  */
+let _cellSelectionInitialized = false;
+
 function initCellSelection() {
+    if (_cellSelectionInitialized) return;
+
     const tbody = document.getElementById('staging-table-body');
     if (!tbody) return;
 
     tbody.addEventListener('click', onCellClick);
+
+    _cellSelectionInitialized = true;
 }
 
 function onCellClick(e) {
@@ -3787,15 +3504,49 @@ function restoreSpreadsheetSelection() {
 
 /**
  * Initialize context menu functionality
+ * Uses event delegation pattern per docs/architecture/frontend/javascript-patterns.yaml
  */
+let _contextMenuInitialized = false;
+
 function initContextMenu() {
+    if (_contextMenuInitialized) return;
+
     const tbody = document.getElementById('staging-table-body');
     if (!tbody) return;
 
     tbody.addEventListener('contextmenu', onSpreadsheetContextMenu);
 
-    // Hide menu on click anywhere
-    document.addEventListener('click', hideSpreadsheetContextMenu);
+    // Hide menu on click anywhere (except on menu items)
+    document.addEventListener('click', onDocumentClickForContextMenu);
+
+    _contextMenuInitialized = true;
+}
+
+/**
+ * Document click handler - handles both menu item clicks and menu hiding
+ * Uses event delegation instead of inline onclick handlers
+ */
+function onDocumentClickForContextMenu(e) {
+    const menuItem = e.target.closest('.context-menu-item');
+
+    if (menuItem) {
+        // Handle menu item click via event delegation
+        e.stopPropagation();
+        const action = menuItem.dataset.action;
+
+        switch(action) {
+            case 'fill-down': spreadsheetFillDown(); break;
+            case 'fill-selection': spreadsheetFillSelection(); break;
+            case 'copy': spreadsheetCopy(); break;
+            case 'paste': spreadsheetPaste(); break;
+            case 'clear': spreadsheetClearSelection(); break;
+            case 'select-column': spreadsheetSelectColumn(); break;
+            case 'select-similar': spreadsheetSelectSimilar(); break;
+        }
+    } else {
+        // Hide menu on click outside
+        hideSpreadsheetContextMenu();
+    }
 }
 
 function onSpreadsheetContextMenu(e) {
@@ -3846,9 +3597,16 @@ function hideSpreadsheetContextMenu() {
 
 /**
  * Initialize keyboard shortcuts
+ * Uses idempotent initialization pattern
  */
+let _keyboardShortcutsInitialized = false;
+
 function initKeyboardShortcuts() {
+    if (_keyboardShortcutsInitialized) return;
+
     document.addEventListener('keydown', onSpreadsheetKeyDown);
+
+    _keyboardShortcutsInitialized = true;
 }
 
 function onSpreadsheetKeyDown(e) {
@@ -3999,8 +3757,9 @@ async function spreadsheetFillSelection() {
 
 /**
  * Copy selected cells value
+ * Integrates with system clipboard (Clipboard API) for paste to Excel/Google Sheets
  */
-function spreadsheetCopy() {
+async function spreadsheetCopy() {
     hideSpreadsheetContextMenu();
     if (spreadsheetSelectedCells.length === 0) return;
 
@@ -4009,8 +3768,17 @@ function spreadsheetCopy() {
     const recordId = parseInt(firstCell.dataset.recordId);
     const value = getCellValue(recordId, col);
 
+    // 1. Save to internal clipboard (for paste between cells)
     spreadsheetClipboard = { col, value };
-    showSpreadsheetAction(`Скопировано: "${value || '(пусто)'}"`);
+
+    // 2. Copy to system clipboard (for paste to Excel/Google Sheets)
+    try {
+        await navigator.clipboard.writeText(String(value || ''));
+        showSpreadsheetAction(`Скопировано: "${value || '(пусто)'}"`);
+    } catch (err) {
+        // Fallback for browsers without Clipboard API permission
+        showSpreadsheetAction(`Скопировано (внутренний буфер): "${value || '(пусто)'}"`);
+    }
 }
 
 /**
@@ -4279,5 +4047,126 @@ document.addEventListener('DOMContentLoaded', function() {
     // Delay initialization to allow table to render
     setTimeout(initSpreadsheetModules, 100);
 });
+
+// ==========================================================================
+// CATEGORY PICKER MODULE: Inline ChoicesCategoryTree in table cells
+// ==========================================================================
+
+// Map of recordId -> ChoicesCategoryTree instance
+const cellCategoryPickers = new Map();
+let bulkFilteredCategoryTree = null;
+
+/**
+ * Initialize ChoicesCategoryTree for a cell
+ */
+function initCellCategoryPicker(recordId) {
+    const selectEl = document.getElementById(`article-select-${recordId}`);
+    if (!selectEl) return;
+
+    // Destroy existing instance if any
+    if (cellCategoryPickers.has(recordId)) {
+        cellCategoryPickers.get(recordId).destroy();
+        cellCategoryPickers.delete(recordId);
+    }
+
+    const type = rowArticleTypes[recordId] || 'expense';
+    const record = stagingRecords.find(r => r.id === recordId);
+
+    const picker = new BudgetShared.ChoicesCategoryTree(
+        `#article-select-${recordId}`,
+        {
+            type: type,
+            showLeafOnly: true,
+            onCategoryChange: async (category) => {
+                if (category) {
+                    // Save selection to backend
+                    await updateStagingField(recordId, 'article_id', category.id);
+
+                    // Update local record
+                    const rec = stagingRecords.find(r => r.id === recordId);
+                    if (rec) {
+                        rec.article_id = category.id;
+                    }
+
+                    // Update stats
+                    updateStats();
+                }
+            }
+        }
+    );
+
+    cellCategoryPickers.set(recordId, picker);
+
+    // Pre-select current value if exists
+    if (record?.article_id) {
+        setTimeout(() => {
+            picker.setSelectedCategory(record.article_id);
+        }, 150);
+    }
+}
+
+/**
+ * Update cell category picker type when row type changes
+ */
+function updateCellCategoryType(recordId, newType) {
+    const picker = cellCategoryPickers.get(recordId);
+    if (picker) {
+        picker.updateType(newType);
+    }
+}
+
+/**
+ * Initialize ChoicesCategoryTree for bulk filtered panel
+ */
+function initBulkFilteredCategoryTree() {
+    // Destroy previous instance if exists
+    if (bulkFilteredCategoryTree) {
+        bulkFilteredCategoryTree.destroy();
+        bulkFilteredCategoryTree = null;
+    }
+
+    // Clear the select element before reinitializing
+    const selectEl = document.getElementById('bulk-filtered-article');
+    if (selectEl) {
+        selectEl.innerHTML = '';
+    }
+
+    const type = document.getElementById('bulk-filtered-type')?.value || 'expense';
+
+    bulkFilteredCategoryTree = new BudgetShared.ChoicesCategoryTree(
+        '#bulk-filtered-article',
+        {
+            type: type,
+            showLeafOnly: true,
+            onCategoryChange: (category) => {
+                // Category selected - ready for bulk apply
+            }
+        }
+    );
+}
+
+/**
+ * Update bulk filtered articles when type changes
+ */
+function updateBulkFilteredArticles() {
+    const type = document.getElementById('bulk-filtered-type')?.value;
+    if (bulkFilteredCategoryTree && type) {
+        bulkFilteredCategoryTree.updateType(type);
+    } else if (!bulkFilteredCategoryTree) {
+        // Initialize if not exists
+        initBulkFilteredCategoryTree();
+    }
+}
+
+/**
+ * Get selected article ID from bulk filtered ChoicesCategoryTree
+ */
+function getBulkFilteredArticleId() {
+    if (bulkFilteredCategoryTree) {
+        const category = bulkFilteredCategoryTree.getSelectedCategory();
+        return category ? category.id : null;
+    }
+    return null;
+}
 </script>
 {% endblock %}
