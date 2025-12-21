@@ -39,8 +39,9 @@ from collections import deque
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import get_settings
@@ -656,21 +657,27 @@ async def get_budget_ws_status(
     }
 
 
+class DisconnectRequest(BaseModel):
+    """Request body for WebSocket disconnect."""
+    connection_id: str
+
+
 @router.post(
     "/ws/disconnect",
     summary="Actively disconnect WebSocket connection",
     description="Called by client via sendBeacon when tab is hidden/closed",
 )
 async def disconnect_ws_connection(
-    connection_id: str = Query(..., description="Connection ID to disconnect"),
+    request: DisconnectRequest,
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """
     Actively disconnect a WebSocket connection by its ID.
 
     Called by the client's sendBeacon() when the tab is hidden or closed.
+    Client sends JSON body: {"connection_id": "uuid-string"}
     """
-    removed = await ws_manager.disconnect_by_id(current_user.id, connection_id)
+    removed = await ws_manager.disconnect_by_id(current_user.id, request.connection_id)
     return {"status": "disconnected" if removed else "not_found"}
 
 

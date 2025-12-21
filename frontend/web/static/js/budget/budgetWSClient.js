@@ -1288,7 +1288,9 @@ class BudgetWSClient {
             debugLog('[BudgetWS] Sending disconnect beacon for:', this.connectionId);
 
             if (navigator.sendBeacon) {
-                navigator.sendBeacon('/api/v1/budget/ws/disconnect', payload);
+                // Use Blob to set correct Content-Type for JSON body
+                const blob = new Blob([payload], { type: 'application/json' });
+                navigator.sendBeacon('/api/v1/budget/ws/disconnect', blob);
             } else {
                 fetch('/api/v1/budget/ws/disconnect', {
                     method: 'POST',
