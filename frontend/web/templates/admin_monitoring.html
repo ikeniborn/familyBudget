@@ -98,6 +98,22 @@
         </div>
     </div>
 
+    <!-- Redis Statistics -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">🔴 Статистика Redis</h2>
+
+            <div class="stats stats-vertical lg:stats-horizontal shadow w-full" id="redis-stats-container">
+                <div class="stat">
+                    <div class="stat-figure text-error">
+                        <span class="loading loading-spinner loading-lg"></span>
+                    </div>
+                    <div class="stat-title">Загрузка...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Backup Status -->
     <div class="card bg-base-100 shadow-lg">
         <div class="card-body">
@@ -236,6 +252,7 @@ function renderMonitoringData(data) {
     renderComponents(data.components);
     renderSystemResources(data.system);
     renderDatabaseStats(data.components.database);
+    renderRedisStats(data.components.redis);
     renderBackupStatus(data.components.backup);
 }
 
@@ -439,6 +456,89 @@ function renderDatabaseStats(dbComponent) {
             <div class="stat-value">
                 <span class="badge ${statusBadge} badge-lg gap-2">
                     ${dbComponent.status === 'up' ? '✓' : '✗'} ${dbComponent.status.toUpperCase()}
+                </span>
+            </div>
+        </div>
+    `;
+}
+
+// Render Redis statistics
+function renderRedisStats(redisComponent) {
+    const container = document.getElementById('redis-stats-container');
+
+    if (!redisComponent) {
+        container.innerHTML = `
+            <div class="stat">
+                <div class="stat-title">Статус</div>
+                <div class="stat-value">
+                    <span class="badge badge-warning badge-lg gap-2">
+                        ⚠ Нет данных
+                    </span>
+                </div>
+            </div>
+        `;
+        return;
+    }
+
+    const message = redisComponent.message || '';
+
+    // Parse message: "Memory: 1.5M, Keys: 42, Hit ratio: 95.2%"
+    const memoryMatch = message.match(/Memory: ([^,]+)/);
+    const keysMatch = message.match(/Keys: (\d+)/);
+    const hitRatioMatch = message.match(/Hit ratio: ([\d.]+)%/);
+
+    const memory = memoryMatch ? memoryMatch[1] : '--';
+    const keys = keysMatch ? keysMatch[1] : '--';
+    const hitRatio = hitRatioMatch ? parseFloat(hitRatioMatch[1]) : null;
+
+    const statusBadge = redisComponent.status === 'up' ? 'badge-success' : 'badge-error';
+    const hitRatioColor = hitRatio === null ? 'text-base-content'
+        : hitRatio >= 80 ? 'text-success'
+        : hitRatio >= 50 ? 'text-warning'
+        : 'text-error';
+
+    container.innerHTML = `
+        <div class="stat">
+            <div class="stat-figure text-error">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Память</div>
+            <div class="stat-value text-error text-2xl">${memory}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure text-warning">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Ключей в кеше</div>
+            <div class="stat-value text-warning text-2xl">${keys}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure ${hitRatioColor}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Cache Hit Ratio</div>
+            <div class="stat-value ${hitRatioColor} text-2xl">${hitRatio !== null ? hitRatio.toFixed(1) + '%' : 'N/A'}</div>
+        </div>
+        <div class="stat">
+            <div class="stat-figure text-accent">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-8 h-8 stroke-current">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+            </div>
+            <div class="stat-title">Задержка</div>
+            <div class="stat-value text-accent text-2xl">${redisComponent.latency_ms ? redisComponent.latency_ms.toFixed(2) : '--'} мс</div>
+        </div>
+        <div class="stat">
+            <div class="stat-title">Статус</div>
+            <div class="stat-value">
+                <span class="badge ${statusBadge} badge-lg gap-2">
+                    ${redisComponent.status === 'up' ? '✓' : '✗'} ${redisComponent.status.toUpperCase()}
                 </span>
             </div>
         </div>

@@ -1,0 +1,448 @@
+# Redis Caching & Multi-Worker Architecture
+# Guide for Redis integration in Family Budget
+
+overview:
+  description: |
+    Redis provides caching, WebSocket synchronization, and enables
+    multi-worker deployments. This guide covers configuration,
+    patterns, and troubleshooting.
+
+  version: "1.1.0"
+  added: "2025-12-21"
+  updated: "2025-12-21"
+
+  key_features:
+    - "Read-Through Cache for reference data (Phase 2: Implemented)"
+    - "Cache invalidation on CRUD operations (Phase 2: Implemented)"
+    - "Dashboard data caching with short TTL (Phase 3: Pending)"
+    - "Multi-worker WebSocket via Pub/Sub (Phase 4: Pending)"
+    - "Write-Behind queue for async PostgreSQL writes (Phase 5: Pending)"
+    - "Health monitoring in /admin/monitoring"
+
+# Architecture Diagram
+architecture:
+  diagram: |
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                              BROWSER                                     │
+    │   [HTMX Widgets]  [WebSocket Client]  [Service Worker]                  │
+    └─────────────┬─────────────────┬───────────────────────────────────────┘
+                  │                 │
+                  ▼                 ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                         NGINX (Load Balancer)                            │
+    └─────────────┬─────────────────┬───────────────────────────────────────┘
+                  │                 │
+                  ▼                 ▼
+    ┌─────────────────────────────────────────────────────────────────────────┐
+    │                    UVICORN (N Workers)                                   │
+    │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+    │  │  Worker 1   │  │  Worker 2   │  │  Worker 3   │  │  Worker N   │    │
+    │  │  WS Conns   │  │  WS Conns   │  │  WS Conns   │  │  WS Conns   │    │
+    │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘    │
+    │         └────────────────┴────────────────┴────────────────┘            │
+    │                                   │                                      │
+    │                                   ▼                                      │
+    │                        ┌───────────────────┐                            │
+    │                        │  Redis Pub/Sub    │                            │
+    │                        │  budget:events    │                            │
+    │                        └───────────────────┘                            │
+    └─────────────────────────────────────────────────────────────────────────┘
+                  │                                              │
+                  ▼                                              ▼
+    ┌──────────────────────────────┐          ┌──────────────────────────────┐
+    │          REDIS               │          │         PostgreSQL            │
+    │  ┌─────────────────────────┐ │          │  ┌────────────────────────┐  │
+    │  │ Read-Through Cache      │ │          │  │ t_f_budget_fact        │  │
+    │  │ - articles (TTL 300s)   │ │          │  │ t_d_article            │  │
+    │  │ - quick_stats (TTL 30s) │ │◄────────►│  │ t_d_financial_center   │  │
+    │  │ - balances (TTL 60s)    │ │          │  │ t_d_cost_center        │  │
+    │  └─────────────────────────┘ │          │  └────────────────────────┘  │
+    └──────────────────────────────┘          └──────────────────────────────┘
+
+# Configuration
+configuration:
+  environment_variables:
+    REDIS_URL:
+      description: "Redis connection URL"
+      format: "redis://[:password@]host:port/db"
+      example: "redis://redis:6379/0"
+      required: true
+
+    REDIS_MAXMEMORY:
+      description: "Maximum memory for Redis"
+      examples:
+        - "256mb - low traffic"
+        - "512mb - production"
+        - "1gb - high traffic"
+      default: "256mb"
+
+    REDIS_CACHE_TTL_DEFAULT:
+      description: "Default cache TTL in seconds"
+      default: 60
+
+    REDIS_CACHE_TTL_REFERENCE:
+      description: "TTL for reference data (articles, FC, CC)"
+      default: 300
+
+    REDIS_CACHE_TTL_DASHBOARD:
+      description: "TTL for dashboard data"
+      default: 30
+
+    WRITE_BEHIND_ENABLED:
+      description: "Enable async writes to PostgreSQL"
+      default: false
+      note: "Future feature - not fully implemented"
+
+  docker_compose:
+    service: |
+      redis:
+        image: redis:7-alpine
+        container_name: familybudget-redis
+        restart: always
+        command: >
+          redis-server
+          --maxmemory ${REDIS_MAXMEMORY:-256mb}
+          --maxmemory-policy allkeys-lru
+          --appendonly yes
+          --appendfsync everysec
+        volumes:
+          - redis_data:/data
+        ports:
+          - "6379:6379"
+        networks:
+          - familybudget
+        healthcheck:
+          test: ["CMD", "redis-cli", "ping"]
+          interval: 10s
+          timeout: 5s
+          retries: 5
+
+# Caching Strategy
+caching_strategy:
+  patterns:
+    read_through:
+      description: |
+        On cache miss, fetch from PostgreSQL and store in Redis.
+        On cache hit, return directly from Redis.
+      flow:
+        - "1. Check Redis cache"
+        - "2. If HIT → return cached data"
+        - "3. If MISS → query PostgreSQL"
+        - "4. Store result in Redis (async)"
+        - "5. Return data"
+
+  ttl_strategy:
+    reference_data:
+      ttl: 300
+      examples:
+        - "articles"
+        - "financial_centers"
+        - "cost_centers"
+      invalidation: "On CRUD operations"
+
+    dashboard_data:
+      ttl: 30
+      examples:
+        - "quick_stats"
+        - "account_balances"
+      invalidation: "On fact CRUD"
+
+    dynamic_data:
+      ttl: 60
+      examples:
+        - "facts_list"
+        - "recent_transactions"
+      invalidation: "On fact CRUD"
+
+  invalidation:
+    on_create: "Delete related cache keys"
+    on_update: "Delete related cache keys"
+    on_delete: "Delete related cache keys"
+
+# Health Monitoring
+health_monitoring:
+  endpoints:
+    - path: "/health/detailed"
+      method: "GET"
+      returns:
+        - "status: up/down"
+        - "memory usage"
+        - "total keys"
+        - "cache hit ratio"
+        - "latency in ms"
+
+  admin_ui:
+    path: "/admin/monitoring"
+    displays:
+      - "Redis memory usage"
+      - "Keys in cache"
+      - "Cache hit ratio"
+      - "Latency"
+      - "Status badge"
+
+  bash_script:
+    path: "scripts/lib/redis.sh"
+    functions:
+      - "is_redis_running()"
+      - "is_redis_healthy()"
+      - "wait_for_redis()"
+      - "check_redis_memory()"
+      - "check_redis_keys()"
+      - "check_redis_hit_ratio()"
+      - "print_redis_status()"
+      - "flush_redis_cache()"
+
+# Implementation Files
+files:
+  backend:
+    - path: "backend/app/services/redis_service.py"
+      purpose: "Redis connection pool and utilities"
+      functions:
+        - "init_redis_pool() - Initialize on startup"
+        - "close_redis_pool() - Cleanup on shutdown"
+        - "get_redis() - Get connection context manager"
+        - "check_redis_health() - Health check with stats"
+        - "is_redis_available() - Check if Redis pool exists"
+
+    - path: "backend/app/services/cache_service.py"
+      purpose: "Read-through cache service with invalidation"
+      classes:
+        - "CacheService - Main caching class"
+        - "CacheKey - Cache key builder with namespacing"
+        - "CacheTTL - TTL constants (REFERENCE, DASHBOARD, DYNAMIC, SHORT)"
+      methods:
+        - "get() - Get value from cache"
+        - "set() - Set value with TTL"
+        - "get_or_set() - Read-through cache pattern"
+        - "delete() - Delete single key"
+        - "invalidate_pattern() - Invalidate by pattern"
+        - "invalidate_articles() - Invalidate all article cache"
+        - "invalidate_financial_centers() - Invalidate FC cache"
+        - "invalidate_cost_centers() - Invalidate CC cache"
+        - "invalidate_dashboard() - Invalidate dashboard/recent cache"
+      singleton: "cache_service - Global instance"
+
+    - path: "backend/app/core/config.py"
+      purpose: "Redis settings in Settings class"
+      fields:
+        - "REDIS_URL"
+        - "REDIS_CACHE_TTL_DEFAULT"
+        - "REDIS_CACHE_TTL_REFERENCE"
+        - "REDIS_CACHE_TTL_DASHBOARD"
+        - "WRITE_BEHIND_ENABLED"
+
+    - path: "backend/app/api/health.py"
+      purpose: "Redis health check endpoint"
+      function: "check_redis_health_component()"
+
+    - path: "backend/app/main.py"
+      purpose: "Redis init/close in lifespan"
+      startup: "init_redis_pool(), init_redis_ws()"
+      shutdown: "close_redis_ws(), close_redis_pool()"
+
+    - path: "backend/app/services/redis_pubsub_service.py"
+      purpose: "Redis Pub/Sub for multi-worker WebSocket"
+      functions:
+        - "publish_event() - Publish event to Pub/Sub channel"
+        - "get_events_since() - Get events from Redis ZSET buffer"
+        - "start_pubsub_listener() - Start subscriber background task"
+        - "stop_pubsub_listener() - Stop subscriber"
+      channel: "budget:events"
+      buffer: "budget:event_buffer (ZSET)"
+
+    - path: "backend/app/services/redis_ws_manager.py"
+      purpose: "Redis-backed WebSocket manager"
+      classes:
+        - "RedisBudgetWebSocketManager - Multi-worker WS manager"
+        - "RedisEventBuffer - Redis-backed event buffer for long polling"
+      functions:
+        - "get_ws_manager() - Get singleton manager"
+        - "get_event_buffer() - Get singleton event buffer"
+        - "init_redis_ws() - Initialize on startup"
+        - "close_redis_ws() - Cleanup on shutdown"
+
+    - path: "backend/app/services/write_behind_service.py"
+      purpose: "Write-behind queue for async PostgreSQL writes"
+      classes:
+        - "WriteBehindService - Main queue service with worker"
+        - "WriteQueueItem - Queue item serialization"
+        - "WriteOperation - Enum (CREATE, UPDATE, DELETE)"
+      methods:
+        - "queue_fact_create() - Queue fact creation"
+        - "queue_fact_update() - Queue fact update"
+        - "queue_fact_delete() - Queue fact deletion"
+        - "start_worker() - Start background worker"
+        - "stop_worker() - Stop background worker"
+        - "get_queue_stats() - Get queue statistics"
+      singleton: "write_behind_service - Global instance"
+      redis_keys:
+        - "write_queue:facts - Main queue (LIST)"
+        - "write_queue:facts:failed - DLQ (LIST)"
+        - "write_queue:facts:lock - Processing lock"
+
+    - path: "backend/app/api/v1/endpoints/budget_ws.py"
+      purpose: "WebSocket endpoint with Redis Pub/Sub support"
+      uses: "redis_ws_manager.get_ws_manager()"
+      events: "fact_*, plan_*, transfer_*, item_*"
+
+    - path: "backend/app/api/v1/endpoints/articles.py"
+      purpose: "Cache invalidation on article CRUD"
+      invalidates: "cache:articles:*"
+
+    - path: "backend/app/api/v1/endpoints/financial_centers.py"
+      purpose: "Cache invalidation on FC CRUD"
+      invalidates: "cache:financial_centers:*"
+
+    - path: "backend/app/api/v1/endpoints/cost_centers.py"
+      purpose: "Cache invalidation on CC CRUD"
+      invalidates: "cache:cost_centers:*"
+
+    - path: "backend/app/api/v1/endpoints/facts.py"
+      purpose: "Cache invalidation on fact CRUD"
+      invalidates: "cache:dashboard:*, cache:recent:*"
+
+  deployment:
+    - path: "scripts/lib/redis.sh"
+      purpose: "Bash functions for Redis management"
+
+    - path: "deploy.sh"
+      purpose: "Sources redis.sh, verifies Redis health"
+
+    - path: "setup.sh"
+      purpose: "Interactive Redis configuration"
+      function: "configure_redis()"
+
+  frontend:
+    - path: "frontend/web/templates/admin_monitoring.html"
+      purpose: "Redis statistics display"
+      function: "renderRedisStats()"
+
+  configuration:
+    - path: ".env.example"
+      purpose: "Redis environment variables template"
+
+    - path: "docker-compose.yml"
+      purpose: "Redis service definition"
+
+# Troubleshooting
+troubleshooting:
+  common_issues:
+    redis_not_available:
+      symptoms:
+        - "Health check shows 'Redis not configured'"
+        - "Startup warning in logs"
+      causes:
+        - "REDIS_URL not set in .env"
+        - "Redis container not running"
+      solution:
+        - "Check .env for REDIS_URL"
+        - "Run: docker compose ps redis"
+        - "Run: docker compose logs redis"
+
+    high_memory_usage:
+      symptoms:
+        - "Redis memory near limit"
+        - "Evictions in stats"
+      solution:
+        - "Increase REDIS_MAXMEMORY"
+        - "Reduce TTL values"
+        - "Check for key leaks"
+
+    low_hit_ratio:
+      symptoms:
+        - "Hit ratio < 50%"
+      causes:
+        - "TTL too short"
+        - "Frequent cache invalidation"
+      solution:
+        - "Increase TTL values"
+        - "Review invalidation triggers"
+
+  debug_commands:
+    check_container: "docker compose ps redis"
+    view_logs: "docker compose logs redis"
+    redis_cli: "docker compose exec redis redis-cli"
+    memory_info: "docker compose exec redis redis-cli INFO memory"
+    stats_info: "docker compose exec redis redis-cli INFO stats"
+    key_count: "docker compose exec redis redis-cli DBSIZE"
+    flush_all: "docker compose exec redis redis-cli FLUSHALL"
+
+# Future Improvements (Phase 3-5)
+future:
+  phase_2:
+    name: "Read-Through Cache & Invalidation"
+    status: "Implemented"
+    description: "Cache service with read-through pattern and CRUD invalidation"
+    implemented:
+      - "cache_service.py with CacheService class"
+      - "CacheKey helpers for articles, FC, CC, dashboard"
+      - "CacheTTL constants (REFERENCE=300s, DASHBOARD=30s, DYNAMIC=60s)"
+      - "Cache invalidation on all CRUD endpoints"
+      - "Graceful fallback to DB when Redis unavailable"
+
+  phase_3:
+    name: "Dashboard Caching"
+    status: "Implemented"
+    description: "Cache quick-stats, balances with short TTL"
+    implemented:
+      - "quick-stats-html endpoint with TTL 30s (CacheTTL.DASHBOARD)"
+      - "account-balances-html endpoint with TTL 30s (CacheTTL.DASHBOARD)"
+      - "recent-html endpoint with TTL 10s (CacheTTL.SHORT)"
+      - "Cache-aside pattern: check cache → miss → generate → cache → return"
+      - "All empty/error states handled correctly"
+      - "Invalidated on any fact CRUD via invalidate_dashboard()"
+
+  phase_4:
+    name: "Multi-Worker WebSocket"
+    status: "Implemented"
+    description: "Redis Pub/Sub for event broadcasting"
+    implemented:
+      - "redis_pubsub_service.py - Pub/Sub publisher and subscriber"
+      - "redis_ws_manager.py - RedisBudgetWebSocketManager class"
+      - "Event buffer in Redis ZSET (budget:event_buffer)"
+      - "Pub/Sub channel: budget:events"
+      - "budget_ws.py updated to use Redis-backed manager"
+      - "main.py init/close Redis WS on startup/shutdown"
+      - ".env.example updated: WORKERS=4 recommended"
+      - "Graceful fallback to single-worker when Redis unavailable"
+
+  phase_5:
+    name: "Write-Behind Queue"
+    status: "Implemented"
+    description: "Async writes to PostgreSQL"
+    implemented:
+      - "write_behind_service.py - Queue service with worker"
+      - "WriteQueueItem class for queue serialization"
+      - "Background worker with BLPOP from Redis queue"
+      - "Retry logic with exponential backoff (3 retries)"
+      - "Dead Letter Queue (DLQ) for failed operations"
+      - "Processing lock to prevent duplicate processing"
+      - "Health check endpoint with queue stats"
+      - "Graceful startup/shutdown in main.py"
+      - "Feature flag: WRITE_BEHIND_ENABLED (default: false)"
+    redis_keys:
+      - "write_queue:facts - Main write queue (LIST)"
+      - "write_queue:facts:failed - Dead Letter Queue (LIST)"
+      - "write_queue:facts:lock - Processing lock (STRING NX EX)"
+    usage: |
+      # Enable write-behind in .env
+      WRITE_BEHIND_ENABLED=true
+
+      # Queue a fact creation
+      from backend.app.services.write_behind_service import write_behind_service
+      request_id = await write_behind_service.queue_fact_create(
+          user_id=1,
+          article_id=5,
+          amount=100.0,
+          fact_date="2025-12-21",
+          record_type="expense"
+      )
+
+# Related Documentation
+related:
+  websocket:
+    $ref: "../flows/ws-broadcast.yaml"
+  realtime:
+    $ref: "../functionality/realtime.yaml"
+  health:
+    $ref: "../endpoints/health.yaml"

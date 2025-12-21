@@ -20,6 +20,10 @@ summary:
       file: "./impact-analysis.yaml"
       use_case: "Оценка влияния изменений"
 
+    - name: "Redis Caching"
+      file: "./redis-caching.yaml"
+      use_case: "Настройка и использование Redis кеширования"
+
 # Quick Reference
 quick_reference:
   before_changes:

@@ -48,6 +48,7 @@ from backend.app.services.article_service import (
     create_initial_history,
     update_article_profile,
 )
+from backend.app.services.cache_service import cache_service
 
 router = APIRouter(prefix="/articles", tags=["Articles"])
 
@@ -115,6 +116,9 @@ async def create_article(
 
     # Create initial history record (SCD Type 2 for history)
     await create_initial_history(session=session, article=article, change_type="CREATE")
+
+    # Invalidate articles cache
+    await cache_service.invalidate_articles()
 
     return article
 
@@ -498,10 +502,14 @@ async def update_article(
             change_type="UPDATE",
         )
         logger.info(f"[ARTICLE UPDATE] Updated article (SCD1+History): id={article_id}")
+        # Invalidate articles cache
+        await cache_service.invalidate_articles()
         return updated_article
     else:
         # Only is_active was changed, return updated article (no history record needed - already done by archive/restore)
         logger.info(f"[ARTICLE UPDATE] Only is_active changed, returning updated article")
+        # Invalidate articles cache (is_active change affects listing)
+        await cache_service.invalidate_articles()
         return old_article
 
 
@@ -558,6 +566,9 @@ async def delete_article(
 
     # Soft delete: archive article and all descendants
     await archive_recursive(session, article_id, changed_by_user_id=current_user.id)
+
+    # Invalidate articles cache
+    await cache_service.invalidate_articles()
 
     return None
 

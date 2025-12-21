@@ -1135,6 +1135,74 @@ configure_s3_backup() {
     fi
 }
 
+# Configure Redis caching
+configure_redis() {
+    section "Redis Configuration"
+
+    echo ""
+    info "Redis is used for caching and WebSocket synchronization across workers"
+    info "This improves performance and enables multi-worker deployments"
+    echo ""
+    info "Redis configuration:"
+    echo "  - Memory limit: Controls maximum memory usage"
+    echo "  - Cache TTL: How long cached data is kept"
+    echo "  - Write-Behind: Async writes to PostgreSQL for lower latency"
+    echo ""
+
+    # Redis memory limit
+    echo "Redis memory limit examples:"
+    echo "  - 256mb: Suitable for low-traffic applications"
+    echo "  - 512mb: Recommended for production"
+    echo "  - 1gb: High-traffic applications"
+    echo ""
+    read -p "Redis memory limit [default: 256mb]: " redis_maxmemory
+    CONFIG["REDIS_MAXMEMORY"]="${redis_maxmemory:-256mb}"
+
+    # Validate memory format
+    if ! [[ "${CONFIG[REDIS_MAXMEMORY]}" =~ ^[0-9]+(mb|gb)$ ]]; then
+        warning "Invalid format. Using default: 256mb"
+        CONFIG["REDIS_MAXMEMORY"]="256mb"
+    fi
+
+    # Cache TTL settings (use defaults, advanced users can edit .env)
+    CONFIG["REDIS_CACHE_TTL_DEFAULT"]="60"
+    CONFIG["REDIS_CACHE_TTL_REFERENCE"]="300"
+    CONFIG["REDIS_CACHE_TTL_DASHBOARD"]="30"
+
+    # Write-Behind feature
+    echo ""
+    info "Write-Behind mode enables async writes to PostgreSQL for lower latency"
+    info "Recommended for production deployments with Redis"
+    echo ""
+    prompt_yes_no "Enable Write-Behind mode?" "WRITE_BEHIND_ENABLED_PROMPT" "y"
+
+    if [[ "${CONFIG[WRITE_BEHIND_ENABLED_PROMPT]}" == "y" ]]; then
+        CONFIG["WRITE_BEHIND_ENABLED"]="true"
+    else
+        CONFIG["WRITE_BEHIND_ENABLED"]="false"
+    fi
+
+    # Redis CPU limits (auto-calculated based on CPU count)
+    local cpu_count="${CONFIG[CPU_COUNT]:-1}"
+    if [[ $cpu_count -eq 1 ]]; then
+        CONFIG["REDIS_CPU_LIMIT"]="0.1"
+        CONFIG["REDIS_CPU_RESERVATION"]="0.02"
+    else
+        CONFIG["REDIS_CPU_LIMIT"]="0.2"
+        CONFIG["REDIS_CPU_RESERVATION"]="0.05"
+    fi
+
+    echo ""
+    success "Redis configured"
+    echo ""
+    info "Summary:"
+    echo "  ✓ Memory limit: ${CONFIG[REDIS_MAXMEMORY]}"
+    echo "  ✓ Write-Behind: ${CONFIG[WRITE_BEHIND_ENABLED]}"
+    echo "  ✓ CPU limit: ${CONFIG[REDIS_CPU_LIMIT]}"
+    echo "  ✓ Cache TTL (default): ${CONFIG[REDIS_CACHE_TTL_DEFAULT]}s"
+    echo ""
+}
+
 # Create .env file
 create_env_file() {
     section "Creating .env File"
@@ -1202,6 +1270,15 @@ create_env_file() {
     sed -i "s|^S3_SECRET_ACCESS_KEY=.*|S3_SECRET_ACCESS_KEY=${CONFIG[S3_SECRET_ACCESS_KEY]}|" "$env_file"
     sed -i "s|^S3_BUCKET_NAME=.*|S3_BUCKET_NAME=${CONFIG[S3_BUCKET_NAME]}|" "$env_file"
     sed -i "s|^S3_REGION=.*|S3_REGION=${CONFIG[S3_REGION]}|" "$env_file"
+
+    # Redis configuration
+    sed -i "s|^REDIS_MAXMEMORY=.*|REDIS_MAXMEMORY=${CONFIG[REDIS_MAXMEMORY]}|" "$env_file"
+    sed -i "s|^REDIS_CACHE_TTL_DEFAULT=.*|REDIS_CACHE_TTL_DEFAULT=${CONFIG[REDIS_CACHE_TTL_DEFAULT]}|" "$env_file"
+    sed -i "s|^REDIS_CACHE_TTL_REFERENCE=.*|REDIS_CACHE_TTL_REFERENCE=${CONFIG[REDIS_CACHE_TTL_REFERENCE]}|" "$env_file"
+    sed -i "s|^REDIS_CACHE_TTL_DASHBOARD=.*|REDIS_CACHE_TTL_DASHBOARD=${CONFIG[REDIS_CACHE_TTL_DASHBOARD]}|" "$env_file"
+    sed -i "s|^WRITE_BEHIND_ENABLED=.*|WRITE_BEHIND_ENABLED=${CONFIG[WRITE_BEHIND_ENABLED]}|" "$env_file"
+    sed -i "s|^REDIS_CPU_LIMIT=.*|REDIS_CPU_LIMIT=${CONFIG[REDIS_CPU_LIMIT]}|" "$env_file"
+    sed -i "s|^REDIS_CPU_RESERVATION=.*|REDIS_CPU_RESERVATION=${CONFIG[REDIS_CPU_RESERVATION]}|" "$env_file"
 
     # Docker CPU limits (auto-detected based on available CPUs)
     sed -i "s/^CPU_COUNT=.*/CPU_COUNT=${CONFIG[CPU_COUNT]}/" "$env_file"
@@ -1494,6 +1571,9 @@ main() {
     echo ""
 
     configure_s3_backup
+    echo ""
+
+    configure_redis
     echo ""
 
     create_env_file

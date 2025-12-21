@@ -61,6 +61,33 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized successfully")
 
+    # Initialize Redis connection pool (optional, used for caching)
+    try:
+        from backend.app.services.redis_service import init_redis_pool, is_redis_available
+        await init_redis_pool()
+        if is_redis_available():
+            logger.info("Redis connection pool initialized successfully")
+        else:
+            logger.warning("Redis not configured - caching will be unavailable")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Redis: {e} - caching will be unavailable")
+
+    # Initialize Redis WebSocket Pub/Sub (for multi-worker support)
+    try:
+        from backend.app.services.redis_ws_manager import init_redis_ws
+        await init_redis_ws()
+        logger.info("Redis WebSocket Pub/Sub initialized (multi-worker support enabled)")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Redis WebSocket Pub/Sub: {e} - single-worker mode")
+
+    # Start Write-Behind worker (optional, enabled via WRITE_BEHIND_ENABLED)
+    try:
+        from backend.app.services.write_behind_service import start_write_behind_worker
+        await start_write_behind_worker()
+        # Log message is inside the function (checks if enabled)
+    except Exception as e:
+        logger.warning(f"Failed to start Write-Behind worker: {e}")
+
     # Initialize push notification session factory (WebSocket)
     set_push_db_session_factory(get_session)
     logger.info("Push notification session factory initialized")
@@ -109,6 +136,30 @@ async def lifespan(app: FastAPI):
     # Stop background scheduler
     await stop_scheduler()
     logger.info("Background scheduler stopped")
+
+    # Stop Write-Behind worker
+    try:
+        from backend.app.services.write_behind_service import stop_write_behind_worker
+        await stop_write_behind_worker()
+        # Log message is inside the function
+    except Exception as e:
+        logger.warning(f"Error stopping Write-Behind worker: {e}")
+
+    # Stop Redis WebSocket Pub/Sub
+    try:
+        from backend.app.services.redis_ws_manager import close_redis_ws
+        await close_redis_ws()
+        logger.info("Redis WebSocket Pub/Sub stopped")
+    except Exception as e:
+        logger.warning(f"Error stopping Redis WebSocket Pub/Sub: {e}")
+
+    # Close Redis connection pool
+    try:
+        from backend.app.services.redis_service import close_redis_pool
+        await close_redis_pool()
+        logger.info("Redis connection pool closed")
+    except Exception as e:
+        logger.warning(f"Error closing Redis pool: {e}")
 
     await close_db()
     logger.info("Database connections closed")

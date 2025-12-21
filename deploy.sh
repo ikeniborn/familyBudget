@@ -86,6 +86,7 @@ source "$SCRIPT_DIR/scripts/lib/status.sh"      # Depends on config.sh, utils.sh
 
 # Phase 2 modules
 source "$SCRIPT_DIR/scripts/lib/postgres.sh"    # Depends on config.sh, utils.sh
+source "$SCRIPT_DIR/scripts/lib/redis.sh"       # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/services.sh"    # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/migration_tracker.sh"  # Depends on config.sh, utils.sh (NEW - v5.1.0+)
 source "$SCRIPT_DIR/scripts/lib/migrations.sh"  # Depends on config.sh, utils.sh, migration_tracker.sh
@@ -1355,6 +1356,13 @@ main() {
             error "Database may be corrupted - see recovery options above"
             error "Log file: $LOG_FILE"
             exit 1
+        fi
+        echo ""
+
+        # Verify Redis health (non-blocking - Redis is optional but recommended)
+        if ! verify_redis_health_post_start; then
+            warning "Redis health verification failed - caching may be unavailable"
+            warning "Application will continue but may have reduced performance"
         fi
         echo ""
 

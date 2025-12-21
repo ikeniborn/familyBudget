@@ -39,6 +39,7 @@ from backend.app.services.cost_center_service import (
     update_cost_center_profile,
     FAR_FUTURE_DATETIME,
 )
+from backend.app.services.cache_service import cache_service
 
 router = APIRouter(
     prefix="/cost-centers",
@@ -226,6 +227,9 @@ async def create_cost_center(
 
         await session.commit()
         financial_center_ids = cost_center_data.financial_center_ids
+
+    # Invalidate cost centers cache
+    await cache_service.invalidate_cost_centers()
 
     return CostCenterResponse(
         id=cost_center.id,
@@ -428,6 +432,9 @@ async def update_cost_center(
         f"new_values: {update_dict}, fc_ids_changed={fc_ids_changed}"
     )
 
+    # Invalidate cost centers cache
+    await cache_service.invalidate_cost_centers()
+
     return CostCenterResponse(
         id=updated_cost_center.id,
         user_id=updated_cost_center.user_id,
@@ -485,6 +492,9 @@ async def archive_cost_center(
     await session.commit()
     await session.refresh(cost_center)
 
+    # Invalidate cost centers cache
+    await cache_service.invalidate_cost_centers()
+
     return cost_center
 
 
@@ -530,6 +540,9 @@ async def restore_cost_center(
     session.add(cost_center)
     await session.commit()
     await session.refresh(cost_center)
+
+    # Invalidate cost centers cache
+    await cache_service.invalidate_cost_centers()
 
     return cost_center
 
@@ -649,6 +662,11 @@ async def delete_cost_center(
     # 3. Delete cost center
     await session.delete(cost_center)
     await session.commit()
+
+    # Invalidate cost centers cache (and dashboard since facts were deleted)
+    await cache_service.invalidate_cost_centers()
+    if facts_count > 0:
+        await cache_service.invalidate_dashboard()
 
     logger.info(
         f"Physically deleted cost center {cost_center_id} "

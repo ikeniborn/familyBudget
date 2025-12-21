@@ -38,6 +38,7 @@ from backend.app.services.financial_center_service import (
     update_financial_center_profile,
     FAR_FUTURE_DATETIME,
 )
+from backend.app.services.cache_service import cache_service
 
 router = APIRouter(
     prefix="/financial-centers",
@@ -142,6 +143,9 @@ async def create_financial_center(
 
     # Create initial history record (SCD Type 2 for history)
     await create_initial_history(session=session, financial_center=financial_center, change_type="CREATE")
+
+    # Invalidate financial centers cache
+    await cache_service.invalidate_financial_centers()
 
     return FinancialCenterResponse.model_validate(financial_center)
 
@@ -260,6 +264,9 @@ async def update_financial_center(
         f"new_values: {update_dict}"
     )
 
+    # Invalidate financial centers cache
+    await cache_service.invalidate_financial_centers()
+
     return FinancialCenterResponse.model_validate(updated_financial_center)
 
 
@@ -307,6 +314,9 @@ async def archive_financial_center(
     await session.commit()
     await session.refresh(financial_center)
 
+    # Invalidate financial centers cache
+    await cache_service.invalidate_financial_centers()
+
     return financial_center
 
 
@@ -352,6 +362,9 @@ async def restore_financial_center(
     session.add(financial_center)
     await session.commit()
     await session.refresh(financial_center)
+
+    # Invalidate financial centers cache
+    await cache_service.invalidate_financial_centers()
 
     return financial_center
 
@@ -471,6 +484,11 @@ async def delete_financial_center(
     # 3. Delete financial center
     await session.delete(financial_center)
     await session.commit()
+
+    # Invalidate financial centers cache (and dashboard since facts were deleted)
+    await cache_service.invalidate_financial_centers()
+    if facts_count > 0:
+        await cache_service.invalidate_dashboard()
 
     logger.info(
         f"Physically deleted financial center {financial_center_id} "

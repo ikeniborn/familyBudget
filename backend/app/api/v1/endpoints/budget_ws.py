@@ -6,8 +6,8 @@ This module provides real-time push notifications for budget changes
 
 Uses WebSocket for bidirectional communication with Long Polling fallback.
 
-Single-instance deployment: Uses in-memory ConnectionManager.
-For multi-worker scaling, implement Redis Pub/Sub.
+Multi-worker support: Uses Redis Pub/Sub for cross-worker broadcasting.
+Falls back to in-memory when Redis is not available.
 
 Security features:
     - Connection limits per user (DoS protection)
@@ -441,13 +441,23 @@ class EventBuffer:
             return False
 
 
-# Global instances (single-instance deployment)
-ws_manager = BudgetWebSocketManager()
-event_buffer = EventBuffer()
+# ==================== REDIS-BACKED MANAGER ====================
+# Use Redis Pub/Sub for multi-worker support, fallback to in-memory
+
+from backend.app.services.redis_ws_manager import (
+    get_ws_manager as _get_redis_ws_manager,
+    get_event_buffer as _get_redis_event_buffer,
+    init_redis_ws,
+    close_redis_ws,
+)
+
+# Global instances - use Redis-backed manager with in-memory fallback
+ws_manager = _get_redis_ws_manager()
+event_buffer = _get_redis_event_buffer()
 
 
-def get_budget_ws_manager() -> BudgetWebSocketManager:
-    """Dependency to get the Budget WebSocket manager."""
+def get_budget_ws_manager():
+    """Dependency to get the Budget WebSocket manager (Redis-backed)."""
     return ws_manager
 
 
@@ -712,8 +722,8 @@ async def poll_budget_events(
     """
     logger.debug(f"Long poll request: user={current_user.id}, since={since}, timeout={timeout}")
 
-    # Check for existing events first
-    events = event_buffer.get_events_since(since)
+    # Check for existing events first (uses Redis if available)
+    events = await event_buffer.get_events_since_async(since)
 
     if events:
         # Return immediately if events are available
@@ -726,8 +736,8 @@ async def poll_budget_events(
     got_event = await event_buffer.wait_for_event(timeout)
 
     if got_event:
-        # Get events that arrived while waiting
-        events = event_buffer.get_events_since(since)
+        # Get events that arrived while waiting (uses Redis if available)
+        events = await event_buffer.get_events_since_async(since)
 
     return {
         "events": events,

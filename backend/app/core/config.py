@@ -60,6 +60,17 @@ class Settings(BaseSettings):
     # System timezone for scheduler jobs and default for new users
     SYSTEM_TIMEZONE: str = "UTC"
 
+    # Redis Configuration
+    REDIS_URL: str | None = None  # e.g., redis://redis:6379/0
+    REDIS_CACHE_TTL_DEFAULT: int = 60  # Default cache TTL in seconds
+    REDIS_CACHE_TTL_REFERENCE: int = 300  # TTL for reference data (articles, FC, CC)
+    REDIS_CACHE_TTL_DASHBOARD: int = 30  # TTL for dashboard data
+
+    # Write-Behind Configuration
+    WRITE_BEHIND_ENABLED: bool = False  # Enable async writes to PostgreSQL
+    WRITE_BEHIND_MAX_RETRIES: int = 3  # Max retries before moving to DLQ
+    WRITE_BEHIND_BATCH_SIZE: int = 100  # Max items to process in one batch
+
     @field_validator("SYSTEM_TIMEZONE")
     @classmethod
     def validate_timezone(cls, v):
