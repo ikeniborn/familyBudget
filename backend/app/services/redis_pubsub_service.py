@@ -35,6 +35,8 @@ import time
 from datetime import datetime
 from typing import Any, Callable, Coroutine
 
+import redis.exceptions
+
 from backend.app.services.redis_service import get_redis, is_redis_available
 
 logger = logging.getLogger(__name__)
@@ -195,7 +197,21 @@ async def _subscriber_loop():
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub subscriber cancelled")
             raise
+        except asyncio.TimeoutError:
+            # Timeout is normal when no messages - just reconnect
+            continue
+        except redis.exceptions.TimeoutError:
+            # Redis timeout is normal when no messages - just reconnect
+            continue
+        except redis.exceptions.ConnectionError as e:
+            logger.warning(f"Redis connection lost, reconnecting in 5s: {e}")
+            await asyncio.sleep(5)
         except Exception as e:
+            # Only log unexpected errors
+            error_msg = str(e)
+            if "Timeout" in error_msg or "timeout" in error_msg:
+                # Timeout during listen is normal - just reconnect
+                continue
             logger.error(f"Redis Pub/Sub error: {e}")
             await asyncio.sleep(5)  # Wait before reconnecting
 
