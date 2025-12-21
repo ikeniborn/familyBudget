@@ -191,7 +191,8 @@
 /* Table layout for column resizing */
 .staging-table {
     table-layout: fixed;
-    width: 100%;
+    min-width: 1740px;  /* Sum of all column widths */
+    width: max-content;
     border-collapse: collapse;
 }
 
