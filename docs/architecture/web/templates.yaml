@@ -293,6 +293,7 @@ templates:
       - $ref: "./js-modules.yaml#/modules/hierarchyView"
       - $ref: "./js-modules.yaml#/modules/csvImporter"
       - $ref: "./js-modules.yaml#/modules/offlineShoppingManager"
+      - $ref: "./js-modules.yaml#/modules/confirmDialog"
     vendor_libs:
       - "Choices.js"
     features:
@@ -301,8 +302,8 @@ templates:
       - "CSV import"
       - "Google Sheets import"
       - "Product group categorization"
-      - "Hide completed items filter"
-      - "Conditional delete completed button"
+      - "Hide completed items filter (in toolbar)"
+      - "FAB Speed Dial for batch operations"
       - "Choices.js searchable selectors for store and product group"
     form_selectors:
       store:
@@ -313,13 +314,38 @@ templates:
         element_id: "item-product-group"
         type: "Choices.js"
         features: ["search", "hierarchical display", "leaf-only selection"]
+    fab_speed_dial:
+      id: "lists-fab-menu"
+      icon: "⋮ (vertical dots, rotates 90° on open)"
+      visibility: "Detail view only, when items exist"
+      backdrop_id: "lists-fab-backdrop"
+      actions:
+        - id: "deleteCompletedWithConfirm"
+          label: "Удалить выполненные"
+          icon: "🗑️"
+          color: "btn-error"
+          confirm_dialog: true
+          condition: "has completed items"
+        - id: "markAllCompletedWithConfirm"
+          label: "Отметить все"
+          icon: "✅"
+          color: "btn-success"
+          confirm_dialog: true
+        - id: "unmarkAllCompletedWithConfirm"
+          label: "Снять все отметки"
+          icon: "☐"
+          color: "btn-warning"
+          confirm_dialog: true
+      css:
+        file: "frontend/web/static/css/lists.css"
+        section: "FAB Speed Dial Menu"
+        features:
+          - "Cascade animation with staggered delays"
+          - "Main button rotation on open"
+          - "Backdrop with opacity transition"
+          - "iOS safe area support"
+          - "Reduced motion support"
     toolbar_sections:
-      table_controls:
-        id: "table-controls"
-        visibility: "Table view only"
-        buttons:
-          - "Отметить все (✅)"
-          - "Снять все (☐)"
       hierarchy_controls:
         id: "hierarchy-controls"
         visibility: "Hierarchy view only"
@@ -332,24 +358,28 @@ templates:
         buttons:
           - id: "toggle-hide-completed-btn"
             text: "Скрыть выполненные / Показать все (👁️)"
-          - id: "delete-completed-btn"
-            text: "Удалить выполненные (🗑️)"
-            hidden_by_default: true
-            shows_when: "есть выполненные товары"
+        note: "Batch operations (mark all, unmark all, delete completed) moved to FAB"
       view_toggle:
         type: "join (button group)"
         buttons:
           - "Таблица (📋)"
           - "Иерархия (🌳)"
+    modals:
+      - create-list-modal
+      - item-modal
+      - delete-confirm-modal
+      - delete-list-modal
+      - confirm-modal  # For FAB action confirmations
     responsive_design:
       mobile:
         - "Текст кнопок скрыт (показываются только иконки)"
         - "Карточное представление вместо таблицы"
         - "Тулбар горизонтально скроллится"
+        - "FAB с iOS safe area поддержкой"
       desktop:
         - "Полный текст кнопок"
         - "Табличное представление"
-        - "Кнопки 'Снять все' и 'Скрыть выполненные' выровнены по ширине (sm:min-w-44)"
+        - "FAB с анимациями"
 
   notifications:
     path: "frontend/web/templates/notifications.html"

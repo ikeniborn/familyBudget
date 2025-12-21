@@ -130,17 +130,8 @@
             </div>
 
             <!-- Shared Controls (visible in both views) -->
-            <!-- Order: Delete → Mark All → Unmark All → Toggle Hide -->
+            <!-- Note: Mark All, Unmark All, Delete Completed moved to FAB menu -->
             <div class="flex gap-1 sm:gap-2" id="shared-controls">
-                <button id="delete-completed-btn" class="btn btn-sm btn-error hidden" onclick="deleteCompleted()" title="Удалить выполненные">
-                    <span>🗑️</span><span class="hidden sm:inline ml-1">Удалить выполненные</span>
-                </button>
-                <button class="btn btn-sm" onclick="markAllCompleted()" title="Отметить все как выполненные">
-                    <span>✅</span><span class="hidden sm:inline ml-1">Отметить все</span>
-                </button>
-                <button class="btn btn-sm btn-outline sm:min-w-44" onclick="unmarkAllCompleted()" title="Снять все отметки">
-                    <span>☐</span><span class="hidden sm:inline ml-1">Снять все</span>
-                </button>
                 <button id="toggle-hide-completed-btn" class="btn btn-sm btn-outline sm:min-w-44" onclick="toggleHideCompleted()" title="Скрыть выполненные">
                     <span>👁️</span><span class="hidden sm:inline ml-1">Скрыть выполненные</span>
                 </button>
@@ -208,6 +199,45 @@
         </div>
     </div>
 </div>
+
+<!-- ============================================== -->
+<!-- FAB Speed Dial для массовых операций -->
+<!-- ============================================== -->
+<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3 hidden">
+    <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
+    <button onclick="toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl z-50" aria-label="Массовые операции">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="5" r="2"/>
+            <circle cx="12" cy="12" r="2"/>
+            <circle cx="12" cy="19" r="2"/>
+        </svg>
+    </button>
+
+    <!-- Speed Dial items -->
+    <div class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap">Удалить выполненные</span>
+        <button onclick="deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
+            🗑️
+        </button>
+    </div>
+
+    <div class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap">Отметить все</span>
+        <button onclick="markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
+            ✅
+        </button>
+    </div>
+
+    <div class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap">Снять все отметки</span>
+        <button onclick="unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
+            ☐
+        </button>
+    </div>
+</div>
+
+<!-- FAB Backdrop -->
+<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 z-40 opacity-0 pointer-events-none hidden" onclick="toggleListsFAB()"></div>
 
 <!-- ============================================== -->
 <!-- MODALS -->
@@ -382,11 +412,29 @@
     </form>
 </dialog>
 
+<!-- Confirm Modal для FAB действий -->
+<dialog id="confirm-modal" class="modal modal-bottom sm:modal-middle">
+    <div class="modal-box max-w-lg p-4 sm:p-6">
+        <h3 class="font-bold text-base sm:text-lg mb-3 sm:mb-4" id="confirm-title">Подтверждение</h3>
+        <p class="whitespace-pre-line text-sm sm:text-base mb-4 sm:mb-6" id="confirm-message"></p>
+        <div class="modal-action mt-3 sm:mt-4 gap-2">
+            <button type="button" class="btn btn-ghost btn-sm sm:btn-md" onclick="confirmModalResolve(false)">Отмена</button>
+            <button type="button" class="btn btn-primary btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="confirmModalResolve(true)">Подтвердить</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="confirmModalResolve(false)">close</button>
+    </form>
+</dialog>
+
 {% endblock %}
 
 {% block extra_scripts %}
 <!-- Choices.js -->
 <script src="/static/js/vendor/choices.min.js"></script>
+
+<!-- Confirm Dialog -->
+<script src="/static/js/confirmDialog.min.js?v=PLACEHOLDER"></script>
 
 <!-- Offline Support for Shopping Lists -->
 <script src="/static/js/offline/offlineShoppingManager.min.js?v=PLACEHOLDER"></script>

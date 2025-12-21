@@ -227,7 +227,7 @@ modules:
   # ---------------------------------------------------------------------------
   listsManager:
     path: "frontend/web/static/js/lists/listsManager.js"
-    loc: 2550
+    loc: 2700
     description: "Shopping lists CRUD and view management"
     endpoints:
       - "/api/v1/shopping-lists"
@@ -237,10 +237,11 @@ modules:
       - "/api/v1/product-groups"
     features:
       - "Dual view: table and hierarchy"
-      - "Batch operations"
+      - "Batch operations (via FAB Speed Dial)"
       - "Offline sync"
       - "Hide completed items filter"
-      - "Conditional delete completed button"
+      - "FAB Speed Dial for batch actions"
+      - "Confirmation dialogs for destructive actions"
       - "Choices.js for store and product group selectors"
     state:
       hideCompleted: "boolean - скрыть выполненные товары"
@@ -252,15 +253,25 @@ modules:
     key_methods:
       toggleHideCompleted: "Переключает фильтр скрытия выполненных"
       updateHideCompletedButton: "Обновляет UI кнопки скрытия (иконка, текст)"
-      updateDeleteCompletedButton: "Показывает/скрывает кнопку удаления выполненных"
+      updateFABVisibility: "Показывает/скрывает FAB Speed Dial при наличии товаров"
+      hideFAB: "Скрывает FAB при переходе в landing view"
       filterItemsBySearch: "Фильтрует по поиску И hideCompleted"
       initStoreChoices: "Инициализирует Choices.js для выбора магазина"
       buildStoreChoices: "Строит массив опций для Choices.js (stores)"
       initProductGroupChoices: "Инициализирует Choices.js для выбора группы товаров"
       buildProductGroupChoices: "Строит массив опций для Choices.js (product groups)"
+      markAllCompleted: "Отмечает все товары как выполненные"
+      unmarkAllCompleted: "Снимает отметки со всех товаров"
+      deleteCompleted: "Удаляет выполненные товары"
+    global_functions:
+      toggleListsFAB: "Открывает/закрывает FAB Speed Dial"
+      markAllCompletedWithConfirm: "Отмечает все с подтверждением"
+      unmarkAllCompletedWithConfirm: "Снимает отметки с подтверждением"
+      deleteCompletedWithConfirm: "Удаляет выполненные с подтверждением"
     depends_on:
       - hierarchyView
       - offlineShoppingManager
+      - confirmDialog
       - "Choices.js (vendor)"
     functionality:
       $ref: "../functionality/shopping-lists.yaml#/module"
