@@ -172,6 +172,23 @@ class BudgetWSClient {
         return isSafari || isYandex;
     }
 
+    // ==================== OFFLINE MODE DETECTION ====================
+
+    /**
+     * Check if auto offline mode is active via OfflineManager
+     * This prevents WebSocket from attempting connections when offline mode is enabled
+     * @returns {boolean}
+     * @private
+     */
+    _isOfflineModeActive() {
+        if (window.offlineManager &&
+            window.offlineManager.networkDetector &&
+            window.offlineManager.networkDetector.autoOfflineMode) {
+            return true;
+        }
+        return false;
+    }
+
     // ==================== MULTI-TAB SUPPORT ====================
 
     /**
@@ -670,6 +687,14 @@ class BudgetWSClient {
     async connect() {
         this._logHistory('connect_start');
 
+        // Skip connection if offline mode is active
+        if (this._isOfflineModeActive()) {
+            this._logHistory('connect_skip_offline_mode');
+            debugLog('[BudgetWS] Skipping connect - offline mode active');
+            this._updateStatusIndicator();
+            return;
+        }
+
         if (!this.enabled) {
             this._logHistory('connect_skip_disabled');
             return;
@@ -713,6 +738,13 @@ class BudgetWSClient {
      */
     async _createConnection() {
         if (!this.enabled) return;
+
+        // Skip if offline mode is active
+        if (this._isOfflineModeActive()) {
+            debugLog('[BudgetWS] Skipping connection - offline mode active');
+            this._updateStatusIndicator();
+            return;
+        }
 
         // Quick check: don't attempt if browser says offline
         if (!navigator.onLine) {
@@ -1036,6 +1068,12 @@ class BudgetWSClient {
     _startLongPolling() {
         if (this._pollingActive) return;
 
+        // Skip if offline mode is active
+        if (this._isOfflineModeActive()) {
+            debugLog('[BudgetWS] Skipping long polling - offline mode active');
+            return;
+        }
+
         // Quick check: don't start polling if browser says offline
         if (!navigator.onLine) {
             debugLog('[BudgetWS] Browser reports offline, skipping long polling');
@@ -1058,6 +1096,13 @@ class BudgetWSClient {
      */
     async _pollLoop() {
         if (!this.enabled || !this._pollingActive) {
+            this._stopLongPolling();
+            return;
+        }
+
+        // Stop polling if offline mode became active
+        if (this._isOfflineModeActive()) {
+            debugLog('[BudgetWS] Stopping poll loop - offline mode active');
             this._stopLongPolling();
             return;
         }
@@ -1264,7 +1309,7 @@ class BudgetWSClient {
         this.enabled = enabled;
         if (!enabled) {
             this.disconnect();
-        } else if (!this.isConnected) {
+        } else if (!this.isConnected && !this._isOfflineModeActive()) {
             this.connect();
         }
     }
@@ -1274,6 +1319,13 @@ class BudgetWSClient {
      * @private
      */
     _scheduleReconnect() {
+        // Skip reconnect if offline mode is active
+        if (this._isOfflineModeActive()) {
+            debugLog('[BudgetWS] Skipping reconnect - offline mode active');
+            this._updateStatusIndicator();
+            return;
+        }
+
         if (!navigator.onLine) {
             debugLog('[BudgetWS] Offline, waiting for network');
             this._updateStatusIndicator();

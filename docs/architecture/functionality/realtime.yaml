@@ -436,3 +436,48 @@ module:
         Requires article_created/updated events from backend (not implemented).
       status: deferred
       notes: "Backend first needs to broadcast article_* events"
+
+  # ---------------------------------------------------------------------------
+  # OFFLINE MODE INTEGRATION
+  # ---------------------------------------------------------------------------
+  offline_mode_integration:
+    description: |
+      BudgetWSClient интегрирован с SmartNetworkDetector/OfflineManager.
+      При включении autoOfflineMode WebSocket отключается и не пытается переподключиться.
+
+    helper_method:
+      name: "_isOfflineModeActive()"
+      description: |
+        Проверяет window.offlineManager.networkDetector.autoOfflineMode.
+        Используется во всех точках подключения/переподключения.
+
+    affected_methods:
+      - name: "connect()"
+        behavior: "Не подключается если autoOfflineMode = true"
+      - name: "_createConnection()"
+        behavior: "Не создаёт соединение если autoOfflineMode = true"
+      - name: "_startLongPolling()"
+        behavior: "Не запускает polling если autoOfflineMode = true"
+      - name: "_pollLoop()"
+        behavior: "Останавливает polling если autoOfflineMode = true"
+      - name: "_scheduleReconnect()"
+        behavior: "Не планирует переподключение если autoOfflineMode = true"
+      - name: "setEnabled(true)"
+        behavior: "Не подключается если autoOfflineMode = true"
+
+    fixed_issue:
+      date: "2025-12-21"
+      issue: "WebSocket пытается переподключиться в offline режиме"
+      severity: "MEDIUM"
+      description: |
+        При включении offline режима на главной странице и переходе на /lists:
+        - WebSocket пытался получить token и падал с ERR_INTERNET_DISCONNECTED
+        - Long polling продолжал делать запросы и получал 503
+        - Console заспамливался ошибками
+
+        Причина: проверялся только navigator.onLine, но не autoOfflineMode.
+      fix: |
+        Добавлен _isOfflineModeActive() helper который проверяет
+        offlineManager.networkDetector.autoOfflineMode.
+        Проверка добавлена во все методы подключения/переподключения.
+      status: fixed
