@@ -589,6 +589,10 @@ templates:
           select_height: "3rem"
           purpose: "Bulk apply values to all or filtered records"
           category_picker: "ChoicesCategoryTree with type filtering"
+          behavior:
+            - "Applies values to all filtered records (not just selected)"
+            - "Resets header checkbox after operation"
+            - "Highlights updated rows with flash animation"
         category_picker_float:
           id: "category-picker-float"
           uses: "BudgetShared.ChoicesCategoryTree"
@@ -601,6 +605,14 @@ templates:
             - "Auto-save on selection"
             - "Path display"
         spreadsheet_features:
+          sticky_checkbox_column:
+            description: "Checkbox column stays fixed during horizontal scroll"
+            css_selector: 'th[data-col="checkbox"], td[data-col="checkbox"]'
+            styles:
+              - "position: sticky"
+              - "left: 0"
+              - "z-index: 2 (3 for header)"
+              - "background: oklch(var(--b1)) with zebra matching"
           column_resize:
             storage_key: "staging-column-widths"
             min_width: "50px"

@@ -221,6 +221,21 @@ body.resizing-columns * {
     background: oklch(var(--b2));
 }
 
+/* Sticky checkbox column - always visible during horizontal scroll */
+.staging-table th[data-col="checkbox"],
+.staging-table td[data-col="checkbox"] {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: oklch(var(--b1));
+}
+.staging-table thead th[data-col="checkbox"] {
+    z-index: 3;  /* Higher z-index for header to stay above body cells */
+}
+.staging-table tbody tr:nth-child(even) td[data-col="checkbox"] {
+    background: oklch(var(--b2));  /* Match zebra striping */
+}
+
 /* Context menu */
 .spreadsheet-context-menu {
     position: fixed;
@@ -3042,6 +3057,9 @@ async function applyBulkToFiltered() {
     // Re-render table to reflect changes
     renderStagingTable();
     updateStats();
+
+    // Reset header checkbox after bulk operation
+    document.getElementById('header-select-all').checked = false;
 
     // Highlight updated rows
     ids.forEach(id => {
