@@ -257,6 +257,11 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-21**: CSV/Google Sheets import improvements:
+  - Fixed "Create missing references" option - now correctly creates stores/product groups during import
+  - Added "Aggregate duplicates" option - sums quantity and merges comments for duplicate rows
+  - Root cause: validation blocked import with "reference" errors before create_missing_references could take effect
+  - Files: `shopping_csv_import.py`, `csv_validator.py`, `csvImporter.js`, `csv_import.py` schema
 - **2025-12-21**: Import page optimization: removed redundant bulk-toolbar, replaced category selects with ChoicesCategoryTree (fuzzy search), replaced modal with floating category picker for table cells, removed keyboard-hints, optimized bulk-panel-filtered layout (category select 50% wider)
 - **2025-12-20**: Import Step 4 Spreadsheet Enhancement: Excel-like cell selection, Fill Down (Ctrl+D), Copy/Paste (Ctrl+C/V), resizable columns with localStorage, context menu, keyboard shortcuts, status bar
 - **2025-12-20**: Import page UX improvements: collapsible filter sidebar, filter elements height 3rem, bulk-panel-filtered selects height 3rem

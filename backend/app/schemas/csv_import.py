@@ -109,6 +109,10 @@ class CSVImportRequest(BaseModel):
     create_missing_references: bool = Field(
         default=False, description="Auto-create missing stores and product groups"
     )
+    aggregate_duplicates: bool = Field(
+        default=False,
+        description="Aggregate duplicates: sum quantity, merge comments",
+    )
 
     class Config:
         json_schema_extra = {

@@ -786,6 +786,15 @@ class CSVImporter {
                         <span class="label-text">Пропустить дубликаты (${result.warnings.length})</span>
                     </label>
                 </div>
+                <div class="form-control mb-4">
+                    <label class="label cursor-pointer justify-start gap-2">
+                        <input type="checkbox" id="aggregate-duplicates-checkbox" class="checkbox checkbox-info" />
+                        <span class="label-text">Агрегировать количество дубликатов</span>
+                    </label>
+                    <label class="label pt-0">
+                        <span class="label-text-alt text-xs opacity-70">Суммировать количество, объединить комментарии через запятую</span>
+                    </label>
+                </div>
                 ` : ''}
 
                 <!-- Create missing references option -->
@@ -923,9 +932,11 @@ class CSVImporter {
             const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox');
             const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
             const createMissingCheckbox = document.getElementById('create-missing-checkbox');
+            const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
             const skipInvalid = skipInvalidCheckbox ? skipInvalidCheckbox.checked : false;
             const skipDuplicates = skipDuplicatesCheckbox ? skipDuplicatesCheckbox.checked : false;
             const createMissing = createMissingCheckbox ? createMissingCheckbox.checked : false;
+            const aggregateDuplicates = aggregateDuplicatesCheckbox ? aggregateDuplicatesCheckbox.checked : false;
 
             // Show loading
             showToast('Импорт данных...', 'info');
@@ -944,6 +955,7 @@ class CSVImporter {
                 skip_duplicates: skipDuplicates,
                 skip_invalid: skipInvalid,
                 create_missing_references: createMissing,
+                aggregate_duplicates: aggregateDuplicates,
             };
 
             debugLog('[CSVImporter] Executing import with:', requestData);

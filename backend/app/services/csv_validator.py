@@ -342,6 +342,71 @@ async def get_or_create_product_group(
     return new_product_group.id
 
 
+def aggregate_duplicate_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Aggregate duplicate rows: sum quantity, merge comments.
+
+    Key: (store, product_group, product_name) - case-insensitive
+    - quantity: summed
+    - comment: merged via comma
+    - unit: first non-empty value
+
+    Args:
+        rows: List of row dictionaries with mapped field names
+
+    Returns:
+        List of aggregated rows (fewer rows if duplicates existed)
+    """
+    aggregated: dict[tuple[str, str, str], dict[str, Any]] = {}
+
+    for row in rows:
+        store = row.get("store", "").strip()
+        product_group = row.get("product_group", "").strip()
+        product_name = row.get("product_name", "").strip()
+
+        # Skip incomplete rows
+        if not store or not product_group or not product_name:
+            # Keep incomplete rows as-is (they will fail validation anyway)
+            key = (store.lower(), product_group.lower(), f"__incomplete_{id(row)}")
+            aggregated[key] = row.copy()
+            continue
+
+        key = (store.lower(), product_group.lower(), product_name.lower())
+
+        if key in aggregated:
+            existing = aggregated[key]
+
+            # Sum quantity
+            try:
+                existing_qty = float(
+                    str(existing.get("quantity") or "0").replace(",", ".")
+                )
+                new_qty = float(str(row.get("quantity") or "0").replace(",", "."))
+                total = existing_qty + new_qty
+                existing["quantity"] = str(total) if total > 0 else None
+            except (ValueError, TypeError):
+                # Keep existing quantity if parsing fails
+                pass
+
+            # Merge comments via comma
+            existing_comment = (existing.get("comment") or "").strip()
+            new_comment = (row.get("comment") or "").strip()
+            if new_comment:
+                if existing_comment:
+                    existing["comment"] = f"{existing_comment}, {new_comment}"
+                else:
+                    existing["comment"] = new_comment
+
+            # Unit: take first non-empty value
+            if not existing.get("unit") and row.get("unit"):
+                existing["unit"] = row.get("unit")
+        else:
+            # First occurrence - preserve original case
+            aggregated[key] = row.copy()
+
+    return list(aggregated.values())
+
+
 def detect_duplicates(rows: list[dict[str, Any]]) -> list[ValidationError]:
     """
     Detect duplicate rows (same product_name in same store and product_group).

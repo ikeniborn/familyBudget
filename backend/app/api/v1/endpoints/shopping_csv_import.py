@@ -31,7 +31,10 @@ from backend.app.services.csv_column_matcher import (
 )
 from backend.app.services.csv_detector import detect_csv_format
 from backend.app.services.csv_security import sanitize_csv_row
-from backend.app.services.csv_validator import validate_csv_rows
+from backend.app.services.csv_validator import (
+    validate_csv_rows,
+    aggregate_duplicate_rows,
+)
 from backend.app.schemas.shopping_list_item import ShoppingListItemCreate
 from backend.app.models.shopping_list_item import ShoppingListItem
 
@@ -301,6 +304,10 @@ async def execute_csv_import(
         if mapped_row:
             mapped_rows.append(mapped_row)
 
+    # Aggregate duplicates if requested (before validation)
+    if request.aggregate_duplicates:
+        mapped_rows = aggregate_duplicate_rows(mapped_rows)
+
     # Validate rows
     validation_result = await validate_csv_rows(session, mapped_rows)
 
@@ -325,6 +332,11 @@ async def execute_csv_import(
     for idx, row in enumerate(mapped_rows):
         # Check if row has errors
         row_errors = [e for e in validation_result.errors if e.row_index == idx]
+
+        # Filter out reference errors if create_missing_references is enabled
+        # (references will be created during import, so these are not real errors)
+        if request.create_missing_references:
+            row_errors = [e for e in row_errors if e.error_type != "reference"]
 
         if row_errors and request.skip_invalid:
             skipped_count += 1
