@@ -97,6 +97,25 @@
     min-height: 3rem;
 }
 
+/* Floating category picker */
+.category-picker-float {
+    position: fixed;
+    z-index: 9999;
+    background: oklch(var(--b1));
+    border: 1px solid oklch(var(--b3));
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    padding: 0.5rem;
+    min-width: 280px;
+    max-width: 400px;
+}
+.category-picker-float .choices {
+    margin: 0;
+}
+.category-picker-float .choices__inner {
+    min-height: 2.5rem;
+}
+
 /* Workflow steps */
 .workflow-step {
     display: flex;
@@ -708,7 +727,7 @@ body.resizing-columns * {
                                         <option value="expense">💸 Расход</option>
                                         <option value="income">💰 Доход</option>
                                     </select>
-                                    <select id="bulk-filtered-article" class="select select-sm w-44">
+                                    <select id="bulk-filtered-article" class="select select-sm w-64">
                                         <option value="">Категория</option>
                                     </select>
                                 </div>
@@ -2146,7 +2165,10 @@ function createArticleSelect(record) {
     const wrapper = document.createElement('div');
     wrapper.id = `article-${record.id}`;
     wrapper.className = 'flex items-center gap-1 cursor-pointer hover:bg-base-200 rounded px-2 py-1 min-h-[3rem]';
-    wrapper.onclick = () => openCategoryPicker(record.id);
+    wrapper.onclick = function(e) {
+        e.stopPropagation();
+        openCategoryPicker(record.id, this);
+    };
 
     // Display current category name or placeholder
     const article = allArticles.find(a => a.id === record.article_id);
@@ -4030,18 +4052,26 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ==========================================================================
-// CATEGORY PICKER MODULE: Modal for selecting category in table cells
+// CATEGORY PICKER MODULE: Floating dropdown for selecting category in table cells
 // ==========================================================================
 
 let categoryPickerTree = null;
 let categoryPickerRecordId = null;
+let categoryPickerTargetElement = null;
 let bulkFilteredCategoryTree = null;
 
 /**
- * Open category picker modal for a specific staging record
+ * Open floating category picker for a specific staging record
  */
-function openCategoryPicker(recordId) {
+function openCategoryPicker(recordId, targetElement) {
+    // If clicking the same cell, close picker
+    if (categoryPickerRecordId === recordId && !document.getElementById('category-picker-float').classList.contains('hidden')) {
+        closeCategoryPicker();
+        return;
+    }
+
     categoryPickerRecordId = recordId;
+    categoryPickerTargetElement = targetElement || document.getElementById(`article-${recordId}`);
     const type = rowArticleTypes[recordId] || 'expense';
 
     // Destroy and reinitialize with correct type
@@ -4056,20 +4086,24 @@ function openCategoryPicker(recordId) {
         selectEl.innerHTML = '';
     }
 
+    const floatPanel = document.getElementById('category-picker-float');
+
     categoryPickerTree = new BudgetShared.ChoicesCategoryTree(
         '#category-picker-select',
         {
             type: type,
             showLeafOnly: true,
-            onCategoryChange: (category) => {
-                // Update path display
+            onCategoryChange: async (category) => {
                 if (category) {
-                    // Get parent chain for path
+                    // Update path display
                     const parentChain = categoryPickerTree.getParentChain(category.id);
                     const pathText = parentChain.length > 0
                         ? parentChain.map(p => p.name).join(' › ') + ' › ' + category.name
                         : category.name;
                     document.getElementById('category-picker-path').textContent = pathText;
+
+                    // Auto-save selection and close
+                    await applyCategoryPicker();
                 } else {
                     document.getElementById('category-picker-path').textContent = '';
                 }
@@ -4077,41 +4111,109 @@ function openCategoryPicker(recordId) {
         }
     );
 
+    // Position the floating panel near the target element
+    if (categoryPickerTargetElement) {
+        const rect = categoryPickerTargetElement.getBoundingClientRect();
+        floatPanel.style.left = `${rect.left}px`;
+        floatPanel.style.top = `${rect.bottom + 4}px`;
+
+        // Adjust if panel would go off-screen right
+        const panelWidth = 320;
+        if (rect.left + panelWidth > window.innerWidth) {
+            floatPanel.style.left = `${window.innerWidth - panelWidth - 16}px`;
+        }
+
+        // Adjust if panel would go off-screen bottom
+        const panelHeight = 300;
+        if (rect.bottom + panelHeight > window.innerHeight) {
+            floatPanel.style.top = `${rect.top - panelHeight - 4}px`;
+        }
+    }
+
+    // Show the floating panel
+    floatPanel.classList.remove('hidden');
+
     // Pre-select current value if exists
     const record = stagingRecords.find(r => r.id === recordId);
     if (record?.article_id) {
         setTimeout(() => {
-            categoryPickerTree.setSelectedCategory(record.article_id);
-        }, 100);
+            if (categoryPickerTree) {
+                categoryPickerTree.setSelectedCategory(record.article_id);
+            }
+        }, 150);
     }
 
-    // Clear path
+    // Clear path initially
     document.getElementById('category-picker-path').textContent = '';
 
-    document.getElementById('category-picker-modal').showModal();
+    // Focus the search input
+    setTimeout(() => {
+        const searchInput = floatPanel.querySelector('.choices__input--cloned');
+        if (searchInput) {
+            searchInput.focus();
+        }
+    }, 200);
+
+    // Add click outside handler
+    setTimeout(() => {
+        document.addEventListener('click', handleClickOutsideCategoryPicker);
+    }, 100);
 }
 
 /**
- * Close category picker modal
+ * Handle click outside category picker
+ */
+function handleClickOutsideCategoryPicker(event) {
+    const floatPanel = document.getElementById('category-picker-float');
+    const targetCell = categoryPickerTargetElement;
+
+    // Check if click is outside both the panel and the target cell
+    if (floatPanel && !floatPanel.contains(event.target) &&
+        (!targetCell || !targetCell.contains(event.target))) {
+        closeCategoryPicker();
+    }
+}
+
+/**
+ * Close floating category picker
  */
 function closeCategoryPicker() {
-    document.getElementById('category-picker-modal').close();
+    document.getElementById('category-picker-float').classList.add('hidden');
+    document.removeEventListener('click', handleClickOutsideCategoryPicker);
     categoryPickerRecordId = null;
+    categoryPickerTargetElement = null;
 }
 
 /**
- * Apply selected category from picker modal
+ * Apply selected category from picker and update cell
  */
 async function applyCategoryPicker() {
     if (!categoryPickerRecordId || !categoryPickerTree) return;
 
     const category = categoryPickerTree.getSelectedCategory();
     if (!category) {
-        showNotification('Выберите категорию', 'warning');
         return;
     }
 
-    await updateStagingField(categoryPickerRecordId, 'article_id', category.id);
+    const recordId = categoryPickerRecordId;
+    await updateStagingField(recordId, 'article_id', category.id);
+
+    // Update the cell display with the new category name
+    const cellWrapper = document.getElementById(`article-${recordId}`);
+    if (cellWrapper) {
+        const span = cellWrapper.querySelector('span');
+        if (span) {
+            span.textContent = category.name;
+            span.classList.remove('text-base-content/50');
+        }
+    }
+
+    // Update stagingRecords array
+    const record = stagingRecords.find(r => r.id === recordId);
+    if (record) {
+        record.article_id = category.id;
+    }
+
     closeCategoryPicker();
 }
 
@@ -4170,23 +4272,11 @@ function getBulkFilteredArticleId() {
 }
 </script>
 
-<!-- Category Picker Modal for Staging Table -->
-<dialog id="category-picker-modal" class="modal">
-    <div class="modal-box w-96">
-        <h3 class="font-bold text-lg mb-4">Выберите категорию</h3>
-        <div class="form-control">
-            <select id="category-picker-select" class="select select-bordered w-full">
-                <!-- ChoicesCategoryTree -->
-            </select>
-            <div id="category-picker-path" class="text-sm text-base-content/60 mt-2 min-h-[1.5rem]"></div>
-        </div>
-        <div class="modal-action">
-            <button class="btn btn-ghost" onclick="closeCategoryPicker()">Отмена</button>
-            <button class="btn btn-primary" onclick="applyCategoryPicker()">Выбрать</button>
-        </div>
-    </div>
-    <form method="dialog" class="modal-backdrop">
-        <button>close</button>
-    </form>
-</dialog>
+<!-- Floating Category Picker for Staging Table -->
+<div id="category-picker-float" class="category-picker-float hidden">
+    <select id="category-picker-select" class="select select-bordered w-full">
+        <!-- ChoicesCategoryTree -->
+    </select>
+    <div id="category-picker-path" class="text-sm text-base-content/60 mt-1 px-1"></div>
+</div>
 {% endblock %}

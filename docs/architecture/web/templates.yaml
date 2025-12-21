@@ -529,13 +529,16 @@ templates:
           select_height: "3rem"
           purpose: "Bulk apply values to filtered records"
           category_picker: "ChoicesCategoryTree with type filtering"
-        category_picker_modal:
-          id: "category-picker-modal"
+        category_picker_float:
+          id: "category-picker-float"
           uses: "BudgetShared.ChoicesCategoryTree"
           type_filter: "from rowArticleTypes[record.id]"
+          positioning: "fixed, near clicked cell"
+          close_on: "selection or click outside"
           features:
             - "Fuzzy search"
             - "Type-based filtering"
+            - "Auto-save on selection"
             - "Path display"
         spreadsheet_features:
           column_resize:
