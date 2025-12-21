@@ -754,21 +754,26 @@ async function syncAnalyticsToFilters(options = {}) {
         // 2. Sync article type
         const analyticsArticleType = document.getElementById('analytics-article-type');
         const filterArticleType = document.getElementById('filter-article-type');
+        const filterArticle = document.getElementById('filter-article');
 
         if (analyticsArticleType && filterArticleType) {
             const newValue = analyticsArticleType.value || '';
             if (filterArticleType.value !== newValue) {
                 console.log('[syncAnalyticsToFilters] Article type changed:', filterArticleType.value, '→', newValue);
                 filterArticleType.value = newValue;
-                // Reload article dropdown for filters (filtered by type)
-                // Note: loadArticleFilter is part of AdminFactsCommon, called via applyFilters()
+
+                // Reset article filter (category list changed)
+                if (filterArticle) {
+                    filterArticle.value = '';
+                    console.log('[syncAnalyticsToFilters] Article filter reset due to type change');
+                }
+
                 needsReload = true;
             }
         }
 
         // 3. Sync article (category)
         const analyticsArticle = document.getElementById('analytics-article');
-        const filterArticle = document.getElementById('filter-article');
 
         if (analyticsArticle && filterArticle) {
             const newValue = analyticsArticle.value || '';
