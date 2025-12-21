@@ -51,6 +51,34 @@ templates:
       - "Push notification banner"
       - "Service Worker registration"
 
+    mobile_menu:
+      id: "mobile-menu-dropdown"
+      description: "Hamburger menu for mobile devices (< 1024px)"
+      visible_items:
+        always:
+          - "User info (avatar, name)"
+          - "🏠 Главная"
+          - "📊 Аналитика"
+          - "💸 Факт"
+          - "📋 План"
+          - "🛒 Списки"
+          - "🔐 Безопасность"
+          - "Справочники (section title)"
+          - "🏪 Магазины"
+          - "📦 Группы товаров"
+          - "🚪 Выйти"
+        tablets_only:
+          description: "Visible on tablets and larger (hidden md:block, ≥768px)"
+          items:
+            - "📂 Прочее (section title)"
+            - "🔔 Уведомления"
+            - "📥 Импорт"
+            - "📁 Категории"
+            - "💼 Места затрат"
+            - "🏢 Счета"
+            - "👥 Пользователи (admin only)"
+      note: "Stores and Product Groups are visible on all screen sizes; other admin pages are tablet+ only"
+
     toast_system:
       description: "Toast notifications that work inside modals"
       behavior:
@@ -513,6 +541,7 @@ templates:
         filter_sidebar:
           id: "filter-sidebar"
           collapsible: true
+          default_state: "collapsed"
           toggle_function: "toggleFilterSidebar()"
           state_persistence: "localStorage.filterSidebarCollapsed"
         filter_elements:
@@ -526,8 +555,9 @@ templates:
             height: "3rem"
         bulk_panel_filtered:
           id: "bulk-panel-filtered"
+          visibility: "always"
           select_height: "3rem"
-          purpose: "Bulk apply values to filtered records"
+          purpose: "Bulk apply values to all or filtered records"
           category_picker: "ChoicesCategoryTree with type filtering"
         category_picker_float:
           id: "category-picker-float"
