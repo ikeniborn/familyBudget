@@ -38,6 +38,14 @@ class CSVImporter {
         this.onBackToStep1 = null;
         // Global variable name to use for onclick handlers (default: 'csvImporter')
         this.globalVarName = 'csvImporter';
+
+        // Import options (preserved across revalidations)
+        this.importOptions = {
+            skipInvalid: false,
+            skipDuplicates: false,
+            createMissingReferences: false,
+            aggregateDuplicates: false,
+        };
     }
 
     /**
@@ -576,8 +584,11 @@ class CSVImporter {
 
     /**
      * Call preview API for validation
+     * @param {Object} options - Optional behavior flags
+     * @param {boolean} options.create_missing_references - Filter reference errors
+     * @param {boolean} options.aggregate_duplicates - Aggregate duplicate rows
      */
-    async callPreviewAPI() {
+    async callPreviewAPI(options = {}) {
         // Encode file content to base64
         const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
 
@@ -588,6 +599,8 @@ class CSVImporter {
             encoding: this.detectionResult.encoding,
             has_header: this.detectionResult.has_header,
             column_mapping: this.columnMapping,
+            create_missing_references: options.create_missing_references || false,
+            aggregate_duplicates: options.aggregate_duplicates || false,
         };
 
         debugLog('[CSVImporter] Calling preview API with:', requestData);
@@ -608,6 +621,46 @@ class CSVImporter {
 
         this.validationResult = await response.json();
         debugLog('[CSVImporter] Validation result:', this.validationResult);
+    }
+
+    /**
+     * Revalidate with current checkbox options
+     * Called when checkboxes change to update valid_rows count
+     */
+    async revalidateWithOptions() {
+        // Read current checkbox states and save to importOptions
+        const createMissingCheckbox = document.getElementById('create-missing-checkbox');
+        const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
+        const skipInvalidCheckbox = document.getElementById('skip-invalid-checkbox');
+        const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
+
+        // Save all checkbox states to preserve across rerender
+        this.importOptions.createMissingReferences = createMissingCheckbox ? createMissingCheckbox.checked : false;
+        this.importOptions.aggregateDuplicates = aggregateDuplicatesCheckbox ? aggregateDuplicatesCheckbox.checked : false;
+        this.importOptions.skipInvalid = skipInvalidCheckbox ? skipInvalidCheckbox.checked : false;
+        this.importOptions.skipDuplicates = skipDuplicatesCheckbox ? skipDuplicatesCheckbox.checked : false;
+
+        const options = {
+            create_missing_references: this.importOptions.createMissingReferences,
+            aggregate_duplicates: this.importOptions.aggregateDuplicates,
+        };
+
+        debugLog('[CSVImporter] Revalidating with options:', options);
+
+        // Show loading on button
+        const importButton = document.getElementById('import-button');
+        if (importButton) {
+            importButton.disabled = true;
+            importButton.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Пересчёт...';
+        }
+
+        try {
+            await this.callPreviewAPI(options);
+            this.renderPreviewResults();
+        } catch (error) {
+            console.error('[CSVImporter] Error revalidating:', error);
+            showToast(`Ошибка пересчёта: ${error.message}`, 'error');
+        }
     }
 
     /**
@@ -773,7 +826,8 @@ class CSVImporter {
                 ${result.invalid_rows > 0 ? `
                 <div class="form-control mb-4">
                     <label class="label cursor-pointer justify-start gap-2">
-                        <input type="checkbox" id="skip-invalid-checkbox" class="checkbox checkbox-primary" />
+                        <input type="checkbox" id="skip-invalid-checkbox" class="checkbox checkbox-primary"
+                               ${this.importOptions.skipInvalid ? 'checked' : ''} />
                         <span class="label-text">Пропустить строки с ошибками (${result.invalid_rows})</span>
                     </label>
                 </div>
@@ -782,13 +836,16 @@ class CSVImporter {
                 ${result.warnings.length > 0 ? `
                 <div class="form-control mb-4">
                     <label class="label cursor-pointer justify-start gap-2">
-                        <input type="checkbox" id="skip-duplicates-checkbox" class="checkbox checkbox-warning" />
+                        <input type="checkbox" id="skip-duplicates-checkbox" class="checkbox checkbox-warning"
+                               ${this.importOptions.skipDuplicates ? 'checked' : ''} />
                         <span class="label-text">Пропустить дубликаты (${result.warnings.length})</span>
                     </label>
                 </div>
                 <div class="form-control mb-4">
                     <label class="label cursor-pointer justify-start gap-2">
-                        <input type="checkbox" id="aggregate-duplicates-checkbox" class="checkbox checkbox-info" />
+                        <input type="checkbox" id="aggregate-duplicates-checkbox" class="checkbox checkbox-info"
+                               ${this.importOptions.aggregateDuplicates ? 'checked' : ''}
+                               onchange="window.${varName}.revalidateWithOptions()" />
                         <span class="label-text">Агрегировать количество дубликатов</span>
                     </label>
                     <label class="label pt-0">
@@ -800,7 +857,9 @@ class CSVImporter {
                 <!-- Create missing references option -->
                 <div class="form-control mb-4">
                     <label class="label cursor-pointer justify-start gap-2">
-                        <input type="checkbox" id="create-missing-checkbox" class="checkbox checkbox-success" />
+                        <input type="checkbox" id="create-missing-checkbox" class="checkbox checkbox-success"
+                               ${this.importOptions.createMissingReferences ? 'checked' : ''}
+                               onchange="window.${varName}.revalidateWithOptions()" />
                         <span class="label-text">Загрузить с новой группой или магазином</span>
                     </label>
                     <label class="label pt-0">
@@ -812,7 +871,7 @@ class CSVImporter {
                     <button class="btn btn-outline" onclick="window.${varName}.renderStep3()">
                         ← Назад
                     </button>
-                    <button class="btn btn-success" onclick="window.${varName}.executeImport()" ${result.valid_rows === 0 ? 'disabled' : ''}>
+                    <button id="import-button" class="btn btn-success" onclick="window.${varName}.executeImport()" ${result.valid_rows === 0 ? 'disabled' : ''}>
                         ✓ Импортировать ${result.valid_rows} ${this.pluralize(result.valid_rows, 'строку', 'строки', 'строк')}
                     </button>
                 </div>

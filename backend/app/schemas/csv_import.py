@@ -184,6 +184,16 @@ class CSVPreviewRequest(BaseModel):
         description="Column mapping (CSV column → field name)"
     )
 
+    # Optional: behavior flags for preview calculation
+    create_missing_references: bool = Field(
+        default=False,
+        description="If true, reference errors won't count as invalid rows",
+    )
+    aggregate_duplicates: bool = Field(
+        default=False,
+        description="If true, duplicates will be aggregated before validation",
+    )
+
     class Config:
         json_schema_extra = {
             "example": {
@@ -196,6 +206,8 @@ class CSVPreviewRequest(BaseModel):
                     "Группа": "product_group",
                     "Товар": "product_name",
                 },
+                "create_missing_references": False,
+                "aggregate_duplicates": False,
             }
         }
 

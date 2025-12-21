@@ -183,6 +183,10 @@ async def preview_csv_import(
         if mapped_row:  # Only add non-empty rows
             mapped_rows.append(mapped_row)
 
+    # Aggregate duplicates if requested (before validation)
+    if request.aggregate_duplicates:
+        mapped_rows = aggregate_duplicate_rows(mapped_rows)
+
     # Validate column mapping
     is_valid, missing_required, mapped_fields = validate_mapping(request.column_mapping)
 
@@ -195,13 +199,29 @@ async def preview_csv_import(
     # Validate rows
     validation_result = await validate_csv_rows(session, mapped_rows)
 
+    # Filter reference errors if create_missing_references is enabled
+    # These are not real errors since references will be created during import
+    filtered_errors = validation_result.errors
+    if request.create_missing_references:
+        filtered_errors = [e for e in validation_result.errors if e.error_type != "reference"]
+
+    # Recalculate valid/invalid counts based on filtered errors
+    valid_rows = 0
+    invalid_rows = 0
+    for idx in range(len(mapped_rows)):
+        row_has_error = any(e.row_index == idx for e in filtered_errors)
+        if row_has_error:
+            invalid_rows += 1
+        else:
+            valid_rows += 1
+
     # Build preview rows (max 20)
     preview_rows = []
     for idx, row in enumerate(mapped_rows[:20]):
-        # Find errors for this row
+        # Find errors for this row (filtered)
         row_errors = [
             e.to_dict()
-            for e in validation_result.errors
+            for e in filtered_errors
             if e.row_index == idx
         ]
         row_warnings = [
@@ -225,11 +245,11 @@ async def preview_csv_import(
         })
 
     return CSVPreviewResponse(
-        is_valid=validation_result.is_valid,
-        valid_rows=validation_result.valid_rows,
-        invalid_rows=validation_result.invalid_rows,
-        total_rows=validation_result.total_rows,
-        errors=[e.to_dict() for e in validation_result.errors],
+        is_valid=len(filtered_errors) == 0,
+        valid_rows=valid_rows,
+        invalid_rows=invalid_rows,
+        total_rows=len(mapped_rows),
+        errors=[e.to_dict() for e in filtered_errors],
         warnings=[w.to_dict() for w in validation_result.warnings],
         preview_rows=preview_rows,
     )
