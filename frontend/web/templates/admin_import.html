@@ -97,23 +97,19 @@
     min-height: 3rem;
 }
 
-/* Floating category picker */
-.category-picker-float {
-    position: fixed;
-    z-index: 9999;
-    background: oklch(var(--b1));
-    border: 1px solid oklch(var(--b3));
-    border-radius: 0.5rem;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    padding: 0.5rem;
-    min-width: 280px;
-    max-width: 400px;
+/* Inline category picker in table cells */
+.article-cell-picker {
+    min-width: 180px;
 }
-.category-picker-float .choices {
+.article-cell-picker .choices {
     margin: 0;
 }
-.category-picker-float .choices__inner {
+.article-cell-picker .choices__inner {
     min-height: 2.5rem;
+    padding: 0.25rem 0.5rem;
+}
+.article-cell-picker .choices__list--dropdown {
+    z-index: 9999;
 }
 
 /* Workflow steps */
@@ -2168,22 +2164,19 @@ function createStagingRow(record, index) {
 function createArticleSelect(record) {
     const wrapper = document.createElement('div');
     wrapper.id = `article-${record.id}`;
-    wrapper.className = 'flex items-center gap-1 cursor-pointer hover:bg-base-200 rounded px-2 py-1 min-h-[3rem]';
-    wrapper.onclick = function(e) {
-        e.stopPropagation();
-        openCategoryPicker(record.id, this);
-    };
+    wrapper.className = 'article-cell-picker';
 
-    // Display current category name or placeholder
-    const article = allArticles.find(a => a.id === record.article_id);
-    const displayName = article ? article.name : '-- Выберите --';
+    // Create hidden select element
+    const select = document.createElement('select');
+    select.id = `article-select-${record.id}`;
+    select.className = 'select select-bordered select-sm w-full';
 
-    wrapper.innerHTML = `
-        <span class="flex-1 truncate ${article ? '' : 'text-base-content/50'}">${displayName}</span>
-        <svg class="w-4 h-4 text-base-content/40 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-        </svg>
-    `;
+    wrapper.appendChild(select);
+
+    // Initialize ChoicesCategoryTree after appending to DOM
+    setTimeout(() => {
+        initCellCategoryPicker(record.id);
+    }, 50);
 
     return wrapper;
 }
@@ -2351,9 +2344,7 @@ function createTypeSelect(record) {
 
 async function updateRowArticleOptions(recordId, resetArticle = false) {
     const typeSelect = document.getElementById(`article-type-${recordId}`);
-    const articleSelect = document.getElementById(`article-${recordId}`);
-
-    if (!typeSelect || !articleSelect) return;
+    if (!typeSelect) return;
 
     const selectedType = typeSelect.value;
 
@@ -2367,46 +2358,8 @@ async function updateRowArticleOptions(recordId, resetArticle = false) {
         }
     }
 
-    // Очистить и перестроить опции
-    articleSelect.innerHTML = '';
-
-    const emptyOption = document.createElement('option');
-    emptyOption.value = '';
-    emptyOption.textContent = '-- Выберите --';
-    articleSelect.appendChild(emptyOption);
-
-    // Фильтровать по выбранному типу
-    const filteredArticles = allArticles.filter(a => a.type === selectedType);
-    const tree = buildArticleTree(filteredArticles);
-    const flatNodes = flattenArticleTree(tree);
-
-    flatNodes.forEach(node => {
-        const option = document.createElement('option');
-        option.value = node.id;
-        const indent = '›  '.repeat(node.level);
-        const icon = node.isLeaf ? '▸' : '📂';
-        option.textContent = `${indent}${icon} ${node.name}`;
-
-        const color = getArticleTypeColorStyle(node.type);
-        if (color) option.style.color = color;
-
-        if (!node.isLeaf) {
-            option.disabled = true;
-            option.style.fontWeight = 'bold';
-            option.style.opacity = '0.7';
-        }
-
-        articleSelect.appendChild(option);
-    });
-
-    // Восстановить значение если категория подходит по типу
-    const record = stagingRecords.find(r => r.id === recordId);
-    if (record && record.article_id) {
-        const validOption = flatNodes.find(n => n.id === record.article_id && n.isLeaf);
-        if (validOption) {
-            articleSelect.value = record.article_id;
-        }
-    }
+    // Update the ChoicesCategoryTree with new type
+    updateCellCategoryType(recordId, selectedType);
 
     updateStats();
 }
@@ -4100,169 +4053,70 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ==========================================================================
-// CATEGORY PICKER MODULE: Floating dropdown for selecting category in table cells
+// CATEGORY PICKER MODULE: Inline ChoicesCategoryTree in table cells
 // ==========================================================================
 
-let categoryPickerTree = null;
-let categoryPickerRecordId = null;
-let categoryPickerTargetElement = null;
+// Map of recordId -> ChoicesCategoryTree instance
+const cellCategoryPickers = new Map();
 let bulkFilteredCategoryTree = null;
 
 /**
- * Open floating category picker for a specific staging record
+ * Initialize ChoicesCategoryTree for a cell
  */
-function openCategoryPicker(recordId, targetElement) {
-    // If clicking the same cell, close picker
-    if (categoryPickerRecordId === recordId && !document.getElementById('category-picker-float').classList.contains('hidden')) {
-        closeCategoryPicker();
-        return;
+function initCellCategoryPicker(recordId) {
+    const selectEl = document.getElementById(`article-select-${recordId}`);
+    if (!selectEl) return;
+
+    // Destroy existing instance if any
+    if (cellCategoryPickers.has(recordId)) {
+        cellCategoryPickers.get(recordId).destroy();
+        cellCategoryPickers.delete(recordId);
     }
 
-    categoryPickerRecordId = recordId;
-    categoryPickerTargetElement = targetElement || document.getElementById(`article-${recordId}`);
     const type = rowArticleTypes[recordId] || 'expense';
+    const record = stagingRecords.find(r => r.id === recordId);
 
-    // Destroy and reinitialize with correct type
-    if (categoryPickerTree) {
-        categoryPickerTree.destroy();
-        categoryPickerTree = null;
-    }
-
-    // Clear the select element before reinitializing
-    const selectEl = document.getElementById('category-picker-select');
-    if (selectEl) {
-        selectEl.innerHTML = '';
-    }
-
-    const floatPanel = document.getElementById('category-picker-float');
-
-    categoryPickerTree = new BudgetShared.ChoicesCategoryTree(
-        '#category-picker-select',
+    const picker = new BudgetShared.ChoicesCategoryTree(
+        `#article-select-${recordId}`,
         {
             type: type,
             showLeafOnly: true,
             onCategoryChange: async (category) => {
                 if (category) {
-                    // Update path display
-                    const parentChain = categoryPickerTree.getParentChain(category.id);
-                    const pathText = parentChain.length > 0
-                        ? parentChain.map(p => p.name).join(' › ') + ' › ' + category.name
-                        : category.name;
-                    document.getElementById('category-picker-path').textContent = pathText;
+                    // Save selection to backend
+                    await updateStagingField(recordId, 'article_id', category.id);
 
-                    // Auto-save selection and close
-                    await applyCategoryPicker();
-                } else {
-                    document.getElementById('category-picker-path').textContent = '';
+                    // Update local record
+                    const rec = stagingRecords.find(r => r.id === recordId);
+                    if (rec) {
+                        rec.article_id = category.id;
+                    }
+
+                    // Update stats
+                    updateStats();
                 }
             }
         }
     );
 
-    // Position the floating panel near the target element
-    if (categoryPickerTargetElement) {
-        const rect = categoryPickerTargetElement.getBoundingClientRect();
-        floatPanel.style.left = `${rect.left}px`;
-        floatPanel.style.top = `${rect.bottom + 4}px`;
-
-        // Adjust if panel would go off-screen right
-        const panelWidth = 320;
-        if (rect.left + panelWidth > window.innerWidth) {
-            floatPanel.style.left = `${window.innerWidth - panelWidth - 16}px`;
-        }
-
-        // Adjust if panel would go off-screen bottom
-        const panelHeight = 300;
-        if (rect.bottom + panelHeight > window.innerHeight) {
-            floatPanel.style.top = `${rect.top - panelHeight - 4}px`;
-        }
-    }
-
-    // Show the floating panel
-    floatPanel.classList.remove('hidden');
+    cellCategoryPickers.set(recordId, picker);
 
     // Pre-select current value if exists
-    const record = stagingRecords.find(r => r.id === recordId);
     if (record?.article_id) {
         setTimeout(() => {
-            if (categoryPickerTree) {
-                categoryPickerTree.setSelectedCategory(record.article_id);
-            }
+            picker.setSelectedCategory(record.article_id);
         }, 150);
     }
-
-    // Clear path initially
-    document.getElementById('category-picker-path').textContent = '';
-
-    // Focus the search input
-    setTimeout(() => {
-        const searchInput = floatPanel.querySelector('.choices__input--cloned');
-        if (searchInput) {
-            searchInput.focus();
-        }
-    }, 200);
-
-    // Add click outside handler
-    setTimeout(() => {
-        document.addEventListener('click', handleClickOutsideCategoryPicker);
-    }, 100);
 }
 
 /**
- * Handle click outside category picker
+ * Update cell category picker type when row type changes
  */
-function handleClickOutsideCategoryPicker(event) {
-    const floatPanel = document.getElementById('category-picker-float');
-    const targetCell = categoryPickerTargetElement;
-
-    // Check if click is outside both the panel and the target cell
-    if (floatPanel && !floatPanel.contains(event.target) &&
-        (!targetCell || !targetCell.contains(event.target))) {
-        closeCategoryPicker();
+function updateCellCategoryType(recordId, newType) {
+    const picker = cellCategoryPickers.get(recordId);
+    if (picker) {
+        picker.updateType(newType);
     }
-}
-
-/**
- * Close floating category picker
- */
-function closeCategoryPicker() {
-    document.getElementById('category-picker-float').classList.add('hidden');
-    document.removeEventListener('click', handleClickOutsideCategoryPicker);
-    categoryPickerRecordId = null;
-    categoryPickerTargetElement = null;
-}
-
-/**
- * Apply selected category from picker and update cell
- */
-async function applyCategoryPicker() {
-    if (!categoryPickerRecordId || !categoryPickerTree) return;
-
-    const category = categoryPickerTree.getSelectedCategory();
-    if (!category) {
-        return;
-    }
-
-    const recordId = categoryPickerRecordId;
-    await updateStagingField(recordId, 'article_id', category.id);
-
-    // Update the cell display with the new category name
-    const cellWrapper = document.getElementById(`article-${recordId}`);
-    if (cellWrapper) {
-        const span = cellWrapper.querySelector('span');
-        if (span) {
-            span.textContent = category.name;
-            span.classList.remove('text-base-content/50');
-        }
-    }
-
-    // Update stagingRecords array
-    const record = stagingRecords.find(r => r.id === recordId);
-    if (record) {
-        record.article_id = category.id;
-    }
-
-    closeCategoryPicker();
 }
 
 /**
@@ -4319,12 +4173,4 @@ function getBulkFilteredArticleId() {
     return null;
 }
 </script>
-
-<!-- Floating Category Picker for Staging Table -->
-<div id="category-picker-float" class="category-picker-float hidden">
-    <select id="category-picker-select" class="select select-bordered w-full">
-        <!-- ChoicesCategoryTree -->
-    </select>
-    <div id="category-picker-path" class="text-sm text-base-content/60 mt-1 px-1"></div>
-</div>
 {% endblock %}
