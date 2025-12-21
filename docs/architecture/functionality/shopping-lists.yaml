@@ -127,6 +127,55 @@ module:
     $ref: "../endpoints/shopping.yaml#/routes"
 
   # ---------------------------------------------------------------------------
+  # CSV IMPORT
+  # ---------------------------------------------------------------------------
+  csv_import:
+    $ref: "../flows/shopping-csv-import.yaml"
+    features:
+      - "CSV file upload or Google Sheets URL import"
+      - "Auto-detect columns with smart mapping"
+      - "Duplicate aggregation (sum quantity, merge comments)"
+      - "Auto-create missing stores and product groups"
+      - "Preview validation before import with options"
+      - "Automatic dropdown reload after creating new references"
+
+    known_issues_fixed:
+      - issue: "Aggregation UX confusion (rows disappearing)"
+        fix: "Added toast and info alert explaining aggregation"
+        commit: "Current changes"
+        files:
+          - "frontend/web/static/js/lists/csvImporter.js:657-679"
+          - "frontend/web/static/js/lists/csvImporter.js:817-828"
+
+      - issue: "New stores/groups not in dropdowns after import"
+        fix: "Reload dropdowns after import + show created references toast"
+        commit: "Current changes"
+        files:
+          - "frontend/web/static/js/lists/csvImporter.js:1082-1105"
+          - "backend/app/api/v1/endpoints/shopping_csv_import.py:351-531"
+          - "backend/app/schemas/csv_import.py:153-161"
+
+      - issue: "Google Sheets OAuth window opening"
+        fix: "Improved redirect detection with follow_redirects=False"
+        commit: "Current changes"
+        files:
+          - "backend/app/services/google_sheets_parser.py:123-154"
+
+    implementation_notes: |
+      CSV import wizard follows 5-stage flow:
+      1. Method selection (CSV upload or Google Sheets)
+      2. Data fetch and auto-detection (encoding, delimiter, columns)
+      3. Column mapping (smart auto-mapping with manual override)
+      4. Preview validation (with aggregation and auto-create options)
+      5. Execute import (create items + track created references)
+
+      Aggregation works BEFORE validation to reduce preview row count.
+      Frontend shows informational toast/alert to explain row reduction.
+
+      Auto-create stores/groups tracked during import and returned in response.
+      Frontend conditionally reloads dropdowns only if new references created.
+
+  # ---------------------------------------------------------------------------
   # OFFLINE SUPPORT
   # ---------------------------------------------------------------------------
   offline_support:

@@ -8,6 +8,8 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
+from backend.app.schemas.store import StoreResponse
+from backend.app.schemas.product_group import ProductGroupResponse
 
 
 class CSVAnalyzeRequest(BaseModel):
@@ -147,6 +149,16 @@ class CSVImportResponse(BaseModel):
     # Detailed results
     errors: list[dict[str, Any]] = Field(default_factory=list, description="Errors")
     warnings: list[dict[str, Any]] = Field(default_factory=list, description="Warnings")
+
+    # ✅ NEW: Metadata about created references
+    created_stores: list[StoreResponse] = Field(
+        default_factory=list,
+        description="Stores created during import (if create_missing_references=true)"
+    )
+    created_product_groups: list[ProductGroupResponse] = Field(
+        default_factory=list,
+        description="Product groups created during import (if create_missing_references=true)"
+    )
 
     class Config:
         json_schema_extra = {

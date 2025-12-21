@@ -120,13 +120,40 @@ async def fetch_google_sheets_as_csv(
         f"spreadsheet_id={spreadsheet_id}, gid={sheet_gid or 'default'}"
     )
 
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         try:
             response = await client.get(url, params=params)
+
+            # ✅ NEW: Detect OAuth redirects before following
+            if response.status_code in (301, 302, 303, 307, 308):
+                redirect_url = response.headers.get("Location", "")
+
+                # Check if redirect is to Google OAuth/login
+                if any(domain in redirect_url.lower() for domain in ["accounts.google.com", "oauth", "login"]):
+                    logger.error(
+                        f"OAuth redirect detected for spreadsheet {spreadsheet_id}. "
+                        f"Redirect to: {redirect_url[:100]}"
+                    )
+                    raise GoogleSheetsError(
+                        "Google Sheets требует авторизацию. "
+                        "Сделайте лист публичным: Файл → Доступ → Доступ по ссылке → Просмотр"
+                    )
+
             response.raise_for_status()
 
-            # Validate response is text content (CSV)
+            # ✅ NEW: Check for HTML content (login pages)
             content_type = response.headers.get("content-type", "").lower()
+            if "html" in content_type:
+                logger.error(
+                    f"HTML response detected for spreadsheet {spreadsheet_id}. "
+                    f"Content-Type: {content_type}"
+                )
+                raise GoogleSheetsError(
+                    "Google Sheets вернул HTML вместо CSV. "
+                    "Лист возможно приватный или требует авторизацию."
+                )
+
+            # Validate response is text content (CSV)
             if "text" not in content_type:
                 logger.error(
                     f"Unexpected content type: {content_type}. "

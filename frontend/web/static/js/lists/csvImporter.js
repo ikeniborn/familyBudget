@@ -655,7 +655,22 @@ class CSVImporter {
         }
 
         try {
+            // Save previous row count to compare (for aggregation info toast)
+            const prevRowCount = this.validationResult?.total_rows || 0;
+
             await this.callPreviewAPI(options);
+
+            // Show aggregation info toast if enabled and rows were merged
+            const newRowCount = this.validationResult?.total_rows || 0;
+            if (this.importOptions.aggregateDuplicates && prevRowCount > 0 && prevRowCount > newRowCount) {
+                const mergedCount = prevRowCount - newRowCount;
+                showToast(
+                    `✓ Агрегация: ${prevRowCount} строк → ${newRowCount} строк (${mergedCount} дубликатов объединено)`,
+                    'info',
+                    5000
+                );
+            }
+
             this.renderPreviewResults();
         } catch (error) {
             console.error('[CSVImporter] Error revalidating:', error);
@@ -798,6 +813,19 @@ class CSVImporter {
                         <div class="stat-value text-error">${result.invalid_rows}</div>
                     </div>
                 </div>
+
+                <!-- Aggregation Notice -->
+                ${this.importOptions.aggregateDuplicates ? `
+                <div class="alert alert-info mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <strong>Агрегация включена</strong>
+                        <p class="text-sm">Дубликаты объединены: количество суммируется, комментарии объединяются через запятую.</p>
+                    </div>
+                </div>
+                ` : ''}
 
                 <!-- Errors and Warnings -->
                 ${errorsSection}
@@ -1050,6 +1078,31 @@ class CSVImporter {
 
                 // Re-render items table
                 this.listsManager.renderItemsTable();
+
+                // ✅ NEW: Reload stores and product groups if references were created
+                if (result.created_stores && result.created_stores.length > 0) {
+                    debugLog('[CSVImporter] Reloading stores dropdown...', result.created_stores);
+                    await this.listsManager.loadStores();
+                    this.listsManager.initStoreChoices();
+                }
+
+                if (result.created_product_groups && result.created_product_groups.length > 0) {
+                    debugLog('[CSVImporter] Reloading product groups dropdown...', result.created_product_groups);
+                    await this.listsManager.loadProductGroups();
+                    this.listsManager.initProductGroupChoices();
+                }
+
+                // Show created references in success toast
+                const createdRefs = [];
+                if (result.created_stores?.length > 0) {
+                    createdRefs.push(`Магазины: ${result.created_stores.map(s => s.name).join(', ')}`);
+                }
+                if (result.created_product_groups?.length > 0) {
+                    createdRefs.push(`Группы: ${result.created_product_groups.map(g => g.name).join(', ')}`);
+                }
+                if (createdRefs.length > 0) {
+                    showToast(`📦 Создано:\n${createdRefs.join('\n')}`, 'info', 5000);
+                }
 
                 // Close import accordion
                 const importWizardContainer = document.getElementById('import-wizard-container');

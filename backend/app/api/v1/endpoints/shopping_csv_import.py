@@ -348,6 +348,10 @@ async def execute_csv_import(
     stores_cache = {}
     product_groups_cache = {}
 
+    # ✅ NEW: Track created references for response metadata
+    created_stores_dict = {}  # name.lower() → Store object
+    created_product_groups_dict = {}  # name.lower() → ProductGroup object
+
     # Import valid rows
     for idx, row in enumerate(mapped_rows):
         # Check if row has errors
@@ -384,12 +388,43 @@ async def execute_csv_import(
         try:
             if request.create_missing_references:
                 # Auto-create missing stores and product groups
+
+                # Check if store existed before calling get_or_create
+                store_exists = store_name.lower() in stores_cache
+
                 store_id = await get_or_create_store(
                     session, store_name, current_user.id, stores_cache
                 )
+
+                # ✅ NEW: Track if store was created
+                if not store_exists and store_name.lower() not in created_stores_dict:
+                    # Fetch full Store object for response
+                    from sqlmodel import select
+                    from backend.app.models.store import Store
+
+                    store_stmt = select(Store).where(Store.id == store_id)
+                    store_result = await session.execute(store_stmt)
+                    store_obj = store_result.scalar_one_or_none()
+                    if store_obj:
+                        created_stores_dict[store_name.lower()] = store_obj
+
+                # Check if product group existed before calling get_or_create
+                pg_exists = product_group_name.lower() in product_groups_cache
+
                 product_group_id = await get_or_create_product_group(
                     session, product_group_name, current_user.id, product_groups_cache
                 )
+
+                # ✅ NEW: Track if product group was created
+                if not pg_exists and product_group_name.lower() not in created_product_groups_dict:
+                    # Fetch full ProductGroup object for response
+                    from backend.app.models.product_group import ProductGroup
+
+                    pg_stmt = select(ProductGroup).where(ProductGroup.id == product_group_id)
+                    pg_result = await session.execute(pg_stmt)
+                    pg_obj = pg_result.scalar_one_or_none()
+                    if pg_obj:
+                        created_product_groups_dict[product_group_name.lower()] = pg_obj
             else:
                 # Validate that references exist (old behavior)
                 store_error = await validate_store_reference(
@@ -469,6 +504,19 @@ async def execute_csv_import(
             detail=f"Failed to commit import: {str(e)}",
         )
 
+    # Prepare metadata for created references
+    from backend.app.schemas.store import StoreResponse
+    from backend.app.schemas.product_group import ProductGroupResponse
+
+    created_stores_list = [
+        StoreResponse.model_validate(store)
+        for store in created_stores_dict.values()
+    ]
+    created_product_groups_list = [
+        ProductGroupResponse.model_validate(pg)
+        for pg in created_product_groups_dict.values()
+    ]
+
     return CSVImportResponse(
         success=error_count == 0,
         imported_count=imported_count,
@@ -477,4 +525,7 @@ async def execute_csv_import(
         total_rows=len(mapped_rows),
         errors=errors,
         warnings=warnings,
+        # ✅ NEW: Return created references metadata
+        created_stores=created_stores_list,
+        created_product_groups=created_product_groups_list,
     )
