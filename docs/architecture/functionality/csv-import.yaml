@@ -31,10 +31,17 @@ module:
     - name: google_sheets_parser
       path: "backend/app/services/google_sheets_parser.py"
       functions:
-        - fetch_sheet_data
-        - parse_sheet_rows
-      depends_on: []
-      notes: "Google Sheets API integration"
+        - parse_google_sheets_url     # Extract spreadsheet_id and sheet_gid from URL
+        - fetch_google_sheets_as_csv  # Fetch public sheet as CSV via export endpoint
+      depends_on:
+        - httpx  # Async HTTP client
+      notes: |
+        Google Sheets public export integration.
+        - Parses URLs like https://docs.google.com/spreadsheets/d/{ID}/edit#gid={GID}
+        - Fetches CSV via https://docs.google.com/spreadsheets/d/{ID}/export?format=csv&gid={GID}
+        - Detects OAuth redirects (private sheets) and returns clear error messages
+        - Handles 403 Forbidden (not public) and 404 Not Found errors
+        - No Google API key required - uses public export URL
 
     - name: csv_detector
       path: "backend/app/services/csv_detector.py"
@@ -142,9 +149,16 @@ module:
 
     stages:
       - name: upload
-        description: "Upload CSV file"
-        endpoint: "POST /api/v1/import/upload"
+        description: "Upload data source (CSV file or Google Sheets URL)"
+        endpoints:
+          - "POST /api/v1/import/upload (CSV file)"
+          - "POST /api/v1/import/google-sheets/upload (Google Sheets URL)"
         output: "ImportFileUpload record"
+        ui:
+          component: "Radio buttons for source selection"
+          options:
+            - "📄 CSV файл"
+            - "📊 Google Sheets"
 
       - name: detect
         description: "Auto-detect bank format"

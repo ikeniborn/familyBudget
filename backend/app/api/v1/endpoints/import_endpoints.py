@@ -7,6 +7,7 @@ Supports Tinkoff, Alfabank, Sberbank, VTB, Raiffeisen.
 Endpoints:
 - GET /import/banks - List active banks
 - POST /import/upload - Upload CSV file (100MB limit)
+- POST /import/google-sheets/upload - Upload from Google Sheets URL
 - GET /import/files/{file_id}/analyze - Get CSV structure
 - GET /import/mappings/{bank_provider_id} - Get saved or default mapping
 - POST /import/mappings - Save/update mapping
@@ -36,6 +37,7 @@ from backend.app.schemas.import_multibank_schema import (
     BulkUpdateRequest,
     CreateBankRequest,
     FileUploadResponse,
+    GoogleSheetsUploadRequest,
     ImportExecuteRequest,
     ImportExecuteResponse,
     MappingResponse,
@@ -48,6 +50,11 @@ from backend.app.schemas.import_multibank_schema import (
 from backend.app.services.bank_provider_service import BankProviderService
 from backend.app.services.csv_analyzer import CSVAnalyzer
 from backend.app.services.generic_csv_parser import GenericCSVParser
+from backend.app.services.google_sheets_parser import (
+    GoogleSheetsError,
+    fetch_google_sheets_as_csv,
+    parse_google_sheets_url,
+)
 from backend.app.services.mapping_service import MappingService
 
 logger = logging.getLogger(__name__)
@@ -335,6 +342,154 @@ async def upload_file(
         file_upload.error_message = str(e)
         await session.commit()
         logger.error(f"Failed to analyze file {file_upload.id}: {e}")
+
+        # Clean up temp file on analysis failure
+        if temp_file_path.exists():
+            try:
+                temp_file_path.unlink()
+            except Exception as cleanup_error:
+                logger.error(f"Failed to cleanup temp file {temp_file_path}: {cleanup_error}")
+
+        raise HTTPException(500, f"Failed to analyze CSV: {str(e)}")
+
+    return FileUploadResponse(
+        file_id=file_upload.id,
+        file_name=file_upload.file_name,
+        bank_provider_id=file_upload.bank_provider_id,
+        status=file_upload.status
+    )
+
+
+@router.post("/google-sheets/upload", response_model=FileUploadResponse, status_code=201)
+async def upload_from_google_sheets(
+    request: GoogleSheetsUploadRequest,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Upload from public Google Sheets URL.
+
+    Fetches the Google Sheets as CSV, saves to temp file, and creates ImportFileUpload record.
+    This endpoint returns the same response as /upload, allowing the same workflow for subsequent steps.
+
+    **Requirements:**
+    - Google Sheets MUST be public ("Anyone with link → View")
+    - URL must be valid Google Sheets URL
+
+    **Workflow:**
+    1. Parse Google Sheets URL (extract spreadsheet_id and sheet_gid)
+    2. Fetch sheet as CSV via Google's export endpoint
+    3. Save CSV to temp file
+    4. Create ImportFileUpload record
+    5. Analyze CSV structure
+    6. Return file_id (same as /upload)
+
+    **Request Body:**
+    ```json
+    {
+        "google_sheets_url": "https://docs.google.com/spreadsheets/d/1ABC.../edit#gid=0",
+        "bank_provider_id": 1
+    }
+    ```
+
+    **Response:** Same as POST /import/upload
+
+    **Example:**
+    ```
+    POST /api/v1/import/google-sheets/upload
+    Body: {"google_sheets_url": "https://docs.google.com/...", "bank_provider_id": 1}
+    Response 201: {
+        "file_id": 123,
+        "file_name": "google_sheets_1ABC123.csv",
+        "bank_provider_id": 1,
+        "status": "analyzed"
+    }
+    ```
+
+    **Errors:**
+    - 400: Invalid URL or private sheet
+    - 404: Bank provider not found
+    - 500: Failed to fetch or analyze
+    """
+    logger.info(
+        f"Uploading from Google Sheets for user {current_user.id}, "
+        f"bank {request.bank_provider_id}, URL: {request.google_sheets_url[:50]}..."
+    )
+
+    # Validate bank exists
+    bank = await BankProviderService.get_by_id(session, request.bank_provider_id)
+    if not bank:
+        raise HTTPException(404, "Bank provider not found")
+
+    try:
+        # Parse Google Sheets URL
+        spreadsheet_id, sheet_gid = await parse_google_sheets_url(request.google_sheets_url)
+
+        # Fetch CSV content
+        csv_bytes = await fetch_google_sheets_as_csv(spreadsheet_id, sheet_gid)
+
+        logger.info(
+            f"Fetched Google Sheets: spreadsheet_id={spreadsheet_id}, "
+            f"sheet_gid={sheet_gid or 'default'}, size={len(csv_bytes)} bytes"
+        )
+
+    except GoogleSheetsError as e:
+        logger.warning(f"Google Sheets fetch failed for user {current_user.id}: {str(e)}")
+        raise HTTPException(400, str(e))
+
+    # Save to temp file
+    temp_dir = Path("/app/uploads/temp")
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    temp_filename = f"google_sheets_{spreadsheet_id}_{uuid.uuid4().hex[:8]}.csv"
+    temp_file_path = temp_dir / temp_filename
+
+    try:
+        with open(temp_file_path, "wb") as f:
+            f.write(csv_bytes)
+    except Exception as e:
+        logger.error(f"Failed to save temp file {temp_file_path}: {e}")
+        raise HTTPException(500, f"Failed to save file: {str(e)}")
+
+    # Create ImportFileUpload record
+    file_upload = ImportFileUpload(
+        user_id=current_user.id,
+        bank_provider_id=request.bank_provider_id,
+        file_name=temp_filename,
+        file_size=len(csv_bytes),
+        mime_type="text/csv",
+        temp_file_path=str(temp_file_path),
+        status="uploaded"
+    )
+    session.add(file_upload)
+    await session.commit()
+    await session.refresh(file_upload)
+
+    # Analyze CSV structure
+    try:
+        analysis = await CSVAnalyzer.analyze_file(
+            csv_bytes,
+            temp_filename,
+            user_delimiter=None  # Auto-detect
+        )
+        file_upload.csv_headers = analysis["headers"]
+        file_upload.csv_sample_rows = analysis["sample_rows"]
+        file_upload.total_rows = analysis["total_rows"]
+        file_upload.csv_delimiter = analysis["delimiter"]
+        file_upload.csv_encoding = analysis["encoding"]
+        file_upload.status = "analyzed"
+        file_upload.analyzed_at = datetime.utcnow()
+        await session.commit()
+
+        logger.info(
+            f"Analyzed Google Sheets file {file_upload.id}: {analysis['total_rows']} rows, "
+            f"{len(analysis['headers'])} columns"
+        )
+
+    except Exception as e:
+        file_upload.status = "error"
+        file_upload.error_message = str(e)
+        await session.commit()
+        logger.error(f"Failed to analyze Google Sheets file {file_upload.id}: {e}")
 
         # Clean up temp file on analysis failure
         if temp_file_path.exists():

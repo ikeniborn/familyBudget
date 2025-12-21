@@ -384,34 +384,97 @@ body.resizing-columns * {
     <!-- Step 2: File Upload -->
     <div class="card bg-base-100 shadow-lg" id="step-2-upload" style="display: none;">
         <div class="card-body">
-            <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка файла</h2>
+            <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка данных</h2>
 
-            <form id="upload-form" onsubmit="uploadCSV(event)" class="space-y-4">
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">📄 Выберите CSV файл</span>
+            <!-- Radio buttons для выбора источника данных -->
+            <div class="form-control mb-4">
+                <label class="label">
+                    <span class="label-text font-semibold">Источник данных:</span>
+                </label>
+                <div class="flex gap-6">
+                    <label class="label cursor-pointer gap-2">
+                        <input type="radio" name="upload-source" value="csv"
+                               class="radio radio-primary" checked
+                               onchange="switchUploadSource('csv')" />
+                        <span class="label-text">📄 CSV файл</span>
                     </label>
-                    <input type="file" id="csv-file" accept=".csv" required class="file-input file-input-bordered file-input-primary w-full max-w-xs" />
-                    <label class="label">
-                        <span class="label-text-alt">Максимальный размер: 100 МБ. Настройка разделителя и формата — на следующем шаге.</span>
+                    <label class="label cursor-pointer gap-2">
+                        <input type="radio" name="upload-source" value="google-sheets"
+                               class="radio radio-primary"
+                               onchange="switchUploadSource('google-sheets')" />
+                        <span class="label-text">📊 Google Sheets</span>
                     </label>
                 </div>
+            </div>
 
-                <div class="flex gap-2">
-                    <button type="submit" class="btn btn-primary gap-2" id="upload-btn">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        Продолжить
-                    </button>
-                    <button type="button" class="btn btn-ghost gap-2" onclick="resetWorkflow()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                        Начать заново
-                    </button>
+            <!-- CSV Form -->
+            <div id="upload-source-csv">
+                <form id="upload-form" onsubmit="uploadCSV(event)" class="space-y-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">📄 Выберите CSV файл</span>
+                        </label>
+                        <input type="file" id="csv-file" accept=".csv" required class="file-input file-input-bordered file-input-primary w-full max-w-xs" />
+                        <label class="label">
+                            <span class="label-text-alt">Максимальный размер: 100 МБ. Настройка разделителя и формата — на следующем шаге.</span>
+                        </label>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary gap-2" id="upload-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            Продолжить
+                        </button>
+                        <button type="button" class="btn btn-ghost gap-2" onclick="resetWorkflow()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Начать заново
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Google Sheets Form -->
+            <div id="upload-source-google-sheets" style="display: none;">
+                <div class="alert alert-info mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Таблица должна быть публичной: <strong>Доступ по ссылке → Просмотр для всех</strong></span>
                 </div>
-            </form>
+                <form id="upload-form-google-sheets" onsubmit="uploadFromGoogleSheets(event)" class="space-y-4">
+                    <div class="form-control">
+                        <label class="label">
+                            <span class="label-text">🔗 Ссылка на Google Sheets</span>
+                        </label>
+                        <input type="url" id="google-sheets-url"
+                               placeholder="https://docs.google.com/spreadsheets/d/..."
+                               pattern=".*docs\.google\.com/spreadsheets.*"
+                               required class="input input-bordered w-full" />
+                        <label class="label">
+                            <span class="label-text-alt">Вставьте ссылку из адресной строки браузера</span>
+                        </label>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button type="submit" class="btn btn-primary gap-2" id="google-sheets-btn">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            Загрузить из Google Sheets
+                        </button>
+                        <button type="button" class="btn btn-ghost gap-2" onclick="resetWorkflow()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Начать заново
+                        </button>
+                    </div>
+                </form>
+            </div>
 
             <!-- Post-upload actions (показываются после загрузки файла) -->
             <div id="post-upload-actions" class="mt-4" style="display: none;">
@@ -1433,6 +1496,97 @@ async function loadSavedMapping(bankId) {
 }
 
 // ========== Step 2: File Upload ==========
+
+// Switch between CSV and Google Sheets upload source
+function switchUploadSource(source) {
+    const csvDiv = document.getElementById('upload-source-csv');
+    const googleSheetsDiv = document.getElementById('upload-source-google-sheets');
+
+    if (source === 'csv') {
+        csvDiv.style.display = 'block';
+        googleSheetsDiv.style.display = 'none';
+    } else {
+        csvDiv.style.display = 'none';
+        googleSheetsDiv.style.display = 'block';
+    }
+}
+
+// Upload from Google Sheets URL
+async function uploadFromGoogleSheets(event) {
+    event.preventDefault();
+
+    if (!selectedBankId) {
+        showNotification('Выберите банк', 'error');
+        return;
+    }
+
+    const urlInput = document.getElementById('google-sheets-url');
+    const url = urlInput.value.trim();
+
+    if (!url) {
+        showNotification('Введите ссылку на Google Sheets', 'error');
+        return;
+    }
+
+    // Basic validation
+    if (!url.includes('docs.google.com/spreadsheets')) {
+        showNotification('Неверный формат ссылки. Используйте ссылку на Google Sheets', 'error');
+        return;
+    }
+
+    const btn = document.getElementById('google-sheets-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading loading-spinner"></span>Загрузка...';
+
+    try {
+        const response = await fetch('/api/v1/import/google-sheets/upload', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                google_sheets_url: url,
+                bank_provider_id: selectedBankId
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            const errorMessage = typeof errorData.detail === 'string'
+                ? errorData.detail
+                : (errorData.detail?.msg || JSON.stringify(errorData.detail) || 'Ошибка загрузки');
+            throw new Error(errorMessage);
+        }
+
+        const result = await response.json();
+        uploadedFileId = result.file_id;
+
+        // Hide both upload forms
+        document.getElementById('upload-source-csv').style.display = 'none';
+        document.getElementById('upload-source-google-sheets').style.display = 'none';
+
+        // Hide radio buttons container
+        const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
+        if (radioContainer) radioContainer.style.display = 'none';
+
+        // Get CSV structure
+        await analyzeFile(uploadedFileId);
+
+        // Check if mapping exists and show appropriate buttons
+        await showPostUploadActions();
+
+        showNotification('Данные загружены из Google Sheets', 'success');
+
+    } catch (error) {
+        console.error('Google Sheets upload error:', error);
+        showNotification(`Ошибка: ${error.message}`, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg> Загрузить из Google Sheets';
+    }
+}
+
 async function uploadCSV(event) {
     event.preventDefault();
 
@@ -1476,8 +1630,12 @@ async function uploadCSV(event) {
         const result = await response.json();
         uploadedFileId = result.file_id;
 
-        // Hide upload form
-        document.getElementById('upload-form').style.display = 'none';
+        // Hide upload forms and radio buttons
+        document.getElementById('upload-source-csv').style.display = 'none';
+        document.getElementById('upload-source-google-sheets').style.display = 'none';
+        // Hide radio buttons container (first .form-control.mb-4 in step-2-upload)
+        const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
+        if (radioContainer) radioContainer.style.display = 'none';
 
         // Get CSV structure
         await analyzeFile(uploadedFileId);

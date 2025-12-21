@@ -177,6 +177,34 @@ class ParseResponse(BaseModel):
     message: str = Field(description="Success/error message")
 
 
+class GoogleSheetsUploadRequest(BaseModel):
+    """
+    Request schema for uploading from Google Sheets URL.
+
+    Used in POST /api/v1/import/google-sheets/upload endpoint.
+    Fetches public Google Sheets as CSV and creates ImportFileUpload record.
+
+    Examples:
+        >>> request = GoogleSheetsUploadRequest(
+        ...     google_sheets_url="https://docs.google.com/spreadsheets/d/1ABC.../edit#gid=0",
+        ...     bank_provider_id=1
+        ... )
+    """
+
+    google_sheets_url: str = Field(
+        min_length=10,
+        description="Public Google Sheets URL. Must be accessible without authentication.",
+        examples=[
+            "https://docs.google.com/spreadsheets/d/1ABC123/edit#gid=0",
+            "https://docs.google.com/spreadsheets/d/1ABC123/edit",
+        ],
+    )
+    bank_provider_id: int = Field(
+        gt=0,
+        description="Bank provider ID for column mapping"
+    )
+
+
 class StagingRecordResponse(BaseModel):
     """
     Response schema for staging record.
