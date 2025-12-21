@@ -208,7 +208,7 @@
                     <label class="label">
                         <span class="label-text font-medium">🏦 Счет</span>
                     </label>
-                    <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="loadPlanAnalytics()">
+                    <select id="analytics-cfo-filter" class="select select-bordered h-12 w-full" onchange="onAnalyticsCFOChange()">
                         <option value="">Все счета</option>
                         <!-- Options populated dynamically -->
                     </select>
@@ -512,6 +512,323 @@ let filters = {
     cost_center_id: null,
     search: null
 };
+
+// ============================================================================
+// FILTER SYNCHRONIZATION: Bidirectional Sync between Analytics & Filters
+// ============================================================================
+
+/**
+ * Mutex flag to prevent infinite update loops during filter synchronization.
+ * Set to true when sync is in progress, prevents cascading updates.
+ */
+let isSyncInProgress = false;
+
+/**
+ * Convert YYYY-MM month to full month date range.
+ *
+ * @param {string} yearMonth - Month in YYYY-MM format (e.g., "2025-12")
+ * @returns {{from: string, to: string}} Date range in YYYY-MM-DD format
+ *
+ * @example
+ * monthToDateRange("2025-12")
+ * // => {from: "2025-12-01", to: "2025-12-31"}
+ *
+ * monthToDateRange("2024-02")
+ * // => {from: "2024-02-01", to: "2024-02-29"} (leap year)
+ */
+function monthToDateRange(yearMonth) {
+    if (!yearMonth || !/^\d{4}-\d{2}$/.test(yearMonth)) {
+        console.warn('[monthToDateRange] Invalid yearMonth format:', yearMonth);
+        return { from: DEFAULT_DATE_FROM, to: DEFAULT_DATE_TO };
+    }
+
+    const [year, month] = yearMonth.split('-').map(Number);
+
+    // First day of month
+    const firstDay = `${year}-${String(month).padStart(2, '0')}-01`;
+
+    // Last day of month (handle February, 30-day, 31-day months)
+    const lastDayDate = new Date(year, month, 0); // Day 0 = last day of previous month
+    const lastDay = `${year}-${String(month).padStart(2, '0')}-${String(lastDayDate.getDate()).padStart(2, '0')}`;
+
+    return { from: firstDay, to: lastDay };
+}
+
+/**
+ * Convert date range to YYYY-MM month if range matches full month.
+ * Returns null if range doesn't match a complete calendar month.
+ *
+ * @param {string} dateFrom - Start date in YYYY-MM-DD format
+ * @param {string} dateTo - End date in YYYY-MM-DD format
+ * @returns {string|null} Month in YYYY-MM format or null
+ *
+ * @example
+ * dateRangeToMonth("2025-12-01", "2025-12-31") // => "2025-12"
+ * dateRangeToMonth("2025-12-05", "2025-12-31") // => null (partial month)
+ * dateRangeToMonth("2025-12-01", "2026-01-15") // => null (multi-month)
+ */
+function dateRangeToMonth(dateFrom, dateTo) {
+    if (!dateFrom || !dateTo) return null;
+
+    // Extract year-month-day from both dates
+    const fromParts = dateFrom.split('-'); // [YYYY, MM, DD]
+    const toParts = dateTo.split('-');
+
+    if (fromParts.length !== 3 || toParts.length !== 3) return null;
+
+    const [fromYear, fromMonth, fromDay] = fromParts;
+    const [toYear, toMonth, toDay] = toParts;
+
+    // Check if same year-month
+    if (fromYear !== toYear || fromMonth !== toMonth) return null;
+
+    // Check if starts on 1st
+    if (fromDay !== '01') return null;
+
+    // Check if ends on last day of month
+    const year = parseInt(fromYear);
+    const month = parseInt(fromMonth);
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
+
+    if (parseInt(toDay) !== lastDayOfMonth) return null;
+
+    return `${fromYear}-${fromMonth}`;
+}
+
+/**
+ * Synchronize Filters Section → Analytics Section.
+ * Updates analytics UI elements and reloads charts if values changed.
+ *
+ * @param {Object} options - Synchronization options
+ * @param {boolean} options.skipReload - Skip chart reload (default: false)
+ * @param {boolean} options.updateMonth - Update analytics month from date range (default: true)
+ */
+async function syncFiltersToAnalytics(options = {}) {
+    const { skipReload = false, updateMonth = true } = options;
+
+    // Prevent infinite loops
+    if (isSyncInProgress) {
+        console.log('[syncFiltersToAnalytics] Sync already in progress, skipping');
+        return;
+    }
+
+    isSyncInProgress = true;
+    let needsReload = false;
+
+    try {
+        console.log('[syncFiltersToAnalytics] Starting sync Filters → Analytics');
+
+        // 1. Sync month from date range
+        if (updateMonth) {
+            const monthFromRange = dateRangeToMonth(filters.date_from, filters.date_to);
+
+            if (monthFromRange && monthFromRange !== currentAnalyticsMonth) {
+                console.log('[syncFiltersToAnalytics] Month changed:', currentAnalyticsMonth, '→', monthFromRange);
+
+                // Update month selection
+                currentAnalyticsMonth = monthFromRange;
+
+                // Update button styles
+                const buttons = document.querySelectorAll('#analytics-month-buttons button');
+                buttons.forEach(btn => {
+                    const isSelected = btn.dataset.month === monthFromRange;
+                    btn.classList.toggle('btn-primary', isSelected);
+                    btn.classList.toggle('btn-outline', !isSelected);
+                });
+
+                needsReload = true;
+            } else if (!monthFromRange && currentAnalyticsMonth) {
+                console.log('[syncFiltersToAnalytics] Partial/multi-month range detected, clearing month selection');
+                // Partial month or multi-month range - clear all button selections
+                const buttons = document.querySelectorAll('#analytics-month-buttons button');
+                buttons.forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline');
+                });
+            }
+        }
+
+        // 2. Sync article type
+        const filterArticleType = document.getElementById('filter-article-type');
+        const analyticsArticleType = document.getElementById('analytics-article-type');
+
+        if (filterArticleType && analyticsArticleType) {
+            const newValue = filterArticleType.value || '';
+            if (analyticsArticleType.value !== newValue) {
+                console.log('[syncFiltersToAnalytics] Article type changed:', analyticsArticleType.value, '→', newValue);
+                analyticsArticleType.value = newValue;
+                // Reload article dropdown for analytics (filtered by type)
+                await loadAnalyticsArticleFilter(newValue || null);
+                needsReload = true;
+            }
+        }
+
+        // 3. Sync article (category)
+        const filterArticle = document.getElementById('filter-article');
+        const analyticsArticle = document.getElementById('analytics-article');
+
+        if (filterArticle && analyticsArticle) {
+            const newValue = filterArticle.value || '';
+            // Check if option exists in analytics dropdown
+            const optionExists = analyticsArticle.querySelector(`option[value="${newValue}"]`);
+            if (optionExists && analyticsArticle.value !== newValue) {
+                console.log('[syncFiltersToAnalytics] Article changed:', analyticsArticle.value, '→', newValue);
+                analyticsArticle.value = newValue;
+                needsReload = true;
+            } else if (!optionExists && newValue) {
+                console.log('[syncFiltersToAnalytics] Article option not found in analytics dropdown, skipping');
+            }
+        }
+
+        // 4. Sync financial center
+        const filterFC = document.getElementById('filter-financial-center');
+        const analyticsCFO = document.getElementById('analytics-cfo-filter');
+
+        if (filterFC && analyticsCFO) {
+            const newValue = filterFC.value || '';
+            if (analyticsCFO.value !== newValue) {
+                console.log('[syncFiltersToAnalytics] CFO changed:', analyticsCFO.value, '→', newValue);
+                analyticsCFO.value = newValue;
+                needsReload = true;
+            }
+        }
+
+        // 5. Reload charts if any value changed
+        if (needsReload && !skipReload) {
+            console.log('[syncFiltersToAnalytics] Reloading charts...');
+            await loadPlanAnalytics();
+        } else {
+            console.log('[syncFiltersToAnalytics] No changes detected, skipping reload');
+        }
+
+    } catch (error) {
+        console.error('[syncFiltersToAnalytics] Error during sync:', error);
+    } finally {
+        isSyncInProgress = false;
+        console.log('[syncFiltersToAnalytics] Sync completed');
+    }
+}
+
+/**
+ * Synchronize Analytics Section → Filters Section.
+ * Updates filter UI elements and reloads facts table if values changed.
+ *
+ * @param {Object} options - Synchronization options
+ * @param {boolean} options.skipReload - Skip facts reload (default: false)
+ * @param {boolean} options.updateDateRange - Update date range from month (default: true)
+ */
+async function syncAnalyticsToFilters(options = {}) {
+    const { skipReload = false, updateDateRange = true } = options;
+
+    // Prevent infinite loops
+    if (isSyncInProgress) {
+        console.log('[syncAnalyticsToFilters] Sync already in progress, skipping');
+        return;
+    }
+
+    isSyncInProgress = true;
+    let needsReload = false;
+
+    try {
+        console.log('[syncAnalyticsToFilters] Starting sync Analytics → Filters');
+
+        // 1. Sync date range from month
+        if (updateDateRange && currentAnalyticsMonth) {
+            const { from, to } = monthToDateRange(currentAnalyticsMonth);
+
+            if (filters.date_from !== from || filters.date_to !== to) {
+                console.log('[syncAnalyticsToFilters] Date range changed:', filters.date_from, '-', filters.date_to, '→', from, '-', to);
+
+                // Update filters object
+                filters.date_from = from;
+                filters.date_to = to;
+
+                // Update UI inputs (DD.MM.YYYY format)
+                const dateFromInput = document.getElementById('filter-date-from');
+                const dateToInput = document.getElementById('filter-date-to');
+
+                if (dateFromInput) {
+                    dateFromInput.value = BudgetShared.DateFormatter.formatForDisplay(from);
+                }
+                if (dateToInput) {
+                    dateToInput.value = BudgetShared.DateFormatter.formatForDisplay(to);
+                }
+
+                needsReload = true;
+            }
+        }
+
+        // 2. Sync article type
+        const analyticsArticleType = document.getElementById('analytics-article-type');
+        const filterArticleType = document.getElementById('filter-article-type');
+
+        if (analyticsArticleType && filterArticleType) {
+            const newValue = analyticsArticleType.value || '';
+            if (filterArticleType.value !== newValue) {
+                console.log('[syncAnalyticsToFilters] Article type changed:', filterArticleType.value, '→', newValue);
+                filterArticleType.value = newValue;
+                // Reload article dropdown for filters (filtered by type)
+                await loadArticleFilter();
+                needsReload = true;
+            }
+        }
+
+        // 3. Sync article (category)
+        const analyticsArticle = document.getElementById('analytics-article');
+        const filterArticle = document.getElementById('filter-article');
+
+        if (analyticsArticle && filterArticle) {
+            const newValue = analyticsArticle.value || '';
+            // Check if option exists in filter dropdown
+            const optionExists = filterArticle.querySelector(`option[value="${newValue}"]`);
+            if (optionExists && filterArticle.value !== newValue) {
+                console.log('[syncAnalyticsToFilters] Article changed:', filterArticle.value, '→', newValue);
+                filterArticle.value = newValue;
+                needsReload = true;
+            } else if (!optionExists && newValue) {
+                console.log('[syncAnalyticsToFilters] Article option not found in filter dropdown, skipping');
+            }
+        }
+
+        // 4. Sync financial center
+        const analyticsCFO = document.getElementById('analytics-cfo-filter');
+        const filterFC = document.getElementById('filter-financial-center');
+
+        if (analyticsCFO && filterFC) {
+            const newValue = analyticsCFO.value || '';
+            if (filterFC.value !== newValue) {
+                console.log('[syncAnalyticsToFilters] CFO changed:', filterFC.value, '→', newValue);
+                filterFC.value = newValue;
+                needsReload = true;
+            }
+        }
+
+        // 5. Update filters object for other fields
+        filters.article_type = filterArticleType?.value || null;
+        filters.article_id = filterArticle?.value || null;
+        filters.financial_center_id = filterFC?.value || null;
+
+        // 6. Reload facts table if any value changed
+        if (needsReload && !skipReload) {
+            console.log('[syncAnalyticsToFilters] Reloading facts table...');
+            currentPage = 0;
+            await loadFacts();
+            updateFilterIndicator();
+        } else {
+            console.log('[syncAnalyticsToFilters] No changes detected, skipping reload');
+        }
+
+    } catch (error) {
+        console.error('[syncAnalyticsToFilters] Error during sync:', error);
+    } finally {
+        isSyncInProgress = false;
+        console.log('[syncAnalyticsToFilters] Sync completed');
+    }
+}
+
+// ============================================================================
+// END FILTER SYNCHRONIZATION
+// ============================================================================
 
 /**
  * Обновляет badge-индикатор активных фильтров.
@@ -848,9 +1165,9 @@ document.addEventListener('DOMContentLoaded', function() {
         startInputElement: document.getElementById('filter-date-from'),
         endInputElement: document.getElementById('filter-date-to'),
         triggerContainer: '#date-range-calendar-trigger',
-        onSelect: (startDate, endDate) => {
+        onSelect: async (startDate, endDate) => {
             debugLog('Выбран диапазон дат для плана:', startDate, endDate);
-            applyFilters(); // Auto-apply on selection
+            await applyFilters(); // Auto-apply on selection (async with sync to analytics)
         }
     });
 
@@ -1381,7 +1698,7 @@ async function filterCostCenterDropdown(formSelector, financialCenterId) {
 }
 
 // Apply filters
-function applyFilters() {
+async function applyFilters() {
     filters.user_id = document.getElementById('filter-user').value || null;
     filters.article_id = document.getElementById('filter-article').value || null;
     filters.article_type = document.getElementById('filter-article-type').value || null;
@@ -1400,49 +1717,89 @@ function applyFilters() {
     filters.search = document.getElementById('filter-search').value.trim() || null;
 
     currentPage = 0;
-    loadFacts();
+    await loadFacts();
 
     // Sync UI with filter state
     AdminFactsCommon.syncFiltersUI(filters);
 
     // Обновить индикатор активных фильтров
     updateFilterIndicator();
+
+    // Sync filters to analytics section
+    await syncFiltersToAnalytics();
 }
 
 // Reset filters - восстанавливает дефолтный период (текущий месяц)
-function resetFilters() {
-    // Очистить все UI элементы фильтров (кроме дат)
-    document.getElementById('filter-user').value = '';
-    document.getElementById('filter-article').value = '';
-    document.getElementById('filter-article-type').value = '';
-    document.getElementById('filter-financial-center').value = '';
-    document.getElementById('filter-cost-center').value = '';
-    document.getElementById('filter-search').value = '';
+async function resetFilters() {
+    // Prevent sync during reset
+    isSyncInProgress = true;
 
-    // ВОССТАНОВИТЬ период по умолчанию из КОНСТАНТ
-    filters = {
-        user_id: null,
-        article_id: null,
-        article_type: null,
-        date_from: DEFAULT_DATE_FROM,
-        date_to: DEFAULT_DATE_TO,
-        financial_center_id: null,
-        cost_center_id: null,
-        search: null
-    };
+    try {
+        // Очистить все UI элементы фильтров (кроме дат)
+        document.getElementById('filter-user').value = '';
+        document.getElementById('filter-article').value = '';
+        document.getElementById('filter-article-type').value = '';
+        document.getElementById('filter-financial-center').value = '';
+        document.getElementById('filter-cost-center').value = '';
+        document.getElementById('filter-search').value = '';
 
-    // Обновить UI для дат (конвертируем YYYY-MM-DD → DD.MM.YYYY)
-    const dateFromInput = document.getElementById('filter-date-from');
-    const dateToInput = document.getElementById('filter-date-to');
-    if (dateFromInput) {
-        dateFromInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_FROM);
+        // ВОССТАНОВИТЬ период по умолчанию из КОНСТАНТ
+        filters = {
+            user_id: null,
+            article_id: null,
+            article_type: null,
+            date_from: DEFAULT_DATE_FROM,
+            date_to: DEFAULT_DATE_TO,
+            financial_center_id: null,
+            cost_center_id: null,
+            search: null
+        };
+
+        // Обновить UI для дат (конвертируем YYYY-MM-DD → DD.MM.YYYY)
+        const dateFromInput = document.getElementById('filter-date-from');
+        const dateToInput = document.getElementById('filter-date-to');
+        if (dateFromInput) {
+            dateFromInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_FROM);
+        }
+        if (dateToInput) {
+            dateToInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_TO);
+        }
+
+        // Reset analytics section
+        const today = new Date();
+        const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+        currentAnalyticsMonth = currentMonth;
+
+        // Update month buttons
+        const buttons = document.querySelectorAll('#analytics-month-buttons button');
+        buttons.forEach(btn => {
+            const isSelected = btn.dataset.month === currentMonth;
+            btn.classList.toggle('btn-primary', isSelected);
+            btn.classList.toggle('btn-outline', !isSelected);
+        });
+
+        // Reset analytics filters
+        const analyticsArticleType = document.getElementById('analytics-article-type');
+        const analyticsArticle = document.getElementById('analytics-article');
+        const analyticsCFO = document.getElementById('analytics-cfo-filter');
+
+        if (analyticsArticleType) analyticsArticleType.value = '';
+        if (analyticsArticle) analyticsArticle.value = '';
+        if (analyticsCFO) analyticsCFO.value = '';
+
+        // Reload article filter dropdown (no type filter)
+        await loadAnalyticsArticleFilter(null);
+
+    } finally {
+        isSyncInProgress = false;
     }
-    if (dateToInput) {
-        dateToInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_TO);
-    }
 
+    // Reload both sections in parallel
     currentPage = 0;
-    loadFacts();
+    await Promise.all([
+        loadFacts(),
+        loadPlanAnalytics()
+    ]);
 
     // Обновить индикатор - должен скрыться т.к. период дефолтный
     updateFilterIndicator();
@@ -3041,7 +3398,7 @@ function initAnalyticsMonthButtons() {
 }
 
 // Select analytics month
-function selectAnalyticsMonth(month, clickedBtn) {
+async function selectAnalyticsMonth(month, clickedBtn) {
     currentAnalyticsMonth = month;
 
     // Update button styles
@@ -3054,7 +3411,10 @@ function selectAnalyticsMonth(month, clickedBtn) {
     clickedBtn.classList.add('btn-primary');
 
     // Reload analytics
-    loadPlanAnalytics();
+    await loadPlanAnalytics();
+
+    // Sync to filters section
+    await syncAnalyticsToFilters();
 }
 
 // Load CFO filter options for analytics
@@ -3163,20 +3523,34 @@ async function loadAnalyticsArticleFilter(articleType = null) {
 }
 
 // Handle article type change in analytics
-function onAnalyticsArticleTypeChange() {
+async function onAnalyticsArticleTypeChange() {
     const typeSelect = document.getElementById('analytics-article-type');
     const articleType = typeSelect?.value || null;
 
     // Reload article filter with type filter
-    loadAnalyticsArticleFilter(articleType);
+    await loadAnalyticsArticleFilter(articleType);
 
     // Update categories chart with new filter
-    loadCategoriesChartData();
+    await loadCategoriesChartData();
+
+    // Sync to filters section
+    await syncAnalyticsToFilters();
 }
 
 // Handle article filter change - updates only categories chart
-function onAnalyticsArticleChange() {
-    loadCategoriesChartData();
+async function onAnalyticsArticleChange() {
+    await loadCategoriesChartData();
+
+    // Sync to filters section
+    await syncAnalyticsToFilters();
+}
+
+// Handle CFO filter change in analytics
+async function onAnalyticsCFOChange() {
+    await loadPlanAnalytics();
+
+    // Sync to filters section
+    await syncAnalyticsToFilters();
 }
 
 // Load data for categories chart only (with article type/category filters)
