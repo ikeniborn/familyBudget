@@ -43,6 +43,7 @@ from backend.app.schemas.fact import (
     FactSummary,
     FactUpdate,
 )
+from backend.app.services.cache_service import cache_service, CacheKey, CacheTTL
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
 _budget_ws_module = None
@@ -287,6 +288,9 @@ async def create_fact(
         logger.warning(f"WebSocket broadcast failed for fact {fact.id}: {e}")
         # Don't fail the request if broadcast fails
 
+    # Invalidate dashboard cache (quick stats, balances, recent)
+    await cache_service.invalidate_dashboard()
+
     return response_data
 
 
@@ -304,7 +308,7 @@ async def list_facts(
     date_to: Annotated[Optional[date], Query()] = None,
     article_id: Annotated[Optional[int], Query()] = None,
     record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[Optional[str], Query(pattern="^(income|expense)$")] = None,
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
     search: Annotated[Optional[str], Query(max_length=200)] = None,
     amount_min: Annotated[Optional[Decimal], Query(ge=0)] = None,
     amount_max: Annotated[Optional[Decimal], Query(ge=0)] = None,
@@ -323,7 +327,7 @@ async def list_facts(
     - date_to: End date (inclusive)
     - article_id: Filter by specific article
     - record_type: Filter by 'fact' (actual) or 'plan' (budget)
-    - article_type: Filter by 'income' or 'expense'
+    - article_type: Filter by 'income', 'expense', 'debit', or 'credit'
     - search: Search in description (case-insensitive)
     - amount_min: Minimum amount (inclusive)
     - amount_max: Maximum amount (inclusive)
@@ -505,7 +509,15 @@ async def get_recent_facts_html(
 
     **Returns:**
     - HTML table with recent records (facts and plans)
+
+    Caching: TTL 10s, invalidated on any fact CRUD.
     """
+    # Check cache first
+    cache_key = str(CacheKey.recent_html(limit))
+    cached_html = await cache_service.get(cache_key)
+    if cached_html is not None:
+        return cached_html
+
     try:
         # Base query - include both facts and plans
         statement = select(BudgetFact)
@@ -533,12 +545,15 @@ async def get_recent_facts_html(
 
         # If no records, return empty state message
         if not facts:
-            return """
+            empty_html = """
             <div class="alert alert-info">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                 <span>Записи не найдены. Добавьте первую запись!</span>
             </div>
             """
+            # Cache empty state (TTL 10s)
+            await cache_service.set(cache_key, empty_html, CacheTTL.SHORT)
+            return empty_html
 
         # Load articles for fact details
         article_ids = {fact.article_id for fact in facts}
@@ -694,7 +709,11 @@ async def get_recent_facts_html(
         </div>
         """
 
-        return table_html + mobile_html
+        # Cache the generated HTML (TTL 10s)
+        result_html = table_html + mobile_html
+        await cache_service.set(cache_key, result_html, CacheTTL.SHORT)
+
+        return result_html
 
     except Exception as e:
         logger.error(f"Error loading recent records: {str(e)}", exc_info=True)
@@ -796,7 +815,7 @@ async def get_facts_count(
     date_to: Annotated[Optional[date], Query()] = None,
     article_id: Annotated[Optional[int], Query()] = None,
     record_type: Annotated[Optional[str], Query(pattern="^(fact|plan)$")] = None,
-    article_type: Annotated[Optional[str], Query(pattern="^(income|expense)$")] = None,
+    article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
     financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
     cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
 ) -> dict:
@@ -813,7 +832,7 @@ async def get_facts_count(
     - date_to: End date (inclusive)
     - article_id: Filter by specific article
     - record_type: Filter by 'fact' (actual) or 'plan' (budget)
-    - article_type: Filter by 'income' or 'expense'
+    - article_type: Filter by 'income', 'expense', 'debit', or 'credit'
     - financial_center_id: Filter by financial center
     - cost_center_id: Filter by cost center
 
@@ -1074,6 +1093,9 @@ async def update_fact(
         logger.warning(f"WebSocket broadcast failed for updated fact {fact.id}: {e}")
         # Don't fail the request if broadcast fails
 
+    # Invalidate dashboard cache (quick stats, balances, recent)
+    await cache_service.invalidate_dashboard()
+
     return response_data
 
 
@@ -1164,6 +1186,9 @@ async def delete_fact(
     except Exception as e:
         logger.warning(f"WebSocket broadcast failed for deleted fact {fact_id}: {e}")
         # Don't fail the request if broadcast fails
+
+    # Invalidate dashboard cache (quick stats, balances, recent)
+    await cache_service.invalidate_dashboard()
 
     return None
 
@@ -1271,6 +1296,9 @@ async def batch_delete_facts(
     except Exception as e:
         logger.warning(f"WebSocket broadcast failed for batch delete: {e}")
         # Don't fail the request if broadcast fails
+
+    # Invalidate dashboard cache (quick stats, balances, recent)
+    await cache_service.invalidate_dashboard()
 
     return {
         "message": f"Deleted {deleted_count} facts",
