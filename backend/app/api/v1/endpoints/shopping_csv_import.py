@@ -215,9 +215,9 @@ async def preview_csv_import(
         else:
             valid_rows += 1
 
-    # Build preview rows (max 20)
+    # Build preview rows (ALL rows - filtering/pagination handled on frontend)
     preview_rows = []
-    for idx, row in enumerate(mapped_rows[:20]):
+    for idx, row in enumerate(mapped_rows):
         # Find errors for this row (filtered)
         row_errors = [
             e.to_dict()

@@ -286,11 +286,31 @@ modules:
 
   csvImporter:
     path: "frontend/web/static/js/lists/csvImporter.js"
-    description: "CSV upload for shopping lists"
+    loc: 1280
+    description: "CSV upload wizard with client-side pagination and filtering"
     endpoints:
       - "/api/v1/shopping-lists/import/analyze"
       - "/api/v1/shopping-lists/import/preview"
       - "/api/v1/shopping-lists/import/execute"
+    state:
+      previewPagination:
+        currentPage: "Current page number (1-based)"
+        rowsPerPage: "Rows per page (default: 15)"
+        rowsPerPageOptions: "[10, 15, 25, 50, 100]"
+      previewFilters:
+        store: "Store dropdown filter (exact match)"
+        group: "Group dropdown filter (exact match)"
+        product: "Product text input (substring search, case-insensitive)"
+      allPreviewRows: "All preview rows for client-side processing"
+    preview_methods:
+      getUniqueFilterValues: "Get unique values for filter dropdowns"
+      getFilteredPaginatedRows: "Apply filters and pagination"
+      handleFilterChange: "Handle filter dropdown/input changes"
+      handleRowsPerPageChange: "Handle page size change"
+      handlePageChange: "Handle page navigation"
+      clearFilters: "Reset all filters"
+      updatePreviewTable: "Re-render table only"
+      renderPreviewTableHTML: "Render table with filters and pagination controls"
 
   googleSheetsImporter:
     path: "frontend/web/static/js/lists/googleSheetsImporter.js"

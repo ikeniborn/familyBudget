@@ -16,6 +16,7 @@ meta:
     - "✅ Backend returns metadata about created references"
     - "✅ [object Object] error display (proper Pydantic error handling)"
     - "✅ HTTP 307 redirect handling (manual redirect following)"
+    - "✅ Preview table pagination and filtering (client-side)"
 
 # ===========================================================================
 # FLOW STAGES
@@ -50,6 +51,21 @@ stages:
     ux_improvements:
       toast: "Shows: 'X rows → Y rows (Z duplicates merged)'"
       alert: "Informational alert explaining aggregation behavior"
+    preview_table:
+      description: "Client-side pagination and filtering for ALL rows"
+      backend_change: "Returns ALL preview_rows (removed 20-row limit)"
+      pagination:
+        default_rows_per_page: 15
+        options: [10, 15, 25, 50, 100]
+        state: "previewPagination object in CSVImporter"
+      filters:
+        store: "Dropdown filter (exact match)"
+        group: "Dropdown filter (exact match)"
+        product: "Text input (substring search, case-insensitive)"
+        state: "previewFilters object in CSVImporter"
+      ui_location: "After 'Предпросмотр данных' header"
+      rendering: "renderPreviewTableHTML() method"
+      updates: "updatePreviewTable() for filter/pagination changes"
 
   5_execute_import:
     description: "Create shopping list items"
@@ -165,6 +181,20 @@ files:
         - "Lines 657-679: revalidateWithOptions() - added aggregation toast"
         - "Lines 817-828: renderPreviewResults() - added aggregation alert"
         - "Lines 1082-1105: executeImport() - reload dropdowns, show metadata toast"
+      preview_pagination_filtering:
+        state_properties:
+          - "previewPagination: {currentPage, rowsPerPage, rowsPerPageOptions}"
+          - "previewFilters: {store, group, product}"
+          - "allPreviewRows: [] - all rows for client-side processing"
+        methods:
+          - "getUniqueFilterValues(field) - unique values for filter dropdowns"
+          - "getFilteredPaginatedRows() - apply filters and pagination"
+          - "handleFilterChange(filterType, value) - filter change handler"
+          - "handleRowsPerPageChange(value) - page size change handler"
+          - "handlePageChange(page) - page navigation handler"
+          - "clearFilters() - reset all filters"
+          - "updatePreviewTable() - re-render table only"
+          - "renderPreviewTableHTML() - render table with filters and pagination"
 
     - path: "frontend/web/static/js/lists/googleSheetsImporter.js"
       description: "Google Sheets import"
@@ -184,6 +214,7 @@ files:
     - path: "backend/app/api/v1/endpoints/shopping_csv_import.py"
       description: "Import endpoints"
       changes:
+        - "Line 218-220: Returns ALL preview_rows (removed 20-row limit for client-side pagination)"
         - "Lines 351-353: Added created_stores_dict, created_product_groups_dict"
         - "Lines 392-427: Track created stores and product groups"
         - "Lines 507-531: Return metadata in response"
