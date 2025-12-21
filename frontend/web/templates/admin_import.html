@@ -3720,8 +3720,9 @@ async function spreadsheetFillSelection() {
 
 /**
  * Copy selected cells value
+ * Integrates with system clipboard (Clipboard API) for paste to Excel/Google Sheets
  */
-function spreadsheetCopy() {
+async function spreadsheetCopy() {
     hideSpreadsheetContextMenu();
     if (spreadsheetSelectedCells.length === 0) return;
 
@@ -3730,8 +3731,17 @@ function spreadsheetCopy() {
     const recordId = parseInt(firstCell.dataset.recordId);
     const value = getCellValue(recordId, col);
 
+    // 1. Save to internal clipboard (for paste between cells)
     spreadsheetClipboard = { col, value };
-    showSpreadsheetAction(`Скопировано: "${value || '(пусто)'}"`);
+
+    // 2. Copy to system clipboard (for paste to Excel/Google Sheets)
+    try {
+        await navigator.clipboard.writeText(String(value || ''));
+        showSpreadsheetAction(`Скопировано: "${value || '(пусто)'}"`);
+    } catch (err) {
+        // Fallback for browsers without Clipboard API permission
+        showSpreadsheetAction(`Скопировано (внутренний буфер): "${value || '(пусто)'}"`);
+    }
 }
 
 /**
