@@ -741,7 +741,7 @@ body.resizing-columns * {
                                         <option value="">МЗ</option>
                                     </select>
                                 </div>
-                                <!-- Группа: Тип записи + Кнопка -->
+                                <!-- Группа: Тип записи + Кнопки -->
                                 <div class="flex items-center gap-1">
                                     <select id="bulk-filtered-record-type" class="select select-sm w-24">
                                         <option value="">Тип</option>
@@ -750,6 +750,9 @@ body.resizing-columns * {
                                     </select>
                                     <button class="btn btn-sm btn-accent" onclick="applyBulkToFiltered()">
                                         Применить
+                                    </button>
+                                    <button class="btn btn-sm btn-error" onclick="deleteFilteredRecords()">
+                                        🗑️ Удалить
                                     </button>
                                 </div>
                             </div>
@@ -808,7 +811,7 @@ body.resizing-columns * {
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                             </svg>
-                            Импортировать выбранные записи
+                            Импортировать
                         </button>
                         <button class="btn btn-error btn-outline gap-2" onclick="clearStaging()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3175,6 +3178,50 @@ async function applyBulkToFiltered() {
             setTimeout(() => row.classList.remove('highlight-row'), 500);
         }
     });
+}
+
+/**
+ * Delete all filtered records
+ */
+async function deleteFilteredRecords() {
+    if (filteredRecords.length === 0) {
+        showNotification('Нет отфильтрованных записей для удаления', 'warning');
+        return;
+    }
+
+    const confirmed = await showConfirmDialog(
+        `Удалить ${filteredRecords.length} отфильтрованных записей?`,
+        'Подтверждение удаления'
+    );
+    if (!confirmed) return;
+
+    const ids = filteredRecords.map(r => r.id);
+
+    try {
+        showNotification('Удаление записей...', 'loading');
+
+        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ staging_ids: ids })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Ошибка удаления');
+        }
+
+        const result = await response.json();
+        showNotification(result.message || `Удалено ${ids.length} записей`, 'success');
+
+        // Reload table
+        await loadStagingTable();
+
+    } catch (error) {
+        console.error('Delete filtered error:', error);
+        showNotification(`Ошибка: ${error.message}`, 'error');
+    }
 }
 
 function updateProgressIndicator(currentStep) {
