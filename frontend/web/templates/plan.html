@@ -762,9 +762,13 @@ async function syncAnalyticsToFilters(options = {}) {
                 console.log('[syncAnalyticsToFilters] Article type changed:', filterArticleType.value, '→', newValue);
                 filterArticleType.value = newValue;
 
+                // Update filters object immediately
+                filters.article_type = newValue || null;
+
                 // Reset article filter (category list changed)
                 if (filterArticle) {
                     filterArticle.value = '';
+                    filters.article_id = null;
                     console.log('[syncAnalyticsToFilters] Article filter reset due to type change');
                 }
 
@@ -808,7 +812,11 @@ async function syncAnalyticsToFilters(options = {}) {
 
         // 6. Reload facts table if any value changed
         if (needsReload && !skipReload) {
-            console.log('[syncAnalyticsToFilters] Reloading facts table...');
+            console.log('[syncAnalyticsToFilters] Reloading facts table with filters:', {
+                article_type: filters.article_type,
+                article_id: filters.article_id,
+                financial_center_id: filters.financial_center_id
+            });
             currentPage = 0;
             await loadFacts();
             updateFilterIndicator();
