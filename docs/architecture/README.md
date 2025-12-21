@@ -12,9 +12,9 @@ Use these files to understand component relationships when planning changes or o
 | [endpoints/](./endpoints/) | API endpoints | 13 |
 | [database/](./database/) | Database objects | 9 |
 | [flows/](./flows/) | Data flow diagrams | 6 |
-| [guides/](./guides/) | Development guides | 4 |
+| [guides/](./guides/) | Development guides | 5 |
 
-**Total: 52 files**
+**Total: 53 files**
 
 ## File Format
 
@@ -257,6 +257,27 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-21**: Bidirectional Filter Synchronization (plan.html):
+  - Implemented automatic bidirectional sync between Analytics Section (charts) and Filters Section (facts table)
+  - Added mutex-based loop prevention (`isSyncInProgress`) for safe concurrent updates
+  - Created date conversion utilities: `monthToDateRange()` (YYYY-MM → full month range), `dateRangeToMonth()` (range → month if complete)
+  - Implemented `syncFiltersToAnalytics()` and `syncAnalyticsToFilters()` functions with needsReload optimization
+  - Modified 6 JavaScript handlers to async: `applyFilters()`, `resetFilters()`, `selectAnalyticsMonth()`, `onAnalyticsArticleTypeChange()`, `onAnalyticsArticleChange()`, new `onAnalyticsCFOChange()`
+  - Updated CalendarWidget callback and analytics-cfo-filter HTML to trigger synchronization
+  - **User Experience**: Selecting month in Analytics automatically updates Filters date range and reloads facts table; selecting full month via calendar automatically highlights corresponding month button in Analytics
+  - **Filter Mapping**: date_from/date_to ↔ currentAnalyticsMonth (full month only), article_type/article/financial_center (direct copy), cost_center/user/search (Filters-only)
+  - **Reset Button**: Now resets BOTH sections to defaults (current month + empty filters) and reloads both table and charts in parallel
+  - Files: `frontend/web/templates/plan.html` (+320 lines)
+- **2025-12-21**: Redis Caching Infrastructure (Phase 1):
+  - Added Redis service to docker-compose.yml (redis:7-alpine with AOF persistence)
+  - Created `backend/app/services/redis_service.py` - connection pool management
+  - Added Redis health check to `/health/detailed` endpoint
+  - Added Redis Statistics card to `/admin/monitoring` page
+  - Created `scripts/lib/redis.sh` - bash module for Redis management
+  - Updated `setup.sh` with `configure_redis()` function for interactive setup
+  - Updated `deploy.sh` to source redis.sh and verify Redis health
+  - Added `guides/redis-caching.yaml` documentation
+  - Files: redis_service.py, health.py, config.py, main.py, admin_monitoring.html, setup.sh, deploy.sh, redis.sh
 - **2025-12-21**: CSV/Google Sheets import improvements:
   - Fixed "Create missing references" option - now correctly creates stores/product groups during import
   - Added "Aggregate duplicates" option - sums quantity and merges comments for duplicate rows
