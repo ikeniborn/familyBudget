@@ -272,10 +272,12 @@ validation:
   amount:
     rules:
       - "Must be decimal number"
-      - "Must be non-zero"
+      - "Must be non-zero (check_fact_amount_not_zero constraint)"
+      - "Zero amounts are filtered out during parsing (not added to staging)"
       - "Handle thousand separators (1 000.00)"
       - "Handle comma decimals (1000,50)"
     error: "Invalid amount format"
+    filter: "Rows with amount=0 are skipped during CSV parsing"
 
   description:
     max_length: 500
