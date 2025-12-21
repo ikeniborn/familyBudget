@@ -616,8 +616,6 @@ async function syncFiltersToAnalytics(options = {}) {
     let needsReload = false;
 
     try {
-        console.log('[syncFiltersToAnalytics] Starting sync Filters → Analytics');
-
         // 1. Sync month from date range
         if (updateMonth) {
             const monthFromRange = dateRangeToMonth(filters.date_from, filters.date_to);
@@ -697,15 +695,12 @@ async function syncFiltersToAnalytics(options = {}) {
         if (needsReload && !skipReload) {
             console.log('[syncFiltersToAnalytics] Reloading charts...');
             await loadPlanAnalytics();
-        } else {
-            console.log('[syncFiltersToAnalytics] No changes detected, skipping reload');
         }
 
     } catch (error) {
         console.error('[syncFiltersToAnalytics] Error during sync:', error);
     } finally {
         isSyncInProgress = false;
-        console.log('[syncFiltersToAnalytics] Sync completed');
     }
 }
 
@@ -730,8 +725,6 @@ async function syncAnalyticsToFilters(options = {}) {
     let needsReload = false;
 
     try {
-        console.log('[syncAnalyticsToFilters] Starting sync Analytics → Filters');
-
         // 1. Sync date range from month
         if (updateDateRange && currentAnalyticsMonth) {
             const { from, to } = monthToDateRange(currentAnalyticsMonth);
@@ -768,7 +761,7 @@ async function syncAnalyticsToFilters(options = {}) {
                 console.log('[syncAnalyticsToFilters] Article type changed:', filterArticleType.value, '→', newValue);
                 filterArticleType.value = newValue;
                 // Reload article dropdown for filters (filtered by type)
-                await loadArticleFilter();
+                // Note: loadArticleFilter is part of AdminFactsCommon, called via applyFilters()
                 needsReload = true;
             }
         }
@@ -814,15 +807,12 @@ async function syncAnalyticsToFilters(options = {}) {
             currentPage = 0;
             await loadFacts();
             updateFilterIndicator();
-        } else {
-            console.log('[syncAnalyticsToFilters] No changes detected, skipping reload');
         }
 
     } catch (error) {
         console.error('[syncAnalyticsToFilters] Error during sync:', error);
     } finally {
         isSyncInProgress = false;
-        console.log('[syncAnalyticsToFilters] Sync completed');
     }
 }
 
