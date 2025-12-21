@@ -2419,12 +2419,11 @@ function openAddItemModal() {
     document.getElementById('item-id').value = '';
     document.getElementById('item-modal-title').textContent = '📝 Добавить товар';
 
-    // Reset Choices.js instances (form.reset() doesn't affect Choices.js)
-    if (window.listsManager?.choicesInstances?.store) {
-        window.listsManager.choicesInstances.store.setChoiceByValue('');
-    }
-    if (window.listsManager?.choicesInstances?.productGroup) {
-        window.listsManager.choicesInstances.productGroup.setChoiceByValue('');
+    // Reinitialize Choices.js with latest data (fixes issue after CSV import)
+    // This ensures newly created stores/groups are visible
+    if (window.listsManager) {
+        window.listsManager.initStoreChoices();
+        window.listsManager.initProductGroupChoices();
     }
 
     // Reset quantity input step to default (integer)
@@ -2471,7 +2470,14 @@ function openEditItemModal(itemId) {
     const quantityInput = document.getElementById('item-quantity');
     window.listsManager.updateQuantityInputStep(item.unit || '', quantityInput);
 
-    // Update Choices.js instances for store and product group
+    // Reinitialize Choices.js with latest data (fixes issue after CSV import)
+    // This ensures newly created stores/groups are visible
+    if (window.listsManager) {
+        window.listsManager.initStoreChoices();
+        window.listsManager.initProductGroupChoices();
+    }
+
+    // Set selected values for store and product group (after reinitialization)
     if (window.listsManager.choicesInstances.store) {
         window.listsManager.choicesInstances.store.setChoiceByValue(item.store_id.toString());
     }

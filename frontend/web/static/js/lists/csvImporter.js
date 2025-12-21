@@ -961,7 +961,7 @@ class CSVImporter {
                         <span class="label-text text-xs">🏪 Магазин</span>
                     </label>
                     <select id="preview-filter-store"
-                            class="select select-bordered select-sm"
+                            class="select select-bordered select-sm min-h-[3rem]"
                             onchange="window.${varName}.handleFilterChange('store', this.value)">
                         <option value="">Все магазины</option>
                         ${storeOptions.map(opt => `
@@ -978,7 +978,7 @@ class CSVImporter {
                         <span class="label-text text-xs">📦 Группа</span>
                     </label>
                     <select id="preview-filter-group"
-                            class="select select-bordered select-sm"
+                            class="select select-bordered select-sm min-h-[3rem]"
                             onchange="window.${varName}.handleFilterChange('group', this.value)">
                         <option value="">Все группы</option>
                         ${groupOptions.map(opt => `
@@ -996,7 +996,7 @@ class CSVImporter {
                     </label>
                     <input type="text"
                            id="preview-filter-product"
-                           class="input input-bordered input-sm"
+                           class="input input-bordered input-sm min-h-[3rem]"
                            placeholder="Поиск по названию..."
                            value="${this.escapeHtml(this.previewFilters.product)}"
                            oninput="window.${varName}.handleFilterChange('product', this.value)">
@@ -1008,7 +1008,7 @@ class CSVImporter {
                         <span class="label-text text-xs">📋 Строк на странице</span>
                     </label>
                     <select id="preview-rows-per-page"
-                            class="select select-bordered select-sm"
+                            class="select select-bordered select-sm min-h-[3rem]"
                             onchange="window.${varName}.handleRowsPerPageChange(this.value)">
                         ${rowsPerPageOptions}
                     </select>
@@ -1203,6 +1203,9 @@ class CSVImporter {
                         <span class="label-text">Пропустить дубликаты (${result.warnings.length})</span>
                     </label>
                 </div>
+                ` : ''}
+
+                <!-- Aggregate duplicates - always visible -->
                 <div class="form-control mb-4">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="aggregate-duplicates-checkbox" class="checkbox checkbox-info"
@@ -1214,7 +1217,6 @@ class CSVImporter {
                         <span class="label-text-alt text-xs opacity-70">Суммировать количество, объединить комментарии через запятую</span>
                     </label>
                 </div>
-                ` : ''}
 
                 <!-- Create missing references option -->
                 <div class="form-control mb-4">
