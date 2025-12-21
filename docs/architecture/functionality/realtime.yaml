@@ -495,3 +495,30 @@ module:
         2. Обновлён ListsManager.isOnline getter с аналогичным fallback
         3. Проверки добавлены во все методы подключения/переподключения
       status: fixed
+
+    fixed_issue_2:
+      date: "2025-12-21"
+      issue: "WebSocket переподключается при навигации в offline режиме"
+      severity: "MEDIUM"
+      description: |
+        При включении offline режима на главной странице и переходе на /lists:
+        - Global 'online' event listener пытался переподключить WebSocket
+        - Long polling продолжал делать запросы и получал 503 ошибки
+        - Console заспамливался ошибками "503 Service Unavailable"
+
+        Root cause:
+        1. Global 'online' event listener не проверял _isOfflineModeActive() перед connect()
+        2. Long polling не останавливался после множественных 503 ошибок в offline режиме
+      fix: |
+        1. Добавлена проверка _isOfflineModeActive() в global 'online' event listener:
+           - Если offline режим активен, reconnect пропускается
+           - Добавлен debugLog для отслеживания
+        2. Добавлен счётчик _consecutive503Count для отслеживания 503 ошибок:
+           - После 3 consecutive 503 + offline режим → polling останавливается
+           - Счётчик сбрасывается при успешном poll
+        3. При остановке вызывается _updateStatusIndicator() для обновления UI
+      status: fixed
+      affected_code:
+        - "budgetWSClient.js: constructor - добавлен _consecutive503Count = 0"
+        - "budgetWSClient.js: global 'online' listener - добавлена проверка _isOfflineModeActive()"
+        - "budgetWSClient.js: _pollLoop() - добавлена логика остановки при 503 + offline"

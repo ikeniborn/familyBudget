@@ -47,6 +47,7 @@ class BudgetWSClient {
         this._pollRetryCount = 0;
         this.MAX_POLL_RETRIES = 10;
         this.BASE_POLL_RETRY_DELAY = 1000;  // 1 second
+        this._consecutive503Count = 0;  // Track consecutive 503 errors for offline mode detection
 
         // Client ping for bidirectional communication
         this.pingInterval = null;
@@ -1154,6 +1155,7 @@ class BudgetWSClient {
 
             // Reset retry count on successful poll
             this._pollRetryCount = 0;
+            this._consecutive503Count = 0;  // Reset 503 counter on success
 
             // Schedule next poll
             this._pollTimeout = setTimeout(() => this._pollLoop(), 100);
@@ -1167,6 +1169,14 @@ class BudgetWSClient {
             // For HTTP 503 (server unavailable), use warn instead of error - this is expected when offline
             if (error.message && error.message.includes('503')) {
                 console.warn('[BudgetWS] Poll: server unavailable (503)');
+                // Track consecutive 503 errors - stop polling if offline mode is active
+                this._consecutive503Count++;
+                if (this._consecutive503Count >= 3 && this._isOfflineModeActive()) {
+                    debugLog('[BudgetWS] Multiple 503 errors + offline mode active, stopping poll');
+                    this._stopLongPolling();
+                    this._updateStatusIndicator();
+                    return;
+                }
             } else {
                 this._setError(`Poll: ${error.message}`);
             }
@@ -1740,6 +1750,11 @@ if (typeof window !== 'undefined') {
     window.addEventListener('online', () => {
         const client = window.budgetWSClient;
         if (client && client.enabled && !client.isConnected) {
+            // Skip reconnect if offline mode is active (user explicitly enabled offline mode)
+            if (client._isOfflineModeActive()) {
+                debugLog('[BudgetWS] Skipping reconnect - offline mode active');
+                return;
+            }
             // Reset state for clean reconnect
             client.reconnectAttempts = 0;
             client._multiTabInitialized = false;
