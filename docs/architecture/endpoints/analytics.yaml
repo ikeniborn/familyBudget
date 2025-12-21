@@ -224,6 +224,45 @@ routes:
         income: "array of decimals"
         expense: "array of decimals"
 
+  # ---------------------------------------------------------------------------
+  # WATERFALL (CASCADE DIAGRAM)
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/waterfall"
+    method: GET
+    auth: user
+    description: "Cumulative flow data for waterfall chart (cascade diagram)"
+    query_params:
+      period: "month | quarter | year (optional) - Calendar period from 1st day to today"
+      date_from: "YYYY-MM-DD (optional) - Start date for custom range (overrides period)"
+      date_to: "YYYY-MM-DD (optional) - End date for custom range (overrides period)"
+      article_id: "integer (optional) - Filter by specific article (for drill-down)"
+      cfo_id: "integer (optional) - Filter by Financial Center ID"
+    response:
+      status: 200
+      body:
+        labels: "array of period labels (e.g., 'Янв 2025', 'Фев 2025')"
+        income: "array of decimals - Income per period"
+        expense: "array of decimals - Expense per period"
+        balance: "array of decimals - Cumulative balance"
+        categories: "array of arrays - Article breakdown for drill-down (v5.1.3)"
+        initial_balance: "decimal - Starting balance from previous period"
+        period: "string - Which period type was used"
+        year: "integer - Current year"
+        article_id: "integer (nullable) - Drill-down filter if active"
+        article_name: "string (nullable) - Selected article name if active"
+    notes: |
+      Aggregation depends on period or date range:
+      - period=month: Groups by days (from 1st of month to today)
+      - period=quarter: Groups by weeks with ISO week numbers (from Q start to today)
+      - period=year: Groups by months using date_trunc('month') (from Jan 1 to today)
+      - Custom date range ≤31 days: Groups by days
+      - Custom date range 32-91 days: Groups by weeks
+      - Custom date range >91 days: Groups by months
+
+      FIX (2025-12-21): Changed period='year' to use date_trunc('month') for correct
+      monthly aggregation. Previously used Fact.fact_date which only counted
+      transactions on the 1st of each month.
+
 # Frontend
 frontend:
   pages:

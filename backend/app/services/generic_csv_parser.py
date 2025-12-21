@@ -91,6 +91,7 @@ class GenericCSVParser:
         staging_records = []
         skipped_missing = 0
         skipped_date = 0
+        skipped_zero = 0
 
         for row_num, row in enumerate(reader, start=2):  # start=2 because row 1 is header
             try:
@@ -140,6 +141,14 @@ class GenericCSVParser:
                     amount_str, number_format
                 )
 
+                # Skip zero amounts (violates check_fact_amount_not_zero constraint)
+                parsed_amount = GenericCSVParser._parse_amount(normalized_amount)
+                if parsed_amount is None or parsed_amount == 0.0:
+                    skipped_zero += 1
+                    if skipped_zero <= 3:
+                        logger.warning(f"Row {row_num}: skipping zero amount '{amount_str}'")
+                    continue
+
                 # Build staging record
                 staging_record = {
                     "user_id": user_id,
@@ -165,7 +174,8 @@ class GenericCSVParser:
         logger.info(
             f"Parsing complete: {len(staging_records)} records parsed, "
             f"{skipped_missing} skipped (missing fields), "
-            f"{skipped_date} skipped (invalid date)"
+            f"{skipped_date} skipped (invalid date), "
+            f"{skipped_zero} skipped (zero amount)"
         )
 
         return staging_records

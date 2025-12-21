@@ -581,6 +581,14 @@ async def execute_import(
                 f"Invalid amount format '{record.amount_string}' in record {record.id}"
             )
 
+        # Validate amount is non-zero (check_fact_amount_not_zero constraint)
+        if amount == 0:
+            raise HTTPException(
+                400,
+                f"Zero amount in staging record {record.id} ('{record.amount_string}'). "
+                "Zero amounts are not allowed."
+            )
+
         # Build final description: budget_description or description + user_comment (via period)
         base_description = record.budget_description or record.description or ""
         if record.user_comment:

@@ -1709,7 +1709,7 @@ async def get_waterfall_data(
             else:  # year
                 # Current calendar year (from Jan 1 to today)
                 start_date, end_date = get_current_calendar_year(today)
-                group_by_expr = Fact.fact_date
+                group_by_expr = func.date_trunc("month", Fact.fact_date)
                 label_format = "month"  # Group by months
         else:
             raise HTTPException(400, "Укажите period или date_from/date_to")

@@ -149,22 +149,44 @@ routes:
   # ---------------------------------------------------------------------------
   # GOOGLE SHEETS
   # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/google-sheets/upload"
+    method: POST
+    auth: user
+    description: "Upload data from public Google Sheets URL (alternative to CSV file upload)"
+    request:
+      content_type: "application/json"
+      body:
+        google_sheets_url: "string (public Google Sheets URL, e.g. https://docs.google.com/spreadsheets/d/ID/edit#gid=0)"
+        bank_provider_id: "integer (required, bank provider for column mapping)"
+    response:
+      status: 201
+      body:
+        file_id: "integer (ImportFileUpload record ID)"
+        file_name: "string (generated filename based on spreadsheet ID)"
+        bank_provider_id: "integer"
+        status: "string (analyzed)"
+    errors:
+      - status: 404
+        detail: "Bank provider not found"
+      - status: 400
+        detail: "Google Sheets URL validation errors"
+      - status: 403
+        detail: "Google Sheets не публична (requires public sharing)"
+    service:
+      $ref: "../functionality/csv-import.yaml#/module/services/2"
+    notes: |
+      - Parses Google Sheets URL to extract spreadsheet_id and sheet_gid
+      - Fetches public sheet as CSV via Google's export endpoint
+      - Saves CSV to temp file and creates ImportFileUpload record
+      - Returns same response as /import/upload for workflow consistency
+      - Subsequent steps (mapping, preview, execute) work identically
+
   - path: "/api/v1/import/google-sheets"
     method: POST
     auth: user
-    description: "Import from Google Sheets"
-    request:
-      body:
-        sheet_url: "string (Google Sheets URL)"
-        sheet_name: "string (optional, default: first sheet)"
-        column_mapping:
-          # same as CSV
-    response:
-      status: 200
-      body:
-        # same as CSV preview/execute
-    service:
-      $ref: "../functionality/csv-import.yaml#/module/services/2"
+    deprecated: true
+    description: "[DEPRECATED] Use /google-sheets/upload instead"
+    notes: "Legacy endpoint, replaced by /google-sheets/upload for consistency"
 
   # ---------------------------------------------------------------------------
   # BANK PROVIDERS

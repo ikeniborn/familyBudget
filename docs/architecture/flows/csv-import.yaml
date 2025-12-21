@@ -3,12 +3,13 @@
 
 meta:
   name: "CSV Import"
-  trigger: "User uploads CSV file"
+  trigger: "User uploads CSV file or provides Google Sheets URL"
   actors:
     - "Web UI (import form)"
     - "Backend API"
     - "CSV Parser"
-  outcome: "BudgetFact records created from CSV"
+    - "Google Sheets Parser"
+  outcome: "BudgetFact records created from CSV or Google Sheets"
 
 # ===========================================================================
 # FLOW DIAGRAM
@@ -20,24 +21,32 @@ diagram: |
 
   ●─────────────────────────────────────────────────────────────────────────●
   │                                                                         │
-  │  STEP 1: UPLOAD                                                         │
-  │  ══════════════                                                         │
+  │  STEP 1: UPLOAD (CSV or Google Sheets)                                  │
+  │  ════════════════════════════════════                                   │
   │                                                                         │
-  │  ┌────────────┐     ┌────────────────────┐                             │
-  │  │ User       │────►│ POST /import/      │                             │
-  │  │ selects    │     │      upload        │                             │
-  │  │ CSV file   │     │ (multipart/form)   │                             │
-  │  └────────────┘     └─────────┬──────────┘                             │
-  │                               │                                         │
-  │                               ▼                                         │
-  │                    ┌────────────────────┐                               │
-  │                    │ Validate file:     │                               │
-  │                    │ - Size < 10MB      │                               │
-  │                    │ - Extension .csv   │                               │
-  │                    │ - UTF-8/CP1251     │                               │
-  │                    └─────────┬──────────┘                               │
-  │                              │                                          │
-  │                              ▼                                          │
+  │  ┌────────────────────────────────────────────────────────────┐        │
+  │  │  User selects upload source (radio buttons):               │        │
+  │  │  ○ CSV файл   ○ Google Sheets                              │        │
+  │  └─────────────────────────┬──────────────────────────────────┘        │
+  │                            │                                            │
+  │            ┌───────────────┴───────────────┐                            │
+  │            ▼                               ▼                            │
+  │  ┌─────────────────────┐      ┌──────────────────────────┐             │
+  │  │ POST /import/       │      │ POST /import/            │             │
+  │  │      upload         │      │      google-sheets/upload│             │
+  │  │ (multipart/form)    │      │ (JSON: url + bank_id)    │             │
+  │  └──────────┬──────────┘      └────────────┬─────────────┘             │
+  │             │                              │                            │
+  │             ▼                              ▼                            │
+  │  ┌─────────────────────┐      ┌──────────────────────────┐             │
+  │  │ Validate file:      │      │ Parse Google Sheets URL: │             │
+  │  │ - Size < 10MB       │      │ - Extract spreadsheet_id │             │
+  │  │ - Extension .csv    │      │ - Extract sheet_gid      │             │
+  │  │ - UTF-8/CP1251      │      │ - Fetch as CSV           │             │
+  │  └──────────┬──────────┘      └────────────┬─────────────┘             │
+  │             │                              │                            │
+  │             └──────────────┬───────────────┘                            │
+  │                            ▼                                            │
   │                    ┌────────────────────┐                               │
   │                    │ Auto-detect:       │                               │
   │                    │ - Encoding         │                               │
@@ -56,7 +65,7 @@ diagram: |
   │                              ▼                                          │
   │                    ┌────────────────────┐                               │
   │                    │ Return:            │                               │
-  │                    │ - upload_id        │                               │
+  │                    │ - file_id          │                               │
   │                    │ - detected_bank    │                               │
   │                    │ - row_count        │                               │
   │                    │ - columns[]        │                               │
@@ -263,10 +272,12 @@ validation:
   amount:
     rules:
       - "Must be decimal number"
-      - "Must be non-zero"
+      - "Must be non-zero (check_fact_amount_not_zero constraint)"
+      - "Zero amounts are filtered out during parsing (not added to staging)"
       - "Handle thousand separators (1 000.00)"
       - "Handle comma decimals (1000,50)"
     error: "Invalid amount format"
+    filter: "Rows with amount=0 are skipped during CSV parsing"
 
   description:
     max_length: 500
