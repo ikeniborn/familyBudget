@@ -1704,7 +1704,7 @@ async def get_waterfall_data(
             elif period == "quarter":
                 # Current calendar quarter (from Q start to today)
                 start_date, end_date = get_current_calendar_quarter(today)
-                group_by_expr = Fact.fact_date
+                group_by_expr = func.date_trunc("week", Fact.fact_date)
                 label_format = "week"  # Group by weeks with ISO numbers
             else:  # year
                 # Current calendar year (from Jan 1 to today)
@@ -1862,29 +1862,19 @@ async def get_waterfall_data(
 
         elif label_format == "week":
             # Для period='quarter': агрегация по календарным неделям с ISO номерами
+            # With date_trunc("week"), period_data keys are Mondays (week start dates)
+            # SQL already aggregated data by week, so we just look up by week_start
             # Generate ALL weeks in quarter range, even if no data exists
             # Find Monday of the week containing start_date
             week_start = start_date - timedelta(days=start_date.weekday())
 
             while week_start <= end_date:
-                week_end = week_start + timedelta(days=6)
-                # Don't go beyond the quarter range
-                actual_week_end = min(week_end, end_date)
-                actual_week_start = max(week_start, start_date)
-
-                # Aggregate data for this week from period_data (which is keyed by date)
-                week_income = 0.0
-                week_expense = 0.0
-                week_articles = []
-
-                # Aggregate all days in this week
-                current_date = actual_week_start
-                while current_date <= actual_week_end:
-                    day_data = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
-                    week_income += day_data["income"]
-                    week_expense += day_data["expense"]
-                    week_articles.extend(day_data.get("articles", []))
-                    current_date += timedelta(days=1)
+                # With date_trunc("week"), data is already aggregated by week in SQL
+                # period_data keys are Mondays (week start dates)
+                week_data = period_data.get(week_start, {"income": 0.0, "expense": 0.0, "articles": []})
+                week_income = week_data["income"]
+                week_expense = week_data["expense"]
+                week_articles = week_data.get("articles", [])
 
                 week_balance = week_income - week_expense
                 cumulative_balance += week_balance
