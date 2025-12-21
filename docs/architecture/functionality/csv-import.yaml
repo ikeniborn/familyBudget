@@ -56,14 +56,26 @@ module:
 
     - name: csv_validator
       path: "backend/app/services/csv_validator.py"
-      loc: 459
+      loc: 550
       functions:
         - validate_csv_data
         - validate_dates
         - validate_amounts
         - check_duplicates
-      depends_on: []
-      notes: "Data quality validation"
+        - get_or_create_store
+        - get_or_create_product_group
+      depends_on:
+        - code_generator
+        - store_history (inline)
+        - product_group_history (inline)
+        - product_group_hierarchy (inline)
+      notes: |
+        Data quality validation.
+        When create_missing_references=true:
+        - Creates Store/ProductGroup with auto-generated code (STORE-N, PGRP-N)
+        - Creates initial history records (SCD Type 2)
+        - Creates hierarchy self-reference for ProductGroup (Closure Table)
+        All within same transaction (no intermediate commits).
 
     - name: csv_column_matcher
       path: "backend/app/services/csv_column_matcher.py"
