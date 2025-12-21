@@ -1409,22 +1409,30 @@ class CSVImporter {
                     5000
                 );
 
+                // ✅ FIX: Load stores and product groups BEFORE rendering items table
+                // Otherwise new stores/groups won't be found in cache and show "N/A"
+                if (result.created_stores && result.created_stores.length > 0) {
+                    debugLog('[CSVImporter] Reloading stores (before render)...', result.created_stores);
+                    await this.listsManager.loadStores();
+                }
+
+                if (result.created_product_groups && result.created_product_groups.length > 0) {
+                    debugLog('[CSVImporter] Reloading product groups (before render)...', result.created_product_groups);
+                    await this.listsManager.loadProductGroups();
+                }
+
                 // Reload shopping list items
                 await this.listsManager.loadShoppingListItems(currentListId);
 
-                // Re-render items table
+                // Re-render items table (now with updated stores/productGroups cache)
                 this.listsManager.renderItemsTable();
 
-                // ✅ NEW: Reload stores and product groups if references were created
+                // Reinitialize Choices.js dropdowns for modal forms
                 if (result.created_stores && result.created_stores.length > 0) {
-                    debugLog('[CSVImporter] Reloading stores dropdown...', result.created_stores);
-                    await this.listsManager.loadStores();
                     this.listsManager.initStoreChoices();
                 }
 
                 if (result.created_product_groups && result.created_product_groups.length > 0) {
-                    debugLog('[CSVImporter] Reloading product groups dropdown...', result.created_product_groups);
-                    await this.listsManager.loadProductGroups();
                     this.listsManager.initProductGroupChoices();
                 }
 

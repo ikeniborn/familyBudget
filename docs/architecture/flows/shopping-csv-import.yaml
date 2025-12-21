@@ -78,8 +78,14 @@ stages:
       created_stores: "List of newly created Store objects"
       created_product_groups: "List of newly created ProductGroup objects"
     frontend_reload:
-      stores_dropdown: "loadStores() + initStoreChoices()"
-      groups_dropdown: "loadProductGroups() + initProductGroupChoices()"
+      order: "CRITICAL - must load stores/groups BEFORE rendering items table"
+      sequence:
+        1_load_stores: "loadStores() if created_stores.length > 0"
+        2_load_groups: "loadProductGroups() if created_product_groups.length > 0"
+        3_load_items: "loadShoppingListItems(currentListId)"
+        4_render_table: "renderItemsTable() - now with updated caches"
+        5_init_choices: "initStoreChoices() + initProductGroupChoices() for modal forms"
+      fix_applied: "v5.4.1 - fixed N/A display for newly created stores/groups"
 
 # ===========================================================================
 # DUPLICATE AGGREGATION
