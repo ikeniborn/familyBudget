@@ -237,7 +237,7 @@ check_deploy_dir() {
     fi
 
     # Ensure required subdirectories exist
-    local required_dirs=("data" "backups" "logs" "nginx/conf.d")
+    local required_dirs=("backups" "logs" "nginx/conf.d")
     for dir in "${required_dirs[@]}"; do
         if [[ ! -d "$DEPLOY_DIR/$dir" ]]; then
             info "Creating directory: $DEPLOY_DIR/$dir"

@@ -545,7 +545,6 @@ sudo ./install.sh
 - Устанавливает утилиты (curl, git, jq, vim, etc.)
 - Настраивает UFW firewall (SSH, HTTP, HTTPS)
 - Создает структуру директорий в `/opt/budget`:
-  - data/postgres/
   - backups/
   - logs/ (setup.log, deploy.log, nginx/)
   - uploads/
@@ -684,8 +683,9 @@ git pull origin master
 /opt/budget/.env
   permissions: 600 (только owner read/write)
 
-/opt/budget/data/postgres/
-  permissions: 700 (PostgreSQL контейнер имеет доступ через volumes)
+budget_postgres_data (Docker managed volume)
+  location: /var/lib/docker/volumes/budget_postgres_data/_data/
+  permissions: managed by Docker (no manual configuration needed)
 
 /opt/budget/backups/
   permissions: 700 (только для backup скриптов)

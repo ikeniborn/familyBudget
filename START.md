@@ -660,8 +660,8 @@ docker inspect <container-name> | grep Health -A 10
 
 **Решение:**
 ```bash
-# Проверить права на директорию
-ls -la /opt/budget/data/postgres
+# Проверить PostgreSQL Docker volume
+docker volume inspect budget_postgres_data
 
 # Проверить логи PostgreSQL
 docker compose logs postgres

@@ -547,7 +547,7 @@ sync_clean() {
     warning "Clean sync: DELETES EVERYTHING in $DEPLOY_DIR except protected files"
     warning "⚠️  This will DELETE:"
     warning "  - All code (backend/, bot/, nginx/, frontend/, scripts/)"
-    warning "  - All data (data/* including PostgreSQL database)"
+    warning "  - All Docker volumes (including PostgreSQL database)"
     warning "  - All logs (logs/* except current deploy.log)"
     warning "  - All backups (backups/)"
     warning "  - All Docker volumes and containers"
@@ -557,7 +557,7 @@ sync_clean() {
     warning "  - .npm-isolated/ (production npm environment)"
     warning "  - .migration_checksums (migration change detection)"
     warning "  - .docker_build_checksums (Docker rebuild detection)"
-    warning "  - logs/ and data/ directories (contents cleared)"
+    warning "  - logs/ directory (contents cleared)"
     warning "  - Current deploy.log (for troubleshooting)"
     echo ""
     read -p "Type 'DELETE' to confirm (all caps): " confirm
@@ -617,12 +617,7 @@ sync_clean() {
         fi
     done
 
-    # Clear data/ and logs/ contents but keep directories (needed for logging and PostgreSQL init)
-    if [[ -d "$DEPLOY_DIR/data" ]]; then
-        info "  Clearing $DEPLOY_DIR/data/* (keeping directory)"
-        rm -rf "$DEPLOY_DIR/data"/* 2>/dev/null || true
-    fi
-
+    # Clear logs/ contents but keep directory (needed for logging)
     if [[ -d "$DEPLOY_DIR/logs" ]]; then
         info "  Clearing $DEPLOY_DIR/logs/* (keeping directory for logging)"
         # Keep deploy.log but clear other logs
@@ -659,8 +654,8 @@ sync_clean() {
         --exclude='.docker_build_checksums' \
         "$repo_dir/" "$DEPLOY_DIR/" >> "$LOG_FILE" 2>&1; then
 
-        # Ensure logs/, data/, and backups/ directories exist
-        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/data" "$DEPLOY_DIR/backups" "$DEPLOY_DIR/uploads/temp" 2>/dev/null || true
+        # Ensure logs/ and backups/ directories exist
+        mkdir -p "$DEPLOY_DIR/logs" "$DEPLOY_DIR/backups" "$DEPLOY_DIR/uploads/temp" 2>/dev/null || true
 
         # Set proper permissions for backups directory
         # 755 allows root to write (backup.sh) and containers to read (health checks)
@@ -731,16 +726,16 @@ sync_code_to_deploy() {
             echo "Select sync mode:"
             echo "  [1] Mirror (rsync --delete) - RECOMMENDED"
             echo "      Removes files from /opt/budget not in repository"
-            echo "      Protected: .env, .npm-isolated/, .migration_checksums, .docker_build_checksums, backups/, data/, logs/"
+            echo "      Protected: .env, .npm-isolated/, .migration_checksums, .docker_build_checksums, backups/, logs/"
             echo ""
             echo "  [2] Update only (rsync)"
             echo "      Updates existing + adds new files"
             echo "      Old files NOT deleted (may leave artifacts)"
             echo ""
             echo "  [3] Clean + copy (DANGEROUS!)"
-            echo "      Deletes EVERYTHING (code, data/*, logs/*, backups, Docker volumes)"
+            echo "      Deletes EVERYTHING (code, logs/*, backups, Docker volumes)"
             echo "      ⚠️  DELETES PostgreSQL database and ALL data!"
-            echo "      Protected: .env, .npm-isolated/, .migration_checksums, .docker_build_checksums, logs/ and data/ directories (contents cleared)"
+            echo "      Protected: .env, .npm-isolated/, .migration_checksums, .docker_build_checksums, logs/ directory (contents cleared)"
             echo ""
             echo "  [4] Skip synchronization"
             echo "      Deploy without updating code"
