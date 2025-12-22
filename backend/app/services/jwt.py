@@ -41,7 +41,7 @@ settings = get_settings()
 # JWT Configuration
 ALGORITHM = "HS256"
 SECRET_KEY = settings.JWT_SECRET
-ACCESS_TOKEN_EXPIRE_DAYS = settings.JWT_EXPIRY_DAYS
+ACCESS_TOKEN_EXPIRE_DAYS = settings.JWT_EXPIRE_DAYS
 REFRESH_TOKEN_EXPIRE_DAYS = 30  # Refresh tokens live longer
 
 
@@ -65,7 +65,7 @@ def create_access_token(user_id: int, telegram_id: int) -> str:
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
 
     Notes:
-        - Token lifetime: settings.JWT_EXPIRY_DAYS (default 7 days)
+        - Token lifetime: settings.JWT_EXPIRE_DAYS (default 7 days)
         - Algorithm: HS256
         - Claims included: user_id (legacy), telegram_id (SCD Type 2 safe), exp, iat
         - telegram_id is the stable business key used to lookup users across SCD Type 2 versions

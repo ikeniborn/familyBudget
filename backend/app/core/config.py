@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 
     # JWT
     JWT_SECRET: str
-    JWT_EXPIRY_DAYS: int = 7
+    JWT_EXPIRE_DAYS: int = 7
 
     # Telegram
     TELEGRAM_BOT_TOKEN: str
@@ -55,6 +55,7 @@ class Settings(BaseSettings):
 
     # Logging
     LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: str = "json"  # "json" or "text"
 
     # Timezone (IANA format, e.g., "Europe/Moscow", "UTC")
     # System timezone for scheduler jobs and default for new users
@@ -147,11 +148,11 @@ class Settings(BaseSettings):
         """
         if "*" in v:
             raise ValueError(
-                "Wildcard CORS not allowed. Specify exact origins in ALLOWED_ORIGINS env var."
+                "Wildcard CORS not allowed. Specify exact origins in CORS_ORIGINS env var."
             )
         if not v:
             raise ValueError(
-                "CORS_ORIGINS cannot be empty. Specify at least one origin in ALLOWED_ORIGINS env var."
+                "CORS_ORIGINS cannot be empty. Specify at least one origin in CORS_ORIGINS env var."
             )
         return v
 

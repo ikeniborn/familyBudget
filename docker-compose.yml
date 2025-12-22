@@ -98,6 +98,7 @@ services:
       --maxmemory-policy allkeys-lru
       --appendonly yes
       --appendfsync everysec
+      --requirepass "${REDIS_PASSWORD}"
     volumes:
       - redis_data:/data
     # Port 6379 is exposed on host, but access is controlled by UFW firewall
@@ -107,7 +108,7 @@ services:
     networks:
       - familybudget
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -168,10 +169,7 @@ services:
       # Admin
       ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:?ADMIN_TELEGRAM_ID is required}
 
-      # CORS
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8000,https://${DOMAIN}}
-      # SECURITY FIX: Pass CORS_ORIGINS as JSON array for Pydantic Settings
-      # Format: JSON array of strings (required by Pydantic list[str] parsing)
+      # CORS (JSON array format for Pydantic Settings)
       CORS_ORIGINS: ${CORS_ORIGINS:-["https://${DOMAIN}","https://web.telegram.org","https://oauth.telegram.org"]}
 
       # Domain
@@ -192,7 +190,7 @@ services:
       MAX_CONNECTIONS: ${MAX_CONNECTIONS:-100}
 
       # Redis (Caching & WebSocket Sync)
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       REDIS_CACHE_TTL_DEFAULT: ${REDIS_CACHE_TTL_DEFAULT:-60}
       REDIS_CACHE_TTL_REFERENCE: ${REDIS_CACHE_TTL_REFERENCE:-300}
       REDIS_CACHE_TTL_DASHBOARD: ${REDIS_CACHE_TTL_DASHBOARD:-30}
