@@ -216,12 +216,15 @@ routes:
         restored_count: "integer"
 
   # ===========================================================================
-  # IMPORT STAGING
+  # IMPORT STAGING (ADMIN)
+  # NOTE: User-level staging endpoints are available at /api/v1/staging
+  # Users can access their own staging records without admin privileges.
+  # These admin endpoints remain for backwards compatibility.
   # ===========================================================================
   - path: "/api/v1/admin/staging"
     method: GET
     auth: admin
-    description: "Review staged imports"
+    description: "Review staged imports (admin only)"
     response:
       status: 200
       body:

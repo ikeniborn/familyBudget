@@ -1241,7 +1241,7 @@ async function onBankSelected() {
 
 async function checkStagingAndUpdateUI() {
     try {
-        const response = await fetch('/api/v1/admin/staging', {
+        const response = await fetch('/api/v1/staging', {
             credentials: 'include'
         });
 
@@ -1291,7 +1291,7 @@ function hideStagingInfo() {
 async function proceedToUpload() {
     // Check if staging has data for selected bank
     try {
-        const response = await fetch('/api/v1/admin/staging', { credentials: 'include' });
+        const response = await fetch('/api/v1/staging', { credentials: 'include' });
         if (response.ok) {
             const stagingData = await response.json();
             const bankStagingData = stagingData.filter(r => r.bank_provider_id === selectedBankId);
@@ -1332,7 +1332,7 @@ async function skipToEnrichment() {
 async function clearStagingByBank() {
     // Clear staging records for selected bank only (silent - no notifications)
     try {
-        const response = await fetch('/api/v1/admin/staging', { credentials: 'include' });
+        const response = await fetch('/api/v1/staging', { credentials: 'include' });
         if (!response.ok) return;
 
         const stagingData = await response.json();
@@ -1345,7 +1345,7 @@ async function clearStagingByBank() {
         // Bulk delete with single API request
         const stagingIds = bankStagingData.map(r => r.id);
 
-        await fetch('/api/v1/admin/staging/bulk-delete', {
+        await fetch('/api/v1/staging/bulk-delete', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1363,7 +1363,7 @@ async function clearStagingByBank() {
 async function loadStagingTableByBank() {
     // Load staging filtered by selected bank
     try {
-        const response = await fetch('/api/v1/admin/staging', {
+        const response = await fetch('/api/v1/staging', {
             credentials: 'include'
         });
 
@@ -1393,7 +1393,7 @@ async function loadStagingTableByBank() {
 
 async function clearStaging() {
     try {
-        const response = await fetch('/api/v1/admin/staging', {
+        const response = await fetch('/api/v1/staging', {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -2069,7 +2069,7 @@ async function parseWithMapping() {
 // ========== Step 4: Enrichment ==========
 async function loadStagingTable() {
     try {
-        const response = await fetch('/api/v1/admin/staging', {
+        const response = await fetch('/api/v1/staging', {
             credentials: 'include'
         });
 
@@ -2382,7 +2382,7 @@ function createRecordTypeSelect(record) {
 
 async function updateStagingRecordType(stagingId, value) {
     try {
-        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+        const response = await fetch(`/api/v1/staging/${stagingId}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2558,7 +2558,7 @@ async function updateStagingField(stagingId, fieldName, value) {
             [fieldName]: value ? parseInt(value) : null
         };
 
-        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+        const response = await fetch(`/api/v1/staging/${stagingId}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2629,7 +2629,7 @@ async function deleteStagingRecord(stagingId) {
     if (!confirm('Удалить эту запись?')) return;
 
     try {
-        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+        const response = await fetch(`/api/v1/staging/${stagingId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
@@ -2662,7 +2662,7 @@ async function deleteSelectedRecords() {
     if (!confirmed) return;
 
     try {
-        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+        const response = await fetch('/api/v1/staging/bulk-delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -2687,7 +2687,7 @@ async function deleteSelectedRecords() {
 
 async function updateStagingComment(stagingId, comment) {
     try {
-        const response = await fetch(`/api/v1/admin/staging/${stagingId}`, {
+        const response = await fetch(`/api/v1/staging/${stagingId}`, {
             method: 'PATCH',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2722,7 +2722,7 @@ async function executeImport() {
     if (!confirm(`Импортировать ${selectedIds.length} записей в бюджет?`)) return;
 
     try {
-        const response = await fetch('/api/v1/admin/staging/import', {
+        const response = await fetch('/api/v1/staging/import', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
@@ -2835,7 +2835,7 @@ async function clearStaging() {
         // Bulk delete with single API request
         const stagingIds = recordsToDelete.map(r => r.id);
 
-        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+        const response = await fetch('/api/v1/staging/bulk-delete', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -3171,7 +3171,7 @@ async function applyBulkToFiltered() {
         try {
             showNotification('Обновление записей...', 'loading');
 
-            const response = await fetch('/api/v1/admin/staging/bulk-update', {
+            const response = await fetch('/api/v1/staging/bulk-update', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
@@ -3249,7 +3249,7 @@ async function deleteFilteredRecords() {
     try {
         showNotification('Удаление записей...', 'loading');
 
-        const response = await fetch('/api/v1/admin/staging/bulk-delete', {
+        const response = await fetch('/api/v1/staging/bulk-delete', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
@@ -4109,7 +4109,7 @@ async function applySpreadsheetUpdates(updates) {
 
         if (Object.keys(payload).length > 0) {
             try {
-                const response = await fetch(`/api/v1/admin/staging/${id}`, {
+                const response = await fetch(`/api/v1/staging/${id}`, {
                     method: 'PATCH',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
