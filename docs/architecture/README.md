@@ -269,9 +269,10 @@ When adding new components:
   - Bug: regex `[a-f0-9]{12}` expected only hex chars, but Alembic uses full alphabet `[a-z0-9]`
   - Fix: Changed to `[a-zA-Z0-9]{12}` to match all valid revision IDs
   - Files: `scripts/lib/migrations.sh:67`
-- **2025-12-22**: Transfer modal: removed `from_cost_center` field from FROM (debit) section
-  - Field not needed for transfers - cost center only relevant for income side
-  - `from_cost_center_id` now always null in database
+- **2025-12-22**: Transfer modal: removed cost center fields from both sections
+  - Removed `from_cost_center` from FROM (debit) section
+  - Removed `to_cost_center` from TO (credit) section
+  - Cost center fields not needed for transfers - both always null in database
   - Files: `modal_transfer.html`, `transfer.js`, `endpoints/transfers.yaml`
 - **2025-12-21**: Bidirectional Filter Synchronization (plan.html):
   - Implemented automatic bidirectional sync between Analytics Section (charts) and Filters Section (facts table)

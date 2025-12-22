@@ -132,20 +132,8 @@
                     </select>
                 </div>
 
-                <!-- To Cost Location (Optional) -->
-                <div class="form-control mb-2">
-                    <label class="label py-0.5">
-                        <span class="label-text text-xs">Место затрат</span>
-                    </label>
-                    <select
-                        name="to_cost_center_id"
-                        id="to_cost_center"
-                        class="select select-bordered"
-                    >
-                        <option value="">Не указано</option>
-                        <!-- Populated dynamically by loadTransferData() -->
-                    </select>
-                </div>
+                <!-- To Cost Location - REMOVED from UI (always null for transfers) -->
+                <!-- Note: to_cost_center_id is intentionally not shown and always null in DB -->
 
                 <!-- Transfer Hints for TO (income) - shown for both fact and plan transfers -->
                 <div id="transfer-to-hints" class="grid grid-cols-2 gap-1">

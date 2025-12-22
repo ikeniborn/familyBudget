@@ -601,24 +601,11 @@ async function loadTransferData() {
         allFinancialCenters = financialCenters;
         populateFinancialCenterDropdowns();
 
-        // Save all cost centers for filtering
+        // Save all cost centers for filtering (kept for potential future use)
         allCostCenters = costCenters;
 
-        // Populate Cost Centers (TO dropdown only - FROM removed from UI)
-        // Note: from_cost_center_id is always null for transfers
-        const toCCSelect = document.querySelector('#to_cost_center');
-        if (toCCSelect) {
-            // Clear existing options (keep placeholder)
-            while (toCCSelect.options.length > 1) {
-                toCCSelect.remove(1);
-            }
-            costCenters.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.id;
-                option.textContent = cc.name;
-                toCCSelect.appendChild(option);
-            });
-        }
+        // Note: Cost center dropdowns removed from transfer modal UI
+        // Both from_cost_center_id and to_cost_center_id are always null for transfers
     } catch (error) {
         console.error('[Transfer] Error loading data:', error);
         // Try cache as last resort
@@ -632,19 +619,10 @@ async function loadTransferData() {
                     populateFinancialCenterDropdowns();
                 }
 
+                // Note: Cost center dropdowns removed from transfer modal UI
+                // Both from_cost_center_id and to_cost_center_id are always null for transfers
                 if (cachedCC) {
-                    // Note: from_cost_center removed from UI - only populate TO dropdown
-                    const toCCSelect = document.querySelector('#to_cost_center');
-
-                    if (toCCSelect) {
-                        while (toCCSelect.options.length > 1) toCCSelect.remove(1);
-                        cachedCC.forEach(cc => {
-                            const option = document.createElement('option');
-                            option.value = cc.id;
-                            option.textContent = cc.name;
-                            toCCSelect.appendChild(option);
-                        });
-                    }
+                    allCostCenters = cachedCC;
                 }
             }
         } catch (cacheError) {
@@ -813,8 +791,7 @@ function setupCFOFiltering() {
             if (toCategoryTree) {
                 await toCategoryTree.updateFinancialCenter(fcId);
             }
-            // Filter TO cost center dropdown
-            await filterCostCenterDropdown('to_cost_center', fcId);
+            // Note: to_cost_center removed from UI (not needed for transfers)
             // Reload TO hints when account changes
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('to');
@@ -1030,7 +1007,7 @@ async function handleTransferSubmit(event) {
         to_financial_center_name: getSelectedText('#to_financial_center'), // For offline display
         to_article_id: parseInt(formData.get('to_article_id')),
         to_article_name: toArticleName, // For offline display
-        to_cost_center_id: formData.get('to_cost_center_id') ? parseInt(formData.get('to_cost_center_id')) : null,
+        to_cost_center_id: null,  // Removed from UI - always null for transfers
         description: formData.get('description') || null
     };
 

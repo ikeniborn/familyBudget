@@ -794,9 +794,22 @@ components:
     path: "frontend/web/templates/components/modal_transfer.html"
     type: "macro"
     description: "Transfer between accounts modal"
+    fields:
+      - "transfer_date (CalendarWidget for facts, period buttons for plans)"
+      - "from_financial_center_id (Choices.js)"
+      - "from_article_id (ChoicesCategoryTree, type=debit)"
+      - "to_financial_center_id (Choices.js)"
+      - "to_article_id (ChoicesCategoryTree, type=credit)"
+      - "amount"
+      - "description"
+    deprecated_fields:
+      - "from_cost_center_id - removed from UI (2025-12-22), always null"
+      - "to_cost_center_id - removed from UI (2025-12-22), always null"
     api_calls:
       - "/api/v1/transfers"
       - "/api/v1/financial-centers"
+      - "/api/v1/analytics/plan-hints"
+      - "/api/v1/analytics/fact-hints"
 
   modal_confirm:
     path: "frontend/web/templates/components/modal_confirm.html"
