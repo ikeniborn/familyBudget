@@ -257,6 +257,11 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-22**: modal_add_plan UI improvements:
+  - Increased select height to 3rem (h-12) for frequency_type, frequency_value_monthday, recurring_reminder_hour, recurring_reminder_minute, duration_type
+  - Replaced duration_type radio buttons with select dropdown
+  - Added clickable calendar icon to recurring_end_date input field
+  - Files: `modal_plan.html`, `plan.html`, `index.html`
 - **2025-12-22**: Plan page: moved User column after Description
   - Reordered table columns in facts table (desktop view)
   - New order: ID, Date, Account, Cost Center, Category, Amount, **Description, User**, Reminder, Recurring, Offline, Actions

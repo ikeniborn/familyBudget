@@ -3889,8 +3889,8 @@ function resetRecurringOnlyFields(modalId) {
     const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
     if (monthdaySelect) monthdaySelect.value = '1';
 
-    const indefiniteRadio = document.querySelector(`#${modalId} input[name="duration_type"][value="indefinite"]`);
-    if (indefiniteRadio) indefiniteRadio.checked = true;
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+    if (durationSelect) durationSelect.value = 'indefinite';
 
     document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
     document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
@@ -3969,6 +3969,18 @@ function initRecurringFields(modalId) {
 }
 
 /**
+ * Open calendar widget for recurring end date input
+ */
+function openRecurringEndDateCalendar(modalId) {
+    const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+    if (endDateInput) {
+        endDateInput.focus();
+        endDateInput.click();
+    }
+}
+window.openRecurringEndDateCalendar = openRecurringEndDateCalendar;
+
+/**
  * Update frequency-specific fields visibility
  */
 function updateFrequencyFields(modalId) {
@@ -3997,13 +4009,13 @@ window.updateFrequencyFields = updateFrequencyFields;
  * Update duration-specific fields visibility
  */
 function updateDurationFields(modalId) {
-    const durationType = document.querySelector(`#${modalId} input[name="duration_type"]:checked`);
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
     const occurrencesField = document.getElementById(`occurrences-field-${modalId}`);
     const endDateField = document.getElementById(`end-date-field-${modalId}`);
 
-    if (!durationType) return;
+    if (!durationSelect) return;
 
-    const type = durationType.value;
+    const type = durationSelect.value;
 
     if (occurrencesField) {
         occurrencesField.classList.toggle('hidden', type !== 'count');
@@ -4054,8 +4066,8 @@ function updateRecurringPreview(modalId) {
 
     // Build duration text
     let durationText = '';
-    const durationType = document.querySelector(`#${modalId} input[name="duration_type"]:checked`);
-    const type = durationType ? durationType.value : 'indefinite';
+    const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+    const type = durationSelect ? durationSelect.value : 'indefinite';
 
     switch (type) {
         case 'indefinite':
@@ -4101,7 +4113,8 @@ function collectRecurringSettings(modalId) {
     }
 
     // Get duration settings
-    const durationType = form.querySelector('input[name="duration_type"]:checked').value;
+    const durationSelect = form.querySelector('select[name="duration_type"]');
+    const durationType = durationSelect ? durationSelect.value : 'indefinite';
     let occurrencesCount = null;
     let endDate = null;
 

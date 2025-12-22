@@ -131,7 +131,7 @@
                     <label class="label py-0">
                         <span class="label-text text-sm">Частота</span>
                     </label>
-                    <select name="frequency_type" class="select select-bordered select-sm"
+                    <select name="frequency_type" class="select select-bordered h-12"
                             onchange="updateFrequencyFields('{{ modal_id }}')">
                         <option value="monthly">Ежемесячно</option>
                         <option value="weekly">Еженедельно</option>
@@ -162,7 +162,7 @@
                     <label class="label py-0">
                         <span class="label-text text-sm">Число месяца</span>
                     </label>
-                    <select name="frequency_value_monthday" class="select select-bordered select-sm">
+                    <select name="frequency_value_monthday" class="select select-bordered h-12">
                         {% for d in range(1, 29) %}
                         <option value="{{ d }}">{{ d }}</option>
                         {% endfor %}
@@ -175,26 +175,12 @@
                     <label class="label py-0">
                         <span class="label-text text-sm">Продолжительность</span>
                     </label>
-                    <div class="flex flex-col gap-1">
-                        <label class="label cursor-pointer justify-start gap-2 py-1">
-                            <input type="radio" name="duration_type" value="indefinite"
-                                   class="radio radio-sm radio-secondary" checked
-                                   onchange="updateDurationFields('{{ modal_id }}')" />
-                            <span class="label-text text-sm">Бессрочно</span>
-                        </label>
-                        <label class="label cursor-pointer justify-start gap-2 py-1">
-                            <input type="radio" name="duration_type" value="count"
-                                   class="radio radio-sm radio-secondary"
-                                   onchange="updateDurationFields('{{ modal_id }}')" />
-                            <span class="label-text text-sm">Количество повторений</span>
-                        </label>
-                        <label class="label cursor-pointer justify-start gap-2 py-1">
-                            <input type="radio" name="duration_type" value="end_date"
-                                   class="radio radio-sm radio-secondary"
-                                   onchange="updateDurationFields('{{ modal_id }}')" />
-                            <span class="label-text text-sm">До даты</span>
-                        </label>
-                    </div>
+                    <select name="duration_type" class="select select-bordered h-12"
+                            onchange="updateDurationFields('{{ modal_id }}')">
+                        <option value="indefinite" selected>Бессрочно</option>
+                        <option value="count">Количество повторений</option>
+                        <option value="end_date">До даты</option>
+                    </select>
                 </div>
 
                 <!-- Поле количества повторений -->
@@ -211,10 +197,20 @@
                     <label class="label py-0">
                         <span class="label-text text-sm">Дата окончания</span>
                     </label>
-                    <input type="text" name="recurring_end_date"
-                           id="recurring_end_date_{{ modal_id }}"
-                           class="input input-bordered input-sm"
-                           placeholder="ДД.ММ.ГГГГ" autocomplete="off" />
+                    <div class="relative">
+                        <input type="text" name="recurring_end_date"
+                               id="recurring_end_date_{{ modal_id }}"
+                               class="input input-bordered h-12 w-full pr-10"
+                               placeholder="ДД.ММ.ГГГГ" autocomplete="off" />
+                        <button type="button"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 text-base-content/50 hover:text-base-content cursor-pointer"
+                                onclick="openRecurringEndDateCalendar('{{ modal_id }}')">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Preview информации о расписании -->
@@ -242,14 +238,14 @@
                             <span class="label-text text-sm">Время напоминания</span>
                         </label>
                         <div class="flex items-center gap-1 justify-start">
-                            <select name="recurring_reminder_hour" class="select select-bordered select-sm w-20">
+                            <select name="recurring_reminder_hour" class="select select-bordered h-12 w-20">
                                 <option value="">--</option>
                                 {% for h in range(24) %}
                                 <option value="{{ '%02d'|format(h) }}"{% if h == 9 %} selected{% endif %}>{{ '%02d'|format(h) }}</option>
                                 {% endfor %}
                             </select>
                             <span class="text-lg font-bold">:</span>
-                            <select name="recurring_reminder_minute" class="select select-bordered select-sm w-20">
+                            <select name="recurring_reminder_minute" class="select select-bordered h-12 w-20">
                                 <option value="">--</option>
                                 {% for m in range(0, 60, 5) %}
                                 <option value="{{ '%02d'|format(m) }}"{% if m == 0 %} selected{% endif %}>{{ '%02d'|format(m) }}</option>
