@@ -3511,15 +3511,39 @@ let recurringEndDateCalendarWidget = null;
 function toggleRecurringMode(modalId) {
     const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
     const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+    const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
 
     if (checkbox && settingsDiv) {
         if (checkbox.checked) {
             settingsDiv.classList.remove('hidden');
+            // Hide one-time reminder section when recurring is enabled
+            if (onetimeReminderSection) {
+                onetimeReminderSection.classList.add('hidden');
+                // Reset one-time reminder checkbox
+                const onetimeReminderCheckbox = onetimeReminderSection.querySelector('input[name="enable_reminder"]');
+                if (onetimeReminderCheckbox) {
+                    onetimeReminderCheckbox.checked = false;
+                    toggleReminderSettings(modalId);
+                }
+            }
             // Initialize recurring fields
             initRecurringFields(modalId);
             updateRecurringPreview(modalId);
         } else {
             settingsDiv.classList.add('hidden');
+            // Show one-time reminder section when recurring is disabled
+            if (onetimeReminderSection) {
+                onetimeReminderSection.classList.remove('hidden');
+            }
+            // Reset recurring reminder checkbox
+            const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+            if (recurringReminderCheckbox) {
+                recurringReminderCheckbox.checked = false;
+                const recurringReminderSettings = document.getElementById(`recurring-reminder-settings-${modalId}`);
+                if (recurringReminderSettings) {
+                    recurringReminderSettings.classList.add('hidden');
+                }
+            }
         }
     }
 }
@@ -3576,6 +3600,17 @@ function initRecurringFields(modalId) {
     const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
     if (occurrencesInput) {
         occurrencesInput.oninput = () => updateRecurringPreview(modalId);
+    }
+
+    // Initialize recurring reminder checkbox handler
+    const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    if (recurringReminderCheckbox) {
+        recurringReminderCheckbox.onchange = () => {
+            const recurringReminderSettings = document.getElementById(`recurring-reminder-settings-${modalId}`);
+            if (recurringReminderSettings) {
+                recurringReminderSettings.classList.toggle('hidden', !recurringReminderCheckbox.checked);
+            }
+        };
     }
 }
 
@@ -3778,6 +3813,16 @@ function resetRecurringSettings(modalId) {
     // Clear end date
     const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
     if (endDateInput) endDateInput.value = '';
+
+    // Reset recurring reminder
+    const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    if (recurringReminderCheckbox) recurringReminderCheckbox.checked = false;
+    const recurringReminderSettings = document.getElementById(`recurring-reminder-settings-${modalId}`);
+    if (recurringReminderSettings) recurringReminderSettings.classList.add('hidden');
+
+    // Show one-time reminder section
+    const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
+    if (onetimeReminderSection) onetimeReminderSection.classList.remove('hidden');
 
     // Update visibility
     updateFrequencyFields(modalId);
