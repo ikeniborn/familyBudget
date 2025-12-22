@@ -1788,9 +1788,10 @@ document.addEventListener('DOMContentLoaded', function() {
             articleName = selected ? selected.name : null;
         }
 
-        // Get reminder settings BEFORE building data object
-        const enableReminder = formData.get('enable_reminder') === 'on';
-        const reminderDatetime = formData.get('reminder_datetime');
+        // Get plan mode from radio buttons
+        const planMode = formData.get('plan_mode') || 'regular';
+        const enableReminder = (planMode === 'reminder');
+        const reminderDatetime = enableReminder ? formData.get('reminder_datetime') : null;
 
         // v5.1.3: Убрано поле transaction_type - не используется для планов
         const data = {
@@ -3760,48 +3761,75 @@ function updateSaveButtonsVisibility() {
 let recurringEndDateCalendarWidget = null;
 
 /**
- * Toggle recurring mode settings visibility
+ * Toggle plan mode based on radio button selection
+ * Modes: 'regular' | 'recurring' | 'reminder'
  */
-function toggleRecurringMode(modalId) {
-    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
-    const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+function togglePlanMode(modalId) {
+    const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
+    const mode = selectedMode ? selectedMode.value : 'regular';
+
+    const recurringSettingsDiv = document.getElementById(`recurring-settings-${modalId}`);
     const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
 
-    if (checkbox && settingsDiv) {
-        if (checkbox.checked) {
-            settingsDiv.classList.remove('hidden');
-            // Hide one-time reminder section when recurring is enabled
-            if (onetimeReminderSection) {
-                onetimeReminderSection.classList.add('hidden');
-                // Reset one-time reminder checkbox
-                const onetimeReminderCheckbox = onetimeReminderSection.querySelector('input[name="enable_reminder"]');
-                if (onetimeReminderCheckbox) {
-                    onetimeReminderCheckbox.checked = false;
-                    toggleReminderSettings(modalId);
-                }
+    // Hide all panels first
+    if (recurringSettingsDiv) recurringSettingsDiv.classList.add('hidden');
+    if (onetimeReminderSection) onetimeReminderSection.classList.add('hidden');
+
+    switch (mode) {
+        case 'recurring':
+            if (recurringSettingsDiv) {
+                recurringSettingsDiv.classList.remove('hidden');
+                initRecurringFields(modalId);
+                updateRecurringPreview(modalId);
             }
-            // Initialize recurring fields
-            initRecurringFields(modalId);
-            updateRecurringPreview(modalId);
-        } else {
-            settingsDiv.classList.add('hidden');
-            // Show one-time reminder section when recurring is disabled
+            break;
+
+        case 'reminder':
             if (onetimeReminderSection) {
                 onetimeReminderSection.classList.remove('hidden');
+                initReminderCalendarWidget(modalId);
             }
-            // Reset recurring reminder checkbox
-            const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
-            if (recurringReminderCheckbox) {
-                recurringReminderCheckbox.checked = false;
-                const recurringReminderSettings = document.getElementById(`recurring-reminder-settings-${modalId}`);
-                if (recurringReminderSettings) {
-                    recurringReminderSettings.classList.add('hidden');
-                }
-            }
-        }
+            break;
+
+        case 'regular':
+        default:
+            // Both panels hidden - reset fields
+            resetRecurringOnlyFields(modalId);
+            resetReminderFields(modalId);
+            break;
     }
 }
-window.toggleRecurringMode = toggleRecurringMode;
+window.togglePlanMode = togglePlanMode;
+
+/**
+ * Reset only recurring-specific fields (not the mode selector)
+ */
+function resetRecurringOnlyFields(modalId) {
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) frequencySelect.value = 'monthly';
+
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach((btn, i) => btn.classList.toggle('btn-active', i === 0));
+
+    const weekdayHidden = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+    if (weekdayHidden) weekdayHidden.value = '0';
+
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) monthdaySelect.value = '1';
+
+    const indefiniteRadio = document.querySelector(`#${modalId} input[name="duration_type"][value="indefinite"]`);
+    if (indefiniteRadio) indefiniteRadio.checked = true;
+
+    document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
+    document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
+
+    const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    if (recurringReminderCheckbox) {
+        recurringReminderCheckbox.checked = false;
+        document.getElementById(`recurring-reminder-settings-${modalId}`)?.classList.add('hidden');
+    }
+}
+window.resetRecurringOnlyFields = resetRecurringOnlyFields;
 
 /**
  * Initialize recurring fields (weekday buttons, calendar widget)
@@ -3982,8 +4010,8 @@ window.updateRecurringPreview = updateRecurringPreview;
  * @returns {Object|null} Recurring settings or null if not recurring
  */
 function collectRecurringSettings(modalId) {
-    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
-    if (!checkbox || !checkbox.checked) {
+    const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
+    if (!selectedMode || selectedMode.value !== 'recurring') {
         return null;
     }
 
@@ -4028,55 +4056,21 @@ window.collectRecurringSettings = collectRecurringSettings;
  * Reset recurring settings form
  */
 function resetRecurringSettings(modalId) {
-    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
-    if (checkbox) checkbox.checked = false;
+    // Reset to 'regular' mode (default)
+    const regularRadio = document.querySelector(`#${modalId} input[name="plan_mode"][value="regular"]`);
+    if (regularRadio) regularRadio.checked = true;
 
+    // Hide both panels
     const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
     if (settingsDiv) settingsDiv.classList.add('hidden');
-
-    // Reset frequency to monthly
-    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
-    if (frequencySelect) frequencySelect.value = 'monthly';
-
-    // Reset weekday selection
-    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
-    weekdayButtons.forEach((btn, i) => {
-        btn.classList.toggle('btn-active', i === 0);
-    });
-    const weekdayHidden = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
-    if (weekdayHidden) weekdayHidden.value = '0';
-
-    // Reset monthday to 1
-    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
-    if (monthdaySelect) monthdaySelect.value = '1';
-
-    // Reset duration to indefinite
-    const indefiniteRadio = document.querySelector(`#${modalId} input[name="duration_type"][value="indefinite"]`);
-    if (indefiniteRadio) indefiniteRadio.checked = true;
-
-    // Hide count and end_date fields
-    const occurrencesField = document.getElementById(`occurrences-field-${modalId}`);
-    if (occurrencesField) occurrencesField.classList.add('hidden');
-    const endDateField = document.getElementById(`end-date-field-${modalId}`);
-    if (endDateField) endDateField.classList.add('hidden');
-
-    // Clear occurrences count
-    const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
-    if (occurrencesInput) occurrencesInput.value = '';
-
-    // Clear end date
-    const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
-    if (endDateInput) endDateInput.value = '';
-
-    // Reset recurring reminder
-    const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
-    if (recurringReminderCheckbox) recurringReminderCheckbox.checked = false;
-    const recurringReminderSettings = document.getElementById(`recurring-reminder-settings-${modalId}`);
-    if (recurringReminderSettings) recurringReminderSettings.classList.add('hidden');
-
-    // Show one-time reminder section
     const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
-    if (onetimeReminderSection) onetimeReminderSection.classList.remove('hidden');
+    if (onetimeReminderSection) onetimeReminderSection.classList.add('hidden');
+
+    // Reset recurring fields
+    resetRecurringOnlyFields(modalId);
+
+    // Reset reminder fields
+    resetReminderFields(modalId);
 
     // Update visibility
     updateFrequencyFields(modalId);

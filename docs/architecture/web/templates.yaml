@@ -839,6 +839,29 @@ components:
     path: "frontend/web/templates/components/modal_plan.html"
     type: "macro"
     description: "Budget plan creation modal"
+    plan_mode_selector:
+      type: "radio_group"
+      name: "plan_mode"
+      description: "Mutually exclusive plan mode selection (replaces toggle + checkbox)"
+      options:
+        - value: "regular"
+          label: "Обычный план"
+          description: "Default mode - no recurring, no reminder"
+          default: true
+        - value: "recurring"
+          label: "Регулярный платеж"
+          description: "Shows recurring payment settings panel"
+        - value: "reminder"
+          label: "Напоминание"
+          description: "Shows reminder date/time picker panel"
+      behavior:
+        - "Only one mode can be selected at a time"
+        - "Switching modes hides previous panel and shows new one"
+        - "Reset to 'regular' clears both panels' fields"
+      js_function: "togglePlanMode(modalId)"
+      panels:
+        recurring: "recurring-settings-{modalId}"
+        reminder: "onetime-reminder-section-{modalId}"
     api_calls:
       - "/api/v1/facts"
       - "/api/v1/analytics/plan-hints"

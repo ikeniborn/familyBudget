@@ -92,17 +92,36 @@
                           placeholder="Комментарий" rows="1"></textarea>
             </div>
 
-            <!-- Повторение и напоминание -->
-            <div class="divider text-xs opacity-70 my-2">Повторение и напоминание</div>
+            <!-- Режим плана -->
+            <div class="divider text-xs opacity-70 my-2">Режим плана</div>
 
-            <!-- Toggle для регулярного платежа -->
+            <!-- Радио-кнопки выбора режима: обычный / регулярный / напоминание -->
             <div class="form-control">
-                <label class="label py-1 cursor-pointer justify-start gap-2">
-                    <input type="checkbox" name="is_recurring"
-                           class="toggle toggle-secondary toggle-sm"
-                           onchange="toggleRecurringMode('{{ modal_id }}')" />
-                    <span class="label-text font-semibold">Регулярный платеж</span>
-                </label>
+                <div class="flex flex-col gap-1">
+                    <!-- Обычный план (по умолчанию) -->
+                    <label class="label cursor-pointer justify-start gap-2 py-1">
+                        <input type="radio" name="plan_mode" value="regular"
+                               class="radio radio-sm radio-secondary" checked
+                               onchange="togglePlanMode('{{ modal_id }}')" />
+                        <span class="label-text">Обычный план</span>
+                    </label>
+
+                    <!-- Регулярный платеж -->
+                    <label class="label cursor-pointer justify-start gap-2 py-1">
+                        <input type="radio" name="plan_mode" value="recurring"
+                               class="radio radio-sm radio-secondary"
+                               onchange="togglePlanMode('{{ modal_id }}')" />
+                        <span class="label-text font-semibold">Регулярный платеж</span>
+                    </label>
+
+                    <!-- Напоминание -->
+                    <label class="label cursor-pointer justify-start gap-2 py-1">
+                        <input type="radio" name="plan_mode" value="reminder"
+                               class="radio radio-sm radio-secondary"
+                               onchange="togglePlanMode('{{ modal_id }}')" />
+                        <span class="label-text">Напоминание</span>
+                    </label>
+                </div>
             </div>
 
             <!-- Настройки регулярного платежа (скрыты по умолчанию) -->
@@ -243,16 +262,8 @@
             </div>
 
             <!-- Напоминание для разового платежа (дата + время) -->
-            <div id="onetime-reminder-section-{{ modal_id }}">
-                <div class="form-control mt-2">
-                    <label class="label py-1 cursor-pointer justify-start gap-2">
-                        <input type="checkbox" name="enable_reminder" class="checkbox checkbox-sm checkbox-primary"
-                               onchange="toggleReminderSettings('{{ modal_id }}')" />
-                        <span class="label-text">Установить напоминание</span>
-                    </label>
-                </div>
-
-                <div id="reminder-settings-{{ modal_id }}" class="hidden space-y-2 p-3 bg-base-200 rounded-lg">
+            <div id="onetime-reminder-section-{{ modal_id }}" class="hidden">
+                <div id="reminder-settings-{{ modal_id }}" class="space-y-2 p-3 bg-base-200 rounded-lg">
                     <div class="form-control">
                         <label class="label py-1">
                             <span class="label-text">Дата и время напоминания</span>
