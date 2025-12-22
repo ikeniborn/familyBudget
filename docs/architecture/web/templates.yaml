@@ -54,26 +54,43 @@ templates:
 
     pwa_splash_screen:
       id: "pwa-splash"
-      description: "Welcome screen for PWA with app icon and loading animation"
+      description: "Welcome screen for PWA with centered app icon (no loader)"
       behavior:
-        - "Displays immediately when PWA opens from home screen"
+        - "iOS: Native splash image via apple-touch-startup-image (instant)"
+        - "Android: Native splash from manifest.json (instant)"
+        - "HTML splash provides smooth transition after native splash"
         - "Only shown in standalone mode (not in regular browser)"
-        - "Minimum display time: 2 seconds"
-        - "Waits for window.load event if page loads slower"
+        - "Minimum display time: 500ms (reduced - native splash provides delay)"
+        - "Waits for BOTH CSS load (data-css-loaded) and page load"
         - "Smooth fade-out transition (300ms)"
         - "Removed from DOM after transition"
+      ios_splash_images:
+        directory: "frontend/web/static/icons/splash/"
+        generated_by: "scripts/generate_pwa_icons.sh"
+        sizes:
+          - "750x1334 (iPhone 7/8/SE)"
+          - "1242x2208 (iPhone 7+/8+)"
+          - "1125x2436 (iPhone X/XS/11 Pro)"
+          - "828x1792 (iPhone XR/11)"
+          - "1242x2688 (iPhone XS Max/11 Pro Max)"
+          - "1080x2340 (iPhone 12 mini/13 mini)"
+          - "1170x2532 (iPhone 12-14)"
+          - "1284x2778 (iPhone 12-14 Pro Max)"
+          - "1179x2556 (iPhone 14/15 Pro)"
+          - "1290x2796 (iPhone 14/15 Pro Max)"
       css:
-        location: "inline in <head> (for immediate render before DaisyUI loads)"
+        main_css: "tailwind-daisyui.min.css loaded via rel=preload (non-blocking)"
+        splash_css: "inline in <head> (for immediate render before DaisyUI loads)"
         features:
           - "Full-screen fixed overlay (z-index: 99999)"
           - "Gradient background with light/dark mode fallbacks"
-          - "Icon with bounce animation"
-          - "Inline CSS spinner (DaisyUI-independent)"
+          - "Icon with bounce animation (no loader)"
           - "Reduced motion support (prefers-reduced-motion)"
       js:
         location: "inline immediately after splash HTML element"
-        min_display_time: "2000ms"
+        min_display_time: "500ms"
         pwa_detection: "display-mode: standalone OR navigator.standalone"
+        css_load_detection: "data-css-loaded attribute on <html>"
 
     mobile_menu:
       id: "mobile-menu-dropdown"

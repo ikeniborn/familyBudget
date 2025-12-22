@@ -257,14 +257,17 @@ When adding new components:
 
 ## Recent Changes
 
-- **2025-12-22**: PWA Splash Screen:
-  - Added welcome screen with app icon and loading animation for PWA launch
-  - Only displayed in standalone mode (installed PWA from home screen)
-  - Minimum 2 second display time, waits for page load if slower
-  - Smooth fade-out transition (300ms) with reduced motion support
-  - Inline CSS/JS for immediate render before external stylesheets load
-  - Light/dark mode fallbacks for when DaisyUI CSS not yet loaded
-  - Files: `frontend/web/templates/base.html`, `docs/architecture/web/templates.yaml`
+- **2025-12-22**: PWA Splash Screen - Instant Display Fix:
+  - **Problem**: Splash appeared after ~2s delay due to render-blocking CSS (174KB tailwind-daisyui.min.css)
+  - **iOS Native Splash**: Added 10 `apple-touch-startup-image` links for iPhone 7+ (instant display before HTML loads)
+  - **Deferred CSS**: Changed to `rel="preload"` with `onload` callback for non-blocking load
+  - **CSS Load Detection**: MutationObserver watches for `data-css-loaded` attribute on `<html>`
+  - **Simplified UI**: Removed loader animation, only icon remains on splash
+  - **Faster Timing**: Reduced MIN_DISPLAY_TIME from 2000ms to 500ms (iOS native provides delay)
+  - **Service Worker**: Added 5 most common iPhone splash images to STATIC_CACHE for precaching
+  - **Icon Generator**: Added `generate_splash()` function to `scripts/generate_pwa_icons.sh`
+  - Files: `base.html`, `sw.js`, `generate_pwa_icons.sh`, `templates.yaml`
+  - Generated: `frontend/web/static/icons/splash/` (10 PNG files, 40-88KB each)
 - **2025-12-22**: Fixed deploy script regex for Alembic head revision detection
   - Bug: regex `[a-f0-9]{12}` expected only hex chars, but Alembic uses full alphabet `[a-z0-9]`
   - Fix: Changed to `[a-zA-Z0-9]{12}` to match all valid revision IDs

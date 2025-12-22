@@ -24,8 +24,27 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
 
-    <!-- Tailwind CSS + DaisyUI (Local Build) -->
-    <link rel="stylesheet" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER">
+    <!-- iOS Splash Screens (iPhone 7+, portrait only) -->
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1080x2340.png" media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1170x2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1284x2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
+
+    <!-- Tailwind CSS + DaisyUI (Deferred for instant splash) -->
+    <link rel="preload" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER"></noscript>
+    <script>
+        // Mark CSS as loaded when stylesheet is ready
+        document.querySelector('link[rel="preload"][as="style"]').onload = function() {
+            document.documentElement.setAttribute('data-css-loaded', 'true');
+        };
+    </script>
 
     <!-- Custom Styles -->
     <style>
@@ -194,18 +213,6 @@
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
             animation: splash-bounce 1s ease-in-out infinite alternate;
         }
-        /* Inline spinner styles (DaisyUI-independent) */
-        .splash-loader {
-            width: 48px;
-            height: 48px;
-            border: 4px solid #e5e7eb;
-            border-top-color: #6366f1;
-            border-radius: 50%;
-            animation: splash-spin 1s linear infinite;
-        }
-        @keyframes splash-spin {
-            to { transform: rotate(360deg); }
-        }
         @keyframes splash-fade-in {
             from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
@@ -216,7 +223,7 @@
         }
         /* Reduced motion support */
         @media (prefers-reduced-motion: reduce) {
-            .splash-icon, .splash-content, .splash-loader {
+            .splash-icon, .splash-content {
                 animation: none;
             }
             .pwa-splash {
@@ -278,11 +285,10 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen flex flex-col">
-    <!-- PWA Splash Screen -->
+    <!-- PWA Splash Screen (icon only, no loader) -->
     <div id="pwa-splash" class="pwa-splash" aria-hidden="true" role="presentation">
         <div class="splash-content">
             <img src="/static/icons/icon-192.png" alt="" class="splash-icon" width="96" height="96">
-            <div class="splash-loader"></div>
         </div>
     </div>
     <script>
@@ -300,8 +306,16 @@
             return;
         }
 
-        var MIN_DISPLAY_TIME = 2000; // 2 seconds minimum
+        var MIN_DISPLAY_TIME = 500; // 500ms - iOS native splash already provides delay
         var startTime = Date.now();
+        var cssLoaded = false;
+        var pageLoaded = false;
+
+        function checkReady() {
+            if (cssLoaded && pageLoaded) {
+                hideSplash();
+            }
+        }
 
         function hideSplash() {
             var elapsed = Date.now() - startTime;
@@ -316,11 +330,29 @@
             }, remaining);
         }
 
-        // Check if page already loaded (unlikely at this point)
-        if (document.readyState === 'complete') {
-            hideSplash();
+        // Wait for CSS to load (data-css-loaded attribute on <html>)
+        if (document.documentElement.hasAttribute('data-css-loaded')) {
+            cssLoaded = true;
         } else {
-            window.addEventListener('load', hideSplash);
+            var observer = new MutationObserver(function(mutations) {
+                if (document.documentElement.hasAttribute('data-css-loaded')) {
+                    cssLoaded = true;
+                    observer.disconnect();
+                    checkReady();
+                }
+            });
+            observer.observe(document.documentElement, { attributes: true });
+        }
+
+        // Wait for page load
+        if (document.readyState === 'complete') {
+            pageLoaded = true;
+            checkReady();
+        } else {
+            window.addEventListener('load', function() {
+                pageLoaded = true;
+                checkReady();
+            });
         }
     })();
     </script>

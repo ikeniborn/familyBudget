@@ -26,7 +26,13 @@ const STATIC_CACHE = [
   '/manifest.json',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
-  '/static/icons/favicon.ico'
+  '/static/icons/favicon.ico',
+  // iOS Splash (5 most common iPhone sizes for precaching)
+  '/static/icons/splash/splash-750x1334.png',   // SE/7/8
+  '/static/icons/splash/splash-1125x2436.png',  // X/XS/11 Pro
+  '/static/icons/splash/splash-1170x2532.png',  // 12-14
+  '/static/icons/splash/splash-1179x2556.png',  // 14/15 Pro
+  '/static/icons/splash/splash-1290x2796.png'   // 14/15 Pro Max
 ];
 
 // Страницы доступные в offline режиме (только эти страницы работают без сети)

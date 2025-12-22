@@ -134,6 +134,35 @@ generate_favicon() {
     fi
 }
 
+# Функция для генерации iOS splash screen
+# Создаёт изображение с белым фоном и центрированной иконкой
+generate_splash() {
+    local width=$1
+    local height=$2
+    local output=$3
+    local bg_color="${4:-#ffffff}"  # Default white background
+
+    echo -n "  Generating $(basename "$output") (${width}x${height})... "
+
+    # Icon size: 30% of the shorter dimension
+    local shorter=$((width < height ? width : height))
+    local icon_size=$((shorter * 30 / 100))
+
+    # Create solid background with centered icon
+    convert -size "${width}x${height}" "xc:${bg_color}" \
+        \( -density 300 "$INPUT_SVG" -resize "${icon_size}x${icon_size}" \) \
+        -gravity center -composite \
+        "$output"
+
+    if [[ -f "$output" ]]; then
+        local filesize=$(du -h "$output" | cut -f1)
+        echo -e "${GREEN}✓${NC} (${filesize})"
+    else
+        echo -e "${RED}✗${NC}"
+        return 1
+    fi
+}
+
 echo "Generating PWA icons..."
 echo ""
 
@@ -152,10 +181,61 @@ generate_png 180 "$ICONS_DIR/apple-touch-icon.png"
 # 5. favicon.ico (browser tab)
 generate_favicon "$ICONS_DIR/favicon.ico"
 
-# 6. icon.svg (копировать источник)
-echo -n "  Copying icon.svg... "
-cp "$INPUT_SVG" "$ICONS_DIR/icon.svg"
-echo -e "${GREEN}✓${NC}"
+# 6. icon.svg (копировать источник если нужно)
+TARGET_SVG="$ICONS_DIR/icon.svg"
+if [[ "$(realpath "$INPUT_SVG")" != "$(realpath "$TARGET_SVG" 2>/dev/null)" ]]; then
+    echo -n "  Copying icon.svg... "
+    cp "$INPUT_SVG" "$TARGET_SVG"
+    echo -e "${GREEN}✓${NC}"
+else
+    echo -e "  ${YELLOW}Skipping icon.svg copy (same file)${NC}"
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "        iOS Splash Screens (iPhone 7+)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Create splash directory
+SPLASH_DIR="$ICONS_DIR/splash"
+mkdir -p "$SPLASH_DIR"
+
+# Generate iOS splash screens for iPhone 7 and newer (portrait only)
+# Based on https://developer.apple.com/design/human-interface-guidelines/layout
+
+# iPhone 7/8/SE 2-3 (4.7" - 375x667 @2x)
+generate_splash 750 1334 "$SPLASH_DIR/splash-750x1334.png"
+
+# iPhone 7+/8+ (5.5" - 414x736 @3x)
+generate_splash 1242 2208 "$SPLASH_DIR/splash-1242x2208.png"
+
+# iPhone X/XS/11 Pro (5.8" - 375x812 @3x)
+generate_splash 1125 2436 "$SPLASH_DIR/splash-1125x2436.png"
+
+# iPhone XR/11 (6.1" LCD - 414x896 @2x)
+generate_splash 828 1792 "$SPLASH_DIR/splash-828x1792.png"
+
+# iPhone XS Max/11 Pro Max (6.5" - 414x896 @3x)
+generate_splash 1242 2688 "$SPLASH_DIR/splash-1242x2688.png"
+
+# iPhone 12 mini/13 mini (5.4" - 360x780 @3x)
+generate_splash 1080 2340 "$SPLASH_DIR/splash-1080x2340.png"
+
+# iPhone 12/12 Pro/13/13 Pro/14 (6.1" - 390x844 @3x)
+generate_splash 1170 2532 "$SPLASH_DIR/splash-1170x2532.png"
+
+# iPhone 12 Pro Max/13 Pro Max/14 Plus (6.7" - 428x926 @3x)
+generate_splash 1284 2778 "$SPLASH_DIR/splash-1284x2778.png"
+
+# iPhone 14 Pro/15/15 Pro (6.1" Dynamic Island - 393x852 @3x)
+generate_splash 1179 2556 "$SPLASH_DIR/splash-1179x2556.png"
+
+# iPhone 14 Pro Max/15 Plus/15 Pro Max (6.7" Dynamic Island - 430x932 @3x)
+generate_splash 1290 2796 "$SPLASH_DIR/splash-1290x2796.png"
+
+echo ""
+echo -e "${GREEN}✓ iOS splash screens generated!${NC}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -172,7 +252,10 @@ for file in "$ICONS_DIR/icon-192.png" \
             "$ICONS_DIR/icon-maskable-512.png" \
             "$ICONS_DIR/apple-touch-icon.png" \
             "$ICONS_DIR/favicon.ico" \
-            "$ICONS_DIR/icon.svg"; do
+            "$ICONS_DIR/icon.svg" \
+            "$SPLASH_DIR/splash-750x1334.png" \
+            "$SPLASH_DIR/splash-1170x2532.png" \
+            "$SPLASH_DIR/splash-1290x2796.png"; do
     if [[ -f "$file" ]]; then
         if [[ "$file" == *.png ]]; then
             size=$(identify -format "%wx%h" "$file")
