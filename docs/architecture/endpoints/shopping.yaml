@@ -254,7 +254,7 @@ routes:
 
   - path: "/api/v1/stores"
     method: POST
-    auth: admin
+    auth: user
     description: "Create store"
     request:
       body:
@@ -284,7 +284,7 @@ routes:
 
   - path: "/api/v1/product-groups"
     method: POST
-    auth: admin
+    auth: user
     description: "Create product group"
     request:
       body:

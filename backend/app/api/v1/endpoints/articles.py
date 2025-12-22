@@ -69,7 +69,7 @@ async def create_article(
 
     **Shared References Architecture:**
     - All articles are shared across all users
-    - Only administrators can create articles
+    - All authenticated users can create articles
     - Article is created with current user as creator (audit trail)
 
     **Validation:**
@@ -79,16 +79,8 @@ async def create_article(
 
     **Returns:**
     - 201 Created: Article created successfully
-    - 403 Forbidden: Non-admin trying to create OR parent article not found
     - 404 Not Found: Parent article not found
     """
-
-    # Check: Only admins can create articles
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create articles"
-        )
 
     # Validate: Parent article must exist and be accessible
     if article_data.parent_id:
@@ -379,7 +371,7 @@ async def update_article(
     - If is_active + other fields change: both operations execute
 
     **Shared References Architecture:**
-    - Only administrators can update articles
+    - All authenticated users can update articles
     - All articles are shared across all users
 
     **Validation:**
@@ -389,20 +381,12 @@ async def update_article(
 
     **Returns:**
     - 200 OK: Article updated (in-place update with history)
-    - 403 Forbidden: Non-admin trying to update
     - 404 Not Found: Article not found
     - 400 Bad Request: No fields provided for update
     """
     import logging
     logger = logging.getLogger(__name__)
     logger.info(f"[UPDATE_ARTICLE] ENTRY: article_id={article_id}")
-
-    # Check: Only admins can update articles
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can update articles"
-        )
 
     # Validate: At least one field provided
     update_data = article_data.model_dump(exclude_unset=True)

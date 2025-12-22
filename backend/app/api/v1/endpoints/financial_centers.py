@@ -115,15 +115,9 @@ async def create_financial_center(
     """
     Create a new financial center.
 
-    Shared references architecture: Only admins can create financial centers.
+    Shared references architecture: All authenticated users can create financial centers.
     Financial center is created with current_user as creator (audit trail).
     """
-    # Check: Only admins can create financial centers
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create financial centers"
-        )
 
     # Generate code for financial center
     from backend.app.utils.code_generator import generate_code
@@ -204,20 +198,13 @@ async def update_financial_center(
     - Creates FinancialCenterHistory snapshot (SCD Type 2 for audit)
     - FK in fact tables remain unchanged
 
-    Shared references architecture: Only admins can update financial centers.
+    Shared references architecture: All authenticated users can update financial centers.
     """
     # LOG: Request received
     logger.info(
         f"[UPDATE_FC] Request received: fc_id={financial_center_id}, "
         f"user_id={current_user.id}, data={update_data.model_dump(exclude_unset=True)}"
     )
-
-    # Check: Only admins can update financial centers
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can update financial centers",
-        )
 
     # Fetch financial center
     query = select(FinancialCenter).where(

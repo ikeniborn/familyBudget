@@ -176,16 +176,9 @@ async def create_cost_center(
     """
     Create a new cost center.
 
-    Shared references architecture: Only admins can create cost centers.
+    Shared references architecture: All authenticated users can create cost centers.
     Cost center is created with current_user as creator (audit trail).
     """
-    # Check: Only admins can create cost centers
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create cost centers"
-        )
-
     # Generate code for cost center
     from backend.app.utils.code_generator import generate_code
     generated_code = await generate_code(session, CostCenter)
@@ -315,20 +308,13 @@ async def update_cost_center(
     - Creates CostCenterHistory snapshot (SCD Type 2 for audit)
     - FK in fact tables remain unchanged
 
-    Shared references architecture: Only admins can update cost centers.
+    Shared references architecture: All authenticated users can update cost centers.
     """
     # LOG: Request received
     logger.info(
         f"[UPDATE_CC] Request received: cc_id={cost_center_id}, "
         f"user_id={current_user.id}, data={update_data.model_dump(exclude_unset=True)}"
     )
-
-    # Check: Only admins can update cost centers
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can update cost centers",
-        )
 
     # Fetch cost center
     query = select(CostCenter).where(

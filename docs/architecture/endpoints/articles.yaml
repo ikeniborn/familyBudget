@@ -28,11 +28,11 @@ routes:
       $ref: "../functionality/budget-management.yaml#/module/services/1"
 
   # ---------------------------------------------------------------------------
-  # CREATE (ADMIN ONLY)
+  # CREATE (ALL USERS)
   # ---------------------------------------------------------------------------
   - path: "/api/v1/articles"
     method: POST
-    auth: admin
+    auth: user
     description: "Create new article"
     request:
       body:
@@ -81,11 +81,11 @@ routes:
         detail: "Article not found"
 
   # ---------------------------------------------------------------------------
-  # UPDATE (ADMIN ONLY)
+  # UPDATE (ALL USERS)
   # ---------------------------------------------------------------------------
   - path: "/api/v1/articles/{id}"
     method: PUT
-    auth: admin
+    auth: user
     description: "Update article"
     path_params:
       id: "integer"

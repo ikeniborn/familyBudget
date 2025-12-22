@@ -137,7 +137,7 @@ async def create_product_group(
     """
     Create a new product group.
 
-    Shared references architecture: Only admins can create product groups.
+    Shared references architecture: All authenticated users can create product groups.
     ProductGroup is created with current_user.id as creator_id (audit trail).
 
     **Validation:**
@@ -145,16 +145,8 @@ async def create_product_group(
     - Name is required, max 255 characters
     """
     # Debug logging for validation troubleshooting
-    logger.debug(f"create_product_group called by user {current_user.id} (is_admin={current_user.is_admin})")
+    logger.debug(f"create_product_group called by user {current_user.id}")
     logger.debug(f"product_group_data received: {product_group_data.model_dump()}")
-
-    # Check: Only admins can create product groups
-    if not current_user.is_admin:
-        logger.warning(f"Non-admin user {current_user.id} attempted to create product group")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can create product groups",
-        )
 
     # Validate: Parent product group must exist if provided
     if product_group_data.parent_id:
@@ -261,15 +253,8 @@ async def update_product_group(
     - If parent_id changes: updates Closure Table (move_subtree)
     - FK in ShoppingListItem remain unchanged
 
-    Shared references architecture: Only admins can update product groups.
+    Shared references architecture: All authenticated users can update product groups.
     """
-    # Check: Only admins can update product groups
-    if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can update product groups",
-        )
-
     # Fetch product group
     query = select(ProductGroup).where(ProductGroup.id == product_group_id)
 
