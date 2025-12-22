@@ -654,9 +654,10 @@ async def get_mapping(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Get saved mapping for bank (or default).
+    Get saved mapping for bank (shared across all users).
 
-    Returns user's saved mapping if exists, otherwise returns 404 with default mapping.
+    Returns shared mapping if exists, otherwise returns 404 with default mapping.
+    Mappings are shared per bank - any user can use any bank's mapping.
 
     **Parameters:**
     - bank_provider_id: Bank provider ID
@@ -686,7 +687,7 @@ async def get_mapping(
     """
     logger.info(f"Getting mapping for bank {bank_provider_id}, user {current_user.id}")
 
-    mapping = await MappingService.get_mapping(session, bank_provider_id, current_user.id)
+    mapping = await MappingService.get_mapping(session, bank_provider_id)
 
     if mapping:
         return MappingResponse(
@@ -718,10 +719,13 @@ async def save_mapping(
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Save or update mapping (SCD Type 1).
+    Save or update mapping (SCD Type 1, shared per bank).
 
-    If mapping exists for this bank+user → UPDATE in-place.
+    If mapping exists for this bank → UPDATE in-place (any user can update).
     If mapping doesn't exist → INSERT new record.
+
+    Mappings are shared across all users. The current user is recorded
+    as the one who last updated the mapping (informational only).
 
     **Request Body:**
     ```json
@@ -829,9 +833,9 @@ async def parse_file(
     if not file_upload or file_upload.user_id != current_user.id:
         raise HTTPException(404, "File not found")
 
-    # Get mapping
+    # Get mapping (shared per bank, any user can use)
     mapping_record = await session.get(ImportColumnMapping, request.mapping_id)
-    if not mapping_record or mapping_record.user_id != current_user.id:
+    if not mapping_record:
         raise HTTPException(404, "Mapping not found")
 
     # Check if temp file exists

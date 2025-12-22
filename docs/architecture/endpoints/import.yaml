@@ -189,6 +189,44 @@ routes:
     notes: "Legacy endpoint, replaced by /google-sheets/upload for consistency"
 
   # ---------------------------------------------------------------------------
+  # COLUMN MAPPINGS (SHARED PER BANK)
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/import/mappings/{bank_provider_id}"
+    method: GET
+    auth: user
+    description: "Get saved mapping for bank (shared across all users)"
+    notes: |
+      Mappings are SHARED per bank - any user can use any bank's mapping.
+      Returns 404 with default_mapping if no saved mapping exists.
+    response:
+      status: 200
+      body:
+        mapping_id: "integer"
+        bank_provider_id: "integer"
+        mapping: "object (CSV column → budget field)"
+        transformations: "object (optional)"
+
+  - path: "/api/v1/import/mappings"
+    method: POST
+    auth: user
+    description: "Save or update mapping (shared per bank)"
+    notes: |
+      Mappings are SHARED per bank - any user can create or update.
+      user_id is recorded to track who last updated (informational only).
+    request:
+      body:
+        bank_provider_id: "integer"
+        mapping: "object"
+        transformations: "object (optional)"
+    response:
+      status: 200
+      body:
+        mapping_id: "integer"
+        bank_provider_id: "integer"
+        mapping: "object"
+        transformations: "object"
+
+  # ---------------------------------------------------------------------------
   # BANK PROVIDERS
   # ---------------------------------------------------------------------------
   - path: "/api/v1/import/banks"

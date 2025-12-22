@@ -1,7 +1,7 @@
 """
 Import Column Mapping Model
 
-Stores user-defined column mappings for CSV imports (per bank, per user).
+Stores column mappings for CSV imports (one mapping per bank, shared across all users).
 Allows reusing mappings for repeated imports.
 
 Pattern: Configuration table (SCD Type 1)
@@ -17,14 +17,17 @@ from sqlmodel import Field, SQLModel
 
 class ImportColumnMapping(SQLModel, table=True):
     """
-    User-defined CSV column mapping (per bank).
+    CSV column mapping (one mapping per bank, shared across all users).
 
     Stores column mapping configuration (CSV column → budget field).
-    One mapping per bank per user (SCD Type 1 - updates in-place).
+    One mapping per bank (SCD Type 1 - updates in-place).
 
     Table: t_import_column_mapping
     Pattern: Configuration table (SCD Type 1)
-    Constraint: Unique (bank_provider_id, user_id)
+    Constraint: Unique (bank_provider_id)
+
+    NOTE: user_id is informational only - tracks who last updated the mapping.
+    All users share the same mapping for a given bank.
 
     Mapping structure:
         {
@@ -46,7 +49,7 @@ class ImportColumnMapping(SQLModel, table=True):
     Examples:
         >>> mapping = ImportColumnMapping(
         ...     bank_provider_id=1,
-        ...     user_id=123,
+        ...     user_id=123,  # Who last updated
         ...     mapping={
         ...         "fact_date": "Дата операции",
         ...         "amount": "Сумма операции",
@@ -57,7 +60,7 @@ class ImportColumnMapping(SQLModel, table=True):
 
     __tablename__ = "t_import_column_mapping"
     __table_args__ = (
-        UniqueConstraint('bank_provider_id', 'user_id', name='uq_bank_user_mapping'),
+        UniqueConstraint('bank_provider_id', name='uq_bank_mapping'),
     )
 
     # Primary key
@@ -77,7 +80,7 @@ class ImportColumnMapping(SQLModel, table=True):
     user_id: int = Field(
         nullable=False,
         foreign_key="t_d_user.id",
-        description="User who created this mapping"
+        description="User who last updated this mapping (informational only)"
     )
 
     # Mapping configuration

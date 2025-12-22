@@ -116,13 +116,17 @@ module:
     - name: mapping_service
       path: "backend/app/services/mapping_service.py"
       functions:
-        - save_column_mapping
-        - get_user_mappings
-        - get_mapping_for_bank
+        - get_mapping        # Get mapping by bank_provider_id (shared)
+        - save_mapping       # Save/update mapping (shared per bank)
+        - get_default_mapping  # Get default mapping for known banks
       depends_on: []
       models:
         - $ref: "../database/support.yaml#/tables/t_import_column_mapping"
-        - $ref: "../database/support.yaml#/tables/t_d_import_template"
+      notes: |
+        Mappings are SHARED per bank (one mapping per bank_provider_id).
+        All users share the same mapping for a given bank.
+        user_id tracks who last updated the mapping (informational only).
+        Any authenticated user can create or update mappings.
 
   # ---------------------------------------------------------------------------
   # MODELS
