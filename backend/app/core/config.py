@@ -67,7 +67,7 @@ class Settings(BaseSettings):
     REDIS_CACHE_TTL_DASHBOARD: int = 30  # TTL for dashboard data
 
     # Write-Behind Configuration
-    WRITE_BEHIND_ENABLED: bool = False  # Enable async writes to PostgreSQL
+    WRITE_BEHIND_ENABLED: bool = True  # Enable async writes to PostgreSQL (Redis required)
     WRITE_BEHIND_MAX_RETRIES: int = 3  # Max retries before moving to DLQ
     WRITE_BEHIND_BATCH_SIZE: int = 100  # Max items to process in one batch
 

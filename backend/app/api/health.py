@@ -392,11 +392,27 @@ async def health_check(response: Response) -> HealthStatus:
 
     Returns:
         HealthStatus: Basic health information
+
+    Health status logic:
+        - unhealthy: Database is down (critical)
+        - degraded: Database up, but Redis down when WRITE_BEHIND_ENABLED=true
+        - healthy: All configured components are up
     """
     settings = get_settings()
     db_connected = await check_db_connection()
 
-    health_status = "healthy" if db_connected else "unhealthy"
+    if not db_connected:
+        health_status = "unhealthy"
+    else:
+        # Check Redis if Write-Behind is enabled (Redis becomes important)
+        if settings.WRITE_BEHIND_ENABLED:
+            redis_health = await check_redis_health_component()
+            if redis_health.status != "up":
+                health_status = "degraded"
+            else:
+                health_status = "healthy"
+        else:
+            health_status = "healthy"
 
     # Set HTTP status code
     if health_status == "unhealthy":
@@ -443,21 +459,26 @@ async def readiness_check(
     Returns:
         ReadinessResponse: Readiness status
     """
-    # Check database (required)
+    settings = get_settings()
+
+    # Check database (always required)
     db_health = await check_database_health(session)
     db_ready = db_health.status == "up"
 
-    # Check Redis (optional - caching only, not required for readiness)
+    # Check Redis
     redis_health = await check_redis_health_component()
     redis_ready = redis_health.status == "up"
 
     checks = {
         "database": db_ready,
-        "redis": redis_ready,  # Informational only
+        "redis": redis_ready,
     }
 
-    # Only database is required for readiness
-    ready = db_ready
+    # Redis is required when WRITE_BEHIND_ENABLED=true
+    if settings.WRITE_BEHIND_ENABLED:
+        ready = db_ready and redis_ready
+    else:
+        ready = db_ready  # Redis is optional when Write-Behind disabled
 
     # Set HTTP status code
     if not ready:

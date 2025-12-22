@@ -90,8 +90,8 @@ configuration:
 
     WRITE_BEHIND_ENABLED:
       description: "Enable async writes to PostgreSQL"
-      default: false
-      note: "Future feature - not fully implemented"
+      default: true
+      note: "When enabled, Redis becomes required for /ready health check"
 
   docker_compose:
     service: |
