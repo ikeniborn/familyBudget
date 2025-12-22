@@ -16,9 +16,12 @@ module:
     - "Flexible frequency: daily, weekly, monthly, quarterly"
     - "Duration options: indefinite, by count, or by end date"
     - "Automatic fact generation on creation (90 days ahead)"
+    - "MINIMUM 3 facts generated on creation, regardless of limits (v6.1+)"
     - "Daily scheduler job for ongoing generation"
     - "Traceability via recurring_plan_id in BudgetFact"
     - "UI integration in plan creation modal"
+    - "Enhanced logging for generation debugging (v6.1+)"
+    - "Protection against infinite loops (MAX_ITERATIONS=1000) (v6.1+)"
 
   services:
     - name: RecurringPlanService
@@ -38,12 +41,15 @@ module:
         - name: generate_facts_for_plan
           description: |
             Generates BudgetFact records for a recurring plan up to horizon.
+            ALWAYS generates minimum MIN_FACTS_TO_GENERATE (3) facts, then checks
+            end_date/occurrences_count/horizon limits.
+            Includes detailed logging and infinite loop protection.
             Called by create and scheduler job.
           params:
             - session: AsyncSession
             - plan: RecurringPlan
-            - horizon_date: date
-          returns: "list[BudgetFact]"
+            - horizon_days: int
+          returns: int (number of facts generated)
 
         - name: calculate_next_occurrence
           description: |

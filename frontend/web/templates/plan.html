@@ -3773,6 +3773,48 @@ function togglePlanMode(modalId) {
 window.togglePlanMode = togglePlanMode;
 
 /**
+ * Initialize modal state on open
+ * Fixes: UI подвисание при переоткрытии modal
+ */
+function initializePlanModal(modalId) {
+    // Reset to regular mode
+    const regularModeRadio = document.querySelector(`#${modalId} input[name="plan_mode"][value="regular"]`);
+    if (regularModeRadio) {
+        regularModeRadio.checked = true;
+    }
+
+    // Hide recurring and reminder blocks by calling togglePlanMode
+    togglePlanMode(modalId);
+
+    // Reset form fields
+    resetRecurringOnlyFields(modalId);
+
+    debugLog(`[Plan Modal] Initialized ${modalId} to regular mode`);
+}
+window.initializePlanModal = initializePlanModal;
+
+// Hook into modal open event using MutationObserver
+(function setupModalObserver() {
+    const modalAddPlan = document.getElementById('modal_add_plan');
+    if (modalAddPlan) {
+        // Listen for <dialog> open attribute changes
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'open') {
+                    if (modalAddPlan.hasAttribute('open')) {
+                        debugLog('[Plan Modal] modal_add_plan opened');
+                        initializePlanModal('modal_add_plan');
+                    }
+                }
+            });
+        });
+
+        observer.observe(modalAddPlan, { attributes: true });
+        debugLog('[Plan Modal] Observer attached to modal_add_plan');
+    }
+})();
+
+/**
  * Reset only recurring-specific fields (not the mode selector)
  */
 function resetRecurringOnlyFields(modalId) {
