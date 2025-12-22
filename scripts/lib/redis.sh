@@ -28,7 +28,17 @@ is_redis_running() {
 # Check if Redis is healthy (responds to PING)
 # Returns: 0 if healthy, 1 otherwise
 is_redis_healthy() {
-    docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T redis redis-cli ping 2>/dev/null | grep -q "PONG"
+    # Load Redis password from .env file
+    local redis_password
+    redis_password=$(grep '^REDIS_PASSWORD=' "$DEPLOY_DIR/.env" 2>/dev/null | cut -d'=' -f2-)
+
+    if [[ -n "$redis_password" ]]; then
+        # Use password authentication (matches docker-compose healthcheck)
+        docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T redis redis-cli -a "$redis_password" --no-auth-warning ping 2>/dev/null | grep -q "PONG"
+    else
+        # Fallback: no password
+        docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T redis redis-cli ping 2>/dev/null | grep -q "PONG"
+    fi
 }
 
 # Wait for Redis to become healthy
