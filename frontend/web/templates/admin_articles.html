@@ -347,7 +347,12 @@ async function loadArticles() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        articlesData = await response.json();
+        const responseData = await response.json();
+        if (isAdmin) {
+            articlesData = responseData;  // Direct array for admin
+        } else {
+            articlesData = responseData.articles;  // Extract nested array for non-admin
+        }
         renderArticlesTable(articlesData);
     } catch (error) {
         console.error('Error loading articles:', error);

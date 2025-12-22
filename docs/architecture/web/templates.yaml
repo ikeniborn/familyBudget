@@ -578,16 +578,36 @@ templates:
     path: "frontend/web/templates/admin_articles.html"
     extends: base
     description: "Article (category) management"
-    requires_admin: true
+    requires_admin: false
+    access_note: "Accessible to all authenticated users (non-admin = read-only)"
     modals:
       - modal_confirm
     js_modules:
       - $ref: "./js-modules.yaml#/modules/hierarchyView"
       - $ref: "./js-modules.yaml#/modules/adminStatusFilter"
     api_calls:
-      - "/api/v1/articles"
-      - "/api/v1/articles/{id}/archive"
-      - "/api/v1/articles/{id}/restore"
+      admin_endpoint:
+        url: "/api/v1/admin/articles"
+        response_format: "List[ArticleResponse] - Direct array"
+        description: "Used when user.is_admin = true"
+      user_endpoint:
+        url: "/api/v1/articles"
+        response_format: "ArticleListResponse - Paginated object {articles: [...], total, limit, offset}"
+        description: "Used when user.is_admin = false"
+    response_handling:
+      location: "frontend/web/templates/admin_articles.html:350-356"
+      description: "Extracts .articles property from non-admin response, uses direct array for admin"
+      implementation:
+        - "if (isAdmin): articlesData = responseData (direct array)"
+        - "else: articlesData = responseData.articles (extract nested array)"
+    api_operations:
+      read:
+        - "/api/v1/articles - List (paginated)"
+        - "/api/v1/admin/articles - List (non-paginated, admin only)"
+      archive:
+        - "/api/v1/articles/{id}/archive (admin only)"
+      restore:
+        - "/api/v1/articles/{id}/restore (admin only)"
 
   admin_financial_centers:
     path: "frontend/web/templates/admin_financial_centers.html"
