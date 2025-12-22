@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     WRITE_BEHIND_ENABLED: bool = True  # Enable async writes to PostgreSQL (Redis required)
     WRITE_BEHIND_MAX_RETRIES: int = 3  # Max retries before moving to DLQ
     WRITE_BEHIND_BATCH_SIZE: int = 100  # Max items to process in one batch
+    WRITE_BEHIND_DLQ_TTL_DAYS: int = 7  # TTL for DLQ items (days)
+    WRITE_BEHIND_DLQ_MAX_SIZE: int = 100  # Max DLQ size (oldest items removed when exceeded)
 
     @field_validator("SYSTEM_TIMEZONE")
     @classmethod

@@ -1250,8 +1250,13 @@ configure_redis() {
 
     if [[ "${CONFIG[WRITE_BEHIND_ENABLED_PROMPT]}" == "y" ]]; then
         CONFIG["WRITE_BEHIND_ENABLED"]="true"
+        # DLQ settings (use defaults from .env.example)
+        CONFIG["WRITE_BEHIND_DLQ_TTL_DAYS"]="${CONFIG[WRITE_BEHIND_DLQ_TTL_DAYS]:-7}"
+        CONFIG["WRITE_BEHIND_DLQ_MAX_SIZE"]="${CONFIG[WRITE_BEHIND_DLQ_MAX_SIZE]:-100}"
     else
         CONFIG["WRITE_BEHIND_ENABLED"]="false"
+        CONFIG["WRITE_BEHIND_DLQ_TTL_DAYS"]="7"
+        CONFIG["WRITE_BEHIND_DLQ_MAX_SIZE"]="100"
     fi
 
     # Redis CPU limits (auto-calculated based on CPU count)
@@ -1270,6 +1275,8 @@ configure_redis() {
     info "Summary:"
     echo "  ✓ Memory limit: ${CONFIG[REDIS_MAXMEMORY]}"
     echo "  ✓ Write-Behind: ${CONFIG[WRITE_BEHIND_ENABLED]}"
+    echo "  ✓ DLQ TTL: ${CONFIG[WRITE_BEHIND_DLQ_TTL_DAYS]} days"
+    echo "  ✓ DLQ max size: ${CONFIG[WRITE_BEHIND_DLQ_MAX_SIZE]}"
     echo "  ✓ CPU limit: ${CONFIG[REDIS_CPU_LIMIT]}"
     echo "  ✓ Cache TTL (default): ${CONFIG[REDIS_CACHE_TTL_DEFAULT]}s"
     echo ""
@@ -1350,6 +1357,8 @@ create_env_file() {
     sed -i "s|^REDIS_CACHE_TTL_REFERENCE=.*|REDIS_CACHE_TTL_REFERENCE=${CONFIG[REDIS_CACHE_TTL_REFERENCE]}|" "$env_file"
     sed -i "s|^REDIS_CACHE_TTL_DASHBOARD=.*|REDIS_CACHE_TTL_DASHBOARD=${CONFIG[REDIS_CACHE_TTL_DASHBOARD]}|" "$env_file"
     sed -i "s|^WRITE_BEHIND_ENABLED=.*|WRITE_BEHIND_ENABLED=${CONFIG[WRITE_BEHIND_ENABLED]}|" "$env_file"
+    sed -i "s|^WRITE_BEHIND_DLQ_TTL_DAYS=.*|WRITE_BEHIND_DLQ_TTL_DAYS=${CONFIG[WRITE_BEHIND_DLQ_TTL_DAYS]}|" "$env_file"
+    sed -i "s|^WRITE_BEHIND_DLQ_MAX_SIZE=.*|WRITE_BEHIND_DLQ_MAX_SIZE=${CONFIG[WRITE_BEHIND_DLQ_MAX_SIZE]}|" "$env_file"
     sed -i "s|^REDIS_CPU_LIMIT=.*|REDIS_CPU_LIMIT=${CONFIG[REDIS_CPU_LIMIT]}|" "$env_file"
     sed -i "s|^REDIS_CPU_RESERVATION=.*|REDIS_CPU_RESERVATION=${CONFIG[REDIS_CPU_RESERVATION]}|" "$env_file"
 

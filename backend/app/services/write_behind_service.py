@@ -73,6 +73,16 @@ def _get_batch_size() -> int:
     return get_settings().WRITE_BEHIND_BATCH_SIZE
 
 
+def _get_dlq_ttl_seconds() -> int:
+    """Get DLQ TTL in seconds from settings."""
+    return get_settings().WRITE_BEHIND_DLQ_TTL_DAYS * 24 * 60 * 60
+
+
+def _get_dlq_max_size() -> int:
+    """Get DLQ max size from settings."""
+    return get_settings().WRITE_BEHIND_DLQ_MAX_SIZE
+
+
 class WriteOperation(str, Enum):
     """Write operation types."""
     CREATE = "CREATE"
@@ -563,7 +573,11 @@ class WriteBehindService:
             self._stats["failed"] += 1
 
     async def _move_to_dlq(self, item: WriteQueueItem, error: str):
-        """Move a failed item to the Dead Letter Queue."""
+        """Move a failed item to the Dead Letter Queue.
+
+        Applies DLQ size limit (oldest items removed when exceeded).
+        TTL-based cleanup is performed periodically by _cleanup_dlq().
+        """
         try:
             async with get_redis() as redis:
                 dlq_item = {
@@ -577,8 +591,67 @@ class WriteBehindService:
                     f"Write-behind DLQ: {item.operation.value} {item.entity_type} "
                     f"request_id={item.request_id} error={error}"
                 )
+
+                # Trim DLQ to max size (keep newest items)
+                max_size = _get_dlq_max_size()
+                dlq_len = await redis.llen(DLQ_KEY)
+                if dlq_len > max_size:
+                    # Remove oldest items (from left side)
+                    items_to_remove = dlq_len - max_size
+                    for _ in range(items_to_remove):
+                        await redis.lpop(DLQ_KEY)
+                    logger.warning(
+                        f"DLQ trimmed: removed {items_to_remove} oldest items, "
+                        f"max_size={max_size}"
+                    )
         except Exception as e:
             logger.error(f"Failed to move to DLQ: {e}")
+
+    async def _cleanup_dlq(self):
+        """Remove expired items from DLQ based on TTL.
+
+        Called periodically from worker loop.
+        """
+        try:
+            async with get_redis() as redis:
+                dlq_len = await redis.llen(DLQ_KEY)
+                if dlq_len == 0:
+                    return
+
+                ttl_seconds = _get_dlq_ttl_seconds()
+                now = datetime.utcnow()
+                removed_count = 0
+
+                # Check items from oldest (left) to newest (right)
+                # Stop when we find a non-expired item
+                while True:
+                    item_json = await redis.lindex(DLQ_KEY, 0)
+                    if item_json is None:
+                        break
+
+                    try:
+                        item_data = json.loads(item_json)
+                        failed_at = datetime.fromisoformat(item_data.get("failed_at", ""))
+                        age_seconds = (now - failed_at).total_seconds()
+
+                        if age_seconds > ttl_seconds:
+                            await redis.lpop(DLQ_KEY)
+                            removed_count += 1
+                        else:
+                            # Items are ordered by time, so stop here
+                            break
+                    except (json.JSONDecodeError, ValueError):
+                        # Invalid item, remove it
+                        await redis.lpop(DLQ_KEY)
+                        removed_count += 1
+
+                if removed_count > 0:
+                    logger.info(
+                        f"DLQ cleanup: removed {removed_count} expired items "
+                        f"(TTL={ttl_seconds // 86400} days)"
+                    )
+        except Exception as e:
+            logger.warning(f"DLQ cleanup failed: {e}")
 
     async def _acquire_lock(self) -> bool:
         """Acquire processing lock."""
@@ -618,8 +691,19 @@ class WriteBehindService:
         """Main worker loop for processing queue items."""
         logger.info(f"Write-behind worker started: worker_id={self._worker_id}")
 
+        # DLQ cleanup interval (every 60 seconds)
+        dlq_cleanup_interval = 60
+        last_dlq_cleanup = 0
+
         while self._running:
             try:
+                # Periodic DLQ cleanup
+                import time
+                current_time = time.time()
+                if current_time - last_dlq_cleanup > dlq_cleanup_interval:
+                    await self._cleanup_dlq()
+                    last_dlq_cleanup = current_time
+
                 # Try to acquire lock
                 if not await self._acquire_lock():
                     # Another worker has the lock
