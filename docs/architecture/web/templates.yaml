@@ -455,7 +455,47 @@ templates:
     extends: base
     description: "Telegram OAuth login page"
     widgets:
-      - "Telegram Login Widget"
+      - name: "Telegram Login Widget"
+        source: "https://telegram.org/js/telegram-widget.js?22"
+        preload: "link rel=preload in head"
+    loading_states:
+      description: "State machine with 3 mutually exclusive states"
+      states:
+        loading:
+          element_id: "telegram-placeholder"
+          description: "Placeholder button with spinner, visible immediately (inline HTML)"
+          visible: true
+        success:
+          trigger: "iframe injected by Telegram widget"
+          behavior: "Placeholder hidden, widget visible"
+        error:
+          element_id: "telegram-error"
+          trigger: "15s timeout without iframe detection"
+          features:
+            - "Warning alert with explanation message"
+            - "Retry button (max 3 attempts, 2s cooldown)"
+            - "Direct t.me/bot_username fallback link"
+      guarantee: "One UI element is ALWAYS visible - never empty space"
+    js_features:
+      state_machine:
+        states: ["loading", "success", "error"]
+        transitions:
+          - from: loading
+            to: success
+            trigger: "MutationObserver detects iframe"
+          - from: loading
+            to: error
+            trigger: "15s timeout"
+          - from: error
+            to: loading
+            trigger: "retry button click"
+      retry_mechanism:
+        max_retries: 3
+        cooldown_ms: 2000
+        cache_busting: "timestamp query param on script src"
+      data_attributes:
+        - "data-bot-username"
+        - "data-callback-url"
     api_calls:
       - "/api/v1/auth/telegram"
 

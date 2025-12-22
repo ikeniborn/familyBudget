@@ -226,6 +226,27 @@
     margin-left: 4px;
 }
 
+.telegram-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 320px;
+    margin: 0 auto;
+}
+
+.telegram-error.hidden {
+    display: none;
+}
+
+.telegram-error .alert {
+    text-align: left;
+}
+
+.telegram-error .btn {
+    min-width: 200px;
+}
+
 .login-security {
     background: var(--fallback-b2,oklch(var(--b2)/1));
     border-radius: 12px;
@@ -277,36 +298,175 @@
 </style>
 
 <script>
+/**
+ * Telegram Widget State Machine
+ * States: loading -> success | error
+ * Guarantees: One UI element is ALWAYS visible (never empty space)
+ */
 (function() {
-    const container = document.getElementById('telegram-widget-container');
-    const placeholder = document.getElementById('telegram-placeholder');
+    'use strict';
 
-    if (!container || !placeholder) return;
+    // Configuration
+    var LOAD_TIMEOUT_MS = 15000;  // 15 seconds
+    var RETRY_COOLDOWN_MS = 2000; // 2 seconds between retries
+    var MAX_RETRIES = 3;
 
-    // MutationObserver to detect when Telegram widget iframe is added
-    const observer = new MutationObserver(function(mutations) {
-        for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-                // Telegram widget creates an iframe
-                if (node.tagName === 'IFRAME' ||
-                    (node.classList && node.classList.contains('tgme_widget_login'))) {
-                    placeholder.classList.add('hidden');
-                    observer.disconnect();
-                    return;
+    // State
+    var state = 'loading'; // 'loading' | 'success' | 'error'
+    var retryCount = 0;
+    var lastRetryTime = 0;
+    var timeoutId = null;
+    var observer = null;
+
+    // DOM Elements
+    var container = document.getElementById('telegram-widget-container');
+    var placeholder = document.getElementById('telegram-placeholder');
+    var errorDiv = document.getElementById('telegram-error');
+    var retryBtn = document.getElementById('telegram-retry-btn');
+
+    if (!container || !placeholder || !errorDiv) {
+        console.error('[TelegramWidget] Required DOM elements not found');
+        return;
+    }
+
+    /**
+     * Transition to a new state and update UI
+     */
+    function transitionTo(newState) {
+        if (state === newState) return;
+
+        console.log('[TelegramWidget] State:', state, '->', newState);
+        state = newState;
+
+        // Update UI based on state
+        switch (newState) {
+            case 'loading':
+                placeholder.classList.remove('hidden');
+                errorDiv.classList.add('hidden');
+                break;
+            case 'success':
+                placeholder.classList.add('hidden');
+                errorDiv.classList.add('hidden');
+                break;
+            case 'error':
+                placeholder.classList.add('hidden');
+                errorDiv.classList.remove('hidden');
+                break;
+        }
+    }
+
+    /**
+     * Check if node is the Telegram widget iframe
+     */
+    function isTelegramWidget(node) {
+        return node.tagName === 'IFRAME' ||
+               (node.classList && node.classList.contains('tgme_widget_login'));
+    }
+
+    /**
+     * Create and start MutationObserver to detect widget load
+     */
+    function startObserver() {
+        observer = new MutationObserver(function(mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+                var mutation = mutations[i];
+                for (var j = 0; j < mutation.addedNodes.length; j++) {
+                    var node = mutation.addedNodes[j];
+                    if (isTelegramWidget(node)) {
+                        transitionTo('success');
+                        cleanup();
+                        return;
+                    }
                 }
             }
-        }
-    });
+        });
 
-    observer.observe(container, { childList: true, subtree: true });
+        observer.observe(container, { childList: true, subtree: true });
+    }
 
-    // Fallback: hide placeholder after timeout (15 seconds)
-    setTimeout(function() {
-        if (!placeholder.classList.contains('hidden')) {
-            placeholder.classList.add('hidden');
+    /**
+     * Start timeout for error state
+     */
+    function startTimeout() {
+        timeoutId = setTimeout(function() {
+            if (state === 'loading') {
+                transitionTo('error');
+                cleanup();
+            }
+        }, LOAD_TIMEOUT_MS);
+    }
+
+    /**
+     * Cleanup observer and timeout
+     */
+    function cleanup() {
+        if (observer) {
             observer.disconnect();
+            observer = null;
         }
-    }, 15000);
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+    }
+
+    /**
+     * Handle retry button click
+     */
+    function handleRetry() {
+        // Throttle retries
+        var now = Date.now();
+        if (now - lastRetryTime < RETRY_COOLDOWN_MS) {
+            console.log('[TelegramWidget] Retry throttled');
+            return;
+        }
+
+        // Check retry limit
+        if (retryCount >= MAX_RETRIES) {
+            if (typeof showToast === 'function') {
+                showToast('Превышено количество попыток. Попробуйте открыть бота напрямую.', 'warning');
+            }
+            return;
+        }
+
+        lastRetryTime = now;
+        retryCount++;
+
+        console.log('[TelegramWidget] Retry attempt', retryCount, 'of', MAX_RETRIES);
+
+        // Transition to loading state
+        transitionTo('loading');
+
+        // Remove old script and iframe
+        var oldScript = container.querySelector('script[src*="telegram-widget"]');
+        var oldIframe = container.querySelector('iframe');
+        if (oldScript) oldScript.remove();
+        if (oldIframe) oldIframe.remove();
+
+        // Create and inject new script with cache-busting
+        var script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://telegram.org/js/telegram-widget.js?22&_t=' + Date.now();
+        script.setAttribute('data-telegram-login', container.dataset.botUsername);
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-auth-url', container.dataset.callbackUrl);
+        script.setAttribute('data-request-access', 'write');
+
+        container.appendChild(script);
+
+        // Restart observer and timeout
+        startObserver();
+        startTimeout();
+    }
+
+    // Attach retry handler
+    if (retryBtn) {
+        retryBtn.addEventListener('click', handleRetry);
+    }
+
+    // Initial setup
+    startObserver();
+    startTimeout();
 })();
 </script>
 {% endblock %}
