@@ -1713,23 +1713,59 @@ async function checkAndSkipToEnrichment() {
 }
 
 async function analyzeFile(fileId) {
+    // Show loading notification immediately
+    showNotification('Анализ файла...', 'loading');
+
     try {
+        // Create AbortController for 30s timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);  // 30 seconds
+
         const response = await fetch(`/api/v1/import/files/${fileId}/analyze`, {
-            credentials: 'include'
+            credentials: 'include',
+            signal: controller.signal  // Add abort signal for timeout
         });
 
-        if (!response.ok) throw new Error('Failed to analyze file');
+        // Clear timeout if fetch completes
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.detail || 'Failed to analyze file');
+        }
 
         const data = await response.json();
         csvHeaders = data.headers;
         csvSampleRows = data.sample_rows;
         csvDelimiter = data.delimiter;  // Save detected delimiter
 
-        // Don't show mapping step automatically - wait for user to click button
+        // Remove loading notification
+        const loadingNotification = document.getElementById('notification-toast');
+        if (loadingNotification) {
+            loadingNotification.remove();
+        }
+
+        // Show success message briefly
+        showNotification('Файл успешно проанализирован', 'success');
+        setTimeout(() => {
+            const successNotification = document.getElementById('notification-toast');
+            if (successNotification) successNotification.remove();
+        }, 2000);
 
     } catch (error) {
         console.error('Analyze error:', error);
-        showNotification(`Ошибка анализа: ${error.message}`, 'error');
+
+        // Handle different error types with appropriate messages
+        let errorMessage;
+        if (error.name === 'AbortError') {
+            errorMessage = 'Превышено время ожидания (30 сек). Попробуйте загрузить файл меньшего размера или проверьте подключение к серверу.';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Ошибка сети. Проверьте подключение к интернету.';
+        } else {
+            errorMessage = `Ошибка анализа: ${error.message}`;
+        }
+
+        showNotification(errorMessage, 'error');
     }
 }
 

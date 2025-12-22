@@ -609,6 +609,43 @@ fact_history = BudgetFactHistory(
 
 ---
 
+### Import Column Mappings: Per-User Model
+
+**ARCHITECTURE DECISION:** Import column mappings are **per-user per-bank**, NOT shared across all users.
+
+**Rationale:**
+- Different users may receive CSV exports in different formats from the same bank (e.g., corporate vs personal accounts, different export options)
+- User A's mapping preferences shouldn't overwrite User B's workflow
+- Preserves user autonomy in multi-user "Shared Family Budget" environment
+
+**Model:** `ImportColumnMapping`
+- **Unique constraint:** `(bank_provider_id, user_id)`
+- **Pattern:** SCD Type 1 (in-place updates per user)
+- **Sharing boundary:** Each user has independent mappings
+
+**Example scenario:**
+```python
+# User A (admin) saves Tinkoff mapping
+await MappingService.save_mapping(session, bank_id=1, user_id=123, mapping={"fact_date": "Date1"})
+
+# User B (non-admin) saves different Tinkoff mapping
+# This does NOT overwrite User A's mapping
+await MappingService.save_mapping(session, bank_id=1, user_id=456, mapping={"fact_date": "Date2"})
+
+# Both users retrieve their own mappings
+mapping_a = await MappingService.get_mapping(session, bank_id=1, user_id=123)  # Gets User A's mapping
+mapping_b = await MappingService.get_mapping(session, bank_id=1, user_id=456)  # Gets User B's mapping
+# mapping_a != mapping_b (separate mappings)
+```
+
+**History:**
+- Migration `20251222_a4b5c6d7e8f9`: Implemented shared mapping (constraint on `bank_provider_id` only) - **MISTAKE**
+- Migration `20251222_9baacd464951`: Reverted to per-user mapping (constraint on `(bank_provider_id, user_id)`) - **CORRECT**
+
+**См. также:** `backend/app/models/import_column_mapping.py`, `backend/app/services/mapping_service.py`
+
+---
+
 ### RuntimeWarnings: Не игнорировать!
 
 **Правило:** RuntimeWarnings в логах Python/FastAPI ВСЕГДА указывают на проблему в коде.

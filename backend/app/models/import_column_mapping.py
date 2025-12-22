@@ -1,8 +1,8 @@
 """
 Import Column Mapping Model
 
-Stores column mappings for CSV imports (one mapping per bank, shared across all users).
-Allows reusing mappings for repeated imports.
+Stores column mappings for CSV imports (one mapping per user per bank).
+Allows reusing mappings for repeated imports while preserving user customizations.
 
 Pattern: Configuration table (SCD Type 1)
 Table: t_import_column_mapping
@@ -17,17 +17,17 @@ from sqlmodel import Field, SQLModel
 
 class ImportColumnMapping(SQLModel, table=True):
     """
-    CSV column mapping (one mapping per bank, shared across all users).
+    CSV column mapping (one mapping per user per bank).
 
     Stores column mapping configuration (CSV column → budget field).
-    One mapping per bank (SCD Type 1 - updates in-place).
+    One mapping per (user, bank) pair (SCD Type 1 - updates in-place).
 
     Table: t_import_column_mapping
     Pattern: Configuration table (SCD Type 1)
-    Constraint: Unique (bank_provider_id)
+    Constraint: Unique (bank_provider_id, user_id)
 
-    NOTE: user_id is informational only - tracks who last updated the mapping.
-    All users share the same mapping for a given bank.
+    NOTE: Each user has their own mapping per bank. This preserves user
+    customizations and prevents users from overwriting each other's mappings.
 
     Mapping structure:
         {
@@ -60,7 +60,7 @@ class ImportColumnMapping(SQLModel, table=True):
 
     __tablename__ = "t_import_column_mapping"
     __table_args__ = (
-        UniqueConstraint('bank_provider_id', name='uq_bank_mapping'),
+        UniqueConstraint('bank_provider_id', 'user_id', name='uq_bank_user_mapping'),
     )
 
     # Primary key
@@ -80,7 +80,7 @@ class ImportColumnMapping(SQLModel, table=True):
     user_id: int = Field(
         nullable=False,
         foreign_key="t_d_user.id",
-        description="User who last updated this mapping (informational only)"
+        description="User who owns this mapping (part of unique key)"
     )
 
     # Mapping configuration
