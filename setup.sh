@@ -493,6 +493,40 @@ PYTHON_SCRIPT
     return 0
 }
 
+# Ensure pywebpush is available for VAPID key generation
+# Returns 0 if installed/installed successfully, exits with error if cannot install
+ensure_pywebpush_installed() {
+    if python3 -c "import py_vapid" 2>/dev/null; then
+        return 0  # Already installed
+    fi
+
+    info "Installing pywebpush for VAPID key generation..."
+
+    # Try standard pip install
+    if pip3 install pywebpush >/dev/null 2>&1; then
+        success "pywebpush installed successfully"
+        return 0
+    fi
+
+    # Try with --break-system-packages for Debian 12+
+    if pip3 install --break-system-packages pywebpush >/dev/null 2>&1; then
+        success "pywebpush installed successfully"
+        return 0
+    fi
+
+    # STRICT MODE: Fail if cannot install
+    error "Failed to install pywebpush!"
+    error "Push notifications require pywebpush package."
+    echo ""
+    info "Please install manually:"
+    echo "  sudo pip3 install pywebpush"
+    echo "  # or"
+    echo "  pip3 install --user pywebpush"
+    echo ""
+    info "Then run setup.sh again."
+    exit 1
+}
+
 # Get bot information from Telegram API
 get_bot_info() {
     local token=$1
@@ -597,16 +631,31 @@ collect_configuration() {
     generated_postgres_password=$(generate_password 32)
 
     # Generate VAPID keys for Web Push notifications
+    info "Preparing VAPID keys for push notifications..."
+
+    # STRICT: pywebpush is REQUIRED - will exit if cannot install
+    ensure_pywebpush_installed
+
     local generated_vapid_public_key=""
     local generated_vapid_private_key=""
     local vapid_json
-    if vapid_json=$(generate_vapid_keys 2>/dev/null); then
+
+    # Generate VAPID keys
+    if vapid_json=$(generate_vapid_keys 2>&1); then
         generated_vapid_public_key=$(echo "$vapid_json" | python3 -c "import sys, json; print(json.load(sys.stdin)['public_key'])" 2>/dev/null)
         generated_vapid_private_key=$(echo "$vapid_json" | python3 -c "import sys, json; print(json.load(sys.stdin)['private_key'])" 2>/dev/null)
-        info "VAPID keys generated for Web Push notifications"
+
+        if [[ -n "$generated_vapid_public_key" && -n "$generated_vapid_private_key" ]]; then
+            info "VAPID keys generated for Web Push notifications"
+        else
+            error "VAPID key generation returned empty values"
+            error "Output was: $vapid_json"
+            exit 1
+        fi
     else
-        warning "VAPID keys not generated (pywebpush not installed)"
-        info "Push notifications will be disabled. Install pywebpush and run setup.sh again to enable."
+        error "VAPID key generation failed!"
+        error "Error: $vapid_json"
+        exit 1
     fi
     success "Secrets generated"
 
@@ -634,21 +683,14 @@ collect_configuration() {
     echo ""
 
     # VAPID configuration for Push Notifications
+    # NOTE: At this point VAPID keys are always available (setup exits earlier if generation fails)
     print_message "$CYAN" "▶ Push Notifications (VAPID)"
-    if [[ -n "$generated_vapid_public_key" && -n "$generated_vapid_private_key" ]]; then
-        info "VAPID keys auto-generated for Web Push"
-        CONFIG["VAPID_PUBLIC_KEY"]=$generated_vapid_public_key
-        CONFIG["VAPID_PRIVATE_KEY"]=$generated_vapid_private_key
-        # Use LETSENCRYPT_EMAIL if set, otherwise use default
-        local default_vapid_email="${CONFIG[LETSENCRYPT_EMAIL]:-admin@example.com}"
-        prompt "VAPID contact email (for push service notifications)" "VAPID_CONTACT_EMAIL" "$default_vapid_email"
-    else
-        warning "VAPID keys not available - push notifications disabled"
-        info "To enable: pip install pywebpush && run setup.sh again"
-        CONFIG["VAPID_PUBLIC_KEY"]=""
-        CONFIG["VAPID_PRIVATE_KEY"]=""
-        CONFIG["VAPID_CONTACT_EMAIL"]=""
-    fi
+    info "VAPID keys auto-generated for Web Push"
+    CONFIG["VAPID_PUBLIC_KEY"]=$generated_vapid_public_key
+    CONFIG["VAPID_PRIVATE_KEY"]=$generated_vapid_private_key
+    # Use LETSENCRYPT_EMAIL if set, otherwise use default
+    local default_vapid_email="${CONFIG[LETSENCRYPT_EMAIL]:-admin@example.com}"
+    prompt "VAPID contact email (for push service notifications)" "VAPID_CONTACT_EMAIL" "$default_vapid_email"
 
     echo ""
 
