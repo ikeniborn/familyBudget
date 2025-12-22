@@ -316,7 +316,7 @@ When adding new components:
 - **2025-12-19**: Added Mobile Quick Actions (Mini Cards Row pattern) - responsive 4-column grid for mobile, preserving 3-column desktop layout (index.html:55-117)
 - **2025-12-19**: Updated shopping lists documentation to reflect soft delete pattern and item count filtering (commit 6aa943bf)
 
-## Known Issues & Fixes (2025-12-20)
+## Known Issues & Fixes (2025-12-22)
 
 ### Fixed Issues
 
@@ -332,6 +332,7 @@ When adding new components:
 | 409 Conflict для дат вне 2010-2040 (нет партиции) | 🟠 HIGH | ✅ Fixed | Migration `20251220_*_fix_auto_partition_trigger.py` |
 | Дублирование магазинов в Choices.js dropdown | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/lists/listsManager.js` |
 | Excessive console errors in offline mode | 🟡 MEDIUM | ✅ Fixed | `budgetWSClient.js`, `offlineManager.js` |
+| iOS WebSocket reconnection loop after wake | 🟡 MEDIUM | ✅ Fixed | `frontend/web/static/js/budget/budgetWSClient.js` |
 
 ### Issue Details
 
@@ -415,6 +416,23 @@ When adding new components:
   4. HTTP 503 ошибки логируются как `console.warn` вместо `console.error`
 - **Files**: `frontend/web/static/js/budget/budgetWSClient.js`, `frontend/web/static/js/offline/offlineManager.js`
 - **Result**: В офлайн-режиме нет лишних ERROR-сообщений, только предупреждения для ожидаемого поведения
+
+**10. iOS WebSocket reconnection loop after wake from sleep (MEDIUM)**
+- **Problem**: After screen wake from sleep (2+ minutes), badge flickers indefinitely between yellow and green every ~3 seconds. Diagnostics show `ws_connected` → `token_fetch_start` → `ws_closed_code=1005` → cycle repeats.
+- **Root cause**: Race condition during wake from sleep:
+  1. iOS kills TCP connections while screen is off to save battery
+  2. Multiple `visibilitychange` events fire in quick succession when screen wakes
+  3. No guard against parallel reconnection attempts leads to overlapping connections
+  4. Network not fully stabilized leads to code 1005 (No Status Received) and immediate retry
+- **Fix**: Five changes in `budgetWSClient.js`:
+  1. Added `_reconnecting` flag to prevent parallel reconnection attempts in `_forceReconnect()`
+  2. Added 2-second visibility change debounce for iOS devices
+  3. Added iOS wake recovery mode (`_iosWakeRecoveryMode`) with 3-second minimum delay after code 1005
+  4. Improved status indicator debouncing: 1s for iOS (vs 500ms), debounce ALL states including 'connected'
+  5. Updated `_isConnectionStale()` to check WebSocket readyState
+- **Related**: This is a more specific case of issue #5 (iOS badge flickers) that occurs specifically after wake from sleep
+- **Files**: `frontend/web/static/js/budget/budgetWSClient.js`
+- **Result**: Stable reconnection after wake from sleep with no flickering
 
 ### Known Limitations (Deferred)
 

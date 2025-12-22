@@ -74,6 +74,12 @@ class BudgetWSClient {
         this._indicatorDebounceTimer = null;
         this.INDICATOR_DEBOUNCE_MS = 500;  // Minimum 500ms between visual updates
 
+        // iOS wake from sleep recovery
+        // Prevents reconnection loops after screen wake from sleep
+        this._reconnecting = false;  // Guard against parallel reconnection attempts
+        this._lastVisibilityChange = 0;  // Timestamp of last visibility change
+        this._iosWakeRecoveryMode = false;  // Increased delays after code 1005
+
         // iOS device detection (for special handling)
         // All iOS browsers (Safari, Chrome, Firefox, Yandex) use WebKit and have same issues
         this._iosDeviceMode = this._detectIOSDevice();
@@ -106,6 +112,17 @@ class BudgetWSClient {
                     debugLog('[BudgetWS] Tab hidden, leader keeping connection active');
                 }
             } else if (document.visibilityState === 'visible') {
+                // iOS: debounce rapid visibility changes after wake from sleep
+                // Multiple visibility change events can fire in quick succession
+                // which causes the reconnection loop
+                if (this._iosDeviceMode) {
+                    const now = Date.now();
+                    if (now - this._lastVisibilityChange < 2000) {
+                        debugLog('[BudgetWS] iOS: Debouncing visibility change');
+                        return;
+                    }
+                    this._lastVisibilityChange = now;
+                }
 
                 if (this.isLeader) {
                     if (this._isConnectionStale()) {
@@ -591,6 +608,13 @@ class BudgetWSClient {
      * @private
      */
     _isConnectionStale() {
+        // Check if WebSocket exists but is not in OPEN state
+        // This can happen after iOS wake from sleep when TCP is dead but WS object exists
+        if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
+            return true;
+        }
+
+        // Check if we haven't received a server ping in PING_TIMEOUT
         if (!this.lastServerPing) return false;
         return Date.now() - this.lastServerPing > this.PING_TIMEOUT;
     }
@@ -623,15 +647,31 @@ class BudgetWSClient {
 
     /**
      * Force reconnection
+     * Guards against parallel reconnection attempts (especially important for iOS wake from sleep)
      * @private
      */
     _forceReconnect() {
+        // Guard: prevent parallel reconnection attempts
+        // This prevents the reconnection loop seen on iOS after wake from sleep
+        if (this._reconnecting) {
+            debugLog('[BudgetWS] Already reconnecting, skip');
+            return;
+        }
+        this._reconnecting = true;
+
         this._closeExistingConnection();
         this.reconnectAttempts = 0;
         this.limitReached = false;
         this.useLongPolling = false;
         this._multiTabInitialized = false;
-        this.connect();
+
+        // For iOS: give network time to stabilize after wake from sleep
+        // TCP connections may have been killed while screen was off
+        const delay = this._iosDeviceMode ? 500 : 100;
+        setTimeout(() => {
+            this._reconnecting = false;
+            this.connect();
+        }, delay);
     }
 
     /**
@@ -856,6 +896,19 @@ class BudgetWSClient {
                     this.reconnectAttempts = this.maxReconnectAttempts;
                     this._notifyHandlers('limit_reached', {});
                     return;
+                }
+
+                // iOS-specific: code 1005 (No Status Received) after wake from sleep
+                // means TCP connection was killed while screen was off
+                // Network may not be fully stable yet, so increase reconnection delays
+                if (this._iosDeviceMode && event.code === 1005) {
+                    this._logHistory('ios_1005_wake_recovery');
+                    this._iosWakeRecoveryMode = true;
+                    // Reset wake recovery mode after 5 seconds
+                    // This gives network time to fully stabilize
+                    setTimeout(() => {
+                        this._iosWakeRecoveryMode = false;
+                    }, 5000);
                 }
 
                 // Schedule reconnect
@@ -1368,7 +1421,15 @@ class BudgetWSClient {
         }
 
         // Calculate delay with exponential backoff and jitter to prevent thundering herd
-        const baseDelay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
+        let baseDelay = this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts);
+
+        // iOS wake recovery mode: increase minimum delay to let network stabilize
+        // After code 1005 (TCP killed during sleep), network may not be fully ready
+        if (this._iosDeviceMode && this._iosWakeRecoveryMode) {
+            baseDelay = Math.max(baseDelay, 3000); // Minimum 3 seconds
+            debugLog('[BudgetWS] iOS wake recovery: using minimum 3s delay');
+        }
+
         const jitter = baseDelay * 0.2 * Math.random(); // ±10% jitter
         const delay = Math.min(baseDelay + jitter, this.maxReconnectDelay);
 
@@ -1568,10 +1629,21 @@ class BudgetWSClient {
             return;
         }
 
-        // Debounce rapid state changes to prevent visual flickering
-        // Exception: always show 'connected' immediately (good news should show fast)
-        if (state !== 'connected' && state !== 'connected_via_leader' && this._indicatorDebounceTimer) {
-            return;
+        // iOS wake recovery: debounce ALL state changes to prevent rapid flickering
+        // During wake from sleep, states can rapidly cycle: connected → connecting → connected
+        // Standard behavior: allow connected states through immediately
+        const isConnectedState = state === 'connected' || state === 'connected_via_leader';
+
+        if (this._iosDeviceMode) {
+            // iOS: debounce ALL states if timer is active (prevent any flickering)
+            if (this._indicatorDebounceTimer) {
+                return;
+            }
+        } else {
+            // Non-iOS: allow connected states through immediately (good news fast)
+            if (!isConnectedState && this._indicatorDebounceTimer) {
+                return;
+            }
         }
 
         this._lastIndicatorState = state;
@@ -1585,11 +1657,15 @@ class BudgetWSClient {
         // Apply the visual update
         this._applyIndicatorState(indicator, state);
 
-        // Set debounce timer for next update (except for connected states)
-        if (state !== 'connected' && state !== 'connected_via_leader') {
+        // Set debounce timer for next update
+        // iOS: debounce ALL states with longer interval (1s vs 500ms)
+        // Non-iOS: only debounce non-connected states
+        const shouldDebounce = this._iosDeviceMode || !isConnectedState;
+        if (shouldDebounce) {
+            const debounceMs = this._iosDeviceMode ? 1000 : this.INDICATOR_DEBOUNCE_MS;
             this._indicatorDebounceTimer = setTimeout(() => {
                 this._indicatorDebounceTimer = null;
-            }, this.INDICATOR_DEBOUNCE_MS);
+            }, debounceMs);
         }
     }
 
