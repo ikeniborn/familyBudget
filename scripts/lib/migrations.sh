@@ -64,7 +64,7 @@ run_alembic_migrations() {
 
     # Check available head revision
     local head_revision
-    head_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini heads 2>&1" | grep -oP '^[a-f0-9]{12}' || echo "unknown")
+    head_revision=$(compose_cmd exec -T backend bash -c "cd /app && alembic -c backend/db/migrations/alembic.ini heads 2>&1" | grep -oP '^[a-zA-Z0-9]{12}' || echo "unknown")
 
     if [[ "$head_revision" == "unknown" ]]; then
         warning "Cannot determine head revision"
