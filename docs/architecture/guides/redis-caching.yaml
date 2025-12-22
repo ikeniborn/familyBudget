@@ -461,7 +461,32 @@ future:
         - "4. Worker processes queue item in background"
         - "5. Worker writes to PostgreSQL with explicit ID"
         - "6. Worker creates BudgetFactHistory (change_type=CREATE)"
-        - "7. Worker broadcasts WebSocket event"
+        - "7. Worker broadcasts WebSocket event (fact_created/plan_created)"
+      broadcast_format:
+        description: "WebSocket event format matches sync path (budget_ws.py)"
+        event_types:
+          - "fact_created - for record_type != 'plan'"
+          - "plan_created - for record_type == 'plan'"
+          - "fact_updated/plan_updated - for UPDATE operations"
+          - "fact_deleted/plan_deleted - for DELETE operations"
+        data_fields:
+          - "id - from pre_generated_id or fact_id"
+          - "article_id"
+          - "financial_center_id"
+          - "cost_center_id"
+          - "amount"
+          - "fact_date"
+          - "description"
+          - "record_type"
+          - "transfer_id"
+        filtered_out:
+          - "sync_hash - internal field"
+          - "content_hash - internal field"
+          - "changed_by_user_id - internal field"
+          - "request_id - internal field"
+          - "entity_type - internal field"
+          - "operation - internal field"
+          - "user_id - not in SAFE_FACT_FIELDS"
       benefits:
         - "API latency ~10ms (vs ~50ms for sync write)"
         - "ID returned immediately (no waiting for DB)"

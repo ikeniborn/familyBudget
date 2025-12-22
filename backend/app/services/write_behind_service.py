@@ -470,19 +470,49 @@ class WriteBehindService:
             await session.delete(fact)
 
     async def _broadcast_event(self, item: WriteQueueItem):
-        """Broadcast WebSocket event for the write operation."""
+        """Broadcast WebSocket event for the write operation.
+
+        Matches the sync path broadcast format (budget_ws.py:893-897):
+        - Uses SAFE_FACT_FIELDS for filtering
+        - Distinguishes between fact_created and plan_created events
+        - Includes 'id' field (from pre_generated_id or fact_id)
+        """
         try:
             from backend.app.services.redis_ws_manager import get_ws_manager
 
             manager = get_ws_manager()
-            event_type = f"{item.entity_type}_{item.operation.value.lower()}d"
-            await manager.broadcast(event_type, {
-                "request_id": item.request_id,
-                "entity_type": item.entity_type,
-                "operation": item.operation.value,
-                "user_id": item.user_id,
-                **item.data,
-            })
+
+            # Use pre_generated_id as the fact id for broadcast
+            fact_id = item.data.get("pre_generated_id") or item.data.get("fact_id")
+
+            # Determine event type based on record_type and operation
+            # (matching sync path behavior in facts.py:373-376)
+            record_type = item.data.get("record_type", "fact")
+            if item.operation == WriteOperation.CREATE:
+                event_type = "plan_created" if record_type == "plan" else "fact_created"
+            elif item.operation == WriteOperation.UPDATE:
+                event_type = "plan_updated" if record_type == "plan" else "fact_updated"
+            elif item.operation == WriteOperation.DELETE:
+                event_type = "plan_deleted" if record_type == "plan" else "fact_deleted"
+            else:
+                event_type = f"{item.entity_type}_{item.operation.value.lower()}d"
+
+            # Filter data to only safe fields (matching budget_ws.py:854-857)
+            SAFE_FACT_FIELDS = {
+                "id", "article_id", "financial_center_id", "cost_center_id",
+                "amount", "fact_date", "description", "record_type", "transfer_id",
+            }
+
+            # Build broadcast data with id field
+            broadcast_data = {"id": fact_id}
+            for key, value in item.data.items():
+                if key in SAFE_FACT_FIELDS:
+                    broadcast_data[key] = value
+
+            await manager.broadcast(event_type, broadcast_data)
+            logger.debug(
+                f"Write-behind broadcast: {event_type}, id={fact_id}"
+            )
         except Exception as e:
             logger.warning(f"Failed to broadcast write-behind event: {e}")
 
