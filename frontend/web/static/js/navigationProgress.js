@@ -1,15 +1,15 @@
 /**
- * Navigation Progress Module
- * Intercepts internal navigation and shows real loading progress.
+ * Navigation Progress Module v2.0
+ * Pre-fetch + Navigate approach
  *
- * Features:
- * - Intercepts clicks on internal links
- * - Uses fetch with ReadableStream for real progress tracking
- * - Falls back to animated progress if Content-Length unknown
- * - Replaces page content smoothly
- * - Handles errors gracefully
+ * Flow:
+ * 1. Intercept link click
+ * 2. Show progress bar
+ * 3. Fetch page (get real progress from ReadableStream)
+ * 4. When 100% → window.location.href (browser loads from cache)
+ * 5. All inline scripts work (real page load)
  *
- * @version 1.0.0
+ * @version 2.0.0
  */
 
 (function() {
@@ -23,7 +23,7 @@
         // Configuration
         config: {
             timeout: 30000,           // 30 seconds max
-            minDisplayTime: 150,      // Minimum visible time for UX
+            minDisplayTime: 100,      // Minimum visible time for UX
             animatedFallbackSpeed: 30 // Fake progress increment per 100ms
         },
 
@@ -46,13 +46,7 @@
             // Intercept all clicks on document (capture phase)
             document.addEventListener('click', this.handleClick.bind(this), true);
 
-            // Handle browser back/forward
-            window.addEventListener('popstate', this.handlePopState.bind(this));
-
-            // Listen for navigation-complete event to reinitialize widgets
-            window.addEventListener('page-navigation-complete', this.onNavigationComplete.bind(this));
-
-            debugLog('[NavigationProgress] Initialized');
+            debugLog('[NavigationProgress] v2.0 Initialized (Pre-fetch + Navigate)');
         },
 
         /**
@@ -140,22 +134,9 @@
         },
 
         /**
-         * Handle browser back/forward navigation
+         * Navigate to URL with progress (Pre-fetch + Navigate approach)
          */
-        handlePopState(event) {
-            // Only handle if we have a state object (from our pushState)
-            if (event.state && event.state.url) {
-                this.navigateTo(event.state.url, false);
-            } else if (!event.state) {
-                // Browser back without state - reload current URL
-                this.navigateTo(window.location.pathname + window.location.search, false);
-            }
-        },
-
-        /**
-         * Navigate to URL with progress
-         */
-        async navigateTo(url, updateHistory = true) {
+        async navigateTo(url) {
             if (this.isNavigating) {
                 // Cancel current navigation
                 this.cancel();
@@ -171,27 +152,21 @@
             this.setProgress(5); // Initial progress to show activity
 
             try {
-                // Fetch the page
-                const response = await this.fetchWithProgress(url);
-
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                // Get HTML content
-                const html = await response.text();
+                // Pre-fetch the page (warms HTTP cache + shows real progress)
+                await this.prefetchWithProgress(url);
 
                 // Complete progress
                 this.setProgress(100);
 
-                // Wait for minimum display time
+                // Wait for minimum display time (UX)
                 const elapsed = Date.now() - this.startTime;
                 const remaining = Math.max(0, this.config.minDisplayTime - elapsed);
-
                 await this.delay(remaining);
 
-                // Replace page content
-                this.replacePage(html, url, updateHistory);
+                // Navigate normally - browser loads from HTTP cache (instant)
+                // All inline scripts will execute properly
+                this.isNavigating = false;
+                window.location.href = url;
 
             } catch (error) {
                 if (error.name === 'AbortError') {
@@ -199,26 +174,20 @@
                     return;
                 }
 
-                console.error('[NavigationProgress] Navigation failed:', error);
+                console.error('[NavigationProgress] Pre-fetch failed:', error);
                 this.hideProgress();
                 this.isNavigating = false;
 
-                // Show error toast
-                if (typeof showToast === 'function') {
-                    showToast('Ошибка загрузки страницы', 'error');
-                }
-
-                // For network errors, fall back to normal navigation
-                if (error.message.includes('fetch') || error.message.includes('network') || error.message.includes('Failed')) {
-                    window.location.href = url;
-                }
+                // Fall back to normal navigation (let browser handle it)
+                window.location.href = url;
             }
         },
 
         /**
-         * Fetch URL with real progress tracking
+         * Pre-fetch URL with real progress tracking
+         * The response warms the HTTP cache for instant subsequent load
          */
-        async fetchWithProgress(url) {
+        async prefetchWithProgress(url) {
             const response = await fetch(url, {
                 method: 'GET',
                 credentials: 'include',
@@ -236,12 +205,13 @@
             // If no Content-Length or no body, use animated fallback
             if (!total || !response.body) {
                 this.startAnimatedProgress();
-                return response;
+                // Still consume the response to warm cache
+                await response.text();
+                return;
             }
 
             // Read response with progress tracking
             const reader = response.body.getReader();
-            const chunks = [];
             let loaded = 0;
             let useFallback = false;
 
@@ -250,7 +220,6 @@
 
                 if (done) break;
 
-                chunks.push(value);
                 loaded += value.length;
 
                 // Gzip/Brotli fix: if loaded exceeds total by too much, switch to fallback
@@ -260,22 +229,13 @@
                         this.startAnimatedProgress();
                     }
                 } else {
-                    // Calculate and update progress (5-95% range, reserve 100% for parsing)
+                    // Calculate and update progress (5-95% range, reserve 100% for navigation)
                     const percentComplete = 5 + (loaded / total) * 90;
                     this.setProgress(Math.min(95, percentComplete));
                 }
             }
 
-            // Combine chunks into single response
-            const blob = new Blob(chunks);
-            const text = await blob.text();
-
-            // Create new response with text
-            return new Response(text, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: response.headers
-            });
+            // Response fully consumed → HTTP cache warmed
         },
 
         /**
@@ -302,105 +262,6 @@
                     this.animationFrameId = requestAnimationFrame(animate);
                 }
             }, 100);
-        },
-
-        /**
-         * Replace page content with new HTML
-         */
-        replacePage(html, url, updateHistory) {
-            try {
-                // Parse HTML
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-
-                // Extract key elements
-                const newTitle = doc.querySelector('title')?.textContent || document.title;
-                const newMain = doc.querySelector('#main-content');
-
-                // Update title
-                document.title = newTitle;
-
-                // Update main content
-                if (newMain) {
-                    const currentMain = document.getElementById('main-content');
-                    if (currentMain) {
-                        currentMain.innerHTML = newMain.innerHTML;
-                    }
-                }
-
-                // Update history
-                if (updateHistory) {
-                    window.history.pushState({ url: url }, newTitle, url);
-                }
-
-                // Scroll to top
-                window.scrollTo(0, 0);
-
-                // Dispatch navigation complete event
-                const oldUrl = window.location.href;
-                window.dispatchEvent(new CustomEvent('page-navigation-complete', {
-                    detail: { url: url, fromUrl: oldUrl }
-                }));
-
-                // Hide progress bar
-                this.hideProgress();
-                this.isNavigating = false;
-
-                debugLog('[NavigationProgress] Page replaced:', url);
-
-            } catch (error) {
-                console.error('[NavigationProgress] Failed to replace page:', error);
-                // Fallback to normal navigation
-                window.location.href = url;
-            }
-        },
-
-        /**
-         * Called when navigation completes - reinitialize scripts
-         */
-        onNavigationComplete(event) {
-            debugLog('[NavigationProgress] Navigation complete, reinitializing scripts');
-
-            // Re-trigger HTMX on new content
-            if (typeof htmx !== 'undefined') {
-                const mainContent = document.getElementById('main-content');
-                if (mainContent) {
-                    htmx.process(mainContent);
-                }
-            }
-
-            // Update active nav links
-            this.updateActiveNavLinks();
-
-            // Refresh HTMX widgets if available
-            if (typeof HTMXWidgets !== 'undefined') {
-                HTMXWidgets.refreshAllDebounced();
-            }
-        },
-
-        /**
-         * Update navbar active states
-         */
-        updateActiveNavLinks() {
-            const currentPath = window.location.pathname;
-
-            // Desktop menu and mobile menu
-            const menuSelectors = '#navbar-center-menu a, #mobile-menu-content a';
-            document.querySelectorAll(menuSelectors).forEach(link => {
-                const href = link.getAttribute('href');
-                if (!href) return;
-
-                const isActive = href === currentPath ||
-                    (href !== '/' && currentPath.startsWith(href));
-
-                if (isActive) {
-                    link.classList.add('active');
-                    link.setAttribute('aria-current', 'page');
-                } else {
-                    link.classList.remove('active');
-                    link.removeAttribute('aria-current');
-                }
-            });
         },
 
         /**
