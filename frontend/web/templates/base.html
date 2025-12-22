@@ -299,6 +299,14 @@
             return;
         }
 
+        // Only show splash on first PWA launch (not on page navigations)
+        var SPLASH_SHOWN_KEY = 'pwa_splash_shown';
+        if (sessionStorage.getItem(SPLASH_SHOWN_KEY)) {
+            splashEl.remove();
+            return;
+        }
+        sessionStorage.setItem(SPLASH_SHOWN_KEY, '1');
+
         var MIN_DISPLAY_TIME = 2000; // Show splash for at least 2 seconds
         var startTime = Date.now();
         var pageLoaded = false;

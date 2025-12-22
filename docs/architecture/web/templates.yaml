@@ -60,6 +60,7 @@ templates:
         - "Android: Native splash from manifest.json (instant)"
         - "HTML splash provides smooth transition after native splash"
         - "Only shown in standalone mode (not in regular browser)"
+        - "Only on first PWA launch (sessionStorage flag, not on page navigations)"
         - "Minimum display time: 2000ms (2 seconds)"
         - "Waits for BOTH: 2s timer AND page load complete"
         - "Smooth fade-out transition (300ms)"
