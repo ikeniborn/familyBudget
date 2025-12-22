@@ -25,6 +25,17 @@ module:
         - queueOperation
         - syncPendingOperations
         - resolveConflicts
+        - createFact
+        - createRecurringPlan
+        - createTransfer
+      internal_helpers:
+        - name: _offlineLog
+          description: "Debug logging for offline operations (console.log wrapper)"
+        - name: _offlineWarn
+          description: "Warning logging for offline operations (console.warn wrapper)"
+      note: |
+        ВАЖНО: Для логирования используйте _offlineLog() и _offlineWarn(),
+        НЕ _log() - такой функции не существует.
 
     - name: idb
       path: "frontend/web/static/js/offline/idb.js"
@@ -172,6 +183,8 @@ module:
       - CREATE_FACT
       - UPDATE_FACT
       - DELETE_FACT
+      - CREATE_RECURRING_PLAN
+      - CREATE_TRANSFER
       - CREATE_SHOPPING_ITEM
       - UPDATE_SHOPPING_ITEM
       - DELETE_SHOPPING_ITEM
