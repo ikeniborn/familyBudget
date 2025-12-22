@@ -3908,18 +3908,6 @@ function initRecurringFields(modalId) {
 }
 
 /**
- * Open calendar widget for recurring end date input
- */
-function openRecurringEndDateCalendar(modalId) {
-    const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
-    if (endDateInput) {
-        endDateInput.focus();
-        endDateInput.click();
-    }
-}
-window.openRecurringEndDateCalendar = openRecurringEndDateCalendar;
-
-/**
  * Update frequency-specific fields visibility
  */
 function updateFrequencyFields(modalId) {

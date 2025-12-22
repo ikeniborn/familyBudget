@@ -153,6 +153,7 @@ module:
         - "Monthday picker (for monthly/quarterly)"
         - "Duration options (indefinite/count/end_date)"
         - "Live preview of recurrence pattern"
+        - "CalendarWidget автоматически создаёт иконку для end_date поля"
 
     plan_page:
       file: "frontend/web/templates/plan.html"

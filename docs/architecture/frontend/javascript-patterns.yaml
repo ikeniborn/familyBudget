@@ -309,6 +309,28 @@ anti_patterns:
       - commit: "fix(lists): prevent store/product group duplication"
         description: "Added select.innerHTML = '' after destroy()"
 
+  - name: "Дублирование иконок при использовании CalendarWidget"
+    avoid: |
+      <div class="relative">
+          <input type="text" ... />
+          <button onclick="openCalendar()">
+              <svg>...</svg> <!-- Встроенная иконка -->
+          </button>
+      </div>
+      // + CalendarWidget._createSingleButton() добавит ещё одну кнопку
+    reason: "CalendarWidget автоматически создаёт кнопку с иконкой календаря при инициализации"
+    use_instead: |
+      <div class="relative">
+          <input type="text" ... />
+          <!-- CalendarWidget сам создаст кнопку с иконкой -->
+      </div>
+    files:
+      - "frontend/shared/static/js/calendar-widget.js:_createSingleButton()"
+      - "frontend/web/templates/components/modal_plan.html"
+    related_commits:
+      - commit: "fix(plan): remove duplicate calendar icon"
+        description: "Removed hardcoded button, CalendarWidget creates its own"
+
 # ---------------------------------------------------------------------------
 # TESTING GUIDELINES
 # ---------------------------------------------------------------------------
