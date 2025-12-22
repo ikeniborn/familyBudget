@@ -17,6 +17,11 @@ routes:
     response:
       status: 200
       body:
+        articles: "array of article objects"
+        total: "integer - total count"
+        limit: "integer - page size"
+        offset: "integer - skip count"
+      article_object:
         - id: "integer"
           name: "string"
           type: "income | expense"

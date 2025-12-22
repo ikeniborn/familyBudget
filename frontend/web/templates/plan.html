@@ -1270,7 +1270,8 @@ async function loadUsers() {
 async function loadArticles() {
     try {
         const response = await fetch('/api/v1/articles');
-        const articles = await response.json();
+        const data = await response.json();
+        const articles = data.articles || [];
 
         // Build tree and flatten
         const tree = buildArticleTree(articles);
@@ -1932,7 +1933,8 @@ async function loadFacts() {
             throw new Error('Failed to load facts');
         }
 
-        factsData = await factsResponse.json();
+        const factsResponseData = await factsResponse.json();
+        factsData = factsResponseData.facts || [];
         const countData = await countResponse.json();
         totalFacts = countData.total;
 
