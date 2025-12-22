@@ -12,6 +12,7 @@ Features:
     - Aggregation endpoint for summaries
 """
 
+import asyncio
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -289,8 +290,8 @@ async def create_fact(
         logger.warning(f"WebSocket broadcast failed for fact {fact.id}: {e}")
         # Don't fail the request if broadcast fails
 
-    # Invalidate dashboard cache (quick stats, balances, recent)
-    await cache_service.invalidate_dashboard()
+    # Fire-and-forget: don't block HTTP response waiting for Redis
+    asyncio.create_task(cache_service.invalidate_dashboard())
 
     return response_data
 
@@ -1158,8 +1159,8 @@ async def update_fact(
         logger.warning(f"WebSocket broadcast failed for updated fact {fact.id}: {e}")
         # Don't fail the request if broadcast fails
 
-    # Invalidate dashboard cache (quick stats, balances, recent)
-    await cache_service.invalidate_dashboard()
+    # Fire-and-forget: don't block HTTP response waiting for Redis
+    asyncio.create_task(cache_service.invalidate_dashboard())
 
     return response_data
 
@@ -1252,8 +1253,8 @@ async def delete_fact(
         logger.warning(f"WebSocket broadcast failed for deleted fact {fact_id}: {e}")
         # Don't fail the request if broadcast fails
 
-    # Invalidate dashboard cache (quick stats, balances, recent)
-    await cache_service.invalidate_dashboard()
+    # Fire-and-forget: don't block HTTP response waiting for Redis
+    asyncio.create_task(cache_service.invalidate_dashboard())
 
     return None
 
@@ -1362,8 +1363,8 @@ async def batch_delete_facts(
         logger.warning(f"WebSocket broadcast failed for batch delete: {e}")
         # Don't fail the request if broadcast fails
 
-    # Invalidate dashboard cache (quick stats, balances, recent)
-    await cache_service.invalidate_dashboard()
+    # Fire-and-forget: don't block HTTP response waiting for Redis
+    asyncio.create_task(cache_service.invalidate_dashboard())
 
     return {
         "message": f"Deleted {deleted_count} facts",

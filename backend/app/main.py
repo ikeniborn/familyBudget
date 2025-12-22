@@ -38,8 +38,9 @@ from backend.app.middleware.validation_error_handler import (
     value_error_handler,
 )
 
-# Setup structured logging
-setup_logging(level="INFO")
+# Setup structured logging (using settings for level and format)
+_settings = get_settings()
+setup_logging(level=_settings.LOG_LEVEL, log_format=_settings.LOG_FORMAT)
 logger = get_logger(__name__)
 
 
@@ -71,6 +72,16 @@ async def lifespan(app: FastAPI):
             logger.warning("Redis not configured - caching will be unavailable")
     except Exception as e:
         logger.warning(f"Failed to initialize Redis: {e} - caching will be unavailable")
+
+    # Warmup Redis connection (ensure pool is ready before first user request)
+    try:
+        if is_redis_available():
+            from backend.app.services.cache_service import cache_service, CacheKey
+            # Simple warmup call to ensure connection is established
+            await cache_service.get(CacheKey.quick_stats())
+            logger.info("Redis connection warmed up")
+    except Exception as e:
+        logger.warning(f"Redis warmup failed (non-critical): {e}")
 
     # Initialize Redis WebSocket Pub/Sub (for multi-worker support)
     try:

@@ -36,6 +36,13 @@ class OfflineManager {
         // ✅ NEW: Timeout ID for scheduled retry sync
         this.retryTimeout = null;
 
+        // ✅ Adaptive timeout for cold backend (after restart)
+        // First request after page load gets longer timeout because connection pools may be cold
+        this._isFirstRequest = true;
+        this._firstRequestTimeout = 8000;  // 8s for cold backend (DB/Redis warmup)
+        this._normalTimeout = 3000;        // 3s for warm backend
+        this._optimizedTimeout = 2000;     // 2s after confirmed successful request
+
         // SmartNetworkDetector для надежного определения состояния сети
         this.networkDetector = null;
 
@@ -357,9 +364,20 @@ class OfflineManager {
             return await this.createFactOffline(data);
         }
 
-        // Try to send online with short timeout (2 sec)
+        // Adaptive timeout: longer for first request (cold backend), shorter after success
+        const timeout = this._isFirstRequest
+            ? this._firstRequestTimeout
+            : this._normalTimeout;
+
+        // Try to send online with adaptive timeout
         try {
-            return await this.createFactOnline(data, 2000);
+            const result = await this.createFactOnline(data, timeout);
+
+            // Success - backend is warm, reduce timeout for future requests
+            this._isFirstRequest = false;
+            this._normalTimeout = this._optimizedTimeout;
+
+            return result;
         } catch (error) {
             // Error - automatically save offline
             _offlineWarn('[OfflineManager] Online create failed, falling back to offline:', error);

@@ -271,6 +271,10 @@ class CacheService:
 
         Returns:
             Number of keys deleted
+
+        Note:
+            Safety limit of 1000 keys to prevent slow scans blocking the response.
+            In practice, cache keys rarely exceed this limit.
         """
         if not is_redis_available():
             return 0
@@ -281,10 +285,16 @@ class CacheService:
 
         try:
             async with get_redis() as redis:
-                # Find all matching keys
+                # Find all matching keys with safety limit
                 keys = []
                 async for key in redis.scan_iter(match=pattern, count=100):
                     keys.append(key)
+                    if len(keys) >= 1000:  # Safety limit to prevent slow scans
+                        logger.warning(
+                            f"Cache invalidate: hit 1000 key limit for {pattern}, "
+                            "some keys may not be invalidated"
+                        )
+                        break
 
                 if not keys:
                     logger.debug(f"Cache invalidate: no keys match {pattern}")
@@ -292,7 +302,7 @@ class CacheService:
 
                 # Delete all matching keys
                 deleted = await redis.delete(*keys)
-                logger.info(f"Cache invalidate: deleted {deleted} keys matching {pattern}")
+                logger.debug(f"Cache invalidate: deleted {deleted} keys matching {pattern}")
                 return deleted
         except Exception as e:
             logger.warning(f"Cache invalidate error for {pattern}: {e}")
