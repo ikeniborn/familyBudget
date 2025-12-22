@@ -364,6 +364,48 @@
     }
 
     /**
+     * Wait for iframe to fully load before hiding placeholder
+     */
+    function waitForIframeLoad(iframe) {
+        console.log('[TelegramWidget] Iframe detected, waiting for load event...');
+
+        // If iframe is already loaded (cached), transition immediately
+        // Check if iframe has content by trying to access its dimensions
+        if (iframe.contentWindow) {
+            try {
+                // iframe загружен, если его размеры > 0
+                var rect = iframe.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    console.log('[TelegramWidget] Iframe already has dimensions, checking load state');
+                }
+            } catch (e) {
+                // Cross-origin, можем только ждать load event
+            }
+        }
+
+        // Listen for load event
+        iframe.addEventListener('load', function onLoad() {
+            console.log('[TelegramWidget] Iframe load event fired');
+            iframe.removeEventListener('load', onLoad);
+            transitionTo('success');
+            cleanup();
+        });
+
+        // Fallback: если load event не сработал за 5 секунд после появления iframe,
+        // но iframe видим - считаем загруженным
+        setTimeout(function() {
+            if (state === 'loading') {
+                var rect = iframe.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    console.log('[TelegramWidget] Iframe visible after 5s fallback, transitioning to success');
+                    transitionTo('success');
+                    cleanup();
+                }
+            }
+        }, 5000);
+    }
+
+    /**
      * Create and start MutationObserver to detect widget load
      */
     function startObserver() {
@@ -373,8 +415,33 @@
                 for (var j = 0; j < mutation.addedNodes.length; j++) {
                     var node = mutation.addedNodes[j];
                     if (isTelegramWidget(node)) {
-                        transitionTo('success');
-                        cleanup();
+                        // Don't transition yet - wait for iframe to load
+                        if (node.tagName === 'IFRAME') {
+                            waitForIframeLoad(node);
+                        } else {
+                            // For other elements (like div with class), find iframe inside
+                            var iframe = node.querySelector ? node.querySelector('iframe') : null;
+                            if (iframe) {
+                                waitForIframeLoad(iframe);
+                            } else {
+                                // Wait for iframe to appear inside
+                                var innerObserver = new MutationObserver(function(innerMutations) {
+                                    for (var k = 0; k < innerMutations.length; k++) {
+                                        for (var l = 0; l < innerMutations[k].addedNodes.length; l++) {
+                                            var innerNode = innerMutations[k].addedNodes[l];
+                                            if (innerNode.tagName === 'IFRAME') {
+                                                innerObserver.disconnect();
+                                                waitForIframeLoad(innerNode);
+                                                return;
+                                            }
+                                        }
+                                    }
+                                });
+                                innerObserver.observe(node, { childList: true, subtree: true });
+                            }
+                        }
+                        // Stop main observer - we're now waiting for iframe load
+                        observer.disconnect();
                         return;
                     }
                 }
