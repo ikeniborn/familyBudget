@@ -6,7 +6,7 @@ Adds recurring_plan_id column to t_f_budget_fact partitioned table.
 Note: No FK constraint from budget_fact to recurring_plan due to partitioning.
 Referential integrity is enforced at application level.
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 3a077393f4de
 Revises: z1b2c3d4e5f6
 Create Date: 2025-12-22 12:00:00.000000
 
@@ -15,7 +15,7 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = 'a1b2c3d4e5f6'
+revision = '3a077393f4de'
 down_revision = 'z1b2c3d4e5f6'
 branch_labels = None
 depends_on = None
