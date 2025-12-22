@@ -315,9 +315,16 @@ class WriteBehindService:
         """Process fact operations with complete history tracking."""
         from backend.app.models import BudgetFact, BudgetFactHistory
         from sqlmodel import select
-        from datetime import datetime as dt, timezone
+        from datetime import datetime as dt, timezone, date
 
         now = dt.now(timezone.utc)
+
+        # Parse fact_date from string (JSON serialization converts date to string)
+        fact_date_raw = item.data.get("fact_date")
+        if isinstance(fact_date_raw, str):
+            fact_date = date.fromisoformat(fact_date_raw)
+        else:
+            fact_date = fact_date_raw
 
         if item.operation == WriteOperation.CREATE:
             # Create new fact with pre-generated ID
@@ -326,7 +333,7 @@ class WriteBehindService:
                 user_id=item.user_id,
                 article_id=item.data["article_id"],
                 amount=item.data["amount"],
-                fact_date=item.data["fact_date"],
+                fact_date=fact_date,
                 description=item.data.get("description"),
                 financial_center_id=item.data.get("financial_center_id"),
                 cost_center_id=item.data.get("cost_center_id"),
@@ -380,6 +387,10 @@ class WriteBehindService:
             changed_fields = []
             update_data = {k: v for k, v in item.data.items()
                           if k not in ("fact_id", "changed_by_user_id")}
+
+            # Parse fact_date if present (JSON serialization converts date to string)
+            if "fact_date" in update_data and isinstance(update_data["fact_date"], str):
+                update_data["fact_date"] = date.fromisoformat(update_data["fact_date"])
 
             for key, value in update_data.items():
                 if hasattr(fact, key) and getattr(fact, key) != value:
