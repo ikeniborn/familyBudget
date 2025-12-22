@@ -223,6 +223,71 @@
                 transition: none;
             }
         }
+
+        /* Navigation Progress Bar */
+        .navigation-progress {
+            position: fixed;
+            /* DaisyUI navbar высота: h-16 на desktop */
+            top: 4rem; /* 64px */
+            left: 0;
+            width: 0%;
+            height: 3px;
+            background: oklch(var(--su)); /* DaisyUI success color (green) */
+            z-index: 39; /* под navbar (z-40) */
+            transition: width 0.15s ease-out;
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 0 8px oklch(var(--su) / 0.5);
+        }
+
+        /* Mobile: меньшая высота navbar */
+        @media (max-width: 640px) {
+            .navigation-progress {
+                top: 3.5rem; /* 56px */
+            }
+        }
+
+        .navigation-progress.active {
+            opacity: 1;
+        }
+
+        .navigation-progress.complete {
+            width: 100%;
+            transition: width 0.1s ease-out, opacity 0.3s ease-out 0.15s;
+            opacity: 0;
+        }
+
+        /* Shimmer effect for active loading */
+        .navigation-progress.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.4) 50%,
+                transparent 100%
+            );
+            animation: progress-shimmer 1.5s infinite;
+        }
+
+        @keyframes progress-shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        /* Reduced motion for progress bar */
+        @media (prefers-reduced-motion: reduce) {
+            .navigation-progress {
+                transition: none;
+            }
+            .navigation-progress::after {
+                animation: none;
+            }
+        }
     </style>
 
     <!-- Offline mode detection BEFORE body renders (prevents flash) -->
@@ -286,6 +351,7 @@
     </div>
     <script>
     // PWA Splash Screen Controller - inline for immediate execution
+    // Shows splash ONLY on first ever PWA launch (not on F5, not on navigation)
     (function() {
         var splashEl = document.getElementById('pwa-splash');
         if (!splashEl) return;
@@ -299,15 +365,26 @@
             return;
         }
 
-        // First launch: 2s minimum + wait for load
-        // Page navigations: just wait for load (no minimum time)
-        var SPLASH_KEY = 'pwa_splash_shown';
-        var isFirstLaunch = !sessionStorage.getItem(SPLASH_KEY);
-        if (isFirstLaunch) {
-            sessionStorage.setItem(SPLASH_KEY, '1');
+        // Detect page reload (F5) using Performance API
+        var navEntry = window.performance && window.performance.getEntriesByType &&
+                       window.performance.getEntriesByType('navigation')[0];
+        var isReload = navEntry && navEntry.type === 'reload';
+
+        // Check if this is FIRST EVER launch (permanent, not per-session)
+        var FIRST_LAUNCH_KEY = 'pwa_first_launch_completed';
+        var isFirstEverLaunch = !localStorage.getItem(FIRST_LAUNCH_KEY);
+
+        // Only show splash on FIRST EVER launch, NOT on reload or navigation
+        if (!isFirstEverLaunch || isReload) {
+            splashEl.remove();
+            return;
         }
 
-        var MIN_DISPLAY_TIME = isFirstLaunch ? 2000 : 1000;
+        // Mark first launch as completed (permanent)
+        localStorage.setItem(FIRST_LAUNCH_KEY, Date.now().toString());
+
+        // Show splash for 2 seconds on first ever launch
+        var MIN_DISPLAY_TIME = 2000;
         var pageLoaded = false;
         var timerDone = false;
 
@@ -320,13 +397,11 @@
             }
         }
 
-        // Timer: 2s for first launch, 1s for navigations
         setTimeout(function() {
             timerDone = true;
             tryHideSplash();
         }, MIN_DISPLAY_TIME);
 
-        // Wait for page load
         if (document.readyState === 'complete') {
             pageLoaded = true;
             tryHideSplash();
@@ -628,6 +703,9 @@
             {% endif %}
         </div>
     </header>
+
+    <!-- Navigation Progress Bar -->
+    <div id="navigation-progress" class="navigation-progress" role="progressbar" aria-hidden="true"></div>
 
     <!-- Pending Sync Badge -->
     <div id="pending-sync-badge" class="fixed top-16 left-4 z-50 hidden">
@@ -1609,5 +1687,8 @@
         })();
     </script>
     {% endif %}
+
+    <!-- Navigation Progress Bar -->
+    <script src="/static/js/navigationProgress.min.js?v=PLACEHOLDER"></script>
 </body>
 </html>

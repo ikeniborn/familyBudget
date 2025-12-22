@@ -35,13 +35,15 @@ templates:
         - $ref: "./js-modules.yaml#/modules/offlineManager"
         - $ref: "./js-modules.yaml#/modules/pushManager"
         - $ref: "./js-modules.yaml#/modules/networkDetector"
+        - $ref: "./js-modules.yaml#/modules/navigationProgress"
       css:
         - $ref: "./css.yaml#/files/tailwind_daisyui"
         - $ref: "./css.yaml#/files/custom"
         - $ref: "./css.yaml#/files/style"
 
     features:
-      - "PWA splash screen with icon and loader (standalone mode only)"
+      - "PWA splash screen (first launch only, standalone mode)"
+      - "Navigation progress bar (real loading progress 0-100%)"
       - "Responsive navbar (desktop horizontal, mobile dropdown)"
       - "User profile dropdown"
       - "Theme toggle (light/dark)"
@@ -60,11 +62,12 @@ templates:
         - "Android: Native splash from manifest.json (instant)"
         - "HTML splash provides smooth transition after native splash"
         - "Only shown in standalone mode (not in regular browser)"
-        - "First launch: 2s minimum + wait for page load"
-        - "Page navigations: 1s minimum + wait for page load"
-        - "Uses sessionStorage to distinguish first launch from navigations"
+        - "Only shown on FIRST EVER PWA launch (not on F5, not on navigation)"
+        - "Uses localStorage (permanent) to track first launch"
+        - "F5/reload detected via Performance API (navigation.type === 'reload')"
         - "Smooth fade-out transition (300ms)"
         - "Removed from DOM after transition"
+      localStorage_key: "pwa_first_launch_completed"
       ios_splash_images:
         directory: "frontend/web/static/icons/splash/"
         generated_by: "scripts/generate_pwa_icons.sh"
@@ -89,9 +92,37 @@ templates:
           - "Reduced motion support (prefers-reduced-motion)"
       js:
         location: "inline immediately after splash HTML element"
-        min_display_time: "2000ms (first launch) / 1000ms (navigations)"
+        min_display_time: "2000ms (first launch only)"
         pwa_detection: "display-mode: standalone OR navigator.standalone"
-        logic: "First launch: 2s + load. Navigations: 1s + load"
+        reload_detection: "performance.getEntriesByType('navigation')[0]?.type === 'reload'"
+        logic: "First ever launch: 2s + load. F5/reload or repeat launch: no splash (removed immediately)"
+
+    navigation_progress_bar:
+      id: "navigation-progress"
+      description: "Thin green progress bar under navbar showing real page loading progress"
+      position: "Fixed below navbar (top: 4rem desktop, 3.5rem mobile)"
+      color: "oklch(var(--su)) - DaisyUI success (green)"
+      height: "3px"
+      z_index: 39
+      js_module: "navigationProgress.js"
+      behavior:
+        - "Intercepts internal link clicks"
+        - "Shows real progress via fetch ReadableStream (0-100%)"
+        - "Falls back to animated progress if Content-Length unknown"
+        - "Stays on current page until 100% loaded"
+        - "Replaces page content, updates URL, scrolls to top"
+        - "Reinitializes HTMX and widgets after navigation"
+      exclusions:
+        - "External links (different origin)"
+        - "Hash links (#anchor)"
+        - "Download links"
+        - "target='_blank' links"
+        - "data-no-progress attribute"
+        - "HTMX links (hx-get, hx-post, hx-boost)"
+        - "Links inside modals/dialogs"
+      css_classes:
+        active: "Progress bar visible and animating"
+        complete: "Fade out after reaching 100%"
 
     mobile_menu:
       id: "mobile-menu-dropdown"

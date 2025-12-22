@@ -457,6 +457,47 @@ modules:
     description: "Confirmation modal manager"
     usage: "Delete/archive operations"
 
+  navigationProgress:
+    path: "frontend/web/static/js/navigationProgress.js"
+    minified: "navigationProgress.min.js"
+    loc: ~480
+    description: "SPA-like navigation with progress bar"
+    features:
+      - "Intercepts internal link clicks"
+      - "Shows real progress bar under navbar (fetch + ReadableStream)"
+      - "Falls back to animated progress if Content-Length unknown"
+      - "Replaces #main-content without full page reload"
+      - "Handles Gzip/Brotli responses gracefully"
+      - "Closes mobile menu before navigation"
+      - "Updates browser history (pushState)"
+      - "Reinitializes HTMX and widgets after navigation"
+    public_methods:
+      init: "Initialize navigation interceptor"
+      navigateTo: "Programmatic navigation with progress"
+      cancel: "Cancel current navigation"
+      shouldIntercept: "Check if link should be intercepted"
+    events:
+      dispatches: "page-navigation-complete"
+      detail: "{ url: string, fromUrl: string }"
+    css_classes:
+      navigation-progress: "Progress bar container"
+      active: "Progress bar visible"
+      complete: "Progress bar at 100%, fading out"
+    exclusions:
+      - "External links (different origin)"
+      - "Hash links (#...)"
+      - "Download links (download attr)"
+      - "New window links (target=_blank)"
+      - "data-no-progress attribute"
+      - "HTMX links (hx-get, hx-post, hx-boost)"
+      - "Links inside modals (dialog, .modal)"
+    integration:
+      - "Works with HTMXWidgets for widget refresh"
+      - "Works with budgetWSClient (keeps connection)"
+      - "Updates navbar active links after navigation"
+    exports:
+      singleton: "window.NavigationProgress"
+
 # ---------------------------------------------------------------------------
 # VENDOR LIBRARIES
 # ---------------------------------------------------------------------------
