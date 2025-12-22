@@ -257,6 +257,10 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-22**: Plan page: moved User column after Description
+  - Reordered table columns in facts table (desktop view)
+  - New order: ID, Date, Account, Cost Center, Category, Amount, **Description, User**, Reminder, Recurring, Offline, Actions
+  - Files: `frontend/web/templates/plan.html:2003-2006,2049-2052`
 - **2025-12-22**: Fixed article_type filter on plan page:
   - **Problem**: `filter-article-type` dropdown did not filter facts table
   - **Root Cause #1**: Frontend handler only called `reloadArticleFilter()`, missing `loadFacts()` and sync to analytics
