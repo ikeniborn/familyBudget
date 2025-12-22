@@ -194,8 +194,16 @@
 }
 
 .telegram-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
     justify-content: center;
+    align-items: center;
+    background: var(--fallback-b1,oklch(var(--b1)/1));
+    z-index: 10;
 }
 
 .telegram-placeholder.hidden {
@@ -227,12 +235,17 @@
 }
 
 .telegram-error {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    max-width: 320px;
-    margin: 0 auto;
+    background: var(--fallback-b1,oklch(var(--b1)/1));
+    z-index: 10;
+    padding: 1rem 0;
 }
 
 .telegram-error.hidden {
