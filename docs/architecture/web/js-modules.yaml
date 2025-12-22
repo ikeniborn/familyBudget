@@ -460,28 +460,29 @@ modules:
   navigationProgress:
     path: "frontend/web/static/js/navigationProgress.js"
     minified: "navigationProgress.min.js"
-    loc: ~480
-    description: "SPA-like navigation with progress bar"
+    version: "3.0.0"
+    loc: ~430
+    description: "Pre-fetch + Overlay navigation with progress bar"
     features:
       - "Intercepts internal link clicks"
       - "Shows real progress bar under navbar (fetch + ReadableStream)"
       - "Falls back to animated progress if Content-Length unknown"
-      - "Replaces #main-content without full page reload"
+      - "Minimum 1 second progress display for better UX"
+      - "Shows overlay at 100% to hide DOM cleanup (no black/white screen)"
       - "Handles Gzip/Brotli responses gracefully"
       - "Closes mobile menu before navigation"
-      - "Updates browser history (pushState)"
-      - "Reinitializes HTMX and widgets after navigation"
+      - "Handles bfcache (back/forward navigation via pageshow)"
     public_methods:
       init: "Initialize navigation interceptor"
       navigateTo: "Programmatic navigation with progress"
       cancel: "Cancel current navigation"
       shouldIntercept: "Check if link should be intercepted"
-    events:
-      dispatches: "page-navigation-complete"
-      detail: "{ url: string, fromUrl: string }"
+      showOverlay: "Show transition overlay"
+      hideOverlay: "Hide transition overlay"
     css_classes:
-      navigation-progress: "Progress bar container"
-      active: "Progress bar visible"
+      navigation-progress: "Progress bar container (top: 4rem on all breakpoints)"
+      navigation-overlay: "Transition overlay container"
+      active: "Progress bar/overlay visible"
       complete: "Progress bar at 100%, fading out"
     exclusions:
       - "External links (different origin)"
@@ -492,11 +493,14 @@ modules:
       - "HTMX links (hx-get, hx-post, hx-boost)"
       - "Links inside modals (dialog, .modal)"
     integration:
-      - "Works with HTMXWidgets for widget refresh"
       - "Works with budgetWSClient (keeps connection)"
-      - "Updates navbar active links after navigation"
+      - "Works with Service Worker HTTP cache"
     exports:
       singleton: "window.NavigationProgress"
+    config:
+      minDisplayTime: "1000ms (minimum progress display)"
+      overlayDelay: "50ms (delay before navigation)"
+      timeout: "30000ms (max fetch timeout)"
 
 # ---------------------------------------------------------------------------
 # VENDOR LIBRARIES

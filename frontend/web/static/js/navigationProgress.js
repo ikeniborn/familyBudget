@@ -1,15 +1,21 @@
 /**
- * Navigation Progress Module v2.0
- * Pre-fetch + Navigate approach
+ * Navigation Progress Module v3.0
+ * Pre-fetch + Overlay approach
  *
  * Flow:
  * 1. Intercept link click
- * 2. Show progress bar
- * 3. Fetch page (get real progress from ReadableStream)
- * 4. When 100% → window.location.href (browser loads from cache)
- * 5. All inline scripts work (real page load)
+ * 2. Show progress bar (5-95%)
+ * 3. Pre-fetch page in background (warms HTTP cache)
+ * 4. Wait for minimum display time (1 second)
+ * 5. Show overlay at 100% → navigate
+ * 6. Target page hides overlay after load (via pageshow event)
  *
- * @version 2.0.0
+ * Key improvements over v2.0:
+ * - Overlay hides DOM cleanup during navigation (no black/white screen)
+ * - Minimum 1 second progress display for better UX
+ * - Consistent top position across all screen sizes (4rem)
+ *
+ * @version 3.0.0
  */
 
 (function() {
@@ -18,12 +24,14 @@
     const NavigationProgress = {
         // DOM elements
         progressBar: null,
+        overlay: null,
         currentController: null,
 
         // Configuration
         config: {
             timeout: 30000,           // 30 seconds max
-            minDisplayTime: 100,      // Minimum visible time for UX
+            minDisplayTime: 1000,     // Minimum 1 second for better UX
+            overlayDelay: 50,         // Delay before navigation after overlay shown
             animatedFallbackSpeed: 30 // Fake progress increment per 100ms
         },
 
@@ -38,15 +46,20 @@
          */
         init() {
             this.progressBar = document.getElementById('navigation-progress');
+            this.overlay = document.getElementById('navigation-overlay');
+
             if (!this.progressBar) {
                 console.warn('[NavigationProgress] Progress bar element not found');
                 return;
             }
 
+            // Hide overlay on incoming navigation (page load)
+            this.hideOverlay();
+
             // Intercept all clicks on document (capture phase)
             document.addEventListener('click', this.handleClick.bind(this), true);
 
-            debugLog('[NavigationProgress] v2.0 Initialized (Pre-fetch + Navigate)');
+            debugLog('[NavigationProgress] v3.0 Initialized (Pre-fetch + Overlay)');
         },
 
         /**
@@ -134,7 +147,7 @@
         },
 
         /**
-         * Navigate to URL with progress (Pre-fetch + Navigate approach)
+         * Navigate to URL with progress (Pre-fetch + Overlay approach)
          */
         async navigateTo(url) {
             if (this.isNavigating) {
@@ -155,16 +168,27 @@
                 // Pre-fetch the page (warms HTTP cache + shows real progress)
                 await this.prefetchWithProgress(url);
 
+                // Ensure minimum display time (1 second)
+                const elapsed = Date.now() - this.startTime;
+                const remaining = Math.max(0, this.config.minDisplayTime - elapsed);
+
+                if (remaining > 0) {
+                    // Animate progress smoothly during remaining time
+                    await this.animateToComplete(remaining);
+                }
+
                 // Complete progress
                 this.setProgress(100);
 
-                // Wait for minimum display time (UX)
-                const elapsed = Date.now() - this.startTime;
-                const remaining = Math.max(0, this.config.minDisplayTime - elapsed);
-                await this.delay(remaining);
+                // Show overlay before navigation (hides DOM cleanup)
+                this.showOverlay();
 
-                // Navigate normally - browser loads from HTTP cache (instant)
+                // Small delay to ensure overlay is rendered
+                await this.delay(this.config.overlayDelay);
+
+                // Navigate normally - browser loads from HTTP cache
                 // All inline scripts will execute properly
+                // Overlay will be hidden by target page's pageshow handler
                 this.isNavigating = false;
                 window.location.href = url;
 
@@ -176,6 +200,7 @@
 
                 console.error('[NavigationProgress] Pre-fetch failed:', error);
                 this.hideProgress();
+                this.hideOverlay();
                 this.isNavigating = false;
 
                 // Fall back to normal navigation (let browser handle it)
@@ -229,9 +254,9 @@
                         this.startAnimatedProgress();
                     }
                 } else {
-                    // Calculate and update progress (5-95% range, reserve 100% for navigation)
-                    const percentComplete = 5 + (loaded / total) * 90;
-                    this.setProgress(Math.min(95, percentComplete));
+                    // Calculate and update progress (5-90% range, reserve 90-100% for minimum time)
+                    const percentComplete = 5 + (loaded / total) * 85;
+                    this.setProgress(Math.min(90, percentComplete));
                 }
             }
 
@@ -247,10 +272,10 @@
             }
 
             const animate = () => {
-                if (!this.isNavigating || this.progress >= 90) return;
+                if (!this.isNavigating || this.progress >= 85) return;
 
-                // Slow down as we approach 90%
-                const increment = (90 - this.progress) / 20;
+                // Slow down as we approach 85%
+                const increment = (85 - this.progress) / 20;
                 this.setProgress(this.progress + Math.max(0.3, increment));
 
                 this.animationFrameId = requestAnimationFrame(animate);
@@ -262,6 +287,52 @@
                     this.animationFrameId = requestAnimationFrame(animate);
                 }
             }, 100);
+        },
+
+        /**
+         * Animate progress from current to 100% over specified duration
+         */
+        async animateToComplete(duration) {
+            const startProgress = this.progress;
+            const targetProgress = 100;
+            const startTime = Date.now();
+
+            return new Promise(resolve => {
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const ratio = Math.min(1, elapsed / duration);
+
+                    // Ease-out animation
+                    const easedRatio = 1 - Math.pow(1 - ratio, 2);
+                    const currentProgress = startProgress + (targetProgress - startProgress) * easedRatio;
+
+                    this.setProgress(currentProgress);
+
+                    if (ratio < 1 && this.isNavigating) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        resolve();
+                    }
+                };
+
+                requestAnimationFrame(animate);
+            });
+        },
+
+        /**
+         * Show overlay (before navigation)
+         */
+        showOverlay() {
+            if (!this.overlay) return;
+            this.overlay.classList.add('active');
+        },
+
+        /**
+         * Hide overlay (after page load)
+         */
+        hideOverlay() {
+            if (!this.overlay) return;
+            this.overlay.classList.remove('active');
         },
 
         /**
@@ -316,6 +387,7 @@
                 this.animationFrameId = null;
             }
             this.hideProgress();
+            this.hideOverlay();
             this.isNavigating = false;
         },
 
@@ -333,6 +405,20 @@
     } else {
         document.addEventListener('DOMContentLoaded', () => NavigationProgress.init());
     }
+
+    // Handle bfcache (back/forward cache) restoration
+    window.addEventListener('pageshow', (event) => {
+        const overlay = document.getElementById('navigation-overlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+        }
+
+        // Reset navigation state
+        if (window.NavigationProgress) {
+            window.NavigationProgress.isNavigating = false;
+            window.NavigationProgress.hideProgress();
+        }
+    });
 
     // Export globally
     window.NavigationProgress = NavigationProgress;

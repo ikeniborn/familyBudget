@@ -100,18 +100,20 @@ templates:
     navigation_progress_bar:
       id: "navigation-progress"
       description: "Thin green progress bar under navbar showing real page loading progress"
-      position: "Fixed below navbar (top: 4rem desktop, 3.5rem mobile)"
+      version: "3.0.0"
+      position: "Fixed below navbar (top: 4rem - uniform across all breakpoints)"
       color: "oklch(var(--su)) - DaisyUI success (green)"
       height: "3px"
       z_index: 39
       js_module: "navigationProgress.js"
       behavior:
         - "Intercepts internal link clicks"
-        - "Shows real progress via fetch ReadableStream (0-100%)"
+        - "Shows real progress via fetch ReadableStream (5-90%)"
         - "Falls back to animated progress if Content-Length unknown"
-        - "Stays on current page until 100% loaded"
-        - "Replaces page content, updates URL, scrolls to top"
-        - "Reinitializes HTMX and widgets after navigation"
+        - "Minimum 1 second display time for better UX"
+        - "Shows overlay at 100% before navigation (hides DOM cleanup)"
+        - "Uses pageshow event to hide overlay on target page"
+        - "Handles bfcache (back/forward navigation)"
       exclusions:
         - "External links (different origin)"
         - "Hash links (#anchor)"
@@ -123,6 +125,22 @@ templates:
       css_classes:
         active: "Progress bar visible and animating"
         complete: "Fade out after reaching 100%"
+
+    navigation_overlay:
+      id: "navigation-overlay"
+      description: "Full-screen overlay shown before page navigation to hide DOM cleanup"
+      version: "3.0.0 (added)"
+      position: "Fixed, covers entire viewport (inset: 0)"
+      background: "oklch(var(--b1)) - DaisyUI base background (theme-aware)"
+      z_index: 99998
+      shows_spinner: true
+      behavior:
+        - "Shown at 100% progress, before window.location.href"
+        - "Hidden by target page via pageshow event"
+        - "Handles bfcache restoration"
+        - "Respects prefers-reduced-motion"
+      css_classes:
+        active: "Overlay visible with spinner"
 
     mobile_menu:
       id: "mobile-menu-dropdown"

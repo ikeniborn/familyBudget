@@ -224,11 +224,10 @@
             }
         }
 
-        /* Navigation Progress Bar */
+        /* Navigation Progress Bar - под navbar (4rem = 64px на всех breakpoints) */
         .navigation-progress {
             position: fixed;
-            /* DaisyUI navbar высота: h-16 на desktop */
-            top: 4rem; /* 64px */
+            top: 4rem; /* 64px - DaisyUI navbar height одинаков на всех экранах */
             left: 0;
             width: 0%;
             height: 3px;
@@ -238,13 +237,6 @@
             opacity: 0;
             pointer-events: none;
             box-shadow: 0 0 8px oklch(var(--su) / 0.5);
-        }
-
-        /* Mobile: меньшая высота navbar */
-        @media (max-width: 640px) {
-            .navigation-progress {
-                top: 3.5rem; /* 56px */
-            }
         }
 
         .navigation-progress.active {
@@ -286,6 +278,41 @@
             }
             .navigation-progress::after {
                 animation: none;
+            }
+        }
+
+        /* Navigation Transition Overlay - скрывает DOM cleanup при переходе */
+        .navigation-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99998; /* под toasts (99999), над всем остальным */
+            background: oklch(var(--b1)); /* DaisyUI base background (light/dark aware) */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .navigation-overlay.active {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: all;
+        }
+
+        .navigation-overlay .loading-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Reduced motion for overlay */
+        @media (prefers-reduced-motion: reduce) {
+            .navigation-overlay {
+                transition: none;
             }
         }
     </style>
@@ -706,6 +733,14 @@
 
     <!-- Navigation Progress Bar -->
     <div id="navigation-progress" class="navigation-progress" role="progressbar" aria-hidden="true"></div>
+
+    <!-- Navigation Transition Overlay (скрывает DOM cleanup при переходе) -->
+    <div id="navigation-overlay" class="navigation-overlay" aria-hidden="true">
+        <div class="loading-indicator">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <span class="text-base-content/70">Загрузка...</span>
+        </div>
+    </div>
 
     <!-- Pending Sync Badge -->
     <div id="pending-sync-badge" class="fixed top-16 left-4 z-50 hidden">
