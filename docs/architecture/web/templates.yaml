@@ -60,8 +60,8 @@ templates:
         - "Android: Native splash from manifest.json (instant)"
         - "HTML splash provides smooth transition after native splash"
         - "Only shown in standalone mode (not in regular browser)"
-        - "Minimum display time: 800ms"
-        - "Waits for page load event"
+        - "Minimum display time: 2000ms (2 seconds)"
+        - "Waits for BOTH: 2s timer AND page load complete"
         - "Smooth fade-out transition (300ms)"
         - "Removed from DOM after transition"
       ios_splash_images:
@@ -88,9 +88,9 @@ templates:
           - "Reduced motion support (prefers-reduced-motion)"
       js:
         location: "inline immediately after splash HTML element"
-        min_display_time: "800ms"
+        min_display_time: "2000ms"
         pwa_detection: "display-mode: standalone OR navigator.standalone"
-        page_load: "window.addEventListener('load', hideSplash)"
+        logic: "Hide when BOTH conditions met: 2s timer done AND page loaded"
 
     mobile_menu:
       id: "mobile-menu-dropdown"

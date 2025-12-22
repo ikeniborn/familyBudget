@@ -299,27 +299,37 @@
             return;
         }
 
-        var MIN_DISPLAY_TIME = 800; // Minimum splash display time
+        var MIN_DISPLAY_TIME = 2000; // Show splash for at least 2 seconds
         var startTime = Date.now();
+        var pageLoaded = false;
+        var timerDone = false;
 
-        function hideSplash() {
-            var elapsed = Date.now() - startTime;
-            var remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
-
-            setTimeout(function() {
+        function tryHideSplash() {
+            // Hide only when BOTH conditions are met: 2s passed AND page loaded
+            if (timerDone && pageLoaded) {
                 splashEl.classList.add('hidden');
                 // Remove from DOM after transition
                 setTimeout(function() {
                     splashEl.remove();
                 }, 300);
-            }, remaining);
+            }
         }
+
+        // Timer: wait minimum 2 seconds
+        setTimeout(function() {
+            timerDone = true;
+            tryHideSplash();
+        }, MIN_DISPLAY_TIME);
 
         // Wait for page load
         if (document.readyState === 'complete') {
-            hideSplash();
+            pageLoaded = true;
+            tryHideSplash();
         } else {
-            window.addEventListener('load', hideSplash);
+            window.addEventListener('load', function() {
+                pageLoaded = true;
+                tryHideSplash();
+            });
         }
     })();
     </script>
