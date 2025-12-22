@@ -258,10 +258,12 @@ When adding new components:
 ## Recent Changes
 
 - **2025-12-22**: Fixed article_type filter on plan page:
-  - **Problem**: `filter-article-type` dropdown only reloaded category list, but did not filter facts table
-  - **Root Cause**: Event handler only called `reloadArticleFilter()`, missing `loadFacts()` and sync to analytics
-  - **Fix**: Updated handler to: 1) update `filters.article_type`, 2) reset category dropdown, 3) reload facts table, 4) sync to analytics
-  - Files: `frontend/web/templates/plan.html:1202-1230`
+  - **Problem**: `filter-article-type` dropdown did not filter facts table
+  - **Root Cause #1**: Frontend handler only called `reloadArticleFilter()`, missing `loadFacts()` and sync to analytics
+  - **Root Cause #2**: Backend `/admin/facts` and `/admin/facts/count` endpoints did not support `article_type` parameter
+  - **Fix (Frontend)**: Updated handler to: 1) update `filters.article_type`, 2) reset category dropdown, 3) reload facts table, 4) sync to analytics
+  - **Fix (Backend)**: Added `article_type` query parameter with validation `^(income|expense|debit|credit)$` and filter by `Article.type`
+  - Files: `frontend/web/templates/plan.html:1202-1230`, `backend/app/api/v1/admin.py:1949,2069,1999-2000,2107-2108`
 - **2025-12-22**: PWA Splash Screen - Instant Display Fix:
   - **Problem**: Splash appeared after ~2s delay due to render-blocking CSS (174KB tailwind-daisyui.min.css)
   - **iOS Native Splash**: Added 10 `apple-touch-startup-image` links for iPhone 7+ (instant display before HTML loads)
