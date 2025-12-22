@@ -1,22 +1,21 @@
 /**
- * Navigation Progress Module v3.1
- * Pre-fetch + Overlay approach with Safari PWA support
+ * Navigation Progress Module v3.2
+ * Pre-fetch + Direct Navigation approach (no overlay flash)
  *
  * Flow:
  * 1. Intercept link click/touch
  * 2. Show progress bar (5-95%)
  * 3. Pre-fetch page in background (warms HTTP cache)
  * 4. Wait for minimum display time (1 second)
- * 5. Show overlay at 100% → navigate
- * 6. Target page hides overlay after load (via pageshow event)
+ * 5. Complete progress bar (100%) with fade-out
+ * 6. Navigate directly (instant load from HTTP cache)
  *
- * Key improvements over v3.0:
- * - Safari PWA standalone mode support
- * - Touch event handling for iOS
- * - Defensive debugLog checks
- * - ReadableStream fallback for older browsers
+ * Key improvements over v3.1:
+ * - Removed overlay flash (smoother UX)
+ * - Direct navigation after pre-fetch (instant page load)
+ * - Progress bar fade-out animation
  *
- * @version 3.1.0
+ * @version 3.2.0
  */
 
 (function() {
@@ -35,7 +34,7 @@
         config: {
             timeout: 30000,           // 30 seconds max
             minDisplayTime: 1000,     // Minimum 1 second for better UX
-            overlayDelay: 50,         // Delay before navigation after overlay shown
+            fadeOutDelay: 200,        // Brief delay to show 100% before fade-out
             animatedFallbackSpeed: 30 // Fake progress increment per 100ms
         },
 
@@ -70,7 +69,7 @@
                 log('[NavigationProgress] Safari PWA mode detected, touchend handler added');
             }
 
-            log('[NavigationProgress] v3.1 Initialized (Pre-fetch + Overlay + Safari PWA)');
+            log('[NavigationProgress] v3.2 Initialized (Pre-fetch + Direct Navigation + Safari PWA)');
         },
 
         /**
@@ -234,18 +233,18 @@
                     await this.animateToComplete(remaining);
                 }
 
-                // Complete progress
+                // Complete progress with smooth fade-out
                 this.setProgress(100);
 
-                // Show overlay before navigation (hides DOM cleanup)
-                this.showOverlay();
+                // Brief delay to show 100% completion (visual feedback)
+                await this.delay(200);
 
-                // Small delay to ensure overlay is rendered
-                await this.delay(this.config.overlayDelay);
+                // Start fade-out animation
+                this.fadeOutProgress();
 
-                // Navigate normally - browser loads from HTTP cache
-                // All inline scripts will execute properly
-                // Overlay will be hidden by target page's pageshow handler
+                // Navigate directly - HTTP cache is already warmed by pre-fetch
+                // Browser loads instantly from cache (no overlay needed)
+                // All inline scripts execute properly (normal navigation)
                 this.isNavigating = false;
                 window.location.href = url;
 
@@ -257,7 +256,6 @@
 
                 console.error('[NavigationProgress] Pre-fetch failed:', error);
                 this.hideProgress();
-                this.hideOverlay();
                 this.isNavigating = false;
 
                 // Fall back to normal navigation (let browser handle it)
@@ -420,6 +418,25 @@
             if (this.progressBar) {
                 this.progressBar.style.width = `${this.progress}%`;
             }
+        },
+
+        /**
+         * Fade out progress bar (smooth transition before navigation)
+         */
+        fadeOutProgress() {
+            if (!this.progressBar) return;
+
+            // Stop any running animation
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+
+            // Add fade-out class for smooth transition
+            this.progressBar.classList.add('complete');
+
+            // Don't reset immediately - let navigation complete
+            // The new page will handle cleanup via pageshow event
         },
 
         /**
