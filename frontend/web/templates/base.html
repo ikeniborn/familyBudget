@@ -36,15 +36,8 @@
     <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
     <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
 
-    <!-- Tailwind CSS + DaisyUI (Deferred for instant splash) -->
-    <link rel="preload" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER"></noscript>
-    <script>
-        // Mark CSS as loaded when stylesheet is ready
-        document.querySelector('link[rel="preload"][as="style"]').onload = function() {
-            document.documentElement.setAttribute('data-css-loaded', 'true');
-        };
-    </script>
+    <!-- Tailwind CSS + DaisyUI -->
+    <link rel="stylesheet" href="/static/css/vendor/tailwind-daisyui.min.css?v=PLACEHOLDER">
 
     <!-- Custom Styles -->
     <style>
@@ -306,16 +299,8 @@
             return;
         }
 
-        var MIN_DISPLAY_TIME = 500; // 500ms - iOS native splash already provides delay
+        var MIN_DISPLAY_TIME = 800; // Minimum splash display time
         var startTime = Date.now();
-        var cssLoaded = false;
-        var pageLoaded = false;
-
-        function checkReady() {
-            if (cssLoaded && pageLoaded) {
-                hideSplash();
-            }
-        }
 
         function hideSplash() {
             var elapsed = Date.now() - startTime;
@@ -330,29 +315,11 @@
             }, remaining);
         }
 
-        // Wait for CSS to load (data-css-loaded attribute on <html>)
-        if (document.documentElement.hasAttribute('data-css-loaded')) {
-            cssLoaded = true;
-        } else {
-            var observer = new MutationObserver(function(mutations) {
-                if (document.documentElement.hasAttribute('data-css-loaded')) {
-                    cssLoaded = true;
-                    observer.disconnect();
-                    checkReady();
-                }
-            });
-            observer.observe(document.documentElement, { attributes: true });
-        }
-
         // Wait for page load
         if (document.readyState === 'complete') {
-            pageLoaded = true;
-            checkReady();
+            hideSplash();
         } else {
-            window.addEventListener('load', function() {
-                pageLoaded = true;
-                checkReady();
-            });
+            window.addEventListener('load', hideSplash);
         }
     })();
     </script>
