@@ -3754,6 +3754,290 @@ function updateSaveButtonsVisibility() {
         isOffline = !navigator.onLine;
     }
 
+// ==================== Recurring Plans Functions ====================
+
+// Calendar widget instance for recurring end date
+let recurringEndDateCalendarWidget = null;
+
+/**
+ * Toggle recurring mode settings visibility
+ */
+function toggleRecurringMode(modalId) {
+    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
+    const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+
+    if (checkbox && settingsDiv) {
+        if (checkbox.checked) {
+            settingsDiv.classList.remove('hidden');
+            // Initialize recurring fields
+            initRecurringFields(modalId);
+            updateRecurringPreview(modalId);
+        } else {
+            settingsDiv.classList.add('hidden');
+        }
+    }
+}
+window.toggleRecurringMode = toggleRecurringMode;
+
+/**
+ * Initialize recurring fields (weekday buttons, calendar widget)
+ */
+function initRecurringFields(modalId) {
+    // Initialize weekday button handlers
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach(btn => {
+        btn.onclick = () => {
+            // Toggle active state
+            weekdayButtons.forEach(b => b.classList.remove('btn-active'));
+            btn.classList.add('btn-active');
+            // Update hidden field
+            const hiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+            if (hiddenInput) {
+                hiddenInput.value = btn.dataset.day;
+            }
+            updateRecurringPreview(modalId);
+        };
+    });
+
+    // Initialize end date calendar widget
+    const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+    if (endDateInput && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+        // Destroy existing widget if any
+        if (recurringEndDateCalendarWidget) {
+            recurringEndDateCalendarWidget.destroy();
+            recurringEndDateCalendarWidget = null;
+        }
+
+        recurringEndDateCalendarWidget = new BudgetShared.CalendarWidget({
+            inputElement: endDateInput,
+            mode: 'single',
+            minDate: new Date(),
+            onSelect: () => updateRecurringPreview(modalId)
+        });
+    }
+
+    // Add change listeners to update preview
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) {
+        frequencySelect.onchange = () => updateFrequencyFields(modalId);
+    }
+
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) {
+        monthdaySelect.onchange = () => updateRecurringPreview(modalId);
+    }
+
+    const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+    if (occurrencesInput) {
+        occurrencesInput.oninput = () => updateRecurringPreview(modalId);
+    }
+}
+
+/**
+ * Update frequency-specific fields visibility
+ */
+function updateFrequencyFields(modalId) {
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    const weekdayPicker = document.getElementById(`weekday-picker-${modalId}`);
+    const monthdayPicker = document.getElementById(`monthday-picker-${modalId}`);
+
+    if (!frequencySelect) return;
+
+    const frequency = frequencySelect.value;
+
+    // Show/hide appropriate picker
+    if (weekdayPicker) {
+        weekdayPicker.classList.toggle('hidden', frequency !== 'weekly');
+    }
+
+    if (monthdayPicker) {
+        monthdayPicker.classList.toggle('hidden', frequency === 'daily' || frequency === 'weekly');
+    }
+
+    updateRecurringPreview(modalId);
+}
+window.updateFrequencyFields = updateFrequencyFields;
+
+/**
+ * Update duration-specific fields visibility
+ */
+function updateDurationFields(modalId) {
+    const durationType = document.querySelector(`#${modalId} input[name="duration_type"]:checked`);
+    const occurrencesField = document.getElementById(`occurrences-field-${modalId}`);
+    const endDateField = document.getElementById(`end-date-field-${modalId}`);
+
+    if (!durationType) return;
+
+    const type = durationType.value;
+
+    if (occurrencesField) {
+        occurrencesField.classList.toggle('hidden', type !== 'count');
+    }
+
+    if (endDateField) {
+        endDateField.classList.toggle('hidden', type !== 'end_date');
+    }
+
+    updateRecurringPreview(modalId);
+}
+window.updateDurationFields = updateDurationFields;
+
+/**
+ * Update recurring schedule preview text
+ */
+function updateRecurringPreview(modalId) {
+    const previewText = document.getElementById(`recurring-preview-text-${modalId}`);
+    if (!previewText) return;
+
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    const frequency = frequencySelect ? frequencySelect.value : 'monthly';
+
+    // Build frequency text
+    let frequencyText = '';
+    const dayNames = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+
+    switch (frequency) {
+        case 'daily':
+            frequencyText = 'Ежедневно';
+            break;
+        case 'weekly':
+            const weekdayBtn = document.querySelector(`#weekday-picker-${modalId} .weekday-btn.btn-active`);
+            const dayIndex = weekdayBtn ? parseInt(weekdayBtn.dataset.day) : 0;
+            frequencyText = `Еженедельно, ${dayNames[dayIndex]}`;
+            break;
+        case 'monthly':
+            const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+            const monthDay = monthdaySelect ? monthdaySelect.value : '1';
+            frequencyText = `Ежемесячно, ${monthDay}-го числа`;
+            break;
+        case 'quarterly':
+            const qMonthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+            const qMonthDay = qMonthdaySelect ? qMonthdaySelect.value : '1';
+            frequencyText = `Ежеквартально, ${qMonthDay}-го числа`;
+            break;
+    }
+
+    // Build duration text
+    let durationText = '';
+    const durationType = document.querySelector(`#${modalId} input[name="duration_type"]:checked`);
+    const type = durationType ? durationType.value : 'indefinite';
+
+    switch (type) {
+        case 'indefinite':
+            durationText = 'бессрочно';
+            break;
+        case 'count':
+            const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+            const count = occurrencesInput ? occurrencesInput.value : '';
+            durationText = count ? `${count} повторений` : 'укажите количество';
+            break;
+        case 'end_date':
+            const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+            const endDate = endDateInput ? endDateInput.value : '';
+            durationText = endDate ? `до ${endDate}` : 'укажите дату';
+            break;
+    }
+
+    previewText.textContent = `${frequencyText}, ${durationText}`;
+}
+window.updateRecurringPreview = updateRecurringPreview;
+
+/**
+ * Collect recurring settings from form
+ * @returns {Object|null} Recurring settings or null if not recurring
+ */
+function collectRecurringSettings(modalId) {
+    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
+    if (!checkbox || !checkbox.checked) {
+        return null;
+    }
+
+    const form = document.getElementById(`form_${modalId}`);
+    if (!form) return null;
+
+    const frequencyType = form.querySelector('select[name="frequency_type"]').value;
+
+    // Get frequency value based on type
+    let frequencyValue = null;
+    if (frequencyType === 'weekly') {
+        frequencyValue = parseInt(form.querySelector('input[name="frequency_value_weekday"]').value) || 0;
+    } else if (frequencyType === 'monthly' || frequencyType === 'quarterly') {
+        frequencyValue = parseInt(form.querySelector('select[name="frequency_value_monthday"]').value) || 1;
+    }
+
+    // Get duration settings
+    const durationType = form.querySelector('input[name="duration_type"]:checked').value;
+    let occurrencesCount = null;
+    let endDate = null;
+
+    if (durationType === 'count') {
+        occurrencesCount = parseInt(form.querySelector('input[name="occurrences_count"]').value) || null;
+    } else if (durationType === 'end_date') {
+        const endDateValue = document.getElementById(`recurring_end_date_${modalId}`).value;
+        if (endDateValue) {
+            // Convert DD.MM.YYYY to YYYY-MM-DD
+            endDate = BudgetShared.DateFormatter.formatForAPI(endDateValue);
+        }
+    }
+
+    return {
+        frequency_type: frequencyType,
+        frequency_value: frequencyValue,
+        occurrences_count: occurrencesCount,
+        end_date: endDate
+    };
+}
+window.collectRecurringSettings = collectRecurringSettings;
+
+/**
+ * Reset recurring settings form
+ */
+function resetRecurringSettings(modalId) {
+    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
+    if (checkbox) checkbox.checked = false;
+
+    const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+    if (settingsDiv) settingsDiv.classList.add('hidden');
+
+    // Reset frequency to monthly
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) frequencySelect.value = 'monthly';
+
+    // Reset weekday selection
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach((btn, i) => {
+        btn.classList.toggle('btn-active', i === 0);
+    });
+    const weekdayHidden = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+    if (weekdayHidden) weekdayHidden.value = '0';
+
+    // Reset monthday to 1
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) monthdaySelect.value = '1';
+
+    // Reset duration to indefinite
+    const indefiniteRadio = document.querySelector(`#${modalId} input[name="duration_type"][value="indefinite"]`);
+    if (indefiniteRadio) indefiniteRadio.checked = true;
+
+    // Hide count and end_date fields
+    const occurrencesField = document.getElementById(`occurrences-field-${modalId}`);
+    if (occurrencesField) occurrencesField.classList.add('hidden');
+    const endDateField = document.getElementById(`end-date-field-${modalId}`);
+    if (endDateField) endDateField.classList.add('hidden');
+
+    // Clear occurrences count
+    const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+    if (occurrencesInput) occurrencesInput.value = '';
+
+    // Clear end date
+    const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+    if (endDateInput) endDateInput.value = '';
+
+    // Update visibility
+    updateFrequencyFields(modalId);
+}
+window.resetRecurringSettings = resetRecurringSettings;
+
     // Update unified save buttons (.save-btn)
     const saveButtons = document.querySelectorAll('.save-btn');
     saveButtons.forEach(btn => {
