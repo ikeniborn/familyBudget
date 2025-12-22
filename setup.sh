@@ -707,11 +707,25 @@ collect_configuration() {
     prompt "Environment (development/staging/production)" "APP_ENV" "production"
     # Domain will be set based on deployment profile (localhost for basic, prompted for full)
     prompt "Backend port" "BACKEND_PORT" "8000"
-    # WORKERS fixed to 1 for SSE compatibility
-    # SSE uses in-memory ConnectionManager which requires single-instance deployment
-    # See: backend/app/api/v1/endpoints/budget_sse.py:9
-    CONFIG["WORKERS"]=1
-    info "Uvicorn workers: 1 (fixed for SSE compatibility)"
+
+    # Uvicorn workers configuration
+    # With Redis Pub/Sub enabled, multi-worker deployment is supported
+    # Workers share WebSocket events via Redis Pub/Sub channel (budget:events)
+    echo ""
+    info "Uvicorn workers configuration:"
+    echo "  - 1: Development/low resources"
+    echo "  - 2: Recommended for most deployments"
+    echo "  - 4: High-traffic production"
+    echo ""
+    info "Note: Multi-worker requires Redis for WebSocket sync"
+    prompt "Number of Uvicorn workers" "WORKERS" "2"
+
+    # Validate workers (must be positive integer)
+    if ! [[ "${CONFIG[WORKERS]}" =~ ^[1-9][0-9]*$ ]]; then
+        warning "Invalid workers count. Using default: 2"
+        CONFIG["WORKERS"]="2"
+    fi
+
     prompt "Log level (debug/info/warning/error)" "LOG_LEVEL" "info"
 
     success "Configuration collected"
@@ -1144,9 +1158,19 @@ configure_redis() {
     info "This improves performance and enables multi-worker deployments"
     echo ""
     info "Redis configuration:"
+    echo "  - Password: Authentication for Redis (recommended)"
     echo "  - Memory limit: Controls maximum memory usage"
     echo "  - Cache TTL: How long cached data is kept"
     echo "  - Write-Behind: Async writes to PostgreSQL for lower latency"
+    echo ""
+
+    # Generate Redis password
+    info "Generating Redis password..."
+    local generated_redis_password
+    generated_redis_password=$(generate_password 16)
+    CONFIG["REDIS_PASSWORD"]="$generated_redis_password"
+    success "Redis password generated"
+
     echo ""
 
     # Redis memory limit
@@ -1272,6 +1296,7 @@ create_env_file() {
     sed -i "s|^S3_REGION=.*|S3_REGION=${CONFIG[S3_REGION]}|" "$env_file"
 
     # Redis configuration
+    sed -i "s|^REDIS_PASSWORD=.*|REDIS_PASSWORD=${CONFIG[REDIS_PASSWORD]}|" "$env_file"
     sed -i "s|^REDIS_MAXMEMORY=.*|REDIS_MAXMEMORY=${CONFIG[REDIS_MAXMEMORY]}|" "$env_file"
     sed -i "s|^REDIS_CACHE_TTL_DEFAULT=.*|REDIS_CACHE_TTL_DEFAULT=${CONFIG[REDIS_CACHE_TTL_DEFAULT]}|" "$env_file"
     sed -i "s|^REDIS_CACHE_TTL_REFERENCE=.*|REDIS_CACHE_TTL_REFERENCE=${CONFIG[REDIS_CACHE_TTL_REFERENCE]}|" "$env_file"
