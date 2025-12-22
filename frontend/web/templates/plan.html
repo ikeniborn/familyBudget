@@ -1244,7 +1244,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Load users for filter dropdown
 async function loadUsers() {
     try {
-        const response = await fetch('/api/v1/admin/users');
+        const response = await fetch('/api/v1/users');
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -1269,7 +1269,7 @@ async function loadUsers() {
 // Load articles for filter and edit dropdowns with tree structure
 async function loadArticles() {
     try {
-        const response = await fetch('/api/v1/admin/articles');
+        const response = await fetch('/api/v1/articles');
         const articles = await response.json();
 
         // Build tree and flatten
@@ -1391,7 +1391,7 @@ function initializeCreateModalCategories() {
 async function reloadArticleFilter(type) {
     try {
         // Fetch articles filtered by type
-        let url = '/api/v1/admin/articles?limit=1000&sort_by=usage_count';
+        let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
         if (type) {
             url += `&type=${type}`;
         }
@@ -1924,8 +1924,8 @@ async function loadFacts() {
 
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([
-            fetch(`/api/v1/admin/facts?${params}`),
-            fetch(`/api/v1/admin/facts/count?${params}`)
+            fetch(`/api/v1/facts?${params}`),
+            fetch(`/api/v1/facts/count?${params}`)
         ]);
 
         if (!factsResponse.ok || !countResponse.ok) {
@@ -2448,7 +2448,7 @@ async function updateFact(event) {
     const reminderDatetime = formData.get('reminder_datetime');
 
     try {
-        const response = await fetch(`/api/v1/admin/facts/${factId}`, {
+        const response = await fetch(`/api/v1/facts/${factId}`, {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(data)
@@ -2554,7 +2554,7 @@ async function deleteFact(factId) {
     }
 
     try {
-        const response = await fetch(`/api/v1/admin/facts/${factId}`, {
+        const response = await fetch(`/api/v1/facts/${factId}`, {
             method: 'DELETE'
         });
 
@@ -2596,7 +2596,7 @@ async function batchDelete() {
     }
 
     try {
-        const response = await fetch('/api/v1/admin/facts/batch-delete', {
+        const response = await fetch('/api/v1/facts/batch-delete', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(Array.from(selectedFactIds))
@@ -2734,18 +2734,13 @@ function showNotification(message, type) {
     });
 }
 
-// Export filtered facts (system-wide for admins)
+// Export filtered facts (user endpoint - CSV only)
 function exportFilteredFacts(format) {
-    // Build admin export URL with current filters
-    let url = `/api/v1/admin/export/all-facts/${format}?`;
+    // Build user export URL with date filters only
+    // Note: User endpoint only supports start_date and end_date
+    let url = `/api/v1/export/facts/csv?`;
 
-    // Add all filters if set
-    if (filters.user_id) {
-        url += `user_id=${filters.user_id}&`;
-    }
-    if (filters.article_id) {
-        url += `article_id=${filters.article_id}&`;
-    }
+    // Add date filters if set
     if (filters.date_from) {
         url += `start_date=${filters.date_from}&`;
     }
@@ -3921,7 +3916,7 @@ async function loadAnalyticsCFOFilter() {
 // Load article filter options for analytics
 async function loadAnalyticsArticleFilter(articleType = null) {
     try {
-        let url = '/api/v1/admin/articles?limit=1000&sort_by=usage_count';
+        let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
         if (articleType) {
             url += `&type=${articleType}`;
         }

@@ -829,7 +829,7 @@ class OfflineManager {
             try {
                 return await this.createRecurringPlanOnline(data);
             } catch (error) {
-                _log('[OfflineManager] Online recurring plan creation failed, falling back to offline:', error.message);
+                _offlineLog('[OfflineManager] Online recurring plan creation failed, falling back to offline:', error.message);
                 return await this.createRecurringPlanOffline(data);
             }
         } else {
@@ -886,7 +886,7 @@ class OfflineManager {
             error: null
         });
 
-        _log('[OfflineManager] Recurring plan saved offline:', tempId);
+        _offlineLog('[OfflineManager] Recurring plan saved offline:', tempId);
 
         return {
             id: null,
