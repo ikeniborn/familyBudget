@@ -86,7 +86,8 @@ module:
     s3:
       endpoint: "${S3_ENDPOINT_URL:-https://storage.yandexcloud.net}"
       bucket: "${S3_BUCKET_NAME}"
-      path_format: "YYYY/MM/backup_YYYYMMDD_HHMMSS.sql.gz"
+      base_path: "postgresql-backups"
+      path_format: "postgresql-backups/YYYY/MM/backup_YYYYMMDD_HHMMSS.sql.gz"
       retention_days: 28
       upload_frequency: "daily"
 

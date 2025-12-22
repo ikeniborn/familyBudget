@@ -1970,6 +1970,13 @@ function formatMobileAmount(amount, type) {
     return `${sign}${value}`;
 }
 
+// Format amount with sign for desktop view
+function formatDesktopAmount(amount, type) {
+    const value = parseFloat(amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const sign = (type === 'income' || type === 'credit') ? '+' : '-';
+    return `${sign}${value}`;
+}
+
 function renderFactsTable(facts) {
     const container = document.getElementById('facts-table-container');
     selectedFactIds.clear();
@@ -2008,9 +2015,7 @@ function renderFactsTable(facts) {
     let mobileHtml = `<div class="facts-mobile-list divide-y divide-base-200">`;
 
     facts.forEach(fact => {
-        const amountClass = fact.article_type === 'income' ? 'text-success font-bold' : 'text-error font-bold';
-
-        // Get color class for article type
+        // Get color class for article type (4 цвета: income=зелёный, expense=красный, debit=синий, credit=оранжевый)
         let articleColorClass = '';
         if (fact.article_type === 'expense') {
             articleColorClass = 'text-error';
@@ -2040,7 +2045,7 @@ function renderFactsTable(facts) {
                 <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
                 <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
                 <td><span class="${articleColorClass}">${articleName}</span></td>
-                <td class="${amountClass}">${parseFloat(fact.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
+                <td class="${articleColorClass} font-bold">${formatDesktopAmount(fact.amount, fact.article_type)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">✓</span>' : ''}</td>
                 <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>

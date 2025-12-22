@@ -185,6 +185,34 @@ key_classes:
     - tabs
     - alert
 
+  article_type_colors:
+    description: "Color scheme for article types (budget categories)"
+    usage: "Both category names and amounts use the same color scheme"
+    desktop_classes:
+      text-success: "income (Доходы) - зелёный"
+      text-error: "expense (Расходы) - красный"
+      text-info: "debit (Списание) - синий"
+      text-warning: "credit (Пополнение) - оранжевый"
+    mobile_classes:
+      amount-income: "#22c55e (зелёный)"
+      amount-expense: "#ef4444 (красный)"
+      amount-debit: "#3b82f6 (синий)"
+      amount-credit: "#f59e0b (оранжевый)"
+    sign_convention:
+      positive: "income, credit (+)"
+      negative: "expense, debit (-)"
+    functions:
+      facts_html:
+        - "getArticleTypeColor(type) - returns DaisyUI class"
+        - "formatDesktopAmount(amount, type) - returns signed value"
+        - "getMobileAmountClass(type) - returns amount-* class"
+        - "formatMobileAmount(amount, type) - returns signed value"
+      plan_html:
+        - "inline articleColorClass logic"
+        - "formatDesktopAmount(amount, type) - returns signed value"
+        - "getMobileAmountClass(type) - returns amount-* class"
+        - "formatMobileAmount(amount, type) - returns signed value"
+
 # ---------------------------------------------------------------------------
 # BUILD PROCESS
 # ---------------------------------------------------------------------------

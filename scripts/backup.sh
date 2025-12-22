@@ -68,7 +68,7 @@ LOG_FILE="${LOG_DIR}/backup_${DATE_YMD}.log"
 
 # S3 settings
 S3_ENDPOINT_URL="${S3_ENDPOINT_URL:-https://storage.yandexcloud.net}"
-S3_PATH="$(date +%Y/%m)/${BACKUP_FILENAME}"
+S3_PATH="postgresql-backups/$(date +%Y/%m)/${BACKUP_FILENAME}"
 
 # Options
 FORCE_S3=false
