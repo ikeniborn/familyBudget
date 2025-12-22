@@ -77,6 +77,15 @@ module:
       Keys are generated once per server and shared by all users.
       STRICT MODE: setup.sh will fail if pywebpush cannot be installed or VAPID keys cannot be generated.
       If automatic installation fails, install manually with: sudo pip3 install pywebpush
+    compatibility:
+      cryptography_versions: ">=41.0.0"
+      key_format: |
+        Uses X962+UncompressedPoint for public key (not Raw format).
+        Raw format is NOT supported for ECDSA (P-256) keys in cryptography 41.x.
+      implementation_notes: |
+        - Public key: Encoding.X962 + PublicFormat.UncompressedPoint (includes 0x04 prefix)
+        - Private key: private_numbers().private_value.to_bytes(32, 'big')
+        - Both keys encoded as base64url (no padding)
 
   # ---------------------------------------------------------------------------
   # MODELS

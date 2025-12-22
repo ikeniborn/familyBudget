@@ -442,35 +442,30 @@ import json
 try:
     from py_vapid import Vapid
     import base64
+    from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
     # Generate new VAPID keys
     vapid = Vapid()
     vapid.generate_keys()
 
-    # Get raw key bytes
-    private_key_raw = vapid._private_key.private_bytes(
-        encoding=__import__('cryptography.hazmat.primitives.serialization', fromlist=['Encoding']).Encoding.Raw,
-        format=__import__('cryptography.hazmat.primitives.serialization', fromlist=['PrivateFormat']).PrivateFormat.Raw,
-        encryption_algorithm=__import__('cryptography.hazmat.primitives.serialization', fromlist=['NoEncryption']).NoEncryption()
+    # Public key: UncompressedPoint format (includes 0x04 prefix)
+    # Works with cryptography 41.x (X962+UncompressedPoint instead of Raw)
+    public_key_bytes = vapid.public_key.public_bytes(
+        encoding=Encoding.X962,
+        format=PublicFormat.UncompressedPoint
     )
 
-    public_key_raw = vapid._private_key.public_key().public_bytes(
-        encoding=__import__('cryptography.hazmat.primitives.serialization', fromlist=['Encoding']).Encoding.Raw,
-        format=__import__('cryptography.hazmat.primitives.serialization', fromlist=['PublicFormat']).PublicFormat.Raw
-    )
+    # Private key: extract raw 32 bytes via private_numbers
+    private_numbers = vapid.private_key.private_numbers()
+    private_key_bytes = private_numbers.private_value.to_bytes(32, byteorder='big')
 
     # Encode to base64url (no padding, URL-safe)
     def base64url_encode(data):
         return base64.urlsafe_b64encode(data).rstrip(b'=').decode('ascii')
 
-    # Public key needs to be uncompressed point (0x04 prefix + x + y coordinates)
-    public_key_uncompressed = b'\x04' + public_key_raw
-    public_key_b64 = base64url_encode(public_key_uncompressed)
-    private_key_b64 = base64url_encode(private_key_raw)
-
     print(json.dumps({
-        "public_key": public_key_b64,
-        "private_key": private_key_b64
+        "public_key": base64url_encode(public_key_bytes),
+        "private_key": base64url_encode(private_key_bytes)
     }))
 except ImportError:
     # pywebpush not installed
