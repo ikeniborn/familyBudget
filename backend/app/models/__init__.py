@@ -67,6 +67,7 @@ from backend.app.models.product_group import ProductGroup
 from backend.app.models.product_group_hierarchy import ProductGroupHierarchy
 from backend.app.models.product_group_history import ProductGroupHistory
 from backend.app.models.push_subscription import PushSubscription
+from backend.app.models.recurring_plan import RecurringPlan
 from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.scheduled_reminder import ScheduledReminder
 from backend.app.models.shopping_list import ShoppingList
@@ -99,6 +100,7 @@ __all__ = [
     "ImportTemplate",
     "UserConsent",
     "PushSubscription",
+    "RecurringPlan",
     "ScheduledReminder",
     "Store",
     "StoreHistory",

@@ -69,6 +69,12 @@ tables:
       - name: transfer_id
         type: UUID
         description: "Links paired transfer facts"
+      - name: recurring_plan_id
+        type: INTEGER
+        fk:
+          $ref: "./dimensions.yaml#/tables/t_d_recurring_plan"
+        description: "Reference to recurring plan template (if auto-generated)"
+        note: "No FK constraint due to partitioning - integrity maintained by service layer"
       - name: created_at
         type: TIMESTAMP DEFAULT NOW()
       - name: updated_at
@@ -85,6 +91,7 @@ tables:
       - $ref: "./indexes.yaml#/indexes/idx_bf_financial_center_id"
       - $ref: "./indexes.yaml#/indexes/idx_bf_transfer_id"
       - $ref: "./indexes.yaml#/indexes/idx_bf_record_type"
+      - $ref: "./indexes.yaml#/indexes/idx_bf_recurring_plan_id"
 
     history_table:
       $ref: "./history.yaml#/tables/t_f_budget_fact_history"

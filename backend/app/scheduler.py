@@ -34,6 +34,7 @@ LOCK_ID_WEEKLY_REPORTS = 1003
 LOCK_ID_BUDGET_THRESHOLDS = 1004
 LOCK_ID_PLAN_REMINDERS = 1005
 LOCK_ID_BALANCE_AGGREGATES = 1006
+LOCK_ID_RECURRING_PLANS = 1007
 
 
 async def try_advisory_lock(session, lock_id: int) -> bool:
@@ -310,6 +311,56 @@ async def send_plan_reminders_job():
         raise
 
 
+async def generate_recurring_facts_job():
+    """
+    Job: Generate pending facts for all active recurring plans.
+
+    Iterates over all active recurring plans where next_generation_date <= today
+    and generates BudgetFact records up to 90 days ahead (default horizon).
+
+    Process:
+    1. Find all active recurring plans needing generation
+    2. For each plan, generate facts until horizon reached or end_date/count limit
+    3. Update plan's next_generation_date and occurrences_generated
+
+    Schedule: Daily at 02:00 UTC (after balance aggregates at 01:00)
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
+    """
+    logger.info("[SCHEDULER] Starting recurring facts generation job")
+
+    try:
+        async with get_session_context() as session:
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_RECURRING_PLANS):
+                logger.info(
+                    "[SCHEDULER] Recurring facts job skipped - "
+                    "another worker is already executing"
+                )
+                return
+
+            try:
+                from backend.app.services.recurring_plan_service import RecurringPlanService
+
+                service = RecurringPlanService()
+                result = await service.generate_pending_facts(session=session)
+
+                logger.info(
+                    f"[SCHEDULER] Recurring facts generation completed: "
+                    f"{result['facts_created']} facts created for "
+                    f"{result['plans_processed']} plans"
+                )
+
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_RECURRING_PLANS)
+
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error in recurring facts generation job: {e}", exc_info=True)
+        raise
+
+
 def init_scheduler() -> AsyncIOScheduler:
     """
     Initialize and configure APScheduler.
@@ -389,6 +440,16 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info("[SCHEDULER] Registered job: send_plan_reminders (every 5 minutes)")
+
+    # Job 6: Generate recurring facts (daily at 02:00 UTC)
+    scheduler.add_job(
+        generate_recurring_facts_job,
+        trigger=CronTrigger(hour=2, minute=0),
+        id="generate_recurring_facts",
+        name="Generate Recurring Plan Facts",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: generate_recurring_facts (daily at 02:00 UTC)")
 
     return scheduler
 

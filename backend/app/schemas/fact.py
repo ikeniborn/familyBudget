@@ -419,6 +419,12 @@ class FactResponse(BaseModel):
         examples=[False, True]
     )
 
+    recurring_plan_id: Optional[int] = Field(
+        default=None,
+        description="ID of recurring plan that generated this fact (None for manual entries)",
+        examples=[None, 1, 5]
+    )
+
     # Audit fields
     created_at: datetime = Field(
         description="Record creation timestamp",
@@ -448,6 +454,8 @@ class FactResponse(BaseModel):
                 "cost_center_id": None,
                 "cost_center_name": None,
                 "record_type": "fact",
+                "is_offline_sync": False,
+                "recurring_plan_id": None,
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z"
             }

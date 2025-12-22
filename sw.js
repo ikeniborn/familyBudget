@@ -453,7 +453,7 @@ self.addEventListener('message', (event) => {
  * Схема управляется в frontend/web/static/js/offline/idb.js
  */
 const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 4;  // ✅ Синхронизировано с idb.js (v4 - Current version)
+const DB_VERSION = 5;  // ✅ Синхронизировано с idb.js (v5 - Added offline_recurring_plans)
 
 async function openIndexedDB() {
   return new Promise((resolve, reject) => {
@@ -542,13 +542,14 @@ async function clearCompletedSyncQueue() {
 
 /**
  * Delete record from offline store after successful sync
- * @param {string} entity - Entity type: 'fact', 'plan', 'transfer'
+ * @param {string} entity - Entity type: 'fact', 'plan', 'transfer', 'recurring'
  * @param {string|number} tempId - Temporary ID of the offline record
  */
 async function deleteFromOfflineStore(entity, tempId) {
   const db = await openIndexedDB();
   const storeName = entity === 'transfer' ? 'offline_transfers' :
-                    entity === 'plan' ? 'offline_plans' : 'offline_facts';
+                    entity === 'plan' ? 'offline_plans' :
+                    entity === 'recurring' ? 'offline_recurring_plans' : 'offline_facts';
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([storeName], 'readwrite');
@@ -565,14 +566,15 @@ async function deleteFromOfflineStore(entity, tempId) {
 
 /**
  * Get record from offline store (for retrieving contentHash and syncHash)
- * @param {string} entity - Entity type: 'fact', 'plan', 'transfer'
+ * @param {string} entity - Entity type: 'fact', 'plan', 'transfer', 'recurring'
  * @param {string|number} tempId - Temporary ID of the offline record
  * @returns {Promise<Object|null>} Offline record or null if not found
  */
 async function getOfflineRecord(entity, tempId) {
   const db = await openIndexedDB();
   const storeName = entity === 'transfer' ? 'offline_transfers' :
-                    entity === 'plan' ? 'offline_plans' : 'offline_facts';
+                    entity === 'plan' ? 'offline_plans' :
+                    entity === 'recurring' ? 'offline_recurring_plans' : 'offline_facts';
 
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([storeName], 'readonly');
@@ -733,9 +735,10 @@ async function syncItem(item) {
 }
 
 async function syncCreate(item) {
-  // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+  // Route to appropriate API endpoint based on entity type
   const endpoint = item.entity === 'fact' || item.entity === 'plan' ? '/api/v1/facts' :
                    item.entity === 'transfer' ? '/api/v1/transfers' :
+                   item.entity === 'recurring' ? '/api/v1/recurring-plans' :
                    '/api/v1/facts';
 
   // Clean data: remove display-only fields not expected by API
@@ -759,11 +762,21 @@ async function syncCreate(item) {
     delete cleanData.to_article_name;
   }
 
-  // Mark as offline sync (for all entity types: fact, plan, transfer)
-  cleanData.is_offline_sync = true;
+  // Recurring plan-specific display-only fields
+  if (item.entity === 'recurring') {
+    delete cleanData.frequency_label;
+    delete cleanData.duration_label;
+  }
+
+  // Mark as offline sync (for facts, plans, transfers - NOT recurring plans)
+  // RecurringPlan model doesn't have is_offline_sync field
+  if (item.entity !== 'recurring') {
+    cleanData.is_offline_sync = true;
+  }
 
   // Add content_hash and sync_hash for backend deduplication (prevents duplicate records)
   // These hashes were generated when the offline record was created and stored in IndexedDB
+  // Note: Only for facts and plans, not for recurring plans or transfers
   if ((item.entity === 'fact' || item.entity === 'plan') && item.tempId) {
     try {
       const offlineRecord = await getOfflineRecord(item.entity, item.tempId);

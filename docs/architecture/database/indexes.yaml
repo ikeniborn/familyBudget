@@ -141,6 +141,35 @@ indexes:
     where: "financial_center_id IS NOT NULL"
     description: "Account balance calculations"
 
+  idx_bf_recurring_plan_id:
+    table: t_f_budget_fact
+    columns: [recurring_plan_id]
+    where: "recurring_plan_id IS NOT NULL"
+    description: "Facts by recurring plan (partial)"
+    used_by:
+      - $ref: "../functionality/recurring-plans.yaml#/module/services/0"
+
+  # ===========================================================================
+  # RECURRING PLAN INDEXES
+  # ===========================================================================
+  idx_rp_user_id:
+    table: t_d_recurring_plan
+    columns: [user_id]
+    description: "Plans by owner"
+
+  idx_rp_is_active_next_date:
+    table: t_d_recurring_plan
+    columns: [is_active, next_generation_date]
+    where: "is_active = TRUE"
+    description: "Active plans needing generation (scheduler job)"
+    used_by:
+      - $ref: "../functionality/recurring-plans.yaml#/module/services/0"
+
+  idx_rp_article_id:
+    table: t_d_recurring_plan
+    columns: [article_id]
+    description: "Plans by category"
+
   # ===========================================================================
   # FINANCIAL CENTER INDEXES
   # ===========================================================================

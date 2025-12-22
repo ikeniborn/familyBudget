@@ -37,6 +37,7 @@ from backend.app.api.v1.endpoints.product_groups import (
     router as product_groups_router,
 )
 from backend.app.api.v1.endpoints.push import router as push_router
+from backend.app.api.v1.endpoints.recurring_plans import router as recurring_plans_router
 from backend.app.api.v1.endpoints.reminders import router as reminders_router
 from backend.app.api.v1.endpoints.shopping_list_items import (
     router as shopping_list_items_router,
@@ -64,6 +65,7 @@ __all__ = [
     "import_router",
     "transfers_router",
     "push_router",
+    "recurring_plans_router",
     "reminders_router",
     "stores_router",
     "product_groups_router",

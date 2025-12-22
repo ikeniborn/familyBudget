@@ -22,12 +22,13 @@ const _idbLog = window.DEBUG_MODE ? console.log.bind(console) : function() {};
 const _idbWarn = window.DEBUG_MODE ? console.warn.bind(console) : function() {};
 
 const DB_NAME = 'FamilyBudgetDB';
-const DB_VERSION = 4;  // v4: Added contentHash index for duplicate detection
+const DB_VERSION = 5;  // v5: Added offline_recurring_plans store
 
 const STORES = {
     facts: 'offline_facts',
     transfers: 'offline_transfers',
     plans: 'offline_plans',
+    recurringPlans: 'offline_recurring_plans',
     shoppingLists: 'offline_shopping_lists',
     shoppingListItems: 'offline_shopping_list_items',
     syncQueue: 'sync_queue',
@@ -189,6 +190,19 @@ class IndexedDBManager {
                     const factsStore = event.target.transaction.objectStore(STORES.facts);
                     if (!factsStore.indexNames.contains('contentHash')) {
                         factsStore.createIndex('contentHash', 'contentHash', { unique: false });
+                    }
+                }
+
+                // v5 migration: Add offline_recurring_plans store
+                if (event.oldVersion < 5) {
+                    if (!db.objectStoreNames.contains(STORES.recurringPlans)) {
+                        const recurringPlansStore = db.createObjectStore(STORES.recurringPlans, {
+                            keyPath: 'tempId',
+                            autoIncrement: false
+                        });
+                        recurringPlansStore.createIndex('synced', 'synced', { unique: false });
+                        recurringPlansStore.createIndex('createdAt', 'createdAt', { unique: false });
+                        recurringPlansStore.createIndex('serverId', 'serverId', { unique: false });
                     }
                 }
             };
@@ -677,6 +691,68 @@ class IndexedDBManager {
             return await this._count(STORES.plans, 'synced', synced);
         }
         return await this._count(STORES.plans);
+    }
+
+    // ==================== RECURRING PLANS ====================
+
+    /**
+     * Add offline recurring plan
+     * @param {Object} recurringPlan - Recurring plan data
+     * @returns {Promise<string>} tempId
+     */
+    async addRecurringPlan(recurringPlan) {
+        return await this._add(STORES.recurringPlans, recurringPlan);
+    }
+
+    /**
+     * Get recurring plan by tempId
+     * @param {string} tempId
+     * @returns {Promise<Object>}
+     */
+    async getRecurringPlan(tempId) {
+        return await this._get(STORES.recurringPlans, tempId);
+    }
+
+    /**
+     * Get all recurring plans (optionally filter by synced status)
+     * @param {boolean} synced - Filter by synced status (null = all)
+     * @returns {Promise<Array>}
+     */
+    async getAllRecurringPlans(synced = null) {
+        if (synced !== null) {
+            return await this._getAll(STORES.recurringPlans, 'synced', synced);
+        }
+        return await this._getAll(STORES.recurringPlans);
+    }
+
+    /**
+     * Update recurring plan
+     * @param {Object} recurringPlan - Updated recurring plan data
+     * @returns {Promise<string>}
+     */
+    async updateRecurringPlan(recurringPlan) {
+        return await this._update(STORES.recurringPlans, recurringPlan);
+    }
+
+    /**
+     * Delete recurring plan by tempId
+     * @param {string} tempId
+     * @returns {Promise<void>}
+     */
+    async deleteRecurringPlan(tempId) {
+        return await this._delete(STORES.recurringPlans, tempId);
+    }
+
+    /**
+     * Count recurring plans (optionally filter by synced status)
+     * @param {boolean} synced - Filter by synced status (null = all)
+     * @returns {Promise<number>}
+     */
+    async countRecurringPlans(synced = null) {
+        if (synced !== null) {
+            return await this._count(STORES.recurringPlans, 'synced', synced);
+        }
+        return await this._count(STORES.recurringPlans);
     }
 
     // ==================== SYNC QUEUE ====================
@@ -1175,9 +1251,10 @@ class IndexedDBManager {
         const factsCount = await this.countFacts(false);
         const transfersCount = await this.countTransfers(false);
         const plansCount = await this.countPlans(false);
+        const recurringPlansCount = await this.countRecurringPlans(false);
         const shoppingListsCount = await this.countShoppingLists(false);
         const shoppingListItemsCount = await this.countShoppingListItems(false);
-        return factsCount + transfersCount + plansCount + shoppingListsCount + shoppingListItemsCount;
+        return factsCount + transfersCount + plansCount + recurringPlansCount + shoppingListsCount + shoppingListItemsCount;
     }
 
     /**
@@ -1191,6 +1268,7 @@ class IndexedDBManager {
             STORES.facts,
             STORES.transfers,
             STORES.plans,
+            STORES.recurringPlans,
             STORES.shoppingLists,
             STORES.shoppingListItems,
             STORES.syncQueue,
@@ -1246,6 +1324,11 @@ class IndexedDBManager {
                     total: await this.countPlans(),
                     pending: await this.countPlans(false),
                     synced: await this.countPlans(true)
+                },
+                recurringPlans: {
+                    total: await this.countRecurringPlans(),
+                    pending: await this.countRecurringPlans(false),
+                    synced: await this.countRecurringPlans(true)
                 },
                 shoppingLists: {
                     total: await this.countShoppingLists(),

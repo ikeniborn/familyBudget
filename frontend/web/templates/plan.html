@@ -148,6 +148,22 @@
                         </label>
                         <input type="text" id="filter-search" class="input input-bordered w-full" placeholder="Введите текст для поиска..." title="Поиск по описанию плановой записи (trigram search)">
                     </div>
+
+                    <!-- Checkbox filters for recurring and reminder -->
+                    <div class="flex flex-wrap gap-4 pt-2">
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" id="filter-recurring" class="checkbox checkbox-sm checkbox-secondary" onchange="applyFilters()">
+                                <span class="label-text">🔄 Регламентные записи</span>
+                            </label>
+                        </div>
+                        <div class="form-control">
+                            <label class="label cursor-pointer justify-start gap-2 py-1">
+                                <input type="checkbox" id="filter-with-reminder" class="checkbox checkbox-sm checkbox-primary" onchange="applyFilters()">
+                                <span class="label-text">🔔 С напоминанием</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1183,10 +1199,33 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Event listener for article_type filter change - reload categories
-    document.getElementById('filter-article-type').addEventListener('change', function(e) {
+    // Event listener for article_type filter change - reload categories AND apply filter
+    document.getElementById('filter-article-type').addEventListener('change', async function(e) {
         const selectedType = e.target.value;
-        reloadArticleFilter(selectedType);
+
+        // 1. Update filters object
+        filters.article_type = selectedType || null;
+
+        // 2. Reset article filter (category list will change)
+        const filterArticle = document.getElementById('filter-article');
+        if (filterArticle) {
+            filterArticle.value = '';
+            filters.article_id = null;
+        }
+
+        // 3. Reload article dropdown with new type
+        await reloadArticleFilter(selectedType);
+
+        // 4. Reset page and reload facts table
+        currentPage = 0;
+        await loadFacts();
+
+        // 5. Update filter indicator
+        updateFilterIndicator();
+
+        // 6. Sync to analytics section
+        await syncFiltersToAnalytics();
+
         debugLog('Article type filter changed to:', selectedType || 'all');
     });
 
@@ -1719,6 +1758,13 @@ async function applyFilters() {
     // Trigram search by description
     filters.search = document.getElementById('filter-search').value.trim() || null;
 
+    // Recurring and reminder filters
+    const filterRecurring = document.getElementById('filter-recurring');
+    filters.has_recurring_plan = filterRecurring && filterRecurring.checked ? true : null;
+
+    const filterWithReminder = document.getElementById('filter-with-reminder');
+    filters.has_reminder = filterWithReminder && filterWithReminder.checked ? true : null;
+
     currentPage = 0;
     await loadFacts();
 
@@ -1746,6 +1792,12 @@ async function resetFilters() {
         document.getElementById('filter-cost-center').value = '';
         document.getElementById('filter-search').value = '';
 
+        // Reset checkbox filters
+        const filterRecurring = document.getElementById('filter-recurring');
+        if (filterRecurring) filterRecurring.checked = false;
+        const filterWithReminder = document.getElementById('filter-with-reminder');
+        if (filterWithReminder) filterWithReminder.checked = false;
+
         // ВОССТАНОВИТЬ период по умолчанию из КОНСТАНТ
         filters = {
             user_id: null,
@@ -1755,7 +1807,9 @@ async function resetFilters() {
             date_to: DEFAULT_DATE_TO,
             financial_center_id: null,
             cost_center_id: null,
-            search: null
+            search: null,
+            has_recurring_plan: null,
+            has_reminder: null
         };
 
         // Обновить UI для дат (конвертируем YYYY-MM-DD → DD.MM.YYYY)
@@ -1865,6 +1919,8 @@ async function loadFacts() {
         if (filters.financial_center_id) params.append('financial_center_id', filters.financial_center_id);
         if (filters.cost_center_id) params.append('cost_center_id', filters.cost_center_id);
         if (filters.search) params.append('search', filters.search);
+        if (filters.has_recurring_plan) params.append('has_recurring_plan', 'true');
+        if (filters.has_reminder) params.append('has_reminder', 'true');
 
         // Load facts and count in parallel
         const [factsResponse, countResponse] = await Promise.all([
@@ -1938,7 +1994,8 @@ function renderFactsTable(facts) {
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
                         <th>📝 Описание</th>
-                        <th>🔔</th>
+                        <th title="Напоминание">🔔</th>
+                        <th title="Регламентный платеж">🔄</th>
                         <th>👤 Пользователь</th>
                         <th title="Создано offline">☁️</th>
                         <th>⚙️ Действия</th>
@@ -1986,6 +2043,7 @@ function renderFactsTable(facts) {
                 <td class="${amountClass}">${parseFloat(fact.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">✓</span>' : ''}</td>
+                <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
                 <td>${fact.user_name || '—'}</td>
                 <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
                 <td>
@@ -2002,6 +2060,7 @@ function renderFactsTable(facts) {
         const mobileAmount = formatMobileAmount(fact.amount, fact.article_type);
         const reminderIcon = remindersMap.has(fact.id) ? '<span class="text-info text-xs" title="Напоминание">🔔</span>' : '';
         const offlineIcon = fact.is_offline_sync ? '<span class="text-xs" title="Создано offline">☁️</span>' : '';
+        const recurringIcon = fact.recurring_plan_id ? '<span class="text-secondary text-xs" title="Регламентный">🔄</span>' : '';
 
         mobileHtml += `
             <div class="transaction-item py-2" data-plan-id="${fact.id}" onclick="showEditModal(${fact.id})">
@@ -2010,6 +2069,7 @@ function renderFactsTable(facts) {
                     <span class="badge badge-info badge-xs shrink-0">План</span>
                     <span class="flex-1 font-medium truncate">${articleName}</span>
                     <span class="${mobileAmountClass} font-bold whitespace-nowrap">${mobileAmount}</span>
+                    ${recurringIcon}
                     ${reminderIcon}
                     ${offlineIcon}
                 </div>
@@ -2791,26 +2851,113 @@ async function createPlan(event) {
     setSubmitLoading(event.target, true);
 
     const formData = new FormData(event.target);
+    const modalId = 'modal_add_plan';
 
-    // Преобразовать plan_month (YYYY-MM) в fact_date (YYYY-MM-01)
-    const planMonth = formData.get('plan_month'); // "2025-11"
-    const factDate = `${planMonth}-01`; // "2025-11-01"
-
-    const data = {
-        record_type: 'plan',
-        amount: parseFloat(formData.get('amount')),
-        article_id: parseInt(formData.get('article_id')),
-        financial_center_id: parseInt(formData.get('financial_center_id')),
-        cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-        fact_date: factDate, // Обязательное поле - первое число месяца плана
-        description: formData.get('description') || null
-    };
+    // Check if recurring mode is enabled
+    const isRecurring = formData.get('is_recurring') === 'on';
 
     // Get reminder settings
     const enableReminder = formData.get('enable_reminder') === 'on';
     const reminderDatetime = formData.get('reminder_datetime');
 
     try {
+        if (isRecurring) {
+            // ===== RECURRING PLAN CREATION =====
+            const recurringSettings = collectRecurringSettings(modalId);
+            if (!recurringSettings) {
+                showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
+                setSubmitLoading(event.target, false);
+                return;
+            }
+
+            // Get start date from plan_month
+            const planMonth = formData.get('plan_month'); // "2025-11"
+            const startDate = `${planMonth}-01`; // "2025-11-01"
+
+            // Build recurring plan data
+            const recurringData = {
+                article_id: parseInt(formData.get('article_id')),
+                financial_center_id: parseInt(formData.get('financial_center_id')),
+                cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+                amount: parseFloat(formData.get('amount')),
+                description: formData.get('description') || null,
+                record_type: 'plan',
+                frequency_type: recurringSettings.frequency_type,
+                frequency_value: recurringSettings.frequency_value,
+                start_date: startDate,
+                end_date: recurringSettings.end_date,
+                occurrences_count: recurringSettings.occurrences_count
+            };
+
+            debugLog('[createPlan] Creating recurring plan:', recurringData);
+
+            // Use OfflineManager if available for offline support
+            if (window.offlineManager) {
+                const result = await window.offlineManager.createRecurringPlan(recurringData);
+
+                if (result._offline) {
+                    showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
+                    debugLog('[createPlan] Recurring plan saved offline:', result);
+                } else {
+                    showToast(`Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`, 'success');
+                    debugLog('[createPlan] Recurring plan created:', result);
+                }
+
+                modal_add_plan.close();
+                event.target.reset();
+                // Reset recurring settings
+                resetRecurringSettings(modalId);
+                // Reset reminder settings
+                const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+                if (reminderSettings) reminderSettings.classList.add('hidden');
+                resetReminderFields(modalId);
+                await loadFacts();
+                setupCreatePlanPeriodButtons();
+            } else {
+                // Fallback to direct fetch if OfflineManager not available
+                const response = await fetch('/api/v1/recurring-plans', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recurringData)
+                });
+
+                if (response.ok) {
+                    const createdPlan = await response.json();
+                    showToast(`Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`, 'success');
+                    debugLog('[createPlan] Recurring plan created:', createdPlan);
+
+                    modal_add_plan.close();
+                    event.target.reset();
+                    // Reset recurring settings
+                    resetRecurringSettings(modalId);
+                    // Reset reminder settings
+                    const reminderSettings = document.getElementById('reminder-settings-modal_add_plan');
+                    if (reminderSettings) reminderSettings.classList.add('hidden');
+                    resetReminderFields(modalId);
+                    await loadFacts();
+                    setupCreatePlanPeriodButtons();
+                } else {
+                    const error = await response.json();
+                    showToast('Ошибка: ' + (error.detail || 'Не удалось создать регулярный платеж'), 'error');
+                }
+            }
+            return;
+        }
+
+        // ===== REGULAR PLAN CREATION =====
+        // Преобразовать plan_month (YYYY-MM) в fact_date (YYYY-MM-01)
+        const planMonth = formData.get('plan_month'); // "2025-11"
+        const factDate = `${planMonth}-01`; // "2025-11-01"
+
+        const data = {
+            record_type: 'plan',
+            amount: parseFloat(formData.get('amount')),
+            article_id: parseInt(formData.get('article_id')),
+            financial_center_id: parseInt(formData.get('financial_center_id')),
+            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+            fact_date: factDate, // Обязательное поле - первое число месяца плана
+            description: formData.get('description') || null
+        };
         // Use OfflineManager if available, otherwise fallback to direct fetch
         if (window.offlineManager) {
             const result = await window.offlineManager.createPlan(data);
@@ -3352,6 +3499,290 @@ function showToast(message, type = 'info') {
         toast.remove();
     }, 3000);
 }
+
+// ==================== Recurring Plans Functions ====================
+
+// Calendar widget instance for recurring end date
+let recurringEndDateCalendarWidget = null;
+
+/**
+ * Toggle recurring mode settings visibility
+ */
+function toggleRecurringMode(modalId) {
+    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
+    const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+
+    if (checkbox && settingsDiv) {
+        if (checkbox.checked) {
+            settingsDiv.classList.remove('hidden');
+            // Initialize recurring fields
+            initRecurringFields(modalId);
+            updateRecurringPreview(modalId);
+        } else {
+            settingsDiv.classList.add('hidden');
+        }
+    }
+}
+window.toggleRecurringMode = toggleRecurringMode;
+
+/**
+ * Initialize recurring fields (weekday buttons, calendar widget)
+ */
+function initRecurringFields(modalId) {
+    // Initialize weekday button handlers
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach(btn => {
+        btn.onclick = () => {
+            // Toggle active state
+            weekdayButtons.forEach(b => b.classList.remove('btn-active'));
+            btn.classList.add('btn-active');
+            // Update hidden field
+            const hiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+            if (hiddenInput) {
+                hiddenInput.value = btn.dataset.day;
+            }
+            updateRecurringPreview(modalId);
+        };
+    });
+
+    // Initialize end date calendar widget
+    const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+    if (endDateInput && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+        // Destroy existing widget if any
+        if (recurringEndDateCalendarWidget) {
+            recurringEndDateCalendarWidget.destroy();
+            recurringEndDateCalendarWidget = null;
+        }
+
+        recurringEndDateCalendarWidget = new BudgetShared.CalendarWidget({
+            inputElement: endDateInput,
+            mode: 'single',
+            minDate: new Date(),
+            onSelect: () => updateRecurringPreview(modalId)
+        });
+    }
+
+    // Add change listeners to update preview
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) {
+        frequencySelect.onchange = () => updateFrequencyFields(modalId);
+    }
+
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) {
+        monthdaySelect.onchange = () => updateRecurringPreview(modalId);
+    }
+
+    const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+    if (occurrencesInput) {
+        occurrencesInput.oninput = () => updateRecurringPreview(modalId);
+    }
+}
+
+/**
+ * Update frequency-specific fields visibility
+ */
+function updateFrequencyFields(modalId) {
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    const weekdayPicker = document.getElementById(`weekday-picker-${modalId}`);
+    const monthdayPicker = document.getElementById(`monthday-picker-${modalId}`);
+
+    if (!frequencySelect) return;
+
+    const frequency = frequencySelect.value;
+
+    // Show/hide appropriate picker
+    if (weekdayPicker) {
+        weekdayPicker.classList.toggle('hidden', frequency !== 'weekly');
+    }
+
+    if (monthdayPicker) {
+        monthdayPicker.classList.toggle('hidden', frequency === 'daily' || frequency === 'weekly');
+    }
+
+    updateRecurringPreview(modalId);
+}
+window.updateFrequencyFields = updateFrequencyFields;
+
+/**
+ * Update duration-specific fields visibility
+ */
+function updateDurationFields(modalId) {
+    const durationType = document.querySelector(`#${modalId} input[name="duration_type"]:checked`);
+    const occurrencesField = document.getElementById(`occurrences-field-${modalId}`);
+    const endDateField = document.getElementById(`end-date-field-${modalId}`);
+
+    if (!durationType) return;
+
+    const type = durationType.value;
+
+    if (occurrencesField) {
+        occurrencesField.classList.toggle('hidden', type !== 'count');
+    }
+
+    if (endDateField) {
+        endDateField.classList.toggle('hidden', type !== 'end_date');
+    }
+
+    updateRecurringPreview(modalId);
+}
+window.updateDurationFields = updateDurationFields;
+
+/**
+ * Update recurring schedule preview text
+ */
+function updateRecurringPreview(modalId) {
+    const previewText = document.getElementById(`recurring-preview-text-${modalId}`);
+    if (!previewText) return;
+
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    const frequency = frequencySelect ? frequencySelect.value : 'monthly';
+
+    // Build frequency text
+    let frequencyText = '';
+    const dayNames = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
+
+    switch (frequency) {
+        case 'daily':
+            frequencyText = 'Ежедневно';
+            break;
+        case 'weekly':
+            const weekdayBtn = document.querySelector(`#weekday-picker-${modalId} .weekday-btn.btn-active`);
+            const dayIndex = weekdayBtn ? parseInt(weekdayBtn.dataset.day) : 0;
+            frequencyText = `Еженедельно, ${dayNames[dayIndex]}`;
+            break;
+        case 'monthly':
+            const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+            const monthDay = monthdaySelect ? monthdaySelect.value : '1';
+            frequencyText = `Ежемесячно, ${monthDay}-го числа`;
+            break;
+        case 'quarterly':
+            const qMonthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+            const qMonthDay = qMonthdaySelect ? qMonthdaySelect.value : '1';
+            frequencyText = `Ежеквартально, ${qMonthDay}-го числа`;
+            break;
+    }
+
+    // Build duration text
+    let durationText = '';
+    const durationType = document.querySelector(`#${modalId} input[name="duration_type"]:checked`);
+    const type = durationType ? durationType.value : 'indefinite';
+
+    switch (type) {
+        case 'indefinite':
+            durationText = 'бессрочно';
+            break;
+        case 'count':
+            const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+            const count = occurrencesInput ? occurrencesInput.value : '';
+            durationText = count ? `${count} повторений` : 'укажите количество';
+            break;
+        case 'end_date':
+            const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+            const endDate = endDateInput ? endDateInput.value : '';
+            durationText = endDate ? `до ${endDate}` : 'укажите дату';
+            break;
+    }
+
+    previewText.textContent = `${frequencyText}, ${durationText}`;
+}
+window.updateRecurringPreview = updateRecurringPreview;
+
+/**
+ * Collect recurring settings from form
+ * @returns {Object|null} Recurring settings or null if not recurring
+ */
+function collectRecurringSettings(modalId) {
+    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
+    if (!checkbox || !checkbox.checked) {
+        return null;
+    }
+
+    const form = document.getElementById(`form_${modalId}`);
+    if (!form) return null;
+
+    const frequencyType = form.querySelector('select[name="frequency_type"]').value;
+
+    // Get frequency value based on type
+    let frequencyValue = null;
+    if (frequencyType === 'weekly') {
+        frequencyValue = parseInt(form.querySelector('input[name="frequency_value_weekday"]').value) || 0;
+    } else if (frequencyType === 'monthly' || frequencyType === 'quarterly') {
+        frequencyValue = parseInt(form.querySelector('select[name="frequency_value_monthday"]').value) || 1;
+    }
+
+    // Get duration settings
+    const durationType = form.querySelector('input[name="duration_type"]:checked').value;
+    let occurrencesCount = null;
+    let endDate = null;
+
+    if (durationType === 'count') {
+        occurrencesCount = parseInt(form.querySelector('input[name="occurrences_count"]').value) || null;
+    } else if (durationType === 'end_date') {
+        const endDateValue = document.getElementById(`recurring_end_date_${modalId}`).value;
+        if (endDateValue) {
+            // Convert DD.MM.YYYY to YYYY-MM-DD
+            endDate = BudgetShared.DateFormatter.formatForAPI(endDateValue);
+        }
+    }
+
+    return {
+        frequency_type: frequencyType,
+        frequency_value: frequencyValue,
+        occurrences_count: occurrencesCount,
+        end_date: endDate
+    };
+}
+window.collectRecurringSettings = collectRecurringSettings;
+
+/**
+ * Reset recurring settings form
+ */
+function resetRecurringSettings(modalId) {
+    const checkbox = document.querySelector(`#${modalId} input[name="is_recurring"]`);
+    if (checkbox) checkbox.checked = false;
+
+    const settingsDiv = document.getElementById(`recurring-settings-${modalId}`);
+    if (settingsDiv) settingsDiv.classList.add('hidden');
+
+    // Reset frequency to monthly
+    const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
+    if (frequencySelect) frequencySelect.value = 'monthly';
+
+    // Reset weekday selection
+    const weekdayButtons = document.querySelectorAll(`#weekday-picker-${modalId} .weekday-btn`);
+    weekdayButtons.forEach((btn, i) => {
+        btn.classList.toggle('btn-active', i === 0);
+    });
+    const weekdayHidden = document.querySelector(`#${modalId} input[name="frequency_value_weekday"]`);
+    if (weekdayHidden) weekdayHidden.value = '0';
+
+    // Reset monthday to 1
+    const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
+    if (monthdaySelect) monthdaySelect.value = '1';
+
+    // Reset duration to indefinite
+    const indefiniteRadio = document.querySelector(`#${modalId} input[name="duration_type"][value="indefinite"]`);
+    if (indefiniteRadio) indefiniteRadio.checked = true;
+
+    // Hide count and end_date fields
+    const occurrencesField = document.getElementById(`occurrences-field-${modalId}`);
+    if (occurrencesField) occurrencesField.classList.add('hidden');
+    const endDateField = document.getElementById(`end-date-field-${modalId}`);
+    if (endDateField) endDateField.classList.add('hidden');
+
+    // Clear occurrences count
+    const occurrencesInput = document.querySelector(`#${modalId} input[name="occurrences_count"]`);
+    if (occurrencesInput) occurrencesInput.value = '';
+
+    // Clear end date
+    const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+    if (endDateInput) endDateInput.value = '';
+
+    // Update visibility
+    updateFrequencyFields(modalId);
+}
+window.resetRecurringSettings = resetRecurringSettings;
 
 // ==================== Plan Analytics ====================
 

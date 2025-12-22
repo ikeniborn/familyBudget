@@ -500,6 +500,96 @@ tables:
     endpoints:
       - $ref: "../endpoints/import.yaml#/routes"
 
+  # ---------------------------------------------------------------------------
+  # RECURRING PLAN
+  # ---------------------------------------------------------------------------
+  t_d_recurring_plan:
+    model: RecurringPlan
+    file: "backend/app/models/recurring_plan.py"
+    pattern: "SCD Type 1"
+    description: "Recurring payment templates for auto-generating BudgetFact records"
+
+    columns:
+      - name: id
+        type: SERIAL PRIMARY KEY
+      - name: user_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_user"
+      - name: article_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_article"
+      - name: financial_center_id
+        type: INTEGER NOT NULL
+        fk:
+          $ref: "#/tables/t_d_financial_center"
+      - name: cost_center_id
+        type: INTEGER
+        fk:
+          $ref: "#/tables/t_d_cost_center"
+      - name: frequency_type
+        type: VARCHAR(20) NOT NULL
+        check: "frequency_type IN ('daily', 'weekly', 'monthly', 'quarterly')"
+      - name: frequency_value
+        type: INTEGER
+        description: "Day of week (0-6) for weekly, day of month (1-28) for monthly/quarterly"
+      - name: start_date
+        type: DATE NOT NULL
+        description: "When to start generating facts"
+      - name: end_date
+        type: DATE
+        description: "Optional end date for recurring"
+      - name: occurrences_count
+        type: INTEGER
+        description: "Optional max number of occurrences"
+      - name: occurrences_generated
+        type: INTEGER DEFAULT 0
+        description: "Counter of already generated facts"
+      - name: amount
+        type: DECIMAL(15,2) NOT NULL
+        check: "amount > 0"
+      - name: description
+        type: TEXT
+      - name: record_type
+        type: VARCHAR(20) NOT NULL DEFAULT 'plan'
+        check: "record_type IN ('plan', 'fact')"
+      - name: is_active
+        type: BOOLEAN DEFAULT TRUE
+        description: "Soft delete flag"
+      - name: next_generation_date
+        type: DATE
+        description: "Next date for fact generation (calculated)"
+      - name: last_generated_date
+        type: DATE
+        description: "Last fact generation date"
+      - name: created_at
+        type: TIMESTAMP DEFAULT NOW()
+      - name: updated_at
+        type: TIMESTAMP
+
+    indexes:
+      - $ref: "./indexes.yaml#/indexes/idx_rp_user_id"
+      - $ref: "./indexes.yaml#/indexes/idx_rp_is_active_next_date"
+
+    fk_from:
+      - t_f_budget_fact
+
+    services:
+      - $ref: "../functionality/recurring-plans.yaml#/module/services/0"
+
+    endpoints:
+      - $ref: "../endpoints/recurring-plans.yaml#/routes"
+
+    generation_logic:
+      description: |
+        RecurringPlan is a template for auto-generating BudgetFact records.
+        - On creation: generates facts for next 90 days (DEFAULT_GENERATION_HORIZON_DAYS)
+        - Scheduler job (daily at 02:00): generates missing facts up to horizon
+        - Facts reference recurring_plan_id for traceability
+      scheduler_job: "generate_recurring_facts_job"
+      scheduler_schedule: "Daily at 02:00 UTC"
+
 # Shared Properties
 shared_columns:
   audit:

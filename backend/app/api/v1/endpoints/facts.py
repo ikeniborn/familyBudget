@@ -273,6 +273,7 @@ async def create_fact(
         "cost_center_name": cost_center_name,
         "record_type": fact.record_type,
         "is_offline_sync": fact.is_offline_sync,
+        "recurring_plan_id": fact.recurring_plan_id,
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
@@ -314,6 +315,8 @@ async def list_facts(
     amount_max: Annotated[Optional[Decimal], Query(ge=0)] = None,
     financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
     cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    has_recurring_plan: Annotated[Optional[bool], Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
+    has_reminder: Annotated[Optional[bool], Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
 ) -> FactListResponse:
     """
     List budget facts with optional filtering.
@@ -333,6 +336,8 @@ async def list_facts(
     - amount_max: Maximum amount (inclusive)
     - financial_center_id: Filter by financial center
     - cost_center_id: Filter by cost center
+    - has_recurring_plan: Filter by recurring plan (True = with, False = without)
+    - has_reminder: Filter by scheduled reminder (True = with, False = without)
 
     **Pagination:**
     - limit: Maximum number of results (1-10000, default: 100)
@@ -399,6 +404,27 @@ async def list_facts(
     if cost_center_id:
         statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
 
+    # Filter by recurring plan presence
+    if has_recurring_plan is not None:
+        if has_recurring_plan:
+            statement = statement.where(BudgetFact.recurring_plan_id.isnot(None))
+        else:
+            statement = statement.where(BudgetFact.recurring_plan_id.is_(None))
+
+    # Filter by reminder presence (requires EXISTS subquery)
+    if has_reminder is not None:
+        from backend.app.models.scheduled_reminder import ScheduledReminder
+        from sqlalchemy import exists
+
+        reminder_exists = exists().where(
+            ScheduledReminder.fact_id == BudgetFact.id
+        )
+
+        if has_reminder:
+            statement = statement.where(reminder_exists)
+        else:
+            statement = statement.where(~reminder_exists)
+
     # Count total (before pagination)
     count_stmt = select(func.count()).select_from(statement.subquery())
     total_result = await session.execute(count_stmt)
@@ -450,6 +476,8 @@ async def list_facts(
             "cost_center_id": fact.cost_center_id,
             "cost_center_name": cost_center.name if cost_center else None,
             "record_type": fact.record_type,
+            "is_offline_sync": fact.is_offline_sync,
+            "recurring_plan_id": fact.recurring_plan_id,
             "created_at": fact.created_at,
             "updated_at": fact.updated_at,
         }
@@ -599,6 +627,7 @@ async def get_recent_facts_html(
                         <th>Категория</th>
                         <th>Сумма</th>
                         <th>Описание</th>
+                        <th title="Регламентный платеж">🔄</th>
                         <th title="Создано offline">☁️</th>
                     </tr>
                 </thead>
@@ -657,6 +686,10 @@ async def get_recent_facts_html(
             offline_icon = "☁️" if fact.is_offline_sync else ""
             offline_title = "Создано offline" if fact.is_offline_sync else ""
 
+            # Recurring plan indicator
+            recurring_icon = "🔄" if fact.recurring_plan_id else ""
+            recurring_title = "Регламентный платеж" if fact.recurring_plan_id else ""
+
             # Desktop table row with edit button (pencil emoji)
             edit_button = f'''<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard({fact.id})">✏️</button>'''
             table_html += f"""
@@ -668,6 +701,7 @@ async def get_recent_facts_html(
                         <td>{article.name}</td>
                         <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</td>
                         <td class="max-w-xs truncate" title="{description_full}">{description_truncated}</td>
+                        <td class="text-center" title="{recurring_title}">{recurring_icon}</td>
                         <td class="text-center" title="{offline_title}">{offline_icon}</td>
                     </tr>
             """
@@ -683,6 +717,8 @@ async def get_recent_facts_html(
 
             # Offline icon for mobile (next to category name)
             offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
+            # Recurring icon for mobile
+            recurring_span = f'<span class="text-secondary text-xs" title="{recurring_title}">{recurring_icon}</span>' if recurring_icon else ""
 
             mobile_html += f"""
             <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
@@ -690,6 +726,7 @@ async def get_recent_facts_html(
                 <div class="flex items-center gap-2">
                     {record_type_badge}
                     <span class="flex-1 font-medium truncate">{article.name}</span>
+                    {recurring_span}
                     {offline_span}
                     <span class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</span>
                 </div>
@@ -818,6 +855,8 @@ async def get_facts_count(
     article_type: Annotated[Optional[str], Query(pattern="^(income|expense|debit|credit)$")] = None,
     financial_center_id: Annotated[Optional[int], Query(gt=0)] = None,
     cost_center_id: Annotated[Optional[int], Query(gt=0)] = None,
+    has_recurring_plan: Annotated[Optional[bool], Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
+    has_reminder: Annotated[Optional[bool], Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
 ) -> dict:
     """
     Get total facts count with filters (Shared Family Budget).
@@ -835,6 +874,8 @@ async def get_facts_count(
     - article_type: Filter by 'income', 'expense', 'debit', or 'credit'
     - financial_center_id: Filter by financial center
     - cost_center_id: Filter by cost center
+    - has_recurring_plan: Filter by recurring plan (True = with, False = without)
+    - has_reminder: Filter by scheduled reminder (True = with, False = without)
 
     **Returns:**
     - 200 OK: Total count matching the filters
@@ -869,6 +910,27 @@ async def get_facts_count(
 
     if cost_center_id:
         statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
+
+    # Filter by recurring plan presence
+    if has_recurring_plan is not None:
+        if has_recurring_plan:
+            statement = statement.where(BudgetFact.recurring_plan_id.isnot(None))
+        else:
+            statement = statement.where(BudgetFact.recurring_plan_id.is_(None))
+
+    # Filter by reminder presence (requires EXISTS subquery)
+    if has_reminder is not None:
+        from backend.app.models.scheduled_reminder import ScheduledReminder
+        from sqlalchemy import exists
+
+        reminder_exists = exists().where(
+            ScheduledReminder.fact_id == BudgetFact.id
+        )
+
+        if has_reminder:
+            statement = statement.where(reminder_exists)
+        else:
+            statement = statement.where(~reminder_exists)
 
     # Execute count query
     result = await session.execute(statement)
@@ -949,6 +1011,7 @@ async def get_fact(
         "cost_center_name": cost_center.name if cost_center else None,
         "record_type": fact.record_type,
         "is_offline_sync": fact.is_offline_sync,
+        "recurring_plan_id": fact.recurring_plan_id,
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
@@ -1078,6 +1141,8 @@ async def update_fact(
         "cost_center_id": fact.cost_center_id,
         "cost_center_name": cost_center_name,
         "record_type": fact.record_type,
+        "is_offline_sync": fact.is_offline_sync,
+        "recurring_plan_id": fact.recurring_plan_id,
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }

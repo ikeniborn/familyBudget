@@ -799,6 +799,95 @@ class OfflineManager {
         };
     }
 
+    // ==================== RECURRING PLANS ====================
+
+    /**
+     * Create recurring plan (online-preferred with offline fallback)
+     * @param {Object} data - Recurring plan data
+     * @returns {Promise<Object>} Created recurring plan with _offline flag if created offline
+     */
+    async createRecurringPlan(data) {
+        if (this.isOnline) {
+            try {
+                return await this.createRecurringPlanOnline(data);
+            } catch (error) {
+                _log('[OfflineManager] Online recurring plan creation failed, falling back to offline:', error.message);
+                return await this.createRecurringPlanOffline(data);
+            }
+        } else {
+            return await this.createRecurringPlanOffline(data);
+        }
+    }
+
+    /**
+     * Create recurring plan online
+     * @param {Object} data - Recurring plan data
+     * @returns {Promise<Object>} Created recurring plan from server
+     */
+    async createRecurringPlanOnline(data) {
+        const response = await fetch('/api/v1/recurring-plans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || error.message || 'Failed to create recurring plan');
+        }
+
+        return await response.json();
+    }
+
+    /**
+     * Create recurring plan offline (queued for later sync)
+     * @param {Object} data - Recurring plan data
+     * @returns {Promise<Object>} Offline recurring plan with tempId
+     */
+    async createRecurringPlanOffline(data) {
+        const tempId = `offline_recurring_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        await this.db.addRecurringPlan({
+            tempId,
+            data,
+            synced: false,
+            createdAt: Date.now(),
+            error: null,
+            serverId: null
+        });
+
+        await this.db.addToSyncQueue({
+            operation: 'create',
+            entity: 'recurring',
+            tempId,
+            data,
+            status: 'pending',
+            timestamp: Date.now(),
+            retryCount: 0,
+            error: null
+        });
+
+        _log('[OfflineManager] Recurring plan saved offline:', tempId);
+
+        return {
+            id: null,
+            tempId,
+            ...data,
+            _offline: true,
+            _synced: false,
+            _pendingSync: true
+        };
+    }
+
+    /**
+     * Get all pending (unsynced) recurring plans
+     * @returns {Promise<Array>} Array of pending recurring plans
+     */
+    async getPendingRecurringPlans() {
+        return await this.db.getAllRecurringPlans(false);
+    }
+
     // ==================== SYNC ====================
 
     /**
@@ -986,6 +1075,8 @@ class OfflineManager {
                     await this.db.deleteTransfer(item.tempId);
                 } else if (item.entity === 'plan') {
                     await this.db.deletePlan(item.tempId);
+                } else if (item.entity === 'recurring') {
+                    await this.db.deleteRecurringPlan(item.tempId);
                 }
                 _offlineLog(`[OfflineManager] Deleted synced ${item.entity} ${item.tempId} from offline store`);
             } catch (e) {
@@ -998,9 +1089,10 @@ class OfflineManager {
     }
 
     async syncCreate(item) {
-        // Plans use /api/v1/facts endpoint (same as facts, with record_type='plan')
+        // Route to appropriate API endpoint based on entity type
         const endpoint = item.entity === 'fact' || item.entity === 'plan' ? '/api/v1/facts' :
                          item.entity === 'transfer' ? '/api/v1/transfers' :
+                         item.entity === 'recurring' ? '/api/v1/recurring-plans' :
                          '/api/v1/facts';
 
         // Clean data: remove display-only fields not expected by API
@@ -1025,8 +1117,17 @@ class OfflineManager {
             delete cleanData.to_article_name;
         }
 
-        // Mark as offline sync (for all entity types: fact, plan, transfer)
-        cleanData.is_offline_sync = true;
+        // Recurring plan-specific display-only fields
+        if (item.entity === 'recurring') {
+            delete cleanData.frequency_label;
+            delete cleanData.duration_label;
+        }
+
+        // Mark as offline sync (for facts, plans, transfers - NOT recurring plans)
+        // RecurringPlan model doesn't have is_offline_sync field
+        if (item.entity !== 'recurring') {
+            cleanData.is_offline_sync = true;
+        }
 
         // Add deduplication hashes for facts and plans
         if (item.entity === 'fact' || item.entity === 'plan') {

@@ -65,6 +65,13 @@ from backend.app.schemas.notification import (
     NotificationList,
     NotificationRead,
 )
+from backend.app.schemas.recurring_plan import (
+    RecurringPlanCreate,
+    RecurringPlanListResponse,
+    RecurringPlanResponse,
+    RecurringPlanStats,
+    RecurringPlanUpdate,
+)
 from backend.app.schemas.scheduled_reminder import (
     ReminderCreate,
     ReminderListResponse,
@@ -122,6 +129,12 @@ __all__ = [
     "ReminderResponse",
     "ReminderWithPlanInfo",
     "ReminderListResponse",
+    # Recurring Plan schemas
+    "RecurringPlanCreate",
+    "RecurringPlanUpdate",
+    "RecurringPlanResponse",
+    "RecurringPlanListResponse",
+    "RecurringPlanStats",
     # Import schemas
     "ImportUploadResponse",
     "ImportStagingResponse",
