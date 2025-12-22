@@ -9,16 +9,66 @@
 
             <!-- Информация о регламентном платеже (показывается если есть recurring_plan_id) -->
             <div id="edit-recurring-info" class="hidden alert alert-info text-sm py-2 mb-2">
-                <div class="flex flex-col gap-1">
-                    <span class="font-medium">🔄 Запись из регламентного платежа</span>
-                    <div class="flex flex-col gap-0.5 mt-1">
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-medium">🔄 Запись из регламентного платежа</span>
+                        <span id="edit-recurring-status" class="badge badge-sm badge-success">Активен</span>
+                    </div>
+
+                    <!-- Информация о плане (заполняется через JS) -->
+                    <div id="edit-recurring-details" class="text-xs space-y-1 opacity-80">
+                        <div class="flex justify-between">
+                            <span>Частота:</span>
+                            <span id="edit-recurring-frequency" class="font-medium">—</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Следующая генерация:</span>
+                            <span id="edit-recurring-next-date" class="font-medium">—</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Период:</span>
+                            <span id="edit-recurring-period" class="font-medium">—</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Сгенерировано записей:</span>
+                            <span id="edit-recurring-generated" class="font-medium">—</span>
+                        </div>
+                    </div>
+
+                    <!-- Выбор области редактирования -->
+                    <div class="divider my-1 text-xs opacity-60">Область редактирования</div>
+                    <div class="flex flex-col gap-0.5">
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="edit_scope" value="single" class="radio radio-sm radio-primary" checked />
+                            <input type="radio" name="edit_scope" value="single" class="radio radio-sm radio-primary" checked
+                                   onchange="handleEditScopeChange('single')" />
                             <span class="text-sm">Только эту запись</span>
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="edit_scope" value="template" class="radio radio-sm radio-primary" />
+                            <input type="radio" name="edit_scope" value="template" class="radio radio-sm radio-primary"
+                                   onchange="handleEditScopeChange('template')" />
                             <span class="text-sm">Шаблон (влияет на будущие записи)</span>
+                        </label>
+                    </div>
+
+                    <!-- Поля редактирования шаблона (показываются при scope=template) -->
+                    <div id="edit-template-fields" class="hidden space-y-2 mt-2 pt-2 border-t border-info/30">
+                        <p class="text-xs font-medium opacity-70">Параметры шаблона:</p>
+
+                        <!-- Дата окончания -->
+                        <div class="form-control">
+                            <label class="label py-0.5">
+                                <span class="label-text text-xs">Дата окончания</span>
+                            </label>
+                            <input type="text" id="edit-template-end-date" name="template_end_date"
+                                   class="input input-bordered input-sm w-full"
+                                   placeholder="ДД.ММ.ГГГГ (пусто = бессрочно)" autocomplete="off" />
+                        </div>
+
+                        <!-- Статус активности -->
+                        <label class="flex items-center gap-2 cursor-pointer py-1">
+                            <input type="checkbox" id="edit-template-is-active" name="template_is_active"
+                                   class="checkbox checkbox-sm checkbox-primary" checked />
+                            <span class="label-text text-xs">Активен (генерировать новые записи)</span>
                         </label>
                     </div>
                 </div>
@@ -33,8 +83,8 @@
                        step="0.01" required class="input input-bordered" />
             </div>
 
-            <!-- Дата -->
-            <div class="form-control">
+            <!-- Дата (скрывается при редактировании шаблона) -->
+            <div id="edit-date-container" class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Дата *</span>
                 </label>
@@ -43,8 +93,8 @@
                        placeholder="ДД.ММ.ГГГГ" autocomplete="off" />
             </div>
 
-            <!-- Тип категории (expense/income/debit/credit) - сворачиваемый -->
-            <div class="collapse collapse-arrow bg-base-200 rounded-lg">
+            <!-- Тип категории (expense/income/debit/credit) - сворачиваемый (скрывается при scope=template) -->
+            <div id="edit-category-type-container" class="collapse collapse-arrow bg-base-200 rounded-lg">
                 <input type="checkbox" class="min-h-0" />
                 <div class="collapse-title py-2 px-3 min-h-0 flex items-center gap-2">
                     <span class="label-text font-semibold text-sm">Тип категории</span>
@@ -72,8 +122,8 @@
                 </div>
             </div>
 
-            <!-- Категория -->
-            <div class="form-control">
+            <!-- Категория (скрывается при scope=template) -->
+            <div id="edit-article-container" class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Категория *</span>
                 </label>
@@ -82,8 +132,8 @@
                 </select>
             </div>
 
-            <!-- Счет -->
-            <div class="form-control">
+            <!-- Счет (скрывается при scope=template) -->
+            <div id="edit-financial-center-container" class="form-control">
                 <label class="label py-1">
                     <span class="label-text">Счет *</span>
                 </label>
