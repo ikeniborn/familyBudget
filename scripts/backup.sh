@@ -229,20 +229,35 @@ rotate_local_backups() {
     log_info "Rotating local backups (retention: $LOCAL_RETENTION_DAYS days)..."
 
     local deleted_count=0
-    while IFS= read -r file; do
-        rm -f "$file"
-        ((deleted_count++))
-        debug "Deleted: $file"
-    done < <(find "$BACKUP_DIR" -name "backup_*.sql.gz" -mtime +${LOCAL_RETENTION_DAYS})
+    local old_backups
+
+    # Get list of old backups (protected from set -e)
+    old_backups=$(find "$BACKUP_DIR" -name "backup_*.sql.gz" -mtime +${LOCAL_RETENTION_DAYS} 2>/dev/null || true)
+
+    if [ -n "$old_backups" ]; then
+        while IFS= read -r file; do
+            if [ -f "$file" ]; then
+                rm -f "$file"
+                deleted_count=$((deleted_count + 1))  # Safe increment (no exit code issue)
+                debug "Deleted: $file"
+            fi
+        done <<< "$old_backups"
+    fi
 
     if [ $deleted_count -gt 0 ]; then
         log_info "Deleted $deleted_count old backup(s)"
     else
-        log_info "No old backups to delete"
+        debug "No old backups to delete"
     fi
 }
 
 should_upload_to_s3() {
+    # Check if forced via --force-s3 flag
+    if [ "$FORCE_S3" = true ]; then
+        log_info "S3 upload forced via --force-s3 flag"
+        return 0
+    fi
+
     # S3 upload happens DAILY if S3 is configured
     # This ensures backups are uploaded every day to S3 for redundancy
     log_info "S3 upload scheduled (daily)"
@@ -250,6 +265,8 @@ should_upload_to_s3() {
 }
 
 check_s3_config() {
+    debug "Checking S3 configuration..."
+
     # Check S3_* variables from .env (matches docker-compose.yml naming)
     if [ -z "$S3_ACCESS_KEY_ID" ] || [ -z "$S3_SECRET_ACCESS_KEY" ] || [ -z "$S3_BUCKET_NAME" ]; then
         log_warn "S3 credentials not configured, skipping upload"
@@ -382,6 +399,12 @@ main() {
         source "$PROJECT_ROOT/.env"
         set +a
         debug "Environment loaded successfully"
+        # S3 configuration diagnostics
+        debug "FORCE_S3: $FORCE_S3"
+        debug "S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:+set (${#S3_ACCESS_KEY_ID} chars)}"
+        debug "S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:+set (${#S3_SECRET_ACCESS_KEY} chars)}"
+        debug "S3_BUCKET_NAME: ${S3_BUCKET_NAME:-not set}"
+        debug "S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-not set}"
     else
         echo "ERROR: .env file not found at $PROJECT_ROOT/.env"
         echo "Expected location: $PROJECT_ROOT/.env"

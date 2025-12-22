@@ -5,7 +5,7 @@ description: |
   Модули бизнес-логики проекта Family Budget.
   Каждый модуль содержит services, models, endpoints и зависимости.
 
-total_modules: 12
+total_modules: 13
 
 modules:
   # Core Budget
@@ -81,6 +81,18 @@ modules:
     services: []  # Frontend-only
     frontend_only: true
 
+  # Operations
+  - name: backup_restore
+    file: "./backup-restore.yaml"
+    description: "Резервное копирование PostgreSQL, S3 upload, restore"
+    services: []  # Shell scripts (backup.sh, restore.sh, s3_backup.py)
+    scripts:
+      - scripts/backup.sh
+      - scripts/restore.sh
+      - scripts/s3_backup.py
+      - scripts/check_backup_health.sh
+    operational: true
+
 # Dependency Graph (high-level)
 dependency_order:
   - authentication          # No dependencies
@@ -95,3 +107,4 @@ dependency_order:
   - admin                   # Depends on: authentication (admin only)
   - realtime                # Depends on: budget_management, shopping_lists
   - offline                 # Depends on: budget_management, shopping_lists (frontend)
+  - backup_restore          # No runtime dependencies (operational tool)
