@@ -93,32 +93,11 @@
                        placeholder="ДД.ММ.ГГГГ" autocomplete="off" />
             </div>
 
-            <!-- Тип категории (expense/income/debit/credit) - сворачиваемый (скрывается при scope=template) -->
-            <div id="edit-category-type-container" class="collapse collapse-arrow bg-base-200 rounded-lg">
-                <input type="checkbox" class="min-h-0" />
-                <div class="collapse-title py-2 px-3 min-h-0 flex items-center gap-2">
-                    <span class="label-text font-semibold text-sm">Тип категории</span>
+            <!-- Тип категории (read-only badge, скрывается при scope=template) -->
+            <div id="edit-category-type-container" class="bg-base-200 rounded-lg p-3">
+                <div class="flex items-center justify-center gap-2">
+                    <span class="label-text font-semibold text-sm">Тип категории:</span>
                     <span id="edit-category-type-label" class="badge badge-sm badge-error">Расход</span>
-                </div>
-                <div class="collapse-content px-3 pb-2">
-                    <div class="grid grid-cols-2 gap-2 pt-1">
-                        <label class="btn btn-sm btn-outline btn-error edit-category-type-btn btn-active" data-type="expense">
-                            <input type="radio" name="edit_category_type" value="expense" class="hidden" checked />
-                            Расход
-                        </label>
-                        <label class="btn btn-sm btn-outline btn-success edit-category-type-btn" data-type="income">
-                            <input type="radio" name="edit_category_type" value="income" class="hidden" />
-                            Доход
-                        </label>
-                        <label class="btn btn-sm btn-outline btn-info edit-category-type-btn" data-type="debit">
-                            <input type="radio" name="edit_category_type" value="debit" class="hidden" />
-                            Списание
-                        </label>
-                        <label class="btn btn-sm btn-outline btn-warning edit-category-type-btn" data-type="credit">
-                            <input type="radio" name="edit_category_type" value="credit" class="hidden" />
-                            Пополнение
-                        </label>
-                    </div>
                 </div>
             </div>
 

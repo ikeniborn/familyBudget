@@ -918,6 +918,32 @@ components:
     path: "frontend/web/templates/components/modal_edit_fact.html"
     type: "macro"
     description: "Transaction edit modal"
+    fields:
+      - "edit-id (hidden): Fact ID"
+      - "amount (number, required)"
+      - "fact_date (text, DD.MM.YYYY format, CalendarWidget)"
+      - "edit_category_type_label (badge, read-only): Displays category type"
+      - "article_id (ChoicesCategoryTree, filtered by type)"
+      - "financial_center_id (select)"
+      - "cost_center_id (select, optional)"
+      - "description (textarea)"
+    category_type_display:
+      description: "Read-only category type indicator (same design as modal_edit_plan)"
+      element_id: "edit-category-type-container"
+      visual_design:
+        container: "bg-base-200 rounded-lg p-3"
+        layout: "flex items-center justify-center gap-2"
+        label: "label-text font-semibold text-sm"
+        badge: "badge badge-sm (color varies by type)"
+      badge_variants:
+        expense: "badge-error (Расход)"
+        income: "badge-success (Доход)"
+        debit: "badge-info (Списание)"
+        credit: "badge-warning (Пополнение)"
+      behavior:
+        - "Type determined from article.type when modal opens"
+        - "Badge updated via updateEditCategoryTypeBadge(type)"
+        - "No user interaction - purely informational"
     api_calls:
       - "/api/v1/facts/{id}"
 
@@ -1000,7 +1026,7 @@ components:
       - "edit-recurring-plan-id (hidden): RecurringPlan ID (if linked)"
       - "amount (number, required)"
       - "fact_date (text, DD.MM.YYYY format, CalendarWidget) - hidden for scope=template"
-      - "edit_category_type (radio buttons in collapse): expense/income/debit/credit - hidden for scope=template"
+      - "edit_category_type_label (badge, read-only): Displays category type - hidden for scope=template"
       - "article_id (ChoicesCategoryTree, filtered by type) - hidden for scope=template"
       - "financial_center_id (select) - hidden for scope=template"
       - "cost_center_id (select, optional)"
@@ -1051,6 +1077,24 @@ components:
       - "PUT /api/v1/recurring-plans/{id}?regenerate_future=true - Template update with future regeneration"
       - "GET /api/v1/recurring-plans/{id} - Load plan details for display"
       - "GET/POST/PUT/DELETE /api/v1/reminders/{fact_id} - Reminder CRUD (non-recurring only)"
+    category_type_display:
+      description: "Read-only category type indicator (cannot be changed after creation)"
+      element_id: "edit-category-type-container"
+      visual_design:
+        container: "bg-base-200 rounded-lg p-3"
+        layout: "flex items-center justify-center gap-2"
+        label: "label-text font-semibold text-sm"
+        badge: "badge badge-sm (color varies by type)"
+      badge_variants:
+        expense: "badge-error (Расход)"
+        income: "badge-success (Доход)"
+        debit: "badge-info (Списание)"
+        credit: "badge-warning (Пополнение)"
+      behavior:
+        - "Type determined from article.type when modal opens"
+        - "Badge updated via updateEditCategoryTypeBadge(type)"
+        - "No user interaction - purely informational"
+        - "Hidden when scope=template (inherited from container visibility)"
 
   modal_transfer:
     path: "frontend/web/templates/components/modal_transfer.html"

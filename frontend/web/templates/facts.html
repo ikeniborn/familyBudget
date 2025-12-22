@@ -602,14 +602,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Инициализация CalendarWidget для edit modal (Single Date Picker)
-    new BudgetShared.CalendarWidget({
-        mode: 'single',
-        inputElement: document.getElementById('edit-date'),
-        onSelect: (date) => {
-            debugLog('Выбрана дата для edit modal:', date);
-        }
-    });
+    // CalendarWidget для edit modal инициализируется в openEditModal()
+    // чтобы избежать дублирования иконки при повторном открытии
 
     // Event listener for article_type filter change - reload categories
     document.getElementById('filter-article-type').addEventListener('change', function(e) {
@@ -1502,17 +1496,8 @@ async function showEditModal(factId) {
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
     const categoryType = selectedArticle ? selectedArticle.type : 'expense';
 
-    // Set category type radio buttons
-    document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
-        const radio = btn.querySelector('input[type="radio"]');
-        if (btn.dataset.type === categoryType) {
-            btn.classList.add('btn-active');
-            radio.checked = true;
-        } else {
-            btn.classList.remove('btn-active');
-            radio.checked = false;
-        }
-    });
+    // Update category type badge
+    updateEditCategoryTypeBadge(categoryType);
 
     // Destroy previous ChoicesCategoryTree instance if exists
     if (editCategoryTreeSelect) {
@@ -1611,6 +1596,23 @@ async function showEditModal(factId) {
 function closeEditModal() {
     document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
+}
+
+// Update category type badge in edit modal
+function updateEditCategoryTypeBadge(type) {
+    const badge = document.getElementById('edit-category-type-label');
+    if (!badge) return;
+
+    const typeConfig = {
+        expense: { text: 'Расход', class: 'badge-error' },
+        income: { text: 'Доход', class: 'badge-success' },
+        debit: { text: 'Списание', class: 'badge-info' },
+        credit: { text: 'Пополнение', class: 'badge-warning' }
+    };
+
+    const config = typeConfig[type] || typeConfig.expense;
+    badge.textContent = config.text;
+    badge.className = `badge badge-sm ${config.class}`;
 }
 
 // Delete fact from edit modal (for mobile users without batch delete)

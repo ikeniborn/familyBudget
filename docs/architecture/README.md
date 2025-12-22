@@ -257,6 +257,20 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-23**: Category type in edit modals changed to read-only badge:
+  - **Problem**: Collapse with arrow and radio buttons created illusion that category type can be changed
+  - **Root Cause**: Type cannot be changed after record creation (business rule), but UI suggested otherwise
+  - **Fix**: Replaced interactive elements with static badge display
+  - **Files**: `modal_edit_plan.html:97-102`, `modal_edit_fact.html:29-34`, `plan.html`, `facts.html`
+  - **Visual Changes**:
+    - Removed `collapse-arrow` class and checkbox input
+    - Removed radio button grid
+    - Centered badge display with `justify-center`
+    - Consistent design across facts and plan modals
+  - **JS Changes**:
+    - Removed `setupEditCategoryTypeButtons()` function (plan.html)
+    - Removed click handlers for `.edit-category-type-btn`
+    - Added `updateEditCategoryTypeBadge(type)` function (facts.html)
 - **2025-12-23**: Fixed import wizard step 2 form reset:
   - **Problem**: Upload form not visible when restarting wizard (step 1 → step 2), especially after confirming staging deletion
   - **Root Cause**: `proceedToUpload()` toggled visibility without clearing Step 2 state (forms, radio buttons, file inputs)

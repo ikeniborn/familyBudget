@@ -1192,14 +1192,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Инициализация CalendarWidget для edit modal (Single Date Picker)
-    new BudgetShared.CalendarWidget({
-        mode: 'single',
-        inputElement: document.getElementById('edit-date'),
-        onSelect: (date) => {
-            debugLog('Выбрана дата для edit modal:', date);
-        }
-    });
+    // CalendarWidget для edit modal инициализируется в openEditModal()
+    // чтобы избежать дублирования иконки при повторном открытии
 
     // Event listener for article_type filter change - reload categories AND apply filter
     document.getElementById('filter-article-type').addEventListener('change', async function(e) {
@@ -2231,20 +2225,8 @@ async function showEditModal(factId) {
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
     const categoryType = selectedArticle ? selectedArticle.type : 'expense';
 
-    // Update category type badge in collapse header
+    // Update category type badge
     updateEditCategoryTypeBadge(categoryType);
-
-    // Set category type radio buttons
-    document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
-        const radio = btn.querySelector('input[type="radio"]');
-        if (btn.dataset.type === categoryType) {
-            btn.classList.add('btn-active');
-            radio.checked = true;
-        } else {
-            btn.classList.remove('btn-active');
-            radio.checked = false;
-        }
-    });
 
     // Destroy previous ChoicesCategoryTree instance if exists
     if (editCategoryTreeSelect) {
@@ -2366,9 +2348,6 @@ async function showEditModal(factId) {
             reminderStatusBadge.classList.remove('hidden');
         }
     }
-
-    // Setup category type buttons handlers
-    setupEditCategoryTypeButtons();
 
     document.getElementById('edit-modal').showModal();
 }
@@ -2551,40 +2530,6 @@ function updateEditCategoryTypeBadge(type) {
     const config = typeConfig[type] || typeConfig.expense;
     badge.textContent = config.text;
     badge.className = `badge badge-sm ${config.class}`;
-}
-
-// Setup category type buttons handlers for edit modal
-function setupEditCategoryTypeButtons() {
-    const typeButtons = document.querySelectorAll('.edit-category-type-btn');
-
-    typeButtons.forEach(button => {
-        button.addEventListener('click', async function() {
-            // Remove btn-active from all buttons
-            typeButtons.forEach(btn => btn.classList.remove('btn-active'));
-
-            // Add btn-active to current button
-            this.classList.add('btn-active');
-
-            // Check corresponding radio button
-            const radio = this.querySelector('input[type="radio"]');
-            if (radio) {
-                radio.checked = true;
-            }
-
-            // Reload categories with new type
-            const newType = this.dataset.type;
-            debugLog('Edit modal category type changed to:', newType);
-
-            // Update badge in collapse header
-            updateEditCategoryTypeBadge(newType);
-
-            if (editCategoryTreeSelect && allCategories.length > 0) {
-                // Use updateType() method instead of destroy + recreate
-                // This prevents Choices.js "multiple instances" error
-                editCategoryTreeSelect.updateType(newType);
-            }
-        });
-    });
 }
 
 // Delete plan from edit modal (for mobile users without batch delete)
