@@ -307,7 +307,7 @@
             sessionStorage.setItem(SPLASH_KEY, '1');
         }
 
-        var MIN_DISPLAY_TIME = isFirstLaunch ? 2000 : 0;
+        var MIN_DISPLAY_TIME = isFirstLaunch ? 2000 : 1000;
         var pageLoaded = false;
         var timerDone = false;
 
@@ -320,15 +320,11 @@
             }
         }
 
-        // Timer (2s for first launch, immediate for navigations)
-        if (MIN_DISPLAY_TIME > 0) {
-            setTimeout(function() {
-                timerDone = true;
-                tryHideSplash();
-            }, MIN_DISPLAY_TIME);
-        } else {
+        // Timer: 2s for first launch, 1s for navigations
+        setTimeout(function() {
             timerDone = true;
-        }
+            tryHideSplash();
+        }, MIN_DISPLAY_TIME);
 
         // Wait for page load
         if (document.readyState === 'complete') {

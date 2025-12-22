@@ -61,7 +61,7 @@ templates:
         - "HTML splash provides smooth transition after native splash"
         - "Only shown in standalone mode (not in regular browser)"
         - "First launch: 2s minimum + wait for page load"
-        - "Page navigations: show until page loaded (no minimum time)"
+        - "Page navigations: 1s minimum + wait for page load"
         - "Uses sessionStorage to distinguish first launch from navigations"
         - "Smooth fade-out transition (300ms)"
         - "Removed from DOM after transition"
@@ -89,9 +89,9 @@ templates:
           - "Reduced motion support (prefers-reduced-motion)"
       js:
         location: "inline immediately after splash HTML element"
-        min_display_time: "2000ms (first launch only)"
+        min_display_time: "2000ms (first launch) / 1000ms (navigations)"
         pwa_detection: "display-mode: standalone OR navigator.standalone"
-        logic: "First launch: 2s + page load. Navigations: page load only"
+        logic: "First launch: 2s + load. Navigations: 1s + load"
 
     mobile_menu:
       id: "mobile-menu-dropdown"
