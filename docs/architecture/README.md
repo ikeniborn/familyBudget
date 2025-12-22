@@ -260,12 +260,10 @@ When adding new components:
 - **2025-12-22**: PWA Splash Screen - Instant Display Fix:
   - **Problem**: Splash appeared after ~2s delay due to render-blocking CSS (174KB tailwind-daisyui.min.css)
   - **iOS Native Splash**: Added 10 `apple-touch-startup-image` links for iPhone 7+ (instant display before HTML loads)
-  - **Deferred CSS**: Changed to `rel="preload"` with `onload` callback for non-blocking load
-  - **CSS Load Detection**: MutationObserver watches for `data-css-loaded` attribute on `<html>`
   - **Simplified UI**: Removed loader animation, only icon remains on splash
-  - **Faster Timing**: Reduced MIN_DISPLAY_TIME from 2000ms to 500ms (iOS native provides delay)
   - **Service Worker**: Added 5 most common iPhone splash images to STATIC_CACHE for precaching
   - **Icon Generator**: Added `generate_splash()` function to `scripts/generate_pwa_icons.sh`
+  - **Note**: Deferred CSS loading (rel=preload) was tested but caused FOUC in Safari, reverted to blocking
   - Files: `base.html`, `sw.js`, `generate_pwa_icons.sh`, `templates.yaml`
   - Generated: `frontend/web/static/icons/splash/` (10 PNG files, 40-88KB each)
 - **2025-12-22**: Fixed deploy script regex for Alembic head revision detection

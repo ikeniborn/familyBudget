@@ -60,8 +60,8 @@ templates:
         - "Android: Native splash from manifest.json (instant)"
         - "HTML splash provides smooth transition after native splash"
         - "Only shown in standalone mode (not in regular browser)"
-        - "Minimum display time: 500ms (reduced - native splash provides delay)"
-        - "Waits for BOTH CSS load (data-css-loaded) and page load"
+        - "Minimum display time: 800ms"
+        - "Waits for page load event"
         - "Smooth fade-out transition (300ms)"
         - "Removed from DOM after transition"
       ios_splash_images:
@@ -79,8 +79,8 @@ templates:
           - "1179x2556 (iPhone 14/15 Pro)"
           - "1290x2796 (iPhone 14/15 Pro Max)"
       css:
-        main_css: "tailwind-daisyui.min.css loaded via rel=preload (non-blocking)"
-        splash_css: "inline in <head> (for immediate render before DaisyUI loads)"
+        main_css: "tailwind-daisyui.min.css (blocking - deferred caused FOUC)"
+        splash_css: "inline in <head> for immediate render"
         features:
           - "Full-screen fixed overlay (z-index: 99999)"
           - "Gradient background with light/dark mode fallbacks"
@@ -88,9 +88,9 @@ templates:
           - "Reduced motion support (prefers-reduced-motion)"
       js:
         location: "inline immediately after splash HTML element"
-        min_display_time: "500ms"
+        min_display_time: "800ms"
         pwa_detection: "display-mode: standalone OR navigator.standalone"
-        css_load_detection: "data-css-loaded attribute on <html>"
+        page_load: "window.addEventListener('load', hideSplash)"
 
     mobile_menu:
       id: "mobile-menu-dropdown"
