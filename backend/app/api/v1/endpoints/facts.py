@@ -45,6 +45,8 @@ from backend.app.schemas.fact import (
     FactUpdate,
 )
 from backend.app.services.cache_service import cache_service, CacheKey, CacheTTL
+from backend.app.services.write_behind_service import write_behind_service
+from backend.app.services.id_generator import get_next_fact_id
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
 _budget_ws_module = None
@@ -223,6 +225,92 @@ async def create_fact(
                 detail=f"Место затрат '{cost_center.name}' архивировано"
             )
 
+    # =========================================================================
+    # WRITE-BEHIND: Async write to PostgreSQL via Redis queue
+    # =========================================================================
+    # Try Write-Behind if enabled. On success, return immediately with pre-generated ID.
+    # If Write-Behind fails or is disabled, fall back to synchronous write below.
+    if write_behind_service.is_enabled():
+        try:
+            # Pre-generate ID from PostgreSQL sequence
+            fact_id = await get_next_fact_id(session)
+
+            # Queue the write operation
+            request_id = await write_behind_service.queue_fact_create(
+                pre_generated_id=fact_id,
+                user_id=get_user_id_for_create(current_user),
+                article_id=fact_data.article_id,
+                amount=abs(float(fact_data.amount)),
+                fact_date=str(fact_data.fact_date),
+                description=fact_data.description,
+                financial_center_id=fact_data.financial_center_id,
+                cost_center_id=fact_data.cost_center_id,
+                record_type=fact_data.record_type,
+                is_offline_sync=fact_data.is_offline_sync,
+                sync_hash=fact_data.sync_hash,
+                content_hash=fact_data.content_hash,
+                changed_by_user_id=current_user.id,
+            )
+
+            if request_id:
+                # Write-Behind successful - return immediately with pre-generated ID
+                now = datetime.utcnow()
+
+                # Load financial center name for response
+                financial_center_name = financial_center.name if financial_center else None
+
+                # Load cost center name for response
+                cost_center_name = None
+                if fact_data.cost_center_id and 'cost_center' in locals():
+                    cost_center_name = cost_center.name
+
+                response_data = {
+                    "id": fact_id,
+                    "user_id": get_user_id_for_create(current_user),
+                    "article_id": fact_data.article_id,
+                    "article_type": article.type,
+                    "article_name": article.name,
+                    "fact_date": fact_data.fact_date,
+                    "amount": abs(fact_data.amount),
+                    "description": fact_data.description,
+                    "financial_center_id": fact_data.financial_center_id,
+                    "financial_center_name": financial_center_name,
+                    "cost_center_id": fact_data.cost_center_id,
+                    "cost_center_name": cost_center_name,
+                    "record_type": fact_data.record_type,
+                    "is_offline_sync": fact_data.is_offline_sync,
+                    "recurring_plan_id": None,  # Not set during creation
+                    "created_at": now,
+                    "updated_at": now,
+                    "_write_behind": True,  # Indicates async write
+                    "_request_id": request_id,  # For tracking
+                }
+
+                logger.info(
+                    f"[WRITE-BEHIND] Queued fact creation: "
+                    f"fact_id={fact_id}, request_id={request_id}, "
+                    f"user_id={current_user.id}"
+                )
+
+                return response_data
+
+            # request_id is None means Write-Behind is enabled but queue failed
+            # Fall through to sync write below
+            logger.warning(
+                f"[WRITE-BEHIND] Queue returned None, falling back to sync write"
+            )
+
+        except Exception as e:
+            # Write-Behind failed - fall back to synchronous write
+            logger.warning(
+                f"[WRITE-BEHIND] Failed to queue fact creation, "
+                f"falling back to sync write: {e}"
+            )
+            # Continue with sync write below
+
+    # =========================================================================
+    # SYNC WRITE: Direct PostgreSQL write (fallback or Write-Behind disabled)
+    # =========================================================================
     # Create new fact
     # Convert amount to absolute value (always store positive)
     fact_dict = fact_data.model_dump()

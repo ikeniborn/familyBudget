@@ -304,6 +304,55 @@ module:
       $ref: "../flows/offline-sync.yaml"
 
   # ---------------------------------------------------------------------------
+  # WRITE-BEHIND INTEGRATION
+  # ---------------------------------------------------------------------------
+  write_behind_integration:
+    description: "Async PostgreSQL writes via Redis queue"
+    enabled_by: "WRITE_BEHIND_ENABLED=true"
+    benefits:
+      - "Lower API latency (~10ms vs ~50ms)"
+      - "Pre-generated ID returned immediately"
+      - "Complete history tracking (BudgetFactHistory)"
+      - "Graceful fallback to sync write"
+
+    flow:
+      - step: 1
+        action: "Pre-generate fact ID from PostgreSQL sequence"
+        function: "get_next_fact_id(session)"
+
+      - step: 2
+        action: "Queue write operation to Redis"
+        function: "write_behind_service.queue_fact_create()"
+        params:
+          - "pre_generated_id"
+          - "is_offline_sync"
+          - "sync_hash"
+          - "content_hash"
+          - "changed_by_user_id"
+
+      - step: 3
+        action: "Return 201 Created with pre-generated ID"
+        note: "Response includes _write_behind=true indicator"
+
+      - step: 4
+        action: "Background worker processes queue"
+        note: "Creates fact AND history record in single transaction"
+
+    offline_sync_support:
+      description: "Write-Behind preserves offline sync features"
+      deduplication: "sync_hash checked BEFORE queuing (in endpoint)"
+      fields_preserved:
+        - "is_offline_sync"
+        - "sync_hash"
+        - "content_hash"
+      history_tracking: "CREATE history includes is_offline_sync flag"
+
+    related_files:
+      - "backend/app/services/write_behind_service.py"
+      - "backend/app/services/id_generator.py"
+      - "backend/app/api/v1/endpoints/facts.py"
+
+  # ---------------------------------------------------------------------------
   # DEPENDENCIES
   # ---------------------------------------------------------------------------
   depends_on:

@@ -46,6 +46,7 @@ from typing import Any
 
 from backend.app.core.config import get_settings
 from backend.app.services.redis_service import get_redis, is_redis_available
+from backend.app.models.budget_fact_history import FAR_FUTURE_DATETIME
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,7 @@ class WriteBehindService:
 
     async def queue_fact_create(
         self,
+        pre_generated_id: int,
         user_id: int,
         article_id: int,
         amount: float,
@@ -159,10 +161,29 @@ class WriteBehindService:
         description: str | None = None,
         financial_center_id: int | None = None,
         cost_center_id: int | None = None,
-        record_type: str = "expense",
+        record_type: str = "fact",
+        is_offline_sync: bool = False,
+        sync_hash: str | None = None,
+        content_hash: str | None = None,
+        changed_by_user_id: int | None = None,
     ) -> str | None:
         """
         Queue a fact creation operation.
+
+        Args:
+            pre_generated_id: Pre-generated ID from PostgreSQL sequence for immediate return.
+            user_id: User who owns the fact.
+            article_id: Budget article/category ID.
+            amount: Transaction amount (positive value).
+            fact_date: Date of transaction (ISO format string).
+            description: Optional transaction description.
+            financial_center_id: Optional financial center ID.
+            cost_center_id: Optional cost center ID.
+            record_type: Record type ('fact' or 'plan').
+            is_offline_sync: True if created via offline sync.
+            sync_hash: Offline sync deduplication hash.
+            content_hash: Content hash for duplicate detection.
+            changed_by_user_id: User who initiated the change (for history).
 
         Returns:
             str: Request ID if queued successfully, None if write-behind is disabled.
@@ -174,6 +195,7 @@ class WriteBehindService:
             operation=WriteOperation.CREATE,
             entity_type="fact",
             data={
+                "pre_generated_id": pre_generated_id,
                 "article_id": article_id,
                 "amount": amount,
                 "fact_date": fact_date,
@@ -181,6 +203,10 @@ class WriteBehindService:
                 "financial_center_id": financial_center_id,
                 "cost_center_id": cost_center_id,
                 "record_type": record_type,
+                "is_offline_sync": is_offline_sync,
+                "sync_hash": sync_hash,
+                "content_hash": content_hash,
+                "changed_by_user_id": changed_by_user_id,
             },
             user_id=user_id,
         )
@@ -286,14 +312,17 @@ class WriteBehindService:
             return False
 
     async def _process_fact(self, session, item: WriteQueueItem):
-        """Process fact operations."""
+        """Process fact operations with complete history tracking."""
         from backend.app.models import BudgetFact, BudgetFactHistory
         from sqlmodel import select
-        from datetime import datetime as dt
+        from datetime import datetime as dt, timezone
+
+        now = dt.now(timezone.utc)
 
         if item.operation == WriteOperation.CREATE:
-            # Create new fact
+            # Create new fact with pre-generated ID
             fact = BudgetFact(
+                id=item.data.get("pre_generated_id"),  # Use pre-generated ID
                 user_id=item.user_id,
                 article_id=item.data["article_id"],
                 amount=item.data["amount"],
@@ -301,12 +330,18 @@ class WriteBehindService:
                 description=item.data.get("description"),
                 financial_center_id=item.data.get("financial_center_id"),
                 cost_center_id=item.data.get("cost_center_id"),
-                record_type=item.data.get("record_type", "expense"),
+                record_type=item.data.get("record_type", "fact"),
+                is_offline_sync=item.data.get("is_offline_sync", False),
+                sync_hash=item.data.get("sync_hash"),
+                content_hash=item.data.get("content_hash"),
             )
             session.add(fact)
             await session.flush()
 
-            # Create history record
+            # Store fact_id for broadcast
+            item.data["created_fact_id"] = fact.id
+
+            # Create history record with ALL required fields
             history = BudgetFactHistory(
                 fact_id=fact.id,
                 user_id=fact.user_id,
@@ -318,14 +353,22 @@ class WriteBehindService:
                 description=fact.description,
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
-                valid_from=dt.utcnow(),
+                is_offline_sync=fact.is_offline_sync,
+                valid_from=now,
+                valid_to=FAR_FUTURE_DATETIME,
                 is_current=True,
                 change_type="CREATE",
+                changed_fields=None,  # No changed fields for CREATE
+                changed_by_user_id=item.data.get("changed_by_user_id"),
+                cascade_delete_source=None,
             )
             session.add(history)
 
         elif item.operation == WriteOperation.UPDATE:
-            fact_id = item.data.pop("fact_id")
+            fact_id = item.data.get("fact_id")
+            if fact_id is None:
+                raise ValueError("fact_id is required for UPDATE operation")
+
             result = await session.execute(
                 select(BudgetFact).where(BudgetFact.id == fact_id)
             )
@@ -333,12 +376,30 @@ class WriteBehindService:
             if fact is None:
                 raise ValueError(f"Fact {fact_id} not found")
 
-            # Update fields
-            for key, value in item.data.items():
-                if hasattr(fact, key):
+            # Track which fields changed
+            changed_fields = []
+            update_data = {k: v for k, v in item.data.items()
+                          if k not in ("fact_id", "changed_by_user_id")}
+
+            for key, value in update_data.items():
+                if hasattr(fact, key) and getattr(fact, key) != value:
+                    changed_fields.append(key)
                     setattr(fact, key, value)
 
-            # Create history record
+            fact.updated_at = now
+
+            # Close previous history record (set valid_to, is_current=False)
+            prev_history_result = await session.execute(
+                select(BudgetFactHistory)
+                .where(BudgetFactHistory.fact_id == fact.id)
+                .where(BudgetFactHistory.is_current == True)
+            )
+            prev_history = prev_history_result.scalar_one_or_none()
+            if prev_history:
+                prev_history.is_current = False
+                prev_history.valid_to = now
+
+            # Create new history record
             history = BudgetFactHistory(
                 fact_id=fact.id,
                 user_id=fact.user_id,
@@ -350,14 +411,22 @@ class WriteBehindService:
                 description=fact.description,
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
-                valid_from=dt.utcnow(),
+                is_offline_sync=fact.is_offline_sync,
+                valid_from=now,
+                valid_to=FAR_FUTURE_DATETIME,
                 is_current=True,
                 change_type="UPDATE",
+                changed_fields=changed_fields if changed_fields else None,
+                changed_by_user_id=item.data.get("changed_by_user_id"),
+                cascade_delete_source=None,
             )
             session.add(history)
 
         elif item.operation == WriteOperation.DELETE:
-            fact_id = item.data["fact_id"]
+            fact_id = item.data.get("fact_id")
+            if fact_id is None:
+                raise ValueError("fact_id is required for DELETE operation")
+
             result = await session.execute(
                 select(BudgetFact).where(BudgetFact.id == fact_id)
             )
@@ -365,7 +434,18 @@ class WriteBehindService:
             if fact is None:
                 raise ValueError(f"Fact {fact_id} not found")
 
-            # Create history record before delete
+            # Close previous history record
+            prev_history_result = await session.execute(
+                select(BudgetFactHistory)
+                .where(BudgetFactHistory.fact_id == fact.id)
+                .where(BudgetFactHistory.is_current == True)
+            )
+            prev_history = prev_history_result.scalar_one_or_none()
+            if prev_history:
+                prev_history.is_current = False
+                prev_history.valid_to = now
+
+            # Create DELETE history record before deletion
             history = BudgetFactHistory(
                 fact_id=fact.id,
                 user_id=fact.user_id,
@@ -377,9 +457,14 @@ class WriteBehindService:
                 description=fact.description,
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
-                valid_from=dt.utcnow(),
-                is_current=False,
+                is_offline_sync=fact.is_offline_sync,
+                valid_from=now,
+                valid_to=now,  # DELETE records have same valid_from and valid_to
+                is_current=False,  # DELETE records are never current
                 change_type="DELETE",
+                changed_fields=None,
+                changed_by_user_id=item.data.get("changed_by_user_id"),
+                cascade_delete_source=item.data.get("cascade_delete_source"),
             )
             session.add(history)
             await session.delete(fact)
