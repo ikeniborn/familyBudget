@@ -257,6 +257,10 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-22**: Transfer modal: removed `from_cost_center` field from FROM (debit) section
+  - Field not needed for transfers - cost center only relevant for income side
+  - `from_cost_center_id` now always null in database
+  - Files: `modal_transfer.html`, `transfer.js`, `endpoints/transfers.yaml`
 - **2025-12-21**: Bidirectional Filter Synchronization (plan.html):
   - Implemented automatic bidirectional sync between Analytics Section (charts) and Filters Section (facts table)
   - Added mutex-based loop prevention (`isSyncInProgress`) for safe concurrent updates

@@ -604,23 +604,8 @@ async function loadTransferData() {
         // Save all cost centers for filtering
         allCostCenters = costCenters;
 
-        // Populate Cost Centers
-        // Populate FROM dropdown
-        const fromCCSelect = document.querySelector('#from_cost_center');
-        if (fromCCSelect) {
-            // Clear existing options (keep placeholder)
-            while (fromCCSelect.options.length > 1) {
-                fromCCSelect.remove(1);
-            }
-            costCenters.forEach(cc => {
-                const option = document.createElement('option');
-                option.value = cc.id;
-                option.textContent = cc.name;
-                fromCCSelect.appendChild(option);
-            });
-        }
-
-        // Populate TO dropdown
+        // Populate Cost Centers (TO dropdown only - FROM removed from UI)
+        // Note: from_cost_center_id is always null for transfers
         const toCCSelect = document.querySelector('#to_cost_center');
         if (toCCSelect) {
             // Clear existing options (keep placeholder)
@@ -648,18 +633,8 @@ async function loadTransferData() {
                 }
 
                 if (cachedCC) {
-                    const fromCCSelect = document.querySelector('#from_cost_center');
+                    // Note: from_cost_center removed from UI - only populate TO dropdown
                     const toCCSelect = document.querySelector('#to_cost_center');
-
-                    if (fromCCSelect) {
-                        while (fromCCSelect.options.length > 1) fromCCSelect.remove(1);
-                        cachedCC.forEach(cc => {
-                            const option = document.createElement('option');
-                            option.value = cc.id;
-                            option.textContent = cc.name;
-                            fromCCSelect.appendChild(option);
-                        });
-                    }
 
                     if (toCCSelect) {
                         while (toCCSelect.options.length > 1) toCCSelect.remove(1);
@@ -820,8 +795,7 @@ function setupCFOFiltering() {
             if (fromCategoryTree) {
                 await fromCategoryTree.updateFinancialCenter(fcId);
             }
-            // Filter FROM cost center dropdown
-            await filterCostCenterDropdown('from_cost_center', fcId);
+            // Note: from_cost_center removed from UI (not needed for transfers)
             // Reload FROM hints when account changes
             if (transferRecordType === 'plan') {
                 loadTransferPlanHints('from');
@@ -1051,7 +1025,7 @@ async function handleTransferSubmit(event) {
         from_financial_center_name: getSelectedText('#from_financial_center'), // For offline display
         from_article_id: parseInt(formData.get('from_article_id')),
         from_article_name: fromArticleName, // For offline display
-        from_cost_center_id: formData.get('from_cost_center_id') ? parseInt(formData.get('from_cost_center_id')) : null,
+        from_cost_center_id: null,  // Removed from UI - always null for transfers
         to_financial_center_id: parseInt(formData.get('to_financial_center_id')),
         to_financial_center_name: getSelectedText('#to_financial_center'), // For offline display
         to_article_id: parseInt(formData.get('to_article_id')),
