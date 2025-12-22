@@ -257,10 +257,15 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-23**: Fixed duplicate calendar icon in recurring plan modal:
+  - **Problem**: Duplicate calendar icon buttons for `recurring_end_date` field, calendar doesn't open
+  - **Root Cause**: Manual `<div class="relative">` wrapper in HTML conflicted with CalendarWidget's automatic wrapper creation
+  - **Fix**: Removed manual wrapper from `modal_plan.html:200`, CalendarWidget now creates wrapper automatically
+  - **Pattern**: Consistent with `reminder_date` field - no manual wrappers for CalendarWidget inputs
+  - Files: `frontend/web/templates/components/modal_plan.html:196-206`
 - **2025-12-22**: modal_add_plan UI improvements:
   - Increased select height to 3rem (h-12) for frequency_type, frequency_value_monthday, recurring_reminder_hour, recurring_reminder_minute, duration_type
   - Replaced duration_type radio buttons with select dropdown
-  - Added clickable calendar icon to recurring_end_date input field
   - Files: `modal_plan.html`, `plan.html`, `index.html`
 - **2025-12-22**: Plan page: moved User column after Description
   - Reordered table columns in facts table (desktop view)
