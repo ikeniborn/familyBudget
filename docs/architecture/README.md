@@ -257,6 +257,18 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-22**: PWA Splash Screen:
+  - Added welcome screen with app icon and loading animation for PWA launch
+  - Only displayed in standalone mode (installed PWA from home screen)
+  - Minimum 2 second display time, waits for page load if slower
+  - Smooth fade-out transition (300ms) with reduced motion support
+  - Inline CSS/JS for immediate render before external stylesheets load
+  - Light/dark mode fallbacks for when DaisyUI CSS not yet loaded
+  - Files: `frontend/web/templates/base.html`, `docs/architecture/web/templates.yaml`
+- **2025-12-22**: Fixed deploy script regex for Alembic head revision detection
+  - Bug: regex `[a-f0-9]{12}` expected only hex chars, but Alembic uses full alphabet `[a-z0-9]`
+  - Fix: Changed to `[a-zA-Z0-9]{12}` to match all valid revision IDs
+  - Files: `scripts/lib/migrations.sh:67`
 - **2025-12-22**: Transfer modal: removed `from_cost_center` field from FROM (debit) section
   - Field not needed for transfers - cost center only relevant for income side
   - `from_cost_center_id` now always null in database

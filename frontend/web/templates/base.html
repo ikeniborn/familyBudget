@@ -151,6 +151,80 @@
         }
     </style>
 
+    <!-- PWA Splash Screen Styles (inline for immediate render) -->
+    <style>
+        .pwa-splash {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            /* Fallback for when DaisyUI CSS not yet loaded */
+            background: #ffffff;
+            /* DaisyUI theme colors (will apply when CSS loads) */
+            background: linear-gradient(135deg, oklch(var(--b1, 100% 0 0)) 0%, oklch(var(--b2, var(--b1, 100% 0 0))) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease-out, visibility 0.3s ease-out;
+        }
+        /* Dark mode fallback */
+        @media (prefers-color-scheme: dark) {
+            .pwa-splash {
+                background: #1d232a;
+                background: linear-gradient(135deg, oklch(var(--b1, 25% 0.015 270)) 0%, oklch(var(--b2, var(--b1, 25% 0.015 270))) 100%);
+            }
+        }
+        .pwa-splash.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .splash-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            animation: splash-fade-in 0.5s ease-out;
+        }
+        .splash-icon {
+            width: 96px;
+            height: 96px;
+            border-radius: 1rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            animation: splash-bounce 1s ease-in-out infinite alternate;
+        }
+        /* Inline spinner styles (DaisyUI-independent) */
+        .splash-loader {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: splash-spin 1s linear infinite;
+        }
+        @keyframes splash-spin {
+            to { transform: rotate(360deg); }
+        }
+        @keyframes splash-fade-in {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes splash-bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .splash-icon, .splash-content, .splash-loader {
+                animation: none;
+            }
+            .pwa-splash {
+                transition: none;
+            }
+        }
+    </style>
+
     <!-- Offline mode detection BEFORE body renders (prevents flash) -->
     <script>
         (function() {
@@ -204,6 +278,53 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen flex flex-col">
+    <!-- PWA Splash Screen -->
+    <div id="pwa-splash" class="pwa-splash" aria-hidden="true" role="presentation">
+        <div class="splash-content">
+            <img src="/static/icons/icon-192.png" alt="" class="splash-icon" width="96" height="96">
+            <div class="splash-loader"></div>
+        </div>
+    </div>
+    <script>
+    // PWA Splash Screen Controller - inline for immediate execution
+    (function() {
+        var splashEl = document.getElementById('pwa-splash');
+        if (!splashEl) return;
+
+        // Only show splash in PWA mode (standalone)
+        var isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                    window.navigator.standalone === true;
+
+        if (!isPWA) {
+            splashEl.remove();
+            return;
+        }
+
+        var MIN_DISPLAY_TIME = 2000; // 2 seconds minimum
+        var startTime = Date.now();
+
+        function hideSplash() {
+            var elapsed = Date.now() - startTime;
+            var remaining = Math.max(0, MIN_DISPLAY_TIME - elapsed);
+
+            setTimeout(function() {
+                splashEl.classList.add('hidden');
+                // Remove from DOM after transition
+                setTimeout(function() {
+                    splashEl.remove();
+                }, 300);
+            }, remaining);
+        }
+
+        // Check if page already loaded (unlikely at this point)
+        if (document.readyState === 'complete') {
+            hideSplash();
+        } else {
+            window.addEventListener('load', hideSplash);
+        }
+    })();
+    </script>
+
     <!-- Skip to main content for accessibility -->
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 btn btn-primary btn-sm">Skip to main content</a>
 

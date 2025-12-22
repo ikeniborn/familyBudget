@@ -41,6 +41,7 @@ templates:
         - $ref: "./css.yaml#/files/style"
 
     features:
+      - "PWA splash screen with icon and loader (standalone mode only)"
       - "Responsive navbar (desktop horizontal, mobile dropdown)"
       - "User profile dropdown"
       - "Theme toggle (light/dark)"
@@ -50,6 +51,29 @@ templates:
       - "Cookie consent banner"
       - "Push notification banner"
       - "Service Worker registration"
+
+    pwa_splash_screen:
+      id: "pwa-splash"
+      description: "Welcome screen for PWA with app icon and loading animation"
+      behavior:
+        - "Displays immediately when PWA opens from home screen"
+        - "Only shown in standalone mode (not in regular browser)"
+        - "Minimum display time: 2 seconds"
+        - "Waits for window.load event if page loads slower"
+        - "Smooth fade-out transition (300ms)"
+        - "Removed from DOM after transition"
+      css:
+        location: "inline in <head> (for immediate render before DaisyUI loads)"
+        features:
+          - "Full-screen fixed overlay (z-index: 99999)"
+          - "Gradient background with light/dark mode fallbacks"
+          - "Icon with bounce animation"
+          - "Inline CSS spinner (DaisyUI-independent)"
+          - "Reduced motion support (prefers-reduced-motion)"
+      js:
+        location: "inline immediately after splash HTML element"
+        min_display_time: "2000ms"
+        pwa_detection: "display-mode: standalone OR navigator.standalone"
 
     mobile_menu:
       id: "mobile-menu-dropdown"
