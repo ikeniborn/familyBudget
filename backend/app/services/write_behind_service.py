@@ -588,7 +588,7 @@ class WriteBehindService:
         try:
             async with get_redis() as redis:
                 current = await redis.get(LOCK_KEY)
-                if current and current.decode() == self._worker_id:
+                if current and current == self._worker_id:
                     await redis.delete(LOCK_KEY)
         except Exception:
             pass
@@ -598,7 +598,7 @@ class WriteBehindService:
         try:
             async with get_redis() as redis:
                 current = await redis.get(LOCK_KEY)
-                if current and current.decode() == self._worker_id:
+                if current and current == self._worker_id:
                     await redis.expire(LOCK_KEY, LOCK_TTL_SECONDS)
         except Exception:
             pass
@@ -626,7 +626,7 @@ class WriteBehindService:
                             continue
 
                         _, item_json = result
-                        item = WriteQueueItem.from_json(item_json.decode())
+                        item = WriteQueueItem.from_json(item_json)
 
                         # Process the item
                         success = await self._process_item(item)
