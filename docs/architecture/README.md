@@ -257,6 +257,11 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-23**: Fixed import wizard step 2 form reset:
+  - **Problem**: Upload form not visible when restarting wizard (step 1 → step 2), especially after confirming staging deletion
+  - **Root Cause**: `proceedToUpload()` toggled visibility without clearing Step 2 state (forms, radio buttons, file inputs)
+  - **Fix**: Added state reset in `proceedToUpload()` and enhanced `resetWorkflow()` to clear upload source visibility
+  - Files: `admin_import.html:1318-1334,1069-1078`, `import-wizard.md`
 - **2025-12-23**: Fixed duplicate calendar icon in recurring plan modal:
   - **Problem**: Duplicate calendar icon buttons for `recurring_end_date` field, calendar doesn't open
   - **Root Cause**: Manual `<div class="relative">` wrapper in HTML conflicted with CalendarWidget's automatic wrapper creation

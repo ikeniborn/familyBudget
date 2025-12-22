@@ -1061,8 +1061,21 @@ function resetWorkflow() {
 
     // Reset forms
     document.getElementById('upload-form').reset();
+    document.getElementById('upload-form-google-sheets').reset();
     document.getElementById('upload-form').style.display = 'block';
+    document.getElementById('upload-form-google-sheets').style.display = 'none';
     document.getElementById('post-upload-actions').style.display = 'none';
+
+    // 🔧 FIX: Reset upload source visibility
+    document.getElementById('upload-source-csv').style.display = 'block';
+    document.getElementById('upload-source-google-sheets').style.display = 'none';
+
+    // Reset radio buttons to default (CSV)
+    document.querySelector('input[name="upload-source"][value="csv"]').checked = true;
+
+    // Clear file inputs (redundant with reset(), but explicit for clarity)
+    document.getElementById('csv-file').value = '';
+    document.getElementById('google-sheets-url').value = '';
 
     // Clear staging table
     document.getElementById('staging-table-body').innerHTML = '';
@@ -1314,6 +1327,24 @@ async function proceedToUpload() {
     } catch (error) {
         console.error('Error checking staging:', error);
     }
+
+    // 🔧 FIX: Clear Step 2 state before showing
+    document.getElementById('upload-form').reset();
+    document.getElementById('upload-form-google-sheets').reset();
+    document.getElementById('post-upload-actions').style.display = 'none';
+
+    // Reset upload source to default (CSV)
+    document.querySelector('input[name="upload-source"][value="csv"]').checked = true;
+    document.getElementById('upload-source-csv').style.display = 'block';
+    document.getElementById('upload-source-google-sheets').style.display = 'none';
+
+    // Clear file inputs (redundant with reset(), but explicit for clarity)
+    document.getElementById('csv-file').value = '';
+    document.getElementById('google-sheets-url').value = '';
+
+    // Reset global state
+    uploadedFileId = null;
+    savedMappingId = null;
 
     // Hide Step 1, Show Step 2 upload form
     document.getElementById('step-1-bank-selection').style.display = 'none';

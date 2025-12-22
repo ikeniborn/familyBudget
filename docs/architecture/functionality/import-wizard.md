@@ -205,6 +205,37 @@ mapping2 = await MappingService.save_mapping(
 2. Click "Начать заново"
 3. Verify immediate return to step 1 (<1s, no hang)
 
+## Known Issues & Fixes
+
+### Step 2 Form Reset (Fixed 2025-12-23)
+
+**Problem**: When restarting import wizard (Step 1 → Step 2), upload form does not display correctly.
+
+**Root Cause**:
+- `proceedToUpload()` only toggled visibility without clearing Step 2 state
+- Radio buttons, file inputs, and forms retained state from previous session
+- Issue most commonly occurred when confirming staging deletion during step transition
+
+**Fix**:
+- Added state reset in `proceedToUpload()`: clear forms, reset radio to CSV, hide post-upload actions
+- Enhanced `resetWorkflow()` to explicitly reset upload source visibility
+- Files: `frontend/web/templates/admin_import.html:1318-1334,1069-1078`
+
+**Testing**:
+1. Upload file successfully, reach step 3
+2. Click "Начать заново" → returns to step 1
+3. Select bank → proceed to step 2
+4. **Expected**: Upload form visible with CSV option selected
+5. **Before fix**: Form not visible OR wrong source selected
+6. **After fix**: Form displays correctly ✅
+
+**Alternative scenario (staging deletion)**:
+1. Upload file, complete import
+2. Return to /import page
+3. Select bank → confirm staging deletion → proceed to step 2
+4. **Before fix**: Form state from previous session (broken)
+5. **After fix**: Clean form with CSV selected ✅
+
 ## References
 
 - **Backend**: `/backend/app/api/v1/endpoints/import_endpoints.py`
