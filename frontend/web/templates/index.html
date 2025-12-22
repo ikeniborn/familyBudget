@@ -3923,22 +3923,7 @@ function initRecurringFields(modalId) {
         };
     });
 
-    // Initialize end date calendar widget
-    const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
-    if (endDateInput && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
-        // Destroy existing widget if any
-        if (recurringEndDateCalendarWidget) {
-            recurringEndDateCalendarWidget.destroy();
-            recurringEndDateCalendarWidget = null;
-        }
-
-        recurringEndDateCalendarWidget = new BudgetShared.CalendarWidget({
-            inputElement: endDateInput,
-            mode: 'single',
-            minDate: new Date(),
-            onSelect: () => updateRecurringPreview(modalId)
-        });
-    }
+    // CalendarWidget for end date is initialized in updateDurationFields() when field becomes visible
 
     // Add change listeners to update preview
     const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
@@ -4007,6 +3992,7 @@ window.updateFrequencyFields = updateFrequencyFields;
 
 /**
  * Update duration-specific fields visibility
+ * Also initializes/destroys CalendarWidget for end date field
  */
 function updateDurationFields(modalId) {
     const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
@@ -4023,6 +4009,26 @@ function updateDurationFields(modalId) {
 
     if (endDateField) {
         endDateField.classList.toggle('hidden', type !== 'end_date');
+
+        // Initialize/destroy CalendarWidget based on visibility
+        const endDateInput = document.getElementById(`recurring_end_date_${modalId}`);
+        if (type === 'end_date' && endDateInput) {
+            // Initialize CalendarWidget when field becomes visible
+            if (!recurringEndDateCalendarWidget && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+                recurringEndDateCalendarWidget = new BudgetShared.CalendarWidget({
+                    inputElement: endDateInput,
+                    mode: 'single',
+                    minDate: new Date(),
+                    onSelect: () => updateRecurringPreview(modalId)
+                });
+            }
+        } else {
+            // Destroy CalendarWidget when field is hidden
+            if (recurringEndDateCalendarWidget) {
+                recurringEndDateCalendarWidget.destroy();
+                recurringEndDateCalendarWidget = null;
+            }
+        }
     }
 
     updateRecurringPreview(modalId);

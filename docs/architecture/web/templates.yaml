@@ -862,6 +862,45 @@ components:
       panels:
         recurring: "recurring-settings-{modalId}"
         reminder: "onetime-reminder-section-{modalId}"
+    recurring_settings:
+      frequency_type:
+        type: "select"
+        class: "h-12"
+        description: "Frequency selector (monthly/weekly/daily/quarterly)"
+      frequency_value_monthday:
+        type: "select"
+        class: "h-12"
+        description: "Day of month (1-28)"
+      duration_type:
+        type: "select"
+        class: "h-12"
+        description: "Duration selector (indefinite/count/end_date)"
+        options:
+          - value: "indefinite"
+            label: "Бессрочно"
+            default: true
+          - value: "count"
+            label: "Количество повторений"
+          - value: "end_date"
+            label: "До даты"
+        js_function: "updateDurationFields(modalId)"
+      recurring_end_date:
+        type: "text"
+        class: "h-12"
+        description: "End date input with CalendarWidget"
+        calendar_widget:
+          mode: "single"
+          min_date: "today"
+          initialization: "updateDurationFields() - when duration_type='end_date'"
+          icon_button: "SVG calendar icon inside input (onclick triggers widget)"
+      recurring_reminder_hour:
+        type: "select"
+        class: "h-12 w-20"
+        description: "Hour selector (00-23)"
+      recurring_reminder_minute:
+        type: "select"
+        class: "h-12 w-20"
+        description: "Minute selector (00-55, step 5)"
     api_calls:
       - "/api/v1/facts"
       - "/api/v1/analytics/plan-hints"
