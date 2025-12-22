@@ -52,6 +52,26 @@ module:
       notes: "Web Push API (VAPID)"
 
   # ---------------------------------------------------------------------------
+  # VAPID CONFIGURATION
+  # ---------------------------------------------------------------------------
+  vapid_configuration:
+    description: "VAPID keys for Web Push notifications"
+    installation:
+      package: "pywebpush"
+      installed_by: "install.sh (install_python_packages function)"
+      location: "System Python packages"
+    generation:
+      script: "setup.sh (generate_vapid_keys function)"
+      manual_fallback: "./scripts/generate_vapid_keys.sh --update-env"
+    storage:
+      file: ".env"
+      variables:
+        - VAPID_PUBLIC_KEY
+        - VAPID_PRIVATE_KEY
+        - VAPID_CONTACT_EMAIL
+    notes: "Keys are generated once per server and shared by all users"
+
+  # ---------------------------------------------------------------------------
   # MODELS
   # ---------------------------------------------------------------------------
   models:

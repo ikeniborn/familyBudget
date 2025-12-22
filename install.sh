@@ -172,9 +172,9 @@ install_utilities() {
     success "Basic utilities installed"
 }
 
-# Install Python packages for S3 backups
+# Install Python packages for S3 backups and VAPID key generation
 install_python_packages() {
-    info "Installing Python packages for S3 backups..."
+    info "Installing Python packages for S3 backups and VAPID key generation..."
 
     # Check if pip3 is available
     if ! command -v pip3 &> /dev/null; then
@@ -197,7 +197,23 @@ install_python_packages() {
         else
             warning "Failed to install boto3 - S3 backups may not work"
             warning "You can install manually with: pip3 install boto3"
-            return 0
+        fi
+    fi
+
+    # Check if pywebpush is already installed (for VAPID key generation in setup.sh)
+    if python3 -c "import py_vapid" 2>/dev/null; then
+        local pywebpush_version=$(python3 -c "import pywebpush; print(pywebpush.__version__)" 2>/dev/null)
+        info "pywebpush is already installed (version: $pywebpush_version)"
+    else
+        info "Installing pywebpush (for VAPID key generation)..."
+        # Install with --break-system-packages for externally-managed environments (Debian 12+)
+        if pip3 install pywebpush >> "$LOG_FILE" 2>&1; then
+            success "pywebpush installed successfully"
+        elif pip3 install --break-system-packages pywebpush >> "$LOG_FILE" 2>&1; then
+            success "pywebpush installed successfully (with --break-system-packages)"
+        else
+            warning "Failed to install pywebpush - VAPID keys will not be auto-generated"
+            warning "You can generate them manually with: ./scripts/generate_vapid_keys.sh --update-env"
         fi
     fi
 
@@ -827,6 +843,17 @@ print_summary() {
     echo "  ✓ UFW Firewall: $(ufw --version | head -1)"
     echo "  ✓ Certbot: $(certbot --version 2>&1 | head -1)"
     echo "  ✓ Basic utilities (curl, git, jq, etc.)"
+    echo "  ✓ Python packages:"
+    if python3 -c "import boto3" 2>/dev/null; then
+        echo "    - boto3 $(python3 -c "import boto3; print(boto3.__version__)" 2>/dev/null) (S3 backups)"
+    else
+        echo "    - boto3 (not installed)"
+    fi
+    if python3 -c "import pywebpush" 2>/dev/null; then
+        echo "    - pywebpush $(python3 -c "import pywebpush; print(pywebpush.__version__)" 2>/dev/null) (VAPID key generation)"
+    else
+        echo "    - pywebpush (not installed)"
+    fi
     echo ""
     echo "Deployment structure:"
     echo "  ✓ Repository (source code): $REPO_DIR"
