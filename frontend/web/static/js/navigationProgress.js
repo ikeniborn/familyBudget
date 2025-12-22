@@ -1,25 +1,29 @@
 /**
- * Navigation Progress Module v3.0
- * Pre-fetch + Overlay approach
+ * Navigation Progress Module v3.1
+ * Pre-fetch + Overlay approach with Safari PWA support
  *
  * Flow:
- * 1. Intercept link click
+ * 1. Intercept link click/touch
  * 2. Show progress bar (5-95%)
  * 3. Pre-fetch page in background (warms HTTP cache)
  * 4. Wait for minimum display time (1 second)
  * 5. Show overlay at 100% → navigate
  * 6. Target page hides overlay after load (via pageshow event)
  *
- * Key improvements over v2.0:
- * - Overlay hides DOM cleanup during navigation (no black/white screen)
- * - Minimum 1 second progress display for better UX
- * - Consistent top position across all screen sizes (4rem)
+ * Key improvements over v3.0:
+ * - Safari PWA standalone mode support
+ * - Touch event handling for iOS
+ * - Defensive debugLog checks
+ * - ReadableStream fallback for older browsers
  *
- * @version 3.0.0
+ * @version 3.1.0
  */
 
 (function() {
     'use strict';
+
+    // Defensive debugLog - prevent errors if not defined
+    var log = (typeof debugLog === 'function') ? debugLog : function() {};
 
     const NavigationProgress = {
         // DOM elements
@@ -59,7 +63,57 @@
             // Intercept all clicks on document (capture phase)
             document.addEventListener('click', this.handleClick.bind(this), true);
 
-            debugLog('[NavigationProgress] v3.0 Initialized (Pre-fetch + Overlay)');
+            // Safari PWA: Also handle touchend for better iOS support
+            // touchend fires before click on iOS, so we use it as primary trigger
+            if (this.isSafariPWA()) {
+                document.addEventListener('touchend', this.handleTouch.bind(this), true);
+                log('[NavigationProgress] Safari PWA mode detected, touchend handler added');
+            }
+
+            log('[NavigationProgress] v3.1 Initialized (Pre-fetch + Overlay + Safari PWA)');
+        },
+
+        /**
+         * Detect Safari PWA (standalone mode)
+         */
+        isSafariPWA() {
+            // Check for iOS standalone mode
+            var isStandalone = window.navigator.standalone === true;
+            // Check for display-mode: standalone
+            var isDisplayStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            // Check for Safari
+            var isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+            var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+            return (isStandalone || isDisplayStandalone) && (isSafari || isIOS);
+        },
+
+        /**
+         * Handle touch events (for Safari PWA)
+         */
+        handleTouch(event) {
+            // Only process single touch
+            if (event.changedTouches && event.changedTouches.length !== 1) return;
+
+            var touch = event.changedTouches ? event.changedTouches[0] : event;
+            var target = document.elementFromPoint(touch.clientX, touch.clientY);
+
+            if (!target) return;
+
+            var link = target.closest('a');
+            if (!this.shouldIntercept(link)) return;
+
+            // Prevent default and handle navigation
+            event.preventDefault();
+            event.stopPropagation();
+
+            // Mark that we're handling via touch (to prevent duplicate click)
+            this._touchHandled = true;
+            setTimeout(() => { this._touchHandled = false; }, 300);
+
+            this.closeMobileMenu();
+            var href = link.getAttribute('href');
+            this.navigateTo(href);
         },
 
         /**
@@ -121,7 +175,7 @@
                     menuBtn.setAttribute('aria-expanded', 'false');
                     menuBtn.blur();
                 }
-                debugLog('[NavigationProgress] Mobile menu closed');
+                log('[NavigationProgress] Mobile menu closed');
             }
         },
 
@@ -129,6 +183,9 @@
          * Handle click events
          */
         handleClick(event) {
+            // Skip if already handled by touch (Safari PWA)
+            if (this._touchHandled) return;
+
             // Find the clicked link (may be nested in the target)
             const link = event.target.closest('a');
 
@@ -194,7 +251,7 @@
 
             } catch (error) {
                 if (error.name === 'AbortError') {
-                    debugLog('[NavigationProgress] Navigation cancelled');
+                    log('[NavigationProgress] Navigation cancelled');
                     return;
                 }
 
@@ -227,40 +284,50 @@
             const contentLength = response.headers.get('Content-Length');
             const total = contentLength ? parseInt(contentLength, 10) : 0;
 
-            // If no Content-Length or no body, use animated fallback
-            if (!total || !response.body) {
+            // Check if ReadableStream is available (Safari PWA might not support it)
+            const hasReadableStream = response.body && typeof response.body.getReader === 'function';
+
+            // If no Content-Length, no body, or no ReadableStream support, use animated fallback
+            if (!total || !hasReadableStream) {
                 this.startAnimatedProgress();
                 // Still consume the response to warm cache
                 await response.text();
                 return;
             }
 
-            // Read response with progress tracking
-            const reader = response.body.getReader();
-            let loaded = 0;
-            let useFallback = false;
+            try {
+                // Read response with progress tracking
+                const reader = response.body.getReader();
+                let loaded = 0;
+                let useFallback = false;
 
-            while (true) {
-                const { done, value } = await reader.read();
+                while (true) {
+                    const { done, value } = await reader.read();
 
-                if (done) break;
+                    if (done) break;
 
-                loaded += value.length;
+                    loaded += value.length;
 
-                // Gzip/Brotli fix: if loaded exceeds total by too much, switch to fallback
-                if (loaded > total * 1.5) {
-                    if (!useFallback) {
-                        useFallback = true;
-                        this.startAnimatedProgress();
+                    // Gzip/Brotli fix: if loaded exceeds total by too much, switch to fallback
+                    if (loaded > total * 1.5) {
+                        if (!useFallback) {
+                            useFallback = true;
+                            this.startAnimatedProgress();
+                        }
+                    } else {
+                        // Calculate and update progress (5-90% range, reserve 90-100% for minimum time)
+                        const percentComplete = 5 + (loaded / total) * 85;
+                        this.setProgress(Math.min(90, percentComplete));
                     }
-                } else {
-                    // Calculate and update progress (5-90% range, reserve 90-100% for minimum time)
-                    const percentComplete = 5 + (loaded / total) * 85;
-                    this.setProgress(Math.min(90, percentComplete));
                 }
-            }
 
-            // Response fully consumed → HTTP cache warmed
+                // Response fully consumed → HTTP cache warmed
+            } catch (streamError) {
+                // ReadableStream error (Safari PWA edge case) - fallback to animated progress
+                log('[NavigationProgress] ReadableStream error, using fallback:', streamError.message);
+                this.startAnimatedProgress();
+                // Note: response already consumed by failed getReader, cache should be warmed
+            }
         },
 
         /**

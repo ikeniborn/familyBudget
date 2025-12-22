@@ -231,11 +231,15 @@
             left: 0;
             width: 0%;
             height: 3px;
+            /* Fallback for Safari < 15.4 (no oklch support) */
+            background: #36d399; /* DaisyUI success green fallback */
             background: oklch(var(--su)); /* DaisyUI success color (green) */
             z-index: 39; /* под navbar (z-40) */
             transition: width 0.15s ease-out;
+            -webkit-transition: width 0.15s ease-out;
             opacity: 0;
             pointer-events: none;
+            box-shadow: 0 0 8px rgba(54, 211, 153, 0.5); /* Fallback */
             box-shadow: 0 0 8px oklch(var(--su) / 0.5);
         }
 
@@ -284,15 +288,26 @@
         /* Navigation Transition Overlay - скрывает DOM cleanup при переходе */
         .navigation-overlay {
             position: fixed;
+            /* Fallback for Safari < 14.1 (no inset support) */
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
             inset: 0;
             z-index: 99998; /* под toasts (99999), над всем остальным */
+            /* Fallback for Safari < 15.4 (no oklch support) */
+            background: #ffffff; /* Light mode fallback */
             background: oklch(var(--b1)); /* DaisyUI base background (light/dark aware) */
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
+            -webkit-transition: opacity 0.15s ease-out, visibility 0.15s ease-out;
             pointer-events: none;
+            display: -webkit-flex;
             display: flex;
+            -webkit-align-items: center;
             align-items: center;
+            -webkit-justify-content: center;
             justify-content: center;
         }
 
