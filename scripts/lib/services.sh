@@ -469,6 +469,43 @@ start_postgres_only() {
     fi
 }
 
+# Clean up stuck or orphan containers that could cause naming conflicts
+# This prevents "container name already in use" errors during deployment
+cleanup_stuck_containers() {
+    local project_name="familybudget"
+
+    # Find containers with prefixed names (e.g., "abc123_familybudget-backend")
+    # These are orphan containers created when docker-compose gets interrupted
+    local orphan_containers
+    orphan_containers=$(docker ps -a --format '{{.ID}} {{.Names}}' 2>/dev/null | \
+        grep -E "_${project_name}-" | awk '{print $1}' || true)
+
+    if [[ -n "$orphan_containers" ]]; then
+        info "Removing orphan containers with prefixed names..."
+        for container_id in $orphan_containers; do
+            local container_name
+            container_name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///')
+            docker rm -f "$container_id" >> "$LOG_FILE" 2>&1 || true
+            info "  Removed: $container_name"
+        done
+    fi
+
+    # Find containers in "Created" state (stuck during creation)
+    local created_containers
+    created_containers=$(docker ps -a --filter "name=${project_name}" --filter "status=created" \
+        --format '{{.ID}}' 2>/dev/null || true)
+
+    if [[ -n "$created_containers" ]]; then
+        info "Removing stuck containers in 'Created' state..."
+        for container_id in $created_containers; do
+            local container_name
+            container_name=$(docker inspect --format '{{.Name}}' "$container_id" 2>/dev/null | sed 's/^\///')
+            docker rm -f "$container_id" >> "$LOG_FILE" 2>&1 || true
+            info "  Removed: $container_name"
+        done
+    fi
+}
+
 # Phase 2: Start application services (backend, bot, nginx)
 start_application_services() {
     step "Starting Application Services (Phase 2/2)"
@@ -516,12 +553,17 @@ start_application_services() {
         echo ""
     fi
 
+    # Clean up any stuck or orphan containers before starting
+    # This prevents "container name already in use" errors
+    cleanup_stuck_containers
+
     # Start backend/bot/nginx (postgres already running)
+    # Use --remove-orphans to clean up any leftover containers from previous deployments
     if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-        compose_cmd --profile full up $build_flag -d backend bot nginx >> "$LOG_FILE" 2>&1
+        compose_cmd --profile full up $build_flag -d --remove-orphans backend bot nginx >> "$LOG_FILE" 2>&1
         start_result=$?
     else
-        compose_cmd up $build_flag -d backend >> "$LOG_FILE" 2>&1
+        compose_cmd up $build_flag -d --remove-orphans backend >> "$LOG_FILE" 2>&1
         start_result=$?
     fi
 
