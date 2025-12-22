@@ -41,6 +41,69 @@ is_redis_healthy() {
     fi
 }
 
+# Check if Redis password in .env matches the running container's password
+# Returns: 0 if match, 1 if mismatch, 2 if unable to check
+check_redis_password_match() {
+    local env_password container_password
+
+    # Get password from .env
+    env_password=$(grep '^REDIS_PASSWORD=' "$DEPLOY_DIR/.env" 2>/dev/null | cut -d'=' -f2-)
+
+    # Get password from running container
+    container_password=$(docker inspect familybudget-redis --format='{{range .Config.Cmd}}{{.}} {{end}}' 2>/dev/null | grep -oP '(?<=--requirepass )\S+')
+
+    if [[ -z "$env_password" && -z "$container_password" ]]; then
+        # Both empty - no password configured
+        return 0
+    fi
+
+    if [[ -z "$container_password" ]]; then
+        # Container not running or unable to inspect
+        return 2
+    fi
+
+    if [[ "$env_password" == "$container_password" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Diagnose Redis authentication issues
+# Sets global REDIS_AUTH_DIAGNOSIS with the result
+diagnose_redis_auth() {
+    local redis_password result
+    redis_password=$(grep '^REDIS_PASSWORD=' "$DEPLOY_DIR/.env" 2>/dev/null | cut -d'=' -f2-)
+
+    # Try to ping without auth to see if auth is required
+    result=$(docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T redis redis-cli ping 2>&1)
+
+    if echo "$result" | grep -q "NOAUTH"; then
+        # Auth required, check if password matches
+        if ! check_redis_password_match; then
+            REDIS_AUTH_DIAGNOSIS="password_mismatch"
+            return 1
+        fi
+
+        # Try with password
+        result=$(docker compose -f "$DEPLOY_DIR/docker-compose.yml" exec -T redis redis-cli -a "$redis_password" --no-auth-warning ping 2>&1)
+
+        if echo "$result" | grep -q "WRONGPASS"; then
+            REDIS_AUTH_DIAGNOSIS="wrong_password"
+            return 1
+        elif echo "$result" | grep -q "PONG"; then
+            REDIS_AUTH_DIAGNOSIS="ok"
+            return 0
+        fi
+    elif echo "$result" | grep -q "PONG"; then
+        REDIS_AUTH_DIAGNOSIS="ok"
+        return 0
+    fi
+
+    REDIS_AUTH_DIAGNOSIS="unknown"
+    return 1
+}
+
 # Wait for Redis to become healthy
 # Args: max_wait (optional, default 30)
 # Returns: 0 if healthy, 1 if timeout
@@ -220,11 +283,42 @@ verify_redis_health_post_start() {
         return 0  # Non-fatal - Redis is optional
     fi
 
+    # Check for password mismatch BEFORE waiting for health
+    # This provides faster feedback for configuration issues
+    if ! check_redis_password_match; then
+        error "Redis password mismatch detected!"
+        warning "The password in .env does not match the running Redis container"
+        info "This happens when .env was changed after Redis was started"
+        echo ""
+        echo "  To fix this issue, recreate the Redis container:"
+        echo "    cd /opt/budget"
+        echo "    docker compose stop redis && docker compose rm -f redis && docker compose up -d redis"
+        echo ""
+        return 1
+    fi
+
     # Wait for Redis to be healthy
     # Increased timeout to 40s to account for Docker healthcheck interval (30s default)
     # and AOF file loading on startup
     if ! wait_for_redis 40; then
-        warning "Redis is running but not responding"
+        # Diagnose the issue
+        diagnose_redis_auth
+        case "$REDIS_AUTH_DIAGNOSIS" in
+            "password_mismatch"|"wrong_password")
+                error "Redis authentication failed - password mismatch"
+                warning "The password in .env does not match the running Redis container"
+                info "This happens when .env was changed after Redis was started"
+                echo ""
+                echo "  To fix this issue, recreate the Redis container:"
+                echo "    cd /opt/budget"
+                echo "    docker compose stop redis && docker compose rm -f redis && docker compose up -d redis"
+                echo ""
+                ;;
+            *)
+                warning "Redis is running but not responding"
+                info "Check Redis logs: docker compose logs redis"
+                ;;
+        esac
         return 1
     fi
 
