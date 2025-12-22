@@ -5,6 +5,24 @@
 
         <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2">
             <input type="hidden" id="edit-id" name="id">
+            <input type="hidden" id="edit-recurring-plan-id" name="recurring_plan_id">
+
+            <!-- Информация о регламентном платеже (показывается если есть recurring_plan_id) -->
+            <div id="edit-recurring-info" class="hidden alert alert-info text-sm py-2 mb-2">
+                <div class="flex flex-col gap-1">
+                    <span class="font-medium">🔄 Запись из регламентного платежа</span>
+                    <div class="flex flex-col gap-0.5 mt-1">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="edit_scope" value="single" class="radio radio-sm radio-primary" checked />
+                            <span class="text-sm">Только эту запись</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="edit_scope" value="template" class="radio radio-sm radio-primary" />
+                            <span class="text-sm">Шаблон (влияет на будущие записи)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
 
             <!-- Сумма -->
             <div class="form-control">
@@ -25,28 +43,32 @@
                        placeholder="ДД.ММ.ГГГГ" autocomplete="off" />
             </div>
 
-            <!-- Тип категории (expense/income/debit/credit) -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text font-semibold">Тип категории *</span>
-                </label>
-                <div class="grid grid-cols-2 gap-2">
-                    <label class="btn btn-sm btn-outline btn-error edit-category-type-btn btn-active" data-type="expense">
-                        <input type="radio" name="edit_category_type" value="expense" class="hidden" checked />
-                        Расход
-                    </label>
-                    <label class="btn btn-sm btn-outline btn-success edit-category-type-btn" data-type="income">
-                        <input type="radio" name="edit_category_type" value="income" class="hidden" />
-                        Доход
-                    </label>
-                    <label class="btn btn-sm btn-outline btn-info edit-category-type-btn" data-type="debit">
-                        <input type="radio" name="edit_category_type" value="debit" class="hidden" />
-                        Списание
-                    </label>
-                    <label class="btn btn-sm btn-outline btn-warning edit-category-type-btn" data-type="credit">
-                        <input type="radio" name="edit_category_type" value="credit" class="hidden" />
-                        Пополнение
-                    </label>
+            <!-- Тип категории (expense/income/debit/credit) - сворачиваемый -->
+            <div class="collapse collapse-arrow bg-base-200 rounded-lg">
+                <input type="checkbox" class="min-h-0" />
+                <div class="collapse-title py-2 px-3 min-h-0 flex items-center gap-2">
+                    <span class="label-text font-semibold text-sm">Тип категории</span>
+                    <span id="edit-category-type-label" class="badge badge-sm badge-error">Расход</span>
+                </div>
+                <div class="collapse-content px-3 pb-2">
+                    <div class="grid grid-cols-2 gap-2 pt-1">
+                        <label class="btn btn-sm btn-outline btn-error edit-category-type-btn btn-active" data-type="expense">
+                            <input type="radio" name="edit_category_type" value="expense" class="hidden" checked />
+                            Расход
+                        </label>
+                        <label class="btn btn-sm btn-outline btn-success edit-category-type-btn" data-type="income">
+                            <input type="radio" name="edit_category_type" value="income" class="hidden" />
+                            Доход
+                        </label>
+                        <label class="btn btn-sm btn-outline btn-info edit-category-type-btn" data-type="debit">
+                            <input type="radio" name="edit_category_type" value="debit" class="hidden" />
+                            Списание
+                        </label>
+                        <label class="btn btn-sm btn-outline btn-warning edit-category-type-btn" data-type="credit">
+                            <input type="radio" name="edit_category_type" value="credit" class="hidden" />
+                            Пополнение
+                        </label>
+                    </div>
                 </div>
             </div>
 

@@ -869,7 +869,39 @@ components:
   modal_edit_plan:
     path: "frontend/web/templates/components/modal_edit_plan.html"
     type: "macro"
-    description: "Budget plan edit modal"
+    description: "Budget plan edit modal with recurring plan support"
+    fields:
+      - "edit-id (hidden): Fact ID"
+      - "edit-recurring-plan-id (hidden): RecurringPlan ID (if linked)"
+      - "amount (number, required)"
+      - "fact_date (text, DD.MM.YYYY format, CalendarWidget)"
+      - "edit_category_type (radio buttons in collapse): expense/income/debit/credit"
+      - "article_id (ChoicesCategoryTree, filtered by type)"
+      - "financial_center_id (select)"
+      - "cost_center_id (select, optional)"
+      - "description (textarea)"
+      - "enable_reminder (checkbox, plans only)"
+      - "reminder_date/hour/minute (reminder datetime)"
+      - "edit_scope (radio, if recurring_plan_id exists): single/template"
+    recurring_plan_support:
+      description: "When editing a fact linked to a recurring plan, shows scope selector"
+      scope_options:
+        single: "Update only this fact (default)"
+        template: "Update recurring plan template (affects future generations)"
+      template_editable_fields:
+        - "amount"
+        - "description"
+        - "cost_center_id"
+      template_readonly_fields:
+        - "frequency_type, frequency_value, start_date"
+        - "article_id, financial_center_id"
+    ux_improvements:
+      - "Category type in collapsible section with badge showing current type"
+      - "Recurring info alert box shown when editing recurring-linked facts"
+    api_calls:
+      - "PUT /api/v1/facts/{id} - Single fact update"
+      - "PUT /api/v1/recurring-plans/{id} - Template update"
+      - "GET/POST/PUT/DELETE /api/v1/reminders/{fact_id} - Reminder CRUD"
 
   modal_transfer:
     path: "frontend/web/templates/components/modal_transfer.html"

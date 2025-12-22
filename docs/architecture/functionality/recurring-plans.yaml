@@ -163,6 +163,33 @@ module:
         - "Added recurring indicator in mobile view"
         - "Modified createPlan() to support recurring plan creation"
 
+    edit_modal:
+      file: "frontend/web/templates/components/modal_edit_plan.html"
+      description: "Edit modal supports both single fact and template editing"
+      changes:
+        - "Added hidden field edit-recurring-plan-id"
+        - "Added recurring info alert (shows when editing recurring-linked fact)"
+        - "Added scope selector radio buttons (single/template)"
+        - "Category type in collapsible section with badge"
+        - "Modified updateFact() to handle scope selection"
+      scope_options:
+        single:
+          description: "Update only this fact, keep template unchanged"
+          endpoint: "PUT /api/v1/facts/{id}"
+        template:
+          description: "Update template, affects future generated facts"
+          endpoint: "PUT /api/v1/recurring-plans/{id}"
+          editable_fields:
+            - amount
+            - description
+            - cost_center_id
+      flow:
+        - "User opens edit modal for fact with recurring_plan_id"
+        - "Modal shows recurring info alert with scope selector"
+        - "Default: 'single' (update only this fact)"
+        - "If 'template' selected: calls PUT /api/v1/recurring-plans/{id}"
+        - "Template update affects future scheduler generations"
+
   api_endpoints:
     base_path: "/api/v1/recurring-plans"
     file: "backend/app/api/v1/endpoints/recurring_plans.py"

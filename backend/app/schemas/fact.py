@@ -269,21 +269,29 @@ class FactUpdate(BaseModel):
     @field_validator("fact_date")
     @classmethod
     def date_validation(cls, v: Optional[date]) -> Optional[date]:
-        """Validate transaction date if provided."""
+        """Validate transaction date if provided.
+
+        Note: Plans (record_type='plan') can have future dates up to 5 years ahead.
+        Since we don't know record_type at schema level during updates,
+        we allow future dates for all FactUpdate operations.
+        """
         if v is None:
             return None
 
         today = now_local().date()  # Uses SYSTEM_TIMEZONE from config
-
-        # Allow +1 day tolerance for timezone differences
-        if v > today + timedelta(days=1):
-            raise ValueError("Fact date cannot be in the future")
 
         # Check if date is too old (more than 10 years ago)
         ten_years_ago = today - timedelta(days=365 * 10)
         if v < ten_years_ago:
             raise ValueError(
                 f"Fact date cannot be more than 10 years in the past (earliest: {ten_years_ago.isoformat()})"
+            )
+
+        # Check if date is too far in the future (more than 5 years)
+        five_years_future = today + timedelta(days=365 * 5)
+        if v > five_years_future:
+            raise ValueError(
+                f"Fact date cannot be more than 5 years in the future (latest: {five_years_future.isoformat()})"
             )
 
         return v

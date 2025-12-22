@@ -2179,9 +2179,29 @@ async function showEditModal(factId) {
     document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
     document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
 
+    // Handle recurring plan info
+    const recurringPlanIdField = document.getElementById('edit-recurring-plan-id');
+    const recurringInfoDiv = document.getElementById('edit-recurring-info');
+    if (recurringPlanIdField) {
+        recurringPlanIdField.value = fact.recurring_plan_id || '';
+    }
+    if (recurringInfoDiv) {
+        if (fact.recurring_plan_id) {
+            recurringInfoDiv.classList.remove('hidden');
+            // Reset scope to 'single' by default
+            const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
+            if (singleRadio) singleRadio.checked = true;
+        } else {
+            recurringInfoDiv.classList.add('hidden');
+        }
+    }
+
     // Determine category type from allCategories
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
     const categoryType = selectedArticle ? selectedArticle.type : 'expense';
+
+    // Update category type badge in collapse header
+    updateEditCategoryTypeBadge(categoryType);
 
     // Set category type radio buttons
     document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
@@ -2328,6 +2348,23 @@ function closeEditModal() {
     document.getElementById('edit-form').reset();
 }
 
+// Helper to update category type badge in edit modal
+function updateEditCategoryTypeBadge(type) {
+    const badge = document.getElementById('edit-category-type-label');
+    if (!badge) return;
+
+    const typeConfig = {
+        expense: { text: 'Расход', class: 'badge-error' },
+        income: { text: 'Доход', class: 'badge-success' },
+        debit: { text: 'Списание', class: 'badge-info' },
+        credit: { text: 'Пополнение', class: 'badge-warning' }
+    };
+
+    const config = typeConfig[type] || typeConfig.expense;
+    badge.textContent = config.text;
+    badge.className = `badge badge-sm ${config.class}`;
+}
+
 // Setup category type buttons handlers for edit modal
 function setupEditCategoryTypeButtons() {
     const typeButtons = document.querySelectorAll('.edit-category-type-btn');
@@ -2349,6 +2386,9 @@ function setupEditCategoryTypeButtons() {
             // Reload categories with new type
             const newType = this.dataset.type;
             debugLog('Edit modal category type changed to:', newType);
+
+            // Update badge in collapse header
+            updateEditCategoryTypeBadge(newType);
 
             if (editCategoryTreeSelect && allCategories.length > 0) {
                 // Use updateType() method instead of destroy + recreate
@@ -2447,12 +2487,44 @@ async function updateFact(event) {
     const enableReminder = formData.get('enable_reminder') === 'on';
     const reminderDatetime = formData.get('reminder_datetime');
 
+    // Get recurring plan settings
+    const recurringPlanId = formData.get('recurring_plan_id');
+    const editScope = formData.get('edit_scope');
+
     try {
-        const response = await fetch(`/api/v1/facts/${factId}`, {
-            method: 'PUT',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
+        let response;
+        let successMessage = '✅ Факт успешно обновлен!';
+
+        // Check if editing recurring plan template
+        if (recurringPlanId && editScope === 'template') {
+            // Update recurring plan template
+            // Only send fields that can be updated on template: amount, description, cost_center_id
+            const templateData = {
+                amount: data.amount,
+                description: data.description
+            };
+
+            // cost_center_id is optional
+            if (costCenterId) {
+                templateData.cost_center_id = parseInt(costCenterId);
+            }
+
+            response = await fetch(`/api/v1/recurring-plans/${recurringPlanId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include',
+                body: JSON.stringify(templateData)
+            });
+            successMessage = '✅ Шаблон регламентного платежа обновлен!';
+        } else {
+            // Update single fact
+            response = await fetch(`/api/v1/facts/${factId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
+        }
 
         if (!response.ok) {
             const error = await response.json();
@@ -2488,35 +2560,37 @@ async function updateFact(event) {
             throw new Error(errorMsg);
         }
 
-        // Handle reminder update (use pre-loaded map instead of fetching)
-        const existingReminder = remindersMap.get(parseInt(factId));
+        // Handle reminder update (only for single fact scope, not template)
+        if (editScope !== 'template') {
+            const existingReminder = remindersMap.get(parseInt(factId));
 
-        if (enableReminder && reminderDatetime) {
-            // Create or update reminder
-            if (existingReminder) {
-                // Update existing reminder
-                const updated = await updateReminder(factId, reminderDatetime);
-                if (!updated) {
-                    showNotification('⚠️ Предупреждение: не удалось обновить напоминание', 'warning');
+            if (enableReminder && reminderDatetime) {
+                // Create or update reminder
+                if (existingReminder) {
+                    // Update existing reminder
+                    const updated = await updateReminder(factId, reminderDatetime);
+                    if (!updated) {
+                        showNotification('⚠️ Предупреждение: не удалось обновить напоминание', 'warning');
+                    }
+                } else {
+                    // Create new reminder
+                    const created = await createReminder(factId, reminderDatetime);
+                    if (!created) {
+                        showNotification('⚠️ Предупреждение: не удалось создать напоминание', 'warning');
+                    }
                 }
-            } else {
-                // Create new reminder
-                const created = await createReminder(factId, reminderDatetime);
-                if (!created) {
-                    showNotification('⚠️ Предупреждение: не удалось создать напоминание', 'warning');
+            } else if (!enableReminder && existingReminder) {
+                // Delete reminder if checkbox is unchecked
+                const deleted = await deleteReminder(factId);
+                if (!deleted) {
+                    showNotification('⚠️ Предупреждение: не удалось удалить напоминание', 'warning');
                 }
-            }
-        } else if (!enableReminder && existingReminder) {
-            // Delete reminder if checkbox is unchecked
-            const deleted = await deleteReminder(factId);
-            if (!deleted) {
-                showNotification('⚠️ Предупреждение: не удалось удалить напоминание', 'warning');
             }
         }
 
         closeEditModal();
         await loadFacts();
-        showNotification('✅ Факт успешно обновлен!', 'success');
+        showNotification(successMessage, 'success');
     } catch (error) {
         console.error('Error updating fact:', error);
         const errorMessage = error?.message || String(error);
