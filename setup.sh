@@ -1205,8 +1205,19 @@ configure_redis() {
     info "Generating Redis password..."
     local generated_redis_password
     generated_redis_password=$(generate_password 16)
-    CONFIG["REDIS_PASSWORD"]="$generated_redis_password"
-    success "Redis password generated"
+
+    echo ""
+    info "Generated Redis password: $generated_redis_password"
+    echo ""
+    read -p "Redis password [Enter to accept generated, or type your own]: " custom_redis_password
+
+    if [[ -n "$custom_redis_password" ]]; then
+        CONFIG["REDIS_PASSWORD"]="$custom_redis_password"
+        success "Using custom Redis password"
+    else
+        CONFIG["REDIS_PASSWORD"]="$generated_redis_password"
+        success "Using generated Redis password"
+    fi
 
     echo ""
 
