@@ -109,10 +109,10 @@ services:
       - familybudget
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
+      interval: 5s  # Check every 5s for faster health detection
+      timeout: 3s
+      retries: 10  # Allow more retries for AOF loading
+      start_period: 10s  # Grace period for initial startup
     deploy:
       resources:
         limits:

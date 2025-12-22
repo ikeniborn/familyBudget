@@ -211,7 +211,9 @@ verify_redis_health_post_start() {
     fi
 
     # Wait for Redis to be healthy
-    if ! wait_for_redis 10; then
+    # Increased timeout to 40s to account for Docker healthcheck interval (30s default)
+    # and AOF file loading on startup
+    if ! wait_for_redis 40; then
         warning "Redis is running but not responding"
         return 1
     fi
