@@ -12,9 +12,9 @@ Use these files to understand component relationships when planning changes or o
 | [endpoints/](./endpoints/) | API endpoints | 13 |
 | [database/](./database/) | Database objects | 9 |
 | [flows/](./flows/) | Data flow diagrams | 6 |
-| [guides/](./guides/) | Development guides | 5 |
+| [guides/](./guides/) | Development guides | 7 |
 
-**Total: 53 files**
+**Total: 56 files**
 
 ## File Format
 
@@ -71,6 +71,7 @@ Use dependency graph to verify:
 docs/architecture/
 ├── README.md                    # This file
 ├── index.yaml                   # Main index with links to all sections
+├── backup-system.md             # Backup system architecture
 │
 ├── functionality/               # Business logic (12 modules)
 │   ├── _index.yaml              # Module summary
@@ -132,7 +133,9 @@ docs/architecture/
     ├── _index.yaml              # Guide summary
     ├── change-checklist.yaml    # What to check when changing
     ├── critical-paths.yaml      # High-impact dependencies
-    └── impact-analysis.yaml     # How to analyze changes
+    ├── impact-analysis.yaml     # How to analyze changes
+    ├── disaster-recovery.md     # Emergency backup/restore procedures
+    └── backup-operations.md     # Daily/weekly/monthly backup tasks
 ```
 
 ## Legend
@@ -257,6 +260,13 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-23**: Added comprehensive backup and restore documentation:
+  - **backup-system.md** (400 lines): Technical architecture, component diagrams, performance metrics, security
+  - **guides/disaster-recovery.md** (350 lines): 5 disaster scenarios with RTO/RPO, emergency procedures
+  - **guides/backup-operations.md** (400 lines): Daily/weekly/monthly operational tasks, health checks
+  - **../BACKUP_RESTORE.md** (750 lines): User-facing manual for local and S3 backup/restore
+  - Coverage: pg_dump workflows, S3 integration, lock mechanisms, validation, troubleshooting
+  - Files: backup-system.md, disaster-recovery.md, backup-operations.md, ../BACKUP_RESTORE.md
 - **2025-12-23**: Improved PWA page transitions smoothness (v3.3.1):
   - **Problem #1**: Progress bar disappeared too quickly (~650ms total fade-out), making page transitions feel abrupt
   - **Problem #2**: View Transitions created flash effect after progress bar (250ms too fast)

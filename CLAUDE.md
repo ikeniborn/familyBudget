@@ -1029,6 +1029,10 @@ AND indexrelname NOT LIKE 'pg_toast%';
 - **START.md** - Полная инструкция по деплою
 - **docs/prd/** - Product Requirements Documents
 - **docs/api/API_DOCUMENTATION.md** - API документация
+- **docs/BACKUP_RESTORE.md** - Backup and restore procedures (local and S3)
+- **docs/architecture/backup-system.md** - Backup system architecture
+- **docs/architecture/guides/disaster-recovery.md** - Emergency procedures for backup failures
+- **docs/architecture/guides/backup-operations.md** - Daily/weekly/monthly backup operations
 - **scripts/README.md** - Документация скриптов
 - **tests/README.md** - Testing guide
 - **sql/README.md** - SQL queries documentation

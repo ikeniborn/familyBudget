@@ -24,6 +24,14 @@ summary:
       file: "./redis-caching.yaml"
       use_case: "Настройка и использование Redis кеширования"
 
+    - name: "Disaster Recovery"
+      file: "./disaster-recovery.md"
+      use_case: "Аварийное восстановление при отказах backup системы"
+
+    - name: "Backup Operations"
+      file: "./backup-operations.md"
+      use_case: "Ежедневные/еженедельные/ежемесячные задачи по обслуживанию backup"
+
 # Quick Reference
 quick_reference:
   before_changes:
