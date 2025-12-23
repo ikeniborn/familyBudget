@@ -181,12 +181,18 @@ health_monitoring:
 
   admin_ui:
     path: "/admin/monitoring"
+    component_names:
+      database: "Database"
+      redis: "Redis"
+      deferred_operations: "Deferred operations (backend key: 'deferred_operations')"
+      backup: "Backup"
     displays:
       - "Redis memory usage"
       - "Keys in cache"
       - "Cache hit ratio"
       - "Latency"
       - "Status badge"
+      - "Deferred operations queue stats (Queue, Processed, Failed, DLQ)"
 
   bash_script:
     path: "scripts/lib/redis.sh"

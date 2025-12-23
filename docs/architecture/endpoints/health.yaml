@@ -60,22 +60,39 @@ routes:
     response:
       status: 200
       body:
-        status: "healthy"
+        status: "healthy | degraded | unhealthy"
         version: "string (app version)"
-        uptime: "integer (seconds)"
-        database:
-          status: "connected"
-          pool_size: "integer"
-          active_connections: "integer"
-        websocket:
-          status: "active"
-          connection_count: "integer"
-        memory:
-          rss_mb: "decimal"
-          heap_mb: "decimal"
-        cpu:
-          usage_percent: "decimal"
-    use_case: "Admin monitoring dashboard"
+        uptime_seconds: "float (seconds)"
+        timestamp: "ISO 8601"
+        components:
+          database:
+            status: "up | down"
+            message: "Database operational. Users: N, Facts: M"
+            latency_ms: "float"
+          redis:
+            status: "up | down"
+            message: "Memory: XMB, Keys: N, Hit ratio: Y%"
+            latency_ms: "float"
+          deferred_operations:
+            status: "up | down | degraded"
+            message: "Queue: N, Processed: M, Failed: K, DLQ: L"
+            note: "Displays as 'Deferred operations' in UI (/admin/monitoring)"
+          backup:
+            status: "up | down"
+            message: "Latest: YYYY-MM-DD HH:MM:SS, Size: XMB, Total: N"
+        system:
+          platform: "string"
+          platform_version: "string"
+          python_version: "string"
+          cpu_count: "integer"
+          cpu_percent: "float"
+          memory_total_gb: "float"
+          memory_used_gb: "float"
+          memory_percent: "float"
+          disk_total_gb: "float"
+          disk_used_gb: "float"
+          disk_percent: "float"
+    use_case: "Admin monitoring dashboard (/admin/monitoring)"
 
 # Endpoint File
 endpoint_file:

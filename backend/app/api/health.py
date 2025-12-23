@@ -539,7 +539,7 @@ async def detailed_health_check(
     components = {
         "database": db_health,
         "redis": redis_health,
-        "write_behind": write_behind_health,
+        "deferred_operations": write_behind_health,
         "backup": backup_health
     }
 
