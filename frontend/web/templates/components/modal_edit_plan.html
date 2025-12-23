@@ -10,11 +10,11 @@
             <!-- Информация о регламентном платеже (показывается если есть recurring_plan_id) -->
             <div id="edit-recurring-info" class="hidden mb-2">
                 <div class="collapse collapse-arrow bg-info/10 border border-info/30 rounded-lg">
-                    <input type="checkbox" id="edit-recurring-collapse-toggle" />
-                    <div class="collapse-title text-sm font-medium py-2 min-h-0">
+                    <input type="checkbox" id="edit-recurring-collapse-toggle" class="peer" />
+                    <label for="edit-recurring-collapse-toggle" class="collapse-title text-sm font-medium py-2 min-h-0 cursor-pointer">
                         🔄 Нажмите для просмотра информации о регламентном платеже
                         <span id="edit-recurring-status" class="badge badge-sm badge-success ml-2">Активен</span>
-                    </div>
+                    </label>
                     <div class="collapse-content">
                         <!-- Информация о плане (заполняется через JS) -->
                         <div id="edit-recurring-details" class="text-xs space-y-1 opacity-80 mb-3">
