@@ -257,6 +257,18 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-23**: Improved PWA progress bar fade-out smoothness (v3.3):
+  - **Problem**: Progress bar disappeared too quickly (~650ms total fade-out), making page transitions feel abrupt
+  - **User Feedback**: Requested smoother, more relaxed fade-out animation
+  - **Solution**: Doubled fade-out duration to ~1300ms for more polished UX
+  - **Changes**:
+    - JavaScript `fadeOutDelay`: 200ms → 500ms (shows 100% completion longer)
+    - JavaScript delay call: 200ms → 500ms (synchronized with config)
+    - CSS opacity transition: 0.3s → 0.6s (slower fade)
+    - CSS opacity delay: 0.15s → 0.2s (minor adjustment)
+  - **Files**: `navigationProgress.js:37,240`, `base.html:261`, `templates.yaml:103-121`
+  - **Result**: Smoother, more polished page transitions in Safari PWA without feeling sluggish
+  - **UX Impact**: Progress bar now stays visible and fades gracefully, creating a premium feel
 - **2025-12-23**: Fixed category dropdown reset in edit modals on iOS Safari PWA:
   - **Problem**: Selected category periodically resets in edit modals (facts, plan) on iOS Safari 26 PWA
   - **Root Cause**: View Transitions API (commit 792b361e) caused DOM reconstruction during Choices.js initialization

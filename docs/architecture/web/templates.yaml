@@ -100,7 +100,7 @@ templates:
     navigation_progress_bar:
       id: "navigation-progress"
       description: "Thin green progress bar under navbar showing real page loading progress"
-      version: "3.0.0"
+      version: "3.3.0"
       position: "Fixed below navbar (top: 4rem - uniform across all breakpoints)"
       color: "oklch(var(--su)) - DaisyUI success (green)"
       height: "3px"
@@ -114,6 +114,11 @@ templates:
         - "Shows overlay at 100% before navigation (hides DOM cleanup)"
         - "Uses pageshow event to hide overlay on target page"
         - "Handles bfcache (back/forward navigation)"
+      timing:
+        min_display_time: "1000ms"
+        fade_out_delay: "500ms (increased from 200ms in v3.3)"
+        fade_out_duration: "600ms opacity transition (increased from 300ms in v3.3)"
+        total_fade_out: "~1300ms (2x smoother than v3.2)"
       exclusions:
         - "External links (different origin)"
         - "Hash links (#anchor)"

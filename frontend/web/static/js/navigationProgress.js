@@ -34,7 +34,7 @@
         config: {
             timeout: 30000,           // 30 seconds max
             minDisplayTime: 1000,     // Minimum 1 second for better UX
-            fadeOutDelay: 200,        // Brief delay to show 100% before fade-out
+            fadeOutDelay: 500,        // Longer delay to show 100% completion before smooth fade-out
             animatedFallbackSpeed: 30 // Fake progress increment per 100ms
         },
 
@@ -236,8 +236,8 @@
                 // Complete progress with smooth fade-out
                 this.setProgress(100);
 
-                // Brief delay to show 100% completion (visual feedback)
-                await this.delay(200);
+                // Longer delay to show 100% completion (smoother UX)
+                await this.delay(500);
 
                 // Start fade-out animation
                 this.fadeOutProgress();
