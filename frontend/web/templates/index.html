@@ -2183,29 +2183,183 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Get plan mode from radio buttons
         const planMode = formData.get('plan_mode') || 'regular';
+        const isRecurring = (planMode === 'recurring');
         const enableReminder = (planMode === 'reminder');
         const reminderDatetime = enableReminder ? formData.get('reminder_datetime') : null;
 
-        // v5.1.3: Убрано поле transaction_type - не используется для планов
-        const data = {
-            record_type: 'plan',
-            fact_type: formData.get('plan_type'), // expense или income - для отображения в pending table
-            amount: parseFloat(formData.get('amount')),
-            article_id: parseInt(formData.get('article_id')),
-            article_name: articleName, // For offline display
-            financial_center_id: parseInt(formData.get('financial_center_id')),
-            financial_center_name: getSelectedText(fcSelect), // For offline display
-            cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
-            cost_center_name: getSelectedText(ccSelect), // For offline display
-            plan_date: factDate, // For pending table display
-            fact_date: factDate, // Обязательное поле - первое число месяца плана
-            description: formData.get('description') || null,
-            // Notification settings for offline display and post-sync reminder creation
-            notification_enabled: enableReminder,
-            reminder_datetime: enableReminder ? reminderDatetime : null
-        };
-
         try {
+            if (isRecurring) {
+                // ===== RECURRING PLAN CREATION =====
+                console.log('[index.html createPlan] Collecting recurring settings for modal_add_plan');
+                const recurringSettings = window.collectRecurringSettings('modal_add_plan');
+                console.log('[index.html createPlan] Collected recurringSettings:', recurringSettings);
+
+                if (!recurringSettings) {
+                    console.error('[index.html createPlan] collectRecurringSettings() returned null!');
+                    showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
+                    setSubmitLoading(e.target, false);
+                    return;
+                }
+
+                // Get article ID and select elements
+                const articleId = parseInt(formData.get('article_id'));
+                const financialCenterId = parseInt(formData.get('financial_center_id'));
+                const costCenterId = formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null;
+
+                // Get article name from category tree
+                let articleName = null;
+                if (planCategoryTreeSelect && planCategoryTreeSelect.getSelectedCategory) {
+                    const selected = planCategoryTreeSelect.getSelectedCategory();
+                    articleName = selected ? selected.name : null;
+                }
+
+                const financialCenterName = getSelectedText(fcSelect);
+                const costCenterName = getSelectedText(ccSelect);
+
+                // Try to get article type from data attribute or fetch
+                let articleType = null;
+                const articleSelect = e.target.querySelector('[name="article_id"]');
+                if (articleSelect?.selectedOptions[0]?.dataset?.type) {
+                    articleType = articleSelect.selectedOptions[0].dataset.type;
+                } else if (articleId) {
+                    try {
+                        const articleResp = await fetch(`/api/v1/articles/${articleId}`, { credentials: 'include' });
+                        if (articleResp.ok) {
+                            const articleData = await articleResp.json();
+                            articleType = articleData.type;
+                        }
+                    } catch (err) {
+                        console.warn('[index.html createPlan] Failed to fetch article type:', err);
+                    }
+                }
+
+                // Build recurring plan data
+                const recurringData = {
+                    article_id: articleId,
+                    financial_center_id: financialCenterId,
+                    cost_center_id: costCenterId,
+                    amount: parseFloat(formData.get('amount')),
+                    description: formData.get('description') || null,
+                    record_type: 'plan',
+                    frequency_type: recurringSettings.frequency_type,
+                    frequency_value: recurringSettings.frequency_value,
+                    start_date: factDate,
+                    end_date: recurringSettings.end_date,
+                    occurrences_count: recurringSettings.occurrences_count,
+                    // Add names, type, and date for offline display in pending-records-card
+                    article_name: articleName,
+                    article_type: articleType,
+                    financial_center_name: financialCenterName,
+                    cost_center_name: costCenterName,
+                    plan_date: factDate  // For pending records date display
+                };
+
+                debugLog('[index.html createPlan] Creating recurring plan:', recurringData);
+
+                // Use OfflineManager if available for offline support
+                if (window.offlineManager) {
+                    const result = await window.offlineManager.createRecurringPlan(recurringData);
+
+                    modal_add_plan.close();
+                    e.target.reset();
+                    // Reset recurring settings
+                    if (window.resetRecurringSettings) {
+                        window.resetRecurringSettings('modal_add_plan');
+                    }
+                    // Reset reminder settings visibility
+                    const reminderSettings1 = document.getElementById('reminder-settings-modal_add_plan');
+                    if (reminderSettings1) reminderSettings1.classList.add('hidden');
+                    setupPlanPeriodButtons();
+
+                    if (result._offline) {
+                        showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
+                        debugLog('[index.html createPlan] Recurring plan saved offline:', result);
+                        // Update pending records table
+                        loadPendingRecords();
+                    } else {
+                        showToast(`Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`, 'success');
+                        debugLog('[index.html createPlan] Recurring plan created:', result);
+                        // Update recent records table
+                        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                            target: '#recent-transactions',
+                            swap: 'innerHTML'
+                        });
+                        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                            target: '#quick-stats',
+                            swap: 'innerHTML'
+                        });
+                        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                            target: '#account-balances',
+                            swap: 'innerHTML'
+                        });
+                    }
+                } else {
+                    // Fallback to direct fetch if OfflineManager not available
+                    const response = await fetch('/api/v1/recurring-plans', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(recurringData)
+                    });
+
+                    if (response.ok) {
+                        const createdPlan = await response.json();
+                        modal_add_plan.close();
+                        e.target.reset();
+                        // Reset recurring settings
+                        if (window.resetRecurringSettings) {
+                            window.resetRecurringSettings('modal_add_plan');
+                        }
+                        const reminderSettings2 = document.getElementById('reminder-settings-modal_add_plan');
+                        if (reminderSettings2) reminderSettings2.classList.add('hidden');
+                        setupPlanPeriodButtons();
+
+                        showToast(`Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`, 'success');
+                        debugLog('[index.html createPlan] Recurring plan created:', createdPlan);
+
+                        // Update recent records table
+                        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                            target: '#recent-transactions',
+                            swap: 'innerHTML'
+                        });
+                        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                            target: '#quick-stats',
+                            swap: 'innerHTML'
+                        });
+                        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                            target: '#account-balances',
+                            swap: 'innerHTML'
+                        });
+                    } else {
+                        const error = await response.json();
+                        showToast('Ошибка: ' + (error.detail || 'Не удалось создать регулярный платеж'), 'error');
+                    }
+                }
+
+                setSubmitLoading(e.target, false);
+                return;
+            }
+
+            // ===== REGULAR PLAN CREATION =====
+            // v5.1.3: Убрано поле transaction_type - не используется для планов
+            const data = {
+                record_type: 'plan',
+                fact_type: formData.get('plan_type'), // expense или income - для отображения в pending table
+                amount: parseFloat(formData.get('amount')),
+                article_id: parseInt(formData.get('article_id')),
+                article_name: articleName, // For offline display
+                financial_center_id: parseInt(formData.get('financial_center_id')),
+                financial_center_name: getSelectedText(fcSelect), // For offline display
+                cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id')) : null,
+                cost_center_name: getSelectedText(ccSelect), // For offline display
+                plan_date: factDate, // For pending table display
+                fact_date: factDate, // Обязательное поле - первое число месяца плана
+                description: formData.get('description') || null,
+                // Notification settings for offline display and post-sync reminder creation
+                notification_enabled: enableReminder,
+                reminder_datetime: enableReminder ? reminderDatetime : null
+            };
+
             // Use OfflineManager for offline support
             if (window.offlineManager) {
                 const result = await window.offlineManager.createPlan(data);
