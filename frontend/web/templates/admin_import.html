@@ -387,7 +387,7 @@ body.resizing-columns * {
             <h2 class="card-title text-2xl mb-4">📤 Шаг 2: Загрузка данных</h2>
 
             <!-- Radio buttons для выбора источника данных -->
-            <div class="form-control mb-4">
+            <div id="upload-source-selector" class="form-control mb-4">
                 <label class="label">
                     <span class="label-text font-semibold">Источник данных:</span>
                 </label>
@@ -1078,10 +1078,7 @@ function resetWorkflow() {
     document.getElementById('google-sheets-url').value = '';
 
     // 🔧 FIX: Restore radio buttons container visibility
-    const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
-    if (radioContainer) {
-        radioContainer.style.display = 'block';
-    }
+    document.getElementById('upload-source-selector').style.display = 'block';
 
     // Clear staging table
     document.getElementById('staging-table-body').innerHTML = '';
@@ -1349,10 +1346,7 @@ async function proceedToUpload() {
     document.getElementById('google-sheets-url').value = '';
 
     // 🔧 FIX: Restore radio buttons container visibility
-    const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
-    if (radioContainer) {
-        radioContainer.style.display = 'block';
-    }
+    document.getElementById('upload-source-selector').style.display = 'block';
 
     // Reset global state
     uploadedFileId = null;
@@ -1610,8 +1604,7 @@ async function uploadFromGoogleSheets(event) {
         document.getElementById('upload-source-google-sheets').style.display = 'none';
 
         // Hide radio buttons container
-        const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
-        if (radioContainer) radioContainer.style.display = 'none';
+        document.getElementById('upload-source-selector').style.display = 'none';
 
         // Get CSV structure
         await analyzeFile(uploadedFileId);
@@ -1676,9 +1669,8 @@ async function uploadCSV(event) {
         // Hide upload forms and radio buttons
         document.getElementById('upload-source-csv').style.display = 'none';
         document.getElementById('upload-source-google-sheets').style.display = 'none';
-        // Hide radio buttons container (first .form-control.mb-4 in step-2-upload)
-        const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
-        if (radioContainer) radioContainer.style.display = 'none';
+        // Hide radio buttons container
+        document.getElementById('upload-source-selector').style.display = 'none';
 
         // Get CSV structure
         await analyzeFile(uploadedFileId);
