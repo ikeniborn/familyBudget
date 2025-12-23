@@ -888,7 +888,19 @@ class ChoicesCategoryTree {
                     if (this.element) {
                         this.element.value = '';
                     }
+                    if (this.choices) {
+                        this.choices.setChoiceByValue('');
+                    }
                     debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
+                } else {
+                    // No previous selection - ensure nothing is selected
+                    if (this.element) {
+                        this.element.value = '';
+                    }
+                    if (this.choices) {
+                        this.choices.setChoiceByValue('');
+                    }
+                    debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
                 }
 
                 // Log info about filtering
