@@ -307,7 +307,7 @@ class RecurringPlanService:
             "user_id": plan.user_id,
             "article_id": plan.article_id,
             "article_name": article.name if article else None,
-            "article_type": article.article_type if article else None,
+            "article_type": article.type if article else None,
             "financial_center_id": plan.financial_center_id,
             "financial_center_name": fc.name if fc else None,
             "cost_center_id": plan.cost_center_id,
