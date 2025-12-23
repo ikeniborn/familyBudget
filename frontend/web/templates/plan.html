@@ -3938,7 +3938,7 @@ function resetRecurringOnlyFields(modalId) {
     if (monthdaySelect) monthdaySelect.value = '1';
 
     const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
-    if (durationSelect) durationSelect.value = 'indefinite';
+    if (durationSelect) durationSelect.value = 'count'; // Default to count (indefinite option removed)
 
     document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
     document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
@@ -4160,12 +4160,13 @@ function collectRecurringSettings(modalId) {
 
     // Get duration settings
     const durationSelect = form.querySelector('select[name="duration_type"]');
-    const durationType = durationSelect ? durationSelect.value : 'indefinite';
+    const durationType = durationSelect ? durationSelect.value : 'count'; // Default to count
     let occurrencesCount = null;
     let endDate = null;
 
     if (durationType === 'count') {
-        occurrencesCount = parseInt(form.querySelector('input[name="occurrences_count"]').value) || null;
+        const occurrencesInput = form.querySelector('input[name="occurrences_count"]');
+        occurrencesCount = occurrencesInput ? parseInt(occurrencesInput.value) || null : null;
     } else if (durationType === 'end_date') {
         const endDateValue = document.getElementById(`recurring_end_date_${modalId}`).value;
         if (endDateValue) {
