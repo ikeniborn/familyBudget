@@ -3905,6 +3905,7 @@ function togglePlanMode(modalId) {
 
     const recurringSettingsDiv = document.getElementById(`recurring-settings-${modalId}`);
     const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
+    const reminderModeLabel = document.getElementById(`reminder-mode-label-${modalId}`);
 
     // Hide all panels first
     if (recurringSettingsDiv) recurringSettingsDiv.classList.add('hidden');
@@ -3912,6 +3913,10 @@ function togglePlanMode(modalId) {
 
     switch (mode) {
         case 'recurring':
+            // Hide reminder radio button for recurring plans (not supported)
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.add('hidden');
+            }
             if (recurringSettingsDiv) {
                 recurringSettingsDiv.classList.remove('hidden');
                 initRecurringFields(modalId);
@@ -3920,6 +3925,10 @@ function togglePlanMode(modalId) {
             break;
 
         case 'reminder':
+            // Show reminder radio button
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.remove('hidden');
+            }
             if (onetimeReminderSection) {
                 onetimeReminderSection.classList.remove('hidden');
                 initReminderCalendarWidget(modalId);
@@ -3928,6 +3937,10 @@ function togglePlanMode(modalId) {
 
         case 'regular':
         default:
+            // Show reminder radio button for regular plans
+            if (reminderModeLabel) {
+                reminderModeLabel.classList.remove('hidden');
+            }
             // Both panels hidden - reset fields
             resetRecurringOnlyFields(modalId);
             resetReminderFields(modalId);

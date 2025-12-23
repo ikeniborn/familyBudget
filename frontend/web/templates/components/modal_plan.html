@@ -114,8 +114,8 @@
                         <span class="label-text font-semibold">Регулярный платеж</span>
                     </label>
 
-                    <!-- Напоминание -->
-                    <label class="label cursor-pointer justify-start gap-2 py-1">
+                    <!-- Напоминание (скрыто для recurring mode) -->
+                    <label id="reminder-mode-label-{{ modal_id }}" class="label cursor-pointer justify-start gap-2 py-1">
                         <input type="radio" name="plan_mode" value="reminder"
                                class="radio radio-sm radio-secondary"
                                onchange="togglePlanMode('{{ modal_id }}')" />
