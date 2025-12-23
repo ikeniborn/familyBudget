@@ -788,6 +788,14 @@ class ChoicesCategoryTree {
                 // Set new choices
                 this.choices.setChoices(choices, 'value', 'label', true);
 
+                // CRITICAL: Clear any auto-selection that Choices.js made
+                // Use setTimeout to ensure Choices.js has finished its internal processing
+                await new Promise(resolve => setTimeout(resolve, 0));
+                this.choices.removeActiveItems();
+                if (this.element) {
+                    this.element.value = '';
+                }
+
                 // Log warning if no categories available (likely offline without cache)
                 if (choices.length === 0) {
                     console.warn(`[ChoicesCategoryTree] No ${newType} categories available - user may be offline without cached data`);
@@ -876,7 +884,9 @@ class ChoicesCategoryTree {
                 this.choices.setChoices(choices, 'value', 'label', true);
 
                 // CRITICAL: Clear any auto-selection that Choices.js made
+                // Use setTimeout to ensure Choices.js has finished its internal processing
                 // This must happen BEFORE we check if we need to restore selection
+                await new Promise(resolve => setTimeout(resolve, 0));
                 this.choices.removeActiveItems();
                 if (this.element) {
                     this.element.value = '';

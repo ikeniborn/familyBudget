@@ -2372,6 +2372,14 @@ class ChoicesCategoryTree {
                 // Set new choices
                 this.choices.setChoices(choices, 'value', 'label', true);
 
+                // CRITICAL: Clear any auto-selection that Choices.js made
+                // Use setTimeout to ensure Choices.js has finished its internal processing
+                await new Promise(resolve => setTimeout(resolve, 0));
+                this.choices.removeActiveItems();
+                if (this.element) {
+                    this.element.value = '';
+                }
+
                 // Log warning if no categories available (likely offline without cache)
                 if (choices.length === 0) {
                     console.warn(`[ChoicesCategoryTree] No ${newType} categories available - user may be offline without cached data`);
@@ -2459,6 +2467,15 @@ class ChoicesCategoryTree {
                 // Set new choices
                 this.choices.setChoices(choices, 'value', 'label', true);
 
+                // CRITICAL: Clear any auto-selection that Choices.js made
+                // Use setTimeout to ensure Choices.js has finished its internal processing
+                // This must happen BEFORE we check if we need to restore selection
+                await new Promise(resolve => setTimeout(resolve, 0));
+                this.choices.removeActiveItems();
+                if (this.element) {
+                    this.element.value = '';
+                }
+
                 // Restore previous selection if category is still available
                 const categoryStillAvailable = previousSelectionId &&
                     this.categoryMap.has(previousSelectionId);
@@ -2468,11 +2485,11 @@ class ChoicesCategoryTree {
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else if (previousSelectionId) {
-                    // Category was selected but not available anymore - reset
-                    if (this.element) {
-                        this.element.value = '';
-                    }
+                    // Category was selected but not available anymore - already cleared above
                     debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
+                } else {
+                    // No previous selection - already cleared above
+                    debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
                 }
 
                 // Log info about filtering
