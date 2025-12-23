@@ -785,12 +785,11 @@ class ChoicesCategoryTree {
                     };
                 });
 
-                // Set new choices
-                this.choices.setChoices(choices, 'value', 'label', true);
+                // Set new choices WITHOUT auto-selecting first item
+                // 4th parameter FALSE prevents Choices.js from auto-selecting
+                this.choices.setChoices(choices, 'value', 'label', false);
 
-                // CRITICAL: Clear any auto-selection that Choices.js made
-                // Use setTimeout to ensure Choices.js has finished its internal processing
-                await new Promise(resolve => setTimeout(resolve, 0));
+                // Clear any existing selection (shouldn't be any, but to be safe)
                 this.choices.removeActiveItems();
                 if (this.element) {
                     this.element.value = '';
@@ -880,12 +879,9 @@ class ChoicesCategoryTree {
                     };
                 });
 
-                // Set new choices
-                this.choices.setChoices(choices, 'value', 'label', true);
-
-                // Wait for Choices.js to finish its internal processing
-                // (Choices.js may auto-select first item in next event loop tick)
-                await new Promise(resolve => setTimeout(resolve, 0));
+                // Set new choices WITHOUT auto-selecting first item
+                // 4th parameter FALSE prevents Choices.js from auto-selecting
+                this.choices.setChoices(choices, 'value', 'label', false);
 
                 // Check if we need to restore previous selection
                 const categoryStillAvailable = previousSelectionId &&
