@@ -257,18 +257,22 @@ When adding new components:
 
 ## Recent Changes
 
-- **2025-12-23**: Improved PWA progress bar fade-out smoothness (v3.3):
-  - **Problem**: Progress bar disappeared too quickly (~650ms total fade-out), making page transitions feel abrupt
-  - **User Feedback**: Requested smoother, more relaxed fade-out animation
-  - **Solution**: Doubled fade-out duration to ~1300ms for more polished UX
+- **2025-12-23**: Improved PWA page transitions smoothness (v3.3):
+  - **Problem #1**: Progress bar disappeared too quickly (~650ms total fade-out), making page transitions feel abrupt
+  - **Problem #2**: View Transitions created flash effect after progress bar (250ms too fast)
+  - **User Feedback**: Requested smoother, more relaxed transitions without flash effect
+  - **Solution**: Synchronized all transition timings at 600ms for cohesive UX
   - **Changes**:
-    - JavaScript `fadeOutDelay`: 200ms → 500ms (shows 100% completion longer)
-    - JavaScript delay call: 200ms → 500ms (synchronized with config)
-    - CSS opacity transition: 0.3s → 0.6s (slower fade)
-    - CSS opacity delay: 0.15s → 0.2s (minor adjustment)
-  - **Files**: `navigationProgress.js:37,240`, `base.html:261`, `templates.yaml:103-121`
-  - **Result**: Smoother, more polished page transitions in Safari PWA without feeling sluggish
-  - **UX Impact**: Progress bar now stays visible and fades gracefully, creating a premium feel
+    - **Progress Bar**: JavaScript `fadeOutDelay`: 200ms → 500ms, CSS opacity: 0.3s → 0.6s
+    - **View Transitions**: fade-out/fade-in: 0.25s → 0.6s (Safari 18+, iOS 18+)
+    - Total transition time: Progress bar (1.3s) + View Transition (1.2s) = ~2.5s smooth flow
+  - **Files**:
+    - `navigationProgress.js:37,240` (progress bar JS)
+    - `base.html:261` (progress bar CSS)
+    - `base.html:366,370` (View Transitions API)
+    - `templates.yaml:103-170` (documentation)
+  - **Result**: Smooth, cohesive page transitions without flash effect
+  - **UX Impact**: Premium feel with synchronized animations throughout navigation flow
 - **2025-12-23**: Fixed category dropdown reset in edit modals on iOS Safari PWA:
   - **Problem**: Selected category periodically resets in edit modals (facts, plan) on iOS Safari 26 PWA
   - **Root Cause**: View Transitions API (commit 792b361e) caused DOM reconstruction during Choices.js initialization
