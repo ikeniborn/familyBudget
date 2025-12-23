@@ -672,6 +672,91 @@ async function loadEditCostCenters(selectedId = null) {
 }
 
 /**
+ * Filter cost centers in edit modal by financial center ID.
+ * Preserves current selection if still available.
+ * @param {number|null} financialCenterId - Financial center ID to filter by (null = show all)
+ */
+async function filterEditCostCenters(financialCenterId) {
+    const select = document.getElementById('edit-cost-center');
+    if (!select) return;
+
+    const currentValue = select.value;
+
+    // Clear all options except the first one ("-- Не указано --")
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    if (!financialCenterId) {
+        // No FC selected - show all cost centers from cache
+        if (isCacheValid(dropdownCache.costCenters)) {
+            const centers = dropdownCache.costCenters.data;
+            centers.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            // Restore previous selection if still available
+            if (currentValue) select.value = currentValue;
+        }
+        return;
+    }
+
+    // Fetch filtered cost centers from API
+    try {
+        const response = await fetch(
+            `/api/v1/cost-centers?limit=1000&financial_center_id=${financialCenterId}`,
+            { credentials: 'include' }
+        );
+        if (response.ok) {
+            const data = await response.json();
+            const filteredCenters = data.cost_centers || [];
+            filteredCenters.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            // Restore previous selection if still available
+            if (currentValue) {
+                const exists = filteredCenters.some(cc => cc.id == currentValue);
+                if (exists) {
+                    select.value = currentValue;
+                } else {
+                    debugLog(`[CostCenter] Selection reset (CC ${currentValue} not available for FC ${financialCenterId})`);
+                }
+            }
+        } else {
+            // Fallback to showing all from cache
+            if (isCacheValid(dropdownCache.costCenters)) {
+                const centers = dropdownCache.costCenters.data;
+                centers.forEach(cc => {
+                    const option = document.createElement('option');
+                    option.value = cc.id;
+                    option.textContent = cc.name;
+                    select.appendChild(option);
+                });
+                if (currentValue) select.value = currentValue;
+            }
+        }
+    } catch (error) {
+        console.error('[CostCenter] Error filtering cost centers:', error);
+        // Fallback to showing all from cache
+        if (isCacheValid(dropdownCache.costCenters)) {
+            const centers = dropdownCache.costCenters.data;
+            centers.forEach(cc => {
+                const option = document.createElement('option');
+                option.value = cc.id;
+                option.textContent = cc.name;
+                select.appendChild(option);
+            });
+            if (currentValue) select.value = currentValue;
+        }
+    }
+}
+
+/**
  * Populate dropdowns with data from pending record when offline
  * @param {Object} data - Pending record data with names and IDs
  */
@@ -898,6 +983,24 @@ async function openEditFromDashboard(factId) {
 
         // Setup category type buttons handlers
         setupEditCategoryTypeButtons();
+
+        // Setup financial center change handler to filter categories
+        const editFcSelect = document.getElementById('edit-financial-center');
+        if (editFcSelect && editCategoryTreeSelect) {
+            // Remove previous listener if exists (prevent duplicates)
+            const newEditFcSelect = editFcSelect.cloneNode(true);
+            editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
+
+            newEditFcSelect.addEventListener('change', async () => {
+                const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
+                // Filter categories by selected FC (will preserve selection if category is still available)
+                if (editCategoryTreeSelect) {
+                    await editCategoryTreeSelect.updateFinancialCenter(fcId);
+                }
+                // Filter cost centers by selected FC
+                await filterEditCostCenters(fcId);
+            });
+        }
 
         // STEP 5: Hide skeleton, show form, enable submit
         if (skeleton) skeleton.classList.add('hidden');

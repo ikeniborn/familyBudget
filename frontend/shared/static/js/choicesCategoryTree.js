@@ -833,10 +833,9 @@ class ChoicesCategoryTree {
             ChoicesCategoryTree._cache.delete(specificCacheKey);
         }
 
-        // Reset selection
-        if (this.element) {
-            this.element.value = '';
-        }
+        // Save current selection to restore it if still available
+        const previousSelection = this.element ? this.element.value : null;
+        const previousSelectionId = previousSelection ? parseInt(previousSelection) : null;
 
         try {
             // Load new categories from API (with offline fallback)
@@ -875,6 +874,22 @@ class ChoicesCategoryTree {
 
                 // Set new choices
                 this.choices.setChoices(choices, 'value', 'label', true);
+
+                // Restore previous selection if category is still available
+                const categoryStillAvailable = previousSelectionId &&
+                    this.categoryMap.has(previousSelectionId);
+
+                if (categoryStillAvailable) {
+                    // Category is available in new filtered list - restore selection
+                    await this.setSelectedCategory(previousSelectionId);
+                    debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
+                } else if (previousSelectionId) {
+                    // Category was selected but not available anymore - reset
+                    if (this.element) {
+                        this.element.value = '';
+                    }
+                    debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
+                }
 
                 // Log info about filtering
                 if (financialCenterId) {
