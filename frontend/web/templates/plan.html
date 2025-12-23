@@ -2350,6 +2350,17 @@ async function showEditModal(factId) {
     }
 
     document.getElementById('edit-modal').showModal();
+
+    // ✅ FIX: Prevent click propagation from modal-box to backdrop (iOS Safari)
+    // This prevents modal-backdrop from catching clicks intended for Choices.js dropdown
+    // Root cause: iOS Safari synthesizes click events after blur, which propagate to modal-backdrop
+    const modalBox = document.querySelector('#edit-modal .modal-box');
+    if (modalBox && !modalBox.dataset.clickHandlerAdded) {
+        modalBox.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        modalBox.dataset.clickHandlerAdded = 'true';
+    }
 }
 
 // Close edit modal
