@@ -399,6 +399,13 @@
             }
         }
 
+        /* Disable View Transitions for dialog elements (modals) */
+        @supports (view-transition-name: root) {
+            dialog, dialog *, dialog::backdrop {
+                view-transition-name: none;
+            }
+        }
+
         /* ========================================
            iOS Safari Performance Optimizations
            ======================================== */

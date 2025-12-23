@@ -257,6 +257,14 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-23**: Fixed category dropdown reset in edit modals on iOS Safari PWA:
+  - **Problem**: Selected category periodically resets in edit modals (facts, plan) on iOS Safari 26 PWA
+  - **Root Cause**: View Transitions API (commit 792b361e) caused DOM reconstruction during Choices.js initialization
+  - **Sequence**: setSelectedCategory() called at ~150ms (inside View Transition fade-in 125-250ms)
+  - **Fix**: Disabled View Transitions for `<dialog>` elements (modals remain instant without animation)
+  - **CSS**: Added `dialog, dialog *, dialog::backdrop { view-transition-name: none; }`
+  - **Files**: `base.html:402-407`
+  - **Result**: Modals open instantly, category selection stable on iOS Safari
 - **2025-12-23**: Category type in edit modals changed to read-only badge:
   - **Problem**: Collapse with arrow and radio buttons created illusion that category type can be changed
   - **Root Cause**: Type cannot be changed after record creation (business rule), but UI suggested otherwise
