@@ -272,13 +272,19 @@ When adding new components:
   - **PWA Manifest**: Updated theme_color from #6366F1 to #4CAF50
   - **Service Worker**: Cache version auto-increments on deployment
   - **Deploy trigger**: tmp/budget-icon-v3.svg added to repository
+  - **Technical Fix**: Fixed gradient rendering issue
+    - **Problem**: ImageMagick was converting SVG gradients to grayscale (black/gray icons)
+    - **Root Cause**: ImageMagick 6.9.12 SVG parser doesn't properly handle linearGradient with CSS style attributes
+    - **Solution**: Switched to `rsvg-convert` (librsvg2-bin) for SVG→PNG conversion
+    - **Result**: Icons now display correct Material Green gradient (#47A64B verified)
   - **Files modified**:
-    - `frontend/web/static/icons/icon.svg` - Source SVG with green gradient
-    - `frontend/web/static/icons/*.png` - Regenerated all icons
+    - `frontend/web/static/icons/icon.svg` - Source SVG with green gradient (attribute-based syntax)
+    - `frontend/web/static/icons/*.png` - Regenerated all icons (now RGB instead of grayscale)
     - `frontend/web/static/icons/splash/*.png` - Generated splash screens
     - `manifest.json` - Updated theme_color
     - `tmp/budget-icon-v3.svg` - Deployment trigger file
-  - **Related**: `scripts/generate_pwa_icons.sh` - Icon generation script (ImageMagick)
+    - `scripts/generate_pwa_icons.sh` - Updated to use rsvg-convert + ImageMagick pipeline
+  - **Dependencies**: Added `librsvg2-bin` (provides rsvg-convert) - required for deployment
   - **Visual consistency**: Green icons now match primary buttons, success badges, income categories throughout the app
 - **2025-12-23**: Added comprehensive backup and restore documentation:
   - **backup-system.md** (400 lines): Technical architecture, component diagrams, performance metrics, security

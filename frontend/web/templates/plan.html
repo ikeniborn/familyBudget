@@ -3180,11 +3180,24 @@ async function createPlan(event) {
     // Get reminder datetime (only relevant if in reminder mode)
     const reminderDatetime = enableReminder ? formData.get('reminder_datetime') : null;
 
+    console.log('[createPlan] Form submitted:', {
+        planMode,
+        isRecurring,
+        enableReminder,
+        amount: formData.get('amount'),
+        article_id: formData.get('article_id'),
+        plan_month: formData.get('plan_month')
+    });
+
     try {
         if (isRecurring) {
             // ===== RECURRING PLAN CREATION =====
+            console.log('[createPlan] Collecting recurring settings for modalId:', modalId);
             const recurringSettings = collectRecurringSettings(modalId);
+            console.log('[createPlan] Collected recurringSettings:', recurringSettings);
+
             if (!recurringSettings) {
+                console.error('[createPlan] collectRecurringSettings() returned null!');
                 showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
                 setSubmitLoading(event.target, false);
                 return;
@@ -3938,7 +3951,7 @@ function resetRecurringOnlyFields(modalId) {
     if (monthdaySelect) monthdaySelect.value = '1';
 
     const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
-    if (durationSelect) durationSelect.value = 'count'; // Default to count (indefinite option removed)
+    if (durationSelect) durationSelect.value = ''; // Reset to empty (no selection)
 
     document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
     document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
@@ -4042,6 +4055,14 @@ function updateDurationFields(modalId) {
     if (!durationSelect) return;
 
     const type = durationSelect.value;
+    console.log('[updateDurationFields] Duration type selected:', type);
+
+    // Hide both fields if no selection (empty string)
+    if (!type || type === '') {
+        if (occurrencesField) occurrencesField.classList.add('hidden');
+        if (endDateField) endDateField.classList.add('hidden');
+        return;
+    }
 
     if (occurrencesField) {
         occurrencesField.classList.toggle('hidden', type !== 'count');
@@ -4140,15 +4161,25 @@ window.updateRecurringPreview = updateRecurringPreview;
  * @returns {Object|null} Recurring settings or null if not recurring
  */
 function collectRecurringSettings(modalId) {
+    console.log('[collectRecurringSettings] Called with modalId:', modalId);
+
     const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
+    console.log('[collectRecurringSettings] Selected mode radio:', selectedMode);
+    console.log('[collectRecurringSettings] Mode value:', selectedMode?.value);
+
     if (!selectedMode || selectedMode.value !== 'recurring') {
+        console.warn('[collectRecurringSettings] Not in recurring mode, returning null');
         return null;
     }
 
     const form = document.getElementById(`form_${modalId}`);
-    if (!form) return null;
+    if (!form) {
+        console.error('[collectRecurringSettings] Form not found!');
+        return null;
+    }
 
     const frequencyType = form.querySelector('select[name="frequency_type"]').value;
+    console.log('[collectRecurringSettings] Frequency type:', frequencyType);
 
     // Get frequency value based on type
     let frequencyValue = null;
@@ -4157,30 +4188,47 @@ function collectRecurringSettings(modalId) {
     } else if (frequencyType === 'monthly' || frequencyType === 'quarterly') {
         frequencyValue = parseInt(form.querySelector('select[name="frequency_value_monthday"]').value) || 1;
     }
+    console.log('[collectRecurringSettings] Frequency value:', frequencyValue);
 
     // Get duration settings
     const durationSelect = form.querySelector('select[name="duration_type"]');
     const durationType = durationSelect ? durationSelect.value : 'count'; // Default to count
+    console.log('[collectRecurringSettings] Duration type:', durationType);
+
     let occurrencesCount = null;
     let endDate = null;
 
     if (durationType === 'count') {
         const occurrencesInput = form.querySelector('input[name="occurrences_count"]');
         occurrencesCount = occurrencesInput ? parseInt(occurrencesInput.value) || null : null;
+        console.log('[collectRecurringSettings] Occurrences count:', occurrencesCount);
     } else if (durationType === 'end_date') {
         const endDateValue = document.getElementById(`recurring_end_date_${modalId}`).value;
         if (endDateValue) {
             // Convert DD.MM.YYYY to YYYY-MM-DD
             endDate = BudgetShared.DateFormatter.formatForAPI(endDateValue);
         }
+        console.log('[collectRecurringSettings] End date:', endDate);
+    } else {
+        console.warn('[collectRecurringSettings] Unknown duration type, no limit set');
     }
 
-    return {
+    // Validate that at least one duration limit is set
+    if (!occurrencesCount && !endDate) {
+        console.error('[collectRecurringSettings] Neither occurrences_count nor end_date is set!');
+        console.error('[collectRecurringSettings] This would create an unbounded recurring plan.');
+        return null;
+    }
+
+    const result = {
         frequency_type: frequencyType,
         frequency_value: frequencyValue,
         occurrences_count: occurrencesCount,
         end_date: endDate
     };
+    console.log('[collectRecurringSettings] Returning:', result);
+
+    return result;
 }
 window.collectRecurringSettings = collectRecurringSettings;
 
