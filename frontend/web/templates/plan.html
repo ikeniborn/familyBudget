@@ -344,6 +344,25 @@
 <!-- Confirmation Dialog (from macro) -->
 {{ confirm_modal() }}
 
+<!-- Recurring Delete Dialog -->
+<dialog id="recurring-delete-modal" class="modal">
+    <div class="modal-box max-w-lg">
+        <h3 class="font-bold text-lg mb-4">🔄 Удаление регламентной записи</h3>
+        <p class="mb-6">
+            Эта запись является частью регламентного платежа.<br>
+            Что вы хотите удалить?
+        </p>
+        <div class="modal-action">
+            <button type="button" class="btn btn-ghost" onclick="recurringDeleteResolve(null)">Отмена</button>
+            <button type="button" class="btn btn-primary" onclick="recurringDeleteResolve('single')">Только эту запись</button>
+            <button type="button" class="btn btn-error" onclick="recurringDeleteResolve('all')">Все регламентные</button>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button onclick="recurringDeleteResolve(null)">close</button>
+    </form>
+</dialog>
+
 {% endblock %}
 
 {% block extra_styles %}
@@ -2564,49 +2583,13 @@ async function deleteFromEditModal() {
     const factId = document.getElementById('edit-id').value;
     if (!factId) return;
 
-    // Show confirm dialog while edit modal is still open
-    const confirmed = await showConfirmDialog(
-        'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
-        '🗑️ Удаление транзакции'
-    );
-
-    if (!confirmed) {
-        return; // User cancelled - stay in edit modal
-    }
-
-    // Close edit modal and perform deletion
-    closeEditModal();
-
     const parsedFactId = parseInt(factId);
 
-    // Prevent multiple simultaneous deletes
-    if (deletingFactIds.has(parsedFactId)) {
-        console.warn('Delete already in progress for fact:', parsedFactId);
-        return;
-    }
+    // Close edit modal before showing dialog
+    closeEditModal();
 
-    deletingFactIds.add(parsedFactId);
-
-    try {
-        const response = await fetch(`/api/v1/facts/${parsedFactId}`, {
-            method: 'DELETE',
-            credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
-        }
-
-        deletingFactIds.delete(parsedFactId);
-        await loadFacts();
-        showToast('Транзакция успешно удалена', 'success');
-    } catch (error) {
-        console.error('Error deleting fact:', error);
-        deletingFactIds.delete(parsedFactId);
-        await loadFacts();
-        showToast('Ошибка: ' + (error?.message || String(error)), 'error');
-    }
+    // Use main deleteFact() which handles both regular and recurring facts
+    await deleteFact(parsedFactId);
 }
 
 // Update fact
@@ -2776,6 +2759,43 @@ async function updateFact(event) {
     }
 }
 
+// Recurring delete dialog
+let recurringDeleteResolveCallback = null;
+
+/**
+ * Show recurring delete dialog to ask user whether to delete single or all recurring facts
+ * @returns {Promise<string|null>} - 'single', 'all', or null (cancelled)
+ */
+function showRecurringDeleteDialog() {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('recurring-delete-modal');
+        if (!modal) {
+            console.error('Recurring delete modal not found');
+            resolve(null);
+            return;
+        }
+
+        recurringDeleteResolveCallback = resolve;
+        modal.showModal();
+    });
+}
+
+/**
+ * Resolve recurring delete dialog with user's choice
+ * @param {string|null} choice - 'single', 'all', or null (cancelled)
+ */
+function recurringDeleteResolve(choice) {
+    const modal = document.getElementById('recurring-delete-modal');
+    if (modal) {
+        modal.close();
+    }
+
+    if (recurringDeleteResolveCallback) {
+        recurringDeleteResolveCallback(choice);
+        recurringDeleteResolveCallback = null;
+    }
+}
+
 // Delete single fact
 async function deleteFact(factId) {
     // Prevent multiple simultaneous deletes of the same fact (race condition protection)
@@ -2784,13 +2804,30 @@ async function deleteFact(factId) {
         return;
     }
 
-    const confirmed = await showConfirmDialog(
-        'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
-        '🗑️ Удаление транзакции'
-    );
+    // Find fact in factsData to check if it's recurring
+    const fact = factsData.find(f => f.id === factId);
+    let deleteMode = 'single'; // default: delete just this fact
 
-    if (!confirmed) {
-        return;
+    if (fact && fact.recurring_plan_id) {
+        // This is a recurring fact - ask user what to delete
+        const choice = await showRecurringDeleteDialog();
+
+        if (!choice) {
+            // User cancelled
+            return;
+        }
+
+        deleteMode = choice; // 'single' or 'all'
+    } else {
+        // Regular fact - show standard confirmation
+        const confirmed = await showConfirmDialog(
+            'Вы уверены, что хотите удалить эту транзакцию? Это действие необратимо.',
+            '🗑️ Удаление транзакции'
+        );
+
+        if (!confirmed) {
+            return;
+        }
     }
 
     // Find button by data-fact-id attribute
@@ -2806,21 +2843,51 @@ async function deleteFact(factId) {
     }
 
     try {
-        const response = await fetch(`/api/v1/facts/${factId}`, {
-            method: 'DELETE'
-        });
+        if (deleteMode === 'all' && fact && fact.recurring_plan_id) {
+            // Delete all facts with same recurring_plan_id
+            const recurringPlanId = fact.recurring_plan_id;
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            // Find all fact IDs with this recurring_plan_id
+            const factIdsToDelete = factsData
+                .filter(f => f.recurring_plan_id === recurringPlanId)
+                .map(f => f.id);
+
+            console.log(`Deleting ${factIdsToDelete.length} recurring facts with recurring_plan_id=${recurringPlanId}`);
+
+            // Use batch delete endpoint
+            const response = await fetch('/api/v1/facts/batch-delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(factIdsToDelete)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            // Reload and show success
+            deletingFactIds.delete(factId);
+            await loadFacts();
+            showToast(`Удалено ${factIdsToDelete.length} регламентных записей`, 'success');
+        } else {
+            // Delete single fact
+            const response = await fetch(`/api/v1/facts/${factId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            // Reload BEFORE showing toast (non-blocking)
+            deletingFactIds.delete(factId);
+            await loadFacts();
+
+            // Non-blocking toast notification
+            showToast('Факт успешно удален', 'success');
         }
-
-        // Reload BEFORE showing toast (non-blocking)
-        deletingFactIds.delete(factId);
-        await loadFacts();
-
-        // Non-blocking toast notification
-        showToast('Факт успешно удален', 'success');
     } catch (error) {
         console.error('Error deleting fact:', error);
         const errorMessage = error?.message || String(error);
