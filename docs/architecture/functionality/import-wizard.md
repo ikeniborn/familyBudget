@@ -251,7 +251,9 @@ mapping2 = await MappingService.save_mapping(
 
 **Files**: `frontend/web/templates/admin_import.html:390,1081,1349,1613,1679`
 
-**Follow-up Fix (2025-12-23)**: Initial implementation using `.form-control.mb-4` selector was too generic and could select wrong element. Fixed by adding unique ID to container.
+**Follow-up Fix #1 (2025-12-23)**: Initial implementation using `.form-control.mb-4` selector was too generic and could select wrong element. Fixed by adding unique ID to container.
+
+**Follow-up Fix #2 (2025-12-23)**: Google Sheets form disappeared when selecting it after clicking "Начать заново". Root cause: `resetWorkflow()` set `style.display` directly on forms, conflicting with container-based visibility management. Fixed by removing direct form display manipulation.
 
 ---
 
