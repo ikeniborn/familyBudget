@@ -402,6 +402,7 @@ let planCategoryTreeSelect = null;
 let editCategoryTreeSelect = null;
 let editDateCalendar = null;
 let editReminderCalendar = null;
+let editTemplateEndDateCalendar = null;  // Calendar for recurring plan template end date
 let allCategories = [];  // Cache for categories
 let remindersMap = new Map();  // Cache for reminders (fact_id -> reminder)
 let currentEditingRecordType = null;  // 'fact' or 'plan'
@@ -1903,6 +1904,56 @@ async function deletePendingRecord(itemId) {
     }
 }
 window.deletePendingRecord = deletePendingRecord;
+
+// Handle edit scope change for recurring plans (single record vs template)
+function handleEditScopeChange(scope) {
+    const templateFieldsDiv = document.getElementById('edit-template-fields');
+    const dateContainer = document.getElementById('edit-date-container');
+    const categoryTypeContainer = document.getElementById('edit-category-type-container');
+    const articleContainer = document.getElementById('edit-article-container');
+    const financialCenterContainer = document.getElementById('edit-financial-center-container');
+    const dateInput = document.getElementById('edit-date');
+
+    if (scope === 'template') {
+        // Показать поля редактирования шаблона
+        if (templateFieldsDiv) templateFieldsDiv.classList.remove('hidden');
+        // Скрыть поля которые нельзя менять для шаблона
+        if (dateContainer) dateContainer.classList.add('hidden');
+        if (categoryTypeContainer) categoryTypeContainer.classList.add('hidden');
+        if (articleContainer) articleContainer.classList.add('hidden');
+        if (financialCenterContainer) financialCenterContainer.classList.add('hidden');
+        // Убрать required с даты (иначе форма не отправится)
+        if (dateInput) dateInput.removeAttribute('required');
+
+        // Initialize CalendarWidget for template end date
+        const endDateInput = document.getElementById('edit-template-end-date');
+        if (endDateInput && !editTemplateEndDateCalendar) {
+            editTemplateEndDateCalendar = new BudgetShared.CalendarWidget({
+                mode: 'single',
+                inputElement: endDateInput,
+                onSelect: (date) => {
+                    debugLog('Выбрана дата окончания шаблона:', date);
+                }
+            });
+        }
+    } else {
+        // Показать все стандартные поля
+        if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
+        if (dateContainer) dateContainer.classList.remove('hidden');
+        if (categoryTypeContainer) categoryTypeContainer.classList.remove('hidden');
+        if (articleContainer) articleContainer.classList.remove('hidden');
+        if (financialCenterContainer) financialCenterContainer.classList.remove('hidden');
+        // Вернуть required на дату
+        if (dateInput) dateInput.setAttribute('required', '');
+
+        // Destroy template end date calendar
+        if (editTemplateEndDateCalendar) {
+            editTemplateEndDateCalendar.destroy();
+            editTemplateEndDateCalendar = null;
+        }
+    }
+}
+window.handleEditScopeChange = handleEditScopeChange;
 
 // ==================== End Edit Modal Functions ====================
 
