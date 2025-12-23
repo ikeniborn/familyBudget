@@ -139,12 +139,27 @@ module:
         - path: "/vapid-key"
           methods: [GET]
           description: "Get VAPID public key"
+          auth_required: false  # PUBLIC ENDPOINT
+          security_note: |
+            VAPID public key is publicly accessible by design (like SSL certificates).
+            No authentication required. Only returns public key, never exposes private key.
+            Safari iOS requests this endpoint BEFORE user login when granting notification permission.
+          implementation: "backend/app/api/v1/endpoints/push.py:54-82"
         - path: "/subscribe"
           methods: [POST]
           description: "Subscribe to push notifications"
+          auth_required: true  # PROTECTED ENDPOINT
+          security_note: |
+            Subscription requires authentication to associate push endpoint with specific user.
+            User must be logged in to subscribe.
+          implementation: "backend/app/api/v1/endpoints/push.py:85-170"
         - path: "/unsubscribe"
           methods: [POST]
           description: "Unsubscribe from push notifications"
+          auth_required: true  # PROTECTED ENDPOINT
+          security_note: |
+            Unsubscription requires authentication to prevent unauthorized removal of subscriptions.
+          implementation: "backend/app/api/v1/endpoints/push.py:173-221"
 
   # ---------------------------------------------------------------------------
   # NOTIFICATION TYPES
