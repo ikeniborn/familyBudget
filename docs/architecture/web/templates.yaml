@@ -149,14 +149,14 @@ templates:
 
     view_transitions:
       description: "Native browser page transition animations (Safari 18+, iOS 18+)"
-      version: "Enhanced in v3.3"
+      version: "Enhanced in v3.3.1"
       browser_support: "Safari 18+, iOS 18+, Chrome 111+, Edge 111+"
       feature_detection: "@supports (view-transition-name: root)"
       css_location: "base.html:354-400"
       timing:
-        fade_out: "600ms ease-out (increased from 250ms in v3.3)"
-        fade_in: "600ms ease-in (increased from 250ms in v3.3)"
-        total_transition: "~1200ms (page fade-out + fade-in)"
+        fade_out: "1100ms ease-out (increased from 250ms → 600ms → 1100ms)"
+        fade_in: "1100ms ease-in (increased from 250ms → 600ms → 1100ms)"
+        total_transition: "~2200ms (page fade-out + fade-in)"
       behavior:
         - "Automatic cross-document navigation transitions"
         - "Smooth fade effect between old and new page"
@@ -164,10 +164,10 @@ templates:
         - "Respects prefers-reduced-motion (disabled when enabled)"
         - "Progressive enhancement (graceful degradation for older browsers)"
       sync_with_progress_bar:
-        description: "View Transitions synchronized with progress bar fade-out"
+        description: "View Transitions optimized for relaxed, premium UX"
         progress_bar_fade: "600ms"
-        view_transition_fade: "600ms"
-        combined_ux: "Smooth, cohesive page transition without flash effect"
+        view_transition_fade: "1100ms"
+        combined_ux: "Extra smooth page transitions - ideal for PWA premium feel"
 
     mobile_menu:
       id: "mobile-menu-dropdown"
