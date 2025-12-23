@@ -1705,6 +1705,7 @@ class ChoicesCategoryTree {
         this.categories = [];
         this.categoryMap = new Map();  // id -> category
         this.childrenMap = new Map();  // parent_id -> [child_ids]
+        this._initPromise = null;  // Promise resolver for waitForReady()
 
         this.init();
     }
@@ -1872,6 +1873,39 @@ class ChoicesCategoryTree {
                 this.childrenMap.get(category.parent_id).push(category.id);
             }
         }
+
+        // Resolve initialization promise (for waitForReady() method)
+        if (this._initPromise) {
+            this._initPromise();
+            this._initPromise = null;
+        }
+    }
+
+    /**
+     * Wait for the category tree to be fully initialized.
+     * This method allows callers to wait for initialization to complete
+     * without polling with setInterval. It returns a Promise that resolves
+     * when categoryMap is populated and Choices.js is ready.
+     *
+     * Usage:
+     *   const tree = new ChoicesCategoryTree('#selector', options);
+     *   await tree.waitForReady();
+     *   await tree.setSelectedCategory(categoryId);
+     *
+     * @returns {Promise<void>} Resolves when initialization is complete
+     */
+    async waitForReady() {
+        // If already initialized, return immediately
+        if (this.categoryMap && this.categoryMap.size > 0 &&
+            this.choices && this.choices._store?.choices.length > 0) {
+            return Promise.resolve();
+        }
+
+        // Otherwise, create and return a Promise that will be resolved
+        // when buildHierarchyMaps() completes
+        return new Promise((resolve) => {
+            this._initPromise = resolve;
+        });
     }
 
     /**
@@ -2457,12 +2491,19 @@ class ChoicesCategoryTree {
     }
 
     /**
-     * Set selected category.
+     * Set selected category with retry logic for async category loading.
      *
      * @param {number} categoryId - Category ID to select
+     * @param {number} maxRetries - Maximum retry attempts (default: 3)
+     * @param {number} retryDelay - Delay between retries in ms (default: 100)
      */
-    async setSelectedCategory(categoryId) {
-        if (this.choices) {
+    async setSelectedCategory(categoryId, maxRetries = 3, retryDelay = 100) {
+        if (!this.choices) {
+            console.error('[ChoicesCategoryTree] setSelectedCategory failed - no choices instance');
+            return;
+        }
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
             // Get all available choices from _store (not _currentState)
             const availableChoices = this.choices._store?.choices || [];
 
@@ -2475,12 +2516,17 @@ class ChoicesCategoryTree {
                 const valueToSet = targetChoice.value;
 
                 this.choices.setChoiceByValue(valueToSet);
-            } else {
-                console.warn('[ChoicesCategoryTree] Category not found in choices:', categoryId);
+                return; // Success - exit
             }
-        } else {
-            console.error('[ChoicesCategoryTree] setSelectedCategory failed - no choices instance');
+
+            // Category not found yet - wait and retry (unless last attempt)
+            if (attempt < maxRetries - 1) {
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
         }
+
+        // All retries failed
+        console.warn('[ChoicesCategoryTree] Category not found in choices after', maxRetries, 'attempts:', categoryId);
     }
 }
 

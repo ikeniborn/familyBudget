@@ -284,13 +284,19 @@ When adding new components:
   - **CSS**: Added `dialog, dialog *, dialog::backdrop { view-transition-name: none; }`
   - **Files**: `base.html:402-407`
   - **Result**: Modals open instantly, category selection stable on iOS Safari
-- **2025-12-23**: Fixed category dropdown closing on first click after native select (iOS Safari):
-  - **Problem**: Switching from native select (financial center/cost center) to Choices.js category dropdown requires TWO clicks on iOS Safari
-  - **Root Cause**: iOS Safari synthesizes click event that propagates to modal-backdrop `<form method="dialog">`, causing dropdown to close immediately
-  - **Sequence**: touchstart → blur → synthesized click → backdrop catches click → modal.close() → dropdown closed
-  - **Fix**: Added `stopPropagation()` event handler on modal-box to prevent clicks from reaching backdrop
-  - **Files**: `facts.html:1594-1603` (showEditModal), `plan.html:2354-2363` (showEditModal)
-  - **Result**: Category dropdown opens on FIRST click after switching from native selects
+- **2025-12-23**: Fixed modal closing when clicking Choices.js dropdown after switching from native select (iOS Safari):
+  - **Problem**: Modal closes on first click when trying to open category dropdown after using financial center/cost center selects
+  - **Root Cause**: `<form method="dialog">` has built-in HTMLDialogElement behavior that auto-closes dialog on submit
+  - **Why stopPropagation failed**: form method="dialog" submit → dialog.close() is built into browser DOM API, NOT event propagation
+  - **Previous Failed Fix**: Commit 448aada9 tried `stopPropagation()` - didn't work because it can't prevent DOM API behavior
+  - **Sequence**: iOS Safari synthesizes click after blur → click triggers form submit → browser calls dialog.close() → modal closes
+  - **Fix**: Replaced `<form method="dialog">` with `<div class="modal-backdrop">` + explicit JavaScript handler checking `e.target === modal`
+  - **Files**:
+    - `modal_edit_fact.html:101` (removed form method="dialog")
+    - `modal_edit_plan.html:227` (removed form method="dialog")
+    - `facts.html:1592-1606` (explicit backdrop handler)
+    - `plan.html:2352-2366` (explicit backdrop handler)
+  - **Result**: Modal stays open during Choices.js interaction, closes only on backdrop click
 - **2025-12-23**: Category type in edit modals changed to read-only badge:
   - **Problem**: Collapse with arrow and radio buttons created illusion that category type can be changed
   - **Root Cause**: Type cannot be changed after record creation (business rule), but UI suggested otherwise

@@ -1589,17 +1589,20 @@ async function showEditModal(factId) {
         });
     }
 
-    document.getElementById('edit-modal').showModal();
+    const modal = document.getElementById('edit-modal');
+    modal.showModal();
 
-    // ✅ FIX: Prevent click propagation from modal-box to backdrop (iOS Safari)
-    // This prevents modal-backdrop from catching clicks intended for Choices.js dropdown
-    // Root cause: iOS Safari synthesizes click events after blur, which propagate to modal-backdrop
-    const modalBox = document.querySelector('#edit-modal .modal-box');
-    if (modalBox && !modalBox.dataset.clickHandlerAdded) {
-        modalBox.addEventListener('click', (e) => {
-            e.stopPropagation();
+    // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
+    // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
+    if (!modal.dataset.backdropHandlerAdded) {
+        modal.addEventListener('click', (e) => {
+            // Close only if click is directly on dialog (backdrop area)
+            // NOT if click is on modal-box or its children
+            if (e.target === modal) {
+                modal.close();
+            }
         });
-        modalBox.dataset.clickHandlerAdded = 'true';
+        modal.dataset.backdropHandlerAdded = 'true';
     }
 }
 

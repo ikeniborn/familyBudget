@@ -333,7 +333,6 @@
     function transitionTo(newState) {
         if (state === newState) return;
 
-        console.log('[TelegramWidget] State:', state, '->', newState);
         state = newState;
 
         // Update UI based on state
@@ -365,8 +364,6 @@
      * Wait for iframe to fully load before hiding placeholder
      */
     function waitForIframeLoad(iframe) {
-        console.log('[TelegramWidget] Iframe detected, waiting for load event...');
-
         // If iframe is already loaded (cached), transition immediately
         // Check if iframe has content by trying to access its dimensions
         if (iframe.contentWindow) {
@@ -374,7 +371,7 @@
                 // iframe загружен, если его размеры > 0
                 var rect = iframe.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
-                    console.log('[TelegramWidget] Iframe already has dimensions, checking load state');
+                    // Iframe already has dimensions, checking load state
                 }
             } catch (e) {
                 // Cross-origin, можем только ждать load event
@@ -383,7 +380,6 @@
 
         // Listen for load event
         iframe.addEventListener('load', function onLoad() {
-            console.log('[TelegramWidget] Iframe load event fired');
             iframe.removeEventListener('load', onLoad);
             transitionTo('success');
             cleanup();
@@ -395,7 +391,6 @@
             if (state === 'loading') {
                 var rect = iframe.getBoundingClientRect();
                 if (rect.width > 0 && rect.height > 0) {
-                    console.log('[TelegramWidget] Iframe visible after 5s fallback, transitioning to success');
                     transitionTo('success');
                     cleanup();
                 }
@@ -482,7 +477,6 @@
         // Throttle retries
         var now = Date.now();
         if (now - lastRetryTime < RETRY_COOLDOWN_MS) {
-            console.log('[TelegramWidget] Retry throttled');
             return;
         }
 
@@ -496,8 +490,6 @@
 
         lastRetryTime = now;
         retryCount++;
-
-        console.log('[TelegramWidget] Retry attempt', retryCount, 'of', MAX_RETRIES);
 
         // Transition to loading state
         transitionTo('loading');
