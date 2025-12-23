@@ -7,11 +7,14 @@ Facts represent actual income/expense transactions.
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.app.utils.timezone import now_local
+
+if TYPE_CHECKING:
+    from backend.app.schemas.recurring_plan import RecurringPlanResponse
 
 
 class FactCreate(BaseModel):
@@ -433,6 +436,17 @@ class FactResponse(BaseModel):
         examples=[None, 1, 5]
     )
 
+    recurring_plan: Optional['RecurringPlanResponse'] = Field(
+        default=None,
+        description="Full recurring plan details when recurring_plan_id is set (null for manual entries)",
+        examples=[None, {
+            "id": 1,
+            "frequency_display": "Ежемесячно",
+            "next_generation_date": "2026-01-15",
+            "is_active": True
+        }]
+    )
+
     # Audit fields
     created_at: datetime = Field(
         description="Record creation timestamp",
@@ -464,6 +478,7 @@ class FactResponse(BaseModel):
                 "record_type": "fact",
                 "is_offline_sync": False,
                 "recurring_plan_id": None,
+                "recurring_plan": None,
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z"
             }
