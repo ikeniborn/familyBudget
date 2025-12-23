@@ -491,8 +491,9 @@ class ChoicesCategoryTree {
             },
         });
 
-        // Add choices
-        this.choices.setChoices(choices, 'value', 'label', true);
+        // Add choices WITHOUT auto-selecting first item
+        // 4th parameter FALSE prevents Choices.js from auto-selecting
+        this.choices.setChoices(choices, 'value', 'label', false);
 
         // Listen for change events
         this.element.addEventListener('change', (event) => {
