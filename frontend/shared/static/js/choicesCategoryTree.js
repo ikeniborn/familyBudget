@@ -842,7 +842,10 @@ class ChoicesCategoryTree {
         }
 
         // Save current selection to restore it if still available
-        const previousSelection = this.element ? this.element.value : null;
+        // CRITICAL: Only save selection if it's a real user selection, not a phantom value
+        // Check if there are actually active items in Choices.js (user made explicit selection)
+        const hasActiveSelection = this.choices && this.choices.getValue(true).length > 0;
+        const previousSelection = hasActiveSelection && this.element ? this.element.value : null;
         const previousSelectionId = previousSelection ? parseInt(previousSelection) : null;
 
         try {
