@@ -74,6 +74,17 @@
                 </div>
             </div>
 
+            <!-- Skeleton Loading State (hidden by default) -->
+            <div id="edit-loading-skeleton" class="hidden space-y-2">
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-20 w-full"></div>
+            </div>
+
+            <!-- Actual Form Fields (wrapped in div for toggling) -->
+            <div id="edit-form-fields">
+
             <!-- Сумма -->
             <div class="form-control">
                 <label class="label py-1">
@@ -185,6 +196,8 @@
                     Уведомление придет в Telegram и как push в браузер
                 </p>
             </div>
+
+            </div> <!-- End of edit-form-fields -->
 
             <!-- Кнопки -->
             <div class="modal-action mt-3 flex flex-row gap-2">

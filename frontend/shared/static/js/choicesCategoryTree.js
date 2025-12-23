@@ -156,6 +156,7 @@ class ChoicesCategoryTree {
         this.categories = [];
         this.categoryMap = new Map();  // id -> category
         this.childrenMap = new Map();  // parent_id -> [child_ids]
+        this._initPromise = null;  // Promise resolver for waitForReady()
 
         this.init();
     }
@@ -323,6 +324,39 @@ class ChoicesCategoryTree {
                 this.childrenMap.get(category.parent_id).push(category.id);
             }
         }
+
+        // Resolve initialization promise (for waitForReady() method)
+        if (this._initPromise) {
+            this._initPromise();
+            this._initPromise = null;
+        }
+    }
+
+    /**
+     * Wait for the category tree to be fully initialized.
+     * This method allows callers to wait for initialization to complete
+     * without polling with setInterval. It returns a Promise that resolves
+     * when categoryMap is populated and Choices.js is ready.
+     *
+     * Usage:
+     *   const tree = new ChoicesCategoryTree('#selector', options);
+     *   await tree.waitForReady();
+     *   await tree.setSelectedCategory(categoryId);
+     *
+     * @returns {Promise<void>} Resolves when initialization is complete
+     */
+    async waitForReady() {
+        // If already initialized, return immediately
+        if (this.categoryMap && this.categoryMap.size > 0 &&
+            this.choices && this.choices._store?.choices.length > 0) {
+            return Promise.resolve();
+        }
+
+        // Otherwise, create and return a Promise that will be resolved
+        // when buildHierarchyMaps() completes
+        return new Promise((resolve) => {
+            this._initPromise = resolve;
+        });
     }
 
     /**

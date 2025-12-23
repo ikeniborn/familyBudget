@@ -408,6 +408,23 @@ let currentEditingPendingId = null;  // IndexedDB ID for pending records (null i
 
 // allCostCenters is declared in transfer.js - DO NOT redeclare here to avoid conflicts
 
+// Cache for dropdown data (5 minutes TTL) - used by edit modal
+const dropdownCache = {
+    categories: { data: null, timestamp: 0, ttl: 300000 },  // 5 min
+    financialCenters: { data: null, timestamp: 0, ttl: 300000 },
+    costCenters: { data: null, timestamp: 0, ttl: 300000 }
+};
+
+/**
+ * Check if cached data is still valid
+ * @param {Object} cacheEntry - Cache entry with data, timestamp, and ttl
+ * @returns {boolean} True if cache is valid
+ */
+function isCacheValid(cacheEntry) {
+    return cacheEntry.data !== null &&
+           (Date.now() - cacheEntry.timestamp) < cacheEntry.ttl;
+}
+
 // Открыть модальное окно фактического перевода
 function openFactTransferModal() {
     // Set transfer type to 'fact'
@@ -474,17 +491,30 @@ function setEditModalMode(recordType) {
 }
 
 /**
- * Load categories for edit modal (cached)
+ * Load categories for edit modal (with TTL cache)
  */
 async function loadCategoriesForEdit() {
-    if (allCategories.length > 0) return allCategories;
+    // Check cache first
+    if (isCacheValid(dropdownCache.categories)) {
+        allCategories = dropdownCache.categories.data;
+        console.log('[Cache] Using cached categories:', allCategories.length);
+        return allCategories;
+    }
 
+    // Load from API
     try {
-        const response = await fetch('/api/v1/articles', { credentials: 'include' });
+        const response = await fetch('/api/v1/articles?sort_by=usage_count&limit=1000', {
+            credentials: 'include'
+        });
         if (response.ok) {
             const data = await response.json();
             // API returns { articles: [...], total: N }
             allCategories = data.articles || [];
+
+            // Update cache
+            dropdownCache.categories.data = allCategories;
+            dropdownCache.categories.timestamp = Date.now();
+            console.log('[Cache] Cached categories:', allCategories.length);
         }
     } catch (error) {
         console.error('Error loading categories:', error);
@@ -520,70 +550,122 @@ async function loadRemindersForEdit(factIds) {
 }
 
 /**
- * Load financial centers for edit modal
+ * Populate financial centers dropdown
+ * @param {HTMLElement} select - Select element
+ * @param {Array} centers - Financial centers data
+ * @param {number|null} selectedId - ID to pre-select
+ */
+function populateFinancialCentersDropdown(select, centers, selectedId) {
+    // Clear options except first
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Add options
+    centers.forEach(fc => {
+        const option = document.createElement('option');
+        option.value = fc.id;
+        option.textContent = fc.name;
+        if (selectedId && fc.id === selectedId) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+/**
+ * Load financial centers for edit modal (with TTL cache)
  * @param {number|null} selectedId - ID to pre-select
  */
 async function loadEditFinancialCenters(selectedId = null) {
     const select = document.getElementById('edit-financial-center');
     if (!select) return;
 
+    // Check cache
+    if (isCacheValid(dropdownCache.financialCenters)) {
+        const centers = dropdownCache.financialCenters.data;
+        populateFinancialCentersDropdown(select, centers, selectedId);
+        console.log('[Cache] Using cached financial centers:', centers.length);
+        return;
+    }
+
+    // Load from API
     try {
-        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', { credentials: 'include' });
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', {
+            credentials: 'include'
+        });
         if (!response.ok) return;
 
         const data = await response.json();
         const centers = data.financial_centers || [];
 
-        // Clear options except first
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
+        // Update cache
+        dropdownCache.financialCenters.data = centers;
+        dropdownCache.financialCenters.timestamp = Date.now();
+        console.log('[Cache] Cached financial centers:', centers.length);
 
-        // Add options
-        centers.forEach(fc => {
-            const option = document.createElement('option');
-            option.value = fc.id;
-            option.textContent = fc.name;
-            if (selectedId && fc.id === selectedId) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
+        populateFinancialCentersDropdown(select, centers, selectedId);
     } catch (error) {
         console.error('Error loading financial centers for edit:', error);
     }
 }
 
 /**
- * Load cost centers for edit modal
+ * Populate cost centers dropdown
+ * @param {HTMLElement} select - Select element
+ * @param {Array} centers - Cost centers data
+ * @param {number|null} selectedId - ID to pre-select
+ */
+function populateCostCentersDropdown(select, centers, selectedId) {
+    // Clear options except first
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Add options
+    centers.forEach(cc => {
+        const option = document.createElement('option');
+        option.value = cc.id;
+        option.textContent = cc.name;
+        if (selectedId && cc.id === selectedId) {
+            option.selected = true;
+        }
+        select.appendChild(option);
+    });
+}
+
+/**
+ * Load cost centers for edit modal (with TTL cache)
  * @param {number|null} selectedId - ID to pre-select
  */
 async function loadEditCostCenters(selectedId = null) {
     const select = document.getElementById('edit-cost-center');
     if (!select) return;
 
+    // Check cache
+    if (isCacheValid(dropdownCache.costCenters)) {
+        const centers = dropdownCache.costCenters.data;
+        populateCostCentersDropdown(select, centers, selectedId);
+        console.log('[Cache] Using cached cost centers:', centers.length);
+        return;
+    }
+
+    // Load from API
     try {
-        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', { credentials: 'include' });
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', {
+            credentials: 'include'
+        });
         if (!response.ok) return;
 
         const data = await response.json();
         const centers = data.cost_centers || [];
 
-        // Clear options except first
-        while (select.options.length > 1) {
-            select.remove(1);
-        }
+        // Update cache
+        dropdownCache.costCenters.data = centers;
+        dropdownCache.costCenters.timestamp = Date.now();
+        console.log('[Cache] Cached cost centers:', centers.length);
 
-        // Add options
-        centers.forEach(cc => {
-            const option = document.createElement('option');
-            option.value = cc.id;
-            option.textContent = cc.name;
-            if (selectedId && cc.id === selectedId) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        });
+        populateCostCentersDropdown(select, centers, selectedId);
     } catch (error) {
         console.error('Error loading cost centers for edit:', error);
     }
@@ -636,15 +718,37 @@ function populateOfflineDropdowns(data) {
  * @param {number} factId - The fact ID to edit
  */
 async function openEditFromDashboard(factId) {
+    // START PERFORMANCE MEASUREMENT
+    const perfId = `modal-open-${factId}-${Date.now()}`;
+    performance.mark(`${perfId}-start`);
+
     try {
-        // Fetch fact data from API
+        // STEP 1: Show modal immediately with skeleton
+        const modal = document.getElementById('edit-modal');
+        const skeleton = document.getElementById('edit-loading-skeleton');
+        const formFields = document.getElementById('edit-form-fields');
+        const submitBtn = modal.querySelector('button[type="submit"]');
+
+        // Show skeleton, hide form, disable submit
+        if (skeleton) skeleton.classList.remove('hidden');
+        if (formFields) formFields.classList.add('hidden');
+        if (submitBtn) submitBtn.disabled = true;
+
+        modal.showModal();  // ← SHOW MODAL IMMEDIATELY!
+
+        // STEP 2: Fetch fact data from API
+        performance.mark(`${perfId}-api-start`);
         const response = await fetch(`/api/v1/facts/${factId}`, { credentials: 'include' });
         if (!response.ok) {
+            modal.close();
             showToast('Ошибка загрузки записи', 'error');
             return;
         }
 
         const fact = await response.json();
+        performance.mark(`${perfId}-api-end`);
+        performance.measure('API Fetch', `${perfId}-api-start`, `${perfId}-api-end`);
+
         const recordType = fact.record_type || 'fact';
 
         // Reset pending record tracking
@@ -653,13 +757,16 @@ async function openEditFromDashboard(factId) {
         // Set mode (show/hide reminder section)
         setEditModalMode(recordType);
 
-        // Load categories, reminders, and dropdowns in parallel
+        // STEP 3: Load categories, reminders, and dropdowns in parallel (with caching!)
+        performance.mark(`${perfId}-dropdown-start`);
         await Promise.all([
             loadCategoriesForEdit(),
             loadEditFinancialCenters(fact.financial_center_id),
             loadEditCostCenters(fact.cost_center_id),
             recordType === 'plan' ? loadRemindersForEdit([factId]) : Promise.resolve()
         ]);
+        performance.mark(`${perfId}-dropdown-end`);
+        performance.measure('Dropdown Load', `${perfId}-dropdown-start`, `${perfId}-dropdown-end`);
 
         // Fill basic fields
         document.getElementById('edit-id').value = fact.id;
@@ -703,6 +810,9 @@ async function openEditFromDashboard(factId) {
             }
         });
 
+        // STEP 4: Initialize widgets
+        performance.mark(`${perfId}-widget-start`);
+
         // Destroy previous ChoicesCategoryTree instance if exists
         if (editCategoryTreeSelect) {
             editCategoryTreeSelect.destroy();
@@ -722,29 +832,14 @@ async function openEditFromDashboard(factId) {
                 }
             });
 
-            // Wait for initialization to complete, then set selected value
-            const initCheckInterval = setInterval(async () => {
-                if (editCategoryTreeSelect &&
-                    editCategoryTreeSelect.choices &&
-                    editCategoryTreeSelect.categoryMap &&
-                    editCategoryTreeSelect.categoryMap.size > 0) {
+            // Wait for initialization to complete using Promise-based approach
+            await editCategoryTreeSelect.waitForReady();
 
-                    const choicesStore = editCategoryTreeSelect.choices._store?.choices || [];
-
-                    if (choicesStore.length > 0) {
-                        clearInterval(initCheckInterval);
-
-                        if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
-                            await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
-                        } else {
-                            console.warn('[Edit Modal] Category not found in map:', fact.article_id);
-                        }
-                    }
-                }
-            }, 150);
-
-            // Safety timeout
-            setTimeout(() => clearInterval(initCheckInterval), 10000);
+            if (editCategoryTreeSelect.categoryMap.has(fact.article_id)) {
+                await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+            } else {
+                console.warn('[Edit Modal] Category not found in map:', fact.article_id);
+            }
         }
 
         // Initialize CalendarWidget for edit modal date input
@@ -763,6 +858,9 @@ async function openEditFromDashboard(factId) {
                 }
             });
         }
+
+        performance.mark(`${perfId}-widget-end`);
+        performance.measure('Widget Init', `${perfId}-widget-start`, `${perfId}-widget-end`);
 
         // Handle reminder for plans
         if (recordType === 'plan') {
@@ -801,9 +899,52 @@ async function openEditFromDashboard(factId) {
         // Setup category type buttons handlers
         setupEditCategoryTypeButtons();
 
-        document.getElementById('edit-modal').showModal();
+        // STEP 5: Hide skeleton, show form, enable submit
+        if (skeleton) skeleton.classList.add('hidden');
+        if (formFields) formFields.classList.remove('hidden');
+        if (submitBtn) submitBtn.disabled = false;
+
+        // END PERFORMANCE MEASUREMENT
+        performance.mark(`${perfId}-end`);
+        performance.measure('Modal Open Total', `${perfId}-start`, `${perfId}-end`);
+
+        // Log performance metrics
+        const measures = performance.getEntriesByType('measure');
+        const modalOpenMeasure = measures.find(m => m.name === 'Modal Open Total');
+        const apiMeasure = measures.find(m => m.name === 'API Fetch');
+        const dropdownMeasure = measures.find(m => m.name === 'Dropdown Load');
+        const widgetMeasure = measures.find(m => m.name === 'Widget Init');
+
+        if (modalOpenMeasure) {
+            console.log(`[Performance] Modal opened in ${modalOpenMeasure.duration.toFixed(0)}ms`);
+            if (apiMeasure) console.log(`[Performance]   API Fetch: ${apiMeasure.duration.toFixed(0)}ms`);
+            if (dropdownMeasure) console.log(`[Performance]   Dropdown Load: ${dropdownMeasure.duration.toFixed(0)}ms`);
+            if (widgetMeasure) console.log(`[Performance]   Widget Init: ${widgetMeasure.duration.toFixed(0)}ms`);
+
+            // Alert if too slow
+            if (modalOpenMeasure.duration > 1000) {
+                console.warn(`[Performance] Modal open exceeded 1000ms: ${modalOpenMeasure.duration.toFixed(0)}ms`);
+            }
+        }
+
+        // Cleanup old markers
+        performance.clearMarks(`${perfId}-start`);
+        performance.clearMarks(`${perfId}-api-start`);
+        performance.clearMarks(`${perfId}-api-end`);
+        performance.clearMarks(`${perfId}-dropdown-start`);
+        performance.clearMarks(`${perfId}-dropdown-end`);
+        performance.clearMarks(`${perfId}-widget-start`);
+        performance.clearMarks(`${perfId}-widget-end`);
+        performance.clearMarks(`${perfId}-end`);
+        performance.clearMeasures('API Fetch');
+        performance.clearMeasures('Dropdown Load');
+        performance.clearMeasures('Widget Init');
+        performance.clearMeasures('Modal Open Total');
+
     } catch (error) {
         console.error('Error opening edit modal:', error);
+        const modal = document.getElementById('edit-modal');
+        if (modal) modal.close();
         showToast('Ошибка: ' + error.message, 'error');
     }
 }
@@ -4257,6 +4398,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     refreshRecentTransactions();
                     refreshAccountBalances();
+                }
+            });
+
+            // Cache invalidation for edit modal dropdown data
+            window.budgetWSClient.on('article_updated', () => {
+                if (dropdownCache) {
+                    dropdownCache.categories.data = null;
+                    console.log('[Cache] Invalidated categories cache (article_updated)');
+                }
+            });
+
+            window.budgetWSClient.on('article_created', () => {
+                if (dropdownCache) {
+                    dropdownCache.categories.data = null;
+                    console.log('[Cache] Invalidated categories cache (article_created)');
+                }
+            });
+
+            window.budgetWSClient.on('article_deleted', () => {
+                if (dropdownCache) {
+                    dropdownCache.categories.data = null;
+                    console.log('[Cache] Invalidated categories cache (article_deleted)');
+                }
+            });
+
+            window.budgetWSClient.on('financial_center_updated', () => {
+                if (dropdownCache) {
+                    dropdownCache.financialCenters.data = null;
+                    console.log('[Cache] Invalidated financial centers cache');
+                }
+            });
+
+            window.budgetWSClient.on('financial_center_created', () => {
+                if (dropdownCache) {
+                    dropdownCache.financialCenters.data = null;
+                    console.log('[Cache] Invalidated financial centers cache');
+                }
+            });
+
+            window.budgetWSClient.on('financial_center_deleted', () => {
+                if (dropdownCache) {
+                    dropdownCache.financialCenters.data = null;
+                    console.log('[Cache] Invalidated financial centers cache');
+                }
+            });
+
+            window.budgetWSClient.on('cost_center_updated', () => {
+                if (dropdownCache) {
+                    dropdownCache.costCenters.data = null;
+                    console.log('[Cache] Invalidated cost centers cache');
+                }
+            });
+
+            window.budgetWSClient.on('cost_center_created', () => {
+                if (dropdownCache) {
+                    dropdownCache.costCenters.data = null;
+                    console.log('[Cache] Invalidated cost centers cache');
+                }
+            });
+
+            window.budgetWSClient.on('cost_center_deleted', () => {
+                if (dropdownCache) {
+                    dropdownCache.costCenters.data = null;
+                    console.log('[Cache] Invalidated cost centers cache');
                 }
             });
         }
