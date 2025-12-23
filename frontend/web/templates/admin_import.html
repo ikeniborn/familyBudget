@@ -508,10 +508,14 @@ body.resizing-columns * {
                         <label class="label">
                             <span class="label-text font-semibold">🔤 Разделитель колонок</span>
                         </label>
-                        <select id="mapping-delimiter" class="select select-bordered w-48" onchange="onDelimiterChange()">
+                        <select id="mapping-delimiter" class="select select-bordered w-64" onchange="onDelimiterChange()">
+                            <option value="auto" selected>🤖 Автоматически</option>
                             <option value=";">Точка с запятой (;)</option>
                             <option value=",">Запятая (,)</option>
                             <option value="tab">Табуляция (Tab)</option>
+                            <option value="|">Вертикальная черта (|)</option>
+                            <option value=":">Двоеточие (:)</option>
+                            <option value=" ">Пробел ( )</option>
                         </select>
                     </div>
                     <div class="form-control">
@@ -1793,7 +1797,7 @@ async function showMappingStep(isUpdateMode = false) {
     document.getElementById('step-3-mapping').style.display = 'block';
     updateProgressIndicator(3);
 
-    // Set initial delimiter from saved transformations or file analysis
+    // Set initial delimiter from saved transformations or use "auto"
     const delimiterSelect = document.getElementById('mapping-delimiter');
     const dateFormatSelect = document.getElementById('mapping-date-format');
 
@@ -1801,13 +1805,9 @@ async function showMappingStep(isUpdateMode = false) {
         // Use saved delimiter from mapping
         const delimValue = savedTransformations.delimiter === '\t' ? 'tab' : savedTransformations.delimiter;
         delimiterSelect.value = delimValue;
-    } else if (csvDelimiter) {
-        // Fallback to detected delimiter from file analysis
-        const delimValue = csvDelimiter === '\t' ? 'tab' : csvDelimiter;
-        const option = Array.from(delimiterSelect.options).find(o => o.value === delimValue);
-        if (option) {
-            delimiterSelect.value = delimValue;
-        }
+    } else {
+        // Default to "auto" (no saved mapping)
+        delimiterSelect.value = 'auto';
     }
 
     // Set initial date format from saved transformations (if available)
@@ -1863,23 +1863,57 @@ async function loadCsvPreview() {
     statusEl.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Загрузка...';
 
     try {
-        const response = await fetch(
-            `/api/v1/import/files/${uploadedFileId}/preview?delimiter=${encodeURIComponent(delimiter)}`,
-            { credentials: 'include' }
-        );
+        let response, data;
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Preview failed');
+        if (delimiter === 'auto') {
+            // Use /analyze endpoint for auto-detection
+            response = await fetch(
+                `/api/v1/import/files/${uploadedFileId}/analyze`,
+                { credentials: 'include' }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Analysis failed');
+            }
+
+            data = await response.json();
+            csvHeaders = data.headers;
+            csvSampleRows = data.sample_rows;
+            csvDelimiter = data.delimiter;
+
+            // Show detected delimiter in status
+            const delimiterLabel =
+                data.delimiter === ';' ? 'точка с запятой (;)' :
+                data.delimiter === ',' ? 'запятая (,)' :
+                data.delimiter === '\t' ? 'табуляция (Tab)' :
+                data.delimiter === '|' ? 'вертикальная черта (|)' :
+                data.delimiter === ':' ? 'двоеточие (:)' :
+                data.delimiter === ' ' ? 'пробел ( )' :
+                data.delimiter;
+
+            renderCsvPreview();
+            statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк (разделитель: ${delimiterLabel})`;
+        } else {
+            // Use /preview endpoint for specific delimiter
+            response = await fetch(
+                `/api/v1/import/files/${uploadedFileId}/preview?delimiter=${encodeURIComponent(delimiter)}`,
+                { credentials: 'include' }
+            );
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Preview failed');
+            }
+
+            data = await response.json();
+            csvHeaders = data.headers;
+            csvSampleRows = data.sample_rows;
+            csvDelimiter = delimiter === 'tab' ? '\t' : delimiter;
+
+            renderCsvPreview();
+            statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк`;
         }
-
-        const data = await response.json();
-        csvHeaders = data.headers;
-        csvSampleRows = data.sample_rows;
-        csvDelimiter = delimiter === 'tab' ? '\t' : delimiter;
-
-        renderCsvPreview();
-        statusEl.innerHTML = `<span class="text-success">✓</span> ${data.headers.length} колонок, ${data.total_rows} строк`;
 
     } catch (error) {
         console.error('Preview error:', error);
@@ -2036,9 +2070,14 @@ async function saveMapping() {
         }
 
         // Collect transformations (delimiter, date format, number format)
-        const delimiterValue = document.getElementById('mapping-delimiter').value;
+        let delimiterValue = document.getElementById('mapping-delimiter').value;
         const dateFormatValue = document.getElementById('mapping-date-format').value;
         const numberFormatValue = document.getElementById('mapping-number-format').value;
+
+        // If delimiter is "auto", save the actual detected delimiter
+        if (delimiterValue === 'auto') {
+            delimiterValue = csvDelimiter || ';';  // Fallback to semicolon
+        }
 
         const transformations = {
             delimiter: delimiterValue,

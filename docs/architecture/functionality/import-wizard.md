@@ -20,7 +20,7 @@ The Import Wizard allows users to import CSV bank statements into the budget sys
 ### Step 2: File Upload
 - User uploads CSV file or provides Google Sheets URL
 - `POST /api/v1/import/upload` analyzes file structure
-- Auto-detects delimiter (`;`, `,`, `\t`) and encoding (UTF-8, Windows-1251)
+- Auto-detects delimiter (`;`, `,`, `\t`, `|`, `:`, ` `) and encoding (UTF-8, Windows-1251)
 
 **Timeout Protection:**
 - Frontend timeout: 30s (AbortController)
@@ -28,6 +28,7 @@ The Import Wizard allows users to import CSV bank statements into the budget sys
 - User-friendly error messages for timeout/network failures
 
 ### Step 3: Column Mapping
+- User selects delimiter (default: Автоматически 🤖) or manually chooses from 7 options
 - User maps CSV columns to budget fields (fact_date, amount, description, etc.)
 - `GET /api/v1/import/mappings/{bank_id}` loads saved mapping (per-user)
 - `POST /api/v1/import/mappings` saves mapping (SCD Type 1, per-user)
@@ -286,6 +287,48 @@ mapping2 = await MappingService.save_mapping(
 **Result**: Clear UI with no functional duplication. Users now have:
 - **"🗑️ Удалить"** - Delete checked records
 - **"Начать заново"** - Reset workflow to Step 1
+
+---
+
+### Delimiter Auto-Detection + Extended Delimiters (Added 2025-12-23)
+
+**Enhancement**: Added automatic delimiter detection and support for 7 delimiters (was 3).
+
+**Changes:**
+1. **New delimiters** added to dropdown:
+   - `|` (pipe/вертикальная черта)
+   - `:` (colon/двоеточие)
+   - ` ` (space/пробел)
+   - Total: 7 delimiters (was: `;`, `,`, `\t`)
+
+2. **"Автоматически" option** (default):
+   - Value: `auto`
+   - Selected by default on Step 3
+   - Uses backend auto-detection via `/analyze` endpoint
+   - Shows detected delimiter in status: "✓ 15 колонок, 152 строк (разделитель: точка с запятой (;))"
+
+3. **Smart delimiter handling**:
+   - If user selects "Автоматически" → uses `/api/v1/import/files/{id}/analyze` (auto-detect)
+   - If user selects specific delimiter → uses `/api/v1/import/files/{id}/preview?delimiter=...` (force)
+   - When saving mapping with "auto" → saves actual detected delimiter (not "auto" string)
+
+4. **Backend changes** (`csv_analyzer.py`):
+   - Extended `csv.Sniffer` delimiters: `';,\t|: '` (was `';,\t'`)
+   - Extended fallback candidates list
+   - Updated docstring with new examples
+
+**Files:**
+- `frontend/web/templates/admin_import.html:511-519` (dropdown)
+- `frontend/web/templates/admin_import.html:1862-1926` (loadCsvPreview logic)
+- `frontend/web/templates/admin_import.html:1804-1811` (default "auto")
+- `frontend/web/templates/admin_import.html:2072-2086` (save actual delimiter)
+- `backend/app/services/csv_analyzer.py:166-246` (detect_delimiter)
+
+**User Experience:**
+1. Upload file → Step 3 opens with "Автоматически" selected
+2. Preview shows: "✓ 15 колонок, 152 строк (разделитель: точка с запятой (;))"
+3. User can switch to manual delimiter if auto-detection is wrong
+4. Saved mapping stores actual delimiter for future imports
 
 ---
 
