@@ -3906,6 +3906,10 @@ function initRecurringFields(modalId) {
             }
         };
     }
+
+    // Initialize fields visibility based on default values (v6.1)
+    updateFrequencyFields(modalId);
+    updateDurationFields(modalId);
 }
 
 /**
