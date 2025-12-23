@@ -86,13 +86,12 @@ generate_maskable() {
     local padding=$((size - content_size))
     local half_padding=$((padding / 2))
 
-    # Генерировать контент меньшего размера, затем добавить padding
-    convert -density 300 "$INPUT_SVG" \
-        -resize "${content_size}x${content_size}" \
+    # Сначала создать контент с rsvg-convert, затем добавить padding с ImageMagick
+    rsvg-convert -w "$content_size" -h "$content_size" -b none "$INPUT_SVG" | \
+        convert - \
         -background none \
         -gravity center \
         -extent "${size}x${size}" \
-        -type TrueColorAlpha \
         "$output"
 
     if [[ -f "$output" ]]; then
@@ -147,11 +146,11 @@ generate_splash() {
     local shorter=$((width < height ? width : height))
     local icon_size=$((shorter * 30 / 100))
 
-    # Create solid background with centered icon
-    convert -size "${width}x${height}" "xc:${bg_color}" \
-        \( -density 300 "$INPUT_SVG" -resize "${icon_size}x${icon_size}" -type TrueColorAlpha \) \
+    # Create icon with rsvg-convert, then composite on background
+    rsvg-convert -w "$icon_size" -h "$icon_size" -b none "$INPUT_SVG" | \
+        convert -size "${width}x${height}" "xc:${bg_color}" \
+        \( - \) \
         -gravity center -composite \
-        -type TrueColorAlpha \
         "$output"
 
     if [[ -f "$output" ]]; then
