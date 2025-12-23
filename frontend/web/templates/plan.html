@@ -3907,6 +3907,9 @@ function togglePlanMode(modalId) {
     const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
     const reminderModeLabel = document.getElementById(`reminder-mode-label-${modalId}`);
 
+    // Get recurring-specific required fields
+    const durationTypeSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
+
     // Hide all panels first
     if (recurringSettingsDiv) recurringSettingsDiv.classList.add('hidden');
     if (onetimeReminderSection) onetimeReminderSection.classList.add('hidden');
@@ -3922,6 +3925,10 @@ function togglePlanMode(modalId) {
                 initRecurringFields(modalId);
                 updateRecurringPreview(modalId);
             }
+            // Enable validation for recurring fields
+            if (durationTypeSelect) {
+                durationTypeSelect.setAttribute('required', 'required');
+            }
             break;
 
         case 'reminder':
@@ -3932,6 +3939,10 @@ function togglePlanMode(modalId) {
             if (onetimeReminderSection) {
                 onetimeReminderSection.classList.remove('hidden');
                 initReminderCalendarWidget(modalId);
+            }
+            // Disable validation for recurring fields (they're hidden)
+            if (durationTypeSelect) {
+                durationTypeSelect.removeAttribute('required');
             }
             break;
 
@@ -3944,6 +3955,10 @@ function togglePlanMode(modalId) {
             // Both panels hidden - reset fields
             resetRecurringOnlyFields(modalId);
             resetReminderFields(modalId);
+            // Disable validation for recurring fields (they're hidden)
+            if (durationTypeSelect) {
+                durationTypeSelect.removeAttribute('required');
+            }
             break;
     }
 }
