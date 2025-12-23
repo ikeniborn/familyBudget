@@ -14,7 +14,15 @@ Use these files to understand component relationships when planning changes or o
 | [flows/](./flows/) | Data flow diagrams | 6 |
 | [guides/](./guides/) | Development guides | 7 |
 
-**Total: 56 files**
+**Total: 56 files + 3 architecture docs**
+
+### Core Architecture Documents
+
+| Document | Description |
+|----------|-------------|
+| [backup-system.md](./backup-system.md) | Backup system architecture (local + S3) |
+| [caching-strategy.md](./caching-strategy.md) | HTTP caching, Redis, Service Worker strategies |
+| [frontend-loading-patterns.md](./frontend-loading-patterns.md) | Frontend data loading, pagination, real-time updates |
 
 ## File Format
 
@@ -129,13 +137,17 @@ docs/architecture/
 │   ├── offline-sync.yaml        # Offline → online sync
 │   └── csv-import.yaml          # Import workflow
 │
-└── guides/                      # Development guides
-    ├── _index.yaml              # Guide summary
-    ├── change-checklist.yaml    # What to check when changing
-    ├── critical-paths.yaml      # High-impact dependencies
-    ├── impact-analysis.yaml     # How to analyze changes
-    ├── disaster-recovery.md     # Emergency backup/restore procedures
-    └── backup-operations.md     # Daily/weekly/monthly backup tasks
+├── guides/                      # Development guides
+│   ├── _index.yaml              # Guide summary
+│   ├── change-checklist.yaml    # What to check when changing
+│   ├── critical-paths.yaml      # High-impact dependencies
+│   ├── impact-analysis.yaml     # How to analyze changes
+│   ├── disaster-recovery.md     # Emergency backup/restore procedures
+│   └── backup-operations.md     # Daily/weekly/monthly backup tasks
+│
+├── backup-system.md             # Backup system architecture
+├── caching-strategy.md          # HTTP caching, Redis, Service Worker
+└── frontend-loading-patterns.md # Frontend data loading patterns
 ```
 
 ## Legend

@@ -18,7 +18,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func
 from sqlmodel import select
@@ -378,8 +378,9 @@ async def create_fact(
         logger.warning(f"WebSocket broadcast failed for fact {fact.id}: {e}")
         # Don't fail the request if broadcast fails
 
-    # Fire-and-forget: don't block HTTP response waiting for Redis
-    asyncio.create_task(cache_service.invalidate_dashboard())
+    # AWAIT cache invalidation to ensure fresh data on subsequent requests
+    # Performance: adds ~5-20ms latency, but prevents stale data display
+    await cache_service.invalidate_dashboard()
 
     return response_data
 
@@ -391,6 +392,7 @@ async def create_fact(
 )
 async def list_facts(
     current_user: CurrentUser,
+    response: Response,
     session: AsyncSession = Depends(get_session),
     limit: Annotated[int, Query(ge=1, le=10000)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
@@ -435,6 +437,12 @@ async def list_facts(
     **Returns:**
     - 200 OK: List of facts with pagination info (includes article info and center names)
     """
+    # Set HTTP cache headers to prevent stale data display
+    # Always revalidate with server to ensure fresh data after mutations
+    response.headers["Cache-Control"] = "private, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"  # HTTP/1.0 compatibility
+    response.headers["Vary"] = "Cookie"  # Cache varies by user (JWT auth)
+
     # Base query with JOINs for enriched response
     statement = (
         select(BudgetFact, Article, FinancialCenter, CostCenter, User)
@@ -1247,8 +1255,9 @@ async def update_fact(
         logger.warning(f"WebSocket broadcast failed for updated fact {fact.id}: {e}")
         # Don't fail the request if broadcast fails
 
-    # Fire-and-forget: don't block HTTP response waiting for Redis
-    asyncio.create_task(cache_service.invalidate_dashboard())
+    # AWAIT cache invalidation to ensure fresh data on subsequent requests
+    # Performance: adds ~5-20ms latency, but prevents stale data display
+    await cache_service.invalidate_dashboard()
 
     return response_data
 
@@ -1341,8 +1350,9 @@ async def delete_fact(
         logger.warning(f"WebSocket broadcast failed for deleted fact {fact_id}: {e}")
         # Don't fail the request if broadcast fails
 
-    # Fire-and-forget: don't block HTTP response waiting for Redis
-    asyncio.create_task(cache_service.invalidate_dashboard())
+    # AWAIT cache invalidation to ensure fresh data on subsequent requests
+    # Performance: adds ~5-20ms latency, but prevents stale data display
+    await cache_service.invalidate_dashboard()
 
     return None
 
@@ -1451,8 +1461,9 @@ async def batch_delete_facts(
         logger.warning(f"WebSocket broadcast failed for batch delete: {e}")
         # Don't fail the request if broadcast fails
 
-    # Fire-and-forget: don't block HTTP response waiting for Redis
-    asyncio.create_task(cache_service.invalidate_dashboard())
+    # AWAIT cache invalidation to ensure fresh data on subsequent requests
+    # Performance: adds ~5-20ms latency, but prevents stale data display
+    await cache_service.invalidate_dashboard()
 
     return {
         "message": f"Deleted {deleted_count} facts",
