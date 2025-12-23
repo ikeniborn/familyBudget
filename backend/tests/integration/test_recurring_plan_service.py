@@ -33,12 +33,12 @@ async def test_generate_minimum_3_facts_with_occurrences_count_1(
     session: AsyncSession, test_user: User
 ):
     """
-    Test Problem 4: Generate minimum 3 facts even if occurrences_count=1.
+    Test: Generate EXACT occurrences_count facts (no minimum).
 
     Scenario:
         - Create recurring plan with occurrences_count=1
-        - Expect at least 3 facts generated
-        - Verify occurrences_generated >= 3
+        - Expect EXACTLY 1 fact generated
+        - Verify occurrences_generated == 1
     """
     service = RecurringPlanService()
 
@@ -77,14 +77,14 @@ async def test_generate_minimum_3_facts_with_occurrences_count_1(
 
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
-    # Verify at least 3 facts were generated
+    # Verify EXACTLY 1 fact was generated
     result = await session.execute(
         select(BudgetFact).where(BudgetFact.recurring_plan_id == plan.id)
     )
     facts = list(result.scalars().all())
 
-    assert len(facts) >= 3, f"Expected at least 3 facts, got {len(facts)}"
-    assert plan.occurrences_generated >= 3
+    assert len(facts) == 1, f"Expected exactly 1 fact, got {len(facts)}"
+    assert plan.occurrences_generated == 1
 
 
 @pytest.mark.asyncio
@@ -92,12 +92,11 @@ async def test_generate_minimum_3_facts_with_early_end_date(
     session: AsyncSession, test_user: User
 ):
     """
-    Test Problem 4: Generate minimum 3 facts even if end_date allows only 1 day.
+    Test: Generate facts up to end_date (no minimum).
 
     Scenario:
         - Create recurring plan with end_date = start_date + 1 day
-        - With daily frequency, normally would generate only 2 facts
-        - Expect at least 3 facts generated
+        - With daily frequency, generates EXACTLY 2 facts (start_date and start_date+1)
         - Verify plan.is_active = False after reaching end_date
     """
     service = RecurringPlanService()
@@ -137,13 +136,13 @@ async def test_generate_minimum_3_facts_with_early_end_date(
 
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
-    # Verify at least 3 facts generated
+    # Verify EXACTLY 2 facts generated (today and today+1)
     result = await session.execute(
         select(BudgetFact).where(BudgetFact.recurring_plan_id == plan.id)
     )
     facts = list(result.scalars().all())
 
-    assert len(facts) >= 3, f"Expected at least 3 facts, got {len(facts)}"
+    assert len(facts) == 2, f"Expected exactly 2 facts, got {len(facts)}"
     # Plan should be deactivated after end_date
     assert plan.is_active == False
 

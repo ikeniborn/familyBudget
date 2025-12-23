@@ -30,9 +30,6 @@ logger = get_logger(__name__)
 # Default horizon for fact generation (3 months ahead)
 DEFAULT_GENERATION_HORIZON_DAYS = 90
 
-# Minimum facts to generate regardless of horizon/end_date/occurrences_count
-MIN_FACTS_TO_GENERATE = 3
-
 # Maximum iterations to prevent infinite loops
 MAX_ITERATIONS = 1000
 
@@ -492,9 +489,10 @@ class RecurringPlanService:
         """
         Generate BudgetFact records for a single plan.
 
-        ALWAYS generates minimum MIN_FACTS_TO_GENERATE facts (default 3),
-        regardless of horizon_days, end_date, or occurrences_count.
-        After generating minimum facts, checks limits and horizon.
+        Generates facts up to the earliest limit:
+        - occurrences_count (if specified)
+        - end_date (if specified)
+        - horizon_date (today + horizon_days)
 
         Args:
             session: Database session
@@ -528,30 +526,30 @@ class RecurringPlanService:
                 )
                 break
 
-            # Check horizon ONLY AFTER generating minimum facts
-            if generated_count >= MIN_FACTS_TO_GENERATE and current_date > horizon_date:
+            # Check end_date limit BEFORE creating fact
+            if plan.end_date and current_date > plan.end_date:
+                plan.is_active = False
+                plan.next_generation_date = None
                 logger.info(
-                    f"[RECURRING] Plan {plan.id}: Reached horizon after generating {generated_count} facts"
+                    f"[RECURRING] Plan {plan.id}: Reached end_date after {generated_count} facts"
                 )
                 break
 
-            # Check end conditions ONLY AFTER generating minimum facts
-            if generated_count >= MIN_FACTS_TO_GENERATE:
-                if plan.end_date and current_date > plan.end_date:
-                    plan.is_active = False
-                    plan.next_generation_date = None
-                    logger.info(
-                        f"[RECURRING] Plan {plan.id}: Reached end_date after {generated_count} facts"
-                    )
-                    break
+            # Check occurrences_count limit BEFORE creating fact
+            if plan.occurrences_count and plan.occurrences_generated >= plan.occurrences_count:
+                plan.is_active = False
+                plan.next_generation_date = None
+                logger.info(
+                    f"[RECURRING] Plan {plan.id}: Reached occurrences_count after {generated_count} facts"
+                )
+                break
 
-                if plan.occurrences_count and plan.occurrences_generated >= plan.occurrences_count:
-                    plan.is_active = False
-                    plan.next_generation_date = None
-                    logger.info(
-                        f"[RECURRING] Plan {plan.id}: Reached occurrences_count after {generated_count} facts"
-                    )
-                    break
+            # Check horizon limit BEFORE creating fact (for ongoing plans)
+            if current_date > horizon_date:
+                logger.info(
+                    f"[RECURRING] Plan {plan.id}: Reached horizon after {generated_count} facts"
+                )
+                break
 
             # Check if fact already exists for this date
             existing = await self._check_fact_exists(
