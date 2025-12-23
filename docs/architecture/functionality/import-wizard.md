@@ -244,9 +244,14 @@ mapping2 = await MappingService.save_mapping(
 
 **Root Cause**: Radio buttons container was hidden after first file upload and not restored in `proceedToUpload()` or `resetWorkflow()`.
 
-**Fix**: Restore radio buttons container visibility in both functions.
+**Fix**:
+- Added unique ID `upload-source-selector` to radio buttons container
+- Replaced all `.form-control.mb-4` selectors with direct `getElementById('upload-source-selector')`
+- Restore radio buttons container visibility in `proceedToUpload()` and `resetWorkflow()`
 
-**Files**: `frontend/web/templates/admin_import.html:1345-1349,1080-1084`
+**Files**: `frontend/web/templates/admin_import.html:390,1081,1349,1613,1679`
+
+**Follow-up Fix (2025-12-23)**: Initial implementation using `.form-control.mb-4` selector was too generic and could select wrong element. Fixed by adding unique ID to container.
 
 ---
 
