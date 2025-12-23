@@ -62,10 +62,8 @@ generate_png() {
 
     echo -n "  Generating $(basename "$output") (${size}x${size})... "
 
-    convert -density "$density" "$INPUT_SVG" \
-        -resize "${size}x${size}" \
-        -background none \
-        "$output"
+    # Использовать rsvg-convert для правильной обработки SVG градиентов
+    rsvg-convert -w "$size" -h "$size" -b none "$INPUT_SVG" -o "$output"
 
     if [[ -f "$output" ]]; then
         echo -e "${GREEN}✓${NC}"
@@ -94,6 +92,7 @@ generate_maskable() {
         -background none \
         -gravity center \
         -extent "${size}x${size}" \
+        -type TrueColorAlpha \
         "$output"
 
     if [[ -f "$output" ]]; then
@@ -150,8 +149,9 @@ generate_splash() {
 
     # Create solid background with centered icon
     convert -size "${width}x${height}" "xc:${bg_color}" \
-        \( -density 300 "$INPUT_SVG" -resize "${icon_size}x${icon_size}" \) \
+        \( -density 300 "$INPUT_SVG" -resize "${icon_size}x${icon_size}" -type TrueColorAlpha \) \
         -gravity center -composite \
+        -type TrueColorAlpha \
         "$output"
 
     if [[ -f "$output" ]]; then

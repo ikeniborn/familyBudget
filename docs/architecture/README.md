@@ -337,15 +337,22 @@ When adding new components:
     - `plan.html:960-971` (openPlanTransferModal - explicit backdrop handler)
     - `plan.html:3468-3479` (openAddPlanModal - explicit backdrop handler)
   - **Result**: All modals with Choices.js now immune to iOS Safari synthetic click issue
-- **2025-12-23**: Fixed category auto-selection when changing financial center or type:
-  - **Problem**: When selecting financial center or changing category type, first category in filtered list was auto-selected
-  - **Root Cause**: Choices.js auto-selects first item after setChoices() in next event loop tick, but clearSelection happened synchronously
-  - **Sequence**: setChoices() → event loop tick → Choices auto-selects first → (our clear already executed, too early!)
-  - **Fix**: Added `await new Promise(resolve => setTimeout(resolve, 0))` before removeActiveItems() to wait for Choices.js processing
+- **2025-12-23**: Fixed category auto-selection and visual flicker when changing financial center:
+  - **Problem #1**: When selecting financial center, first category in filtered list was auto-selected (if no previous selection)
+  - **Problem #2**: When changing financial center with existing selection, visible flicker (clear → restore old value)
+  - **Root Cause**:
+    - Choices.js auto-selects first item after setChoices() in next event loop tick
+    - Code cleared selection BEFORE checking if restoration needed (clear → restore = flicker)
+  - **Sequence (old)**: setChoices() → clear ALL → check if restore → restore if needed (visible flicker!)
+  - **Fix**: Changed order of operations - check FIRST, then either restore OR clear (no unnecessary operations)
+  - **Sequence (new)**: setChoices() → await next tick → check if restore needed → IF yes: restore, ELSE: clear
   - **Files**:
-    - `choicesCategoryTree.js:881` (updateFinancialCenter - added async delay)
-    - `choicesCategoryTree.js:793` (updateType - added async delay)
-  - **Impact**: Category select now stays empty when changing filters, user must explicitly select category
+    - `choicesCategoryTree.js:890-911` (updateFinancialCenter - fixed logic order)
+    - `choicesCategoryTree.js:793` (updateType - already correct, always clears)
+  - **Impact**:
+    - No visual flicker when changing financial center ✅
+    - Category stays empty when no previous selection ✅
+    - Previous selection preserved if still available ✅
 - **2025-12-23**: Category type in edit modals changed to read-only badge:
   - **Problem**: Collapse with arrow and radio buttons created illusion that category type can be changed
   - **Root Cause**: Type cannot be changed after record creation (business rule), but UI suggested otherwise
