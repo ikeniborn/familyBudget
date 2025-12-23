@@ -277,6 +277,13 @@ When adding new components:
   - **CSS**: Added `dialog, dialog *, dialog::backdrop { view-transition-name: none; }`
   - **Files**: `base.html:402-407`
   - **Result**: Modals open instantly, category selection stable on iOS Safari
+- **2025-12-23**: Fixed category dropdown closing on first click after switching between selects:
+  - **Problem**: When switching from another select (financial center/cost center) back to category dropdown, first click closes it instead of opening
+  - **Root Cause**: Choices.js default `closeOnBlur: true` caused dropdown to close when focus moved to another select
+  - **Behavior**: First click restored focus, second click opened dropdown (poor UX)
+  - **Fix**: Added `closeOnBlur: false` to Choices.js configuration in ChoicesCategoryTree
+  - **Files**: `choicesCategoryTree.js:418`
+  - **Result**: Category dropdown now opens on first click after switching between selects
 - **2025-12-23**: Category type in edit modals changed to read-only badge:
   - **Problem**: Collapse with arrow and radio buttons created illusion that category type can be changed
   - **Root Cause**: Type cannot be changed after record creation (business rule), but UI suggested otherwise

@@ -415,6 +415,7 @@ class ChoicesCategoryTree {
             noChoicesText: 'Нет доступных категорий',
             itemSelectText: '',
             shouldSort: false,  // Keep our API sorting (by usage_count)
+            closeOnBlur: false, // Don't close dropdown on blur - allows switching between selects in modal
 
             // Enable/disable individual remove buttons based on showClearButton option
             // If showClearButton=true: use clear-all button, disable individual remove
