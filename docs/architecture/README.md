@@ -260,6 +260,26 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-23**: PWA Icon Redesign - Material Green Color Scheme:
+  - **Change**: Redesigned all PWA icons with Material Green gradient to match application branding
+  - **Old colors**: Indigo gradient (#6366F1 → #4F46E5)
+  - **New colors**: Green gradient (#4CAF50 → #388E3C)
+  - **Rationale**: Align icon visual identity with app's primary green theme (used in buttons, success states, income indicators)
+  - **Design**: Preserved existing elements (bar chart + ruble symbol) - only background color changed
+  - **Generated files**:
+    - 6 icon variants: icon-192.png, icon-512.png, icon-maskable-512.png, apple-touch-icon.png, favicon.ico, icon.svg
+    - 10 iOS splash screens: 750x1334 to 1290x2796 (all iPhone models from 7+ to 15 Pro Max)
+  - **PWA Manifest**: Updated theme_color from #6366F1 to #4CAF50
+  - **Service Worker**: Cache version auto-increments on deployment
+  - **Deploy trigger**: tmp/budget-icon-v3.svg added to repository
+  - **Files modified**:
+    - `frontend/web/static/icons/icon.svg` - Source SVG with green gradient
+    - `frontend/web/static/icons/*.png` - Regenerated all icons
+    - `frontend/web/static/icons/splash/*.png` - Generated splash screens
+    - `manifest.json` - Updated theme_color
+    - `tmp/budget-icon-v3.svg` - Deployment trigger file
+  - **Related**: `scripts/generate_pwa_icons.sh` - Icon generation script (ImageMagick)
+  - **Visual consistency**: Green icons now match primary buttons, success badges, income categories throughout the app
 - **2025-12-23**: Added comprehensive backup and restore documentation:
   - **backup-system.md** (400 lines): Technical architecture, component diagrams, performance metrics, security
   - **guides/disaster-recovery.md** (350 lines): 5 disaster scenarios with RTO/RPO, emergency procedures
