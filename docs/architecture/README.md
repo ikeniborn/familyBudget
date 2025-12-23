@@ -297,6 +297,16 @@ When adding new components:
     - `facts.html:1592-1606` (explicit backdrop handler)
     - `plan.html:2352-2366` (explicit backdrop handler)
   - **Result**: Modal stays open during Choices.js interaction, closes only on backdrop click
+- **2025-12-23**: Applied same fix to transfer_modal and modal_add_plan (iOS Safari):
+  - **Modals affected**: Transfer modal (fact and plan transfers), Add Plan modal (regular/recurring/reminder)
+  - **Fix**: Replaced `<form method="dialog">` with `<div class="modal-backdrop">` + explicit JavaScript handlers
+  - **Files**:
+    - `modal_transfer.html:204` (removed form method="dialog")
+    - `modal_plan.html:314` (removed form method="dialog")
+    - `transfer.js:927-938` (openTransferModal - explicit backdrop handler)
+    - `plan.html:960-971` (openPlanTransferModal - explicit backdrop handler)
+    - `plan.html:3468-3479` (openAddPlanModal - explicit backdrop handler)
+  - **Result**: All modals with Choices.js now immune to iOS Safari synthetic click issue
 - **2025-12-23**: Category type in edit modals changed to read-only badge:
   - **Problem**: Collapse with arrow and radio buttons created illusion that category type can be changed
   - **Root Cause**: Type cannot be changed after record creation (business rule), but UI suggested otherwise

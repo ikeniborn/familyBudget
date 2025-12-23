@@ -1418,8 +1418,9 @@ class CalendarWidget {
     // If inside dialog, calculate position relative to dialog instead of viewport
     let scrollTop = 0;
     let scrollLeft = 0;
+    let modalBox = null;
     if (this._isInsideDialog) {
-      const modalBox = this.calendarElement.parentElement;
+      modalBox = this.calendarElement.parentElement;
       if (modalBox) {
         scrollTop = modalBox.scrollTop;
         scrollLeft = modalBox.scrollLeft;
@@ -1427,12 +1428,29 @@ class CalendarWidget {
     }
 
     // Calculate initial position (below input)
-    let top = inputRect.bottom + spacing - scrollTop;
-    let left = inputRect.left - scrollLeft;
+    let top, left;
+
+    if (this._isInsideDialog && modalBox) {
+      // For modal-box: calculate position relative to modal-box container
+      const modalRect = modalBox.getBoundingClientRect();
+      const inputOffsetTop = inputRect.top - modalRect.top + scrollTop;
+      const inputOffsetLeft = inputRect.left - modalRect.left + scrollLeft;
+
+      top = inputOffsetTop + inputRect.height + spacing;
+      left = inputOffsetLeft;
+    } else {
+      // For regular page: use viewport-relative positioning
+      top = inputRect.bottom + spacing;
+      left = inputRect.left;
+    }
 
     // Desktop: align calendar to RIGHT edge of input (for filter panels on the right)
-    if (isDesktop) {
-      left = inputRect.right - calendarWidth - scrollLeft;
+    if (isDesktop && !this._isInsideDialog) {
+      left = inputRect.right - calendarWidth;
+    } else if (isDesktop && this._isInsideDialog && modalBox) {
+      // Desktop in modal: align to right edge of input, relative to modal-box
+      const modalRect = modalBox.getBoundingClientRect();
+      left = (inputRect.right - modalRect.left + scrollLeft) - calendarWidth;
     }
 
     // Adjust horizontal position if calendar goes off-screen (right edge)
@@ -1447,12 +1465,29 @@ class CalendarWidget {
     }
 
     // Check if calendar fits below input
-    const spaceBelow = viewportHeight - inputRect.bottom;
-    const spaceAbove = inputRect.top;
+    let spaceBelow, spaceAbove;
 
-    // If not enough space below but enough space above, show above input
-    if (spaceBelow < calendarHeight && spaceAbove > calendarHeight) {
-      top = inputRect.top - calendarHeight - spacing - scrollTop;
+    if (this._isInsideDialog && modalBox) {
+      // For modal-box: check space within modal-box
+      const modalHeight = modalBox.clientHeight;
+      const inputOffsetTop = inputRect.top - modalBox.getBoundingClientRect().top + scrollTop;
+
+      spaceBelow = modalHeight - (inputOffsetTop + inputRect.height);
+      spaceAbove = inputOffsetTop;
+
+      // If not enough space below but enough space above, show above input
+      if (spaceBelow < calendarHeight && spaceAbove > calendarHeight) {
+        top = inputOffsetTop - calendarHeight - spacing;
+      }
+    } else {
+      // For regular page: check viewport space
+      spaceBelow = viewportHeight - inputRect.bottom;
+      spaceAbove = inputRect.top;
+
+      // If not enough space below but enough space above, show above input
+      if (spaceBelow < calendarHeight && spaceAbove > calendarHeight) {
+        top = inputRect.top - calendarHeight - spacing;
+      }
     }
 
     // Mobile: Center calendar horizontally, vertical positioning depends on context
@@ -2382,10 +2417,9 @@ class ChoicesCategoryTree {
             ChoicesCategoryTree._cache.delete(specificCacheKey);
         }
 
-        // Reset selection
-        if (this.element) {
-            this.element.value = '';
-        }
+        // Save current selection to restore it if still available
+        const previousSelection = this.element ? this.element.value : null;
+        const previousSelectionId = previousSelection ? parseInt(previousSelection) : null;
 
         try {
             // Load new categories from API (with offline fallback)
@@ -2424,6 +2458,22 @@ class ChoicesCategoryTree {
 
                 // Set new choices
                 this.choices.setChoices(choices, 'value', 'label', true);
+
+                // Restore previous selection if category is still available
+                const categoryStillAvailable = previousSelectionId &&
+                    this.categoryMap.has(previousSelectionId);
+
+                if (categoryStillAvailable) {
+                    // Category is available in new filtered list - restore selection
+                    await this.setSelectedCategory(previousSelectionId);
+                    debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
+                } else if (previousSelectionId) {
+                    // Category was selected but not available anymore - reset
+                    if (this.element) {
+                        this.element.value = '';
+                    }
+                    debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
+                }
 
                 // Log info about filtering
                 if (financialCenterId) {

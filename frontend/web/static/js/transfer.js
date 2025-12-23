@@ -923,6 +923,19 @@ async function openTransferModal() {
         }
 
         modal.showModal();
+
+        // ✅ FIX: Handle backdrop clicks explicitly (instead of form method="dialog")
+        // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
+        if (!modal.dataset.backdropHandlerAdded) {
+            modal.addEventListener('click', (e) => {
+                // Close only if click is directly on dialog (backdrop area)
+                // NOT if click is on modal-box or its children
+                if (e.target === modal) {
+                    modal.close();
+                }
+            });
+            modal.dataset.backdropHandlerAdded = 'true';
+        }
     }
 }
 
