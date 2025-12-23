@@ -883,29 +883,31 @@ class ChoicesCategoryTree {
                 // Set new choices
                 this.choices.setChoices(choices, 'value', 'label', true);
 
-                // CRITICAL: Clear any auto-selection that Choices.js made
-                // Use setTimeout to ensure Choices.js has finished its internal processing
-                // This must happen BEFORE we check if we need to restore selection
+                // Wait for Choices.js to finish its internal processing
+                // (Choices.js may auto-select first item in next event loop tick)
                 await new Promise(resolve => setTimeout(resolve, 0));
-                this.choices.removeActiveItems();
-                if (this.element) {
-                    this.element.value = '';
-                }
 
-                // Restore previous selection if category is still available
+                // Check if we need to restore previous selection
                 const categoryStillAvailable = previousSelectionId &&
                     this.categoryMap.has(previousSelectionId);
 
                 if (categoryStillAvailable) {
                     // Category is available in new filtered list - restore selection
+                    // setSelectedCategory will handle clearing and setting the value
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
-                } else if (previousSelectionId) {
-                    // Category was selected but not available anymore - already cleared above
-                    debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                 } else {
-                    // No previous selection - already cleared above
-                    debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
+                    // No previous selection OR category not available anymore
+                    // Clear any auto-selection that Choices.js made
+                    this.choices.removeActiveItems();
+                    if (this.element) {
+                        this.element.value = '';
+                    }
+                    if (previousSelectionId) {
+                        debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
+                    } else {
+                        debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
+                    }
                 }
 
                 // Log info about filtering
@@ -1009,7 +1011,13 @@ class ChoicesCategoryTree {
         }
 
         // All retries failed
-        console.warn('[ChoicesCategoryTree] Category not found in choices after', maxRetries, 'attempts:', categoryId);
+        // This is not necessarily an error - category may be:
+        // 1. Deleted from database
+        // 2. Wrong type (expense/income mismatch)
+        // 3. Not a leaf node (if showLeafOnly is enabled)
+        // 4. Filtered out by financial center
+        console.debug('[ChoicesCategoryTree] Category not found in available choices:', categoryId,
+                      '(may be deleted, wrong type, or filtered out)');
     }
 }
 

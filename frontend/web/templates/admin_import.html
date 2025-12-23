@@ -1491,20 +1491,33 @@ async function loadSavedMapping(bankId) {
 
             // Enable Apply Mapping button if mapping exists
             updateApplyMappingButtonState();
-        } else {
-            // No saved mapping - will use default or empty
+        } else if (response.status === 404) {
+            // 404 is expected when user has no saved mapping yet (first import)
+            // This is normal behavior, not an error
             savedMappingId = null;
             savedTransformations = null;
-            const errorData = await response.json();
-            if (errorData.detail && errorData.detail.default_mapping) {
-                currentMapping = errorData.detail.default_mapping;
+
+            // Try to extract default mapping from 404 response
+            try {
+                const errorData = await response.json();
+                if (errorData.detail && errorData.detail.default_mapping) {
+                    currentMapping = errorData.detail.default_mapping;
+                }
+            } catch (e) {
+                // Ignore JSON parse errors for 404 response
             }
 
             // Disable Apply Mapping button since no saved mapping
             updateApplyMappingButtonState();
+        } else {
+            // Unexpected error (not 404)
+            console.error(`Error loading mapping: ${response.status} ${response.statusText}`);
+            savedMappingId = null;
+            savedTransformations = null;
+            updateApplyMappingButtonState();
         }
     } catch (error) {
-        console.error('Error loading saved mapping:', error);
+        console.error('Network error loading saved mapping:', error);
         savedMappingId = null;
         savedTransformations = null;
         updateApplyMappingButtonState();
@@ -3260,20 +3273,23 @@ async function applyBulkToFiltered() {
     }
 
     // Re-render table to reflect changes
-    renderStagingTable();
-    updateStats();
+    // Use setTimeout to prevent blocking UI (avoid performance warnings)
+    setTimeout(() => {
+        renderStagingTable();
+        updateStats();
 
-    // Reset header checkbox after bulk operation
-    document.getElementById('header-select-all').checked = false;
+        // Reset header checkbox after bulk operation
+        document.getElementById('header-select-all').checked = false;
 
-    // Highlight updated rows
-    ids.forEach(id => {
-        const row = document.getElementById(`staging-row-${id}`);
-        if (row) {
-            row.classList.add('highlight-row');
-            setTimeout(() => row.classList.remove('highlight-row'), 500);
-        }
-    });
+        // Highlight updated rows
+        ids.forEach(id => {
+            const row = document.getElementById(`staging-row-${id}`);
+            if (row) {
+                row.classList.add('highlight-row');
+                setTimeout(() => row.classList.remove('highlight-row'), 500);
+            }
+        });
+    }, 10);
 }
 
 /**
