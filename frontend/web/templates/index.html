@@ -873,68 +873,65 @@ async function openEditFromDashboard(factId) {
             recurringPlanIdField.value = fact.recurring_plan_id || '';
         }
         if (recurringInfoDiv) {
-            if (fact.recurring_plan_id) {
+            // ✅ OPTIMIZED: Use recurring plan data from fact response (no separate fetch needed)
+            if (fact.recurring_plan_id && fact.recurring_plan) {
                 recurringInfoDiv.classList.remove('hidden');
                 // Reset scope to 'single' by default
                 const singleRadio = document.querySelector('input[name="edit_scope"][value="single"]');
                 if (singleRadio) singleRadio.checked = true;
 
-                // Load recurring plan details
-                try {
-                    const planResponse = await fetch(`/api/v1/recurring-plans/${fact.recurring_plan_id}`, {
-                        credentials: 'include'
-                    });
+                // Use recurring plan data already included in GET /facts/{id} response!
+                const planData = fact.recurring_plan;
 
-                    if (planResponse.ok) {
-                        const planData = await planResponse.json();
+                // Fill recurring plan details (same code as before)
+                const frequencyEl = document.getElementById('edit-recurring-frequency');
+                const nextDateEl = document.getElementById('edit-recurring-next-date');
+                const periodEl = document.getElementById('edit-recurring-period');
+                const generatedEl = document.getElementById('edit-recurring-generated');
+                const statusBadge = document.getElementById('edit-recurring-status');
 
-                        // Fill recurring plan details
-                        const frequencyEl = document.getElementById('edit-recurring-frequency');
-                        const nextDateEl = document.getElementById('edit-recurring-next-date');
-                        const periodEl = document.getElementById('edit-recurring-period');
-                        const generatedEl = document.getElementById('edit-recurring-generated');
-                        const statusBadge = document.getElementById('edit-recurring-status');
-
-                        if (frequencyEl) frequencyEl.textContent = planData.frequency_display || '—';
-                        if (nextDateEl) {
-                            nextDateEl.textContent = planData.next_generation_date
-                                ? BudgetShared.DateFormatter.formatForDisplay(planData.next_generation_date)
-                                : '—';
-                        }
-                        if (periodEl) {
-                            const startDate = BudgetShared.DateFormatter.formatForDisplay(planData.start_date);
-                            const endDate = planData.end_date
-                                ? BudgetShared.DateFormatter.formatForDisplay(planData.end_date)
-                                : 'бессрочно';
-                            periodEl.textContent = `${startDate} — ${endDate}`;
-                        }
-                        if (generatedEl) generatedEl.textContent = planData.occurrences_generated || '0';
-                        if (statusBadge) {
-                            if (planData.is_active) {
-                                statusBadge.textContent = 'Активен';
-                                statusBadge.className = 'badge badge-sm badge-success ml-2';
-                            } else {
-                                statusBadge.textContent = 'Неактивен';
-                                statusBadge.className = 'badge badge-sm badge-ghost ml-2';
-                            }
-                        }
-
-                        // Pre-fill template fields if they exist
-                        const templateEndDateInput = document.getElementById('edit-template-end-date');
-                        const templateIsActiveCheckbox = document.getElementById('edit-template-is-active');
-                        if (templateEndDateInput && planData.end_date) {
-                            templateEndDateInput.value = BudgetShared.DateFormatter.formatForDisplay(planData.end_date);
-                        }
-                        if (templateIsActiveCheckbox) {
-                            templateIsActiveCheckbox.checked = planData.is_active;
-                        }
-                    } else {
-                        console.warn('[Edit Modal] Failed to load recurring plan details:', planResponse.status);
-                    }
-                } catch (error) {
-                    console.error('[Edit Modal] Error loading recurring plan:', error);
+                if (frequencyEl) frequencyEl.textContent = planData.frequency_display || '—';
+                if (nextDateEl) {
+                    nextDateEl.textContent = planData.next_generation_date
+                        ? BudgetShared.DateFormatter.formatForDisplay(planData.next_generation_date)
+                        : '—';
                 }
+                if (periodEl) {
+                    const startDate = BudgetShared.DateFormatter.formatForDisplay(planData.start_date);
+                    const endDate = planData.end_date
+                        ? BudgetShared.DateFormatter.formatForDisplay(planData.end_date)
+                        : 'бессрочно';
+                    periodEl.textContent = `${startDate} — ${endDate}`;
+                }
+                if (generatedEl) generatedEl.textContent = planData.occurrences_generated || '0';
+                if (statusBadge) {
+                    if (planData.is_active) {
+                        statusBadge.textContent = 'Активен';
+                        statusBadge.className = 'badge badge-sm badge-success ml-2';
+                    } else {
+                        statusBadge.textContent = 'Неактивен';
+                        statusBadge.className = 'badge badge-sm badge-ghost ml-2';
+                    }
+                }
+
+                // Pre-fill template fields if they exist
+                const templateEndDateInput = document.getElementById('edit-template-end-date');
+                const templateIsActiveCheckbox = document.getElementById('edit-template-is-active');
+                if (templateEndDateInput && planData.end_date) {
+                    templateEndDateInput.value = BudgetShared.DateFormatter.formatForDisplay(planData.end_date);
+                }
+                if (templateIsActiveCheckbox) {
+                    templateIsActiveCheckbox.checked = planData.is_active;
+                }
+            } else if (fact.recurring_plan_id && !fact.recurring_plan) {
+                // Data integrity warning (orphaned recurring_plan_id)
+                console.warn(
+                    `[Edit Modal] Orphaned recurring_plan_id=${fact.recurring_plan_id} ` +
+                    `(recurring plan data missing from response - possible database inconsistency)`
+                );
+                recurringInfoDiv.classList.add('hidden');
             } else {
+                // No recurring plan - hide section
                 recurringInfoDiv.classList.add('hidden');
             }
         }

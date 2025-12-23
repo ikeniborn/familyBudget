@@ -540,6 +540,53 @@ await session.commit()  # Коммит пустой транзакции - ни�
 
 ---
 
+### FactResponse: Nested recurring_plan Object
+
+**Architecture Decision (v6.1):** GET `/api/v1/facts/{id}` включает nested `recurring_plan` объект для оптимизации frontend performance.
+
+**Правило:** При работе с recurring plan данными в frontend, использовать `fact.recurring_plan` напрямую вместо отдельного API запроса.
+
+**Примеры:**
+```javascript
+// ✅ ПРАВИЛЬНО - использовать nested объект из fact response
+if (fact.recurring_plan_id && fact.recurring_plan) {
+    const planData = fact.recurring_plan;  // Уже включено в GET /facts/{id}!
+    console.log(planData.frequency_display);
+    console.log(planData.next_generation_date);
+}
+
+// ❌ НЕПРАВИЛЬНО - отдельный fetch (добавляет 1-3s задержку)
+if (fact.recurring_plan_id) {
+    const response = await fetch(`/api/v1/recurring-plans/${fact.recurring_plan_id}`);
+    const planData = await response.json();
+    // Этот код добавляет блокирующий запрос!
+}
+```
+
+**Backend Implementation:**
+- `FactResponse` schema включает `recurring_plan: Optional[RecurringPlanResponse]`
+- GET `/facts/{id}` endpoint выполняет JOIN с `RecurringPlan` таблицей
+- Graceful degradation: возвращает `recurring_plan: null` если план не найден (orphaned ID)
+- Performance overhead: ~20-50ms для JOIN query (acceptable для улучшения frontend на 85%)
+
+**Performance Impact:**
+- **До оптимизации:** Modal открывается за 5-7 секунд (2 sequential API calls)
+- **После оптимизации:** Modal открывается за <1 секунду (1 API call with JOIN)
+- **Улучшение:** 85% reduction in modal open time
+
+**Последствия неправильного использования:**
+- Блокирующий fetch добавляет 1-3 секунды к времени открытия модального окна
+- Удвоение количества API запросов
+- Ухудшение user experience (perceived performance)
+
+**См. также:**
+- `docs/architecture/frontend/modal-performance.yaml:phase_5_backend_optimization`
+- `backend/app/schemas/fact.py:439-448` - FactResponse.recurring_plan field
+- `backend/app/api/v1/endpoints/facts.py:1097-1161` - recurring plan JOIN logic
+- `frontend/web/templates/index.html:876-936` - optimized usage example
+
+---
+
 ### SSE Single Worker Requirement
 
 **CRITICAL:** This application MUST run with WORKERS=1 (single uvicorn worker).

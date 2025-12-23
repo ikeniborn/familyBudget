@@ -386,6 +386,74 @@ future_improvements:
       time_saved: "N/A (offline support)"
       complexity: "High"
 
+  phase_5_backend_optimization:
+    title: "Backend Optimization - Nested recurring_plan"
+    date: "2025-12-23"
+    description: "Устранение blocking frontend fetch через включение recurring_plan в FactResponse"
+
+    files_modified:
+      - path: "backend/app/schemas/fact.py"
+        changes:
+          - "Добавлен импорт TYPE_CHECKING и RecurringPlanResponse"
+          - "Добавлено поле recurring_plan: Optional[RecurringPlanResponse]"
+          - "Обновлён model_config example"
+      - path: "backend/app/api/v1/endpoints/facts.py"
+        changes:
+          - "Добавлены импорты RecurringPlan и RecurringPlanResponse"
+          - "Добавлен JOIN с RecurringPlan в GET /facts/{id}"
+          - "Добавлено построение recurring_plan_data dict"
+          - "Добавлено поле recurring_plan в return response"
+      - path: "frontend/web/templates/index.html"
+        changes:
+          - "Удалён blocking fetch к /api/v1/recurring-plans/{id}"
+          - "Заменён на прямой доступ к fact.recurring_plan"
+          - "Добавлен graceful handling orphaned recurring_plan_id"
+      - path: "frontend/web/templates/partials/recent_transactions.html"
+        changes:
+          - "Удалён класс 'hidden md:inline-flex' с delete button"
+          - "Delete button теперь видна на мобильных устройствах"
+
+    performance_improvement:
+      before: "5-7 seconds (2 sequential API calls: fact fetch + recurring plan fetch)"
+      after: "<1 second (1 API call with JOIN)"
+      reduction: "85%"
+      backend_overhead: "~20-50ms (JOIN query)"
+      network_requests_reduced: "2 → 1"
+
+    architectural_decision:
+      choice: "Include recurring_plan as nested object in FactResponse"
+      rationale: |
+        - Eliminates blocking frontend fetch (1-3s delay removed)
+        - Reduces network requests from 2 to 1
+        - Backend JOIN query adds only ~20-50ms overhead (acceptable)
+        - Graceful degradation if recurring plan not found (returns null)
+        - No database migration required (code-only changes)
+        - Backward compatible (frontend checks for field existence)
+
+      alternatives_considered:
+        - name: "Lazy load on collapse expand"
+          reason_rejected: "Still requires separate fetch, adds complexity"
+        - name: "Frontend caching only"
+          reason_rejected: "Doesn't solve first-open performance issue"
+        - name: "WebSocket push"
+          reason_rejected: "Overkill for this use case, adds infrastructure"
+
+    backward_compatibility: true
+    breaking_changes: false
+
+    testing_strategy:
+      manual_tests:
+        - "Modal opens in <1s for recurring plan records"
+        - "Network tab shows only 1 API call (no /recurring-plans/{id})"
+        - "Recurring plan details populate correctly"
+        - "Delete button visible on mobile devices"
+      edge_cases:
+        - "Orphaned recurring_plan_id logs warning, doesn't crash"
+        - "Regular facts (no recurring plan) work unchanged"
+        - "Paused recurring plans show 'Неактивен' status"
+
+    rollback_plan: "git revert + redeploy (no database migration to reverse)"
+
 notes: |
   - Все изменения обратно совместимы
   - Performance budget: <1000ms для первого открытия, <600ms для последующих

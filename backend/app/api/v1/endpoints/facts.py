@@ -35,6 +35,7 @@ from backend.app.models.article import Article
 from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
+from backend.app.models.recurring_plan import RecurringPlan
 from backend.app.models.user import User
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.fact import (
@@ -44,6 +45,7 @@ from backend.app.schemas.fact import (
     FactSummary,
     FactUpdate,
 )
+from backend.app.schemas.recurring_plan import RecurringPlanResponse
 from backend.app.services.cache_service import cache_service, CacheKey, CacheTTL
 from backend.app.services.write_behind_service import write_behind_service
 from backend.app.services.id_generator import get_next_fact_id
@@ -1092,6 +1094,72 @@ async def get_fact(
             f"Пользователь #{user.id}"
         )
 
+    # Load recurring plan details if linked
+    recurring_plan_data = None
+    if fact.recurring_plan_id:
+        try:
+            # Load recurring plan with enriched details
+            plan_stmt = (
+                select(RecurringPlan, Article, FinancialCenter, CostCenter)
+                .select_from(RecurringPlan)
+                .join(Article, RecurringPlan.article_id == Article.id)
+                .outerjoin(FinancialCenter, RecurringPlan.financial_center_id == FinancialCenter.id)
+                .outerjoin(CostCenter, RecurringPlan.cost_center_id == CostCenter.id)
+                .where(RecurringPlan.id == fact.recurring_plan_id)
+            )
+            plan_result = await session.execute(plan_stmt)
+            plan_row = plan_result.one_or_none()
+
+            if plan_row:
+                plan, plan_article, plan_fc, plan_cc = plan_row
+
+                # Build RecurringPlanResponse with enriched data
+                from backend.app.services.recurring_plan_service import RecurringPlanService
+                service = RecurringPlanService()
+                frequency_display = service._format_frequency_display(plan)
+
+                recurring_plan_data = {
+                    "id": plan.id,
+                    "user_id": plan.user_id,
+                    "article_id": plan.article_id,
+                    "article_name": plan_article.name if plan_article else None,
+                    "article_type": plan_article.type if plan_article else None,
+                    "financial_center_id": plan.financial_center_id,
+                    "financial_center_name": plan_fc.name if plan_fc else None,
+                    "cost_center_id": plan.cost_center_id,
+                    "cost_center_name": plan_cc.name if plan_cc else None,
+                    "frequency_type": plan.frequency_type,
+                    "frequency_value": plan.frequency_value,
+                    "frequency_display": frequency_display,
+                    "start_date": plan.start_date,
+                    "end_date": plan.end_date,
+                    "occurrences_count": plan.occurrences_count,
+                    "occurrences_generated": plan.occurrences_generated,
+                    "amount": plan.amount,
+                    "description": plan.description,
+                    "record_type": plan.record_type,
+                    "is_active": plan.is_active,
+                    "next_generation_date": plan.next_generation_date,
+                    "last_generated_date": plan.last_generated_date,
+                    "created_at": plan.created_at,
+                    "updated_at": plan.updated_at,
+                }
+            else:
+                # Data integrity warning: orphaned reference
+                logger.warning(
+                    f"[GET /facts/{fact_id}] Orphaned recurring_plan_id={fact.recurring_plan_id} "
+                    f"(plan not found in database)"
+                )
+                recurring_plan_data = None
+
+        except Exception as e:
+            # Non-critical error - log and continue
+            logger.error(
+                f"[GET /facts/{fact_id}] Failed to load recurring plan "
+                f"for plan_id={fact.recurring_plan_id}: {e}"
+            )
+            recurring_plan_data = None
+
     return {
         "id": fact.id,
         "user_id": fact.user_id,
@@ -1109,6 +1177,7 @@ async def get_fact(
         "record_type": fact.record_type,
         "is_offline_sync": fact.is_offline_sync,
         "recurring_plan_id": fact.recurring_plan_id,
+        "recurring_plan": recurring_plan_data,
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
     }
