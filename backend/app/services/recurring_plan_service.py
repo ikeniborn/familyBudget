@@ -544,10 +544,12 @@ class RecurringPlanService:
                 )
                 break
 
-            # Check horizon limit BEFORE creating fact (for ongoing plans)
-            if current_date > horizon_date:
+            # Check horizon limit ONLY for unbounded plans (no end_date and no occurrences_count)
+            # Bounded plans should generate ALL facts regardless of horizon
+            is_unbounded = (plan.end_date is None and plan.occurrences_count is None)
+            if is_unbounded and current_date > horizon_date:
                 logger.info(
-                    f"[RECURRING] Plan {plan.id}: Reached horizon after {generated_count} facts"
+                    f"[RECURRING] Plan {plan.id}: Reached horizon after {generated_count} facts (unbounded plan)"
                 )
                 break
 
