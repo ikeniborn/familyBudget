@@ -2818,23 +2818,45 @@ async function executeImport() {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error('Import API error:', errorData);
-
-            // Extract error message from different possible formats
             let errorMessage = 'Ошибка импорта';
-            if (typeof errorData.detail === 'string') {
-                errorMessage = errorData.detail;
-            } else if (errorData.detail && errorData.detail.message) {
-                errorMessage = errorData.detail.message;
-            } else if (errorData.message) {
-                errorMessage = errorData.message;
+
+            try {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const errorData = await response.json();
+                    console.error('Import API error:', errorData);
+
+                    // Extract error message from different possible formats
+                    if (typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else if (errorData.detail && errorData.detail.message) {
+                        errorMessage = errorData.detail.message;
+                    } else if (errorData.message) {
+                        errorMessage = errorData.message;
+                    }
+
+                    // Translate common backend error messages to Russian
+                    errorMessage = translateImportError(errorMessage);
+                } else {
+                    // Server returned non-JSON (likely HTML error page)
+                    const text = await response.text();
+                    console.error('Server returned non-JSON response:', text.substring(0, 200));
+                    errorMessage = `Ошибка сервера (${response.status}). Проверьте логи backend.`;
+                }
+            } catch (parseError) {
+                console.error('Error parsing server response:', parseError);
+                errorMessage = `Ошибка связи с сервером (${response.status})`;
             }
 
-            // Translate common backend error messages to Russian
-            errorMessage = translateImportError(errorMessage);
-
             throw new Error(errorMessage);
+        }
+
+        // Parse successful response
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Server returned non-JSON success response:', text.substring(0, 200));
+            throw new Error('Сервер вернул некорректный ответ. Проверьте логи backend.');
         }
 
         const result = await response.json();

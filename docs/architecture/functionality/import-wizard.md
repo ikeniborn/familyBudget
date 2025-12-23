@@ -373,6 +373,43 @@ mapping2 = await MappingService.save_mapping(
 
 **Files**: `frontend/shared/static/js/choicesCategoryTree.js:917-947`
 
+---
+
+### Import Execution Error Handling (Fixed 2025-12-23)
+
+**Problem**: `executeImport()` crashed with `SyntaxError: Unexpected token '<'` when server returned HTML error page instead of JSON.
+
+**Root Cause**: Code attempted to parse all responses as JSON without checking `Content-Type` header first. When backend returned HTML error page (e.g., 500 Internal Server Error), `response.json()` failed with cryptic syntax error.
+
+**Fix**: Added Content-Type validation before JSON parsing:
+
+1. **Error responses** (non-2xx status):
+   - Check `Content-Type` header
+   - If `application/json` → parse as JSON and extract error message
+   - If HTML or other → read as text, log first 200 chars, show user-friendly error
+   - Catch parse errors → show connection error with status code
+
+2. **Success responses** (2xx status):
+   - Check `Content-Type` header before parsing
+   - If not JSON → throw error with helpful message
+
+**User Experience:**
+- **Before**: Cryptic error "SyntaxError: Unexpected token '<', "<html>..." in console
+- **After**: Clear Russian error message: "Ошибка сервера (500). Проверьте логи backend."
+
+**Debugging:**
+- Non-JSON responses logged to console with first 200 characters
+- Parse errors logged with full stack trace
+- HTTP status code included in error messages
+
+**Files**: `frontend/web/templates/admin_import.html:2820-2865`
+
+**Testing:**
+1. Trigger backend 500 error (e.g., database connection issue)
+2. Click "Импортировать" button
+3. **Expected**: User-friendly error message, not JavaScript exception
+4. **Console**: Shows response preview and HTTP status code
+
 ## References
 
 - **Backend**: `/backend/app/api/v1/endpoints/import_endpoints.py`
