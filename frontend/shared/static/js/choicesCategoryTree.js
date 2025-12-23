@@ -875,6 +875,13 @@ class ChoicesCategoryTree {
                 // Set new choices
                 this.choices.setChoices(choices, 'value', 'label', true);
 
+                // CRITICAL: Clear any auto-selection that Choices.js made
+                // This must happen BEFORE we check if we need to restore selection
+                this.choices.removeActiveItems();
+                if (this.element) {
+                    this.element.value = '';
+                }
+
                 // Restore previous selection if category is still available
                 const categoryStillAvailable = previousSelectionId &&
                     this.categoryMap.has(previousSelectionId);
@@ -884,22 +891,10 @@ class ChoicesCategoryTree {
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else if (previousSelectionId) {
-                    // Category was selected but not available anymore - reset
-                    if (this.element) {
-                        this.element.value = '';
-                    }
-                    if (this.choices) {
-                        this.choices.setChoiceByValue('');
-                    }
+                    // Category was selected but not available anymore - already cleared above
                     debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                 } else {
-                    // No previous selection - ensure nothing is selected
-                    if (this.element) {
-                        this.element.value = '';
-                    }
-                    if (this.choices) {
-                        this.choices.setChoiceByValue('');
-                    }
+                    // No previous selection - already cleared above
                     debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
                 }
 
