@@ -236,6 +236,42 @@ mapping2 = await MappingService.save_mapping(
 4. **Before fix**: Form state from previous session (broken)
 5. **After fix**: Clean form with CSV selected ✅
 
+---
+
+### Radio Buttons Visibility on Restart (Fixed 2025-12-23)
+
+**Problem**: When restarting import wizard (Step 1 → Step 2), radio buttons for source selection (CSV/Google Sheets) were not visible.
+
+**Root Cause**: Radio buttons container was hidden after first file upload and not restored in `proceedToUpload()` or `resetWorkflow()`.
+
+**Fix**: Restore radio buttons container visibility in both functions.
+
+**Files**: `frontend/web/templates/admin_import.html:1345-1349,1080-1084`
+
+---
+
+### Mapping Buttons Incorrect Display (Fixed 2025-12-23)
+
+**Problem**: After uploading file on Step 2, "Create mapping" button shown even when mapping exists in database.
+
+**Root Cause**: `showPostUploadActions()` did not load mapping from API before checking `savedMappingId`, causing it to remain `null`.
+
+**Fix**: Call `await loadSavedMapping(selectedBankId)` before checking mapping existence.
+
+**Files**: `frontend/web/templates/admin_import.html:1694-1695`
+
+---
+
+### Category Picker Async Loading Race Condition (Fixed 2025-12-23)
+
+**Problem**: Console error "Category not found in choices: 70" during enrichment step.
+
+**Root Cause**: `setSelectedCategory()` called before categories finished loading from API (async fetch in `loadCategories()`).
+
+**Fix**: Added retry logic (3 attempts, 100ms delay) in `setSelectedCategory()` to wait for categories to load.
+
+**Files**: `frontend/shared/static/js/choicesCategoryTree.js:917-947`
+
 ## References
 
 - **Backend**: `/backend/app/api/v1/endpoints/import_endpoints.py`

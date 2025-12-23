@@ -1077,6 +1077,12 @@ function resetWorkflow() {
     document.getElementById('csv-file').value = '';
     document.getElementById('google-sheets-url').value = '';
 
+    // 🔧 FIX: Restore radio buttons container visibility
+    const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
+    if (radioContainer) {
+        radioContainer.style.display = 'block';
+    }
+
     // Clear staging table
     document.getElementById('staging-table-body').innerHTML = '';
 
@@ -1341,6 +1347,12 @@ async function proceedToUpload() {
     // Clear file inputs (redundant with reset(), but explicit for clarity)
     document.getElementById('csv-file').value = '';
     document.getElementById('google-sheets-url').value = '';
+
+    // 🔧 FIX: Restore radio buttons container visibility
+    const radioContainer = document.querySelector('#step-2-upload .form-control.mb-4');
+    if (radioContainer) {
+        radioContainer.style.display = 'block';
+    }
 
     // Reset global state
     uploadedFileId = null;
@@ -1690,6 +1702,9 @@ async function showPostUploadActions() {
     const createMappingBtn = document.getElementById('create-mapping-btn');
     const updateMappingBtn = document.getElementById('update-mapping-btn');
     const useExistingBtn = document.getElementById('use-existing-mapping-btn');
+
+    // 🔧 FIX: Load mapping BEFORE checking if it exists
+    await loadSavedMapping(selectedBankId);
 
     // Check if saved mapping exists
     if (savedMappingId) {
