@@ -260,6 +260,32 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-23**: Edit Modal UI Improvements:
+  - **Recurring template info**: Converted to DaisyUI collapse component (default: collapsed)
+    - Improves UX by reducing visual clutter when editing recurring plan records
+    - Users can expand to view/edit recurring plan details when needed
+  - **Spacing improvement**: Added mb-4 margin between date field and category type badge
+    - Improved visual separation for better readability
+  - **Reminder field**: Hidden for recurring plan records (complementing setEditModalMode)
+    - Prevents confusion - reminders managed at recurring plan template level, not individual instances
+    - Carefully implemented to avoid duplicating setEditModalMode logic
+  - **Race condition fix**: Category loading moved out of Promise.all to sequential execution
+    - **Problem**: ChoicesCategoryTree initialization started before allCategories array populated
+    - **Error**: "[ChoicesCategoryTree] Category not found in choices after 3 attempts: 2"
+    - **Solution**: Load categories sequentially with separate performance marks before widget init
+    - Ensures categoryMap is fully populated before setSelectedCategory call
+  - **Delete buttons**: Added to desktop view in dashboard cards
+    - recent-transactions card: Delete button next to edit button (hidden on mobile)
+    - pending-records card: Delete buttons for all record types (transfers + regular facts)
+    - JavaScript handlers: deleteRecordFromDashboard, deletePendingRecord
+  - **Files modified**:
+    - `modal_edit_plan.html:11-77` (collapse structure)
+    - `modal_edit_plan.html:100` (mb-4 margin)
+    - `index.html:879-889` (reminder hiding logic)
+    - `index.html:845-859` (race condition fix - sequential category load)
+    - `index.html:1791-1848` (delete handlers)
+    - `index.html:2953-2974,2999-3020,3073-3097` (pending records delete buttons)
+    - `recent_transactions.html:59-78` (desktop delete button)
 - **2025-12-23**: PWA Icon Redesign - Material Green Color Scheme:
   - **Change**: Redesigned all PWA icons with Material Green gradient to match application branding
   - **Old colors**: Indigo gradient (#6366F1 → #4F46E5)

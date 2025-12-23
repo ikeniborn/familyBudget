@@ -842,16 +842,21 @@ async function openEditFromDashboard(factId) {
         // Set mode (show/hide reminder section)
         setEditModalMode(recordType);
 
-        // STEP 3: Load categories, reminders, and dropdowns in parallel (with caching!)
+        // STEP 3A: Load dropdowns (БЕЗ категорий)
         performance.mark(`${perfId}-dropdown-start`);
         await Promise.all([
-            loadCategoriesForEdit(),
             loadEditFinancialCenters(fact.financial_center_id),
             loadEditCostCenters(fact.cost_center_id),
             recordType === 'plan' ? loadRemindersForEdit([factId]) : Promise.resolve()
         ]);
         performance.mark(`${perfId}-dropdown-end`);
         performance.measure('Dropdown Load', `${perfId}-dropdown-start`, `${perfId}-dropdown-end`);
+
+        // STEP 3B: Load categories ОТДЕЛЬНО (гарантия завершения)
+        performance.mark(`${perfId}-categories-start`);
+        await loadCategoriesForEdit();
+        performance.mark(`${perfId}-categories-end`);
+        performance.measure('Categories Load', `${perfId}-categories-start`, `${perfId}-categories-end`);
 
         // Fill basic fields
         document.getElementById('edit-id').value = fact.id;
@@ -875,6 +880,18 @@ async function openEditFromDashboard(factId) {
                 recurringInfoDiv.classList.add('hidden');
             }
         }
+
+        // НОВОЕ: Скрыть reminder для recurring plan записей
+        // setEditModalMode уже показал reminder для всех plan записей (строка 489)
+        // Но для recurring plan нужно его скрыть
+        if (fact.recurring_plan_id) {
+            const reminderContainer = document.getElementById('edit-reminder-container');
+            const reminderSettings = document.getElementById('edit-reminder-settings');
+            if (reminderContainer) reminderContainer.classList.add('hidden');
+            if (reminderSettings) reminderSettings.classList.add('hidden');
+        }
+        // ВАЖНО: НЕ добавлять else блок!
+        // setEditModalMode уже показывает reminder для обычных plan записей
 
         // Determine category type from allCategories
         const selectedArticle = allCategories.find(a => a.id === fact.article_id);
@@ -1770,6 +1787,65 @@ async function deleteFromEditModal() {
     }
 }
 window.deleteFromEditModal = deleteFromEditModal;
+
+// Delete record from dashboard (recent transactions)
+async function deleteRecordFromDashboard(factId) {
+    if (!confirm('Удалить запись?')) return;
+
+    try {
+        const response = await fetch(`/api/v1/facts/${factId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        showToast('Запись удалена', 'success');
+
+        // Обновить карточку recent-transactions
+        htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+            target: '#recent-transactions',
+            swap: 'innerHTML'
+        });
+
+        // Обновить метрики
+        htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+            target: '#quick-stats',
+            swap: 'innerHTML'
+        });
+        htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+            target: '#account-balances',
+            swap: 'innerHTML'
+        });
+
+        // Обновить SSE
+        if (window.budgetSSE) {
+            window.budgetSSE.reconnect();
+        }
+    } catch (error) {
+        console.error('Error deleting record:', error);
+        showToast('Ошибка удаления: ' + error.message, 'error');
+    }
+}
+window.deleteRecordFromDashboard = deleteRecordFromDashboard;
+
+// Delete pending record (offline queue)
+async function deletePendingRecord(itemId) {
+    if (!confirm('Удалить из очереди?')) return;
+
+    try {
+        await window.offlineManager.deleteItem(itemId);
+        showToast('Удалено из очереди', 'success');
+        await loadPendingRecords();
+    } catch (error) {
+        console.error('Error deleting pending record:', error);
+        showToast('Ошибка удаления: ' + error.message, 'error');
+    }
+}
+window.deletePendingRecord = deletePendingRecord;
 
 // ==================== End Edit Modal Functions ====================
 
@@ -2935,7 +3011,16 @@ async function loadPendingRecords() {
                 // Desktop table row
                 tableRows.push(`
                     <tr>
-                        <td class="text-center"><button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button></td>
+                        <td class="text-center">
+                            <div class="flex items-center justify-center gap-1">
+                                <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button>
+                                <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
@@ -2972,7 +3057,16 @@ async function loadPendingRecords() {
                 // Desktop table row
                 tableRows.push(`
                     <tr>
-                        <td class="text-center"><button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button></td>
+                        <td class="text-center">
+                            <div class="flex items-center justify-center gap-1">
+                                <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button>
+                                <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
@@ -3034,13 +3128,22 @@ async function loadPendingRecords() {
                 // Format amount with +/- sign based on type
                 const formattedAmount = formatAmount(item.data.amount, factType);
 
-                // Edit button for pending records
-                const editButton = `<button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>`;
+                // Edit and delete buttons for pending records
+                const actionButtons = `
+                    <div class="flex items-center justify-center gap-1">
+                        <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>
+                        <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
 
                 // Desktop table row
                 tableRows.push(`
                     <tr>
-                        <td class="text-center">${editButton}</td>
+                        <td class="text-center">${actionButtons}</td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>

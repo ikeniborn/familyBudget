@@ -9,67 +9,69 @@
 
             <!-- Информация о регламентном платеже (показывается если есть recurring_plan_id) -->
             <div id="edit-recurring-info" class="hidden alert alert-info text-sm py-2 mb-2">
-                <div class="flex flex-col gap-2">
-                    <div class="flex items-center justify-between">
-                        <span class="font-medium">🔄 Запись из регламентного платежа</span>
-                        <span id="edit-recurring-status" class="badge badge-sm badge-success">Активен</span>
+                <div class="collapse collapse-arrow">
+                    <input type="checkbox" id="edit-recurring-collapse-toggle" />
+                    <div class="collapse-title text-sm font-medium py-2 min-h-0">
+                        🔄 Нажмите для просмотра информации о регламентном платеже
+                        <span id="edit-recurring-status" class="badge badge-sm badge-success ml-2">Активен</span>
                     </div>
-
-                    <!-- Информация о плане (заполняется через JS) -->
-                    <div id="edit-recurring-details" class="text-xs space-y-1 opacity-80">
-                        <div class="flex justify-between">
-                            <span>Частота:</span>
-                            <span id="edit-recurring-frequency" class="font-medium">—</span>
+                    <div class="collapse-content">
+                        <!-- Информация о плане (заполняется через JS) -->
+                        <div id="edit-recurring-details" class="text-xs space-y-1 opacity-80 mb-3">
+                            <div class="flex justify-between">
+                                <span>Частота:</span>
+                                <span id="edit-recurring-frequency" class="font-medium">—</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Следующая генерация:</span>
+                                <span id="edit-recurring-next-date" class="font-medium">—</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Период:</span>
+                                <span id="edit-recurring-period" class="font-medium">—</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>Сгенерировано записей:</span>
+                                <span id="edit-recurring-generated" class="font-medium">—</span>
+                            </div>
                         </div>
-                        <div class="flex justify-between">
-                            <span>Следующая генерация:</span>
-                            <span id="edit-recurring-next-date" class="font-medium">—</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Период:</span>
-                            <span id="edit-recurring-period" class="font-medium">—</span>
-                        </div>
-                        <div class="flex justify-between">
-                            <span>Сгенерировано записей:</span>
-                            <span id="edit-recurring-generated" class="font-medium">—</span>
-                        </div>
-                    </div>
 
-                    <!-- Выбор области редактирования -->
-                    <div class="divider my-1 text-xs opacity-60">Область редактирования</div>
-                    <div class="flex flex-col gap-0.5">
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="edit_scope" value="single" class="radio radio-sm radio-primary" checked
-                                   onchange="handleEditScopeChange('single')" />
-                            <span class="text-sm">Только эту запись</span>
-                        </label>
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input type="radio" name="edit_scope" value="template" class="radio radio-sm radio-primary"
-                                   onchange="handleEditScopeChange('template')" />
-                            <span class="text-sm">Шаблон (влияет на будущие записи)</span>
-                        </label>
-                    </div>
-
-                    <!-- Поля редактирования шаблона (показываются при scope=template) -->
-                    <div id="edit-template-fields" class="hidden space-y-2 mt-2 pt-2 border-t border-info/30">
-                        <p class="text-xs font-medium opacity-70">Параметры шаблона:</p>
-
-                        <!-- Дата окончания -->
-                        <div class="form-control">
-                            <label class="label py-0.5">
-                                <span class="label-text text-xs">Дата окончания</span>
+                        <!-- Выбор области редактирования -->
+                        <div class="divider my-1 text-xs opacity-60">Область редактирования</div>
+                        <div class="flex flex-col gap-0.5">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="edit_scope" value="single" class="radio radio-sm radio-primary" checked
+                                       onchange="handleEditScopeChange('single')" />
+                                <span class="text-sm">Только эту запись</span>
                             </label>
-                            <input type="text" id="edit-template-end-date" name="template_end_date"
-                                   class="input input-bordered input-sm w-full"
-                                   placeholder="ДД.ММ.ГГГГ (пусто = бессрочно)" autocomplete="off" />
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" name="edit_scope" value="template" class="radio radio-sm radio-primary"
+                                       onchange="handleEditScopeChange('template')" />
+                                <span class="text-sm">Шаблон (влияет на будущие записи)</span>
+                            </label>
                         </div>
 
-                        <!-- Статус активности -->
-                        <label class="flex items-center gap-2 cursor-pointer py-1">
-                            <input type="checkbox" id="edit-template-is-active" name="template_is_active"
-                                   class="checkbox checkbox-sm checkbox-primary" checked />
-                            <span class="label-text text-xs">Активен (генерировать новые записи)</span>
-                        </label>
+                        <!-- Поля редактирования шаблона (показываются при scope=template) -->
+                        <div id="edit-template-fields" class="hidden space-y-2 mt-2 pt-2 border-t border-info/30">
+                            <p class="text-xs font-medium opacity-70">Параметры шаблона:</p>
+
+                            <!-- Дата окончания -->
+                            <div class="form-control">
+                                <label class="label py-0.5">
+                                    <span class="label-text text-xs">Дата окончания</span>
+                                </label>
+                                <input type="text" id="edit-template-end-date" name="template_end_date"
+                                       class="input input-bordered input-sm w-full"
+                                       placeholder="ДД.ММ.ГГГГ (пусто = бессрочно)" autocomplete="off" />
+                            </div>
+
+                            <!-- Статус активности -->
+                            <label class="flex items-center gap-2 cursor-pointer py-1">
+                                <input type="checkbox" id="edit-template-is-active" name="template_is_active"
+                                       class="checkbox checkbox-sm checkbox-primary" checked />
+                                <span class="label-text text-xs">Активен (генерировать новые записи)</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -95,7 +97,7 @@
             </div>
 
             <!-- Дата (скрывается при редактировании шаблона) -->
-            <div id="edit-date-container" class="form-control">
+            <div id="edit-date-container" class="form-control mb-4">
                 <label class="label py-1">
                     <span class="label-text">Дата *</span>
                 </label>
