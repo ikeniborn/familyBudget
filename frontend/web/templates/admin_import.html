@@ -1062,11 +1062,9 @@ function resetWorkflow() {
     // Reset forms
     document.getElementById('upload-form').reset();
     document.getElementById('upload-form-google-sheets').reset();
-    document.getElementById('upload-form').style.display = 'block';
-    document.getElementById('upload-form-google-sheets').style.display = 'none';
     document.getElementById('post-upload-actions').style.display = 'none';
 
-    // 🔧 FIX: Reset upload source visibility
+    // 🔧 FIX: Reset upload source visibility (containers manage form visibility)
     document.getElementById('upload-source-csv').style.display = 'block';
     document.getElementById('upload-source-google-sheets').style.display = 'none';
 
