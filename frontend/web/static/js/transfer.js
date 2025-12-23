@@ -928,9 +928,10 @@ async function openTransferModal() {
         // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
         if (!modal.dataset.backdropHandlerAdded) {
             modal.addEventListener('click', (e) => {
-                // Close only if click is directly on dialog (backdrop area)
-                // NOT if click is on modal-box or its children
-                if (e.target === modal) {
+                // Close only if click is OUTSIDE modal-box
+                // This handles Choices.js dropdowns that may be created inside dialog but outside modal-box
+                const modalBox = modal.querySelector('.modal-box');
+                if (modalBox && !modalBox.contains(e.target)) {
                     modal.close();
                 }
             });
