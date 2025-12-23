@@ -832,12 +832,6 @@ body.resizing-columns * {
                             </svg>
                             Импортировать
                         </button>
-                        <button class="btn btn-error btn-outline gap-2" onclick="clearStaging()">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Очистить staging
-                        </button>
                         <button type="button" class="btn btn-ghost gap-2" onclick="resetWorkflow()">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -1426,23 +1420,6 @@ async function loadStagingTableByBank() {
     }
 }
 
-async function clearStaging() {
-    try {
-        const response = await fetch('/api/v1/staging', {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        if (response.ok) {
-            showNotification('Staging очищен', 'success');
-        } else {
-            showNotification('Ошибка очистки staging', 'error');
-        }
-    } catch (error) {
-        console.error('Error clearing staging:', error);
-        showNotification('Ошибка очистки staging', 'error');
-    }
-}
 
 function showConfirmDialog(message, title = 'Подтверждение') {
     return new Promise((resolve) => {
@@ -2871,69 +2848,6 @@ function translateImportError(message) {
     return message;
 }
 
-async function clearStaging() {
-    // Clear only records for selected bank (from current stagingRecords)
-    const recordCount = stagingRecords.length;
-
-    if (recordCount === 0) {
-        showNotification('Нет записей для удаления', 'info');
-        return;
-    }
-
-    const bankName = selectedBankId ? 'выбранного банка' : 'staging';
-    const confirmed = await showConfirmDialog(
-        `Удалить ${recordCount} записей ${bankName}?`,
-        'Подтверждение'
-    );
-    if (!confirmed) return;
-
-    // Force close modal dialog
-    const modal = document.getElementById('confirm-dialog');
-    if (modal) {
-        modal.close();
-    }
-
-    // Small delay to ensure modal is fully closed
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Show notification with dynamic loader
-    showNotification(`Удаление ${recordCount} записей...`, 'loading');
-
-    // Copy records to delete and clear the array immediately to prevent double-deletion
-    const recordsToDelete = [...stagingRecords];
-    stagingRecords = [];
-
-    try {
-        // Bulk delete with single API request
-        const stagingIds = recordsToDelete.map(r => r.id);
-
-        const response = await fetch('/api/v1/staging/bulk-delete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            credentials: 'include',
-            body: JSON.stringify({ staging_ids: stagingIds })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Ошибка сервера: ${response.status}`);
-        }
-
-        const result = await response.json();
-        showNotification(result.message, 'success');
-
-        // Return to step 1 after clearing
-        resetWorkflow();
-
-    } catch (error) {
-        console.error('Clear staging error:', error);
-        showNotification(`Ошибка удаления: ${error.message}`, 'error');
-
-        // Restore records if deletion failed
-        stagingRecords = recordsToDelete;
-    }
-}
 
 // ========== Helper Functions ==========
 function getSelectedIds() {
@@ -3302,21 +3216,21 @@ async function applyBulkToFiltered() {
 }
 
 /**
- * Delete all filtered records
+ * Delete selected (checked) records
  */
 async function deleteFilteredRecords() {
-    if (filteredRecords.length === 0) {
-        showNotification('Нет отфильтрованных записей для удаления', 'warning');
+    const selectedIds = getSelectedIds();
+
+    if (selectedIds.length === 0) {
+        showNotification('Не выбраны записи для удаления', 'warning');
         return;
     }
 
     const confirmed = await showConfirmDialog(
-        `Удалить ${filteredRecords.length} отфильтрованных записей?`,
+        `Удалить ${selectedIds.length} выбранных записей?`,
         'Подтверждение удаления'
     );
     if (!confirmed) return;
-
-    const ids = filteredRecords.map(r => r.id);
 
     try {
         showNotification('Удаление записей...', 'loading');
@@ -3325,7 +3239,7 @@ async function deleteFilteredRecords() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ staging_ids: ids })
+            body: JSON.stringify({ staging_ids: selectedIds })
         });
 
         if (!response.ok) {
@@ -3334,13 +3248,13 @@ async function deleteFilteredRecords() {
         }
 
         const result = await response.json();
-        showNotification(result.message || `Удалено ${ids.length} записей`, 'success');
+        showNotification(result.message || `Удалено ${selectedIds.length} записей`, 'success');
 
         // Reload table
         await loadStagingTable();
 
     } catch (error) {
-        console.error('Delete filtered error:', error);
+        console.error('Delete selected records error:', error);
         showNotification(`Ошибка: ${error.message}`, 'error');
     }
 }

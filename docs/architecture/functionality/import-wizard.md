@@ -238,6 +238,57 @@ mapping2 = await MappingService.save_mapping(
 
 ---
 
+### Bulk Delete Button Logic (Fixed 2025-12-23)
+
+**Problem**: The "🗑️ Удалить" (Delete) button in bulk-panel-filtered deleted ALL filtered records, ignoring checkboxes.
+
+**Root Cause**:
+- `deleteFilteredRecords()` used `filteredRecords.map(r => r.id)` to get IDs for deletion
+- This selected ALL filtered records, not just checked ones
+- User expectation: Delete only checked records (via checkboxes)
+- Actual behavior: Delete all records matching filters
+
+**Fix**:
+- Changed `deleteFilteredRecords()` to use `getSelectedIds()` instead of `filteredRecords.map(r => r.id)`
+- `getSelectedIds()` correctly returns only records with checked checkboxes
+- Updated confirmation message: "отфильтрованных" → "выбранных" (filtered → selected)
+- Updated function comment to reflect new behavior
+
+**Files**: `frontend/web/templates/admin_import.html:3221-3260`
+
+**Testing**:
+1. Load staging data (Step 4)
+2. Check ONE record via checkbox
+3. Click "🗑️ Удалить" in bulk-panel-filtered
+4. **Expected**: Confirmation shows "Удалить 1 выбранных записей?" (only 1 record)
+5. **Before fix**: Deleted all filtered records (regardless of checkboxes)
+6. **After fix**: Deletes only the 1 checked record ✅
+
+---
+
+### Clear Staging Button Removed (Fixed 2025-12-23)
+
+**Problem**: Step 4 had duplicate delete functionality - both "Очистить staging" and "🗑️ Удалить" buttons.
+
+**Root Cause**:
+- "Очистить staging" button called `clearStaging()` - deleted ALL records for selected bank
+- This functionality duplicated the "Начать заново" button (reset workflow)
+- Confused users - unclear difference between buttons
+
+**Fix**:
+- Removed "Очистить staging" button from Step 4 UI (admin_import.html:835-840)
+- Removed both `clearStaging()` function definitions (old version at line 1423, new version at line 2868)
+- Kept "🗑️ Удалить" button (now correctly deletes only checked records)
+- Kept "Начать заново" button (resets entire workflow)
+
+**Files**: `frontend/web/templates/admin_import.html:835-840, 1423-1439, 2868-2930`
+
+**Result**: Clear UI with no functional duplication. Users now have:
+- **"🗑️ Удалить"** - Delete checked records
+- **"Начать заново"** - Reset workflow to Step 1
+
+---
+
 ### Radio Buttons Visibility on Restart (Fixed 2025-12-23)
 
 **Problem**: When restarting import wizard (Step 1 → Step 2), radio buttons for source selection (CSV/Google Sheets) were not visible.
