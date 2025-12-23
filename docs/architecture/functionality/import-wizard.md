@@ -28,7 +28,7 @@ The Import Wizard allows users to import CSV bank statements into the budget sys
 - User-friendly error messages for timeout/network failures
 
 ### Step 3: Column Mapping
-- User selects delimiter (default: Автоматически 🤖) or manually chooses from 7 options
+- User selects delimiter (default: Автоопределение) or manually chooses from 7 options
 - User maps CSV columns to budget fields (fact_date, amount, description, etc.)
 - `GET /api/v1/import/mappings/{bank_id}` loads saved mapping (per-user)
 - `POST /api/v1/import/mappings` saves mapping (SCD Type 1, per-user)
@@ -301,14 +301,14 @@ mapping2 = await MappingService.save_mapping(
    - ` ` (space/пробел)
    - Total: 7 delimiters (was: `;`, `,`, `\t`)
 
-2. **"Автоматически" option** (default):
+2. **"Автоопределение" option** (default):
    - Value: `auto`
    - Selected by default on Step 3
    - Uses backend auto-detection via `/analyze` endpoint
    - Shows detected delimiter in status: "✓ 15 колонок, 152 строк (разделитель: точка с запятой (;))"
 
 3. **Smart delimiter handling**:
-   - If user selects "Автоматически" → uses `/api/v1/import/files/{id}/analyze` (auto-detect)
+   - If user selects "Автоопределение" → uses `/api/v1/import/files/{id}/analyze` (auto-detect)
    - If user selects specific delimiter → uses `/api/v1/import/files/{id}/preview?delimiter=...` (force)
    - When saving mapping with "auto" → saves actual detected delimiter (not "auto" string)
 
@@ -325,7 +325,7 @@ mapping2 = await MappingService.save_mapping(
 - `backend/app/services/csv_analyzer.py:166-246` (detect_delimiter)
 
 **User Experience:**
-1. Upload file → Step 3 opens with "Автоматически" selected
+1. Upload file → Step 3 opens with "Автоопределение" selected
 2. Preview shows: "✓ 15 колонок, 152 строк (разделитель: точка с запятой (;))"
 3. User can switch to manual delimiter if auto-detection is wrong
 4. Saved mapping stores actual delimiter for future imports
