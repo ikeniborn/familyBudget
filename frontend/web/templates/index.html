@@ -244,6 +244,7 @@
                                         <th>Категория</th>
                                         <th>Сумма</th>
                                         <th>Описание</th>
+                                        <th class="text-center" title="Регламентный">🔄</th>
                                         <th class="text-center">
                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" title="Уведомление">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -3027,6 +3028,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
                         <td class="text-info font-medium">${debitAmount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td class="text-center opacity-30">—</td>
                         ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
@@ -3073,6 +3075,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
                         <td class="text-warning font-medium">${creditAmount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td class="text-center opacity-30">—</td>
                         ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
@@ -3140,6 +3143,12 @@ async function loadPendingRecords() {
                     </div>
                 `;
 
+                // Recurring indicator (only for recurring plans)
+                const isRecurring = item.entity === 'recurring';
+                const recurringCell = isRecurring
+                    ? '<td class="text-center">🔄</td>'
+                    : '<td class="text-center opacity-30">—</td>';
+
                 // Desktop table row
                 tableRows.push(`
                     <tr>
@@ -3150,6 +3159,7 @@ async function loadPendingRecords() {
                         <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
                         <td class="${colorClass} font-medium">${formattedAmount}</td>
                         <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        ${recurringCell}
                         ${notificationCell}
                         <td>${statusBadge}</td>
                     </tr>
@@ -3338,6 +3348,7 @@ function getRecordTypeLabel(entity) {
     const badges = {
         'fact': '<span class="badge badge-success badge-sm">Факт</span>',
         'plan': '<span class="badge badge-info badge-sm">План</span>',
+        'recurring': '<span class="badge badge-info badge-sm">План</span>',
         'transfer': '<span class="badge badge-neutral badge-sm">Перевод</span>'
     };
     return badges[entity] || `<span class="badge badge-ghost badge-sm">${entity || '—'}</span>`;
@@ -3348,6 +3359,7 @@ function getRecordTypeLabelXs(entity) {
     const badges = {
         'fact': '<span class="badge badge-success badge-xs">Факт</span>',
         'plan': '<span class="badge badge-info badge-xs">План</span>',
+        'recurring': '<span class="badge badge-info badge-xs">План</span>',
         'transfer': '<span class="badge badge-neutral badge-xs">Перевод</span>'
     };
     return badges[entity] || `<span class="badge badge-ghost badge-xs">${entity || '—'}</span>`;
