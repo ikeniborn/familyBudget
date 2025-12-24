@@ -1724,6 +1724,9 @@ async function updateFact(event) {
         return;
     }
 
+    // ========== ALL VALIDATION PASSED - SHOW LOADING ==========
+    setSubmitLoading(event.target, true);
+
     // Build data object
     const data = {
         amount: parseFloat(formData.get('amount')),
@@ -1789,12 +1792,14 @@ async function updateFact(event) {
             closeEditModal();
             await loadPendingRecords();
             showToast('Запись обновлена (ожидает синхронизации)', 'success');
-            return;
         } catch (error) {
             console.error('Error updating pending record:', error);
             showToast('Ошибка обновления записи: ' + error.message, 'error');
-            return;
+        } finally {
+            // ========== ALWAYS RESTORE BUTTON (PENDING PATH) ==========
+            setSubmitLoading(event.target, false);
         }
+        return;
     }
 
     // Handle online record update
@@ -1910,6 +1915,9 @@ async function updateFact(event) {
     } catch (error) {
         console.error('Error updating fact:', error);
         showToast('Ошибка: ' + error.message, 'error');
+    } finally {
+        // ========== ALWAYS RESTORE BUTTON (ONLINE PATH) ==========
+        setSubmitLoading(event.target, false);
     }
 }
 window.updateFact = updateFact;
