@@ -223,9 +223,6 @@ class ListsManager {
         // Load items for this list
         await this.loadShoppingListItems(listId);
 
-        // Update delete completed button visibility
-        this.updateFABVisibility();
-
         // Restore saved view preference from localStorage
         let savedView = 'table'; // default
         try {
@@ -244,6 +241,9 @@ class ListsManager {
         } else {
             this.switchView('table');
         }
+
+        // Update FAB visibility AFTER switchView to ensure it's visible in all views
+        this.updateFABVisibility();
 
         // Initialize Choices.js for store and product group selectors in modal
         this.initStoreChoices();
@@ -1665,6 +1665,9 @@ class ListsManager {
                 showToast('Иерархический вид недоступен', 'error');
             }
         }
+
+        // Ensure FAB remains visible after view switch
+        this.updateFABVisibility();
     }
 
     /**
