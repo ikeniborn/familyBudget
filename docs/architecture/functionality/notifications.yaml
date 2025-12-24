@@ -247,3 +247,22 @@ module:
             - frontend/web/static/js/offline/pushManager.js
             - frontend/web/static/js/offline/pushManager.min.js
           impact: "Critical - push notification button now works correctly"
+
+        - type: "bugfix"
+          component: "push_notifications"
+          description: "Fixed push bell button not responding to clicks"
+          details: |
+            Rebuilt pushManager.min.js from source after commit 5e34d2a4.
+
+            Root cause: Minified file was 11 minutes older than source file.
+            The source contained a fix for toggleSubscription() to properly
+            handle already-granted notification permissions, but the minified
+            version still had the old buggy code.
+
+            Fix: Ran `npm run minify:js` to rebuild all minified JS files.
+
+            Prevention: Always run `npm run build` after modifying source files.
+            The deploy script (deploy.sh) automatically runs this.
+          files:
+            - frontend/web/static/js/offline/pushManager.min.js
+          impact: "Critical - push notification bell button now works correctly"
