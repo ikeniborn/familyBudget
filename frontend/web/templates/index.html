@@ -1636,83 +1636,7 @@ function getReminderStatusBadge(status) {
  * @param {string} reminderDatetime - ISO datetime string
  * @returns {Promise<boolean>}
  */
-async function createReminder(factId, reminderDatetime) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ reminder_datetime: reminderDatetime })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            console.error('Failed to create reminder:', error);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error creating reminder:', error);
-        return false;
-    }
-}
-
-/**
- * Update reminder for a plan
- * @param {number} factId - Fact ID
- * @param {string} reminderDatetime - ISO datetime string
- * @returns {Promise<boolean>}
- */
-async function updateReminder(factId, reminderDatetime) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ reminder_datetime: reminderDatetime })
-        });
-
-        if (!response.ok) {
-            const error = await response.json();
-            console.error('Failed to update reminder:', error);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error updating reminder:', error);
-        return false;
-    }
-}
-
-/**
- * Delete reminder for a plan
- * @param {number} factId - Fact ID
- * @returns {Promise<boolean>}
- */
-async function deleteReminder(factId) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        if (response.status === 404) {
-            return true; // Already deleted
-        }
-
-        if (!response.ok) {
-            console.error('Failed to delete reminder, status:', response.status);
-            return false;
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error deleting reminder:', error);
-        return false;
-    }
-}
+// Reminder functions moved to BudgetShared.Reminders module (frontend/shared/static/js/reminders.js)
 
 /**
  * Update fact from edit modal (handles both online and pending records)
@@ -4194,38 +4118,6 @@ function formatDatetimeForInput(date) {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-/**
- * Create a reminder for a plan via API.
- * @param {number} factId - Plan/fact ID
- * @param {string} reminderDatetime - ISO datetime string
- * @returns {Promise<object|null>} Created reminder or null on error
- */
-async function createReminder(factId, reminderDatetime) {
-    try {
-        const response = await fetch(`/api/v1/reminders/${factId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({
-                reminder_datetime: reminderDatetime
-            })
-        });
-
-        if (response.ok) {
-            const reminder = await response.json();
-            debugLog('[createReminder] Reminder created:', reminder);
-            return reminder;
-        } else {
-            const error = await response.json();
-            console.error('[createReminder] API error:', error);
-            return null;
-        }
-    } catch (error) {
-        console.error('[createReminder] Network error:', error);
-        return null;
-    }
 }
 
 // ==================== UNIFIED SAVE FUNCTIONS ====================
