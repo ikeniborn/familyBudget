@@ -150,6 +150,9 @@ class ListsManager {
         this.currentItems = [];
         this.selectedItemIds.clear();
 
+        // CRITICAL: Close import wizard when returning to landing view
+        closeImportWizard();
+
         // Hide detail view FAB menu, show create list FAB
         this.hideFAB();
         this.showCreateListFAB();
@@ -174,6 +177,10 @@ class ListsManager {
         this.currentItems = [];  // Clear items immediately
         this.selectedItemIds.clear();
         this.currentListId = listId;
+
+        // CRITICAL: Close import wizard to prevent data isolation breach
+        // (CSV import from List A must not leak into List B)
+        closeImportWizard();
 
         // Reset search query for new list
         this.searchQuery = '';
@@ -2866,20 +2873,22 @@ function initializeImportWizard() {
 }
 
 /**
- * Toggle import wizard accordion (open/close)
- * Handles opening/closing the import wizard container and updating the visual indicator
+ * Close import wizard (helper function for list switching)
+ * CRITICAL: Prevents data isolation breach when switching lists during import
  */
-function toggleImportWizard() {
+function closeImportWizard() {
     const container = document.getElementById('import-wizard-container');
     const icon = document.getElementById('import-toggle-icon');
     const hint = document.getElementById('import-toggle-hint');
     const wizardContainer = document.getElementById('import-wizard');
+
+    if (!container) return;
+
     const isOpen = !container.classList.contains('hidden');
 
     if (isOpen) {
-        // Closing - hide wizard and reset state
         container.classList.add('hidden');
-        icon.textContent = '▶';
+        if (icon) icon.textContent = '▶';
         if (hint) hint.classList.remove('hidden');
 
         if (wizardContainer) {
@@ -2889,11 +2898,27 @@ function toggleImportWizard() {
             window.importManager.container = null;
             window.importManager.currentMethod = null;
         }
-        debugLog('[ImportWizard] Closed and reset');
+        debugLog('[ImportWizard] Closed and reset (auto-close on list switch)');
+    }
+}
+
+/**
+ * Toggle import wizard accordion (open/close)
+ * Handles opening/closing the import wizard container and updating the visual indicator
+ */
+function toggleImportWizard() {
+    const container = document.getElementById('import-wizard-container');
+    const icon = document.getElementById('import-toggle-icon');
+    const hint = document.getElementById('import-toggle-hint');
+    const isOpen = container && !container.classList.contains('hidden');
+
+    if (isOpen) {
+        // Closing - use closeImportWizard helper
+        closeImportWizard();
     } else {
         // Opening - show wizard and initialize
         container.classList.remove('hidden');
-        icon.textContent = '▼';
+        if (icon) icon.textContent = '▼';
         if (hint) hint.classList.add('hidden');
         initializeImportWizard();
     }
