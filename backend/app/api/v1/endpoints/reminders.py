@@ -26,6 +26,7 @@ from backend.app.schemas.scheduled_reminder import (
     ReminderWithPlanInfo,
 )
 from backend.app.services.reminder_service import ReminderService
+from backend.app.services.cache_service import cache_service, CacheKey
 
 logger = get_logger(__name__)
 
@@ -126,6 +127,11 @@ async def create_reminder(
             f"[API] User {current_user.id} created reminder for plan {fact_id}"
         )
 
+        # Invalidate recent_html cache (all limits) so reminder icon appears immediately
+        for limit in range(1, 21):  # CacheKey.recent_html supports limit 1-20
+            cache_key = str(CacheKey.recent_html(limit))
+            await cache_service.delete(cache_key)
+
         return reminder
 
     except ValueError as e:
@@ -221,6 +227,11 @@ async def update_reminder(
             f"[API] User {current_user.id} updated reminder for plan {fact_id}"
         )
 
+        # Invalidate recent_html cache so reminder time update appears immediately
+        for limit in range(1, 21):  # CacheKey.recent_html supports limit 1-20
+            cache_key = str(CacheKey.recent_html(limit))
+            await cache_service.delete(cache_key)
+
         return reminder
 
     except ValueError as e:
@@ -275,6 +286,11 @@ async def delete_reminder(
         logger.info(
             f"[API] User {current_user.id} deleted reminder for plan {fact_id}"
         )
+
+        # Invalidate recent_html cache so reminder icon disappears immediately
+        for limit in range(1, 21):  # CacheKey.recent_html supports limit 1-20
+            cache_key = str(CacheKey.recent_html(limit))
+            await cache_service.delete(cache_key)
 
     except ValueError as e:
         error_msg = str(e)
