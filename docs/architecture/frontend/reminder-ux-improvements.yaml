@@ -235,9 +235,26 @@ follow_up_issues:
     status: "under investigation"
     description: |\
       При повторном открытии modal_add_plan и переключении в режим "Напоминание",
-      секция выбора даты/времени напоминания не появляется.
-    debug_commit: "1a9f44ae"
-    next_steps: "Waiting for user to test and provide console logs"
+      секция выбора даты/времени напоминания не появляется визуально.
+    findings: |\
+      Логи показывают:
+      - Первое открытие: offsetHeight: 124 ← РАБОТАЕТ
+      - Второе открытие: offsetHeight: 0 ← НЕ РАБОТАЕТ
+      - В обоих случаях: classes AFTER пустая строка (hidden удален)
+      - В обоих случаях: computedDisplay: 'block', computedVisibility: 'visible'
+
+      Проблема: offsetHeight: 0 означает что элемент технически visible, но
+      имеет нулевую высоту → содержимое скрыто или удалено.
+    hypothesis: |\
+      Возможные причины:
+      1. Child div (reminder-settings-*) имеет класс 'hidden' при повторном открытии
+      2. CalendarWidget.destroy() + recreate ломает DOM структуру
+      3. Содержимое child div удаляется при закрытии модалки
+    debug_commits:
+      - "1a9f44ae" # Initial visibility logging
+      - "bf86b836" # Extended visibility diagnostics (computedStyle, parent)
+      - "eaa7b0f2" # Child div check + after-widget-init check
+    next_steps: "Waiting for user to test with extended logs (child div state)"
 
 commits:
   - commit: "ca400987"
@@ -291,3 +308,10 @@ commits:
       - "backend/app/api/v1/endpoints/reminders.py:130-133" # CREATE
       - "backend/app/api/v1/endpoints/reminders.py:230-233" # UPDATE
       - "backend/app/api/v1/endpoints/reminders.py:290-293" # DELETE
+
+  - commit: "eaa7b0f2"
+    description: "debug(plan): add child div visibility check for reminder section"
+    issue: "Диагностика visibility issue - offsetHeight: 0 при втором открытии"
+    files:
+      - "frontend/web/templates/index.html:4632-4634" # Child div check
+      - "frontend/web/templates/index.html:4640-4644" # After-widget-init check
