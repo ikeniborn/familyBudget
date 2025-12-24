@@ -578,6 +578,12 @@ async function loadRemindersForEdit(factIds) {
  * @param {number|null} selectedId - ID to pre-select
  */
 function populateFinancialCentersDropdown(select, centers, selectedId) {
+    console.log('[populateFinancialCentersDropdown] Called with:', {
+        centers: centers.length,
+        selectedId,
+        selectId: select.id
+    });
+
     // Clear options except first
     while (select.options.length > 1) {
         select.remove(1);
@@ -588,11 +594,14 @@ function populateFinancialCentersDropdown(select, centers, selectedId) {
         const option = document.createElement('option');
         option.value = fc.id;
         option.textContent = fc.name;
-        if (selectedId && fc.id === selectedId) {
+        if (selectedId && fc.id == selectedId) {  // Use == for type coercion
             option.selected = true;
+            console.log('[populateFinancialCentersDropdown] Selected:', fc.name, fc.id);
         }
         select.appendChild(option);
     });
+
+    console.log('[populateFinancialCentersDropdown] Final select.value:', select.value);
 }
 
 /**
@@ -600,33 +609,53 @@ function populateFinancialCentersDropdown(select, centers, selectedId) {
  * @param {number|null} selectedId - ID to pre-select
  */
 async function loadEditFinancialCenters(selectedId = null) {
+    console.log('[loadEditFinancialCenters] Called with selectedId:', selectedId);
+
     const select = document.getElementById('edit-financial-center');
-    if (!select) return;
+    if (!select) {
+        console.error('[loadEditFinancialCenters] Select element not found!');
+        return;
+    }
+    console.log('[loadEditFinancialCenters] Select element found:', select);
 
     // Check cache
     if (isCacheValid(dropdownCache.financialCenters)) {
         const centers = dropdownCache.financialCenters.data;
+        console.log('[loadEditFinancialCenters] Using cached data:', centers.length, 'centers');
         populateFinancialCentersDropdown(select, centers, selectedId);
         return;
     }
+    console.log('[loadEditFinancialCenters] Cache invalid or empty, fetching from API...');
 
     // Load from API
     try {
-        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', {
+        const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true&include_inactive=true', {
             credentials: 'include'
         });
-        if (!response.ok) return;
+
+        console.log('[loadEditFinancialCenters] API response status:', response.status);
+
+        if (!response.ok) {
+            console.error('[loadEditFinancialCenters] API request failed:', response.status, response.statusText);
+            showToast(`Ошибка загрузки счетов: ${response.statusText}`, 'error');
+            return;
+        }
 
         const data = await response.json();
         const centers = data.financial_centers || [];
+
+        console.log('[loadEditFinancialCenters] Loaded centers:', centers.length, centers);
 
         // Update cache
         dropdownCache.financialCenters.data = centers;
         dropdownCache.financialCenters.timestamp = Date.now();
 
         populateFinancialCentersDropdown(select, centers, selectedId);
+
+        console.log('[loadEditFinancialCenters] Dropdown populated, final value:', select.value);
     } catch (error) {
-        console.error('Error loading financial centers for edit:', error);
+        console.error('[loadEditFinancialCenters] Exception:', error);
+        showToast(`Ошибка загрузки счетов: ${error.message}`, 'error');
     }
 }
 
@@ -637,6 +666,12 @@ async function loadEditFinancialCenters(selectedId = null) {
  * @param {number|null} selectedId - ID to pre-select
  */
 function populateCostCentersDropdown(select, centers, selectedId) {
+    console.log('[populateCostCentersDropdown] Called with:', {
+        centers: centers.length,
+        selectedId,
+        selectId: select.id
+    });
+
     // Clear options except first
     while (select.options.length > 1) {
         select.remove(1);
@@ -647,11 +682,14 @@ function populateCostCentersDropdown(select, centers, selectedId) {
         const option = document.createElement('option');
         option.value = cc.id;
         option.textContent = cc.name;
-        if (selectedId && cc.id === selectedId) {
+        if (selectedId && cc.id == selectedId) {  // Use == for type coercion
             option.selected = true;
+            console.log('[populateCostCentersDropdown] Selected:', cc.name, cc.id);
         }
         select.appendChild(option);
     });
+
+    console.log('[populateCostCentersDropdown] Final select.value:', select.value);
 }
 
 /**
@@ -659,33 +697,53 @@ function populateCostCentersDropdown(select, centers, selectedId) {
  * @param {number|null} selectedId - ID to pre-select
  */
 async function loadEditCostCenters(selectedId = null) {
+    console.log('[loadEditCostCenters] Called with selectedId:', selectedId);
+
     const select = document.getElementById('edit-cost-center');
-    if (!select) return;
+    if (!select) {
+        console.error('[loadEditCostCenters] Select element not found!');
+        return;
+    }
+    console.log('[loadEditCostCenters] Select element found:', select);
 
     // Check cache
     if (isCacheValid(dropdownCache.costCenters)) {
         const centers = dropdownCache.costCenters.data;
+        console.log('[loadEditCostCenters] Using cached data:', centers.length, 'centers');
         populateCostCentersDropdown(select, centers, selectedId);
         return;
     }
+    console.log('[loadEditCostCenters] Cache invalid or empty, fetching from API...');
 
     // Load from API
     try {
-        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', {
+        const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true&include_inactive=true', {
             credentials: 'include'
         });
-        if (!response.ok) return;
+
+        console.log('[loadEditCostCenters] API response status:', response.status);
+
+        if (!response.ok) {
+            console.error('[loadEditCostCenters] API request failed:', response.status, response.statusText);
+            showToast(`Ошибка загрузки мест затрат: ${response.statusText}`, 'error');
+            return;
+        }
 
         const data = await response.json();
         const centers = data.cost_centers || [];
+
+        console.log('[loadEditCostCenters] Loaded centers:', centers.length, centers);
 
         // Update cache
         dropdownCache.costCenters.data = centers;
         dropdownCache.costCenters.timestamp = Date.now();
 
         populateCostCentersDropdown(select, centers, selectedId);
+
+        console.log('[loadEditCostCenters] Dropdown populated, final value:', select.value);
     } catch (error) {
-        console.error('Error loading cost centers for edit:', error);
+        console.error('[loadEditCostCenters] Exception:', error);
+        showToast(`Ошибка загрузки мест затрат: ${error.message}`, 'error');
     }
 }
 

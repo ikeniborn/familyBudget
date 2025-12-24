@@ -462,3 +462,76 @@ notes: |
   - Cache invalidation: WebSocket события
   - Skeleton UI: 4 skeleton элемента (DaisyUI skeleton class)
   - Performance monitoring: Minimal overhead (<10ms)
+
+bug_fixes:
+  empty_financial_center_dropdown:
+    date: "2025-12-24"
+    issue: "Dropdown 'Счет' пустой при открытии edit-modal"
+    symptoms:
+      - "Dropdown полностью пустой (нет опций) для ВСЕХ записей"
+      - "Происходит всегда, не зависит от конкретного счета"
+    root_cause: "Silent failures в loadEditFinancialCenters - нет visibility в причину ошибки"
+    possible_causes:
+      - "API endpoint возвращает ошибку (401, 403, 500)"
+      - "Пустой кэш (dropdownCache.financialCenters.data = [])"
+      - "Uncaught exception в try-catch"
+      - "Select element не найден"
+    fix: "Добавлен comprehensive logging + error toasts"
+    changes:
+      - file: "frontend/web/templates/index.html"
+        functions:
+          - name: "loadEditFinancialCenters"
+            lines: "602-651"
+            changes:
+              - "Добавлен console logging для всех критических точек"
+              - "Заменены silent returns на showToast() с ошибками"
+              - "Добавлен include_inactive=true для поддержки архивных счетов"
+          - name: "populateFinancialCentersDropdown"
+            lines: "580-605"
+            changes:
+              - "Добавлен console logging"
+              - "Изменено сравнение === на == для type coercion safety"
+          - name: "loadEditCostCenters"
+            lines: "690-739"
+            changes:
+              - "Применены аналогичные изменения (logging + error handling)"
+          - name: "populateCostCentersDropdown"
+            lines: "668-693"
+            changes:
+              - "Применены аналогичные изменения (logging + type coercion)"
+    diagnostic_logs:
+      prefix: "[loadEditFinancialCenters]"
+      levels:
+        - "Called with selectedId"
+        - "Select element found/not found"
+        - "Using cached data / Cache invalid"
+        - "API response status"
+        - "Loaded centers count"
+        - "Dropdown populated, final value"
+    testing:
+      phase_1_diagnosis:
+        goal: "Выяснить root cause через Console logs"
+        steps:
+          - "Открыть DevTools Console"
+          - "Открыть edit modal"
+          - "Проверить логи на exact failure point"
+        expected_logs:
+          - "[loadEditFinancialCenters] API response status: 200"
+          - "[loadEditFinancialCenters] Loaded centers: N centers"
+          - "[populateFinancialCentersDropdown] Final select.value: ID"
+      phase_2_functional:
+        scenarios:
+          - name: "Active account"
+            expected: "Dropdown заполнен, правильный счет выбран"
+          - name: "Archived account"
+            expected: "Dropdown показывает архивный счет"
+          - name: "Network offline"
+            expected: "Toast 'Ошибка загрузки счетов: Failed to fetch'"
+    impact:
+      - "Developers могут диагностировать проблему через Console"
+      - "Users видят error messages вместо silent failures"
+      - "Edit modal работает с архивными счетами"
+    future_work:
+      - "Удалить verbose logging после нахождения root cause"
+      - "Добавить badge '📦 архив' для архивных счетов в dropdown"
+      - "Централизовать логику загрузки dropdown в shared module"
