@@ -1097,7 +1097,7 @@ AND indexrelname NOT LIKE 'pg_toast%';
 - **frontend-development** - HTMX + Tailwind + DaisyUI + WebSocket компоненты
 - **authentication-security** - JWT + Telegram OAuth + security middleware
 - **advanced-patterns** - SCD Type 2, Closure Table, Shared Budget patterns
-- **websocket-realtime** - WebSocket + SSE real-time updates (WORKERS=1 constraint)
+- **websocket-realtime** - WebSocket + SSE real-time updates (WORKERS=1 без Redis Pub/Sub)
 
 **Infrastructure & Testing:**
 - **testing** - Unit, integration, e2e тесты (pytest, Playwright)

@@ -29,9 +29,15 @@ architecture_refs:
 - Endpoints: [$ref](../../docs/architecture/endpoints/websocket.yaml)
 - Flows: [$ref](../../docs/architecture/flows/ws-broadcast.yaml)
 
-**CRITICAL Constraint:**
-- **WORKERS=1 ONLY** - `BudgetConnectionManager` is in-memory, NOT shared between workers
-- Multi-worker setup breaks WebSocket/SSE (events lost)
+**CRITICAL Constraint (Current Implementation):**
+- **WORKERS=1 REQUIRED** - `BudgetConnectionManager` is in-memory, NOT shared between workers
+- Multi-worker setup breaks WebSocket/SSE (events lost between workers)
+- **Reason**: No Redis Pub/Sub implemented yet
+
+**Future Scaling (Redis Pub/Sub)**:
+- Implement Redis Pub/Sub for event synchronization between workers
+- Workers subscribe to Redis channel, broadcast to local connections
+- Allows scaling to multiple workers: WORKERS>1
 
 Reference: `_shared/validation-logic.md#4-single-worker-sse-constraint`
 

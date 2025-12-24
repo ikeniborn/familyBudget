@@ -122,9 +122,9 @@ stmt = select(BudgetFact).where(
 
 ---
 
-### 4. Single-Worker SSE Constraint
+### 4. Single-Worker SSE Constraint (Without Redis Pub/Sub)
 
-**Problem**: Multi-worker setup breaks WebSocket/SSE because `BudgetConnectionManager` is in-memory.
+**Problem**: Multi-worker setup breaks WebSocket/SSE because `BudgetConnectionManager` is in-memory (no Redis Pub/Sub implemented yet).
 
 **Validation Pattern**:
 
