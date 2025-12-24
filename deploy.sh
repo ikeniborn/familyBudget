@@ -649,12 +649,14 @@ validate_firewall_rules() {
     if echo "$ufw_status" | grep -q "5432.*ALLOW"; then
         local pg_rules=$(echo "$ufw_status" | grep "5432.*ALLOW")
 
-        if echo "$pg_rules" | grep -q " from "; then
-            # Restricted access
-            local allowed_ip=$(echo "$pg_rules" | grep -oP 'from \K[0-9.]+' | head -1)
+        # Check if rule has specific IP (not "Anywhere")
+        # Format: "5432  ALLOW  78.107.114.37" or "[1] 5432  ALLOW IN  78.107.114.37"
+        if echo "$pg_rules" | grep -qE "ALLOW.*(IN)?\s+[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"; then
+            # Restricted access - extract IP address
+            local allowed_ip=$(echo "$pg_rules" | grep -oP 'ALLOW\s+(IN\s+)?\K[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
             success "✓ PostgreSQL (5432) - restricted to IP: $allowed_ip"
         else
-            # Open to all!
+            # Open to all (Anywhere)!
             error "✗ PostgreSQL (5432) - OPEN TO ALL IPs!"
             echo ""
             error "CRITICAL SECURITY ISSUE: PostgreSQL is accessible from anywhere!"
