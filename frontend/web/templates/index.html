@@ -2053,7 +2053,7 @@ async function deletePendingRecord(itemId) {
     if (!confirm('Удалить из очереди?')) return;
 
     try {
-        await window.offlineManager.deleteItem(itemId);
+        await window.offlineManager.db.deleteSyncQueueItem(itemId);
         showToast('Удалено из очереди', 'success');
         await loadPendingRecords();
     } catch (error) {
