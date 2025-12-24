@@ -158,6 +158,8 @@ install_utilities() {
         "ufw"  # Firewall
         "certbot"  # Let's Encrypt SSL certificates
         "python3-pip"  # Python package manager for boto3 (S3 backups)
+        "imagemagick"  # Image processing for PWA icons generation
+        "librsvg2-bin"  # SVG to PNG conversion (rsvg-convert) for PWA icons
     )
 
     for package in "${packages[@]}"; do
@@ -842,7 +844,9 @@ print_summary() {
     echo "  ✓ npm: $(npm --version 2>/dev/null || echo 'Not installed')"
     echo "  ✓ UFW Firewall: $(ufw --version | head -1)"
     echo "  ✓ Certbot: $(certbot --version 2>&1 | head -1)"
-    echo "  ✓ Basic utilities (curl, git, jq, etc.)"
+    echo "  ✓ ImageMagick: $(convert --version 2>&1 | head -1 | awk '{print $3}')"
+    echo "  ✓ librsvg: $(rsvg-convert --version 2>&1 | head -1)"
+    echo "  ✓ Basic utilities (curl, git, jq, rsync, etc.)"
     echo "  ✓ Python packages:"
     if python3 -c "import boto3" 2>/dev/null; then
         echo "    - boto3 $(python3 -c "import boto3; print(boto3.__version__)" 2>/dev/null) (S3 backups)"
