@@ -235,6 +235,97 @@ docker compose exec backend bash     # Shell in container
 ./scripts/s3_backup.py
 ```
 
+### UFW Firewall for PostgreSQL
+
+**Automatic Configuration:** `deploy.sh` automatically configures UFW rules for PostgreSQL based on `.env` variables.
+
+**Environment Variables:**
+- `POSTGRES_EXTERNAL_ACCESS` - Enable external PostgreSQL access (default: `false`)
+- `POSTGRES_ALLOWED_IP` - IP address allowed to connect (required if `POSTGRES_EXTERNAL_ACCESS=true`)
+
+**Behavior:**
+
+```bash
+# Scenario 1: External access DISABLED (default, most secure)
+POSTGRES_EXTERNAL_ACCESS=false
+
+# Result: All UFW rules for port 5432 are removed (internal Docker only)
+# PostgreSQL accessible ONLY from Docker containers
+
+# Scenario 2: External access ENABLED with specific IP
+POSTGRES_EXTERNAL_ACCESS=true
+POSTGRES_ALLOWED_IP=192.168.1.100
+
+# Result: UFW rule created: allow from 192.168.1.100 to any port 5432
+# Old rules automatically removed, new rule created
+
+# Scenario 3: External access ENABLED but IP not set (ERROR)
+POSTGRES_EXTERNAL_ACCESS=true
+POSTGRES_ALLOWED_IP=
+
+# Result: ERROR - deployment fails for security
+# Message: "POSTGRES_ALLOWED_IP is not set! This would allow from ANY IP (security risk)"
+```
+
+**Manual Management:**
+
+```bash
+# Test UFW configuration function (without deploy)
+cd ~/familyBudget
+source scripts/lib/config.sh
+source scripts/lib/utils.sh
+source scripts/lib/firewall.sh
+configure_ufw_for_postgres
+
+# Check current UFW rules
+sudo ufw status numbered
+# Look for rules with port 5432
+
+# Manually add rule (if not using deploy.sh)
+sudo ufw allow from 192.168.1.100 to any port 5432 comment "PostgreSQL external access"
+
+# Manually remove rule
+sudo ufw status numbered  # Find rule number for port 5432
+sudo ufw delete <rule-number>
+
+# Verify PostgreSQL external connectivity
+psql -h <server-ip> -U familybudget -d familybudget
+# Should connect if IP allowed, timeout if blocked
+```
+
+**Security Notes:**
+- ✅ **Recommended:** `POSTGRES_EXTERNAL_ACCESS=false` (internal only via Docker)
+- ⚠️ **Use sparingly:** External access only for remote administration
+- ❌ **Never:** Leave `POSTGRES_ALLOWED_IP` empty when `POSTGRES_EXTERNAL_ACCESS=true`
+- 🔒 **Defense in depth:** UFW rules + Docker firewall (DOCKER-USER chain) both protect PostgreSQL
+
+**Troubleshooting:**
+
+```bash
+# Check UFW status
+sudo ufw status verbose
+
+# Check Docker firewall (iptables)
+sudo iptables -L DOCKER-USER -n -v --line-numbers
+
+# Test PostgreSQL connectivity from external IP
+# From allowed IP:
+psql -h <server-ip> -U familybudget -d familybudget
+# Should connect if rules correct
+
+# From blocked IP:
+psql -h <server-ip> -U familybudget -d familybudget
+# Should timeout (no route / connection refused)
+
+# Logs
+tail -f /opt/budget/logs/deploy.log
+# Look for "Configuring UFW Rules for PostgreSQL"
+```
+
+**See also:**
+- `scripts/lib/firewall.sh` - Firewall configuration functions
+- `deploy.sh` lines 1447-1456 - Automatic UFW configuration during deployment
+
 ## Important Concepts and Patterns
 
 ### SCD Type 1 + History Tables

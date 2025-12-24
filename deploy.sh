@@ -9,6 +9,7 @@
 # - Starts services (PostgreSQL uses Docker managed volume)
 # - Waits for healthy status
 # - Runs database migrations
+# - Configures UFW firewall rules for PostgreSQL (automatic)
 # - Displays deployment status and URLs
 #
 # Usage:
@@ -1441,6 +1442,17 @@ main() {
         else
             warning "Failed to configure Docker firewall - ports may be exposed!"
             warning "Run manually: source scripts/lib/firewall.sh && configure_docker_firewall"
+        fi
+        echo ""
+
+        # Configure UFW rules for PostgreSQL external access
+        # Automatically creates/deletes rules based on POSTGRES_EXTERNAL_ACCESS and POSTGRES_ALLOWED_IP
+        info "Configuring UFW rules for PostgreSQL..."
+        if configure_ufw_for_postgres >> "$LOG_FILE" 2>&1; then
+            success "PostgreSQL UFW rules configured successfully"
+        else
+            warning "Failed to configure PostgreSQL UFW rules"
+            warning "Run manually: source scripts/lib/firewall.sh && configure_ufw_for_postgres"
         fi
         echo ""
 
