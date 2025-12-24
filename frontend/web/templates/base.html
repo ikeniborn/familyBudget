@@ -881,6 +881,9 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- FAB Buttons (outside main container for proper fixed positioning) -->
+    {% block fab_buttons %}{% endblock %}
+
     <!-- Cookie Consent Banner (GDPR Compliance) -->
     {% if user %}
     <div id="cookie-consent-banner" class="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 hidden">
@@ -979,6 +982,9 @@
     <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
     {% if user %}
     <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+
+    <!-- ✅ FIX 4: Shared reminder utilities -->
+    <script src="/shared/static/js/reminders.js?v=PLACEHOLDER"></script>
 
     {% block extra_scripts %}{% endblock %}
     {% endif %}
