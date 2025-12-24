@@ -3858,18 +3858,12 @@ let recurringEndDateCalendarWidget = null;
  * Modes: 'regular' | 'recurring' | 'reminder'
  */
 function togglePlanMode(modalId) {
-    console.log('[togglePlanMode] Called with modalId:', modalId);  // ← DEBUG
-
     const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
     const mode = selectedMode ? selectedMode.value : 'regular';
-    console.log('[togglePlanMode] Selected mode:', mode);  // ← DEBUG
 
     const recurringSettingsDiv = document.getElementById(`recurring-settings-${modalId}`);
     const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
     const reminderModeLabel = document.getElementById(`reminder-mode-label-${modalId}`);
-
-    console.log('[togglePlanMode] onetimeReminderSection exists:', !!onetimeReminderSection);  // ← DEBUG
-    console.log('[togglePlanMode] onetimeReminderSection classes BEFORE:', onetimeReminderSection?.className);  // ← DEBUG
 
     // Get recurring-specific required fields
     const durationTypeSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
@@ -3902,8 +3896,6 @@ function togglePlanMode(modalId) {
             }
             if (onetimeReminderSection) {
                 onetimeReminderSection.classList.remove('hidden');
-                console.log('[togglePlanMode] Removed .hidden class');  // ← DEBUG
-                console.log('[togglePlanMode] onetimeReminderSection classes AFTER:', onetimeReminderSection.className);  // ← DEBUG
                 initReminderCalendarWidget(modalId);
 
                 // Set default time (current time + 1 hour, rounded to 5 minutes)
@@ -3916,10 +3908,7 @@ function togglePlanMode(modalId) {
                     minuteSelect.value = defaultTime.minute;
                     // Update hidden field after setting default values
                     updateReminderDatetime(modalId);
-                    console.log('[togglePlanMode] Set default time:', defaultTime);
                 }
-            } else {
-                console.error('[togglePlanMode] onetimeReminderSection NOT FOUND!');  // ← DEBUG
             }
             // Disable validation for recurring fields (they're hidden)
             if (durationTypeSelect) {
