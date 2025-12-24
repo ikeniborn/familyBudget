@@ -1873,20 +1873,26 @@ async function updateFact(event) {
 
             if (enableReminder && reminderDatetime) {
                 if (existingReminder) {
-                    const updated = await updateReminder(recordId, reminderDatetime);
+                    const updated = await BudgetShared.Reminders.updateReminder(recordId, reminderDatetime);
                     if (!updated) {
                         showToast('Предупреждение: не удалось обновить напоминание', 'warning');
+                    } else {
+                        remindersMap.set(parseInt(recordId), updated);
                     }
                 } else {
-                    const created = await createReminder(recordId, reminderDatetime);
+                    const created = await BudgetShared.Reminders.createReminder(recordId, reminderDatetime);
                     if (!created) {
                         showToast('Предупреждение: не удалось создать напоминание', 'warning');
+                    } else {
+                        remindersMap.set(parseInt(recordId), created);
                     }
                 }
             } else if (!enableReminder && existingReminder) {
-                const deleted = await deleteReminder(recordId);
+                const deleted = await BudgetShared.Reminders.deleteReminder(recordId);
                 if (!deleted) {
                     showToast('Предупреждение: не удалось удалить напоминание', 'warning');
+                } else {
+                    remindersMap.delete(parseInt(recordId));
                 }
             }
         }
