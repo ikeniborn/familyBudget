@@ -272,6 +272,23 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-24**: Edit Modal UI Improvements (Field Reordering + Toggle):
+  - **Field reordering**: Moved financial center field above category type, moved amount field below cost center
+    - New logical order: Date → Account → Category Type → Category → Cost Center → Amount → Description
+    - Improved UX with natural data entry flow (context → what → how much)
+  - **Reminder UI**: Changed checkbox to toggle switch in edit plan modal (modal_edit_plan.html)
+    - Changed classes: `checkbox checkbox-sm checkbox-primary` → `toggle toggle-sm toggle-primary`
+    - More modern iOS-style toggle instead of square checkbox
+  - **Bug fix**: Fixed financial center value disappearing in edit modal (race condition with dropdown loading)
+    - **Root Cause**: `showEditModal()` set dropdown values before async `loadFinancialCenters()` completed
+    - **Solution**: Added explicit checks for dropdown loaded state before setting values
+    - **Fix**: Verify option exists in dropdown, await load if needed, log warnings for missing options
+  - **Files modified**:
+    - `frontend/web/templates/components/modal_edit_fact.html` (field reordering)
+    - `frontend/web/templates/components/modal_edit_plan.html` (field reordering + toggle)
+    - `frontend/web/templates/facts.html:1493-1529` (financial center/cost center loading fix)
+    - `docs/architecture/web/templates.yaml:945-1068` (updated field order documentation)
+  - **Result**: Improved UX with logical field order, modern toggle UI, and reliable dropdown value persistence
 - **2025-12-24**: PWA Issues Fixed (v6.2):
   - **Splash Screen (CRITICAL)**: Added all 10 splash images to Service Worker STATIC_CACHE (previously only 5)
     - Comprehensive device coverage: iPhone SE/7/8, XR/11, X/XS/11 Pro, 12/13/14, 14/15 Pro, 6+/7+/8+, XS Max/11 Pro Max, 14/15 Pro Max, Android 1080x2340

@@ -6,15 +6,6 @@
         <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2">
             <input type="hidden" id="edit-id" name="id">
 
-            <!-- Сумма -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Сумма *</span>
-                </label>
-                <input type="number" id="edit-amount" name="amount"
-                       step="0.01" required class="input input-bordered" />
-            </div>
-
             <!-- Дата -->
             <div class="form-control">
                 <label class="label py-1">
@@ -23,6 +14,17 @@
                 <input type="text" id="edit-date" name="fact_date"
                        required class="input input-bordered w-full"
                        placeholder="ДД.ММ.ГГГГ" autocomplete="off" />
+            </div>
+
+            <!-- Счет -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Счет *</span>
+                </label>
+                <select id="edit-financial-center" name="financial_center_id"
+                        required class="select select-bordered">
+                    <option value="">-- Выберите счет --</option>
+                </select>
             </div>
 
             <!-- Тип категории (read-only badge) -->
@@ -43,17 +45,6 @@
                 </select>
             </div>
 
-            <!-- Счет -->
-            <div class="form-control">
-                <label class="label py-1">
-                    <span class="label-text">Счет *</span>
-                </label>
-                <select id="edit-financial-center" name="financial_center_id"
-                        required class="select select-bordered">
-                    <option value="">-- Выберите счет --</option>
-                </select>
-            </div>
-
             <!-- Место затрат -->
             <div class="form-control">
                 <label class="label py-1">
@@ -62,6 +53,15 @@
                 <select id="edit-cost-center" name="cost_center_id" class="select select-bordered">
                     <option value="">-- Не указано --</option>
                 </select>
+            </div>
+
+            <!-- Сумма -->
+            <div class="form-control">
+                <label class="label py-1">
+                    <span class="label-text">Сумма *</span>
+                </label>
+                <input type="number" id="edit-amount" name="amount"
+                       step="0.01" required class="input input-bordered" />
             </div>
 
             <!-- Описание -->

@@ -1489,8 +1489,44 @@ async function showEditModal(factId) {
     document.getElementById('edit-amount').value = parseFloat(fact.amount);
     document.getElementById('edit-date').value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
     document.getElementById('edit-description').value = fact.description || '';
-    document.getElementById('edit-financial-center').value = fact.financial_center_id || '';
-    document.getElementById('edit-cost-center').value = fact.cost_center_id || '';
+
+    // ✅ FIX: Ensure financial center dropdown is loaded before setting value (race condition fix)
+    const fcDropdown = document.getElementById('edit-financial-center');
+    if (fcDropdown.options.length <= 1) {
+        debugLog('[Edit Modal] Financial center dropdown not loaded, loading now...');
+        await loadFinancialCenters();
+    }
+    // Verify the option exists before setting
+    if (fact.financial_center_id) {
+        const fcOption = Array.from(fcDropdown.options).find(opt => opt.value == fact.financial_center_id);
+        if (fcOption) {
+            fcDropdown.value = fact.financial_center_id;
+            debugLog('[Edit Modal] Set financial center to:', fact.financial_center_id);
+        } else {
+            console.warn('[Edit Modal] Financial center not found in dropdown:', fact.financial_center_id, '(may be archived/inactive)');
+        }
+    } else {
+        fcDropdown.value = '';  // Explicitly set to empty if no FC
+    }
+
+    // ✅ FIX: Ensure cost center dropdown is loaded before setting value (race condition fix)
+    const ccDropdown = document.getElementById('edit-cost-center');
+    if (ccDropdown.options.length <= 1) {
+        debugLog('[Edit Modal] Cost center dropdown not loaded, loading now...');
+        await loadCostCenters();
+    }
+    // Verify the option exists before setting (cost center is optional)
+    if (fact.cost_center_id) {
+        const ccOption = Array.from(ccDropdown.options).find(opt => opt.value == fact.cost_center_id);
+        if (ccOption) {
+            ccDropdown.value = fact.cost_center_id;
+            debugLog('[Edit Modal] Set cost center to:', fact.cost_center_id);
+        } else {
+            console.warn('[Edit Modal] Cost center not found in dropdown:', fact.cost_center_id, '(may be archived/inactive)');
+        }
+    } else {
+        ccDropdown.value = '';  // Explicitly set to empty if no CC
+    }
 
     // Determine category type from allCategories
     const selectedArticle = allCategories.find(a => a.id === fact.article_id);
