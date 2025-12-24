@@ -59,7 +59,7 @@ self.addEventListener('activate', (event) => {
 1. Old caches deleted (only latest version remains)
 2. All open tabs immediately use new service worker
 3. All tabs receive `SW_UPDATED` message with version + timestamp
-4. **controllerchange** event fires in all tabs → triggers reload countdown
+4. **controllerchange** event fires in all tabs → shows update notification
 
 ---
 
@@ -165,14 +165,15 @@ Family Budget uses **4 different caching strategies** optimized for each content
 
 ### Overview
 
-Family Budget uses **aggressive automatic updates** to ensure all users are on the latest version within 1 hour of deployment.
+Family Budget uses **aggressive automatic updates** with user control to ensure all users are on the latest version within reasonable time of deployment.
 
 **Key Decisions:**
 - ✅ `skipWaiting()` on install (immediate activation)
 - ✅ `clients.claim()` on activate (take control of all tabs)
 - ✅ Update checks every **1 hour** (was 24 hours)
-- ✅ 3-second countdown before automatic reload
-- ❌ No state preservation (users must save work before update)
+- ✅ Persistent update notification with "Update" button
+- ✅ Users can dismiss notification but must reload to apply update
+- ❌ No automatic reload (user chooses when to update)
 
 ---
 
@@ -213,15 +214,19 @@ New SW: Send postMessage to all clients (SW_UPDATED)
 Browser: controllerchange event fires in all tabs
 ```
 
-#### Step 5: Clients Reload
+#### Step 5: Clients Show Update Notification
 
 ```
-All Tabs: Receive SW_UPDATED message
 All Tabs: controllerchange listener fires
-All Tabs: Show countdown toast (3 seconds)
-All Tabs: window.location.reload()
-Result: All users on new version within 3 seconds
+All Tabs: Show persistent update notification
+All Tabs: Display "Обновить" and "Позже" buttons
+User Action: Click "Обновить" button
+Result: Page reloads and applies new version
 ```
+
+**Alternative User Actions:**
+- Click "Позже" → Notification dismissed, can continue working
+- Ignore notification → App continues to work, notification remains visible
 
 ---
 
@@ -230,14 +235,15 @@ Result: All users on new version within 3 seconds
 | Time | Event |
 |------|-------|
 | 00:00 | Deploy new version to server |
-| 00:00-60:00 | Users gradually trigger update check (on page load or hourly check) |
 | 00:00 | First user reloads page → update detected |
 | 00:01 | New SW installs and activates immediately |
-| 00:01 | First user sees countdown: "Обновление через 3... 2... 1..." |
-| 00:01 | First user's page reloads automatically |
-| 00:15 | Second user's hourly check → update detected → reload |
-| 00:45 | Third user's hourly check → update detected → reload |
-| 01:00 | 99% of users on new version (max 1-hour delay) |
+| 00:01 | First user sees notification: "Доступно обновление приложения" with buttons |
+| 00:02 | First user clicks "Обновить" → page reloads |
+| 00:15 | Second user's hourly check → update detected → notification shown |
+| 00:20 | Second user clicks "Позже" → continues working |
+| 00:45 | Third user's hourly check → update detected → notification shown |
+| 01:30 | Second user reloads page manually → sees notification again → clicks "Обновить" |
+| 02:00 | Most users eventually update (when convenient for them) |
 
 ---
 
@@ -300,7 +306,7 @@ self.addEventListener('activate', (event) => {
 #### Frontend (base.html)
 
 ```javascript
-// Lines 1309-1407
+// Lines 1309-1410
 if ('serviceWorker' in navigator) {
     let refreshing = false;
 
@@ -309,13 +315,10 @@ if ('serviceWorker' in navigator) {
         if (refreshing) return;
         refreshing = true;
 
-        console.log('[PWA] New service worker activated, reloading in 3 seconds...');
+        console.log('[PWA] New service worker activated, showing update notification...');
 
-        // Show countdown and reload
-        showUpdateCountdown(3, () => {
-            console.log('[PWA] Reloading page...');
-            window.location.reload();
-        });
+        // Show persistent update notification with user control
+        showUpdateNotification();
     });
 
     window.addEventListener('load', () => {
@@ -357,33 +360,43 @@ if ('serviceWorker' in navigator) {
             });
     });
 
-    // Show countdown before reload
-    function showUpdateCountdown(seconds, onComplete) {
-        let remaining = seconds;
-
+    // Show persistent update notification with user control
+    function showUpdateNotification() {
         const toast = document.createElement('div');
-        toast.className = 'toast toast-top toast-center';
-        toast.style.zIndex = '9999';
+        toast.className = 'toast toast-top toast-center update-notification-toast';
+        toast.style.cssText = 'position: fixed; z-index: 9999;';
         toast.innerHTML = `
-            <div class="alert alert-info">
-                <svg ...>...</svg>
-                <span>Обновление приложения через <strong id="countdown">${remaining}</strong> сек...</span>
+            <div class="alert alert-info shadow-lg gap-4">
+                <div class="flex-1 flex items-center">
+                    <svg ...>...</svg>
+                    <span>Доступно обновление приложения</span>
+                </div>
+                <div class="flex gap-2">
+                    <button class="btn btn-sm btn-ghost" onclick="dismissUpdateNotification()">
+                        Позже
+                    </button>
+                    <button class="btn btn-sm btn-primary" onclick="reloadWithUpdate()">
+                        Обновить
+                    </button>
+                </div>
             </div>
         `;
         document.body.appendChild(toast);
+    }
 
-        const countdown = toast.querySelector('#countdown');
+    // Dismiss update notification (hide it)
+    function dismissUpdateNotification() {
+        const toast = document.querySelector('.update-notification-toast');
+        if (toast) {
+            toast.style.display = 'none';
+            console.log('[PWA] Update notification dismissed by user');
+        }
+    }
 
-        const interval = setInterval(() => {
-            remaining--;
-            countdown.textContent = remaining;
-
-            if (remaining <= 0) {
-                clearInterval(interval);
-                toast.remove();
-                onComplete();
-            }
-        }, 1000);
+    // Reload page when user clicks Update button
+    function reloadWithUpdate() {
+        console.log('[PWA] User clicked Update button, reloading page...');
+        window.location.reload();
     }
 }
 ```
@@ -397,8 +410,9 @@ if ('serviceWorker' in navigator) {
 | `skipWaiting()` | ✅ Always | Immediate activation, no waiting |
 | `clients.claim()` | ✅ Always | All tabs use new SW immediately |
 | Update check frequency | 1 hour | Balance between responsiveness and server load |
-| Countdown duration | 3 seconds | Enough to save work, not too disruptive |
-| State preservation | ❌ No | Simplified implementation, users save manually |
+| Update notification type | Persistent | Users control when to reload, prevents data loss |
+| Auto-reload | ❌ Disabled | Users choose convenient time for update |
+| State preservation | ❌ No | Consider for future versions |
 
 ---
 
@@ -406,10 +420,45 @@ if ('serviceWorker' in navigator) {
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| User loses unsaved form data | MEDIUM | MEDIUM | Display UI warning: "Сохраняйте данные регулярно" |
-| Update interrupts transaction | HIGH | LOW | Future: Add check to delay reload during form submission |
-| Multiple tabs out of sync | LOW | LOW | `clients.claim()` ensures all tabs use same SW |
-| Old SW stuck in waiting | LOW | LOW | `skipWaiting()` prevents this |
+| User ignores notification | MEDIUM | MEDIUM | App remains functional with old SW, new version available in notification |
+| Multiple notifications (multi-tab) | LOW | LOW | Each tab shows independent notification |
+| User dismisses notification | LOW | MEDIUM | Notification can be re-shown on next page reload |
+| Update delayed beyond 1 hour | LOW | MEDIUM | Users can update when convenient, app works normally |
+| Browser compatibility | LOW | LOW | Notification uses standard HTML/CSS (DaisyUI) |
+
+---
+
+### Update Notification UI
+
+**Appearance:**
+- Fixed position: top-center
+- DaisyUI alert with info variant (blue background)
+- High z-index (9999) to ensure visibility
+- Contains:
+  - ✨ Refresh icon (SVG)
+  - 📝 Message: "Доступно обновление приложения"
+  - Two buttons:
+    - "Позже" - Dismiss notification (hide it)
+    - "Обновить" - Reload page with new SW
+
+**User Options:**
+1. Click "Обновить" → Immediately reload and apply update
+2. Click "Позже" → Dismiss notification, continue working
+3. Ignore notification → App continues to work normally, notification remains visible
+
+**Behavior:**
+- Notification persists across page interactions
+- Multiple tabs show independent notifications
+- Dismissing on one tab does NOT affect other tabs
+- Next page reload shows notification again if SW still updated
+- No automatic reload - user has full control
+
+**Implementation Notes:**
+- Alert element has class `update-notification-toast` for easy targeting
+- `refreshing` flag prevents multiple simultaneous reloads
+- Uses DaisyUI classes for consistent styling
+- Buttons are semantic `<button>` elements for accessibility
+- Console logs for debugging: `[PWA] Update notification dismissed by user`, `[PWA] User clicked Update button, reloading page...`
 
 ---
 
@@ -542,11 +591,16 @@ if ('serviceWorker' in navigator) {
    [SW] Deleted 1 old caches
    [SW] Clients claimed
    [SW] Notifying 1 clients about SW update
-   [PWA] New service worker activated, reloading in 3 seconds...
+   [PWA] New service worker activated, showing update notification...
    ```
-6. Verify countdown toast appears
-7. Verify page reloads automatically after 3 seconds
-8. Verify new version active: `[SW] Activating version: vXXXXXXXX_YYYY`
+6. Verify update notification appears (not countdown toast)
+   - Should show: "Доступно обновление приложения"
+   - Should have "Обновить" and "Позже" buttons
+7. Test button behavior:
+   - Click "Позже" → Notification disappears
+   - Reload page → Notification appears again
+   - Click "Обновить" → Page reloads immediately
+8. After reload → Verify new version active: `[SW] Activating version: vXXXXXXXX_YYYY`
 
 ---
 
@@ -556,9 +610,12 @@ if ('serviceWorker' in navigator) {
 1. Open app in 3 different tabs
 2. Deploy new version
 3. Trigger update in any tab (reload OR wait 1 hour)
-4. Verify all 3 tabs show countdown simultaneously
-5. Verify all 3 tabs reload within 3 seconds
-6. Verify no version mismatch between tabs
+4. Verify all 3 tabs show update notification independently
+5. Test independent control:
+   - Tab 1: Click "Обновить" → Tab 1 reloads immediately
+   - Tab 2: Click "Позже" → Notification dismissed, continue working
+   - Tab 3: Ignore notification → Notification remains visible
+6. Verify: Each tab operates independently, no cross-tab interference
 
 ---
 
@@ -617,8 +674,9 @@ if ('serviceWorker' in navigator) {
 [PWA] Service worker state: installing
 [PWA] Service worker state: installed
 [PWA] Update available, auto-activating...
-[PWA] New service worker activated, reloading in 3 seconds...
-[PWA] Reloading page...
+[PWA] New service worker activated, showing update notification...
+[User clicks "Обновить" button]
+[PWA] User clicked Update button, reloading page...
 ```
 
 ---

@@ -1309,7 +1309,7 @@
     <!-- Service Worker Registration (PWA) - Aggressive Auto-Update -->
     <script>
         // Service Worker регистрация для Progressive Web App
-        // Стратегия: Aggressive Auto-Update с 3-секундным countdown
+        // Стратегия: Aggressive Auto-Update с уведомлением и контролем пользователя
         if ('serviceWorker' in navigator) {
             let refreshing = false;
 
@@ -1318,13 +1318,10 @@
                 if (refreshing) return;
                 refreshing = true;
 
-                console.log('[PWA] New service worker activated, reloading in 3 seconds...');
+                console.log('[PWA] New service worker activated, showing update notification...');
 
-                // Show countdown and reload
-                showUpdateCountdown(3, () => {
-                    console.log('[PWA] Reloading page...');
-                    window.location.reload();
-                });
+                // Show persistent update notification with user control
+                showUpdateNotification();
             });
 
             window.addEventListener('load', () => {
@@ -1371,35 +1368,45 @@
                     });
             });
 
-            // Show countdown before reload
-            function showUpdateCountdown(seconds, onComplete) {
-                let remaining = seconds;
-
+            // Show persistent update notification with user control
+            function showUpdateNotification() {
                 const toast = document.createElement('div');
-                toast.className = 'toast toast-top toast-center';
-                toast.style.zIndex = '9999';
+                toast.className = 'toast toast-top toast-center update-notification-toast';
+                toast.style.cssText = 'position: fixed; z-index: 9999;';
                 toast.innerHTML = `
-                    <div class="alert alert-info">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 w-6 h-6">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                        </svg>
-                        <span>Обновление приложения через <strong id="countdown">${remaining}</strong> сек...</span>
+                    <div class="alert alert-info shadow-lg gap-4">
+                        <div class="flex-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 w-6 h-6 mr-2">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            <span>Доступно обновление приложения</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="btn btn-sm btn-ghost" onclick="dismissUpdateNotification()">
+                                Позже
+                            </button>
+                            <button class="btn btn-sm btn-primary" onclick="reloadWithUpdate()">
+                                Обновить
+                            </button>
+                        </div>
                     </div>
                 `;
                 document.body.appendChild(toast);
+            }
 
-                const countdown = toast.querySelector('#countdown');
+            // Dismiss update notification (hide it)
+            function dismissUpdateNotification() {
+                const toast = document.querySelector('.update-notification-toast');
+                if (toast) {
+                    toast.style.display = 'none';
+                    console.log('[PWA] Update notification dismissed by user');
+                }
+            }
 
-                const interval = setInterval(() => {
-                    remaining--;
-                    countdown.textContent = remaining;
-
-                    if (remaining <= 0) {
-                        clearInterval(interval);
-                        toast.remove();
-                        onComplete();
-                    }
-                }, 1000);
+            // Reload page when user clicks Update button
+            function reloadWithUpdate() {
+                console.log('[PWA] User clicked Update button, reloading page...');
+                window.location.reload();
             }
         } else {
             console.log('[PWA] Service Worker not supported in this browser');
