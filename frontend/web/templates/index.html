@@ -4565,17 +4565,28 @@ let recurringEndDateCalendarWidget = null;
 function togglePlanMode(modalId) {
     const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
     const mode = selectedMode ? selectedMode.value : 'regular';
+    console.log('[togglePlanMode] Mode:', mode);
 
     const recurringSettingsDiv = document.getElementById(`recurring-settings-${modalId}`);
     const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
     const reminderModeLabel = document.getElementById(`reminder-mode-label-${modalId}`);
+
+    console.log('[togglePlanMode] Elements found:', {
+        recurringSettingsDiv: !!recurringSettingsDiv,
+        onetimeReminderSection: !!onetimeReminderSection,
+        reminderModeLabel: !!reminderModeLabel
+    });
 
     // Get recurring-specific required fields
     const durationTypeSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
 
     // Hide all panels first
     if (recurringSettingsDiv) recurringSettingsDiv.classList.add('hidden');
-    if (onetimeReminderSection) onetimeReminderSection.classList.add('hidden');
+    if (onetimeReminderSection) {
+        console.log('[togglePlanMode] Hiding onetimeReminderSection, classes BEFORE:', onetimeReminderSection.className);
+        onetimeReminderSection.classList.add('hidden');
+        console.log('[togglePlanMode] Hiding onetimeReminderSection, classes AFTER:', onetimeReminderSection.className);
+    }
 
     switch (mode) {
         case 'recurring':
@@ -4600,7 +4611,9 @@ function togglePlanMode(modalId) {
                 reminderModeLabel.classList.remove('hidden');
             }
             if (onetimeReminderSection) {
+                console.log('[togglePlanMode] Showing onetimeReminderSection, classes BEFORE:', onetimeReminderSection.className);
                 onetimeReminderSection.classList.remove('hidden');
+                console.log('[togglePlanMode] Showing onetimeReminderSection, classes AFTER:', onetimeReminderSection.className);
                 initReminderCalendarWidget(modalId);
 
                 // Set default time (current time + 1 hour, rounded to 5 minutes)
@@ -4614,6 +4627,8 @@ function togglePlanMode(modalId) {
                     // Update hidden field after setting default values
                     updateReminderDatetime(modalId);
                 }
+            } else {
+                console.error('[togglePlanMode] onetimeReminderSection NOT FOUND!');
             }
             // Disable validation for recurring fields (they're hidden)
             if (durationTypeSelect) {
