@@ -984,10 +984,11 @@ components:
       description: "Read-only category type indicator (same design as modal_edit_plan)"
       element_id: "edit-category-type-container"
       visual_design:
-        container: "bg-base-200 rounded-lg p-3"
+        container: "bg-base-200 rounded-lg p-3 mt-2"
         layout: "flex items-center justify-center gap-2"
         label: "label-text font-semibold text-sm"
         badge: "badge badge-sm (color varies by type)"
+        spacing: "mt-2 adds visual separation from financial center field above"
       badge_variants:
         expense: "badge-error (Расход)"
         income: "badge-success (Доход)"
@@ -1135,10 +1136,11 @@ components:
       description: "Read-only category type indicator (cannot be changed after creation)"
       element_id: "edit-category-type-container"
       visual_design:
-        container: "bg-base-200 rounded-lg p-3"
+        container: "bg-base-200 rounded-lg p-3 mt-2"
         layout: "flex items-center justify-center gap-2"
         label: "label-text font-semibold text-sm"
         badge: "badge badge-sm (color varies by type)"
+        spacing: "mt-2 adds visual separation from financial center field above"
       badge_variants:
         expense: "badge-error (Расход)"
         income: "badge-success (Доход)"
