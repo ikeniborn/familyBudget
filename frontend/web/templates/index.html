@@ -985,7 +985,6 @@ async function openEditFromDashboard(factId) {
                 type: categoryType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
-                    console.log('Category changed in edit modal:', category);
                 }
             });
 
@@ -1011,7 +1010,6 @@ async function openEditFromDashboard(factId) {
                 mode: 'single',
                 inputElement: editDateInput,
                 onSelect: (date) => {
-                    console.log('Выбрана дата для edit modal:', date);
                 }
             });
         }
@@ -1207,7 +1205,6 @@ async function openEditPendingRecord(itemId, entity) {
                 type: categoryType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
-                    console.log('Category changed in edit modal:', category);
                 }
             });
 
@@ -1243,7 +1240,6 @@ async function openEditPendingRecord(itemId, entity) {
                 mode: 'single',
                 inputElement: editDateInput,
                 onSelect: (date) => {
-                    console.log('Выбрана дата для edit modal:', date);
                 }
             });
         }
@@ -1333,7 +1329,6 @@ function setupEditCategoryTypeButtons() {
 
             // Reload categories with new type
             const newType = this.dataset.type;
-            console.log('Edit modal category type changed to:', newType);
 
             // Update badge in collapse header
             updateEditCategoryTypeBadge(newType);
@@ -1512,7 +1507,6 @@ async function createReminder(factId, reminderDatetime) {
             return false;
         }
 
-        console.log('[Reminder] Created reminder for plan:', factId);
         return true;
     } catch (error) {
         console.error('Error creating reminder:', error);
@@ -1541,7 +1535,6 @@ async function updateReminder(factId, reminderDatetime) {
             return false;
         }
 
-        console.log('[Reminder] Updated reminder for plan:', factId);
         return true;
     } catch (error) {
         console.error('Error updating reminder:', error);
@@ -1570,7 +1563,6 @@ async function deleteReminder(factId) {
             return false;
         }
 
-        console.log('[Reminder] Deleted reminder for plan:', factId);
         return true;
     } catch (error) {
         console.error('Error deleting reminder:', error);
@@ -2294,9 +2286,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             if (isRecurring) {
                 // ===== RECURRING PLAN CREATION =====
-                console.log('[index.html createPlan] Collecting recurring settings for modal_add_plan');
                 const recurringSettings = window.collectRecurringSettings('modal_add_plan');
-                console.log('[index.html createPlan] Collected recurringSettings:', recurringSettings);
 
                 if (!recurringSettings) {
                     console.error('[index.html createPlan] collectRecurringSettings() returned null!');
@@ -4909,63 +4899,54 @@ document.addEventListener('DOMContentLoaded', () => {
             window.budgetWSClient.on('article_updated', () => {
                 if (dropdownCache) {
                     dropdownCache.categories.data = null;
-                    console.log('[Cache] Invalidated categories cache (article_updated)');
                 }
             });
 
             window.budgetWSClient.on('article_created', () => {
                 if (dropdownCache) {
                     dropdownCache.categories.data = null;
-                    console.log('[Cache] Invalidated categories cache (article_created)');
                 }
             });
 
             window.budgetWSClient.on('article_deleted', () => {
                 if (dropdownCache) {
                     dropdownCache.categories.data = null;
-                    console.log('[Cache] Invalidated categories cache (article_deleted)');
                 }
             });
 
             window.budgetWSClient.on('financial_center_updated', () => {
                 if (dropdownCache) {
                     dropdownCache.financialCenters.data = null;
-                    console.log('[Cache] Invalidated financial centers cache');
                 }
             });
 
             window.budgetWSClient.on('financial_center_created', () => {
                 if (dropdownCache) {
                     dropdownCache.financialCenters.data = null;
-                    console.log('[Cache] Invalidated financial centers cache');
                 }
             });
 
             window.budgetWSClient.on('financial_center_deleted', () => {
                 if (dropdownCache) {
                     dropdownCache.financialCenters.data = null;
-                    console.log('[Cache] Invalidated financial centers cache');
                 }
             });
 
             window.budgetWSClient.on('cost_center_updated', () => {
                 if (dropdownCache) {
                     dropdownCache.costCenters.data = null;
-                    console.log('[Cache] Invalidated cost centers cache');
                 }
             });
 
             window.budgetWSClient.on('cost_center_created', () => {
                 if (dropdownCache) {
                     dropdownCache.costCenters.data = null;
-                    console.log('[Cache] Invalidated cost centers cache');
                 }
             });
 
             window.budgetWSClient.on('cost_center_deleted', () => {
                 if (dropdownCache) {
                     dropdownCache.costCenters.data = null;
-                    console.log('[Cache] Invalidated cost centers cache');
                 }
             });
         }
