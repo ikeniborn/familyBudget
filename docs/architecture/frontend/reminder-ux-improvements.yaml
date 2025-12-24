@@ -171,6 +171,43 @@ related_issues:
   - issue: "docs/architecture/flows/create-transaction.yaml"
     description: "Flow создания транзакций и планов"
 
+follow_up_issues:
+  - issue: "Reminder icon не появляется в recent-transactions-card после создания плана"
+    description: |\
+      После создания плана с напоминанием, иконка 🔔 не появляется в виджете
+      recent transactions на главной странице, хотя напоминание создано успешно.
+    root_cause: |\
+      Проблема с порядком выполнения операций (race condition):
+      1. План создан → result.id = 7609
+      2. HTMX обновляет recent-transactions (GET /api/v1/facts/recent-html)
+         → Backend query: SELECT FROM t_scheduled_reminder WHERE fact_id IN (...)
+         → Находит НОЛЬ напоминаний (reminder еще не создан)
+         → Рендерит HTML БЕЗ иконки напоминания
+      3. HTMX обновляет #recent-transactions с HTML (без иконки)
+      4. createReminder() вызывается → reminder создается в БД
+      5. remindersMap.set() → frontend map обновлен
+      6. Но HTML уже отрендерен без иконки!
+    fix: |\
+      Переместить HTMX refresh ПОСЛЕ создания reminder:
+      1. План создан
+      2. createReminder() вызывается → reminder создается в БД
+      3. remindersMap обновлен
+      4. HTMX refresh → backend query находит reminder
+      5. Backend рендерит HTML С иконкой reminder
+      6. Иконка появляется в таблице!
+    commit: "270a23a1"
+    files:
+      - "frontend/web/templates/index.html:2618-2651" # OfflineManager path
+      - "frontend/web/templates/index.html:2671-2697" # Fallback path
+
+  - issue: "Reminder section не появляется при повторном открытии модального окна"
+    status: "under investigation"
+    description: |\
+      При повторном открытии modal_add_plan и переключении в режим "Напоминание",
+      секция выбора даты/времени напоминания не появляется.
+    debug_commit: "1a9f44ae"
+    next_steps: "Waiting for user to test and provide console logs"
+
 commits:
   - commit: "ca400987"
     description: "fix(plan): auto-fill default reminder time on mode switch (initial)"
@@ -193,3 +230,23 @@ commits:
     files:
       - "frontend/web/templates/plan.html:3909-3920"
       - "frontend/web/templates/index.html:4614-4625"
+
+  - commit: "c7a6ff5e"
+    description: "chore(plan): remove debug logging from togglePlanMode"
+    files:
+      - "frontend/web/templates/plan.html"
+      - "frontend/web/templates/index.html"
+
+  - commit: "1a9f44ae"
+    description: "debug(plan): add logging for reminder section visibility issue"
+    issue: "After reopening modal, switching to reminder mode doesn't show date/time picker"
+    files:
+      - "frontend/web/templates/index.html:4565-4636"
+
+  - commit: "270a23a1"
+    description: "fix(plan): show reminder icon in recent transactions after plan creation"
+    issue: "Reminder icon 🔔 не появляется в recent-transactions-card после создания плана"
+    fix: "Move HTMX refresh AFTER reminder creation (so backend query finds the reminder)"
+    files:
+      - "frontend/web/templates/index.html:2618-2651"
+      - "frontend/web/templates/index.html:2671-2697"
