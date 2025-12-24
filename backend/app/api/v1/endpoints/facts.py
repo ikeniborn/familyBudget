@@ -1116,7 +1116,7 @@ async def get_fact(
                 # Build RecurringPlanResponse with enriched data
                 from backend.app.services.recurring_plan_service import RecurringPlanService
                 service = RecurringPlanService()
-                frequency_display = service._format_frequency_display(plan)
+                frequency_display = service._get_frequency_display(plan)
 
                 recurring_plan_data = {
                     "id": plan.id,
