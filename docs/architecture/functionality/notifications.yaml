@@ -266,3 +266,23 @@ module:
           files:
             - frontend/web/static/js/offline/pushManager.min.js
           impact: "Critical - push notification bell button now works correctly"
+
+        - type: "improvement"
+          component: "push_notifications"
+          description: "Removed debug console logs from pushManager"
+          details: |
+            Cleaned up verbose console logging for production.
+
+            Removed:
+            - All console.log() informational messages
+            - All console.warn() warning messages
+
+            Kept:
+            - console.error() for critical errors (required for debugging)
+
+            Impact: Cleaner browser console in production without
+            spamming users with technical debug information.
+          files:
+            - frontend/web/static/js/offline/pushManager.js
+            - frontend/web/static/js/offline/pushManager.min.js
+          impact: "Minor - improves user experience by reducing console noise"

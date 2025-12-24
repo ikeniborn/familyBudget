@@ -33,10 +33,7 @@ class PushNotificationManager {
      * @param {boolean} options.requestPermission - Request permission on init (default: false)
      */
     async init(options = {}) {
-        console.log('[Push] Initializing PushNotificationManager...');
-
         if (!this.isSupported) {
-            console.warn('[Push] Push notifications not supported in this browser');
             this._updateUI();  // Update UI to hide button
             return false;
         }
@@ -53,7 +50,6 @@ class PushNotificationManager {
         // Check if VAPID key is valid (may have been invalidated in loadVapidKey)
         if (!this.isSupported || !this.vapidPublicKey) {
             // Push not configured on server - silently disable
-            console.warn('[Push] Push notifications not configured on server');
             this._updateUI();  // Update UI to hide button
             return false;
         }
@@ -78,7 +74,6 @@ class PushNotificationManager {
         // CRITICAL FIX: Update UI after successful initialization
         // This shows the push bell button after VAPID key is loaded
         this._updateUI();
-        console.log('[Push] PushNotificationManager initialized successfully');
         return true;
     }
 
@@ -87,8 +82,6 @@ class PushNotificationManager {
      * @private
      */
     async loadVapidKey() {
-        console.log('[Push] Loading VAPID key from backend...');
-
         try {
             const response = await fetch('/api/v1/push/vapid-key', {
                 credentials: 'include'
@@ -102,7 +95,6 @@ class PushNotificationManager {
 
             // Check if push notifications are configured on server
             if (data.configured === false || !data.public_key) {
-                console.warn('[Push] Push notifications not configured on server');
                 this.vapidPublicKey = null;
                 this.isSupported = false;
                 return;
@@ -119,8 +111,6 @@ class PushNotificationManager {
                 this.isSupported = false;
                 return;
             }
-
-            console.log('[Push] VAPID key loaded successfully');
         } catch (error) {
             console.error('[Push] loadVapidKey failed:', error);
             throw error;
@@ -155,8 +145,6 @@ class PushNotificationManager {
      * @returns {Promise<PushSubscription>}
      */
     async subscribe() {
-        console.log('[Push] Subscribing to push notifications...');
-
         if (!this.isSupported) {
             throw new Error('Push Notifications not supported');
         }
@@ -184,7 +172,6 @@ class PushNotificationManager {
             // Send subscription to backend
             await this.sendSubscriptionToBackend(subscription);
 
-            console.log('[Push] Subscription successful:', subscription.endpoint.substring(0, 50) + '...');
             return subscription;
         } catch (error) {
             console.error('[Push] subscribe failed:', error);
@@ -197,10 +184,7 @@ class PushNotificationManager {
      * @returns {Promise<boolean>}
      */
     async unsubscribe() {
-        console.log('[Push] Unsubscribing from push notifications...');
-
         if (!this.isSupported) {
-            console.warn('[Push] Cannot unsubscribe - push not supported');
             return false;
         }
 
@@ -215,11 +199,9 @@ class PushNotificationManager {
                 await this.removeSubscriptionFromBackend(subscription);
 
                 this.subscription = null;
-                console.log('[Push] Unsubscription successful');
                 return true;
             }
 
-            console.warn('[Push] No active subscription found');
             return false;
         } catch (error) {
             console.error('[Push] unsubscribe failed:', error);
@@ -398,22 +380,18 @@ class PushNotificationManager {
 
             if (status.subscribed) {
                 await this.unsubscribe();
-                console.log('[Push] Successfully unsubscribed from push notifications');
             } else {
                 // Check if permission is already granted
                 if (Notification.permission === 'granted') {
                     // Permission already granted, just subscribe
                     await this.subscribe();
-                    console.log('[Push] Successfully subscribed to push notifications');
                 } else {
                     // Need to request permission first
                     const granted = await this.requestPermission();
                     if (!granted) {
-                        console.warn('[Push] Permission denied by user');
                         this._updateUI();
                         return false;
                     }
-                    console.log('[Push] Successfully subscribed to push notifications');
                 }
             }
 
