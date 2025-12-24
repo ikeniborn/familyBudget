@@ -234,7 +234,7 @@ module:
         description: "FAB Speed Dial для массовых операций со списком"
         icon: "⋮ (vertical dots, rotates 90° when open)"
         position: "bottom-6 right-6 (fixed)"
-        visibility: "Visible только в detail view когда есть items"
+        visibility: "Visible всегда в detail view (независимо от количества items)"
         type: "Speed Dial (expandable menu)"
         items:
           - action: "deleteCompletedWithConfirm()"
