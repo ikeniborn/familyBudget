@@ -400,13 +400,21 @@ class PushNotificationManager {
                 await this.unsubscribe();
                 console.log('[Push] Successfully unsubscribed from push notifications');
             } else {
-                const granted = await this.requestPermission();
-                if (!granted) {
-                    console.warn('[Push] Permission denied by user');
-                    this._updateUI();
-                    return false;
+                // Check if permission is already granted
+                if (Notification.permission === 'granted') {
+                    // Permission already granted, just subscribe
+                    await this.subscribe();
+                    console.log('[Push] Successfully subscribed to push notifications');
+                } else {
+                    // Need to request permission first
+                    const granted = await this.requestPermission();
+                    if (!granted) {
+                        console.warn('[Push] Permission denied by user');
+                        this._updateUI();
+                        return false;
+                    }
+                    console.log('[Push] Successfully subscribed to push notifications');
                 }
-                console.log('[Push] Successfully subscribed to push notifications');
             }
 
             this._updateUI();
