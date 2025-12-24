@@ -462,6 +462,413 @@ async function updateFact(event) {
 
 ---
 
+## Modal Button State Management (v6.1+)
+
+**Last Updated:** 2025-12-24
+**Breaking Changes:** Removed `setSubmitLoading()` from index.html, adopted facts.html/plan.html pattern
+
+### Recommended Pattern (facts.html/plan.html style)
+
+**Architecture:** Wrapper function controls button state, form submit handler only does async API call.
+
+**Wrapper Function (saveTransaction, savePlan, saveTransfer):**
+```javascript
+function saveTransaction(button) {
+    if (button.disabled) return; // Prevent double-click
+
+    button.disabled = true;
+    button.classList.add('loading');
+
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        // Re-enable button if validation fails
+        button.disabled = false;
+        button.classList.remove('loading');
+        form?.reportValidity();
+    }
+}
+```
+
+**Form Submit Handler:**
+```javascript
+document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+    // ... build data object ...
+
+    try {
+        const response = await fetch('/api/v1/facts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            modal_add_transaction.close();
+            e.target.reset();
+            showToast('Транзакция успешно сохранена!', 'success');
+            await loadFacts(); // Reload data
+        } else {
+            const error = await response.json();
+            showToast('Ошибка: ' + (error.detail || error.message), 'error');
+        }
+    } catch (error) {
+        console.error('Error creating transaction:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    } finally {
+        // Re-enable button
+        const submitBtn = e.target.querySelector('.save-btn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+    }
+});
+```
+
+**Why this pattern works:**
+- ✅ Button disabled only once (no double-disable race condition)
+- ✅ No HTML replacement (avoids stale `dataset.originalHtml` cache)
+- ✅ Validation errors handled immediately in wrapper
+- ✅ Form handler just does async call + button restoration
+- ✅ Button always restored in finally block (even on error)
+
+---
+
+### Deprecated Pattern (index.html pre-v6.1)
+
+**Problem:** Double button disable + HTML storage causes persistent loading spinner.
+
+**Old Wrapper Function:**
+```javascript
+// ❌ OLD (BUGGY):
+function saveTransaction(button) {
+    if (button.disabled) return;
+    button.disabled = true;              // ← First disable
+    button.classList.add('loading');     // ← First loading class
+    unifiedSave(button, 'transaction');  // → calls form.requestSubmit()
+}
+```
+
+**Old Form Submit Handler:**
+```javascript
+// ❌ OLD (BUGGY):
+form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    setSubmitLoading(e.target, true);   // ← SECOND disable + HTML replacement!
+    // ... API call ...
+    finally {
+        setSubmitLoading(e.target, false);  // ← Restore HTML
+    }
+});
+```
+
+**What went wrong:**
+1. Wrapper disables button and adds `loading` class
+2. Form handler calls `setSubmitLoading(true)` which stores current button HTML (now includes spinner!)
+3. API call completes, modal closes
+4. `finally` block calls `setSubmitLoading(false)` → restores from `dataset.originalHtml` (which is spinner)
+5. User reopens modal → button still shows spinner
+6. Next submit → `setSubmitLoading(true)` captures spinner as "original" again
+
+**Root cause:** `dataset.originalHtml` captured spinner instead of button, creating persistent loading state.
+
+---
+
+### Modal Open Functions - Button State Reset
+
+**Pattern:** Clear any stale loading state when modal opens.
+
+```javascript
+function openAddTransactionModal() {
+    // Reset button state
+    const form = document.getElementById('form_modal_add_transaction');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
+    // Set today date
+    const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
+    if (factDateInput) {
+        factDateInput.value = BudgetShared.DateFormatter.today();
+    }
+
+    modal_add_transaction.showModal();
+}
+```
+
+**Why this is critical:**
+- Clears any leftover loading state from previous submit
+- Prevents "stuck spinner" bug on modal reopen
+- Acts as safety net even if finally block fails
+
+**Pages affected:**
+- `index.html`: `openAddTransactionModal()`, `openAddPlanModal()`, `openFactTransferModal()`, `openPlanTransferModal()`
+- `facts.html`: `openCreateModal()`
+- `plan.html`: `openAddPlanModal()`, `openPlanTransferModal()`
+
+---
+
+### Common Pitfall: Missing Form Submit Handlers
+
+**Symptom:** Button gets disabled when clicked, but form doesn't submit. No API call happens.
+
+**Root cause:** Wrapper function calls `form.requestSubmit()` but NO `addEventListener('submit')` handler exists.
+
+**Example (transfer modal bug pre-v6.1):**
+
+```javascript
+// Wrapper exists:
+function saveTransfer(button) {
+    button.disabled = true;
+    button.classList.add('loading');
+    const form = document.getElementById('form_transfer');
+    form.requestSubmit(); // ← Fires 'submit' event
+}
+
+// ❌ BUT NO HANDLER EXISTS!
+// Expected but missing:
+// document.getElementById('form_transfer').addEventListener('submit', async function(e) { ... });
+```
+
+**Result:**
+- Button becomes disabled ✅
+- Loading spinner shows ✅
+- `submit` event fires... but nobody handles it ❌
+- No API call happens ❌
+- Modal stays open with disabled button ❌
+
+**How to diagnose:**
+1. Check browser console for form submit event registration:
+   ```javascript
+   // In console:
+   $0 = document.getElementById('form_transfer');
+   getEventListeners($0).submit; // Should show listener, not undefined
+   ```
+2. Look for RuntimeWarning in backend logs (won't exist - no API call made)
+3. Check Network tab - no POST request to `/api/v1/transfers`
+
+**Fix:** Add the missing submit handler:
+```javascript
+document.getElementById('form_transfer').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    // ... handle form submission ...
+});
+```
+
+**Affected modals (fixed in v6.1):**
+- `transfer_modal` on index.html (was broken)
+- `transfer_modal` on facts.html (was broken)
+- `transfer_modal` on plan.html (was broken)
+
+---
+
+### Best Practices (v6.1+)
+
+#### 1. Always Pair `form.requestSubmit()` with `addEventListener('submit')`
+
+```javascript
+// ✅ CORRECT:
+function saveTransaction(button) {
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit(); // ← Fires 'submit' event
+    }
+}
+
+// ✅ HANDLER EXISTS:
+document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    // ... handle submission ...
+});
+```
+
+```javascript
+// ❌ INCORRECT (missing handler):
+function saveTransaction(button) {
+    const form = document.getElementById(button.dataset.formId);
+    form.requestSubmit(); // ← Fires event, but nobody listens!
+}
+```
+
+#### 2. Wrapper Functions Handle Validation + Button Disable
+
+```javascript
+// ✅ CORRECT:
+function saveTransaction(button) {
+    if (button.disabled) return; // Double-click prevention
+
+    button.disabled = true;
+    button.classList.add('loading');
+
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        // Validation failed - re-enable button immediately
+        button.disabled = false;
+        button.classList.remove('loading');
+        form?.reportValidity();
+    }
+}
+```
+
+**Responsibilities:**
+- Check `button.disabled` to prevent double-click
+- Disable button and add loading class
+- Validate form BEFORE calling `requestSubmit()`
+- Re-enable button if validation fails (no API call needed)
+
+#### 3. Form Submit Handlers Only Do Async API Call
+
+```javascript
+// ✅ CORRECT:
+document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+    // ... build data object ...
+
+    try {
+        // Just do the async API call - button already disabled by wrapper
+        const response = await fetch('/api/v1/facts', { /* ... */ });
+
+        if (response.ok) {
+            modal_add_transaction.close();
+            e.target.reset();
+            showToast('Success!', 'success');
+            await loadFacts();
+        } else {
+            const error = await response.json();
+            showToast('Error: ' + error.detail, 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error: ' + error.message, 'error');
+    } finally {
+        // Always restore button
+        const submitBtn = e.target.querySelector('.save-btn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+    }
+});
+```
+
+**Responsibilities:**
+- Prevent default form submission (`e.preventDefault()`)
+- Execute async API call (fetch, OfflineManager, etc.)
+- Close modal and reset form on success
+- Show error toast on failure
+- **Always** restore button in finally block
+
+#### 4. Reset Button State on Modal Open
+
+```javascript
+// ✅ CORRECT:
+function openAddTransactionModal() {
+    // Reset button state FIRST
+    const form = document.getElementById('form_modal_add_transaction');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        delete submitBtn.dataset.originalHtml; // Clear stale cache
+    }
+
+    // Then set default values
+    const dateInput = form.querySelector('input[name="fact_date"]');
+    if (dateInput) {
+        dateInput.value = BudgetShared.DateFormatter.today();
+    }
+
+    // Finally open modal
+    modal_add_transaction.showModal();
+}
+```
+
+**Why this is critical:**
+- Clears leftover loading state from previous submit
+- Prevents "stuck spinner" on modal reopen
+- Safety net in case finally block failed (e.g., exception thrown)
+
+---
+
+### Migration Guide (v6.0 → v6.1)
+
+If you have modal forms using the old `setSubmitLoading()` pattern:
+
+**Step 1:** Remove `setSubmitLoading()` calls from form submit handlers:
+```diff
+  form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+-     setSubmitLoading(e.target, true);
+
+      try {
+          // ... API call ...
+      } finally {
+-         setSubmitLoading(e.target, false);
++         // Re-enable button
++         const submitBtn = e.target.querySelector('.save-btn');
++         if (submitBtn) {
++             submitBtn.disabled = false;
++             submitBtn.classList.remove('loading');
++         }
+      }
+  });
+```
+
+**Step 2:** Update wrapper functions to validate and enable on failure:
+```diff
+  function saveTransaction(button) {
+      if (button.disabled) return;
+      button.disabled = true;
+      button.classList.add('loading');
+
+      const form = document.getElementById(button.dataset.formId);
+-     form.requestSubmit();
++     if (form && form.checkValidity()) {
++         form.requestSubmit();
++     } else {
++         button.disabled = false;
++         button.classList.remove('loading');
++         form?.reportValidity();
++     }
+  }
+```
+
+**Step 3:** Add button state reset to modal open functions:
+```diff
+  function openAddTransactionModal() {
++     // Reset button state
++     const form = document.getElementById('form_modal_add_transaction');
++     const submitBtn = form?.querySelector('.save-btn');
++     if (submitBtn) {
++         submitBtn.disabled = false;
++         submitBtn.classList.remove('loading');
++         delete submitBtn.dataset.originalHtml;
++     }
+
+      // Set today date
+      const dateInput = form.querySelector('input[name="fact_date"]');
+      if (dateInput) {
+          dateInput.value = BudgetShared.DateFormatter.today();
+      }
+
+      modal_add_transaction.showModal();
+  }
+```
+
+---
+
 ## Pagination
 
 ### Pagination State

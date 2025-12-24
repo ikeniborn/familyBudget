@@ -955,6 +955,15 @@ function initDefaultPeriodFilter() {
  * Sets record_type to 'plan' and shows the modal
  */
 function openPlanTransferModal() {
+    // Reset button state
+    const form = document.getElementById('form_transfer');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
     // Set transfer record type to plan
     if (typeof setTransferRecordType === 'function') {
         setTransferRecordType('plan');
@@ -1219,6 +1228,12 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
         await createPlan(e);
+    });
+
+    // Transfer form submit handler (online only)
+    document.getElementById('form_transfer').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await createTransfer(e);
     });
 
     // Initialize CalendarWidget for filter date range (with custom trigger)
@@ -3463,6 +3478,63 @@ async function createPlan(event) {
     }
 }
 
+// Create transfer (online only)
+async function createTransfer(event) {
+    const formData = new FormData(event.target);
+
+    // Validate FROM ≠ TO
+    const fromFC = parseInt(formData.get('from_financial_center_id'));
+    const toFC = parseInt(formData.get('to_financial_center_id'));
+
+    if (fromFC === toFC) {
+        showToast('Ошибка: счет отправления и получения должны различаться', 'error');
+        const submitBtn = event.target.querySelector('.save-btn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+        return;
+    }
+
+    const data = {
+        from_financial_center_id: fromFC,
+        to_financial_center_id: toFC,
+        from_article_id: parseInt(formData.get('from_article_id')),
+        to_article_id: parseInt(formData.get('to_article_id')),
+        amount: parseFloat(formData.get('amount')),
+        transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
+        description: formData.get('description') || null
+    };
+
+    try {
+        const response = await fetch('/api/v1/transfers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            transfer_modal.close();
+            event.target.reset();
+            showToast('Перевод успешно сохранен!', 'success');
+            await loadPlans(); // Reload plans table
+        } else {
+            const error = await response.json();
+            showToast('Ошибка: ' + (error.detail || error.message), 'error');
+        }
+    } catch (error) {
+        console.error('Error creating transfer:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    } finally {
+        const submitBtn = event.target.querySelector('.save-btn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+    }
+}
+
 // Установить сумму плана из quick amount buttons
 function setPlanAmount(amount) {
     const amountInput = document.querySelector('#form_modal_add_plan input[name="amount"]');
@@ -3645,6 +3717,15 @@ function prefillReminderDateTime(modalId) {
  */
 function openAddPlanModal() {
     const modalId = 'modal_add_plan';
+
+    // Reset button state
+    const form = document.getElementById('form_modal_add_plan');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
 
     // Pre-fill reminder date and time before opening
     prefillReminderDateTime(modalId);

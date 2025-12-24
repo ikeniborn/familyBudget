@@ -449,6 +449,15 @@ function isCacheValid(cacheEntry) {
 
 // Открыть модальное окно фактического перевода
 function openFactTransferModal() {
+    // Reset button state
+    const form = document.getElementById('form_transfer');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
     // Set transfer type to 'fact'
     if (typeof setTransferRecordType === 'function') {
         setTransferRecordType('fact');
@@ -469,6 +478,15 @@ window.openFactTransferModal = openFactTransferModal;
 
 // Открыть модальное окно планового перевода
 function openPlanTransferModal() {
+    // Reset button state
+    const form = document.getElementById('form_transfer');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
     // Set transfer type to 'plan'
     if (typeof setTransferRecordType === 'function') {
         setTransferRecordType('plan');
@@ -2099,6 +2117,15 @@ window.handleEditScopeChange = handleEditScopeChange;
 
 // Открыть модальное окно добавления факта с инициализацией даты
 function openAddTransactionModal() {
+    // Reset button state
+    const form = document.getElementById('form_modal_add_transaction');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
     // Установить текущую дату перед открытием модального окна (today() already returns DD.MM.YYYY)
     const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
     if (factDateInput) {
@@ -2271,7 +2298,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Обработчик отправки формы факта (с поддержкой offline режима)
     document.getElementById('form_modal_add_transaction').addEventListener('submit', async function(e) {
         e.preventDefault();
-        setSubmitLoading(e.target, true);
 
         const formData = new FormData(e.target);
 
@@ -2395,14 +2421,18 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error creating transaction:', error);
             showToast('Ошибка при создании факта: ' + error.message, 'error');
         } finally {
-            setSubmitLoading(e.target, false);
+            // Re-enable button
+            const submitBtn = e.target.querySelector('.save-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+            }
         }
     });
 
     // Обработчик отправки формы плана (с поддержкой offline режима)
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
-        setSubmitLoading(e.target, true);
 
         const formData = new FormData(e.target);
 
@@ -2442,7 +2472,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!recurringSettings) {
                     console.error('[index.html createPlan] collectRecurringSettings() returned null!');
                     showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
-                    setSubmitLoading(e.target, false);
+                    // Re-enable button
+                    const submitBtn = e.target.querySelector('.save-btn');
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.classList.remove('loading');
+                    }
                     return;
                 }
 
@@ -2581,7 +2616,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
 
-                setSubmitLoading(e.target, false);
+                // Re-enable button
+                const submitBtn = e.target.querySelector('.save-btn');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('loading');
+                }
                 return;
             }
 
@@ -2712,7 +2752,128 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error creating plan:', error);
             showToast('Ошибка при создании плана: ' + error.message, 'error');
         } finally {
-            setSubmitLoading(e.target, false);
+            // Re-enable button
+            const submitBtn = e.target.querySelector('.save-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+            }
+        }
+    });
+
+    // Transfer form submit handler (with offline support)
+    document.getElementById('form_transfer').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+
+        // Validate FROM ≠ TO
+        const fromFC = parseInt(formData.get('from_financial_center_id'));
+        const toFC = parseInt(formData.get('to_financial_center_id'));
+
+        if (fromFC === toFC) {
+            showToast('Ошибка: счет отправления и получения должны различаться', 'error');
+            // Re-enable button
+            const submitBtn = e.target.querySelector('.save-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+            }
+            return;
+        }
+
+        const data = {
+            from_financial_center_id: fromFC,
+            to_financial_center_id: toFC,
+            from_article_id: parseInt(formData.get('from_article_id')),
+            to_article_id: parseInt(formData.get('to_article_id')),
+            amount: parseFloat(formData.get('amount')),
+            transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
+            description: formData.get('description') || null,
+            record_type: 'transfer'
+        };
+
+        try {
+            // Use OfflineManager if available
+            if (window.offlineManager) {
+                const result = await window.offlineManager.createTransfer(data);
+
+                transfer_modal.close();
+                e.target.reset();
+
+                // Reset date to today
+                const transferDateInput = document.querySelector('#form_transfer input[name="transfer_date"]');
+                if (transferDateInput) {
+                    transferDateInput.value = BudgetShared.DateFormatter.today();
+                }
+
+                if (result._offline) {
+                    showToast('Перевод сохранен оффлайн (будет синхронизирован при подключении)', 'warning');
+                    loadPendingRecords();
+                } else {
+                    showToast('Перевод успешно сохранен!', 'success');
+
+                    // Refresh UI
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                        target: '#account-balances',
+                        swap: 'innerHTML'
+                    });
+                }
+            } else {
+                // Fallback to direct fetch
+                const response = await fetch('/api/v1/transfers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    transfer_modal.close();
+                    e.target.reset();
+                    const transferDateInput = document.querySelector('#form_transfer input[name="transfer_date"]');
+                    if (transferDateInput) {
+                        transferDateInput.value = BudgetShared.DateFormatter.today();
+                    }
+
+                    showToast('Перевод успешно сохранен!', 'success');
+
+                    // Refresh UI
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                        target: '#account-balances',
+                        swap: 'innerHTML'
+                    });
+                } else {
+                    const error = await response.json();
+                    showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать перевод'), 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error creating transfer:', error);
+            showToast('Ошибка при создании перевода: ' + error.message, 'error');
+        } finally {
+            // Re-enable button
+            const submitBtn = e.target.querySelector('.save-btn');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+            }
         }
     });
 });
@@ -4069,6 +4230,15 @@ function prefillReminderDateTime(modalId) {
 function openAddPlanModal() {
     const modalId = 'modal_add_plan';
 
+    // Reset button state
+    const form = document.getElementById('form_modal_add_plan');
+    const submitBtn = form?.querySelector('.save-btn');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('loading');
+        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+    }
+
     // Pre-fill reminder date and time before opening
     prefillReminderDateTime(modalId);
 
@@ -4206,60 +4376,53 @@ function formatDatetimeForInput(date) {
 // ==================== UNIFIED SAVE FUNCTIONS ====================
 // These functions automatically choose between online (form submit) and offline (local queue) mode
 
-/**
- * Unified save function - automatically chooses online/offline mode
- * @param {HTMLButtonElement} button - Save button with data-form-id and data-modal-id
- * @param {string} type - 'transaction' | 'plan' | 'transfer'
- */
-async function unifiedSave(button, type) {
-    const isOnline = window.offlineManager?.networkDetector?.isOnline() ?? navigator.onLine;
-
-    if (isOnline) {
-        // Online: submit form to server
-        const form = document.getElementById(button.dataset.formId);
-        if (form && form.checkValidity()) {
-            form.requestSubmit();  // Triggers form submit with validation
-        } else {
-            form?.reportValidity();
-            // Re-enable button after failed validation
-            // so user can fix errors and try again
-            button.disabled = false;
-            button.classList.remove('loading');
-        }
-    } else {
-        // Offline: save locally
-        switch (type) {
-            case 'transaction':
-                await saveTransactionOffline(button);
-                break;
-            case 'plan':
-                await savePlanOffline(button);
-                break;
-            case 'transfer':
-                await saveTransferOffline(button);
-                break;
-        }
-    }
-}
-
 // Wrapper functions for each modal type (with double-click prevention)
 function saveTransaction(button) {
     if (button.disabled) return; // Already processing
     button.disabled = true;
     button.classList.add('loading');
-    unifiedSave(button, 'transaction');
+
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        // Re-enable button if validation fails
+        button.disabled = false;
+        button.classList.remove('loading');
+        form?.reportValidity();
+    }
 }
+
 function savePlan(button) {
     if (button.disabled) return;
     button.disabled = true;
     button.classList.add('loading');
-    unifiedSave(button, 'plan');
+
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        // Re-enable button if validation fails
+        button.disabled = false;
+        button.classList.remove('loading');
+        form?.reportValidity();
+    }
 }
+
 function saveTransfer(button) {
     if (button.disabled) return;
     button.disabled = true;
     button.classList.add('loading');
-    unifiedSave(button, 'transfer');
+
+    const form = document.getElementById(button.dataset.formId);
+    if (form && form.checkValidity()) {
+        form.requestSubmit();
+    } else {
+        // Re-enable button if validation fails
+        button.disabled = false;
+        button.classList.remove('loading');
+        form?.reportValidity();
+    }
 }
 
 // ==================== OFFLINE SAVE FUNCTIONS ====================

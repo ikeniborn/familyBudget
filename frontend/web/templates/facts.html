@@ -590,6 +590,12 @@ document.addEventListener('DOMContentLoaded', function() {
         await createFact(e);
     });
 
+    // Transfer form submit handler (online only)
+    document.getElementById('form_transfer').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await createTransfer(e);
+    });
+
     // Initialize CalendarWidget for date range filter (range mode with custom trigger)
     new BudgetShared.CalendarWidget({
         mode: 'range',
@@ -2117,6 +2123,63 @@ async function createFact(event) {
     }
 }
 
+// Create transfer (online only)
+async function createTransfer(event) {
+    const formData = new FormData(event.target);
+
+    // Validate FROM ≠ TO
+    const fromFC = parseInt(formData.get('from_financial_center_id'));
+    const toFC = parseInt(formData.get('to_financial_center_id'));
+
+    if (fromFC === toFC) {
+        showToast('Ошибка: счет отправления и получения должны различаться', 'error');
+        const submitBtn = event.target.querySelector('.save-btn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+        return;
+    }
+
+    const data = {
+        from_financial_center_id: fromFC,
+        to_financial_center_id: toFC,
+        from_article_id: parseInt(formData.get('from_article_id')),
+        to_article_id: parseInt(formData.get('to_article_id')),
+        amount: parseFloat(formData.get('amount')),
+        transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
+        description: formData.get('description') || null
+    };
+
+    try {
+        const response = await fetch('/api/v1/transfers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            transfer_modal.close();
+            event.target.reset();
+            showToast('Перевод успешно сохранен!', 'success');
+            await loadFacts(); // Reload facts table
+        } else {
+            const error = await response.json();
+            showToast('Ошибка: ' + (error.detail || error.message), 'error');
+        }
+    } catch (error) {
+        console.error('Error creating transfer:', error);
+        showToast('Ошибка: ' + error.message, 'error');
+    } finally {
+        const submitBtn = event.target.querySelector('.save-btn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+        }
+    }
+}
+
 // Установить дату факта (offset в днях: 0 = сегодня, -1 = вчера)
 function setTransactionDate(offsetDays) {
     const dateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
@@ -2145,6 +2208,15 @@ function openCreateModal() {
     // Вспомогательная функция: установить текущую дату и открыть модальное окно
     // today() already returns DD.MM.YYYY format, no need for formatForDisplay()
     const openModalWithDate = () => {
+        // Reset button state
+        const form = document.getElementById('form_modal_add_transaction');
+        const submitBtn = form?.querySelector('.save-btn');
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading');
+            delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+        }
+
         const factDateInput = document.querySelector('#form_modal_add_transaction input[name="fact_date"]');
         if (factDateInput) {
             factDateInput.value = BudgetShared.DateFormatter.today();
