@@ -216,6 +216,45 @@ module:
   # UI FEATURES
   # ---------------------------------------------------------------------------
   ui_features:
+    fab_buttons:
+      landing_view_fab:
+        id: "create-list-fab"
+        description: "FAB кнопка для создания нового списка"
+        icon: "➕ (plus sign)"
+        position: "bottom-6 right-6 (fixed)"
+        visibility: "Visible только в landing view"
+        function: "openCreateListModal()"
+        css_class: "btn btn-success btn-circle btn-lg shadow-xl"
+        implementation:
+          show: "listsManager.showCreateListFAB() в showLandingView()"
+          hide: "listsManager.hideCreateListFAB() в showDetailView()"
+
+      detail_view_fab:
+        id: "lists-fab-menu"
+        description: "FAB Speed Dial для массовых операций со списком"
+        icon: "⋮ (vertical dots, rotates 90° when open)"
+        position: "bottom-6 right-6 (fixed)"
+        visibility: "Visible только в detail view когда есть items"
+        type: "Speed Dial (expandable menu)"
+        items:
+          - action: "deleteCompletedWithConfirm()"
+            icon: "🗑️"
+            label: "Удалить выполненные"
+            color: "btn-error"
+          - action: "markAllCompletedWithConfirm()"
+            icon: "✅"
+            label: "Отметить все"
+            color: "btn-success"
+          - action: "unmarkAllCompletedWithConfirm()"
+            icon: "❌"
+            label: "Снять все отметки"
+            color: "btn-warning"
+        implementation:
+          show: "listsManager.updateFABVisibility() в showDetailView()"
+          hide: "listsManager.hideFAB() в showLandingView()"
+          toggle: "toggleListsFAB() - открыть/закрыть speed dial"
+        backdrop: "lists-fab-backdrop (closes menu on click)"
+        css: "frontend/web/static/css/lists.css:1236-1344"
     form_selectors:
       description: "Селекторы в форме добавления/редактирования товара"
       store_selector:
