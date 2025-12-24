@@ -723,14 +723,12 @@ async def get_recent_facts_html(
             return formatted
 
         # Build HTML: desktop table + mobile list
-        # Desktop table (hidden on mobile)
+        # Desktop table (hidden on mobile, shown on tablet and up)
         table_html = """
         <div class="hidden md:block overflow-x-auto">
             <table class="table table-zebra table-sm">
                 <thead>
                     <tr>
-                        <th class="w-8"></th>
-                        <th class="w-8"></th>
                         <th>Тип</th>
                         <th>Дата</th>
                         <th>Счёт</th>
@@ -740,6 +738,8 @@ async def get_recent_facts_html(
                         <th title="Напоминание">🔔</th>
                         <th title="Регламентный платеж">🔄</th>
                         <th title="Создано offline">☁️</th>
+                        <th class="w-8"></th>
+                        <th class="w-8"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -812,13 +812,11 @@ async def get_recent_facts_html(
             else:
                 reminder_title = ""
 
-            # Desktop table row with edit and delete buttons
+            # Desktop table row with edit and delete buttons (at the end, after ☁️)
             edit_button = f'''<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard({fact.id})">✏️</button>'''
             delete_button = f'''<button class="btn btn-xs btn-error gap-1" onclick="deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>'''
             table_html += f"""
                     <tr>
-                        <td class="text-center">{edit_button}</td>
-                        <td class="text-center">{delete_button}</td>
                         <td>{record_type_badge_sm}</td>
                         <td class="whitespace-nowrap">{fact_date_full}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
@@ -828,10 +826,12 @@ async def get_recent_facts_html(
                         <td class="text-center" title="{reminder_title}">{reminder_icon}</td>
                         <td class="text-center" title="{recurring_title}">{recurring_icon}</td>
                         <td class="text-center" title="{offline_title}">{offline_icon}</td>
+                        <td class="text-center">{edit_button}</td>
+                        <td class="text-center">{delete_button}</td>
                     </tr>
             """
 
-            # Mobile list item
+            # Mobile list item - tap entire row to open edit modal (no buttons)
             # Line 2 parts: date, account, description (joined with •)
             line2_parts = [fact_date_short]
             if fc_name != "—":
@@ -848,10 +848,9 @@ async def get_recent_facts_html(
             reminder_span = f'<span class="text-warning text-xs" title="{reminder_title}">{reminder_icon}</span>' if reminder_icon else ""
 
             mobile_html += f"""
-            <div class="py-2 hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2">
+            <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                 onclick="openEditFromDashboard({fact.id})">
                 <div class="flex items-center gap-2">
-                    <button class="btn btn-xs btn-primary" onclick="event.stopPropagation(); openEditFromDashboard({fact.id})">✏️</button>
-                    <button class="btn btn-xs btn-error" onclick="event.stopPropagation(); deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>
                     {record_type_badge}
                     <span class="flex-1 font-medium truncate">{article.name}</span>
                     {reminder_span}
