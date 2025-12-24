@@ -198,54 +198,6 @@
 </div>
 
 <!-- ============================================== -->
-<!-- FAB для создания списка (Landing View) -->
-<!-- ============================================== -->
-<button id="create-list-fab" class="btn btn-success btn-circle btn-lg shadow-xl fixed bottom-6 right-6 z-50 hidden" onclick="openCreateListModal()" aria-label="Создать новый список" title="Создать новый список">
-    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-    </svg>
-</button>
-
-<!-- ============================================== -->
-<!-- FAB Speed Dial для массовых операций (Detail View) -->
-<!-- ============================================== -->
-<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3 hidden">
-    <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
-    <button onclick="toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl z-50" aria-label="Массовые операции">
-        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-            <circle cx="12" cy="5" r="2"/>
-            <circle cx="12" cy="12" r="2"/>
-            <circle cx="12" cy="19" r="2"/>
-        </svg>
-    </button>
-
-    <!-- Speed Dial items -->
-    <div class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap">Удалить выполненные</span>
-        <button onclick="deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
-            🗑️
-        </button>
-    </div>
-
-    <div class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap">Отметить все</span>
-        <button onclick="markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
-            ✅
-        </button>
-    </div>
-
-    <div class="fab-item flex items-center gap-2">
-        <span class="badge badge-neutral shadow whitespace-nowrap">Снять все отметки</span>
-        <button onclick="unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
-            ❌
-        </button>
-    </div>
-</div>
-
-<!-- FAB Backdrop -->
-<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 z-40 opacity-0 pointer-events-none hidden" onclick="toggleListsFAB()"></div>
-
-<!-- ============================================== -->
 <!-- MODALS -->
 <!-- ============================================== -->
 
@@ -434,6 +386,54 @@
 </dialog>
 
 {% endblock %}
+
+<!-- ============================================== -->
+<!-- FAB BUTTONS (outside content block for proper fixed positioning) -->
+<!-- ============================================== -->
+
+<!-- FAB для создания списка (Landing View) -->
+<button id="create-list-fab" class="btn btn-success btn-circle btn-lg shadow-xl fixed bottom-6 right-6 z-50 hidden" onclick="openCreateListModal()" aria-label="Создать новый список" title="Создать новый список">
+    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+    </svg>
+</button>
+
+<!-- FAB Speed Dial для массовых операций (Detail View) -->
+<div id="lists-fab-menu" class="fab-menu closed fixed bottom-6 right-6 z-50 flex flex-col-reverse items-end gap-3 hidden">
+    <!-- Main FAB button (⋮ вертикальные точки - поворачивается на 90° при открытии) -->
+    <button onclick="toggleListsFAB()" class="fab-main btn btn-primary btn-circle btn-lg shadow-xl z-50" aria-label="Массовые операции">
+        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+            <circle cx="12" cy="5" r="2"/>
+            <circle cx="12" cy="12" r="2"/>
+            <circle cx="12" cy="19" r="2"/>
+        </svg>
+    </button>
+
+    <!-- Speed Dial items -->
+    <div class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap">Удалить выполненные</span>
+        <button onclick="deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
+            🗑️
+        </button>
+    </div>
+
+    <div class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap">Отметить все</span>
+        <button onclick="markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
+            ✅
+        </button>
+    </div>
+
+    <div class="fab-item flex items-center gap-2">
+        <span class="badge badge-neutral shadow whitespace-nowrap">Снять все отметки</span>
+        <button onclick="unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
+            ❌
+        </button>
+    </div>
+</div>
+
+<!-- FAB Backdrop -->
+<div id="lists-fab-backdrop" class="fixed inset-0 bg-black/30 z-40 opacity-0 pointer-events-none hidden" onclick="toggleListsFAB()"></div>
 
 {% block extra_scripts %}
 <!-- Choices.js -->
