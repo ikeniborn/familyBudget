@@ -1065,6 +1065,48 @@ class CSVImporter {
     }
 
     /**
+     * Check if there are any reference errors in validation result.
+     * Reference errors occur when store/product_group not found in DB.
+     *
+     * IMPORTANT: Returns true if createMissingReferences is already enabled,
+     * to keep checkbox visible (otherwise user can't disable it).
+     *
+     * @param {Object} result - Preview API result
+     * @returns {boolean} True if there are reference errors OR option is enabled
+     */
+    hasReferenceErrors(result) {
+        // Keep checkbox visible if user already enabled the option
+        if (this.importOptions.createMissingReferences) {
+            return true;
+        }
+
+        // Show checkbox if there are reference errors in current result
+        if (!result.errors || result.errors.length === 0) {
+            return false;
+        }
+        return result.errors.some(e => e.error_type === 'reference');
+    }
+
+    /**
+     * Check if there are any duplicate warnings in validation result.
+     *
+     * IMPORTANT: Returns true if aggregateDuplicates is already enabled,
+     * to keep checkbox visible (otherwise user can't disable it).
+     *
+     * @param {Object} result - Preview API result
+     * @returns {boolean} True if there are duplicate warnings OR aggregation is enabled
+     */
+    hasDuplicateWarnings(result) {
+        // Keep checkbox visible if user already enabled the option
+        if (this.importOptions.aggregateDuplicates) {
+            return true;
+        }
+
+        // Show checkbox if there are duplicate warnings
+        return result.warnings && result.warnings.length > 0;
+    }
+
+    /**
      * Render preview results with validation
      */
     renderPreviewResults() {
@@ -1186,7 +1228,7 @@ class CSVImporter {
 
                 <!-- Import Options -->
                 ${result.invalid_rows > 0 ? `
-                <div class="form-control mb-4">
+                <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="skip-invalid-checkbox" class="checkbox checkbox-primary"
                                ${this.importOptions.skipInvalid ? 'checked' : ''} />
@@ -1196,7 +1238,7 @@ class CSVImporter {
                 ` : ''}
 
                 ${result.warnings.length > 0 ? `
-                <div class="form-control mb-4">
+                <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="skip-duplicates-checkbox" class="checkbox checkbox-warning"
                                ${this.importOptions.skipDuplicates ? 'checked' : ''} />
@@ -1205,8 +1247,9 @@ class CSVImporter {
                 </div>
                 ` : ''}
 
-                <!-- Aggregate duplicates - always visible -->
-                <div class="form-control mb-4">
+                <!-- Aggregate duplicates - conditional display -->
+                ${this.hasDuplicateWarnings(result) ? `
+                <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="aggregate-duplicates-checkbox" class="checkbox checkbox-info"
                                ${this.importOptions.aggregateDuplicates ? 'checked' : ''}
@@ -1217,9 +1260,11 @@ class CSVImporter {
                         <span class="label-text-alt text-xs opacity-70">Суммировать количество, объединить комментарии через запятую</span>
                     </label>
                 </div>
+                ` : ''}
 
-                <!-- Create missing references option -->
-                <div class="form-control mb-4">
+                <!-- Create missing references - conditional display -->
+                ${this.hasReferenceErrors(result) ? `
+                <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="create-missing-checkbox" class="checkbox checkbox-success"
                                ${this.importOptions.createMissingReferences ? 'checked' : ''}
@@ -1230,6 +1275,7 @@ class CSVImporter {
                         <span class="label-text-alt text-xs opacity-70">Автоматически создавать отсутствующие магазины и группы товаров</span>
                     </label>
                 </div>
+                ` : ''}
 
                 <div class="flex gap-2">
                     <button class="btn btn-outline" onclick="window.${varName}.renderStep3()">

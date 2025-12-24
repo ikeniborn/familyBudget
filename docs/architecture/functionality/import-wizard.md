@@ -487,6 +487,101 @@ mapping2 = await MappingService.save_mapping(
 - ✅ No noisy warnings for expected missing categories
 - ✅ No UI freezing during bulk operations
 
+---
+
+### Import Options Conditional Display (Added 2025-12-24)
+
+**Enhancement:** Import checkboxes now display conditionally based on validation result.
+
+**Changes:**
+
+1. **"Агрегировать количество дубликатов"** (Aggregate duplicates):
+   - **Condition:** Only shown if `result.warnings.length > 0` OR option is already enabled
+   - **Rationale:** Aggregation is only relevant when duplicates exist
+   - **Implementation:** `${this.hasDuplicateWarnings(result) ? ... : ''}`
+
+2. **"Загрузить с новой группой или магазином"** (Create missing references):
+   - **Condition:** Only shown if `result.errors` contains `error_type === 'reference'` OR option is already enabled
+   - **Rationale:** Option only relevant when stores/product groups are missing from database
+   - **Implementation:** `${this.hasReferenceErrors(result) ? ... : ''}`
+
+3. **Spacing improvements:**
+   - Changed checkbox margin-bottom: `mb-4` (16px) → `mb-2` (8px)
+   - More compact layout without compromising readability
+   - Consistent with DaisyUI form control spacing recommendations
+
+**Helper Methods:**
+
+```javascript
+// frontend/web/static/js/lists/csvImporter.js
+
+/**
+ * Check if validation result has reference errors.
+ * Reference errors occur when store/product_group not found in DB.
+ *
+ * IMPORTANT: Returns true if createMissingReferences is already enabled,
+ * to keep checkbox visible (otherwise user can't disable it).
+ */
+hasReferenceErrors(result) {
+    // Keep checkbox visible if user already enabled the option
+    if (this.importOptions.createMissingReferences) {
+        return true;
+    }
+
+    // Show checkbox if there are reference errors in current result
+    if (!result.errors || result.errors.length === 0) {
+        return false;
+    }
+    return result.errors.some(e => e.error_type === 'reference');
+}
+
+/**
+ * Check if validation result has duplicate warnings.
+ *
+ * IMPORTANT: Returns true if aggregateDuplicates is already enabled,
+ * to keep checkbox visible (otherwise user can't disable it).
+ */
+hasDuplicateWarnings(result) {
+    // Keep checkbox visible if user already enabled the option
+    if (this.importOptions.aggregateDuplicates) {
+        return true;
+    }
+
+    // Show checkbox if there are duplicate warnings
+    return result.warnings && result.warnings.length > 0;
+}
+```
+
+**Critical Logic Explanation:**
+
+When user enables "Aggregate duplicates" or "Create missing refs", backend modifies the result:
+- **Aggregate duplicates ON** → backend merges duplicates → `result.warnings.length = 0`
+- **Create missing refs ON** → backend filters reference errors → `result.errors` without reference errors
+
+Without checking `this.importOptions.*`, checkbox would disappear when user enables it, preventing them from disabling!
+
+**Solution:** Always show checkbox if option is already enabled (`importOptions.aggregateDuplicates` or `importOptions.createMissingReferences`)
+
+**User Experience:**
+
+| Scenario | Checkboxes Shown |
+|----------|------------------|
+| No errors, no warnings | None (only Import button) |
+| 5 invalid rows, no duplicates | "Skip invalid" only |
+| 3 duplicates, no errors | "Skip duplicates", "Aggregate duplicates" |
+| 2 reference errors | "Skip invalid", "Create missing references" |
+| All issue types | All 4 checkboxes |
+| User enables "Aggregate duplicates" | "Aggregate duplicates" stays visible (even though warnings=0 after aggregation) |
+| User enables "Create missing refs" | "Create missing refs" stays visible (even though reference errors filtered) |
+
+**Files Changed:**
+- `frontend/web/static/js/lists/csvImporter.js` - Added helper methods, conditional rendering
+- `docs/architecture/functionality/import-wizard.md` - This documentation
+
+**See also:**
+- `backend/app/services/csv_validator.py:26-54` - ValidationError structure
+- `backend/app/api/v1/endpoints/shopping_csv_import.py:202-216` - Reference error filtering
+
 ## References
 
 - **Backend**: `/backend/app/api/v1/endpoints/import_endpoints.py`
