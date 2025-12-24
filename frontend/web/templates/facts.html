@@ -1749,6 +1749,9 @@ async function updateFact(event) {
         return;
     }
 
+    // ========== ALL VALIDATION PASSED - SHOW LOADING ==========
+    setSubmitLoading(event.target, true);
+
     // Build data object with optional center fields
     const data = {
         amount: parseFloat(formData.get('amount')),
@@ -1820,6 +1823,9 @@ async function updateFact(event) {
         console.error('Error updating fact:', error);
         const errorMessage = error?.message || String(error);
         showToast(`Ошибка: ${errorMessage}`, 'error');
+    } finally {
+        // ========== ALWAYS RESTORE BUTTON ==========
+        setSubmitLoading(event.target, false);
     }
 }
 

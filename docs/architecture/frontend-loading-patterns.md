@@ -410,6 +410,58 @@ function updateFilterIndicator() {
 
 ---
 
+## Modal Form Submission Loading States
+
+### Edit Modal Save Buttons
+
+**Pattern:** Button loading state during async form submission
+
+**Implementation:**
+```javascript
+async function updateFact(event) {
+    event.preventDefault();
+
+    // Validation first (early returns OK)
+    if (!isValid(formData)) {
+        showToast('Validation error', 'error');
+        return; // Early return - button NOT disabled
+    }
+
+    // Show loading AFTER validation passes
+    setSubmitLoading(event.target, true);
+
+    try {
+        // ... fetch logic ...
+        closeEditModal();
+        await loadFacts();
+        showToast('Success!', 'success');
+    } catch (error) {
+        showToast(`Error: ${error.message}`, 'error');
+    } finally {
+        // Always restore button
+        setSubmitLoading(event.target, false);
+    }
+}
+```
+
+**Files:**
+- `frontend/web/templates/facts.html:updateFact()` - Facts page edit modal
+- `frontend/web/templates/plan.html:updateFact()` - Plan page edit modal
+
+**Visual feedback:**
+- Button disabled: prevents double-click
+- Spinner icon: shows processing state
+- Text changes: "Сохранить" → "Сохранение..."
+- Auto-restores: on success or error
+
+**Key features:**
+- Validation with early returns happens BEFORE `setSubmitLoading(true)`
+- If validation fails → early return → button never disabled
+- If validation passes → button disabled → fetch → finally restores button
+- `finally` block ensures restoration in all cases (success, error, or exception)
+
+---
+
 ## Pagination
 
 ### Pagination State
