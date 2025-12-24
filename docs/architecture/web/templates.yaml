@@ -481,6 +481,30 @@ templates:
           - "iOS safe area support"
           - "Reduced motion support"
           - "Circle shape on mobile (border-radius: 50%)"
+    fab_buttons:
+      create_list_fab:
+        id: "create-list-fab"
+        visibility: "Landing view only"
+        icon: "➕ (plus icon)"
+        color: "btn-success"
+        action: "openCreateListModal()"
+        mobile_size: "48x48px (same as detail FAB)"
+      detail_fab:
+        id: "lists-fab-menu .fab-main"
+        visibility: "Detail view only"
+        icon: "⋮ (vertical dots)"
+        color: "btn-primary"
+        mobile_size: "48x48px"
+      mobile_styling:
+        description: "Both FABs use consistent sizing on mobile"
+        css_location: "frontend/web/static/css/lists.css:1293-1337"
+        size: "48x48px (!important overrides)"
+        position: "bottom: 1rem, right: 1rem"
+        features:
+          - "border-radius: 50% !important"
+          - "aspect-ratio: 1/1"
+          - "padding: 0 !important"
+          - "min-width/min-height constraints"
     toolbar_sections:
       hierarchy_controls:
         id: "hierarchy-controls"
