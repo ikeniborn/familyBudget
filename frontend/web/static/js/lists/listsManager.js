@@ -908,15 +908,15 @@ class ListsManager {
 
     /**
      * Update FAB visibility
-     * Shows FAB only when in detail view and there are items
+     * Shows FAB when in detail view (regardless of item count)
      */
     updateFABVisibility() {
         const fabMenu = document.getElementById('lists-fab-menu');
         const fabBackdrop = document.getElementById('lists-fab-backdrop');
         if (!fabMenu) return;
 
-        // Show FAB only when there are items in the list
-        if (this.currentItems.length > 0 && this.currentListId) {
+        // Show FAB when viewing a list (even if empty)
+        if (this.currentListId) {
             fabMenu.classList.remove('hidden');
         } else {
             fabMenu.classList.add('hidden');
