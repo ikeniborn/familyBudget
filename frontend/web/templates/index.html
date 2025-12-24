@@ -2615,22 +2615,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update pending records table
                     loadPendingRecords();
                 } else {
-                    // Update recent records table (now includes plans)
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-                        target: '#recent-transactions',
-                        swap: 'innerHTML'
-                    });
-                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-                        target: '#quick-stats',
-                        swap: 'innerHTML'
-                    });
-                    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
-                        target: '#account-balances',
-                        swap: 'innerHTML'
-                    });
-
                     if (result && result.id) {
-                        // Create reminder if enabled
+                        // Create reminder FIRST if enabled (before HTMX refresh)
                         if (enableReminder && reminderDatetime) {
                             const reminder = await BudgetShared.Reminders.createReminder(result.id, reminderDatetime);
                             if (reminder) {
@@ -2646,6 +2632,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         showToast('План создан, но ID не получен', 'warning');
                     }
+
+                    // Update recent records table AFTER reminder creation (so backend query finds the reminder)
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                        target: '#account-balances',
+                        swap: 'innerHTML'
+                    });
+
                     debugLog('[index.html] Plan saved online:', result);
                 }
             } else {
@@ -2666,21 +2667,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     const reminderSettings2 = document.getElementById('reminder-settings-modal_add_plan');
                     if (reminderSettings2) reminderSettings2.classList.add('hidden');
                     setupPlanPeriodButtons();
-                    // Update recent records table (now includes plans)
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-                        target: '#recent-transactions',
-                        swap: 'innerHTML'
-                    });
-                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-                        target: '#quick-stats',
-                        swap: 'innerHTML'
-                    });
-                    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
-                        target: '#account-balances',
-                        swap: 'innerHTML'
-                    });
 
-                    // Create reminder if enabled
+                    // Create reminder FIRST if enabled (before HTMX refresh)
                     if (result && result.id && enableReminder && reminderDatetime) {
                         const reminder = await BudgetShared.Reminders.createReminder(result.id, reminderDatetime);
                         if (reminder) {
@@ -2693,6 +2681,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         showToast('План успешно сохранен!', 'success');
                     }
+
+                    // Update recent records table AFTER reminder creation (so backend query finds the reminder)
+                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                        target: '#recent-transactions',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                        target: '#quick-stats',
+                        swap: 'innerHTML'
+                    });
+                    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                        target: '#account-balances',
+                        swap: 'innerHTML'
+                    });
                 } else {
                     const error = await response.json();
                     showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать план'), 'error');
