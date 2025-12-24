@@ -2075,8 +2075,9 @@ class ChoicesCategoryTree {
             },
         });
 
-        // Add choices
-        this.choices.setChoices(choices, 'value', 'label', true);
+        // Add choices WITHOUT auto-selecting first item
+        // 4th parameter FALSE prevents Choices.js from auto-selecting
+        this.choices.setChoices(choices, 'value', 'label', false);
 
         // Listen for change events
         this.element.addEventListener('change', (event) => {
@@ -2369,12 +2370,11 @@ class ChoicesCategoryTree {
                     };
                 });
 
-                // Set new choices
-                this.choices.setChoices(choices, 'value', 'label', true);
+                // Set new choices WITHOUT auto-selecting first item
+                // 4th parameter FALSE prevents Choices.js from auto-selecting
+                this.choices.setChoices(choices, 'value', 'label', false);
 
-                // CRITICAL: Clear any auto-selection that Choices.js made
-                // Use setTimeout to ensure Choices.js has finished its internal processing
-                await new Promise(resolve => setTimeout(resolve, 0));
+                // Clear any existing selection (shouldn't be any, but to be safe)
                 this.choices.removeActiveItems();
                 if (this.element) {
                     this.element.value = '';
@@ -2426,7 +2426,11 @@ class ChoicesCategoryTree {
         }
 
         // Save current selection to restore it if still available
-        const previousSelection = this.element ? this.element.value : null;
+        // CRITICAL: Only save selection if it's a real user selection, not a phantom value
+        // Check if there are actually active items in Choices.js (user made explicit selection)
+        const activeItems = this.choices ? this.choices.getValue(true) : null;
+        const hasActiveSelection = activeItems && Array.isArray(activeItems) && activeItems.length > 0;
+        const previousSelection = hasActiveSelection && this.element ? this.element.value : null;
         const previousSelectionId = previousSelection ? parseInt(previousSelection) : null;
 
         try {
@@ -2464,12 +2468,9 @@ class ChoicesCategoryTree {
                     };
                 });
 
-                // Set new choices
-                this.choices.setChoices(choices, 'value', 'label', true);
-
-                // Wait for Choices.js to finish its internal processing
-                // (Choices.js may auto-select first item in next event loop tick)
-                await new Promise(resolve => setTimeout(resolve, 0));
+                // Set new choices WITHOUT auto-selecting first item
+                // 4th parameter FALSE prevents Choices.js from auto-selecting
+                this.choices.setChoices(choices, 'value', 'label', false);
 
                 // Check if we need to restore previous selection
                 const categoryStillAvailable = previousSelectionId &&
