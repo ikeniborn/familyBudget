@@ -3999,13 +3999,16 @@ document.addEventListener('DOMContentLoaded', function() {
 let reminderCalendarWidget = null;
 
 /**
- * Get current time rounded to nearest 5 minutes.
+ * Get current time + 1 hour, rounded to nearest 5 minutes.
+ * Used as default reminder time.
  * @returns {Object} Hour and minute as zero-padded strings (hour: string, minute: string)
  */
 function getCurrentTimeRounded() {
     const now = new Date();
-    const hour = now.getHours();
-    const minutes = now.getMinutes();
+    // Add 1 hour
+    const futureTime = new Date(now.getTime() + 60 * 60 * 1000);
+    const hour = futureTime.getHours();
+    const minutes = futureTime.getMinutes();
     const roundedMinutes = Math.round(minutes / 5) * 5;
 
     // Handle overflow (55 rounds to 60)
@@ -4607,6 +4610,18 @@ function togglePlanMode(modalId) {
                 console.log('[togglePlanMode] Removed .hidden class');  // ← DEBUG
                 console.log('[togglePlanMode] onetimeReminderSection classes AFTER:', onetimeReminderSection.className);  // ← DEBUG
                 initReminderCalendarWidget(modalId);
+
+                // Set default time (current time + 1 hour, rounded to 5 minutes) if fields are empty
+                const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+                const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+                if (hourSelect && minuteSelect && !hourSelect.value && !minuteSelect.value) {
+                    const defaultTime = getCurrentTimeRounded();
+                    hourSelect.value = defaultTime.hour;
+                    minuteSelect.value = defaultTime.minute;
+                    // Update hidden field after setting default values
+                    updateReminderDatetime(modalId);
+                    console.log('[togglePlanMode] Set default time:', defaultTime);  // ← DEBUG
+                }
             } else {
                 console.error('[togglePlanMode] onetimeReminderSection NOT FOUND!');  // ← DEBUG
             }

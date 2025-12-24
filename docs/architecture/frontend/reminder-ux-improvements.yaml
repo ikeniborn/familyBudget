@@ -1,0 +1,154 @@
+# Reminder UX Improvements
+# Исправления UX проблем для создания напоминаний в планах
+
+issue:
+  title: "План создается без напоминания при выборе режима Reminder"
+  description: |
+    При создании плана с напоминанием (выбор режима "Напоминание"),
+    план создавался БЕЗ напоминания, если пользователь не заполнил вручную
+    время напоминания (час и минута). Hidden поле `reminder_datetime`
+    оставалось пустым, что приводило к пропуску создания reminder в backend.
+
+  symptoms:
+    - "План создается успешно (BudgetFact record)"
+    - "ScheduledReminder НЕ создается"
+    - "При попытке открыть план для редактирования: GET /api/v1/reminders/{fact_id} → 404 Not Found"
+    - "В логах: loadRemindersForEdit вызывает fetch для несуществующего reminder"
+
+  root_cause: |
+    Скрытое поле reminder_datetime (input type="hidden") заполняется ТОЛЬКО
+    если все три поля (date, hour, minute) НЕ пустые. Функция updateReminderDatetime()
+    проверяет: if (dateValue && hourValue && minuteValue).
+
+    При переключении в режим "Reminder" секция показывается, но дефолтные
+    значения для hour/minute НЕ устанавливались. Пользователь мог оставить
+    поля пустыми, что приводило к пустому reminder_datetime.
+
+solution:
+  approach: "Установка дефолтных значений при показе секции напоминания"
+
+  changes:
+    - file: "frontend/web/templates/plan.html"
+      function: "togglePlanMode(modalId)"
+      location: "plan.html:3895-3924"
+      change: |
+        Добавлена установка дефолтного времени (текущее время + 1 час)
+        при переключении в режим reminder:
+
+        ```javascript
+        case 'reminder':
+            // ... существующий код ...
+            if (onetimeReminderSection) {
+                onetimeReminderSection.classList.remove('hidden');
+                initReminderCalendarWidget(modalId);
+
+                // Set default time (current time + 1 hour, rounded to 5 minutes) if fields are empty
+                const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
+                const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+                if (hourSelect && minuteSelect && !hourSelect.value && !minuteSelect.value) {
+                    const defaultTime = getCurrentTimeRounded();
+                    hourSelect.value = defaultTime.hour;
+                    minuteSelect.value = defaultTime.minute;
+                    // Update hidden field after setting default values
+                    updateReminderDatetime(modalId);
+                    console.log('[togglePlanMode] Set default time:', defaultTime);
+                }
+            }
+        ```
+
+    - file: "frontend/web/templates/index.html"
+      function: "togglePlanMode(modalId)"
+      location: "index.html:4600-4629"
+      change: "Аналогичное изменение (идентичный код)"
+
+    - file: "frontend/web/templates/plan.html"
+      function: "getCurrentTimeRounded()"
+      location: "plan.html:3582-3606"
+      change: |
+        Обновлена функция чтобы возвращать время + 1 час:
+
+        ```javascript
+        function getCurrentTimeRounded() {
+            const now = new Date();
+            // Add 1 hour
+            const futureTime = new Date(now.getTime() + 60 * 60 * 1000);
+            const hour = futureTime.getHours();
+            const minutes = futureTime.getMinutes();
+            const roundedMinutes = Math.round(minutes / 5) * 5;
+
+            if (roundedMinutes === 60) {
+                return {
+                    hour: String((hour + 1) % 24).padStart(2, '0'),
+                    minute: '00'
+                };
+            }
+            return {
+                hour: String(hour).padStart(2, '0'),
+                minute: String(roundedMinutes).padStart(2, '0')
+            };
+        }
+        ```
+
+    - file: "frontend/web/templates/index.html"
+      function: "getCurrentTimeRounded()"
+      location: "index.html:4001-4025"
+      change: "Аналогичное изменение (идентичная функция)"
+
+  behavior_after_fix:
+    - "При выборе режима Reminder автоматически устанавливается дефолтное время: текущее время + 1 час, округленное до 5 минут"
+    - "Скрытое поле reminder_datetime заполняется сразу после установки дефолтных значений"
+    - "Пользователь может изменить время вручную (hour/minute selects)"
+    - "При submit формы reminder_datetime имеет валидное значение → reminder создается в backend"
+
+  user_experience:
+    before:
+      - "Пользователь выбирает режим Reminder"
+      - "Поля hour/minute пустые (default option value='')"
+      - "Пользователь может забыть выбрать время и нажать Save"
+      - "План создается БЕЗ напоминания (silent failure)"
+      - "При попытке редактировать план: 404 error в console"
+
+    after:
+      - "Пользователь выбирает режим Reminder"
+      - "Поля hour/minute автоматически заполняются дефолтным временем (текущее + 1 час)"
+      - "Пользователь может оставить дефолтное время или изменить вручную"
+      - "При нажатии Save создается и план И напоминание"
+      - "При редактировании плана напоминание загружается корректно"
+
+validation:
+  # Как проверить что исправление работает
+  test_steps:
+    - "Открыть модальное окно создания плана (modal_add_plan)"
+    - "Выбрать режим 'Напоминание' (radio button plan_mode='reminder')"
+    - "Проверить что поля hour и minute автоматически заполнились"
+    - "Проверить в console: 'Set default time: {hour: ..., minute: ...}'"
+    - "Заполнить остальные обязательные поля (amount, article_id, etc.)"
+    - "Нажать Save"
+    - "Проверить в console: 'Напоминание установлено' (toast notification)"
+    - "Проверить в БД: SELECT * FROM t_scheduled_reminder WHERE fact_id = ..."
+    - "Открыть созданный план для редактирования"
+    - "Проверить что reminder загружается БЕЗ 404 ошибки"
+
+  edge_cases:
+    - case: "Пользователь вручную очистил hour/minute после автозаполнения"
+      expected: "reminder_datetime становится пустым, напоминание НЕ создается (это ожидаемое поведение - пользователь явно удалил значения)"
+
+    - case: "Пользователь переключил режим с Reminder → Regular → Reminder"
+      expected: "При повторном переключении в Reminder дефолтное время устанавливается снова"
+
+    - case: "Модальное окно переоткрывается (close → open)"
+      expected: "При открытии нового модального окна поля hour/minute пустые (resetReminderFields вызывается при закрытии)"
+
+related_issues:
+  - issue: "docs/architecture/endpoints/reminders.yaml"
+    description: "API документация для создания reminders"
+
+  - issue: "docs/architecture/flows/create-transaction.yaml"
+    description: "Flow создания транзакций и планов"
+
+commits:
+  - commit: "TBD"
+    description: "fix(plan): auto-fill reminder time on mode switch"
+    files:
+      - "frontend/web/templates/plan.html"
+      - "frontend/web/templates/index.html"
