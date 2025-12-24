@@ -251,6 +251,7 @@
                                             </svg>
                                         </th>
                                         <th>Статус</th>
+                                        <th class="w-8"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="pending-records-tbody">
@@ -3339,14 +3340,7 @@ async function loadPendingRecords() {
                 tableRows.push(`
                     <tr>
                         <td class="text-center">
-                            <div class="flex items-center justify-center gap-1">
-                                <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button>
-                                <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
-                            </div>
+                            <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button>
                         </td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
@@ -3357,6 +3351,13 @@ async function loadPendingRecords() {
                         <td class="text-center opacity-30">—</td>
                         ${notificationCell}
                         <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
                     </tr>
                 `);
 
@@ -3386,14 +3387,7 @@ async function loadPendingRecords() {
                 tableRows.push(`
                     <tr>
                         <td class="text-center">
-                            <div class="flex items-center justify-center gap-1">
-                                <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button>
-                                <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
-                            </div>
+                            <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button>
                         </td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
@@ -3404,6 +3398,13 @@ async function loadPendingRecords() {
                         <td class="text-center opacity-30">—</td>
                         ${notificationCell}
                         <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
                     </tr>
                 `);
 
@@ -3457,16 +3458,16 @@ async function loadPendingRecords() {
                 // Format amount with +/- sign based on type
                 const formattedAmount = formatAmount(item.data.amount, factType);
 
-                // Edit and delete buttons for pending records
-                const actionButtons = `
-                    <div class="flex items-center justify-center gap-1">
-                        <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>
-                        <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                        </button>
-                    </div>
+                // Edit button for pending records
+                const editButton = `<button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>`;
+
+                // Delete button for pending records
+                const deleteButton = `
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
                 `;
 
                 // Recurring indicator (only for recurring plans)
@@ -3478,7 +3479,7 @@ async function loadPendingRecords() {
                 // Desktop table row
                 tableRows.push(`
                     <tr>
-                        <td class="text-center">${actionButtons}</td>
+                        <td class="text-center">${editButton}</td>
                         <td>${typeLabel}</td>
                         <td>${date}</td>
                         <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
@@ -3488,6 +3489,7 @@ async function loadPendingRecords() {
                         ${recurringCell}
                         ${notificationCell}
                         <td>${statusBadge}</td>
+                        <td class="text-center">${deleteButton}</td>
                     </tr>
                 `);
 

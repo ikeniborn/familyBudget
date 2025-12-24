@@ -26,6 +26,41 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-24: UI Button Reorganization and Standardization
+- **Change:** Separated edit/delete buttons into individual columns and standardized delete button styling
+- **Reason:** Cleaner UI layout, consistent delete button styling across all templates, better mobile UX
+- **Pending Records Card:**
+  - Edit button in first column (before Тип)
+  - Delete button in last column (after Статус)
+- **Recent Transactions Card:**
+  - Edit button in first column (before Тип)
+  - Delete button in last column (after offline indicator ☁️)
+- **Delete Button Standard Format:**
+  - Classes: `btn btn-xs btn-error btn-square hidden md:inline-flex`
+  - Icon: SVG trash icon (h-4 w-4)
+  - Event: `onclick="event.stopPropagation(); deleteFunction(id)"`
+  - Mobile: Hidden on mobile (users delete via edit modal)
+- **Files changed:**
+  - `frontend/web/templates/index.html:253-254,3342-3493` (pending records header + 3 JS sections)
+  - `frontend/web/templates/partials/recent_transactions.html:38-94` (header + table body)
+  - `frontend/web/templates/facts.html:1373-1377` (delete button format)
+  - `frontend/web/templates/plan.html:2096-2100` (delete button format)
+  - `frontend/web/templates/admin_articles.html:512-525` (2 delete buttons)
+  - `frontend/web/templates/admin_financial_centers.html:200-213` (2 delete buttons)
+  - `frontend/web/templates/admin_cost_centers.html:273-286` (2 delete buttons)
+  - `frontend/web/templates/admin_stores.html:215-228` (2 delete buttons)
+  - `frontend/web/templates/admin_product_groups.html:276-289` (2 delete buttons)
+  - `frontend/web/templates/admin_import.html:2359-2366` (staging table delete button)
+  - `docs/architecture/README.md` (this file)
+  - `docs/architecture/web/templates.yaml` (template descriptions)
+- **Impact:**
+  - Visual layout changes (buttons separated into individual columns)
+  - Mobile UX improved (delete hidden on mobile, cleaner interface)
+  - All delete buttons now have consistent styling
+  - `event.stopPropagation()` prevents row click when deleting
+
+---
+
 ### 2025-12-24: Navbar Icon Order Adjustment
 - **Change:** Moved Push Notification bell icon left of SSE status in navbar
 - **Reason:** Improved visual priority - push notifications are user-facing, SSE is background sync

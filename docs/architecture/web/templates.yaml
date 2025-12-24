@@ -333,9 +333,12 @@ templates:
           mobile: "Tap on entire transaction row"
           function: "openEditFromDashboard(factId)"
         pending_records:
-          desktop: "Click edit icon (✏️) in first column (not available for transfers)"
-          mobile: "Tap on entire record row (not available for transfers)"
-          function: "openEditPendingRecord(itemId, entity)"
+          desktop: "Click edit icon (✏️) in first column OR delete icon (🗑️) in last column"
+          mobile: "Tap on entire record row (delete via modal)"
+          structure: "Edit button first column (before Тип), Delete button last column (after Статус)"
+          edit_function: "openEditPendingRecord(itemId, entity)"
+          delete_function: "deletePendingRecord(itemId)"
+          note: "Transfers have separate edit handlers per side (handleTransferEditClick)"
       modal_behavior:
         id: "edit-modal"
         component: "modal_edit_plan"
@@ -1222,11 +1225,19 @@ partials:
 
   recent_transactions:
     path: "frontend/web/templates/partials/recent_transactions.html"
-    description: "Last 10 transactions list with inline edit capability"
+    description: "Last 10 transactions list with inline edit/delete capability"
     loaded_by: "index.html"
     endpoint: "/api/v1/facts/recent-html"
+    table_structure:
+      columns:
+        first: "Edit button (✏️) - First column before Тип"
+        middle: "Тип, Дата, Счёт, Категория, Сумма, Описание, Offline indicator ☁️"
+        last: "Delete button (🗑️) - Last column after ☁️"
     features:
-      - "Desktop: edit icon (✏️) column opens edit modal"
-      - "Mobile: tap on row opens edit modal"
+      - "Desktop: Two separate button columns (edit first, delete last)"
+      - "Desktop: Delete button hidden on mobile (hidden md:inline-flex)"
+      - "Mobile: Tap on row opens edit modal (delete via modal)"
       - "Both fact and plan record types supported"
+      - "event.stopPropagation() prevents row click when deleting"
     onclick_handler: "openEditFromDashboard(factId)"
+    delete_handler: "deleteRecordFromDashboard(factId)"
