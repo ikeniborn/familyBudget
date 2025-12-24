@@ -480,6 +480,7 @@ templates:
           - "Backdrop with opacity transition"
           - "iOS safe area support"
           - "Reduced motion support"
+          - "Circle shape on mobile (border-radius: 50%)"
     toolbar_sections:
       hierarchy_controls:
         id: "hierarchy-controls"
