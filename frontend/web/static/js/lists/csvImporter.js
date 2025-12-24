@@ -696,6 +696,39 @@ class CSVImporter {
     }
 
     /**
+     * Handle Skip Duplicates checkbox state change.
+     * Implements mutually exclusive behavior: Skip and Aggregate are incompatible.
+     * When Skip is enabled, Aggregate is auto-disabled and hidden.
+     */
+    handleSkipDuplicatesChange() {
+        // Get DOM elements
+        const skipDuplicatesCheckbox = document.getElementById('skip-duplicates-checkbox');
+        const aggregateDuplicatesCheckbox = document.getElementById('aggregate-duplicates-checkbox');
+
+        // Read current state
+        const skipDuplicatesEnabled = skipDuplicatesCheckbox ?
+            skipDuplicatesCheckbox.checked : false;
+
+        // Save to importOptions
+        this.importOptions.skipDuplicates = skipDuplicatesEnabled;
+
+        // Debug log
+        debugLog('[CSVImporter] Skip Duplicates toggled:', skipDuplicatesEnabled);
+
+        // Auto-uncheck Aggregate if incompatible (both can't be true)
+        if (skipDuplicatesEnabled && aggregateDuplicatesCheckbox &&
+            aggregateDuplicatesCheckbox.checked) {
+            aggregateDuplicatesCheckbox.checked = false;
+            this.importOptions.aggregateDuplicates = false;
+            debugLog('[CSVImporter] Auto-disabled Aggregate Duplicates (incompatible with Skip)');
+        }
+
+        // Re-render UI with updated visibility logic
+        // NOTE: Does NOT call API - just updates UI (skip is a final import option, not preview)
+        this.renderPreviewResults();
+    }
+
+    /**
      * Get unique values for filter dropdowns from preview rows
      * @param {string} field - Field name (store, product_group, product_name)
      * @returns {string[]} Sorted unique values
@@ -1093,10 +1126,18 @@ class CSVImporter {
      * IMPORTANT: Returns true if aggregateDuplicates is already enabled,
      * to keep checkbox visible (otherwise user can't disable it).
      *
+     * NOTE: Skip and Aggregate are mutually exclusive - when Skip is enabled,
+     * Aggregate must be hidden to prevent user confusion.
+     *
      * @param {Object} result - Preview API result
      * @returns {boolean} True if there are duplicate warnings OR aggregation is enabled
      */
     hasDuplicateWarnings(result) {
+        // Hide aggregate checkbox if skip duplicates is enabled (mutually exclusive)
+        if (this.importOptions.skipDuplicates) {
+            return false;
+        }
+
         // Keep checkbox visible if user already enabled the option
         if (this.importOptions.aggregateDuplicates) {
             return true;
@@ -1241,7 +1282,8 @@ class CSVImporter {
                 <div class="form-control mb-2">
                     <label class="label cursor-pointer justify-start gap-2">
                         <input type="checkbox" id="skip-duplicates-checkbox" class="checkbox checkbox-warning"
-                               ${this.importOptions.skipDuplicates ? 'checked' : ''} />
+                               ${this.importOptions.skipDuplicates ? 'checked' : ''}
+                               onchange="window.${varName}.handleSkipDuplicatesChange()" />
                         <span class="label-text">Пропустить дубликаты (${result.warnings.length})</span>
                     </label>
                 </div>
