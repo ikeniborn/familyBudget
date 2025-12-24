@@ -361,6 +361,25 @@
             <button>close</button>
         </form>
     </dialog>
+
+    <!-- Modal: Recurring Delete Confirmation -->
+    <dialog id="recurring-delete-modal" class="modal">
+        <div class="modal-box max-w-lg">
+            <h3 class="font-bold text-lg mb-4">🔄 Удаление регламентной записи</h3>
+            <p class="mb-6">
+                Эта запись является частью регламентного платежа.<br>
+                Что вы хотите удалить?
+            </p>
+            <div class="modal-action">
+                <button type="button" class="btn btn-ghost" onclick="recurringDeleteResolve(null)">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="recurringDeleteResolve('single')">Только эту запись</button>
+                <button type="button" class="btn btn-error" onclick="recurringDeleteResolve('all')">Все регламентные</button>
+            </div>
+        </div>
+        <form method="dialog" class="modal-backdrop">
+            <button onclick="recurringDeleteResolve(null)">close</button>
+        </form>
+    </dialog>
 {% endif %}
 
 {% endblock %}
@@ -1108,6 +1127,140 @@ async function openEditFromDashboard(factId) {
     }
 }
 window.openEditFromDashboard = openEditFromDashboard;
+
+/**
+ * Callback for recurring delete modal resolution
+ */
+let recurringDeleteResolveCallback = null;
+
+/**
+ * Show recurring delete confirmation dialog
+ * @returns {Promise<string|null>} 'single', 'all', or null (cancelled)
+ */
+function showRecurringDeleteDialog() {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('recurring-delete-modal');
+        if (!modal) {
+            console.error('Recurring delete modal not found');
+            resolve(null);
+            return;
+        }
+
+        recurringDeleteResolveCallback = resolve;
+        modal.showModal();
+    });
+}
+
+/**
+ * Resolve recurring delete dialog with user's choice
+ * @param {string|null} choice - 'single', 'all', or null (cancelled)
+ */
+function recurringDeleteResolve(choice) {
+    const modal = document.getElementById('recurring-delete-modal');
+    if (modal) {
+        modal.close();
+    }
+
+    if (recurringDeleteResolveCallback) {
+        recurringDeleteResolveCallback(choice);
+        recurringDeleteResolveCallback = null;
+    }
+}
+
+/**
+ * Delete a fact from dashboard recent-transactions list
+ * @param {number} factId - Fact ID to delete
+ * @param {number} isRecurring - 1 if recurring fact, 0 otherwise
+ */
+async function deleteFactFromDashboard(factId, isRecurring) {
+    try {
+        let deleteMode = 'single'; // default: delete just this fact
+
+        if (isRecurring) {
+            // This is a recurring fact - ask user what to delete
+            const choice = await showRecurringDeleteDialog();
+
+            if (!choice) {
+                // User cancelled
+                return;
+            }
+
+            deleteMode = choice; // 'single' or 'all'
+        } else {
+            // Regular fact - show standard confirmation
+            const confirmed = confirm('Вы уверены, что хотите удалить эту запись? Это действие необратимо.');
+
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        if (deleteMode === 'all' && isRecurring) {
+            // First, get the fact to retrieve recurring_plan_id
+            const factResponse = await fetch(`/api/v1/facts/${factId}`, { credentials: 'include' });
+            if (!factResponse.ok) {
+                throw new Error('Ошибка загрузки записи');
+            }
+
+            const fact = await factResponse.json();
+            const recurringPlanId = fact.recurring_plan_id;
+
+            if (!recurringPlanId) {
+                throw new Error('У записи отсутствует recurring_plan_id');
+            }
+
+            // Get all facts with same recurring_plan_id
+            const allFactsResponse = await fetch(
+                `/api/v1/facts?recurring_plan_id=${recurringPlanId}&limit=1000`,
+                { credentials: 'include' }
+            );
+            if (!allFactsResponse.ok) {
+                throw new Error('Ошибка получения списка регламентных записей');
+            }
+
+            const allFactsData = await allFactsResponse.json();
+            const factIdsToDelete = allFactsData.facts.map(f => f.id);
+
+            console.log(`Deleting ${factIdsToDelete.length} recurring facts with recurring_plan_id=${recurringPlanId}`);
+
+            // Use batch delete endpoint
+            const response = await fetch('/api/v1/facts/batch-delete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(factIdsToDelete),
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            // Reload recent transactions
+            htmx.trigger('#recent-transactions', 'loadRecent');
+            showToast(`Удалено ${factIdsToDelete.length} регламентных записей`, 'success');
+        } else {
+            // Delete single fact
+            const response = await fetch(`/api/v1/facts/${factId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            }
+
+            // Reload recent transactions
+            htmx.trigger('#recent-transactions', 'loadRecent');
+            showToast('Запись успешно удалена', 'success');
+        }
+    } catch (error) {
+        console.error('Error deleting fact:', error);
+        showToast('Ошибка удаления: ' + (error.message || String(error)), 'error');
+    }
+}
+window.deleteFactFromDashboard = deleteFactFromDashboard;
 
 /**
  * Open edit modal for pending (offline) record

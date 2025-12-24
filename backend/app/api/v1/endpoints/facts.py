@@ -702,6 +702,16 @@ async def get_recent_facts_html(
         else:
             financial_centers = {}
 
+        # Load scheduled reminders for facts
+        from backend.app.models.scheduled_reminder import ScheduledReminder
+        fact_ids = [fact.id for fact in facts]
+        reminders_stmt = select(ScheduledReminder).where(
+            ScheduledReminder.fact_id.in_(fact_ids),
+            ScheduledReminder.status.in_(["pending", "sent"])  # Only show active reminders
+        )
+        reminders_result = await session.execute(reminders_stmt)
+        reminders = {r.fact_id: r for r in reminders_result.scalars().all()}
+
         # Format money helper (without decimals and currency, with +/- sign)
         def format_money(amount: Decimal, article_type: str) -> str:
             value = int(float(amount))  # Remove decimals
@@ -720,12 +730,14 @@ async def get_recent_facts_html(
                 <thead>
                     <tr>
                         <th class="w-8"></th>
+                        <th class="w-8"></th>
                         <th>Тип</th>
                         <th>Дата</th>
                         <th>Счёт</th>
                         <th>Категория</th>
                         <th>Сумма</th>
                         <th>Описание</th>
+                        <th title="Напоминание">🔔</th>
                         <th title="Регламентный платеж">🔄</th>
                         <th title="Создано offline">☁️</th>
                     </tr>
@@ -789,17 +801,31 @@ async def get_recent_facts_html(
             recurring_icon = "🔄" if fact.recurring_plan_id else ""
             recurring_title = "Регламентный платеж" if fact.recurring_plan_id else ""
 
-            # Desktop table row with edit button (pencil emoji)
+            # Reminder indicator
+            reminder = reminders.get(fact.id)
+            reminder_icon = "🔔" if reminder else ""
+            if reminder:
+                if reminder.status == "pending":
+                    reminder_title = f"Напоминание: {reminder.reminder_datetime.strftime('%d.%m.%Y %H:%M')}"
+                else:  # sent
+                    reminder_title = f"Отправлено: {reminder.sent_at.strftime('%d.%m.%Y %H:%M') if reminder.sent_at else 'н/д'}"
+            else:
+                reminder_title = ""
+
+            # Desktop table row with edit and delete buttons
             edit_button = f'''<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard({fact.id})">✏️</button>'''
+            delete_button = f'''<button class="btn btn-xs btn-error gap-1" onclick="deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>'''
             table_html += f"""
                     <tr>
                         <td class="text-center">{edit_button}</td>
+                        <td class="text-center">{delete_button}</td>
                         <td>{record_type_badge_sm}</td>
                         <td class="whitespace-nowrap">{fact_date_full}</td>
                         <td class="whitespace-nowrap">{fc_name}</td>
                         <td>{article.name}</td>
                         <td class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</td>
                         <td class="max-w-xs truncate" title="{description_full}">{description_truncated}</td>
+                        <td class="text-center" title="{reminder_title}">{reminder_icon}</td>
                         <td class="text-center" title="{recurring_title}">{recurring_icon}</td>
                         <td class="text-center" title="{offline_title}">{offline_icon}</td>
                     </tr>
@@ -818,13 +844,17 @@ async def get_recent_facts_html(
             offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
             # Recurring icon for mobile
             recurring_span = f'<span class="text-secondary text-xs" title="{recurring_title}">{recurring_icon}</span>' if recurring_icon else ""
+            # Reminder icon for mobile
+            reminder_span = f'<span class="text-warning text-xs" title="{reminder_title}">{reminder_icon}</span>' if reminder_icon else ""
 
             mobile_html += f"""
-            <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
-                 onclick="openEditFromDashboard({fact.id})">
+            <div class="py-2 hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2">
                 <div class="flex items-center gap-2">
+                    <button class="btn btn-xs btn-primary" onclick="event.stopPropagation(); openEditFromDashboard({fact.id})">✏️</button>
+                    <button class="btn btn-xs btn-error" onclick="event.stopPropagation(); deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>
                     {record_type_badge}
                     <span class="flex-1 font-medium truncate">{article.name}</span>
+                    {reminder_span}
                     {recurring_span}
                     {offline_span}
                     <span class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</span>
