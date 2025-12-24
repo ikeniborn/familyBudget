@@ -1,0 +1,28 @@
+{
+  "description": "Syntax validation and linting commands by language",
+  "python": {
+    "syntax_check": "python -m py_compile {file}",
+    "type_check": "mypy {file}",
+    "lint": "ruff check {file}",
+    "lint_fix": "ruff check --fix {file}",
+    "format": "black {file}",
+    "format_check": "black --check {file}"
+  },
+  "javascript": {
+    "syntax_check": "node --check {file}",
+    "lint": "eslint {file}",
+    "lint_fix": "eslint --fix {file}",
+    "minify": "npx terser {file} -o {file}.min.js",
+    "minify_css": "npx cssnano {file} {file}.min.css"
+  },
+  "bash": {
+    "syntax_check": "bash -n {file}",
+    "shellcheck": "shellcheck {file}"
+  },
+  "yaml": {
+    "syntax_check": "python -c 'import yaml; yaml.safe_load(open(\"{file}\"))'"
+  },
+  "json": {
+    "syntax_check": "python -c 'import json; json.load(open(\"{file}\"))'"
+  }
+}

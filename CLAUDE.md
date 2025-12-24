@@ -1085,6 +1085,211 @@ AND indexrelname NOT LIKE 'pg_toast%';
 - `/ready` - Readiness probe
 - `/health/detailed` - Detailed diagnostics
 
+## Skills System (Claude Code Automation)
+
+Проект включает 11 Claude Code skills для автоматизации разработки. Skills используют модульную архитектуру с интеграцией в `/docs/architecture` через JSON Reference.
+
+### Project Skills
+
+**Core Development Skills:**
+- **api-development** - REST API endpoints с SCD Type 2, Shared Budget pattern
+- **db-management** - Migrations, SCD Type 2, Closure Tables
+- **frontend-development** - HTMX + Tailwind + DaisyUI + WebSocket компоненты
+- **authentication-security** - JWT + Telegram OAuth + security middleware
+- **advanced-patterns** - SCD Type 2, Closure Table, Shared Budget patterns
+- **websocket-realtime** - WebSocket + SSE real-time updates (WORKERS=1 constraint)
+
+**Infrastructure & Testing:**
+- **testing** - Unit, integration, e2e тесты (pytest, Playwright)
+- **bot-development** - Telegram bot commands, handlers, Web Apps
+- **deployment** - Docker, deploy scripts, health checks
+- **monitoring** - Logs, diagnostics, performance analysis
+
+### Skill Structure
+
+Каждый skill использует модульную архитектуру:
+
+```
+.claude/skills/<skill-name>/
+├── SKILL.md                    # Core документация (~150 строк)
+│   ├── architecture_refs       # $ref ссылки на /docs/architecture
+│   ├── commands                # Доступные команды
+│   ├── validation_checklist    # Чеклист валидации
+│   └── common_mistakes         # Типичные ошибки
+├── templates/                  # Code templates (Python, JS, HTML)
+│   ├── *.py                    # FastAPI endpoints, services, models
+│   ├── *.html                  # Jinja2 templates, HTMX components
+│   └── *.js                    # JavaScript модули
+├── schemas/                    # JSON Schema validation
+│   └── *.schema.json           # Validation schemas
+└── examples/                   # Реальные примеры из кодовой базы
+    └── *.md                    # Примеры с объяснениями
+```
+
+### Shared Resources
+
+**`.claude/skills/_shared/`** - Переиспользуемые компоненты для всех skills:
+
+- **syntax-commands.json** - Команды валидации для Python, JS, Bash, YAML, JSON
+- **commit-types.json** - Conventional Commits specification (feat, fix, docs, etc.)
+- **validation-logic.md** - 6 критических валидаций для Family Budget:
+  1. Async/Await correctness (предотвращение RuntimeWarning)
+  2. History table field completeness (предотвращение IntegrityError)
+  3. Shared Budget model consistency (NO user_id filtering)
+  4. Single-worker SSE constraint (WORKERS=1)
+  5. SCD Type 2 update pattern
+  6. Migration production safety
+- **architecture-refs.yaml** - Shortcuts для `/docs/architecture` ссылок
+
+### Architecture Integration
+
+Все skills интегрированы с `/docs/architecture` через JSON Reference (`$ref`):
+
+**Примеры интеграции:**
+
+```yaml
+# api-development/SKILL.md
+architecture_refs:
+  - $ref: ../../docs/architecture/database/dimensions.yaml
+  - $ref: ../../docs/architecture/endpoints/articles.yaml
+  - $ref: ../../docs/architecture/guides/change-checklist.yaml
+
+# frontend-development/SKILL.md
+architecture_refs:
+  - $ref: ../../docs/architecture/web/templates.yaml
+  - $ref: ../../docs/architecture/web/htmx-triggers.yaml
+  - $ref: ../../docs/architecture/frontend/modal-performance.yaml
+
+# advanced-patterns/SKILL.md
+architecture_refs:
+  - $ref: ../../docs/architecture/database/history.yaml
+  - $ref: ../../docs/architecture/database/hierarchy.yaml
+```
+
+**Архитектурная документация также ссылается на skills:**
+
+```yaml
+# docs/architecture/guides/change-checklist.yaml
+add_model_field:
+  related_skills:
+    - "@skill:db-management → create-migration"
+    - "@skill:advanced-patterns → add-scd2-history"
+    - "@skill:api-development → create-schemas"
+```
+
+### Using Skills
+
+Skills автоматически активируются по ключевым словам:
+
+```bash
+# Примеры активации skills:
+"Создай endpoint для модели Article"
+→ @skill:api-development
+
+"Добавь поле email в модель User"
+→ @skill:db-management
+
+"Создай modal для редактирования транзакции"
+→ @skill:frontend-development
+
+"Добавь JWT защиту к endpoint"
+→ @skill:authentication-security
+
+"Реализуй WebSocket broadcast для создания факта"
+→ @skill:websocket-realtime
+```
+
+### Critical Validations
+
+**Family Budget-specific validations** (из `_shared/validation-logic.md`):
+
+#### 1. Async/Await Correctness
+```python
+# ✅ ПРАВИЛЬНО
+await session.delete(obj)
+await session.commit()
+
+# ❌ НЕПРАВИЛЬНО - RuntimeWarning!
+session.delete(obj)  # Забыли await - корутина не выполнится!
+await session.commit()
+```
+
+#### 2. History Table Field Completeness
+```python
+# ✅ ПРАВИЛЬНО - ВСЕ поля скопированы
+fact_history = BudgetFactHistory(
+    fact_id=fact.id,
+    record_type=fact.record_type,  # ОБЯЗАТЕЛЬНО!
+    # ... все остальные поля
+)
+
+# ❌ НЕПРАВИЛЬНО - пропущено record_type
+# → IntegrityError: null value in column "record_type"
+```
+
+#### 3. Shared Budget Model Consistency
+```python
+# ✅ ПРАВИЛЬНО - Shared Budget (все видят всё)
+facts = await session.exec(select(BudgetFact))
+
+# ❌ НЕПРАВИЛЬНО - user_id filtering в fact tables
+facts = await session.exec(
+    select(BudgetFact).where(BudgetFact.user_id == current_user.id)
+)
+```
+
+#### 4. Single-Worker SSE Constraint
+```yaml
+# ✅ ПРАВИЛЬНО
+services:
+  backend:
+    command: uvicorn app.main:app --workers 1
+
+# ❌ НЕПРАВИЛЬНО - Breaks WebSocket
+services:
+  backend:
+    command: uvicorn app.main:app --workers 4
+```
+
+### Skill Dependencies
+
+```
+frontend-development
+    → websocket-realtime
+    → api-development
+
+authentication-security
+    → api-development
+
+advanced-patterns
+    → db-management
+    → api-development
+
+websocket-realtime
+    → api-development
+
+bot-development
+    → api-development
+    → authentication-security
+
+deployment
+    → db-management
+    → monitoring
+
+testing
+    → все development skills
+```
+
+### Quick Links
+
+**Для быстрого доступа к workflow:**
+
+- **API Development Workflow**: `.claude/skills/api-development/SKILL.md` + `docs/architecture/guides/change-checklist.yaml#/checklists/add_endpoint`
+- **Frontend Development Workflow**: `.claude/skills/frontend-development/SKILL.md` + `docs/architecture/web/templates.yaml`
+- **Database Change Workflow**: `.claude/skills/db-management/SKILL.md` + `.claude/skills/advanced-patterns/SKILL.md`
+- **All Skills Directory**: `.claude/skills/` (11 skills)
+- **Architecture Integration**: `docs/architecture/index.yaml#/quick_links/skills`
+
 ## Дополнительные ресурсы
 
 - **START.md** - Полная инструкция по деплою
@@ -1097,3 +1302,4 @@ AND indexrelname NOT LIKE 'pg_toast%';
 - **scripts/README.md** - Документация скриптов
 - **tests/README.md** - Testing guide
 - **sql/README.md** - SQL queries documentation
+- **.claude/skills/** - Claude Code skills system (automation)

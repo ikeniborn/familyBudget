@@ -300,3 +300,41 @@ quick_links:
 
     modify_database_schema:
       checklist: "./guides/change-checklist.yaml#/scenarios/modify_schema"
+
+  # Claude Code Skills
+  skills:
+    - label: "API Development Workflow"
+      description: "REST API endpoints with SCD Type 2, Shared Budget"
+      files:
+        - "../../.claude/skills/api-development/SKILL.md"
+        - "../../.claude/skills/db-management/SKILL.md"
+        - "./guides/change-checklist.yaml#/checklists/add_endpoint"
+
+    - label: "Frontend Development Workflow"
+      description: "HTMX + Tailwind + DaisyUI + WebSocket components"
+      files:
+        - "../../.claude/skills/frontend-development/SKILL.md"
+        - "../../.claude/skills/websocket-realtime/SKILL.md"
+        - "./guides/change-checklist.yaml#/checklists/ui_change"
+
+    - label: "Database Change Workflow"
+      description: "Migrations, SCD Type 2, Closure Tables"
+      files:
+        - "../../.claude/skills/db-management/SKILL.md"
+        - "../../.claude/skills/advanced-patterns/SKILL.md"
+        - "./guides/change-checklist.yaml#/checklists/database_change"
+
+    - label: "All Skills"
+      description: "Complete skills directory"
+      files:
+        - "../../.claude/skills/_shared/"
+        - "../../.claude/skills/api-development/"
+        - "../../.claude/skills/db-management/"
+        - "../../.claude/skills/frontend-development/"
+        - "../../.claude/skills/authentication-security/"
+        - "../../.claude/skills/advanced-patterns/"
+        - "../../.claude/skills/websocket-realtime/"
+        - "../../.claude/skills/testing/"
+        - "../../.claude/skills/bot-development/"
+        - "../../.claude/skills/deployment/"
+        - "../../.claude/skills/monitoring/"
