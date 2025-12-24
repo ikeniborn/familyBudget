@@ -7,14 +7,12 @@ Facts represent actual income/expense transactions.
 
 from datetime import date, datetime, timedelta
 from decimal import Decimal
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.app.utils.timezone import now_local
-
-if TYPE_CHECKING:
-    from backend.app.schemas.recurring_plan import RecurringPlanResponse
+from backend.app.schemas.recurring_plan import RecurringPlanResponse
 
 
 class FactCreate(BaseModel):
