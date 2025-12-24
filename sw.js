@@ -73,12 +73,12 @@ const CACHE_FIRST_PAGES = ['/api/v1/auth/telegram-login', '/login-email', '/regi
 
 // Install event - кешируем критическую статику и ресурсы offline страниц
 self.addEventListener('install', (event) => {
-  if (DEBUG) console.log('[SW] Installing version:', CACHE_VERSION);
+  console.log('[SW] Installing version:', CACHE_VERSION);
 
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        if (DEBUG) console.log('[SW] Caching static files');
+        console.log('[SW] Caching static files');
         // Используем Promise.allSettled чтобы не сломаться если какой-то файл 404
         return Promise.allSettled(
           STATIC_CACHE.map(url =>
@@ -93,7 +93,7 @@ self.addEventListener('install', (event) => {
       .then(() => {
         // Кэшируем ресурсы для offline страниц (CSS/JS)
         // ВАЖНО: Кэшируем БЕЗ credentials т.к. это публичная статика
-        if (DEBUG) console.log('[SW] Caching offline page assets');
+        console.log('[SW] Caching offline page assets');
         return caches.open(CACHE_NAME).then((cache) => {
           return Promise.allSettled(
             OFFLINE_PAGE_ASSETS.map(url =>
@@ -115,7 +115,7 @@ self.addEventListener('install', (event) => {
         });
       })
       .then(() => {
-        if (DEBUG) console.log('[SW] Skip waiting');
+        console.log('[SW] CRITICAL: Forcing immediate activation via skipWaiting()');
         return self.skipWaiting();
       })
       .catch((err) => {
@@ -124,26 +124,41 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate event - удаляем старые кеши
+// Activate event - удаляем старые кеши и уведомляем клиентов
 self.addEventListener('activate', (event) => {
-  if (DEBUG) console.log('[SW] Activating version:', CACHE_VERSION);
+  console.log('[SW] Activating version:', CACHE_VERSION);
 
   event.waitUntil(
-    caches.keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames
-            .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
-            .map((name) => {
-              if (DEBUG) console.log('[SW] Deleting old cache:', name);
-              return caches.delete(name);
-            })
-        );
-      })
-      .then(() => {
-        if (DEBUG) console.log('[SW] Claiming clients');
-        return self.clients.claim();
-      })
+    (async () => {
+      // Удаляем старые кеши
+      const cacheNames = await caches.keys();
+      const deletedCaches = await Promise.all(
+        cacheNames
+          .filter((name) => name.startsWith('budget-') && name !== CACHE_NAME)
+          .map((name) => {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      );
+
+      console.log('[SW] Deleted', deletedCaches.length, 'old caches');
+
+      // CRITICAL: Take control of all clients immediately
+      await self.clients.claim();
+      console.log('[SW] Clients claimed');
+
+      // Notify all clients about update
+      const clients = await self.clients.matchAll({ type: 'window' });
+      console.log('[SW] Notifying', clients.length, 'clients about SW update');
+
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'SW_UPDATED',
+          version: CACHE_VERSION,
+          timestamp: new Date().toISOString()
+        });
+      });
+    })()
   );
 });
 

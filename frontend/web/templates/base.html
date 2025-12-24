@@ -1306,35 +1306,62 @@
         })();
     </script>
 
-    <!-- Service Worker Registration (PWA) -->
+    <!-- Service Worker Registration (PWA) - Aggressive Auto-Update -->
     <script>
         // Service Worker регистрация для Progressive Web App
+        // Стратегия: Aggressive Auto-Update с 3-секундным countdown
         if ('serviceWorker' in navigator) {
+            let refreshing = false;
+
+            // CRITICAL: Listen for controllerchange event (new SW activated)
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+
+                console.log('[PWA] New service worker activated, reloading in 3 seconds...');
+
+                // Show countdown and reload
+                showUpdateCountdown(3, () => {
+                    console.log('[PWA] Reloading page...');
+                    window.location.reload();
+                });
+            });
+
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.min.js')
                     .then((registration) => {
-                        debugLog('[PWA] Service Worker registered:', registration.scope);
+                        console.log('[PWA] Service Worker registered:', registration.scope);
 
                         // Проверка обновлений при каждой загрузке страницы
                         registration.update();
 
-                        // Автоматическая проверка обновлений каждые 24 часа
+                        // CHANGED: Автоматическая проверка обновлений каждый час (было 24 часа)
                         setInterval(() => {
+                            console.log('[PWA] Checking for updates...');
                             registration.update();
-                        }, 24 * 60 * 60 * 1000);
+                        }, 60 * 60 * 1000); // 1 hour = 3600000ms
 
                         // Обработка обновлений SW
                         registration.addEventListener('updatefound', () => {
                             const newWorker = registration.installing;
                             if (!newWorker) return;
 
+                            console.log('[PWA] New service worker found, installing...');
+
                             newWorker.addEventListener('statechange', () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // Новая версия доступна - показываем уведомление
-                                    debugLog('[PWA] New version available, waiting for user action');
-                                    showToast('Доступна новая версия. Обновите страницу.', 'info', 5000);
-                                    // НЕ вызываем skipWaiting автоматически - это предотвращает двойную загрузку
-                                    // Новая версия активируется при следующей навигации или ручном refresh
+                                console.log('[PWA] Service worker state:', newWorker.state);
+
+                                if (newWorker.state === 'installed') {
+                                    if (navigator.serviceWorker.controller) {
+                                        // Update available - will auto-activate via skipWaiting()
+                                        console.log('[PWA] Update available, auto-activating...');
+                                        // skipWaiting() уже вызван в SW install event
+                                        // controllerchange event триггерит reload
+                                    } else {
+                                        // First install
+                                        console.log('[PWA] Service worker installed for the first time');
+                                        showToast('Приложение готово к работе офлайн', 'success', 3000);
+                                    }
                                 }
                             });
                         });
@@ -1342,17 +1369,40 @@
                     .catch((err) => {
                         console.error('[PWA] Service Worker registration failed:', err);
                     });
-
-                // Обработка контроллера SW
-                // НЕ делаем автоматический reload при controllerchange
-                // Это предотвращает двойную загрузку страницы при обновлении SW
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                    debugLog('[PWA] Controller changed - new SW is now active');
-                    // Пользователь сам решает когда обновить страницу
-                });
             });
+
+            // Show countdown before reload
+            function showUpdateCountdown(seconds, onComplete) {
+                let remaining = seconds;
+
+                const toast = document.createElement('div');
+                toast.className = 'toast toast-top toast-center';
+                toast.style.zIndex = '9999';
+                toast.innerHTML = `
+                    <div class="alert alert-info">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 w-6 h-6">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span>Обновление приложения через <strong id="countdown">${remaining}</strong> сек...</span>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+
+                const countdown = toast.querySelector('#countdown');
+
+                const interval = setInterval(() => {
+                    remaining--;
+                    countdown.textContent = remaining;
+
+                    if (remaining <= 0) {
+                        clearInterval(interval);
+                        toast.remove();
+                        onComplete();
+                    }
+                }, 1000);
+            }
         } else {
-            debugLog('[PWA] Service Worker not supported in this browser');
+            console.log('[PWA] Service Worker not supported in this browser');
         }
     </script>
 

@@ -406,6 +406,119 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
   "SELECT change_type, COUNT(*) FROM t_d_article_history WHERE article_id = 45 GROUP BY change_type;"
 ```
 
+### Service Worker Updates
+
+**Rule:** Service worker uses **aggressive auto-update** strategy - updates activate automatically within 1 hour of deployment.
+
+**Why this is critical:**
+- All users must be on same version for data consistency
+- Bug fixes and security patches deploy immediately
+- No manual user intervention required
+- Mobile app-like update experience
+
+**Implementation (since v5.4.0):**
+1. Service worker calls `skipWaiting()` on install (immediate activation)
+2. Service worker calls `clients.claim()` on activate (take control of all tabs)
+3. Update checks run every **1 hour** (plus on every page load)
+4. Users see 3-second countdown before automatic reload
+5. All tabs reload simultaneously
+
+**Update Flow:**
+
+```bash
+# 1. Deploy new version
+./deploy.sh --profile full
+
+# 2. Service worker version updated automatically via scripts/update-sw-version.sh
+# CACHE_VERSION set to: v20251224_2029 (timestamp)
+
+# 3. Users trigger update check (page reload OR hourly check)
+# Console logs:
+[PWA] Checking for updates...
+[PWA] New service worker found, installing...
+[SW] Installing version: v20251224_2029
+[SW] CRITICAL: Forcing immediate activation via skipWaiting()
+[SW] Activating version: v20251224_2029
+[SW] Deleted 1 old caches
+[SW] Clients claimed
+[SW] Notifying 1 clients about SW update
+[PWA] New service worker activated, reloading in 3 seconds...
+[Countdown toast: "Обновление приложения через 3... 2... 1..."]
+[PWA] Reloading page...
+[Page reloads automatically]
+
+# 4. Result: User on new version within 3 seconds
+```
+
+**Testing Update Flow:**
+
+```bash
+# Manual testing (local development)
+cd ~/familyBudget
+
+# 1. Note current version in browser console
+# [SW] Activating version: v20251224_1500
+
+# 2. Update CACHE_VERSION in sw.js
+scripts/update-sw-version.sh
+
+# 3. Minify service worker
+npm run minify:js
+
+# 4. Reload page in browser
+# Observe console logs (should show update flow above)
+
+# 5. Verify new version active
+# [SW] Activating version: v20251224_1530
+```
+
+**Multi-Tab Testing:**
+
+```bash
+# 1. Open app in 3 different browser tabs
+# 2. Deploy new version (or update sw.js locally)
+# 3. Reload any tab
+# 4. Verify: All 3 tabs show countdown simultaneously
+# 5. Verify: All 3 tabs reload within 3 seconds
+# 6. Verify: All tabs on same new version
+```
+
+**Debugging:**
+
+```bash
+# Check current service worker version
+# DevTools → Console:
+navigator.serviceWorker.controller.scriptURL
+# Should show: /sw.min.js
+
+# Check cache version
+# DevTools → Application → Cache Storage:
+# Should have exactly 1 cache: budget-vXXXXXXXX_XXXX
+
+# Check update registration
+# DevTools → Application → Service Workers:
+# Status: "activated and is running"
+# Update on reload: (toggle for testing)
+
+# Force update check (in console)
+navigator.serviceWorker.getRegistration().then(reg => reg.update());
+```
+
+**Important Notes:**
+- **No state preservation:** Users should save work before reload
+- **First-time install:** Does NOT trigger reload (shows toast "Приложение готово к работе офлайн")
+- **Offline functionality:** Unchanged (IndexedDB, background sync, push notifications all work)
+- **Update frequency:** Max 1-hour delay for 99% of users
+
+**Risks:**
+- User may lose unsaved form data during update → Mitigation: Display UI warning
+- Update may interrupt transaction submission → Future: Add check to delay reload
+
+**See also:**
+- `/docs/architecture/pwa.md` - Comprehensive PWA documentation
+- `sw.js` lines 75-163 - Service worker install/activate events
+- `frontend/web/templates/base.html` lines 1309-1407 - Frontend registration
+
 ## Workflow for Updating Application
 
 **Critical to understand three directories:**
