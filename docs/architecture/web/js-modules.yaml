@@ -65,6 +65,38 @@ modules:
     similar_to: choicesCategoryTree
     included_in: budgetShared
 
+  reminders:
+    path: "frontend/shared/static/js/reminders.js"
+    loc: ~108
+    description: "Reminder API client module (shared across index.html and plan.html)"
+    exports:
+      namespace: "BudgetShared.Reminders"
+      functions:
+        - createReminder: "POST /api/v1/reminders/{factId}"
+        - updateReminder: "PUT /api/v1/reminders/{factId}"
+        - deleteReminder: "DELETE /api/v1/reminders/{factId}"
+    features:
+      - "Prevents code desynchronization between index.html and plan.html"
+      - "Consistent error handling and logging"
+      - "Graceful degradation on API errors"
+    usage: |
+      // Create reminder
+      const reminder = await BudgetShared.Reminders.createReminder(factId, "2025-12-24T09:00:00");
+
+      // Update reminder
+      const updated = await BudgetShared.Reminders.updateReminder(factId, "2025-12-25T10:00:00");
+
+      // Delete reminder
+      const deleted = await BudgetShared.Reminders.deleteReminder(factId);
+    used_by:
+      - "frontend/web/templates/index.html (create/edit plan modals)"
+      - "frontend/web/templates/plan.html (create/edit plan modals)"
+    depends_on: []
+    notes: |
+      Extracted from duplicated code to DRY principle.
+      Previously createReminder() was duplicated in index.html:4189 and plan.html:4189.
+      Now centralized in shared module to prevent desynchronization.
+
   # ---------------------------------------------------------------------------
   # BUDGET/REALTIME
   # ---------------------------------------------------------------------------

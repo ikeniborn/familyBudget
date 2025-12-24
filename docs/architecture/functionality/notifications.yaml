@@ -197,8 +197,13 @@ module:
   frontend:
     page:
       $ref: "../web/templates.yaml#/templates/notifications"
-    js_module:
-      $ref: "../web/js-modules.yaml#/modules/pushManager"
+    js_modules:
+      pushManager:
+        $ref: "../web/js-modules.yaml#/modules/pushManager"
+      reminders:
+        $ref: "../web/js-modules.yaml#/modules/reminders"
+        description: "Shared reminder API client (BudgetShared.Reminders)"
+        usage: "index.html, plan.html (create/edit plan modals)"
     service_worker:
       source: "sw.js"  # Root directory
       served_as: "/sw.min.js"  # Minified at deploy

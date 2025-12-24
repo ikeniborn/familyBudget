@@ -542,29 +542,31 @@ async function loadCategoriesForEdit() {
 }
 
 /**
- * Load reminders for specific fact IDs
- * @param {number[]} factIds - Array of fact IDs to load reminders for
+ * Load reminder for specific fact (used in edit modal)
+ * ✅ FIX 3: Optimized with direct GET request instead of fetching all 100 reminders
+ * @param {number[]} factIds - Array of fact IDs (usually single ID)
  */
 async function loadRemindersForEdit(factIds) {
-    remindersMap.clear();
     if (!factIds || factIds.length === 0) return;
 
     try {
-        const response = await fetch('/api/v1/reminders/?limit=100', { credentials: 'include' });
-        if (!response.ok) return;
+        // Edit modal always opens single fact
+        const factId = factIds[0];
+        const response = await fetch(`/api/v1/reminders/${factId}`, {
+            credentials: 'include'
+        });
 
-        const data = await response.json();
-        const factIdSet = new Set(factIds);
-
-        if (data.items && Array.isArray(data.items)) {
-            data.items.forEach(reminder => {
-                if (reminder && reminder.fact_id && factIdSet.has(reminder.fact_id)) {
-                    remindersMap.set(reminder.fact_id, reminder);
-                }
-            });
+        if (response.ok) {
+            const reminder = await response.json();
+            if (reminder && reminder.fact_id) {
+                remindersMap.set(reminder.fact_id, reminder);
+            }
+        } else if (response.status === 404) {
+            // No reminder exists - ensure removed from map
+            remindersMap.delete(factId);
         }
     } catch (error) {
-        console.error('Error loading reminders:', error);
+        console.error('[loadRemindersForEdit] Error loading reminder:', error);
     }
 }
 
@@ -861,11 +863,15 @@ async function openEditFromDashboard(factId) {
         performance.mark(`${perfId}-dropdown-start`);
         await Promise.all([
             loadEditFinancialCenters(fact.financial_center_id),
-            loadEditCostCenters(fact.cost_center_id),
-            recordType === 'plan' ? loadRemindersForEdit([factId]) : Promise.resolve()
+            loadEditCostCenters(fact.cost_center_id)
         ]);
         performance.mark(`${perfId}-dropdown-end`);
         performance.measure('Dropdown Load', `${perfId}-dropdown-start`, `${perfId}-dropdown-end`);
+
+        // ✅ FIX 3: Load reminders SEQUENTIALLY to avoid race condition
+        if (recordType === 'plan') {
+            await loadRemindersForEdit([factId]);
+        }
 
         // STEP 3B: Load categories ОТДЕЛЬНО (гарантия завершения)
         performance.mark(`${perfId}-categories-start`);
@@ -2627,8 +2633,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (result && result.id) {
                         // Create reminder if enabled
                         if (enableReminder && reminderDatetime) {
-                            const reminder = await createReminder(result.id, reminderDatetime);
+                            const reminder = await BudgetShared.Reminders.createReminder(result.id, reminderDatetime);
                             if (reminder) {
+                                // ✅ FIX 2: Update remindersMap to show icon in table
+                                remindersMap.set(result.id, reminder);
                                 showToast('План с напоминанием успешно сохранен!', 'success');
                             } else {
                                 showToast('План сохранен, но напоминание не создано', 'warning');
@@ -2675,8 +2683,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Create reminder if enabled
                     if (result && result.id && enableReminder && reminderDatetime) {
-                        const reminder = await createReminder(result.id, reminderDatetime);
+                        const reminder = await BudgetShared.Reminders.createReminder(result.id, reminderDatetime);
                         if (reminder) {
+                            // ✅ FIX 2: Update remindersMap to show icon in table
+                            remindersMap.set(result.id, reminder);
                             showToast('План с напоминанием успешно сохранен!', 'success');
                         } else {
                             showToast('План сохранен, но напоминание не создано', 'warning');
@@ -4582,12 +4592,18 @@ let recurringEndDateCalendarWidget = null;
  * Modes: 'regular' | 'recurring' | 'reminder'
  */
 function togglePlanMode(modalId) {
+    console.log('[togglePlanMode] Called with modalId:', modalId);  // ← DEBUG
+
     const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
     const mode = selectedMode ? selectedMode.value : 'regular';
+    console.log('[togglePlanMode] Selected mode:', mode);  // ← DEBUG
 
     const recurringSettingsDiv = document.getElementById(`recurring-settings-${modalId}`);
     const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
     const reminderModeLabel = document.getElementById(`reminder-mode-label-${modalId}`);
+
+    console.log('[togglePlanMode] onetimeReminderSection exists:', !!onetimeReminderSection);  // ← DEBUG
+    console.log('[togglePlanMode] onetimeReminderSection classes BEFORE:', onetimeReminderSection?.className);  // ← DEBUG
 
     // Get recurring-specific required fields
     const durationTypeSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
@@ -4620,7 +4636,11 @@ function togglePlanMode(modalId) {
             }
             if (onetimeReminderSection) {
                 onetimeReminderSection.classList.remove('hidden');
+                console.log('[togglePlanMode] Removed .hidden class');  // ← DEBUG
+                console.log('[togglePlanMode] onetimeReminderSection classes AFTER:', onetimeReminderSection.className);  // ← DEBUG
                 initReminderCalendarWidget(modalId);
+            } else {
+                console.error('[togglePlanMode] onetimeReminderSection NOT FOUND!');  // ← DEBUG
             }
             // Disable validation for recurring fields (they're hidden)
             if (durationTypeSelect) {

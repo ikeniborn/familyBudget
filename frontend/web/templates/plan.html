@@ -2738,20 +2738,20 @@ async function updateFact(event) {
                 // Create or update reminder
                 if (existingReminder) {
                     // Update existing reminder
-                    const updated = await updateReminder(factId, reminderDatetime);
+                    const updated = await BudgetShared.Reminders.updateReminder(factId, reminderDatetime);
                     if (!updated) {
                         showNotification('⚠️ Предупреждение: не удалось обновить напоминание', 'warning');
                     }
                 } else {
                     // Create new reminder
-                    const created = await createReminder(factId, reminderDatetime);
+                    const created = await BudgetShared.Reminders.createReminder(factId, reminderDatetime);
                     if (!created) {
                         showNotification('⚠️ Предупреждение: не удалось создать напоминание', 'warning');
                     }
                 }
             } else if (!enableReminder && existingReminder) {
                 // Delete reminder if checkbox is unchecked
-                const deleted = await deleteReminder(factId);
+                const deleted = await BudgetShared.Reminders.deleteReminder(factId);
                 if (!deleted) {
                     showNotification('⚠️ Предупреждение: не удалось удалить напоминание', 'warning');
                 }
@@ -3347,8 +3347,10 @@ async function createPlan(event) {
 
                 // Create reminder if enabled (only for online plans)
                 if (enableReminder && reminderDatetime && result.id) {
-                    const reminderCreated = await createReminder(result.id, reminderDatetime);
+                    const reminderCreated = await BudgetShared.Reminders.createReminder(result.id, reminderDatetime);
                     if (reminderCreated) {
+                        // ✅ FIX 2: Update remindersMap to show icon in table
+                        remindersMap.set(result.id, reminderCreated);
                         showToast('Напоминание установлено', 'success');
                     } else {
                         showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
@@ -3382,8 +3384,10 @@ async function createPlan(event) {
 
                 // Create reminder if enabled
                 if (enableReminder && reminderDatetime && createdPlan.id) {
-                    const reminderCreated = await createReminder(createdPlan.id, reminderDatetime);
+                    const reminderCreated = await BudgetShared.Reminders.createReminder(createdPlan.id, reminderDatetime);
                     if (reminderCreated) {
+                        // ✅ FIX 2: Update remindersMap to show icon in table
+                        remindersMap.set(createdPlan.id, reminderCreated);
                         showToast('Напоминание установлено', 'success');
                     } else {
                         showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
@@ -3900,12 +3904,18 @@ let recurringEndDateCalendarWidget = null;
  * Modes: 'regular' | 'recurring' | 'reminder'
  */
 function togglePlanMode(modalId) {
+    console.log('[togglePlanMode] Called with modalId:', modalId);  // ← DEBUG
+
     const selectedMode = document.querySelector(`#${modalId} input[name="plan_mode"]:checked`);
     const mode = selectedMode ? selectedMode.value : 'regular';
+    console.log('[togglePlanMode] Selected mode:', mode);  // ← DEBUG
 
     const recurringSettingsDiv = document.getElementById(`recurring-settings-${modalId}`);
     const onetimeReminderSection = document.getElementById(`onetime-reminder-section-${modalId}`);
     const reminderModeLabel = document.getElementById(`reminder-mode-label-${modalId}`);
+
+    console.log('[togglePlanMode] onetimeReminderSection exists:', !!onetimeReminderSection);  // ← DEBUG
+    console.log('[togglePlanMode] onetimeReminderSection classes BEFORE:', onetimeReminderSection?.className);  // ← DEBUG
 
     // Get recurring-specific required fields
     const durationTypeSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
@@ -3938,7 +3948,11 @@ function togglePlanMode(modalId) {
             }
             if (onetimeReminderSection) {
                 onetimeReminderSection.classList.remove('hidden');
+                console.log('[togglePlanMode] Removed .hidden class');  // ← DEBUG
+                console.log('[togglePlanMode] onetimeReminderSection classes AFTER:', onetimeReminderSection.className);  // ← DEBUG
                 initReminderCalendarWidget(modalId);
+            } else {
+                console.error('[togglePlanMode] onetimeReminderSection NOT FOUND!');  // ← DEBUG
             }
             // Disable validation for recurring fields (they're hidden)
             if (durationTypeSelect) {
