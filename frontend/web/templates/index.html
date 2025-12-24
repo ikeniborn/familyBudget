@@ -1135,9 +1135,19 @@ async function openEditFromDashboard(factId) {
         // Setup financial center change handler to filter categories
         const editFcSelect = document.getElementById('edit-financial-center');
         if (editFcSelect && editCategoryTreeSelect) {
+            // ✅ FIX: Save value BEFORE cloneNode (cloneNode doesn't preserve runtime value!)
+            const savedValue = editFcSelect.value;
+            console.log('[openEditFromDashboard] Saving FC value before clone:', savedValue);
+
             // Remove previous listener if exists (prevent duplicates)
             const newEditFcSelect = editFcSelect.cloneNode(true);
             editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
+
+            // ✅ FIX: Restore value AFTER cloneNode
+            if (savedValue) {
+                newEditFcSelect.value = savedValue;
+                console.log('[openEditFromDashboard] Restored FC value after clone:', newEditFcSelect.value);
+            }
 
             newEditFcSelect.addEventListener('change', async () => {
                 const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;

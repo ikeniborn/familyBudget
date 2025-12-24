@@ -531,7 +531,35 @@ bug_fixes:
       - "Developers могут диагностировать проблему через Console"
       - "Users видят error messages вместо silent failures"
       - "Edit modal работает с архивными счетами"
+    resolution:
+      date: "2025-12-24"
+      root_cause_confirmed: "cloneNode() в строке 1143 НЕ сохраняет runtime value"
+      fix_applied:
+        file: "frontend/web/templates/index.html"
+        lines: "1138-1150"
+        change: "Сохранять value ДО cloneNode, восстанавливать ПОСЛЕ"
+        code: |
+          const savedValue = editFcSelect.value;
+          const newEditFcSelect = editFcSelect.cloneNode(true);
+          editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
+          if (savedValue) newEditFcSelect.value = savedValue;
+      why_cloneNode_loses_value:
+        - "cloneNode(deep) копирует только DOM structure и attributes"
+        - "НЕ копирует runtime properties (value, selectedIndex, etc.)"
+        - "Value установленный через JS (select.value = X) теряется"
+      sequence_of_events:
+        - step: 1
+          action: "loadEditFinancialCenters() устанавливает select.value = 1"
+          result: "Dropdown заполнен, value установлен"
+        - step: 2
+          action: "cloneNode() пересоздает select element"
+          result: "Value теряется (cloneNode не копирует runtime properties)"
+        - step: 3
+          action: "Браузер видит required select без value"
+          result: "Validation error: 'Please select an item in the list'"
+      lesson_learned: "Всегда сохранять runtime state (value, checked, etc.) перед cloneNode()"
     future_work:
-      - "Удалить verbose logging после нахождения root cause"
+      - "Удалить verbose logging после стабилизации"
       - "Добавить badge '📦 архив' для архивных счетов в dropdown"
       - "Централизовать логику загрузки dropdown в shared module"
+      - "Рассмотреть альтернативу cloneNode - removeEventListener вместо пересоздания элемента"
