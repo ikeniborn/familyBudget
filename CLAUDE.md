@@ -1,0 +1,480 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+Family Budget is a family budget management system with Telegram bot and web interface support. Built on FastAPI (backend), PostgreSQL (database), using Docker for deployment.
+
+**Key Features:**
+- 🔐 Authentication via Telegram OAuth
+- 📊 Hierarchical budget categories (articles)
+- 💰 Transaction tracking (income/expenses)
+- 🤖 Telegram bot with Web Apps interface
+- 🌐 Web interface (HTMX + Tailwind CSS + DaisyUI)
+- 📈 Reports and statistics
+- 🔄 Change history (SCD Type 1 + History tables)
+- 📱 Transfer support (transfers between accounts)
+
+## Terminology (UI ↔ Code)
+
+| UI (Russian) | Code (English) | DB Table | Description |
+|--------------|----------------|----------|-------------|
+| **Счет** | `FinancialCenter` | `t_d_financial_center` | Bank accounts, wallets, cash |
+| **Место затрат** | `CostCenter` | `t_d_cost_center` | Projects, departments, expense categories |
+| **Статья** | `Article` | `t_d_article` | Budget categories (hierarchical) |
+| **Транзакция** | `BudgetFact` | `t_f_budget_fact` | Income, expenses, transfers |
+
+## Architecture
+
+### Stack
+- **Backend**: FastAPI 0.121.2 + SQLModel + asyncpg
+- **Database**: PostgreSQL 16 + Alembic migrations
+- **Bot**: python-telegram-bot 21.10
+- **Frontend**: HTMX + Jinja2 + Tailwind CSS + DaisyUI
+- **Deployment**: Docker Compose + bash scripts
+- **Authentication**: JWT (httpOnly cookies) + Telegram OAuth
+
+### Key Components
+
+**1. Backend (FastAPI)**
+- `backend/app/main.py` - Application entry point
+- `backend/app/api/v1/router.py` - API v1 router
+- `backend/app/api/web/router.py` - Web pages router
+- `backend/app/core/config.py` - Settings (Pydantic Settings)
+- `backend/app/db/session.py` - Database connection pool
+- `backend/app/middleware/` - JWT auth, logging, CSP, validation
+
+**2. Database Models (SQLModel)**
+All models use **SCD Type 1** (in-place updates) + separate **History tables** (SCD Type 2):
+- `Article` - Budget categories (hierarchical, shared across users)
+- `ArticleHistory` - Article change history (SCD Type 2)
+- `BudgetFact` - Facts (fact table)
+- `BudgetFactHistory` - BudgetFact change history (SCD Type 2)
+- `User` - Users (SCD Type 1 + UserHistory)
+- `FinancialCenter` - Financial centers (accounts, wallets)
+- `CostCenter` - Cost centers (projects, departments)
+- `ArticleHierarchy` - Closure table for category hierarchy
+- `Notification` - Notifications (broadcast support)
+- `ImportStaging` - Staging table for Tinkoff import
+
+**3. Database Migrations (Alembic)**
+- `backend/db/migrations/env.py` - Alembic environment
+- `backend/db/migrations/versions/` - Migration files
+- Format: `YYYYMMDD_hash_description.py`
+- **Important**: Migration 20251110 - baseline v5.1.0 (consolidated)
+
+**4. Telegram Bot**
+- `bot/bot.py` - Main bot handler
+- `bot/utils/api_client.py` - Backend API client
+- `bot/utils/telegram_auth.py` - Telegram OAuth
+- `bot/utils/notification_service.py` - Push notifications
+- `bot/jobs/weekly_report.py` - Weekly report job
+
+**5. Frontend**
+- **Web UI**: HTMX + Jinja2 templates + Tailwind CSS + DaisyUI
+- **Telegram Web Apps**: Standalone HTML pages for Menu Button
+- **Shared modules**: Category tree (Choices.js), calendar widget, date formatter
+
+## Development Commands
+
+### Local Development
+
+```bash
+# Python virtual environment
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Run backend locally (requires PostgreSQL)
+uvicorn backend.app.main:app --reload --port 8000
+
+# Run bot locally
+cd bot
+python bot.py
+```
+
+### Database (Alembic)
+
+```bash
+# Create new migration (from backend/ directory)
+cd backend
+alembic revision --autogenerate -m "description of changes"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback migration
+alembic downgrade -1
+
+# Show current version
+alembic current
+
+# Show migration history
+alembic history
+
+# IMPORTANT: Before creating migration check env.py - it imports all models
+```
+
+### Frontend (Tailwind CSS + JS)
+
+```bash
+# Build Tailwind CSS
+npm run build:css
+
+# Watch mode (automatic rebuild)
+npm run watch:css
+
+# Minify JS
+npm run minify:js
+
+# Minify CSS
+npm run minify:css
+
+# Full build (CSS + JS + minify)
+npm run build
+
+# Validate minified files
+npm run validate:minified
+```
+
+### Testing
+
+```bash
+# All tests
+pytest
+
+# Only unit tests
+pytest -m unit
+
+# Only integration tests
+pytest -m integration
+
+# E2E tests (Playwright)
+npx playwright test
+npx playwright test --ui  # Interactive mode
+
+# With coverage
+pytest --cov=backend --cov=bot --cov-report=html
+
+# Specific test
+pytest tests/unit/test_article_service.py::test_create_article
+
+# Verbose mode
+pytest -v -s
+```
+
+### Code Quality
+
+```bash
+# Linting (ruff)
+ruff check backend/
+ruff check --fix backend/  # Auto-fix
+
+# Formatting (black)
+black backend/
+black --check backend/  # Check only
+
+# Type checking (mypy)
+mypy backend/
+
+# All checks together
+ruff check backend/ && black --check backend/ && mypy backend/
+```
+
+### Docker (Deployment)
+
+```bash
+# IMPORTANT: Run from repository directory (~/familyBudget), NOT from /opt/budget
+
+# Basic deployment (postgres + backend)
+./deploy.sh
+
+# Full deployment (+ nginx + bot + certbot)
+./deploy.sh --profile full
+
+# Rebuild images
+./deploy.sh --build
+
+# Foreground mode (real-time logs)
+./deploy.sh --foreground
+
+# Clean deployment (DELETES ALL DATA!)
+./deploy.sh --clean
+
+# Without migrations
+./deploy.sh --no-migrate
+
+# Docker Compose commands (from /opt/budget)
+cd /opt/budget
+docker compose ps                    # Status
+docker compose logs -f backend       # Backend logs
+docker compose restart backend       # Restart
+docker compose down                  # Stop
+docker compose exec backend bash     # Shell in container
+
+# Diagnostics and logs
+./logs.sh                   # Full diagnostics
+./logs.sh --save            # Save to file
+./logs.sh --quick           # Status only
+./logs.sh --alert           # Critical issues only
+./logs.sh --follow backend  # Live tail
+```
+
+### Backup & Restore
+
+```bash
+# Backup PostgreSQL
+./scripts/backup.sh
+
+# Restore backup
+./scripts/restore.sh /opt/budget/backups/backup_20251120.sql
+
+# S3 backup (if S3 configured)
+./scripts/s3_backup.py
+```
+
+## Important Concepts and Patterns
+
+### SCD Type 1 + History Tables
+
+**Since version 5.1.0 architecture changed:**
+- **Main tables** (Article, User, etc.) contain ONLY current state (SCD Type 1)
+- **History tables** (ArticleHistory, UserHistory, etc.) store ALL history (SCD Type 2)
+- **Benefits**: Stable PK in fact tables, simple queries, performance
+
+**Examples:**
+```python
+# Update Article (in-place)
+article.name = "New Name"
+await session.commit()  # UPDATE, not INSERT
+
+# History is automatically recorded via database triggers or service layer
+```
+
+### Hierarchical Categories (Closure Table)
+
+Articles use **Closure Table** pattern for efficient hierarchical queries:
+- `ArticleHierarchy` - Closure table (ancestor_id, descendant_id, depth)
+- Allows fast retrieval of: subtree, ancestors, breadcrumbs, depth
+
+**Examples:**
+```python
+# Get all child categories
+subtree = await article_service.get_subtree(article_id)
+
+# Get all parent categories
+ancestors = await article_service.get_ancestors(article_id)
+
+# Breadcrumbs (from root to article)
+breadcrumbs = await article_service.get_breadcrumbs(article_id)
+```
+
+### Shared Family Budget Model
+
+**Data Model:** Project uses "Shared Family Budget" - all users see ALL data.
+
+**Important features:**
+- **Articles**: Shared across all users (READ for all, WRITE for admin only)
+- **BudgetFact**: Shared - all users see all family transactions
+- **FinancialCenter, CostCenter**: Shared - common directories for entire family
+- **user_id in BudgetFact**: Indicates WHO created record, but does NOT restrict access
+
+### JWT Authentication
+
+- JWT tokens in **httpOnly cookies** (security)
+- Middleware `JWTAuthMiddleware` automatically validates tokens
+- Refresh tokens in DB (`RefreshToken` model)
+- Telegram OAuth for login (`/auth/telegram` endpoint)
+
+### Background Jobs (Scheduler)
+
+- APScheduler for periodic tasks
+- `backend/app/scheduler.py` - Scheduler configuration
+- `bot/jobs/` - Job functions
+
+**Example jobs:**
+- Weekly report (every Monday)
+- Database cleanup
+- SSL certificate renewal check
+
+## Critical Best Practices
+
+### SQLAlchemy 2.0 AsyncSession
+
+**CRITICALLY IMPORTANT:** Always use `await` for all async AsyncSession methods.
+
+**Correct:**
+```python
+# Async methods require await
+await session.execute(query)
+await session.commit()
+await session.delete(obj)
+await session.refresh(obj)
+```
+
+**INCORRECT (RuntimeWarning):**
+```python
+# ❌ WITHOUT await - coroutine created but NOT executed!
+session.delete(obj)  # RuntimeWarning: coroutine 'AsyncSession.delete' was never awaited
+await session.commit()  # Commits empty transaction - nothing deleted!
+```
+
+**Consequences of missing `await`:**
+- RuntimeWarning in logs
+- Coroutines don't execute
+- `commit()` commits empty transaction
+- Data remains in DB (despite success logs)
+- Very difficult to catch (code runs, logs write, but nothing happens)
+
+### History Tables: Complete Field Copying
+
+**Rule:** When creating records in History tables (`BudgetFactHistory`, `ArticleHistory`, etc.) MUST copy ALL fields from main table, including nullable fields.
+
+**Why this is important:**
+- History tables should preserve data snapshot at time of change
+- NOT NULL constraints in History table are stricter than in main table (for data quality)
+- Missing field = constraint violation = transaction rollback
+
+**Example (BudgetFactHistory):**
+```python
+# ✅ CORRECT - all fields copied
+fact_history = BudgetFactHistory(
+    fact_id=fact.id,
+    user_id=fact.user_id,
+    article_id=fact.article_id,
+    financial_center_id=fact.financial_center_id,  # nullable, but copy
+    cost_center_id=fact.cost_center_id,            # nullable, but copy
+    amount=fact.amount,
+    fact_date=fact.fact_date,
+    description=fact.description,
+    record_type=fact.record_type,  # ⚠️ REQUIRED! NOT NULL in history
+    transfer_id=fact.transfer_id,  # nullable, but copy for completeness
+    valid_from=datetime.utcnow(),
+    is_current=True,
+    change_type="CREATE",
+)
+
+# ❌ INCORRECT - record_type missing
+# → IntegrityError: null value in column "record_type"
+```
+
+### SSE Single Worker Requirement
+
+**CRITICAL:** This application MUST run with WORKERS=1 (single uvicorn worker).
+
+The SSE implementation uses in-memory BudgetConnectionManager which does NOT share state between workers. Running with multiple workers will cause SSE events to be lost.
+
+**Why this is critical:**
+- SSE is used for real-time updates on main page (metrics, recent records)
+- Each uvicorn worker has its OWN instance of `BudgetConnectionManager`
+- In multi-worker: user A on worker 1 creates transaction → broadcast only goes to worker 1 clients
+- User B on worker 2 does NOT receive event → doesn't see changes without reload
+
+**Configuration:**
+- `docker-compose.yml`: `--workers 1` (hardcoded)
+- `setup.sh`: WORKERS=1 (no option to change)
+- Dockerfile: `--workers 1` (default)
+
+**For scaling:** Need to implement Redis Pub/Sub for SSE event synchronization between workers.
+
+### Testing: Verify DB After Operations
+
+**Rule:** After data modification operations (CREATE/UPDATE/DELETE) ALWAYS verify actual DB state, not just HTTP status codes.
+
+**Why HTTP 200 != Successful Operation:**
+- Async coroutines may not execute (see above)
+- Logging happens BEFORE commit (may rollback after)
+- Middleware may catch errors and return 200
+
+**Best practice testing workflow:**
+
+```bash
+# 1. Execute operation via API
+curl -X DELETE https://example.com/api/v1/admin/articles/45
+
+# 2. ✅ REQUIRED: Verify DB
+docker compose exec postgres psql -U familybudget -d familybudget -c \
+  "SELECT COUNT(*) FROM t_d_article WHERE id = 45;"
+
+# 3. Check logs for warnings/errors
+docker compose logs backend | grep -A10 "DELETE.*articles/45" | grep -i "warning\|error"
+
+# 4. For DELETE operations: check History tables
+docker compose exec postgres psql -U familybudget -d familybudget -c \
+  "SELECT change_type, COUNT(*) FROM t_d_article_history WHERE article_id = 45 GROUP BY change_type;"
+```
+
+## Workflow for Updating Application
+
+**Critical to understand three directories:**
+1. **Repository** (`~/familyBudget`) - Source code, git clone
+2. **Deployment** (`/opt/budget`) - Working copy for Docker
+3. **Docker volumes** - DB data, logs (persistent)
+
+**Correct workflow:**
+```bash
+# 1. Update code in repository
+cd ~/familyBudget
+git pull origin main
+
+# 2. Sync to /opt/budget
+./setup.sh
+
+# 3. Apply changes
+./deploy.sh --profile full
+```
+
+**Common mistakes:**
+```bash
+# ❌ INCORRECT (copies itself to itself)
+cd /opt/budget
+./setup.sh
+
+# ✅ CORRECT
+cd ~/familyBudget  # Repository
+./setup.sh         # Copies to /opt/budget
+```
+
+## API Endpoints
+
+### Authentication
+- `POST /auth/telegram` - Telegram OAuth login
+- `POST /auth/refresh` - Refresh JWT token
+- `POST /auth/logout` - Logout
+
+### REST API v1
+- `/api/v1/articles` - CRUD categories
+- `/api/v1/facts` - CRUD transactions
+- `/api/v1/financial-centers` - CRUD financial centers
+- `/api/v1/cost-centers` - CRUD cost centers
+- `/api/v1/users` - User management (admin)
+
+### Web Pages (HTMX)
+- `/` - Home page
+- `/transactions` - Transactions list
+- `/statistics` - Statistics dashboard
+- `/admin` - Admin panel
+
+### Telegram Web Apps
+- `/webapp/` - Main menu
+- `/webapp/add.html` - Add transaction
+- `/webapp/history.html` - Transaction history
+- `/webapp/stats.html` - Statistics
+
+### Health Checks
+- `/ping` - Simple ping
+- `/health` - Basic health check
+- `/ready` - Readiness probe
+- `/health/detailed` - Detailed diagnostics
+
+## Documentation
+
+| Document | For |
+|----------|-----|
+| [START.md](START.md) | 🔧 Administrators (installation) |
+| [CLAUDE.md](CLAUDE.md) | 👨‍💻 Developers |
+| [docs/prd/](docs/prd/) | 📋 Product Requirements |
+| [docs/guides/](docs/guides/) | 📖 User guides |
+| `/docs` (Swagger) | 🔌 API documentation |
