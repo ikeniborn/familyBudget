@@ -281,20 +281,23 @@ modules:
       purpose: "Динамическое отображение/скрытие кнопок FAB на основе состояния товаров"
       rules:
         delete_completed:
-          button_id: "fab-delete-completed"
+          container_id: "fab-item-delete-completed"
           icon: "🗑️"
           show_when: "Есть хотя бы один выполненный товар (completedCount > 0)"
           hide_when: "Нет выполненных товаров (completedCount === 0)"
+          note: "Скрывается весь контейнер (бейдж + кнопка)"
         mark_all_completed:
-          button_id: "fab-mark-all-completed"
+          container_id: "fab-item-mark-all-completed"
           icon: "✅"
           show_when: "Есть хотя бы один невыполненный товар (uncompletedCount > 0)"
           hide_when: "Все товары выполнены (totalCount === completedCount)"
+          note: "Скрывается весь контейнер (бейдж + кнопка)"
         unmark_all_completed:
-          button_id: "fab-unmark-all-completed"
+          container_id: "fab-item-unmark-all-completed"
           icon: "❌"
           show_when: "Есть хотя бы один выполненный товар (completedCount > 0)"
           hide_when: "Нет выполненных товаров (completedCount === 0)"
+          note: "Скрывается весь контейнер (бейдж + кнопка)"
       triggers:
         - "loadItems()"
         - "toggleItemCompleted()"

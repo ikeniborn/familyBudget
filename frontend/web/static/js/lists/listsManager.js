@@ -946,10 +946,10 @@ class ListsManager {
     updateFABButtons() {
         // Early exit if no items
         if (!this.currentItems || this.currentItems.length === 0) {
-            // Hide all action buttons when list is empty
-            document.getElementById('fab-delete-completed')?.classList.add('hidden');
-            document.getElementById('fab-mark-all-completed')?.classList.add('hidden');
-            document.getElementById('fab-unmark-all-completed')?.classList.add('hidden');
+            // Hide all action button containers when list is empty
+            document.getElementById('fab-item-delete-completed')?.classList.add('hidden');
+            document.getElementById('fab-item-mark-all-completed')?.classList.add('hidden');
+            document.getElementById('fab-item-unmark-all-completed')?.classList.add('hidden');
             return;
         }
 
@@ -958,33 +958,33 @@ class ListsManager {
         const totalCount = this.currentItems.length;
         const uncompletedCount = totalCount - completedCount;
 
-        // Delete completed button (🗑️): Show only if there are completed items
-        const deleteBtn = document.getElementById('fab-delete-completed');
-        if (deleteBtn) {
+        // Delete completed container (🗑️): Show only if there are completed items
+        const deleteItem = document.getElementById('fab-item-delete-completed');
+        if (deleteItem) {
             if (completedCount > 0) {
-                deleteBtn.classList.remove('hidden');
+                deleteItem.classList.remove('hidden');
             } else {
-                deleteBtn.classList.add('hidden');
+                deleteItem.classList.add('hidden');
             }
         }
 
-        // Mark all completed button (✅): Hide if all items are already completed
-        const markAllBtn = document.getElementById('fab-mark-all-completed');
-        if (markAllBtn) {
+        // Mark all completed container (✅): Hide if all items are already completed
+        const markAllItem = document.getElementById('fab-item-mark-all-completed');
+        if (markAllItem) {
             if (uncompletedCount > 0) {
-                markAllBtn.classList.remove('hidden');
+                markAllItem.classList.remove('hidden');
             } else {
-                markAllBtn.classList.add('hidden');
+                markAllItem.classList.add('hidden');
             }
         }
 
-        // Unmark all completed button (❌): Hide if all items are uncompleted
-        const unmarkAllBtn = document.getElementById('fab-unmark-all-completed');
-        if (unmarkAllBtn) {
+        // Unmark all completed container (❌): Hide if all items are uncompleted
+        const unmarkAllItem = document.getElementById('fab-item-unmark-all-completed');
+        if (unmarkAllItem) {
             if (completedCount > 0) {
-                unmarkAllBtn.classList.remove('hidden');
+                unmarkAllItem.classList.remove('hidden');
             } else {
-                unmarkAllBtn.classList.add('hidden');
+                unmarkAllItem.classList.add('hidden');
             }
         }
     }
