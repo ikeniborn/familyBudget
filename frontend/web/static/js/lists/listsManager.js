@@ -150,8 +150,9 @@ class ListsManager {
         this.currentItems = [];
         this.selectedItemIds.clear();
 
-        // Hide FAB menu (only visible in detail view)
+        // Hide detail view FAB menu, show create list FAB
         this.hideFAB();
+        this.showCreateListFAB();
 
         // Show landing view, hide detail view
         document.getElementById('landing-view').classList.remove('hidden');
@@ -215,6 +216,9 @@ class ListsManager {
         // Show detail view, hide landing view
         document.getElementById('landing-view').classList.add('hidden');
         document.getElementById('detail-view').classList.remove('hidden');
+
+        // Hide create list FAB (only visible in landing view)
+        this.hideCreateListFAB();
 
         // Load items for this list
         await this.loadShoppingListItems(listId);
@@ -935,6 +939,26 @@ class ListsManager {
         }
         if (fabBackdrop) {
             fabBackdrop.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+        }
+    }
+
+    /**
+     * Show create list FAB (landing view only)
+     */
+    showCreateListFAB() {
+        const createListFAB = document.getElementById('create-list-fab');
+        if (createListFAB) {
+            createListFAB.classList.remove('hidden');
+        }
+    }
+
+    /**
+     * Hide create list FAB (when switching to detail view)
+     */
+    hideCreateListFAB() {
+        const createListFAB = document.getElementById('create-list-fab');
+        if (createListFAB) {
+            createListFAB.classList.add('hidden');
         }
     }
 
