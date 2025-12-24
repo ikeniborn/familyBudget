@@ -2794,10 +2794,15 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         try {
-            // Use OfflineManager if available
-            if (window.offlineManager) {
-                const result = await window.offlineManager.createTransfer(data);
+            // Transfer ALWAYS uses direct fetch (no offline support)
+            const response = await fetch('/api/v1/transfers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify(data)
+            });
 
+            if (response.ok) {
                 transfer_modal.close();
                 e.target.reset();
 
@@ -2807,62 +2812,24 @@ document.addEventListener('DOMContentLoaded', function() {
                     transferDateInput.value = BudgetShared.DateFormatter.today();
                 }
 
-                if (result._offline) {
-                    showToast('Перевод сохранен оффлайн (будет синхронизирован при подключении)', 'warning');
-                    loadPendingRecords();
-                } else {
-                    showToast('Перевод успешно сохранен!', 'success');
+                showToast('Перевод успешно сохранен!', 'success');
 
-                    // Refresh UI
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-                        target: '#recent-transactions',
-                        swap: 'innerHTML'
-                    });
-                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-                        target: '#quick-stats',
-                        swap: 'innerHTML'
-                    });
-                    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
-                        target: '#account-balances',
-                        swap: 'innerHTML'
-                    });
-                }
-            } else {
-                // Fallback to direct fetch
-                const response = await fetch('/api/v1/transfers', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify(data)
+                // Refresh UI
+                htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
+                    target: '#recent-transactions',
+                    swap: 'innerHTML'
                 });
-
-                if (response.ok) {
-                    transfer_modal.close();
-                    e.target.reset();
-                    const transferDateInput = document.querySelector('#form_transfer input[name="transfer_date"]');
-                    if (transferDateInput) {
-                        transferDateInput.value = BudgetShared.DateFormatter.today();
-                    }
-
-                    showToast('Перевод успешно сохранен!', 'success');
-
-                    // Refresh UI
-                    htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-                        target: '#recent-transactions',
-                        swap: 'innerHTML'
-                    });
-                    htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-                        target: '#quick-stats',
-                        swap: 'innerHTML'
-                    });
-                    htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
-                        target: '#account-balances',
-                        swap: 'innerHTML'
-                    });
-                } else {
-                    const error = await response.json();
-                    showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать перевод'), 'error');
-                }
+                htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
+                    target: '#quick-stats',
+                    swap: 'innerHTML'
+                });
+                htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
+                    target: '#account-balances',
+                    swap: 'innerHTML'
+                });
+            } else {
+                const error = await response.json();
+                showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать перевод'), 'error');
             }
         } catch (error) {
             console.error('Error creating transfer:', error);
@@ -3344,6 +3311,25 @@ function setupPlanPeriodButtons() {
 
     if (!hiddenInput || periodButtons.length === 0) return;
 
+    // Инициализировать надписи на кнопках и data-атрибуты (текущий месяц +0, +1, +2)
+    const today = new Date();
+    periodButtons.forEach((btn, index) => {
+        const offset = parseInt(btn.dataset.offset);
+        const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        btn.textContent = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+        btn.dataset.year = date.getFullYear();
+        btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
+    });
+
+    // Установить значение для первой кнопки (активной по умолчанию)
+    const firstButton = periodButtons[0];
+    if (firstButton && firstButton.dataset.year && firstButton.dataset.month) {
+        hiddenInput.value = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
+        debugLog('Default plan period:', hiddenInput.value);
+    }
+
+    // Обработчики кликов
     periodButtons.forEach(button => {
         button.addEventListener('click', function() {
             // Убрать btn-active у всех кнопок
@@ -3360,12 +3346,6 @@ function setupPlanPeriodButtons() {
             debugLog('Selected plan period:', hiddenInput.value);
         });
     });
-
-    // Установить значение по умолчанию (текущая кнопка btn-active)
-    const activeButton = document.querySelector('.period-btn.btn-active');
-    if (activeButton && activeButton.dataset.year && activeButton.dataset.month) {
-        hiddenInput.value = `${activeButton.dataset.year}-${activeButton.dataset.month}`;
-    }
 }
 
 // Установить обработчики для кнопок типа факта
