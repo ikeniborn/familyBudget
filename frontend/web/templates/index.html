@@ -4616,6 +4616,19 @@ function togglePlanMode(modalId) {
                 console.log('[togglePlanMode] Showing onetimeReminderSection, classes BEFORE:', onetimeReminderSection.className);
                 onetimeReminderSection.classList.remove('hidden');
                 console.log('[togglePlanMode] Showing onetimeReminderSection, classes AFTER:', onetimeReminderSection.className);
+
+                // DEBUG: Check element visibility
+                const computedStyle = window.getComputedStyle(onetimeReminderSection);
+                console.log('[togglePlanMode] Element visibility check:', {
+                    offsetHeight: onetimeReminderSection.offsetHeight,
+                    offsetWidth: onetimeReminderSection.offsetWidth,
+                    computedDisplay: computedStyle.display,
+                    computedVisibility: computedStyle.visibility,
+                    inlineStyle: onetimeReminderSection.style.cssText,
+                    parentElement: onetimeReminderSection.parentElement?.tagName,
+                    parentClasses: onetimeReminderSection.parentElement?.className
+                });
+
                 initReminderCalendarWidget(modalId);
 
                 // Set default time (current time + 1 hour, rounded to 5 minutes)
