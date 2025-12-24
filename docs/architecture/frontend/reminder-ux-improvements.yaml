@@ -176,7 +176,8 @@ follow_up_issues:
     description: |\
       После создания плана с напоминанием, иконка 🔔 не появляется в виджете
       recent transactions на главной странице, хотя напоминание создано успешно.
-    root_cause: |\
+      Иконка появляется только после перезагрузки страницы или через 10 секунд.
+    root_cause_1_frontend: |\
       Проблема с порядком выполнения операций (race condition):
       1. План создан → result.id = 7609
       2. HTMX обновляет recent-transactions (GET /api/v1/facts/recent-html)
@@ -187,7 +188,7 @@ follow_up_issues:
       4. createReminder() вызывается → reminder создается в БД
       5. remindersMap.set() → frontend map обновлен
       6. Но HTML уже отрендерен без иконки!
-    fix: |\
+    fix_1_frontend: |\
       Переместить HTMX refresh ПОСЛЕ создания reminder:
       1. План создан
       2. createReminder() вызывается → reminder создается в БД
@@ -195,10 +196,40 @@ follow_up_issues:
       4. HTMX refresh → backend query находит reminder
       5. Backend рендерит HTML С иконкой reminder
       6. Иконка появляется в таблице!
-    commit: "270a23a1"
-    files:
+    commit_1: "270a23a1"
+    files_1:
       - "frontend/web/templates/index.html:2618-2651" # OfflineManager path
       - "frontend/web/templates/index.html:2671-2697" # Fallback path
+
+    root_cause_2_backend_cache: |\
+      ПОСЛЕ фикса 270a23a1 проблема частично осталась - иконка все равно
+      появлялась только после перезагрузки или через 10 секунд.
+
+      Причина: Backend endpoint /api/v1/facts/recent-html использует кеширование
+      с TTL 10 секунд. Кеш инвалидируется при "any fact CRUD", но reminder
+      создание это НЕ fact CRUD (отдельная таблица t_scheduled_reminder).
+
+      Flow с багом:
+      1. План создан → кеш инвалидирован (fact CRUD)
+      2. Backend генерирует HTML БЕЗ reminder (reminder ещё не создан)
+      3. HTML кешируется на 10 секунд
+      4. Reminder создан (НЕТ cache invalidation - не fact CRUD!)
+      5. HTMX запрашивает HTML → возвращается ЗАКЕШИРОВАННЫЙ ответ без reminder
+      6. Иконка не появляется до истечения 10 секунд кеша
+    fix_2_backend_cache: |\
+      Добавить cache invalidation в reminder CRUD endpoints:
+      - POST /api/v1/reminders/{fact_id} → инвалидировать кеш после создания
+      - PUT /api/v1/reminders/{fact_id} → инвалидировать кеш после обновления
+      - DELETE /api/v1/reminders/{fact_id} → инвалидировать кеш после удаления
+
+      Инвалидируются все варианты кеша (limit 1-20), т.к. неизвестно какой
+      limit отображается на dashboard пользователя.
+    commit_2: "9a7f2556"
+    files_2:
+      - "backend/app/api/v1/endpoints/reminders.py:29" # cache_service import
+      - "backend/app/api/v1/endpoints/reminders.py:130-133" # CREATE invalidation
+      - "backend/app/api/v1/endpoints/reminders.py:230-233" # UPDATE invalidation
+      - "backend/app/api/v1/endpoints/reminders.py:290-293" # DELETE invalidation
 
   - issue: "Reminder section не появляется при повторном открытии модального окна"
     status: "under investigation"
@@ -245,8 +276,18 @@ commits:
 
   - commit: "270a23a1"
     description: "fix(plan): show reminder icon in recent transactions after plan creation"
-    issue: "Reminder icon 🔔 не появляется в recent-transactions-card после создания плана"
+    issue: "Reminder icon 🔔 не появляется в recent-transactions-card после создания плана (frontend timing)"
     fix: "Move HTMX refresh AFTER reminder creation (so backend query finds the reminder)"
     files:
       - "frontend/web/templates/index.html:2618-2651"
       - "frontend/web/templates/index.html:2671-2697"
+
+  - commit: "9a7f2556"
+    description: "fix(reminder): invalidate recent_html cache after reminder CRUD"
+    issue: "Reminder icon 🔔 не появляется сразу, только после перезагрузки или через 10 секунд (backend cache)"
+    fix: "Invalidate recent_html cache (all limit variants 1-20) after CREATE/UPDATE/DELETE reminder"
+    files:
+      - "backend/app/api/v1/endpoints/reminders.py:29" # cache_service import
+      - "backend/app/api/v1/endpoints/reminders.py:130-133" # CREATE
+      - "backend/app/api/v1/endpoints/reminders.py:230-233" # UPDATE
+      - "backend/app/api/v1/endpoints/reminders.py:290-293" # DELETE
