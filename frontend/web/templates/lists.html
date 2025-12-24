@@ -413,21 +413,21 @@
     <!-- Speed Dial items -->
     <div class="fab-item flex items-center gap-2">
         <span class="badge badge-neutral shadow whitespace-nowrap">Удалить выполненные</span>
-        <button onclick="deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
+        <button id="fab-delete-completed" onclick="deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">
             🗑️
         </button>
     </div>
 
     <div class="fab-item flex items-center gap-2">
         <span class="badge badge-neutral shadow whitespace-nowrap">Отметить все</span>
-        <button onclick="markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
+        <button id="fab-mark-all-completed" onclick="markAllCompletedWithConfirm()" class="btn btn-success btn-circle shadow-lg" aria-label="Отметить все">
             ✅
         </button>
     </div>
 
     <div class="fab-item flex items-center gap-2">
         <span class="badge badge-neutral shadow whitespace-nowrap">Снять все отметки</span>
-        <button onclick="unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
+        <button id="fab-unmark-all-completed" onclick="unmarkAllCompletedWithConfirm()" class="btn btn-warning btn-circle shadow-lg" aria-label="Снять все отметки">
             ❌
         </button>
     </div>

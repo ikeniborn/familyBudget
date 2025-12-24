@@ -886,6 +886,7 @@ class ListsManager {
 
         this.updateHideCompletedButton();
         this.renderCurrentView();
+        this.updateFABButtons();
     }
 
     /**
@@ -930,6 +931,60 @@ class ListsManager {
             // Also hide backdrop if FAB is hidden
             if (fabBackdrop) {
                 fabBackdrop.classList.add('hidden');
+            }
+        }
+    }
+
+    /**
+     * Update FAB button visibility based on item completion state
+     *
+     * Visibility rules:
+     * - Delete completed (🗑️): Show only if at least 1 completed item exists
+     * - Mark all completed (✅): Hide if ALL items are completed
+     * - Unmark all completed (❌): Hide if ALL items are NOT completed
+     */
+    updateFABButtons() {
+        // Early exit if no items
+        if (!this.currentItems || this.currentItems.length === 0) {
+            // Hide all action buttons when list is empty
+            document.getElementById('fab-delete-completed')?.classList.add('hidden');
+            document.getElementById('fab-mark-all-completed')?.classList.add('hidden');
+            document.getElementById('fab-unmark-all-completed')?.classList.add('hidden');
+            return;
+        }
+
+        // Count item states
+        const completedCount = this.currentItems.filter(item => item.is_completed).length;
+        const totalCount = this.currentItems.length;
+        const uncompletedCount = totalCount - completedCount;
+
+        // Delete completed button (🗑️): Show only if there are completed items
+        const deleteBtn = document.getElementById('fab-delete-completed');
+        if (deleteBtn) {
+            if (completedCount > 0) {
+                deleteBtn.classList.remove('hidden');
+            } else {
+                deleteBtn.classList.add('hidden');
+            }
+        }
+
+        // Mark all completed button (✅): Hide if all items are already completed
+        const markAllBtn = document.getElementById('fab-mark-all-completed');
+        if (markAllBtn) {
+            if (uncompletedCount > 0) {
+                markAllBtn.classList.remove('hidden');
+            } else {
+                markAllBtn.classList.add('hidden');
+            }
+        }
+
+        // Unmark all completed button (❌): Hide if all items are uncompleted
+        const unmarkAllBtn = document.getElementById('fab-unmark-all-completed');
+        if (unmarkAllBtn) {
+            if (completedCount > 0) {
+                unmarkAllBtn.classList.remove('hidden');
+            } else {
+                unmarkAllBtn.classList.add('hidden');
             }
         }
     }
@@ -1354,6 +1409,7 @@ class ListsManager {
         this.renderCurrentView();
         this.updateProgressBadge();
         this.updateFABVisibility();
+        this.updateFABButtons();
 
         try {
             // 2. Send to server or queue for offline
@@ -1520,6 +1576,7 @@ class ListsManager {
             }
             this.updateProgressBadge();
             this.updateFABVisibility();
+            this.updateFABButtons();
 
             showToast(`Отмечено ${uncompletedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1569,6 +1626,7 @@ class ListsManager {
             }
             this.updateProgressBadge();
             this.updateFABVisibility();
+            this.updateFABButtons();
 
             showToast(`Снято ${completedItems.length} отметок`, 'success');
         } catch (error) {
@@ -1615,6 +1673,7 @@ class ListsManager {
             }
             this.updateProgressBadge();
             this.updateFABVisibility();
+            this.updateFABButtons();
 
             showToast(`Удалено ${completedItems.length} товаров`, 'success');
         } catch (error) {
@@ -1801,6 +1860,7 @@ class ListsManager {
         this.renderCurrentView();
         this.updateProgressBadge();
         this.updateFABVisibility();
+        this.updateFABButtons();
         this.updateItemsCache();
 
         // Show notification
@@ -1838,6 +1898,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
     }
@@ -1875,6 +1936,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
 
@@ -1916,6 +1978,7 @@ class ListsManager {
         // Re-render and update badge
         this.renderCurrentView();
         this.updateProgressBadge();
+        this.updateFABButtons();
         this.updateFABVisibility();
         this.updateItemsCache();
     }
@@ -1929,6 +1992,7 @@ class ListsManager {
             await this.loadShoppingListItems(this.currentListId);
             this.renderCurrentView();
             this.updateProgressBadge();
+            this.updateFABButtons();
         }
     }
 
@@ -2592,6 +2656,7 @@ async function handleSaveItem(event) {
                 Object.assign(item, data);
                 manager.renderCurrentView();
                 manager.updateProgressBadge();
+                manager.updateFABButtons();
                 await manager.updateItemsCache();
             }
         } else if (result.tempId && !result.id) {
@@ -2612,6 +2677,7 @@ async function handleSaveItem(event) {
             manager.currentItems.push(newItem);
             manager.renderCurrentView();
             manager.updateProgressBadge();
+            manager.updateFABButtons();
             await manager.updateItemsCache();
         }
         // CREATE online (result.id exists): do nothing, WebSocket will add the item
