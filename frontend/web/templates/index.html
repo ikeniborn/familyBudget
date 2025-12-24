@@ -4614,13 +4614,25 @@ function togglePlanMode(modalId) {
                 // Set default time (current time + 1 hour, rounded to 5 minutes) if fields are empty
                 const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
                 const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
+                console.log('[togglePlanMode] DEBUG: hourSelect:', hourSelect);
+                console.log('[togglePlanMode] DEBUG: minuteSelect:', minuteSelect);
+                console.log('[togglePlanMode] DEBUG: hourSelect.value:', hourSelect?.value);
+                console.log('[togglePlanMode] DEBUG: minuteSelect.value:', minuteSelect?.value);
                 if (hourSelect && minuteSelect && !hourSelect.value && !minuteSelect.value) {
+                    console.log('[togglePlanMode] DEBUG: Condition passed, setting default time...');
                     const defaultTime = getCurrentTimeRounded();
+                    console.log('[togglePlanMode] DEBUG: getCurrentTimeRounded() returned:', defaultTime);
                     hourSelect.value = defaultTime.hour;
                     minuteSelect.value = defaultTime.minute;
                     // Update hidden field after setting default values
                     updateReminderDatetime(modalId);
-                    console.log('[togglePlanMode] Set default time:', defaultTime);  // ← DEBUG
+                    console.log('[togglePlanMode] Set default time:', defaultTime);
+                } else {
+                    console.log('[togglePlanMode] DEBUG: Condition NOT passed. Reasons:');
+                    console.log('  - hourSelect exists:', !!hourSelect);
+                    console.log('  - minuteSelect exists:', !!minuteSelect);
+                    console.log('  - hourSelect.value is empty:', !hourSelect?.value);
+                    console.log('  - minuteSelect.value is empty:', !minuteSelect?.value);
                 }
             } else {
                 console.error('[togglePlanMode] onetimeReminderSection NOT FOUND!');  // ← DEBUG
