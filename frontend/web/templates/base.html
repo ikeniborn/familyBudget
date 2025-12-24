@@ -1173,12 +1173,12 @@
 
             if (isLoading) {
                 submitBtn.disabled = true;
-                submitBtn.classList.add('loading');
                 submitBtn.dataset.originalHtml = submitBtn.innerHTML;
-                submitBtn.innerHTML = '<span class="loading loading-spinner loading-sm"></span> Сохранение...';
+                // Use loading-xs for btn-sm, loading-sm otherwise
+                const spinnerSize = submitBtn.classList.contains('btn-sm') ? 'loading-xs' : 'loading-sm';
+                submitBtn.innerHTML = `<span class="loading loading-spinner ${spinnerSize}"></span> Сохранение...`;
             } else {
                 submitBtn.disabled = false;
-                submitBtn.classList.remove('loading');
                 if (submitBtn.dataset.originalHtml) {
                     submitBtn.innerHTML = submitBtn.dataset.originalHtml;
                 }
