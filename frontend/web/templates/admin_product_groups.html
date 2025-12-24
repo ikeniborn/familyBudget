@@ -72,8 +72,8 @@
                 <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
             </div>
             <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">✅ Создать</button>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">✅ Создать</button>
             </div>
         </form>
     </div>
@@ -109,9 +109,17 @@
                 </label>
                 <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
             </div>
+            <!-- Mobile Delete Button (visible only on mobile, hidden on desktop where table delete button is available) -->
+            <div class="flex justify-center mt-4 mb-2 md:hidden">
+                <button type="button" class="btn btn-xs btn-error btn-square" onclick="deleteProductGroupFromEditModal()" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
             <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
         </form>
     </div>
@@ -266,13 +274,13 @@ function renderTreeNodes(nodes, level) {
             : '<span class="badge badge-ghost badge-xs">📦</span>';
 
         // Actions column - Edit for all users, Archive/Delete only for admins
-        let actions = `<button class="btn btn-xs btn-ghost" onclick="showEditModal(${node.id})" title="Редактировать">✏️</button>`;
+        let actions = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${node.id})" title="Редактировать">✏️</button>`;
 
         // Admin-only buttons: Archive/Restore and Delete
         if (isAdmin) {
             if (node.is_active) {
                 actions += `
-                    <button class="btn btn-xs btn-warning" onclick="archiveProductGroup(${node.id})" title="Архивировать">📦</button>
+                    <button class="btn btn-xs btn-warning gap-1" onclick="archiveProductGroup(${node.id})" title="Архивировать">📦</button>
                     <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteProductGroup(${node.id})" title="Удалить">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -281,7 +289,7 @@ function renderTreeNodes(nodes, level) {
                 `;
             } else {
                 actions += `
-                    <button class="btn btn-xs btn-success" onclick="restoreProductGroup(${node.id})" title="Восстановить">♻️</button>
+                    <button class="btn btn-xs btn-success gap-1" onclick="restoreProductGroup(${node.id})" title="Восстановить">♻️</button>
                     <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteProductGroup(${node.id})" title="Удалить">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -434,6 +442,13 @@ function showEditModal(groupId) {
 // Close edit modal
 function closeEditModal() {
     document.getElementById('edit-modal').close();
+}
+
+// Delete product group from edit modal (mobile only)
+function deleteProductGroupFromEditModal() {
+    const productGroupId = document.getElementById('edit-id').value;
+    closeEditModal();
+    deleteProductGroup(productGroupId);
 }
 
 // Update product group

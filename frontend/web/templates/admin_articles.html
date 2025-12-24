@@ -101,8 +101,8 @@
                 </p>
             </div>
             <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeCreateModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">✅ Создать</button>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">✅ Создать</button>
             </div>
         </form>
     </div>
@@ -166,9 +166,17 @@
                     ⚠️ Привязка к счёту доступна только для листовых категорий (без подкатегорий).
                 </p>
             </div>
+            <!-- Mobile Delete Button (visible only on mobile, hidden on desktop where table delete button is available) -->
+            <div class="flex justify-center mt-4 mb-2 md:hidden">
+                <button type="button" class="btn btn-xs btn-error btn-square" onclick="deleteArticleFromEditModal()" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
             <div class="modal-action">
-                <button type="button" class="btn btn-ghost" onclick="closeEditModal()">❌ Отмена</button>
-                <button type="submit" class="btn btn-primary">💾 Сохранить</button>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
         </form>
     </div>
@@ -502,13 +510,13 @@ function renderTreeNodes(nodes, level) {
             : '';
 
         // Action buttons (icon-only) - Edit for all users, Archive/Delete only for admins
-        let actionButtons = `<button class="btn btn-sm btn-primary btn-icon-only" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>`;
+        let actionButtons = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>`;
 
         // Admin-only buttons: Archive/Restore and Delete
         if (isAdmin) {
             if (node.is_active) {
                 actionButtons += `
-                    <button class="btn btn-sm btn-warning btn-icon-only" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
+                    <button class="btn btn-xs btn-warning gap-1" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
                     <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deactivateArticle(${node.id})" title="Удалить">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -517,7 +525,7 @@ function renderTreeNodes(nodes, level) {
                 `;
             } else {
                 actionButtons += `
-                    <button class="btn btn-sm btn-success btn-icon-only" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
+                    <button class="btn btn-xs btn-success gap-1" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
                     <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deactivateArticle(${node.id})" title="Удалить">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -747,6 +755,13 @@ async function showEditModal(articleId) {
 function closeEditModal() {
     document.getElementById('edit-modal').close();
     document.getElementById('edit-form').reset();
+}
+
+// Delete article from edit modal (mobile only)
+function deleteArticleFromEditModal() {
+    const articleId = document.getElementById('edit-id').value;
+    closeEditModal();
+    deactivateArticle(articleId);
 }
 
 // Update article

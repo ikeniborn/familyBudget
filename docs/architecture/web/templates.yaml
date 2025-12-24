@@ -1241,3 +1241,286 @@ partials:
       - "event.stopPropagation() prevents row click when deleting"
     onclick_handler: "openEditFromDashboard(factId)"
     delete_handler: "deleteRecordFromDashboard(factId)"
+
+# ---------------------------------------------------------------------------
+# UI STANDARDS (Updated 2025-12-25)
+# ---------------------------------------------------------------------------
+ui_standards:
+  description: "Comprehensive UI/UX standards for consistent design across all templates with responsive patterns"
+
+  buttons:
+    edit:
+      desktop_table:
+        classes: "btn btn-xs btn-primary gap-1"
+        icon: "✏️ (emoji, NOT SVG)"
+        title: "Optional (tooltip on hover)"
+        onclick_pattern: "showEditModal(id)"
+        example: '<button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(id)">✏️</button>'
+        notes:
+          - "No responsive sizing in tables (table rows hidden on mobile)"
+          - "Consistent btn-xs size across all pages"
+          - "gap-1 provides spacing between icon and text"
+
+      standalone:
+        classes: "btn btn-xs sm:btn-sm btn-primary gap-1"
+        icon: "✏️ (emoji, NOT SVG)"
+        responsive: "btn-xs on mobile, sm:btn-sm on tablet+"
+        example: '<button class="btn btn-xs sm:btn-sm btn-primary gap-1">✏️</button>'
+        notes:
+          - "Use when button is not in a table row"
+          - "Responsive sizing for better UX on larger screens"
+
+    delete:
+      desktop_only:
+        classes: "btn btn-xs btn-error btn-square hidden md:inline-flex"
+        icon: "SVG trash can (Heroicons, h-4 w-4)"
+        title: "title=\"Удалить\" (REQUIRED for accessibility)"
+        onclick_pattern: "onclick=\"event.stopPropagation(); deleteFunction(id)\""
+        visibility: "Hidden on mobile (< 768px), visible on desktop"
+        example: |
+          <button class="btn btn-xs btn-error btn-square hidden md:inline-flex"
+                  onclick="event.stopPropagation(); deleteFact(id)"
+                  title="Удалить">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        notes:
+          - "ALWAYS include event.stopPropagation() to prevent parent row clicks"
+          - "ALWAYS include title attribute for screen readers"
+          - "Use btn-square for icon-only button (equal width/height)"
+
+      mobile_only:
+        classes: "btn btn-xs btn-error btn-square md:hidden"
+        icon: "SVG trash can (Heroicons, h-4 w-4)"
+        title: "title=\"Удалить\" (REQUIRED)"
+        visibility: "Visible on mobile (< 768px), hidden on desktop"
+        location: "Inside edit modals, before modal action buttons"
+        example: |
+          <div class="flex justify-center mt-4 mb-2 md:hidden">
+            <button type="button" class="btn btn-xs btn-error btn-square"
+                    onclick="deleteFromEditModal()" title="Удалить">
+              <svg>...</svg>
+            </button>
+          </div>
+        notes:
+          - "Provides mobile delete path when desktop delete button hidden"
+          - "Placed in admin edit modals (articles, financial centers, etc.)"
+          - "Opposite visibility of desktop delete buttons"
+
+    archive:
+      classes: "btn btn-xs btn-warning gap-1"
+      icon: "📦 (package emoji)"
+      title: "title=\"Архивировать\" (REQUIRED)"
+      onclick_pattern: "archiveFunction(id)"
+      always_visible: true
+      example: '<button class="btn btn-xs btn-warning gap-1" onclick="archiveArticle(id)" title="Архивировать">📦</button>'
+      notes:
+        - "Visible on all screen sizes (no md:hidden)"
+        - "Consistent styling with restore button"
+
+    restore:
+      classes: "btn btn-xs btn-success gap-1"
+      icon: "♻️ (recycle emoji)"
+      title: "title=\"Восстановить\" (REQUIRED)"
+      onclick_pattern: "restoreFunction(id)"
+      always_visible: true
+      example: '<button class="btn btn-xs btn-success gap-1" onclick="restoreArticle(id)" title="Восстановить">♻️</button>'
+      notes:
+        - "Visible on all screen sizes (no md:hidden)"
+        - "Used for un-archiving records"
+
+    modal_actions:
+      cancel:
+        classes: "btn btn-sm sm:btn-md flex-1 sm:flex-initial"
+        responsive_size: "btn-sm on mobile, sm:btn-md on tablet+"
+        responsive_width: "flex-1 on mobile (full-width), sm:flex-initial on tablet+ (auto-width)"
+        onclick_pattern: "closeModal()"
+        example: '<button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>'
+        notes:
+          - "Responsive sizing for better mobile UX"
+          - "Full-width on mobile prevents accidental taps"
+
+      submit:
+        classes: "btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial"
+        responsive_size: "btn-sm on mobile, sm:btn-md on tablet+"
+        responsive_width: "flex-1 on mobile (full-width), sm:flex-initial on tablet+ (auto-width)"
+        example: '<button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>'
+        notes:
+          - "Always include btn-primary for visual hierarchy"
+          - "Responsive sizing matches cancel button"
+
+  tables:
+    desktop_table:
+      container_classes: "hidden md:block overflow-x-auto"
+      table_classes: "table table-zebra table-sm"
+      notes:
+        - "ALWAYS include table-sm for consistent row height/padding"
+        - "overflow-x-auto enables horizontal scroll for wide content"
+        - "hidden md:block hides table on mobile (< 768px)"
+      example: |
+        <div class="hidden md:block overflow-x-auto">
+          <table class="table table-zebra table-sm">
+            <!-- table content -->
+          </table>
+        </div>
+
+    mobile_list:
+      container_classes: "block md:hidden divide-y divide-base-200"
+      item_pattern: "Two-line format (badge + title + value, details)"
+      interaction: "Full row clickable for edit"
+      notes:
+        - "Optional for admin pages (most use desktop-only tables)"
+        - "Required for user-facing pages (facts, plan, lists)"
+      example: |
+        <div class="block md:hidden divide-y divide-base-200">
+          <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors" onclick="editFunction(id)">
+            <!-- Line 1: Badge + Title + Value -->
+            <div class="flex items-center gap-2">
+              <span class="badge badge-xs">Type</span>
+              <span class="flex-1 font-medium truncate">Title</span>
+              <span class="font-bold">Value</span>
+            </div>
+            <!-- Line 2: Details -->
+            <div class="text-xs text-base-content/60 mt-1 truncate">
+              Detail 1 • Detail 2 • Detail 3
+            </div>
+          </div>
+        </div>
+
+  responsive_patterns:
+    size_scaling:
+      modal_buttons:
+        pattern: "btn-sm sm:btn-md"
+        mobile: "btn-sm (small buttons)"
+        tablet_plus: "sm:btn-md (medium buttons)"
+        breakpoint: "640px (sm)"
+        rationale: "Larger buttons easier to tap on tablets/desktops"
+
+      width_scaling:
+        pattern: "flex-1 sm:flex-initial"
+        mobile: "flex-1 (full-width)"
+        tablet_plus: "sm:flex-initial (auto-width)"
+        breakpoint: "640px (sm)"
+        rationale: "Full-width buttons prevent accidental taps on mobile"
+
+    visibility:
+      desktop_only:
+        classes: "hidden md:inline-flex OR hidden md:block"
+        breakpoint: "768px (md)"
+        use_cases:
+          - "Delete buttons in tables (mobile users delete via edit modal)"
+          - "Desktop-only table views"
+        example: '<button class="btn btn-xs hidden md:inline-flex">...</button>'
+
+      mobile_only:
+        classes: "md:hidden OR block md:hidden"
+        breakpoint: "768px (md)"
+        use_cases:
+          - "Mobile delete buttons in edit modals"
+          - "Mobile card/list views"
+        example: '<div class="block md:hidden">...</div>'
+
+  accessibility:
+    title_attributes:
+      delete_buttons: "title=\"Удалить\" (REQUIRED)"
+      archive_buttons: "title=\"Архивировать\" (REQUIRED)"
+      restore_buttons: "title=\"Восстановить\" (REQUIRED)"
+      rationale: "Screen readers announce button purpose, tooltips on hover"
+
+    event_propagation:
+      delete_buttons: "onclick=\"event.stopPropagation(); deleteFunction(id)\""
+      rationale: "Prevents parent row click when clicking delete button in table row"
+
+  icon_standards:
+    emoji_icons:
+      edit: "✏️ (pencil)"
+      archive: "📦 (package)"
+      restore: "♻️ (recycle)"
+      rationale: "Emojis render consistently across browsers, no SVG dependencies"
+
+    svg_icons:
+      delete: "Heroicons trash can (h-4 w-4)"
+      rationale: "SVG provides precise control for destructive actions"
+      viewBox: "0 0 24 24"
+      stroke: "currentColor"
+      fill: "none"
+
+recent_changes:
+  - date: "2025-12-25"
+    version: "UX/UI Synchronization v1.0"
+    type: "Complete UX/UI Standardization"
+    summary: "Synchronized all UI elements across templates with responsive design patterns for mobile/tablet/desktop"
+    categories:
+      - category: "Button Standardization"
+        changes:
+          - "Edit buttons: Standardized to btn-xs btn-primary gap-1 with ✏️ emoji (replaced SVG pencils)"
+          - "Delete buttons: Fixed size from btn-sm → btn-xs for consistency"
+          - "Archive/Restore: Standardized to btn-xs btn-warning/success gap-1"
+          - "All delete/archive/restore buttons now have required title attributes"
+          - "Added mobile delete buttons to all admin edit modals (5 files)"
+        files_affected:
+          - "frontend/web/templates/admin_articles.html"
+          - "frontend/web/templates/admin_financial_centers.html"
+          - "frontend/web/templates/admin_cost_centers.html"
+          - "frontend/web/templates/admin_stores.html"
+          - "frontend/web/templates/admin_product_groups.html"
+          - "frontend/web/templates/admin_users.html"
+          - "frontend/web/templates/partials/recent_transactions.html"
+
+      - category: "Table Standardization"
+        changes:
+          - "admin_stores.html: Added missing table-sm class for row height consistency"
+          - "All admin tables now use consistent 'table table-zebra table-sm' classes"
+        files_affected:
+          - "frontend/web/templates/admin_stores.html"
+
+      - category: "Modal Button Responsive Sizing"
+        changes:
+          - "All admin modals: Added btn-sm sm:btn-md flex-1 sm:flex-initial for responsive sizing"
+          - "modal_edit_fact/plan: Fixed min-w-fit → sm:flex-initial pattern"
+          - "Buttons scale properly from mobile (small, full-width) to desktop (medium, auto-width)"
+        modal_count: "12 modals across 7 files"
+        files_affected:
+          - "frontend/web/templates/admin_articles.html (create + edit modals)"
+          - "frontend/web/templates/admin_financial_centers.html (create + edit modals)"
+          - "frontend/web/templates/admin_cost_centers.html (create + edit modals)"
+          - "frontend/web/templates/admin_stores.html (create + edit modals)"
+          - "frontend/web/templates/admin_product_groups.html (create + edit modals)"
+          - "frontend/web/templates/components/modal_edit_fact.html"
+          - "frontend/web/templates/components/modal_edit_plan.html"
+
+      - category: "Mobile Accessibility"
+        changes:
+          - "Added mobile delete buttons (md:hidden) to all admin edit modals"
+          - "Provides delete path on mobile devices without desktop mode"
+          - "Each modal has dedicated deleteFromEditModal() JavaScript function"
+        pattern: '<div class="flex justify-center mt-4 mb-2 md:hidden"><button class="btn btn-xs btn-error btn-square" onclick="deleteFromEditModal()" title="Удалить">...</button></div>'
+        files_affected:
+          - "frontend/web/templates/admin_articles.html (deleteArticleFromEditModal)"
+          - "frontend/web/templates/admin_financial_centers.html (deleteCenterFromEditModal)"
+          - "frontend/web/templates/admin_cost_centers.html (deleteCenterFromEditModal)"
+          - "frontend/web/templates/admin_stores.html (deleteStoreFromEditModal)"
+          - "frontend/web/templates/admin_product_groups.html (deleteProductGroupFromEditModal)"
+
+      - category: "Accessibility Improvements"
+        changes:
+          - "Verified all delete buttons have title='Удалить' attributes"
+          - "Verified all archive buttons have title='Архивировать' attributes"
+          - "Verified all restore buttons have title='Восстановить' attributes"
+          - "Improved screen reader support across all admin pages"
+        rationale: "Ensures all action buttons are properly announced by screen readers and display tooltips on hover"
+
+    impact:
+      - "Improved mobile UX: Delete functionality now available on all screen sizes"
+      - "Visual consistency: All buttons use same sizes, styles, and responsive patterns"
+      - "Accessibility: All action buttons properly labeled for screen readers"
+      - "Developer experience: Clear standards documented for future development"
+
+    validation:
+      mobile_test: "< 768px - Modal buttons full-width, delete buttons visible in modals"
+      tablet_test: "768px-1024px - Modal buttons auto-width medium size, delete buttons visible in tables"
+      desktop_test: "> 1024px - All buttons visible with proper sizing"
+
+    git_commit: "feat(ui): complete UX/UI synchronization across all templates with responsive design"

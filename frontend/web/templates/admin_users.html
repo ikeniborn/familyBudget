@@ -526,7 +526,7 @@ function renderUsersTable(users) {
 
 // Render action buttons for user
 function renderActions(user) {
-    const editBtn = `<button class="btn btn-sm btn-outline btn-secondary gap-1" onclick="showEditUserModal(${user.id})">✏️ Редактировать</button>`;
+    const editBtn = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditUserModal(${user.id})">✏️ Редактировать</button>`;
 
     // Admin toggle button
     const adminBtn = user.is_admin
