@@ -34,6 +34,7 @@ class PushNotificationManager {
      */
     async init(options = {}) {
         if (!this.isSupported) {
+            this._updateUI();  // Update UI to hide button
             return false;
         }
 
@@ -41,12 +42,14 @@ class PushNotificationManager {
         try {
             await this.loadVapidKey();
         } catch (error) {
+            this._updateUI();  // Update UI to hide button
             return false;
         }
 
         // Check if VAPID key is valid (may have been invalidated in loadVapidKey)
         if (!this.isSupported || !this.vapidPublicKey) {
             // Push not configured on server - silently disable
+            this._updateUI();  // Update UI to hide button
             return false;
         }
 
@@ -56,6 +59,7 @@ class PushNotificationManager {
                 await this.subscribe();
             } catch (error) {
                 // Subscription failed - don't break initialization
+                this._updateUI();  // Update UI to show button (even if subscription failed)
                 return false;
             }
         } else if (Notification.permission === 'default') {
@@ -65,6 +69,9 @@ class PushNotificationManager {
             }
         }
 
+        // CRITICAL FIX: Update UI after successful initialization
+        // This shows the push bell button after VAPID key is loaded
+        this._updateUI();
         return true;
     }
 
