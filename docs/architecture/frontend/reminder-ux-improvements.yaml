@@ -24,8 +24,29 @@ issue:
     значения для hour/minute НЕ устанавливались. Пользователь мог оставить
     поля пустыми, что приводило к пустому reminder_datetime.
 
+    ДОПОЛНИТЕЛЬНАЯ ПРОБЛЕМА (discovered during debugging):
+    Даже после добавления кода установки дефолтного времени, условие
+    `if (!hourSelect.value && !minuteSelect.value)` не проходило, потому что
+    поля уже содержали СТАРЫЕ значения от предыдущего использования модального
+    окна (например, hourSelect.value="16", minuteSelect.value="55"). Modal reset
+    не очищал reminder поля должным образом перед переключением режимов.
+
 solution:
-  approach: "Установка дефолтных значений при показе секции напоминания"
+  approach: "Установка дефолтных значений при показе секции напоминания (ВСЕГДА, игнорируя старые значения)"
+
+  iteration_1_initial_fix:
+    description: "Добавлена установка дефолтного времени с условием проверки пустых полей"
+    problem: "Условие `!hourSelect.value && !minuteSelect.value` не проходило для переоткрытых модалок"
+    commit: "ca400987"
+
+  iteration_2_debug:
+    description: "Добавлены детальные логи для диагностики"
+    discovery: "Поля hour/minute содержали старые значения (16:55) от предыдущего использования модалки"
+    commit: "99e9385e"
+
+  iteration_3_final_fix:
+    description: "Убрано условие проверки пустых полей - дефолтное время устанавливается ВСЕГДА"
+    commit: "25c92a1c"
 
   changes:
     - file: "frontend/web/templates/plan.html"
@@ -42,10 +63,11 @@ solution:
                 onetimeReminderSection.classList.remove('hidden');
                 initReminderCalendarWidget(modalId);
 
-                // Set default time (current time + 1 hour, rounded to 5 minutes) if fields are empty
+                // Set default time (current time + 1 hour, rounded to 5 minutes)
+                // ALWAYS set default when switching to reminder mode (override old values)
                 const hourSelect = document.getElementById(`reminder_hour_${modalId}`);
                 const minuteSelect = document.getElementById(`reminder_minute_${modalId}`);
-                if (hourSelect && minuteSelect && !hourSelect.value && !minuteSelect.value) {
+                if (hourSelect && minuteSelect) {
                     const defaultTime = getCurrentTimeRounded();
                     hourSelect.value = defaultTime.hour;
                     minuteSelect.value = defaultTime.minute;
@@ -55,6 +77,9 @@ solution:
                 }
             }
         ```
+
+        Key change: Removed `&& !hourSelect.value && !minuteSelect.value` condition
+        to ALWAYS override old values when switching to reminder mode.
 
     - file: "frontend/web/templates/index.html"
       function: "togglePlanMode(modalId)"
@@ -147,8 +172,24 @@ related_issues:
     description: "Flow создания транзакций и планов"
 
 commits:
-  - commit: "TBD"
-    description: "fix(plan): auto-fill reminder time on mode switch"
+  - commit: "ca400987"
+    description: "fix(plan): auto-fill default reminder time on mode switch (initial)"
+    issue: "Condition check for empty fields prevented auto-fill on modal reuse"
     files:
       - "frontend/web/templates/plan.html"
       - "frontend/web/templates/index.html"
+      - "docs/architecture/frontend/reminder-ux-improvements.yaml"
+
+  - commit: "99e9385e"
+    description: "debug(plan): add detailed logging for reminder time auto-fill"
+    discovery: "Old values (16:55) remained from previous modal usage"
+    files:
+      - "frontend/web/templates/plan.html"
+      - "frontend/web/templates/index.html"
+
+  - commit: "25c92a1c"
+    description: "fix(plan): always set default reminder time on mode switch (final)"
+    fix: "Removed empty-check condition - ALWAYS override with default time"
+    files:
+      - "frontend/web/templates/plan.html:3909-3920"
+      - "frontend/web/templates/index.html:4614-4625"
