@@ -250,9 +250,15 @@ module:
             label: "Снять все отметки"
             color: "btn-warning"
         implementation:
-          show: "listsManager.updateFABVisibility() в showDetailView()"
+          show: |
+            - listsManager.updateFABVisibility() в showDetailView() (после switchView)
+            - listsManager.updateFABVisibility() в switchView() (в конце метода)
           hide: "listsManager.hideFAB() в showLandingView()"
           toggle: "toggleListsFAB() - открыть/закрыть speed dial"
+          notes: |
+            ВАЖНО: updateFABVisibility() вызывается ПОСЛЕ switchView(), чтобы
+            FAB был виден в обоих режимах (table и hierarchy).
+            Без этого FAB может не показаться в table view.
         backdrop: "lists-fab-backdrop (closes menu on click)"
         css: "frontend/web/static/css/lists.css:1236-1344"
     form_selectors:
