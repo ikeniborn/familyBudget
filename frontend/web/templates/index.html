@@ -2828,8 +2828,22 @@ document.addEventListener('DOMContentLoaded', function() {
                     swap: 'innerHTML'
                 });
             } else {
-                const error = await response.json();
-                showToast('Ошибка: ' + (error.detail || error.message || 'Не удалось создать перевод'), 'error');
+                let errorMsg = 'Не удалось создать перевод';
+                try {
+                    const error = await response.json();
+                    // Handle different error response structures
+                    if (typeof error === 'string') {
+                        errorMsg = error;
+                    } else if (error.detail) {
+                        errorMsg = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+                    } else if (error.message) {
+                        errorMsg = typeof error.message === 'string' ? error.message : JSON.stringify(error.message);
+                    }
+                } catch (e) {
+                    console.error('Error parsing response:', e);
+                    errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                }
+                showToast('Ошибка: ' + errorMsg, 'error');
             }
         } catch (error) {
             console.error('Error creating transfer:', error);
@@ -3329,8 +3343,11 @@ function setupPlanPeriodButtons() {
         debugLog('Default plan period:', hiddenInput.value);
     }
 
-    // Обработчики кликов
+    // Обработчики кликов (avoid duplicates)
     periodButtons.forEach(button => {
+        // Skip if listener already attached
+        if (button.dataset.listenerAttached === 'true') return;
+
         button.addEventListener('click', function() {
             // Убрать btn-active у всех кнопок
             periodButtons.forEach(btn => btn.classList.remove('btn-active'));
@@ -3345,6 +3362,9 @@ function setupPlanPeriodButtons() {
 
             debugLog('Selected plan period:', hiddenInput.value);
         });
+
+        // Mark listener as attached
+        button.dataset.listenerAttached = 'true';
     });
 }
 
@@ -4218,6 +4238,9 @@ function openAddPlanModal() {
         submitBtn.classList.remove('loading');
         delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
     }
+
+    // Re-initialize period buttons to set default plan_month value
+    setupPlanPeriodButtons();
 
     // Pre-fill reminder date and time before opening
     prefillReminderDateTime(modalId);
