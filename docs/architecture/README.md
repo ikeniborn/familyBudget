@@ -26,6 +26,20 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-24: Cache Busting Coverage Extended to Vendor Libraries
+- **Change:** Added `?v=PLACEHOLDER` to vendor Choices.js library (choices.min.css, choices.min.js)
+- **Reason:** Ensure browser cache invalidation for all static assets, including third-party libraries
+- **Coverage:** All minified files now have cache busting (11 file references across 7 templates updated)
+- **Service Worker:** Documented separate versioning strategy (internal CACHE_VERSION vs query params)
+- **Files changed:**
+  - 7 templates: base.html, index.html, plan.html, lists.html (web), add.html, addplan.html, edit.html (webapp)
+  - `docs/architecture/caching-strategy.md` (expanded Cache Busting section with +120 lines)
+  - `docs/architecture/README.md` (this changelog entry)
+- **Developer guideline:** Always add `?v=PLACEHOLDER` to new static file references
+- **Architecture decision:** Service Worker delivery via nginx (not backend) - optimal for gzip pre-compression
+
+---
+
 ### 2025-12-24: UI Button Reorganization and Standardization
 - **Change:** Separated edit/delete buttons into individual columns and standardized delete button styling
 - **Reason:** Cleaner UI layout, consistent delete button styling across all templates, better mobile UX

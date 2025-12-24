@@ -205,6 +205,118 @@ if (cachedResponse.headers.get('etag') !== freshResponse.headers.get('etag')) {
 }
 ```
 
+### Static File Versioning
+
+The application uses **timestamp-based query parameters** for cache busting of static files.
+
+**Mechanism:**
+- All `.min.js` and `.min.css` files include `?v=PLACEHOLDER` in templates
+- During deployment, `scripts/lib/cache_busting.sh` replaces `PLACEHOLDER` with timestamp (`YYYYMMDD_HHMM`)
+- Example: `choices.min.css?v=20251224_1430`
+
+**Supported paths:**
+- `/static/` - Web application static files
+- `/webapp/` - Telegram WebApp static files
+- `/shared/` - Shared modules
+- `/vendor/` - Third-party libraries (Choices.js, HTMX, etc.)
+
+**Workflow:**
+```bash
+# Deployment pipeline
+deploy.sh → minification → cache_busting.sh → version update
+```
+
+**Script:** `scripts/lib/cache_busting.sh`
+- `update_cache_versions()` - Replaces `?v=PLACEHOLDER` or old versions with new timestamp
+- `check_cache_versions()` - Audits current versions in templates
+- `run_cache_busting(mode)` - Entry point (`auto`, `check`, `manual`)
+
+**Regex patterns:**
+```perl
+# Matches all static files with ?v= parameter
+s{(\/static\/js\/(?:[a-zA-Z_\-]+\/)?)([a-zA-Z_\-]+\.(?:min\.)?js)\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+s{(\/static\/css\/(?:[a-zA-Z_\-]+\/)?)([a-zA-Z_\-]+\.(?:min\.)?css)\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+```
+
+**Files covered:**
+- 26+ templates (web + webapp)
+- All minified files (vendor libraries + custom modules)
+
+### Service Worker Versioning (Separate Strategy)
+
+**Why different from static files:**
+- Service Worker **content itself changes** - no query parameters needed
+- Delivered via **nginx** with `Cache-Control: no-cache, must-revalidate`
+- Browser always checks for updates on every page load
+
+**Mechanism:**
+- Internal `CACHE_VERSION` constant in `sw.js`:
+  ```javascript
+  const CACHE_VERSION = 'CACHE_VERSION_PLACEHOLDER';
+  ```
+- During deployment, `scripts/update-sw-version.sh` replaces placeholder with timestamp:
+  ```javascript
+  const CACHE_VERSION = 'v20251224_1430';
+  ```
+
+**Delivery architecture:**
+- **Full profile (production):** Nginx serves `sw.min.js` and `sw.min.js.gz`
+  ```nginx
+  location = /sw.min.js {
+      alias /usr/share/nginx/html/sw.min.js;
+      gzip_static on;  # Serve pre-compressed .gz version
+      add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+      add_header Service-Worker-Allowed "/" always;
+  }
+  ```
+- **Basic profile:** FastAPI backend serves from `/app/sw.min.js`
+
+**Why nginx (not backend):**
+- ✅ Performance: `gzip_static on` serves pre-compressed `.gz` files
+- ✅ No backend involvement: Static file serving optimized for nginx
+- ✅ HTTP/2 push capability (if enabled)
+- ✅ Cache headers: Already has `no-cache` headers
+
+**Architecture decision:** Do NOT move to backend delivery (loses performance benefits).
+
+**Validation:** `deploy.sh` aborts deployment if `CACHE_VERSION_PLACEHOLDER` remains (lines 1175-1199).
+
+### Developer Guidelines
+
+**Adding new static files:**
+1. Always add `?v=PLACEHOLDER` to `<link>` and `<script>` tags:
+   ```html
+   <!-- ✅ CORRECT -->
+   <link rel="stylesheet" href="/static/css/vendor/newlib.min.css?v=PLACEHOLDER">
+   <script src="/static/js/vendor/newlib.min.js?v=PLACEHOLDER"></script>
+
+   <!-- ❌ WRONG - missing cache busting -->
+   <link rel="stylesheet" href="/static/css/vendor/newlib.min.css">
+   <script src="/static/js/vendor/newlib.min.js"></script>
+   ```
+
+2. **Vendor libraries** (third-party): Same rule applies
+   - Choices.js, HTMX, ECharts, etc. all use `?v=PLACEHOLDER`
+
+3. **Testing before commit:**
+   ```bash
+   # Check current versions
+   ./scripts/lib/cache_busting.sh check
+
+   # Manual update (for testing)
+   ./scripts/lib/cache_busting.sh manual
+   ```
+
+4. **Deployment validation:**
+   - `deploy.sh` automatically runs `cache_busting.sh`
+   - Deployment fails if Service Worker cache version still has `PLACEHOLDER`
+   - All templates updated with new timestamp version
+
+**File coverage checklist:**
+- [ ] Web templates: `frontend/web/templates/*.html`
+- [ ] Webapp templates: `frontend/webapp/*.html`
+- [ ] Supports subdirectories: `/vendor/`, `/offline/`, `/budget/`
+
 ---
 
 ## Testing Cache Behavior
