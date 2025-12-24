@@ -33,7 +33,10 @@ class PushNotificationManager {
      * @param {boolean} options.requestPermission - Request permission on init (default: false)
      */
     async init(options = {}) {
+        console.log('[Push] Initializing PushNotificationManager...');
+
         if (!this.isSupported) {
+            console.warn('[Push] Push notifications not supported in this browser');
             this._updateUI();  // Update UI to hide button
             return false;
         }
@@ -42,6 +45,7 @@ class PushNotificationManager {
         try {
             await this.loadVapidKey();
         } catch (error) {
+            console.error('[Push] Failed to load VAPID key:', error);
             this._updateUI();  // Update UI to hide button
             return false;
         }
@@ -49,6 +53,7 @@ class PushNotificationManager {
         // Check if VAPID key is valid (may have been invalidated in loadVapidKey)
         if (!this.isSupported || !this.vapidPublicKey) {
             // Push not configured on server - silently disable
+            console.warn('[Push] Push notifications not configured on server');
             this._updateUI();  // Update UI to hide button
             return false;
         }
@@ -59,6 +64,7 @@ class PushNotificationManager {
                 await this.subscribe();
             } catch (error) {
                 // Subscription failed - don't break initialization
+                console.error('[Push] Auto-subscription failed:', error);
                 this._updateUI();  // Update UI to show button (even if subscription failed)
                 return false;
             }
@@ -72,6 +78,7 @@ class PushNotificationManager {
         // CRITICAL FIX: Update UI after successful initialization
         // This shows the push bell button after VAPID key is loaded
         this._updateUI();
+        console.log('[Push] PushNotificationManager initialized successfully');
         return true;
     }
 
@@ -80,6 +87,8 @@ class PushNotificationManager {
      * @private
      */
     async loadVapidKey() {
+        console.log('[Push] Loading VAPID key from backend...');
+
         try {
             const response = await fetch('/api/v1/push/vapid-key', {
                 credentials: 'include'
@@ -93,6 +102,7 @@ class PushNotificationManager {
 
             // Check if push notifications are configured on server
             if (data.configured === false || !data.public_key) {
+                console.warn('[Push] Push notifications not configured on server');
                 this.vapidPublicKey = null;
                 this.isSupported = false;
                 return;
@@ -104,11 +114,15 @@ class PushNotificationManager {
             if (!this.vapidPublicKey || this.vapidPublicKey.length < 65 ||
                 this.vapidPublicKey.includes('PLACEHOLDER') ||
                 this.vapidPublicKey.includes('0123456789')) {
+                console.error('[Push] Invalid VAPID key format');
                 this.vapidPublicKey = null;
                 this.isSupported = false;
                 return;
             }
+
+            console.log('[Push] VAPID key loaded successfully');
         } catch (error) {
+            console.error('[Push] loadVapidKey failed:', error);
             throw error;
         }
     }
@@ -141,6 +155,8 @@ class PushNotificationManager {
      * @returns {Promise<PushSubscription>}
      */
     async subscribe() {
+        console.log('[Push] Subscribing to push notifications...');
+
         if (!this.isSupported) {
             throw new Error('Push Notifications not supported');
         }
@@ -168,8 +184,10 @@ class PushNotificationManager {
             // Send subscription to backend
             await this.sendSubscriptionToBackend(subscription);
 
+            console.log('[Push] Subscription successful:', subscription.endpoint.substring(0, 50) + '...');
             return subscription;
         } catch (error) {
+            console.error('[Push] subscribe failed:', error);
             throw error;
         }
     }
@@ -179,7 +197,10 @@ class PushNotificationManager {
      * @returns {Promise<boolean>}
      */
     async unsubscribe() {
+        console.log('[Push] Unsubscribing from push notifications...');
+
         if (!this.isSupported) {
+            console.warn('[Push] Cannot unsubscribe - push not supported');
             return false;
         }
 
@@ -194,11 +215,14 @@ class PushNotificationManager {
                 await this.removeSubscriptionFromBackend(subscription);
 
                 this.subscription = null;
+                console.log('[Push] Unsubscription successful');
                 return true;
             }
 
+            console.warn('[Push] No active subscription found');
             return false;
         } catch (error) {
+            console.error('[Push] unsubscribe failed:', error);
             throw error;
         }
     }
@@ -237,7 +261,8 @@ class PushNotificationManager {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    subscription: subscription.toJSON()
+                    subscription: subscription.toJSON(),
+                    user_agent: navigator.userAgent
                 }),
                 credentials: 'include'
             });
@@ -366,20 +391,42 @@ class PushNotificationManager {
      * @returns {Promise<boolean>} New subscription state
      */
     async toggleSubscription() {
-        const status = await this.getStatus();
+        this._setButtonLoading(true);
 
-        if (status.subscribed) {
-            await this.unsubscribe();
-        } else {
-            const granted = await this.requestPermission();
-            if (!granted) {
-                this._updateUI();
-                return false;
+        try {
+            const status = await this.getStatus();
+
+            if (status.subscribed) {
+                await this.unsubscribe();
+                console.log('[Push] Successfully unsubscribed from push notifications');
+            } else {
+                const granted = await this.requestPermission();
+                if (!granted) {
+                    console.warn('[Push] Permission denied by user');
+                    this._updateUI();
+                    return false;
+                }
+                console.log('[Push] Successfully subscribed to push notifications');
             }
-        }
 
-        this._updateUI();
-        return (await this.getStatus()).subscribed;
+            this._updateUI();
+            return (await this.getStatus()).subscribed;
+        } catch (error) {
+            console.error('[Push] toggleSubscription failed:', error);
+            this._updateUI();
+
+            // Show user-friendly error message
+            if (window.showToast) {
+                window.showToast(
+                    'Ошибка при изменении подписки на уведомления. Попробуйте позже.',
+                    'error'
+                );
+            }
+
+            return false;
+        } finally {
+            this._setButtonLoading(false);
+        }
     }
 
     /**
@@ -429,6 +476,24 @@ class PushNotificationManager {
                 bellBtn.classList.remove('text-primary', 'text-error');
                 if (bellTooltip) bellTooltip.textContent = 'Включить push-уведомления';
             }
+        }
+    }
+
+    /**
+     * Set loading state for push button
+     * @private
+     * @param {boolean} isLoading - Whether button should show loading state
+     */
+    _setButtonLoading(isLoading) {
+        const bellBtn = document.getElementById('push-bell-btn');
+        if (!bellBtn) return;
+
+        if (isLoading) {
+            bellBtn.disabled = true;
+            bellBtn.classList.add('loading');
+        } else {
+            bellBtn.disabled = false;
+            bellBtn.classList.remove('loading');
         }
     }
 }

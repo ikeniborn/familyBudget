@@ -221,3 +221,29 @@ module:
   used_by:
     - $ref: "./budget-management.yaml#/module"
     - $ref: "../web/templates.yaml#/templates/base"
+
+  # ---------------------------------------------------------------------------
+  # CHANGELOG
+  # ---------------------------------------------------------------------------
+  changelog:
+    - version: "6.3"
+      date: "2025-12-24"
+      changes:
+        - type: "bugfix"
+          component: "push_notifications"
+          description: "Fixed 422 error in push notification unsubscribe"
+          details: |
+            Added missing user_agent field to /api/v1/push/unsubscribe request.
+            Previously frontend sent only subscription object, but Pydantic schema
+            (PushSubscriptionCreate) required user_agent field as mandatory.
+            This caused 422 Unprocessable Content errors when trying to unsubscribe.
+
+            Changes:
+            - pushManager.js: Added user_agent to removeSubscriptionFromBackend()
+            - Added try/catch error handling to toggleSubscription()
+            - Added _setButtonLoading() for better UX during async operations
+            - Added console.log debugging to all key methods
+          files:
+            - frontend/web/static/js/offline/pushManager.js
+            - frontend/web/static/js/offline/pushManager.min.js
+          impact: "Critical - push notification button now works correctly"

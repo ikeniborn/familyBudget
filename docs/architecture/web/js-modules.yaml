@@ -245,14 +245,39 @@ modules:
   pushManager:
     path: "frontend/web/static/js/offline/pushManager.js"
     description: "Web Push notifications manager"
+    class: "PushNotificationManager"
+    singleton: "window.budgetPushManager"
     endpoints:
       - path: "/api/v1/push/vapid-key"
         method: "GET"
+        auth: false  # PUBLIC endpoint
+        description: "Get VAPID public key for browser push subscriptions"
       - path: "/api/v1/push/subscribe"
         method: "POST"
+        auth: true  # PROTECTED endpoint
+        body:
+          subscription: "subscription.toJSON()"
+          user_agent: "navigator.userAgent"  # REQUIRED by PushSubscriptionCreate schema
+        description: "Subscribe to push notifications"
       - path: "/api/v1/push/unsubscribe"
         method: "POST"
+        auth: true  # PROTECTED endpoint
+        body:
+          subscription: "subscription.toJSON()"
+          user_agent: "navigator.userAgent"  # REQUIRED by PushSubscriptionCreate schema (fixed in v6.3)
+        description: "Unsubscribe from push notifications"
+        notes: |
+          CRITICAL: user_agent field is MANDATORY.
+          Missing this field causes 422 Unprocessable Content error.
+          Fixed in version 6.3 (2025-12-24).
     browser_api: "PushManager, ServiceWorkerRegistration"
+    key_methods:
+      - init: "Initialize manager, load VAPID key"
+      - toggleSubscription: "Toggle subscription state (for UI button)"
+      - subscribe: "Subscribe to push notifications"
+      - unsubscribe: "Unsubscribe from push notifications"
+      - _updateUI: "Update button icon based on state"
+      - _setButtonLoading: "Show/hide loading state on button"
 
   # ---------------------------------------------------------------------------
   # LISTS
