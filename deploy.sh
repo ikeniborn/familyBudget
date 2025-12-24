@@ -830,6 +830,11 @@ main() {
     echo "========================================================================"
     echo ""
 
+    # Clean up orphaned deployment processes from previous failed deployments
+    # This runs automatically and terminates stuck processes (alembic, npm, rsync, etc.)
+    check_orphaned_deployment_processes --terminate || true
+    echo ""
+
     # Load .env to auto-detect deployment profile
     if [[ -f "$DEPLOY_DIR/.env" ]]; then
         set -a

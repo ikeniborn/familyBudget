@@ -206,6 +206,7 @@ check_orphaned_deployment_processes() {
         "rsync.*familyBudget\|rsync.*budget"
         "python.*setup\.sh\|python.*deploy\.sh"
         "bash.*setup\.sh\|bash.*deploy\.sh"
+        "sudo bash.*setup\.sh\|sudo bash.*deploy\.sh"
     )
 
     # Exclusion patterns (legitimate service processes)
@@ -237,6 +238,17 @@ check_orphaned_deployment_processes() {
     for exclude in "${exclude_patterns[@]}"; do
         filtered_list=$(echo "$filtered_list" | grep -v -E "$exclude" || true)
     done
+
+    # Exclude current deploy process and its parent chain
+    # This prevents killing the currently running deploy.sh script
+    if [[ -n "${BASHPID:-}" ]]; then
+        filtered_list=$(echo "$filtered_list" | grep -v -E "\\b${BASHPID}\\b" || true)
+    fi
+    if [[ -n "${PPID:-}" ]]; then
+        filtered_list=$(echo "$filtered_list" | grep -v -E "\\b${PPID}\\b" || true)
+    fi
+    # Also exclude current shell's PID
+    filtered_list=$(echo "$filtered_list" | grep -v -E "\\b$$\\b" || true)
 
     # If no processes left after filtering
     if [[ -z "$filtered_list" ]]; then
