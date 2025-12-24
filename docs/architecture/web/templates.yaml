@@ -97,6 +97,19 @@ templates:
         reload_detection: "performance.getEntriesByType('navigation')[0]?.type === 'reload'"
         logic: "First ever launch: 2s + load. F5/reload or repeat launch: no splash (removed immediately)"
 
+    navbar_order:
+      description: "Icon order in top navigation bar (left to right)"
+      order:
+        - "Offline status icon (hidden when online)"
+        - "Push notification bell (subscription management)"
+        - "SSE status badge (real-time sync indicator)"
+        - "Telegram bot link"
+        - "Theme toggle (light/dark mode)"
+        - "User dropdown menu (desktop only)"
+      notes:
+        - "Push bell positioned before SSE status for visual priority"
+        - "Push notifications are user-facing, SSE is background sync"
+
     navigation_progress_bar:
       id: "navigation-progress"
       description: "Thin green progress bar under navbar showing real page loading progress"

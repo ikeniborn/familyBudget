@@ -283,6 +283,20 @@ npm run validate:minified
 - Service Worker CACHE_VERSION автоматически обновляется при каждом деплое
 - `sw.js` в репозитории содержит `CACHE_VERSION_PLACEHOLDER` - реальная версия генерируется при деплое
 
+### PWA Navbar Icons
+
+**Icon order** (left to right в `frontend/web/templates/base.html:620-673`):
+1. **Offline icon** (показывается только при отсутствии сети)
+2. **Push notification bell** (управление подписками на уведомления)
+   - Автоматическое управление через `pushManager.js`
+   - Динамическая иконка: outline → filled → muted (при denied permission)
+   - Toggle subscription при клике
+3. **SSE status badge** (real-time синхронизация WebSocket)
+4. **Telegram bot link**
+5. **Theme toggle** (light/dark mode)
+
+**Важно:** Push bell расположен перед SSE статусом для визуального приоритета (user-facing feature > background sync).
+
 ### Тестирование
 
 ```bash

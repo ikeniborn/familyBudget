@@ -24,6 +24,19 @@ Use these files to understand component relationships when planning changes or o
 | [caching-strategy.md](./caching-strategy.md) | HTTP caching, Redis, Service Worker strategies |
 | [frontend-loading-patterns.md](./frontend-loading-patterns.md) | Frontend data loading, pagination, real-time updates |
 
+## Recent Changes
+
+### 2025-12-24: Navbar Icon Order Adjustment
+- **Change:** Moved Push Notification bell icon left of SSE status in navbar
+- **Reason:** Improved visual priority - push notifications are user-facing, SSE is background sync
+- **Files changed:**
+  - `frontend/web/templates/base.html:632-650` (HTML reorder)
+  - `docs/architecture/web/templates.yaml` (navbar_order documentation)
+- **Impact:** Visual only - no functional changes, all IDs preserved
+- **Order:** Offline Icon → **Push Bell** → SSE Status → Telegram → Theme Toggle
+
+---
+
 ## File Format
 
 All files use YAML format with `$ref` links (JSON Reference style) for cross-file relationships:
