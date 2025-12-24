@@ -221,21 +221,24 @@ module:
         id: "create-list-fab"
         description: "FAB кнопка для создания нового списка"
         icon: "➕ (plus sign)"
-        position: "bottom-6 right-6 (fixed)"
+        position: "bottom-6 right-6 (fixed, всегда в правом нижнем углу viewport)"
         visibility: "Visible только в landing view"
         function: "openCreateListModal()"
         css_class: "btn btn-success btn-circle btn-lg shadow-xl"
+        dom_location: "ПОСЛЕ {% endblock %} (вне блока content)"
         implementation:
           show: "listsManager.showCreateListFAB() в showLandingView()"
           hide: "listsManager.hideCreateListFAB() в showDetailView()"
+          positioning: "position: fixed относительно viewport, НЕ относительно content"
 
       detail_view_fab:
         id: "lists-fab-menu"
         description: "FAB Speed Dial для массовых операций со списком"
         icon: "⋮ (vertical dots, rotates 90° when open)"
-        position: "bottom-6 right-6 (fixed)"
+        position: "bottom-6 right-6 (fixed, всегда в правом нижнем углу viewport)"
         visibility: "Visible всегда в detail view (независимо от количества items)"
         type: "Speed Dial (expandable menu)"
+        dom_location: "ПОСЛЕ {% endblock %} (вне блока content)"
         items:
           - action: "deleteCompletedWithConfirm()"
             icon: "🗑️"
