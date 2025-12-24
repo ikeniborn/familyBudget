@@ -1167,6 +1167,33 @@ main() {
     run_cache_busting "auto" "/opt/budget"
     echo ""
 
+    # CRITICAL SAFEGUARD: Abort deployment if Service Worker cache version broken
+    # This prevents deploying broken PWA that won't cache splash screens
+    if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
+        if grep -q "CACHE_VERSION_PLACEHOLDER" "$DEPLOY_DIR/sw.min.js" 2>/dev/null; then
+            echo ""
+            print_message error "═══════════════════════════════════════════════════════════"
+            print_message error "         CRITICAL ERROR: SERVICE WORKER BROKEN           "
+            print_message error "═══════════════════════════════════════════════════════════"
+            print_message error ""
+            print_message error "sw.min.js still contains CACHE_VERSION_PLACEHOLDER"
+            print_message error "This means PWA caching will COMPLETELY FAIL"
+            print_message error ""
+            print_message error "Splash screens won't show, offline mode won't work"
+            print_message error ""
+            print_message error "Possible causes:"
+            print_message error "  1. npm run build failed silently"
+            print_message error "  2. terser minification timeout"
+            print_message error "  3. update-sw-version.sh not running"
+            print_message error "  4. File permissions preventing sw.js update"
+            print_message error ""
+            print_message error "DEPLOYMENT ABORTED - Fix Service Worker first"
+            print_message error "═══════════════════════════════════════════════════════════"
+            echo ""
+            exit 1
+        fi
+    fi
+
     # Verify cache busting succeeded
     info "Verifying cache busting results..."
     placeholder_count=$(grep -r "PLACEHOLDER" "$DEPLOY_DIR/frontend/web/templates/"*.html 2>/dev/null | wc -l)

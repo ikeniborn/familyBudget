@@ -27,8 +27,35 @@ class OfflineManager {
         this.maxRetries = 5;
         this.isInitialized = false;
         this.lastToastTime = 0;
-        this.toastDebounceMs = 3000; // Prevent toast spam
+        this.toastDebounceMs = 10000; // 10s to prevent spam during rapid transitions
         this.lastOfflineToastTime = 0; // For debounce offline save toast
+
+        // Track navigation state to suppress false positive warnings
+        this._isNavigating = false;
+        this._navigationTimeout = null;
+
+        // Listen for navigation events
+        window.addEventListener('beforeunload', () => {
+            this._isNavigating = true;
+        });
+
+        // HTMX navigation (if used)
+        if (typeof htmx !== 'undefined') {
+            document.body.addEventListener('htmx:beforeRequest', () => {
+                this._isNavigating = true;
+                clearTimeout(this._navigationTimeout);
+                this._navigationTimeout = setTimeout(() => {
+                    this._isNavigating = false;
+                }, 8000); // Clear after 8s
+            });
+
+            document.body.addEventListener('htmx:afterSettle', () => {
+                clearTimeout(this._navigationTimeout);
+                this._navigationTimeout = setTimeout(() => {
+                    this._isNavigating = false;
+                }, 1000); // 1s grace period after page loads
+            });
+        }
 
         // ✅ Request-level deduplication cache (prevent concurrent duplicate creates)
         this.pendingCreates = new Map(); // operationKey → Promise
@@ -227,7 +254,10 @@ class OfflineManager {
             }
         } else if (newStatus === 'degraded' && oldStatus === 'online') {
             // Соединение ухудшилось
-            this._showToastDebounced('Медленное соединение', 'warning');
+            // Suppress warning during navigation (RTT spikes are normal)
+            if (!this._isNavigating) {
+                this._showToastDebounced('Медленное соединение', 'warning');
+            }
         }
 
         // Обновить UI индикаторы

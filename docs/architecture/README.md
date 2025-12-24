@@ -272,6 +272,35 @@ When adding new components:
 
 ## Recent Changes
 
+- **2025-12-24**: PWA Issues Fixed (v6.2):
+  - **Splash Screen (CRITICAL)**: Added all 10 splash images to Service Worker STATIC_CACHE (previously only 5)
+    - Comprehensive device coverage: iPhone SE/7/8, XR/11, X/XS/11 Pro, 12/13/14, 14/15 Pro, 6+/7+/8+, XS Max/11 Pro Max, 14/15 Pro Max, Android 1080x2340
+    - Fixed white screen on PWA launch - all devices now show proper splash screen
+  - **Splash Screen (CRITICAL)**: Added CRITICAL deployment validation with exit 1
+    - Prevents deploying broken PWA if Service Worker cache version contains PLACEHOLDER
+    - Deployment ABORTS if sw.min.js has invalid cache version
+    - Ensures PWA caching always works correctly
+  - **Network Detection**: Increased RTT threshold from 2500ms to 5000ms
+    - Reduces false positives on mobile 4G, VPN connections, and page transitions
+    - Prevents "Медленное соединение" warnings during normal usage
+  - **Network Detection**: Added navigation tracking to suppress warnings during page transitions
+    - Detects HTMX navigation and beforeunload events
+    - 8-second timeout covers slow page loads
+    - 1-second grace period after page settles
+  - **Network Detection**: Increased toast debounce from 3s to 10s
+    - Prevents toast spam during rapid page transitions (shopping flows)
+    - Covers typical navigation flows without annoying users
+  - **FAB Visibility**: Fixed FAB buttons missing on /lists page
+    - **Root Cause**: FAB elements were outside {% block content %} and not rendered by Jinja2
+    - Moved FAB buttons inside content block (lines 205-247 in lists.html)
+    - FAB now accessible to all users (not admin-only)
+  - **Files modified**:
+    - `sw.js:30-40` - Added 5 missing splash images
+    - `deploy.sh:1170-1195` - CRITICAL validation with exit 1
+    - `frontend/web/static/js/offline/networkDetector.js:46` - RTT 5000ms
+    - `frontend/web/static/js/offline/offlineManager.js:30,33-58,257-260` - Navigation tracking + toast debounce 10s
+    - `frontend/web/templates/lists.html:200-247` - FAB moved inside content block
+  - **Result**: Stable PWA experience with proper splash screens, minimal false network warnings, visible FAB buttons
 - **2025-12-23**: Edit Modal UI Improvements:
   - **Recurring template info**: Converted to DaisyUI collapse component (default: collapsed)
     - Improves UX by reducing visual clutter when editing recurring plan records
