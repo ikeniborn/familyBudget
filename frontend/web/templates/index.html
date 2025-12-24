@@ -499,7 +499,6 @@ async function loadCategoriesForEdit() {
     // Check cache first
     if (isCacheValid(dropdownCache.categories)) {
         allCategories = dropdownCache.categories.data;
-        console.log('[Cache] Using cached categories:', allCategories.length);
         return allCategories;
     }
 
@@ -516,7 +515,6 @@ async function loadCategoriesForEdit() {
             // Update cache
             dropdownCache.categories.data = allCategories;
             dropdownCache.categories.timestamp = Date.now();
-            console.log('[Cache] Cached categories:', allCategories.length);
         }
     } catch (error) {
         console.error('Error loading categories:', error);
@@ -587,7 +585,6 @@ async function loadEditFinancialCenters(selectedId = null) {
     if (isCacheValid(dropdownCache.financialCenters)) {
         const centers = dropdownCache.financialCenters.data;
         populateFinancialCentersDropdown(select, centers, selectedId);
-        console.log('[Cache] Using cached financial centers:', centers.length);
         return;
     }
 
@@ -604,7 +601,6 @@ async function loadEditFinancialCenters(selectedId = null) {
         // Update cache
         dropdownCache.financialCenters.data = centers;
         dropdownCache.financialCenters.timestamp = Date.now();
-        console.log('[Cache] Cached financial centers:', centers.length);
 
         populateFinancialCentersDropdown(select, centers, selectedId);
     } catch (error) {
@@ -648,7 +644,6 @@ async function loadEditCostCenters(selectedId = null) {
     if (isCacheValid(dropdownCache.costCenters)) {
         const centers = dropdownCache.costCenters.data;
         populateCostCentersDropdown(select, centers, selectedId);
-        console.log('[Cache] Using cached cost centers:', centers.length);
         return;
     }
 
@@ -665,7 +660,6 @@ async function loadEditCostCenters(selectedId = null) {
         // Update cache
         dropdownCache.costCenters.data = centers;
         dropdownCache.costCenters.timestamp = Date.now();
-        console.log('[Cache] Cached cost centers:', centers.length);
 
         populateCostCentersDropdown(select, centers, selectedId);
     } catch (error) {
@@ -1088,16 +1082,8 @@ async function openEditFromDashboard(factId) {
         const dropdownMeasure = measures.find(m => m.name === 'Dropdown Load');
         const widgetMeasure = measures.find(m => m.name === 'Widget Init');
 
-        if (modalOpenMeasure) {
-            console.log(`[Performance] Modal opened in ${modalOpenMeasure.duration.toFixed(0)}ms`);
-            if (apiMeasure) console.log(`[Performance]   API Fetch: ${apiMeasure.duration.toFixed(0)}ms`);
-            if (dropdownMeasure) console.log(`[Performance]   Dropdown Load: ${dropdownMeasure.duration.toFixed(0)}ms`);
-            if (widgetMeasure) console.log(`[Performance]   Widget Init: ${widgetMeasure.duration.toFixed(0)}ms`);
-
-            // Alert if too slow
-            if (modalOpenMeasure.duration > 1000) {
-                console.warn(`[Performance] Modal open exceeded 1000ms: ${modalOpenMeasure.duration.toFixed(0)}ms`);
-            }
+        if (modalOpenMeasure && modalOpenMeasure.duration > 1000) {
+            console.warn(`[Performance] Modal open exceeded 1000ms: ${modalOpenMeasure.duration.toFixed(0)}ms`);
         }
 
         // Cleanup old markers
@@ -1159,7 +1145,6 @@ async function openEditPendingRecord(itemId, entity) {
         // Check if we're offline (all requests failed)
         const allFailed = results.every(r => r.status === 'rejected');
         if (allFailed) {
-            console.log('[openEditPendingRecord] Offline mode - using cached data from pending record');
             // Populate dropdowns with single option from pending record data
             populateOfflineDropdowns(data);
         }
