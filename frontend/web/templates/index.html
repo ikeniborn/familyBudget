@@ -4613,35 +4613,15 @@ function togglePlanMode(modalId) {
                 reminderModeLabel.classList.remove('hidden');
             }
             if (onetimeReminderSection) {
-                console.log('[togglePlanMode] Showing onetimeReminderSection, classes BEFORE:', onetimeReminderSection.className);
                 onetimeReminderSection.classList.remove('hidden');
-                console.log('[togglePlanMode] Showing onetimeReminderSection, classes AFTER:', onetimeReminderSection.className);
 
-                // DEBUG: Check element visibility
-                const computedStyle = window.getComputedStyle(onetimeReminderSection);
-                const childDiv = document.getElementById(`reminder-settings-${modalId}`);
-                console.log('[togglePlanMode] Element visibility check:', {
-                    offsetHeight: onetimeReminderSection.offsetHeight,
-                    offsetWidth: onetimeReminderSection.offsetWidth,
-                    computedDisplay: computedStyle.display,
-                    computedVisibility: computedStyle.visibility,
-                    inlineStyle: onetimeReminderSection.style.cssText,
-                    parentElement: onetimeReminderSection.parentElement?.tagName,
-                    parentClasses: onetimeReminderSection.parentElement?.className,
-                    // Check child div
-                    childDivFound: !!childDiv,
-                    childDivClasses: childDiv?.className,
-                    childDivHeight: childDiv?.offsetHeight
-                });
+                // ✅ FIX: Also remove 'hidden' from child div (added on modal close)
+                const reminderSettings = document.getElementById(`reminder-settings-${modalId}`);
+                if (reminderSettings) {
+                    reminderSettings.classList.remove('hidden');
+                }
 
                 initReminderCalendarWidget(modalId);
-
-                // DEBUG: Check visibility AFTER initReminderCalendarWidget
-                console.log('[togglePlanMode] After initReminderCalendarWidget:', {
-                    sectionHeight: onetimeReminderSection.offsetHeight,
-                    childDivHeight: childDiv?.offsetHeight,
-                    dateInputExists: !!document.getElementById(`reminder_date_${modalId}`)
-                });
 
                 // Set default time (current time + 1 hour, rounded to 5 minutes)
                 // ALWAYS set default when switching to reminder mode (override old values)

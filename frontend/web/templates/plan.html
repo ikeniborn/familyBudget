@@ -3896,6 +3896,13 @@ function togglePlanMode(modalId) {
             }
             if (onetimeReminderSection) {
                 onetimeReminderSection.classList.remove('hidden');
+
+                // ✅ FIX: Also remove 'hidden' from child div (added on modal close)
+                const reminderSettings = document.getElementById(`reminder-settings-${modalId}`);
+                if (reminderSettings) {
+                    reminderSettings.classList.remove('hidden');
+                }
+
                 initReminderCalendarWidget(modalId);
 
                 // Set default time (current time + 1 hour, rounded to 5 minutes)
