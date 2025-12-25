@@ -957,19 +957,22 @@ class ChoicesCategoryTree {
         }
 
         // Save current selection to restore it if still available
-        // CRITICAL: Only save selection if it's a real user selection, not a phantom value
-        // Check if there are actually active items in Choices.js (user made explicit selection)
+        // CRITICAL FIX: Read directly from element.value instead of choices.getValue()
+        // choices.getValue() may return undefined even when element has a value
+        // This happens when category is set via element.value = '123' before Choices.js syncs
+        const elementValue = this.element ? this.element.value : null;
+        const previousSelectionId = elementValue ? parseInt(elementValue) : null;
+
+        // Also get Choices.js API value for logging (but don't rely on it for logic)
         const activeItems = this.choices ? this.choices.getValue(true) : null;
         const hasActiveSelection = activeItems && Array.isArray(activeItems) && activeItems.length > 0;
-        const previousSelection = hasActiveSelection && this.element ? this.element.value : null;
-        const previousSelectionId = previousSelection ? parseInt(previousSelection) : null;
 
         console.log(`[ChoicesCategoryTree] Current selection state:`, {
+            elementValue,
+            previousSelectionId,
             activeItems,
             hasActiveSelection,
-            previousSelection,
-            previousSelectionId,
-            elementValue: this.element ? this.element.value : null
+            note: elementValue && !hasActiveSelection ? 'Element has value but Choices.js not synced yet' : 'OK'
         });
 
         try {
