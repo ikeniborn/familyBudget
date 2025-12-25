@@ -658,6 +658,76 @@ vendor:
     usage: "analytics.html"
 
 # ---------------------------------------------------------------------------
+# SERVICE WORKER & PWA
+# ---------------------------------------------------------------------------
+pwa:
+  serviceWorker:
+    path: "sw.js (root)"
+    minified: "sw.min.js"
+    description: "Progressive Web App service worker with aggressive auto-update"
+    version_constant: "CACHE_VERSION (updated by scripts/update-sw-version.sh)"
+    cache_strategy:
+      api_endpoints: "Network First (cache fallback)"
+      html_pages: "Network First (limited offline)"
+      static_assets: "Cache First (long TTL)"
+      user_uploaded: "Network Only"
+    features:
+      - "Offline support (cached resources)"
+      - "Background sync"
+      - "Push notifications"
+      - "Automatic updates (skipWaiting + clients.claim)"
+      - "Version-based reload prevention"
+    events:
+      install: "Cache static resources, call skipWaiting()"
+      activate: "Delete old caches, call clients.claim(), notify clients"
+      fetch: "Intercept requests, apply caching strategy"
+      message: "Handle skipWaiting, getVersion, clearCache actions"
+
+  serviceWorkerRegistration:
+    location: "frontend/web/templates/base.html (lines 1357-1500)"
+    description: "SW registration + version checking + automatic reload"
+    version_tracking:
+      storage: "localStorage (key: pwa_sw_version)"
+      method: "MessageChannel request to SW for CACHE_VERSION"
+      comparison: "Compare CACHE_VERSION (not scriptURL)"
+      reload_condition: "Only if CACHE_VERSION changed"
+    update_checks:
+      on_load: "Every page load (registration.update())"
+      periodic: "Every 1 hour (setInterval)"
+    version_check_flow: |
+      1. controllerchange event fires → new SW activated
+      2. getSWVersion() → postMessage({action: 'getVersion'}) via MessageChannel
+      3. SW responds with {type: 'VERSION_RESPONSE', version: CACHE_VERSION}
+      4. Compare received version with localStorage saved version
+      5. If different: save new version, reload page
+      6. If same: skip reload (prevents reload loop)
+    key_functions:
+      getSWVersion: |
+        async function getSWVersion(controller) {
+          // Request CACHE_VERSION from SW via MessageChannel
+          // Returns: "v20251225_1530" or null
+          // Timeout: 5 seconds
+        }
+    console_logs:
+      version_changed: |
+        [PWA] Requesting CACHE_VERSION from new SW...
+        [PWA] Received SW version: v20251225_1530
+        [PWA] New SW CACHE_VERSION: v20251225_1530
+        [PWA] Saved CACHE_VERSION: v20251225_1430
+        [PWA] ⚡ Version changed, reloading page...
+      version_unchanged: |
+        [PWA] Requesting CACHE_VERSION from new SW...
+        [PWA] Received SW version: v20251225_1430
+        [PWA] New SW CACHE_VERSION: v20251225_1430
+        [PWA] Saved CACHE_VERSION: v20251225_1430
+        [PWA] ✓ Version unchanged, skipping reload
+    critical_fix_v5_5_0: |
+      BEFORE: Used scriptURL for version comparison
+      PROBLEM: scriptURL never changes (/sw.min.js always same)
+      AFTER: Use CACHE_VERSION via MessageChannel
+      RESULT: Proper version detection, no unnecessary reloads
+
+# ---------------------------------------------------------------------------
 # TELEGRAM WEB APP JS
 # ---------------------------------------------------------------------------
 telegram_webapp:
