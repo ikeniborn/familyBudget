@@ -176,7 +176,8 @@ async def _subscriber_loop():
                 pubsub = redis.pubsub()
                 await pubsub.subscribe(BUDGET_EVENTS_CHANNEL)
 
-                logger.info(f"Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
+                logger.warning(f"[PUBSUB-DEBUG] Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
+                logger.warning(f"[PUBSUB-DEBUG] Starting listen loop...")
 
                 async for message in pubsub.listen():
                     logger.warning(f"[PUBSUB-DEBUG] Received message type: {message['type']}")
