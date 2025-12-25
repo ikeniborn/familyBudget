@@ -1196,18 +1196,34 @@
         // Button loading state management (prevents double submit)
         // Similar to setSubmitLoading but accepts button directly
         function setButtonLoading(button, isLoading) {
-            if (!button) return;
+            console.log('[setButtonLoading] Called with:', {button: !!button, isLoading});
+
+            if (!button) {
+                console.warn('[setButtonLoading] ⚠️ Button is null/undefined, returning');
+                return;
+            }
 
             if (isLoading) {
+                console.log('[setButtonLoading] Setting loading=true');
                 button.disabled = true;
                 button.dataset.originalHtml = button.innerHTML;
                 // Use loading-xs for btn-sm, loading-sm otherwise
                 const spinnerSize = button.classList.contains('btn-sm') ? 'loading-xs' : 'loading-sm';
                 button.innerHTML = `<span class="loading loading-spinner ${spinnerSize}"></span> Сохранение...`;
+                console.log('[setButtonLoading] ✅ Button in loading state, originalHtml saved');
             } else {
+                console.log('[setButtonLoading] Setting loading=false, hasOriginal:', !!button.dataset.originalHtml);
                 button.disabled = false;
                 if (button.dataset.originalHtml) {
                     button.innerHTML = button.dataset.originalHtml;
+                    delete button.dataset.originalHtml;  // ← CRITICAL: Delete to prevent memory leak
+                    console.log('[setButtonLoading] ✅ Button restored from originalHtml');
+                } else {
+                    console.warn('[setButtonLoading] ⚠️ No originalHtml found, forcing default button text');
+                    // DEFENSIVE FIX: Restore default button text to prevent stuck spinner
+                    // This happens if modal was closed/reopened between setLoading(true) and setLoading(false)
+                    button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Сохранить';
+                    console.log('[setButtonLoading] ✅ Fallback: Button restored to default text');
                 }
             }
         }

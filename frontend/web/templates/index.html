@@ -4735,17 +4735,34 @@ function savePlan(button) {
 }
 
 function saveTransfer(button) {
-    if (button.disabled) return;
+    console.log('[saveTransfer] ========== START ==========');
+    console.log('[saveTransfer] Button element:', button);
+    console.log('[saveTransfer] Button disabled:', button.disabled);
+    console.log('[saveTransfer] Form ID from dataset:', button.dataset.formId);
+    console.log('[saveTransfer] Modal ID from dataset:', button.dataset.modalId);
+
+    if (button.disabled) {
+        console.warn('[saveTransfer] ⚠️ Button already disabled, returning early');
+        return;
+    }
+
     setButtonLoading(button, true);
+    console.log('[saveTransfer] ✅ Button set to loading state');
 
     const form = document.getElementById(button.dataset.formId);
+    console.log('[saveTransfer] Form element found:', !!form, form?.id);
+
     if (form && form.checkValidity()) {
+        console.log('[saveTransfer] ✅ Form is valid, calling requestSubmit()');
         form.requestSubmit();
     } else {
+        console.warn('[saveTransfer] ⚠️ Form invalid or not found, re-enabling button');
         // Re-enable button if validation fails
         setButtonLoading(button, false);
         form?.reportValidity();
     }
+
+    console.log('[saveTransfer] ========== END ==========');
 }
 
 // ==================== OFFLINE SAVE FUNCTIONS ====================
