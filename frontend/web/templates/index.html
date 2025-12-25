@@ -482,10 +482,21 @@ function setTransferRecordType(type) {
  * Initialize period buttons for plan transfers (similar to setupPlanPeriodButtons).
  */
 function setupTransferPeriodButtons() {
+    console.log('[setupTransferPeriodButtons] Called');
     const periodButtons = document.querySelectorAll('.transfer-period-btn');
     const hiddenInput = document.querySelector('#transfer_plan_month');
 
-    if (!hiddenInput || periodButtons.length === 0) return;
+    console.log('[setupTransferPeriodButtons] Found buttons:', periodButtons.length, 'Hidden input:', !!hiddenInput);
+
+    if (!hiddenInput) {
+        console.error('[setupTransferPeriodButtons] Hidden input #transfer_plan_month not found!');
+        return;
+    }
+
+    if (periodButtons.length === 0) {
+        console.error('[setupTransferPeriodButtons] No period buttons found with class .transfer-period-btn');
+        return;
+    }
 
     // Initialize button labels and data attributes (current month +0, +1, +2)
     const today = new Date();
@@ -502,7 +513,9 @@ function setupTransferPeriodButtons() {
     const firstButton = periodButtons[0];
     if (firstButton && firstButton.dataset.year && firstButton.dataset.month) {
         hiddenInput.value = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
-        debugLog('Default transfer plan period:', hiddenInput.value);
+        console.log('[setupTransferPeriodButtons] ✅ Default period set:', hiddenInput.value);
+    } else {
+        console.error('[setupTransferPeriodButtons] ❌ First button missing data attributes!');
     }
 
     // Click handlers (avoid duplicates)
@@ -532,12 +545,15 @@ function setupTransferPeriodButtons() {
 
 // Открыть модальное окно фактического перевода
 function openFactTransferModal() {
-    // Reset button state
+    // Reset button state (fix: restore original HTML if button was in loading state)
     const form = document.getElementById('form_transfer');
     const submitBtn = form?.querySelector('.save-btn');
     if (submitBtn) {
         submitBtn.disabled = false;
-        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+        if (submitBtn.dataset.originalHtml) {
+            submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+            delete submitBtn.dataset.originalHtml;
+        }
     }
 
     // Set transfer type to 'fact'
@@ -562,12 +578,15 @@ window.openFactTransferModal = openFactTransferModal;
 function openPlanTransferModal() {
     console.log('[openPlanTransferModal] Opening plan transfer modal');
 
-    // Reset button state
+    // Reset button state (fix: restore original HTML if button was in loading state)
     const form = document.getElementById('form_transfer');
     const submitBtn = form?.querySelector('.save-btn');
     if (submitBtn) {
         submitBtn.disabled = false;
-        delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
+        if (submitBtn.dataset.originalHtml) {
+            submitBtn.innerHTML = submitBtn.dataset.originalHtml;
+            delete submitBtn.dataset.originalHtml;
+        }
     }
 
     // Set transfer type to 'plan'
@@ -2935,11 +2954,29 @@ document.addEventListener('DOMContentLoaded', function() {
             // For plan transfers: use transfer_plan_month (YYYY-MM) and convert to YYYY-MM-01
             const planMonth = formData.get('transfer_plan_month'); // "2025-12"
             console.log('[Transfer Submit] Plan month:', planMonth);
+
+            if (!planMonth || planMonth === 'null' || planMonth === 'undefined') {
+                showToast('Ошибка: выберите период планирования', 'error');
+                const submitBtn = e.target.querySelector('.save-btn');
+                setButtonLoading(submitBtn, false);
+                isSubmitting = false;
+                return;
+            }
+
             transferDate = `${planMonth}-01`; // "2025-12-01"
         } else {
             // For fact transfers: use transfer_date (DD.MM.YYYY) and format to YYYY-MM-DD
             const rawDate = formData.get('transfer_date');
             console.log('[Transfer Submit] Fact date (raw):', rawDate);
+
+            if (!rawDate || rawDate.trim() === '') {
+                showToast('Ошибка: введите дату перевода', 'error');
+                const submitBtn = e.target.querySelector('.save-btn');
+                setButtonLoading(submitBtn, false);
+                isSubmitting = false;
+                return;
+            }
+
             transferDate = BudgetShared.DateFormatter.formatForAPI(rawDate);
         }
         console.log('[Transfer Submit] Final transfer_date:', transferDate, 'record_type:', recordType);
