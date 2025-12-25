@@ -945,6 +945,18 @@ class ChoicesCategoryTree {
             previousFinancialCenterId: this.options.financialCenterId
         });
 
+        // Detect if this is initial filtering (from no filter to a filter)
+        // vs changing filter (from one FC to another)
+        const previousFcId = this.options.financialCenterId;
+        const isInitialFiltering = previousFcId === null && financialCenterId !== null;
+
+        console.log(`[ChoicesCategoryTree] Filter change type:`, {
+            previousFcId,
+            newFcId: financialCenterId,
+            isInitialFiltering,
+            note: isInitialFiltering ? 'Initial filter - do NOT preserve selection' : 'FC changed - preserve if valid'
+        });
+
         // Update option
         this.options.financialCenterId = financialCenterId;
 
@@ -1030,7 +1042,11 @@ class ChoicesCategoryTree {
                 // 4th parameter FALSE prevents Choices.js from auto-selecting
                 this.choices.setChoices(choices, 'value', 'label', false);
 
-                // Check if we need to restore previous selection
+                // Check if we should preserve selection
+                // Only preserve if:
+                // 1. This is NOT initial filtering (FC is changing from one value to another, not from null to value)
+                // 2. Previous selection exists
+                // 3. Category is available in new filtered list
                 const categoryStillAvailable = previousSelectionId &&
                     this.categoryMap.has(previousSelectionId);
 
@@ -1038,23 +1054,31 @@ class ChoicesCategoryTree {
                     previousSelectionId,
                     categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
                     categoryStillAvailable,
+                    isInitialFiltering,
+                    shouldPreserve: categoryStillAvailable && !isInitialFiltering,
                     categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
                 });
 
-                if (categoryStillAvailable) {
-                    // Category is available in new filtered list - restore selection
-                    // setSelectedCategory will handle clearing and setting the value
+                if (categoryStillAvailable && !isInitialFiltering) {
+                    // Category is available in new filtered list AND this is not initial filtering
+                    // Restore selection (user explicitly selected this category before changing FC)
                     console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId}`);
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
-                    // No previous selection OR category not available anymore
+                    // Don't preserve selection if:
+                    // - This is initial filtering (applying filter for first time)
+                    // - No previous selection
+                    // - Category not available in new filtered list
                     // Clear any auto-selection that Choices.js made
                     this.choices.removeActiveItems();
                     if (this.element) {
                         this.element.value = '';
                     }
-                    if (previousSelectionId) {
+                    if (isInitialFiltering && previousSelectionId) {
+                        console.log(`[ChoicesCategoryTree] 🚫 NOT preserving selection on initial filter (previousId=${previousSelectionId})`);
+                        debugLog(`[ChoicesCategoryTree] Cleared phantom selection on initial filter: ${previousSelectionId}`);
+                    } else if (previousSelectionId) {
                         console.log(`[ChoicesCategoryTree] ❌ RESET selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                         debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                     } else {
