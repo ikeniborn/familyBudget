@@ -47,6 +47,27 @@ class ChoicesCategoryTree {
     static _cache = new Map();
     static _pendingRequests = new Map();  // key: "type:showInactive:fcPart" -> Promise
 
+    // Web Worker for hierarchy processing (Phase 2: Performance Optimization)
+    static _workerWrapper = null;
+
+    /**
+     * Initialize Web Worker for category hierarchy processing.
+     * Called automatically on first use, or can be preloaded.
+     */
+    static initializeWorker() {
+        if (!this._workerWrapper && typeof WorkerWrapper !== 'undefined') {
+            try {
+                this._workerWrapper = new WorkerWrapper('/static/js/workers/hierarchyWorker.min.js', {
+                    idleTimeout: 30000,  // 30s for category tree (less aggressive than default)
+                    debugMode: window.DEBUG_MODE || false
+                });
+            } catch (error) {
+                console.warn('[ChoicesCategoryTree] Failed to initialize worker:', error);
+                this._workerWrapper = null;
+            }
+        }
+    }
+
     /**
      * Preload categories for offline use.
      * Call this on page load to cache both expense and income categories.
@@ -307,9 +328,46 @@ class ChoicesCategoryTree {
 
     /**
      * Build hierarchy maps for efficient lookups.
+     * Uses Web Worker for performance (with automatic fallback to sync processing).
      */
-    buildHierarchyMaps() {
-        // Build categoryMap (id -> category)
+    async buildHierarchyMaps() {
+        const startTime = performance.now();
+
+        // Try worker-based processing first
+        if (ChoicesCategoryTree._workerWrapper && this.categories.length > 0) {
+            try {
+                ChoicesCategoryTree.initializeWorker();
+
+                // Execute worker task
+                const result = await ChoicesCategoryTree._workerWrapper.execute({
+                    action: 'buildMaps',
+                    data: { categories: this.categories }
+                });
+
+                // Convert plain objects back to Maps
+                this.categoryMap = new Map(Object.entries(result.categoryMap));
+                this.childrenMap = new Map(
+                    Object.entries(result.childrenMap).map(([key, val]) => [parseInt(key), val])
+                );
+
+                const duration = Math.round(performance.now() - startTime);
+                if (window.DEBUG_MODE) {
+                    console.log(`[ChoicesCategoryTree] Worker buildMaps: ${duration}ms (${this.categories.length} categories)`);
+                }
+
+                // Resolve initialization promise
+                if (this._initPromise) {
+                    this._initPromise();
+                    this._initPromise = null;
+                }
+                return;
+            } catch (error) {
+                // Worker failed, fall back to synchronous
+                console.warn('[ChoicesCategoryTree] Worker buildMaps failed, using synchronous:', error);
+            }
+        }
+
+        // Synchronous fallback (original implementation)
         this.categoryMap.clear();
         this.childrenMap.clear();
 
@@ -323,6 +381,11 @@ class ChoicesCategoryTree {
                 }
                 this.childrenMap.get(category.parent_id).push(category.id);
             }
+        }
+
+        const duration = Math.round(performance.now() - startTime);
+        if (window.DEBUG_MODE) {
+            console.log(`[ChoicesCategoryTree] Synchronous buildMaps: ${duration}ms (${this.categories.length} categories)`);
         }
 
         // Resolve initialization promise (for waitForReady() method)
@@ -382,17 +445,37 @@ class ChoicesCategoryTree {
 
     /**
      * Get parent chain for a category (from root to parent, excluding self).
-     * Builds chain locally using categoryMap (no API calls).
+     * Uses Web Worker for large datasets (>100 categories), synchronous for small.
      *
      * @param {number} categoryId - Category ID
-     * @returns {Array} Array of parent categories (root to parent)
+     * @returns {Promise<Array>|Array} Array of parent categories (root to parent)
      */
     getParentChain(categoryId) {
+        const category = this.categoryMap.get(categoryId);
+
+        if (!category || !category.parent_id) {
+            return [];  // No parents
+        }
+
+        // For large datasets (>100 categories), use worker
+        if (this.categories.length > 100 && ChoicesCategoryTree._workerWrapper) {
+            return this._getParentChainWorker(categoryId);
+        }
+
+        // Synchronous for small datasets
+        return this._getParentChainSync(categoryId);
+    }
+
+    /**
+     * Synchronous parent chain (original implementation).
+     * @private
+     */
+    _getParentChainSync(categoryId) {
         const chain = [];
         const category = this.categoryMap.get(categoryId);
 
         if (!category || !category.parent_id) {
-            return chain;  // No parents
+            return chain;
         }
 
         let currentParentId = category.parent_id;
@@ -406,6 +489,29 @@ class ChoicesCategoryTree {
         }
 
         return chain;
+    }
+
+    /**
+     * Worker-based parent chain for large datasets.
+     * @private
+     */
+    async _getParentChainWorker(categoryId) {
+        try {
+            ChoicesCategoryTree.initializeWorker();
+
+            // Convert Maps to plain objects for worker
+            const categoryMap = Object.fromEntries(this.categoryMap);
+
+            const result = await ChoicesCategoryTree._workerWrapper.execute({
+                action: 'getParentChain',
+                data: { categoryId, categoryMap }
+            });
+
+            return result;
+        } catch (error) {
+            console.warn('[ChoicesCategoryTree] Worker getParentChain failed, using synchronous:', error);
+            return this._getParentChainSync(categoryId);
+        }
     }
 
     /**

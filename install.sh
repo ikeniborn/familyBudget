@@ -134,7 +134,7 @@ detect_os() {
 update_system() {
     info "Updating system packages..."
 
-    if ! timeout 180 apt-get update -y >> "$LOG_FILE" 2>&1; then
+    if ! timeout 300 apt-get update -y >> "$LOG_FILE" 2>&1; then
         error "apt-get update failed or timed out. Check network connection and $LOG_FILE"
     fi
 
@@ -175,8 +175,28 @@ install_utilities() {
     for package in "${packages[@]}"; do
         if ! dpkg -l | grep -q "^ii  $package "; then
             info "Installing $package..."
-            if ! timeout 300 apt-get install -y "$package" >> "$LOG_FILE" 2>&1; then
-                error "Failed to install $package (timeout or error). Check $LOG_FILE for details."
+            # Try installation with retry logic (up to 3 attempts)
+            local attempt=1
+            local max_attempts=3
+            local install_success=false
+
+            while [[ $attempt -le $max_attempts ]]; do
+                if timeout 600 apt-get install -y "$package" >> "$LOG_FILE" 2>&1; then
+                    install_success=true
+                    break
+                else
+                    if [[ $attempt -lt $max_attempts ]]; then
+                        warning "Failed to install $package (attempt $attempt/$max_attempts), retrying in 5 seconds..."
+                        sleep 5
+                        # Update package lists before retry
+                        timeout 300 apt-get update -y >> "$LOG_FILE" 2>&1 || true
+                    fi
+                fi
+                ((attempt++))
+            done
+
+            if [[ "$install_success" != "true" ]]; then
+                error "Failed to install $package after $max_attempts attempts (timeout or error). Check $LOG_FILE for details."
             fi
         else
             info "$package is already installed"
@@ -269,7 +289,7 @@ install_docker() {
         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     # Update package index
-    if ! timeout 180 apt-get update -y >> "$LOG_FILE" 2>&1; then
+    if ! timeout 300 apt-get update -y >> "$LOG_FILE" 2>&1; then
         error "apt-get update failed or timed out while setting up Docker. Check $LOG_FILE"
     fi
 
@@ -587,7 +607,7 @@ install_nodejs() {
 
     # Update package index with timeout
     info "Updating package index..."
-    if ! timeout 180 apt-get update -y >> "$LOG_FILE" 2>&1; then
+    if ! timeout 300 apt-get update -y >> "$LOG_FILE" 2>&1; then
         error "apt-get update failed or timed out. Check $LOG_FILE for details."
     fi
 

@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     WRITE_BEHIND_DLQ_TTL_DAYS: int = 7  # TTL for DLQ items (days)
     WRITE_BEHIND_DLQ_MAX_SIZE: int = 100  # Max DLQ size (oldest items removed when exceeded)
 
+    # Frontend Features (Web Workers)
+    ENABLE_WEB_WORKERS: bool = True  # Enable Web Workers for CPU-intensive operations (default: enabled)
+
     @field_validator("SYSTEM_TIMEZONE")
     @classmethod
     def validate_timezone(cls, v):

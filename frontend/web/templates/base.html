@@ -441,6 +441,14 @@
             } catch(e) {}
         })();
     </script>
+
+    <!-- Feature Flags Configuration (Web Workers, Debug Mode) -->
+    <script>
+        window.FEATURE_FLAGS = {
+            ENABLE_WEB_WORKERS: {{ 'true' if config.ENABLE_WEB_WORKERS else 'false' }},
+            DEBUG_MODE: {{ 'true' if config.DEBUG else 'false' }}
+        };
+    </script>
     <style>
         /* Hide offline elements BEFORE JavaScript runs */
         html.offline-mode [data-offline-hidden="true"] {
@@ -1918,5 +1926,8 @@
 
     <!-- Navigation Progress Bar -->
     <script src="/static/js/navigationProgress.min.js?v=PLACEHOLDER"></script>
+
+    <!-- Web Workers (Phase 1: Core Infrastructure) -->
+    <script src="/static/js/workers/core/workerWrapper.min.js?v=PLACEHOLDER"></script>
 </body>
 </html>

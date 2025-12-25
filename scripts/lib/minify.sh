@@ -43,6 +43,7 @@ readonly NC='\033[0m' # No Color
 readonly FRONTEND_DIR="frontend"
 readonly WEB_JS_DIR="${FRONTEND_DIR}/web/static/js"
 readonly WEB_CSS_DIR="${FRONTEND_DIR}/web/static/css"
+readonly WEB_WORKERS_DIR="${WEB_JS_DIR}/workers"  # NEW: Web Workers directory
 readonly WEBAPP_JS_DIR="${FRONTEND_DIR}/webapp/static/js"
 readonly WEBAPP_CSS_DIR="${FRONTEND_DIR}/webapp/static/css"
 readonly SHARED_JS_DIR="${FRONTEND_DIR}/shared/static/js"
@@ -274,6 +275,14 @@ minify_all_js() {
     minify_js_directory "$SHARED_JS_DIR"
     print_message info "✓ Completed shared/ directory: $MINIFIED_JS_COUNT files so far"
     echo
+
+    # Minify Web Workers (NEW: added for Phase 1)
+    if [[ -d "$WEB_WORKERS_DIR" ]]; then
+        print_message info "→ Processing workers/ directory..."
+        minify_js_directory "$WEB_WORKERS_DIR"
+        print_message info "✓ Completed workers/ directory: $MINIFIED_JS_COUNT files so far"
+        echo
+    fi
 
     # Minify Service Worker (root level)
     minify_service_worker
