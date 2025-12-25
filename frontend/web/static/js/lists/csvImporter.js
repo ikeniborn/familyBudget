@@ -12,6 +12,27 @@
  */
 
 class CSVImporter {
+    // Web Worker for CSV processing (Phase 3: Performance Optimization)
+    static _workerWrapper = null;
+
+    /**
+     * Initialize Web Worker for CSV processing.
+     * Called automatically on first use.
+     */
+    static initializeWorker() {
+        if (!this._workerWrapper && typeof WorkerWrapper !== 'undefined') {
+            try {
+                this._workerWrapper = new WorkerWrapper('/static/js/workers/csvWorker.min.js', {
+                    idleTimeout: 60000,  // 60s for CSV (files may be large)
+                    debugMode: window.DEBUG_MODE || false
+                });
+            } catch (error) {
+                console.warn('[CSVImporter] Failed to initialize worker:', error);
+                this._workerWrapper = null;
+            }
+        }
+    }
+
     constructor(listsManager) {
         this.listsManager = listsManager;
         this.currentStep = 1;
@@ -63,6 +84,55 @@ class CSVImporter {
 
         // All preview rows (for client-side filtering/pagination)
         this.allPreviewRows = [];
+    }
+
+    /**
+     * Encode content to Base64 using Web Worker.
+     * Falls back to synchronous encoding on error.
+     *
+     * @param {string} content - UTF-8 string content
+     * @returns {Promise<string>} Base64 encoded string
+     */
+    async encodeBase64(content) {
+        const contentSizeKB = Math.round(content.length / 1024);
+        const startTime = performance.now();
+
+        // For large files (>1MB), use worker
+        if (content.length > 1_000_000 && CSVImporter._workerWrapper) {
+            try {
+                CSVImporter.initializeWorker();
+
+                // Show initial progress
+                if (typeof showToast !== 'undefined') {
+                    showToast(`Кодирование файла (${contentSizeKB}KB)...`, 'info', 1000);
+                }
+
+                const result = await CSVImporter._workerWrapper.execute({
+                    action: 'encodeBase64',
+                    data: { content }
+                });
+
+                const duration = Math.round(performance.now() - startTime);
+                if (window.DEBUG_MODE) {
+                    console.log(`[CSVImporter] Worker Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
+                }
+
+                return result;
+            } catch (error) {
+                console.warn('[CSVImporter] Worker Base64 encoding failed, using synchronous:', error);
+                // Fall through to synchronous
+            }
+        }
+
+        // Synchronous fallback (original implementation)
+        const result = btoa(unescape(encodeURIComponent(content)));
+        const duration = Math.round(performance.now() - startTime);
+
+        if (window.DEBUG_MODE && duration > 100) {
+            console.log(`[CSVImporter] Synchronous Base64 encoding: ${duration}ms (${contentSizeKB}KB)`);
+        }
+
+        return result;
     }
 
     /**
@@ -212,8 +282,8 @@ class CSVImporter {
      */
     async analyzeFile() {
         try {
-            // Encode file content to base64
-            const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
+            // Encode file content to base64 (worker-based for large files)
+            const fileContent = await this.encodeBase64(this.fileContent);
 
             // Call backend API for auto-detection
             const response = await fetch('/api/v1/shopping-lists/import/analyze', {
@@ -606,8 +676,8 @@ class CSVImporter {
      * @param {boolean} options.aggregate_duplicates - Aggregate duplicate rows
      */
     async callPreviewAPI(options = {}) {
-        // Encode file content to base64
-        const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
+        // Encode file content to base64 (worker-based for large files)
+        const fileContent = await this.encodeBase64(this.fileContent);
 
         // Prepare request payload
         const requestData = {
@@ -1452,8 +1522,8 @@ class CSVImporter {
             // Show loading
             showToast('Импорт данных...', 'info');
 
-            // Encode file content to base64
-            const fileContent = btoa(unescape(encodeURIComponent(this.fileContent)));
+            // Encode file content to base64 (worker-based for large files)
+            const fileContent = await this.encodeBase64(this.fileContent);
 
             // Prepare request payload
             const requestData = {

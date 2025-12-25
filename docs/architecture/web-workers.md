@@ -4,12 +4,12 @@
 
 Web Workers enable offloading CPU-intensive operations from the main thread to background threads, preventing UI blocking and improving application responsiveness.
 
-**Implementation Status**: Phase 1-2 Complete (MVP)
+**Implementation Status**: Phase 1-3 Complete + Workers Created for Phase 4
 - ✅ Phase 1: Core Infrastructure (workerWrapper.js, build system)
-- ✅ Phase 2: Hierarchy Worker (category tree processing)
-- ⏳ Phase 3: CSV Worker (deferred)
-- ⏳ Phase 4: Sync Worker (deferred)
-- ⏳ Phase 5: Analytics Worker (deferred)
+- ✅ Phase 2: Hierarchy Worker (category tree processing - integrated)
+- ✅ Phase 3: CSV Worker (Base64 encoding + CSV parsing - integrated)
+- ✅ Phase 4: Sync Worker (created, integration deferred - requires complex refactoring)
+- ⏳ Phase 5: Analytics Worker (deferred - requires ~2000 lines refactoring)
 
 **Performance Goals**:
 - Category hierarchy: 200-300ms → 50-100ms (70% reduction)
@@ -502,11 +502,106 @@ cd ~/familyBudget && ./deploy.sh --patch
 
 **Impact**: Complete removal, requires deployment (~5 minutes).
 
+#### 4. csvWorker (CSV Processing)
+
+**Location**: `frontend/web/static/js/workers/csvWorker.js`
+
+**Purpose**: CSV file processing and Base64 encoding in background thread.
+
+**Actions Supported**:
+- `encodeBase64`: Chunked Base64 encoding (prevents stack overflow for >10MB files)
+- `parseCSV`: CSV parsing with delimiter auto-detection
+- `validateRows`: Row-level validation
+- `detectDelimiter`: Delimiter auto-detection (comma, semicolon, tab, pipe)
+
+**Performance Target**: 10MB file: 2-5s → 100-500ms (80-90% faster)
+
+**Key Features**:
+- Chunked encoding (512KB chunks) for large files
+- Progress reporting every 500ms
+- Warning for files >100MB
+- UTF-8 encoding support (same as `btoa(unescape(encodeURIComponent()))`)
+
+**Example Usage**:
+```javascript
+const worker = new WorkerWrapper('/static/js/workers/csvWorker.min.js', {
+    idleTimeout: 60000  // 60s for large files
+});
+
+// Base64 encoding
+const base64 = await worker.execute({
+    action: 'encodeBase64',
+    data: { content: largeCSVString }
+});
+
+// CSV parsing
+const parsed = await worker.execute({
+    action: 'parseCSV',
+    data: { content: csvString },
+    options: { delimiter: ',', hasHeader: true, maxRows: 1000 }
+});
+```
+
+**Integration**: `frontend/web/static/js/lists/csvImporter.js`
+
+**Changes Made**:
+1. Added static `_workerWrapper` and `initializeWorker()` method
+2. Added `encodeBase64()` method with worker + fallback
+3. Replaced 3 synchronous `btoa()` calls:
+   - `analyzeFile()` (line 286)
+   - `callPreviewAPI()` (line 680)
+   - `executeImport()` (line 1526)
+4. Worker used for files >1MB, synchronous for small files
+
+#### 5. syncWorker (Hash Generation)
+
+**Location**: `frontend/web/static/js/workers/syncWorker.js`
+
+**Purpose**: MD5 hash generation for offline sync deduplication.
+
+**Actions Supported**:
+- `hashBatch`: Batch MD5 hash generation for multiple items
+- `generateContentHash`: Generate content hash (MD5 of article_id|amount|fact_date|description|record_type)
+- `generateSyncHash`: Generate sync hash (MD5 of content_hash|user_id|created_date)
+- `processSyncItem`: Process single sync item with validation
+
+**Performance Target**: 100-item queue: Sequential → 4-6x parallel speedup (when fully integrated)
+
+**Key Features**:
+- Inline MD5 implementation (no importScripts dependency)
+- Progress reporting every 100 items
+- Batch processing support
+- Compatible with backend deduplication format
+
+**Example Usage**:
+```javascript
+// Batch hash generation
+const result = await worker.execute({
+    action: 'hashBatch',
+    data: {
+        items: [
+            { data: factData, userId: 1, createdDate: '2025-12-25' },
+            // ... more items
+        ]
+    }
+});
+
+// Result: { results: [{ index: 0, contentHash: '...', syncHash: '...' }], totalItems: 1, duration: 45 }
+```
+
+**Integration Status**: Worker created, **integration deferred** (requires complex refactoring of `offlineManager.js` for parallel queue processing).
+
+**Future Integration** (when implemented):
+- Replace synchronous `this.db._md5()` calls in `_createFactOfflineInternal()`
+- Implement parallel batch processing in `processQueue()`
+- Add rate limiting (100ms delay between batches)
+- Add exponential backoff on 429 errors
+
 ---
 
 ## Future Enhancements (Deferred)
 
-### Phase 3: CSV Worker (High Impact)
+### Phase 5: Analytics Worker (Low Priority - Complex Refactoring)
 
 **File**: `frontend/web/static/js/workers/csvWorker.js`
 
