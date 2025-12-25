@@ -496,96 +496,15 @@ collect_deployment_parameters() {
         echo ""
     fi
 
-    # =========================================================================
-    # STEP 2: SELECT CLEANUP ACTION
-    # =========================================================================
-    # Only ask if:
-    # - Not in clean sync mode (clean mode auto-cleans everything)
-    # - CLEANUP_MODE not already set
-    # - Old deployments exist
-    if [[ "${SYNC_MODE}" != "clean" ]] && [[ -z "$CLEANUP_MODE" ]]; then
-        # Check for old deployment artifacts
-        local old_containers=$(docker ps -a --filter "name=familybudget" --format "{{.Names}}" 2>/dev/null | wc -l)
-        local old_networks=$(docker network ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
-        local old_volumes=$(docker volume ls --filter "name=familybudget" --format "{{.Name}}" 2>/dev/null | wc -l)
-
-        if [[ $old_containers -gt 0 || $old_networks -gt 0 || $old_volumes -gt 0 ]]; then
-            # Old deployment found - ask what to do
-            warning "Found old deployment artifacts:"
-            if [[ $old_containers -gt 0 ]]; then
-                echo "  - Containers: $old_containers"
-            fi
-            if [[ $old_networks -gt 0 ]]; then
-                echo "  - Networks: $old_networks"
-            fi
-            if [[ $old_volumes -gt 0 ]]; then
-                echo "  - Volumes: $old_volumes"
-            fi
-            echo ""
-
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            print_message "$BLUE" "  STEP 2: Choose Cleanup Action"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo ""
-            warning "Old deployments may cause network conflicts!"
-            echo ""
-            echo "  [1] Skip - deploy alongside old deployment (may cause subnet conflicts)"
-            echo "  [2] Smart cleanup - auto-detect changes & restart strategy (RECOMMENDED)"
-            echo "      ✓ Analyzes git diff to determine if PostgreSQL needs restart"
-            echo "      ✓ Keeps PostgreSQL running for frontend/backend changes only"
-            echo "      ✓ Full restart for DB migrations or config changes"
-            echo "  [3] Full cleanup - stop all services + repair corrupted data"
-            echo "      ✓ Stops all containers, removes networks"
-            echo "      ✓ Repairs PostgreSQL data directory if corrupted"
-            echo "      ✓ DATA IS PRESERVED (volumes NOT deleted unless you confirm 'DELETE')"
-            echo "      ⚠️  Requires sudo/root privileges"
-            echo ""
-
-            # Flush stdout/stderr before reading input (prevents terminal buffer issues)
-            sync 2>/dev/null || true
-            read -r -p "Select [1-3]: " cleanup_choice < /dev/tty
-            echo ""
-
-            case $cleanup_choice in
-                1)
-                    CLEANUP_MODE="skip"
-                    ;;
-                2)
-                    CLEANUP_MODE="smart"
-                    ;;
-                3)
-                    CLEANUP_MODE="full"
-                    ;;
-                *)
-                    error "Invalid choice. Please select 1-3."
-                    exit 1
-                    ;;
-            esac
-
-            success "Cleanup mode selected: $CLEANUP_MODE"
-            echo ""
-        else
-            # No old deployment - skip cleanup
-            CLEANUP_MODE="skip"
-            info "No old deployment found - cleanup not needed"
-            echo ""
-        fi
-    elif [[ "${SYNC_MODE}" == "clean" ]]; then
-        # Clean sync mode - cleanup auto-handled
-        CLEANUP_MODE="auto"
-        info "Cleanup mode: auto (handled by clean sync)"
-        echo ""
-    elif [[ -n "$CLEANUP_MODE" ]]; then
-        info "Cleanup mode preset: $CLEANUP_MODE"
-        echo ""
-    fi
+    # NOTE: STEP 2 "Choose Cleanup Action" moved to cleanup_old_deployment()
+    # This eliminates code duplication and ensures cleanup check happens
+    # AFTER PostgreSQL health check (which may auto-set CLEANUP_MODE=full)
 
     echo "========================================================================"
     print_message "$GREEN" "       Parameters Collected - Starting Deployment"
     echo "========================================================================"
     echo ""
     info "Sync mode:    $SYNC_MODE"
-    info "Cleanup mode: ${CLEANUP_MODE:-skip}"
     echo ""
 }
 
