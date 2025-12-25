@@ -954,6 +954,88 @@ function initDefaultPeriodFilter() {
  * Open transfer modal in plan mode
  * Sets record_type to 'plan' and shows the modal
  */
+/**
+ * Set transfer record type (plan) and toggle UI sections.
+ * @param {string} type - 'plan' (facts not used in plan.html)
+ */
+function setTransferRecordType(type) {
+    const recordTypeInput = document.getElementById('transfer_record_type');
+    const factSection = document.getElementById('transfer-date-section-fact');
+    const planSection = document.getElementById('transfer-period-section-plan');
+
+    if (!recordTypeInput) {
+        console.warn('transfer_record_type input not found');
+        return;
+    }
+
+    // Set record type
+    recordTypeInput.value = type;
+
+    // Toggle sections
+    if (type === 'fact') {
+        factSection?.classList.remove('hidden');
+        planSection?.classList.add('hidden');
+    } else if (type === 'plan') {
+        factSection?.classList.add('hidden');
+        planSection?.classList.remove('hidden');
+
+        // Initialize period buttons for plan transfers
+        setupTransferPeriodButtons();
+    }
+}
+
+/**
+ * Initialize period buttons for plan transfers (similar to setupPlanPeriodButtons).
+ */
+function setupTransferPeriodButtons() {
+    const periodButtons = document.querySelectorAll('.transfer-period-btn');
+    const hiddenInput = document.querySelector('#transfer_plan_month');
+
+    if (!hiddenInput || periodButtons.length === 0) return;
+
+    // Initialize button labels and data attributes (current month +0, +1, +2)
+    const today = new Date();
+    periodButtons.forEach((btn, index) => {
+        const offset = parseInt(btn.dataset.offset);
+        const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+        const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+        btn.textContent = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+        btn.dataset.year = date.getFullYear();
+        btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
+    });
+
+    // Set default value for first button (active by default)
+    const firstButton = periodButtons[0];
+    if (firstButton && firstButton.dataset.year && firstButton.dataset.month) {
+        hiddenInput.value = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
+        debugLog('Default transfer plan period:', hiddenInput.value);
+    }
+
+    // Click handlers (avoid duplicates)
+    periodButtons.forEach(button => {
+        // Skip if listener already attached
+        if (button.dataset.listenerAttached === 'true') return;
+
+        button.addEventListener('click', function() {
+            // Remove btn-active from all buttons
+            periodButtons.forEach(btn => btn.classList.remove('btn-active'));
+
+            // Add btn-active to current button
+            this.classList.add('btn-active');
+
+            // Set value in hidden input (YYYY-MM)
+            const year = this.dataset.year;
+            const month = this.dataset.month;
+            hiddenInput.value = `${year}-${month}`;
+
+            debugLog('Selected transfer plan period:', hiddenInput.value);
+        });
+
+        // Mark listener as attached
+        button.dataset.listenerAttached = 'true';
+    });
+}
+
 function openPlanTransferModal() {
     // Reset button state
     const form = document.getElementById('form_transfer');
@@ -3496,15 +3578,29 @@ async function createTransfer(event) {
         return;
     }
 
+    // Get record_type from hidden field (set by openPlanTransferModal)
+    const recordType = formData.get('record_type') || 'plan'; // Default to 'plan' for plan.html
+
+    // Determine transfer date based on record_type
+    let transferDate;
+    if (recordType === 'plan') {
+        // For plan transfers: use transfer_plan_month (YYYY-MM) and convert to YYYY-MM-01
+        const planMonth = formData.get('transfer_plan_month'); // "2025-12"
+        transferDate = `${planMonth}-01`; // "2025-12-01"
+    } else {
+        // For fact transfers: use transfer_date (DD.MM.YYYY) and format to YYYY-MM-DD
+        transferDate = BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date'));
+    }
+
     const data = {
         from_financial_center_id: fromFC,
         to_financial_center_id: toFC,
         from_article_id: parseInt(formData.get('from_article_id')),
         to_article_id: parseInt(formData.get('to_article_id')),
         amount: parseFloat(formData.get('amount')),
-        transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
+        transfer_date: transferDate,
         description: formData.get('description') || null,
-        record_type: 'fact'  // Transfers are always 'fact' type
+        record_type: recordType  // 'plan' (or 'fact' if facts are supported in future)
     };
 
     try {

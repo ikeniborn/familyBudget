@@ -9,6 +9,9 @@
         </h3>
 
         <form id="form_transfer" class="space-y-2">
+            <!-- Hidden field for record_type (fact or plan) -->
+            <input type="hidden" name="record_type" id="transfer_record_type" value="fact" />
+
             <!-- Date/Period Picker -->
             <!-- For fact transfers: date input with quick buttons -->
             <div id="transfer-date-section-fact" class="form-control">
