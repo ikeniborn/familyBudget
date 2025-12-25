@@ -326,6 +326,274 @@ tail -f /opt/budget/logs/deploy.log
 - `scripts/lib/firewall.sh` - Firewall configuration functions
 - `deploy.sh` lines 1447-1456 - Automatic UFW configuration during deployment
 
+## Testing Environment Workflow
+
+**CRITICAL:** This is the ONLY approved process for testing changes on the test server (budget-test).
+
+### Standard Testing Procedure
+
+**Prerequisites:**
+- SSH access configured for `budget-test` server
+- Changes committed to `test` branch in local repository
+- Test server has `~/familyBudget` repository cloned
+
+**Step-by-Step Process:**
+
+```bash
+# 1. Connect to test server
+ssh budget-test
+
+# 2. Pull latest changes in test branch
+cd ~/familyBudget
+git pull origin test
+
+# 3. Execute deployment with patch mode
+sudo bash deploy.sh --sync-mode update --cleanup-mode smart --patch
+
+# 4. Analyze terminal output during deployment
+# Watch for:
+# - Build errors
+# - Migration failures
+# - Container startup issues
+# - Port conflicts
+
+# 5. After successful completion, review deployment log
+cat /opt/budget/logs/deploy.log
+# Look for:
+# - WARNING/ERROR entries
+# - Failed health checks
+# - Incomplete operations
+
+# 6. Analyze running container logs
+cd /opt/budget
+docker compose logs -f backend     # Backend application logs
+docker compose logs -f postgres    # Database logs
+docker compose logs -f nginx       # Web server logs
+docker compose logs -f bot         # Telegram bot logs
+
+# Check for:
+# - Python exceptions/tracebacks
+# - SQL errors
+# - Connection failures
+# - Resource warnings (memory, CPU)
+```
+
+### Issue Resolution Workflow
+
+**When issues are found:**
+
+```bash
+# 1. Document the issue
+# - Screenshot error messages
+# - Copy relevant log excerpts
+# - Note reproduction steps
+
+# 2. Fix locally in repository (NOT on server)
+cd ~/familyBudget  # Local machine
+# Edit files
+# Test locally if possible
+
+# 3. Commit and push to test branch
+git add .
+git commit -m "fix: description of fix"
+git push origin test
+
+# 4. Return to Step 1 (deploy on test server again)
+```
+
+### Post-Deployment Verification
+
+**CRITICAL:** Always check for orphaned processes after deployment.
+
+```bash
+# Check for processes that should have stopped
+ps aux | grep -E "(uvicorn|gunicorn|python.*bot\.py)" | grep -v grep
+
+# Check Docker container status
+docker compose ps
+
+# Verify only expected containers are running:
+# - postgres (always)
+# - backend (always)
+# - nginx (if --profile full)
+# - bot (if --profile full)
+# - certbot (if --profile full, may be stopped after cert renewal)
+
+# Check for port conflicts
+sudo netstat -tlnp | grep -E ":(5432|8000|80|443)"
+
+# Check system resources
+docker stats --no-stream
+
+# Verify application health
+curl -s http://localhost:8000/health | jq
+curl -s http://localhost:8000/ready | jq
+```
+
+### Common Issues and Diagnostics
+
+**Issue: Container fails to start**
+```bash
+# Check container logs
+docker compose logs --tail=100 <container-name>
+
+# Inspect container state
+docker compose ps -a
+
+# Check for port conflicts
+sudo lsof -i :<port-number>
+```
+
+**Issue: Migration fails**
+```bash
+# Check migration status
+docker compose exec backend alembic current
+docker compose exec backend alembic history
+
+# View migration logs
+grep -A20 "Migration" /opt/budget/logs/deploy.log
+
+# Manually run migrations (if safe)
+docker compose exec backend alembic upgrade head
+```
+
+**Issue: Orphaned processes**
+```bash
+# Find orphaned Python processes
+ps aux | grep python | grep -v docker
+
+# Kill orphaned processes (be careful!)
+sudo pkill -f "uvicorn.*familybudget"
+sudo pkill -f "python.*bot\.py"
+
+# Verify clean state
+ps aux | grep -E "(uvicorn|gunicorn|python.*bot)" | grep -v grep
+# Should return nothing
+```
+
+### Deployment Flags Explained
+
+**Flags used in standard testing workflow:**
+
+- `--sync-mode update`: Sync only changed files from repository to /opt/budget
+  - Faster than full sync
+  - Preserves .env and other local configs
+  - Safe for incremental updates
+
+- `--cleanup-mode smart`: Intelligent cleanup of old artifacts
+  - Removes old Docker images (not used by running containers)
+  - Cleans up temporary files
+  - Preserves backups and logs
+  - Safe for regular deployments
+
+- `--patch`: Patch deployment (no rebuild unless necessary)
+  - Restarts only changed services
+  - Fast deployment (2-5 minutes vs 10-15 for full rebuild)
+  - Preserves database and volumes
+  - **Use for:** Code changes, config updates, minor fixes
+  - **Don't use for:** Dependency changes, Dockerfile changes, major refactoring
+
+### Test Branch Workflow
+
+**IMPORTANT:** The `test` branch is for testing only. Never merge untested code to `main`.
+
+```bash
+# Local development workflow:
+git checkout test
+# Make changes
+git add .
+git commit -m "type: description"
+git push origin test
+
+# Test on budget-test server (see Standard Testing Procedure above)
+
+# If tests pass, merge to main
+git checkout main
+git merge test
+git push origin main
+
+# If tests fail, return to development
+git checkout test
+# Fix issues
+# Repeat cycle
+```
+
+### Performance Benchmarks (budget-test)
+
+**Expected deployment times:**
+- Patch deployment (`--patch`): 2-5 minutes
+- Full rebuild (`--build`): 10-15 minutes
+- Clean deployment (`--clean`): 15-20 minutes
+
+**Expected container startup times:**
+- postgres: 5-10 seconds
+- backend: 10-15 seconds (includes migrations)
+- nginx: 2-5 seconds
+- bot: 5-10 seconds
+
+**If deployment takes longer:** Check logs for issues (network, disk I/O, resource constraints).
+
+### Emergency Procedures
+
+**If deployment fails catastrophically:**
+
+```bash
+# 1. Stop all containers
+cd /opt/budget
+docker compose down
+
+# 2. Check system resources
+df -h          # Disk space
+free -h        # Memory
+docker system df  # Docker disk usage
+
+# 3. Clean Docker system (if space issue)
+docker system prune -a --volumes  # ⚠️ DELETES ALL DATA
+
+# 4. Restore from backup (if data corrupted)
+cd ~/familyBudget
+./scripts/restore.sh /opt/budget/backups/latest.sql
+
+# 5. Clean redeployment
+sudo bash deploy.sh --clean --profile full
+```
+
+**If test server becomes unresponsive:**
+
+```bash
+# From local machine
+ssh budget-test "sudo reboot"
+
+# Wait 2-3 minutes, then reconnect
+ssh budget-test
+
+# Check services after reboot
+cd /opt/budget
+docker compose ps
+```
+
+### Checklist: Before Leaving Test Server
+
+**Always verify before disconnecting SSH:**
+
+- [ ] All expected containers are running (`docker compose ps`)
+- [ ] No orphaned processes (`ps aux | grep python`)
+- [ ] Application responds to health checks (`curl localhost:8000/health`)
+- [ ] Logs show no errors (`docker compose logs --tail=50`)
+- [ ] Disk space is adequate (`df -h`)
+- [ ] No port conflicts (`sudo netstat -tlnp`)
+
+**Clean exit:**
+```bash
+# Review final state
+cd /opt/budget
+docker compose ps
+docker stats --no-stream
+
+# Exit SSH
+exit
+```
+
 ## Important Concepts and Patterns
 
 ### SCD Type 1 + History Tables
