@@ -36,8 +36,9 @@ from datetime import datetime
 from typing import Any, Callable, Coroutine
 
 import redis.exceptions
+from redis.asyncio import Redis
 
-from backend.app.services.redis_service import get_redis, is_redis_available
+from backend.app.services.redis_service import get_redis, is_redis_available, _redis_pool
 
 logger = logging.getLogger(__name__)
 
@@ -172,14 +173,24 @@ async def _subscriber_loop():
                 await asyncio.sleep(5)
                 continue
 
-            async with get_redis() as redis:
-                pubsub = redis.pubsub()
+            # Create dedicated Redis client for Pub/Sub (outside context manager)
+            redis_client = Redis(connection_pool=_redis_pool)
+            try:
+                pubsub = redis_client.pubsub()
                 await pubsub.subscribe(BUDGET_EVENTS_CHANNEL)
 
                 logger.warning(f"[PUBSUB-DEBUG] Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
                 logger.warning(f"[PUBSUB-DEBUG] Starting listen loop...")
 
-                async for message in pubsub.listen():
+                # Use get_message() in a loop instead of listen()
+                while True:
+                    message = await pubsub.get_message(ignore_subscribe_messages=False, timeout=1.0)
+
+                    if message is None:
+                        # No message within timeout - continue
+                        await asyncio.sleep(0.01)
+                        continue
+
                     logger.warning(f"[PUBSUB-DEBUG] Received message type: {message['type']}")
 
                     if message["type"] == "message":
@@ -203,6 +214,10 @@ async def _subscriber_loop():
                             logger.warning(f"Invalid JSON in Pub/Sub message: {e}")
                         except Exception as e:
                             logger.error(f"Error processing Pub/Sub message: {e}", exc_info=True)
+
+            finally:
+                await redis_client.aclose()
+                logger.warning(f"[PUBSUB-DEBUG] Redis client closed")
 
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub subscriber cancelled")
