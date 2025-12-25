@@ -26,6 +26,43 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-25: Автоматическое Создание Docker Volume для PostgreSQL
+- **Change:** Добавлено автоматическое создание Docker volume `budget_postgres_data` при деплое
+- **Problem:** При первом деплое на чистом сервере возникала ошибка "external volume not found"
+  - docker-compose.yml использует `external: true` для postgres_data
+  - Механизм автоматического создания volume отсутствовал
+  - Требовалось ручное создание перед первым деплоем
+- **Root Cause:**
+  - `external: true` требует предварительного создания volume
+  - install.sh, setup.sh, deploy.sh НЕ создавали volume
+  - Создание упоминалось только в disaster recovery документации
+- **Solution:**
+  - Новая функция `ensure_postgres_volume_exists()` в scripts/lib/postgres.sh
+  - Idempotent проверка: создает если отсутствует, пропускает если существует
+  - Вызывается из deploy.sh ДО start_postgres_only()
+  - Подробное логирование создания/проверки volume
+- **Implementation:**
+  - scripts/lib/postgres.sh:377+ (новая функция, ~80 строк)
+  - deploy.sh:1378-1389 (интеграция, ~12 строк)
+  - CLAUDE.md (новая секция "Docker Volume Management")
+  - docs/BACKUP_RESTORE.md:410 (обновление disaster recovery секции)
+  - docs/architecture/guides/disaster-recovery.md:151 (обновление)
+- **Files changed:**
+  - scripts/lib/postgres.sh (+80 lines) - ensure_postgres_volume_exists()
+  - deploy.sh (+12 lines) - volume check before PostgreSQL start
+  - CLAUDE.md (+30 lines) - Docker Volume Management documentation
+  - docs/BACKUP_RESTORE.md (~15 lines modified)
+  - docs/architecture/guides/disaster-recovery.md (~15 lines modified)
+  - docs/architecture/README.md (this changelog entry)
+- **Impact:**
+  - Первый деплой на чистом сервере теперь работает автоматически
+  - Существующие деплои: нет изменений (idempotent проверка)
+  - Улучшена документация по управлению Docker volumes
+  - Добавлено подробное логирование для troubleshooting
+- **Testing:** Проверено на budget-test сервере (чистая установка + существующий volume)
+
+---
+
 ### 2025-12-25: Category and Cost Center Filtering on Edit Modal Open
 - **Change:** Fixed category and cost center filtering to work correctly when opening edit modals
 - **Problem:**

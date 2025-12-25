@@ -148,6 +148,8 @@ docker compose logs postgres
 # Error: could not open directory "/var/lib/postgresql/data": Input/output error
 ```
 
+**NOTE:** Начиная с версии 1.2.0, Docker volume создается автоматически при деплое. Ручное создание требуется только для сценариев disaster recovery.
+
 **Восстановление:**
 ```bash
 # 1. Остановить все
@@ -161,8 +163,12 @@ docker volume inspect budget_postgres_data
 # 3. Удалить поврежденный volume
 docker volume rm budget_postgres_data
 
-# 4. Создать новый
+# 4. Создать новый (или просто запустите deploy.sh для автоматического создания)
 docker volume create budget_postgres_data
+
+# ИЛИ просто запустите деплой (автоматическое создание):
+cd ~/familyBudget
+sudo ./deploy.sh
 
 # 5. Запустить postgres
 docker compose up -d postgres

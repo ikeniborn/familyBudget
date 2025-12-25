@@ -1375,6 +1375,19 @@ main() {
     }
     echo ""
 
+    # Ensure PostgreSQL Docker volume exists (idempotent check)
+    # CRITICAL: Must run BEFORE start_postgres_only() to avoid "external volume not found" error
+    # This is required for first deployment on clean servers
+    step "Ensuring PostgreSQL Docker Volume Exists"
+    if ! ensure_postgres_volume_exists; then
+        error "Deployment failed: PostgreSQL volume creation failed"
+        error "Cannot proceed without database volume"
+        error "See troubleshooting steps above"
+        error "Log file: $LOG_FILE"
+        exit 1
+    fi
+    echo ""
+
     # PHASED STARTUP: PostgreSQL → Migrations → Application Services
     # This eliminates race condition where backend starts before migrations complete
 

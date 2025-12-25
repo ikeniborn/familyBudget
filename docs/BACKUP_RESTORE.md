@@ -407,15 +407,21 @@ docker compose logs backend | grep -i delete
 
 **Симптомы:** `postgres_data` volume недоступен, I/O errors
 
+**NOTE:** Начиная с версии 1.2.0, Docker volume создается автоматически при деплое. Ручное создание требуется только для сценариев disaster recovery.
+
 **Восстановление:**
 ```bash
 # 1. Проверить volume
 docker volume inspect budget_postgres_data
 
-# 2. Пересоздать volume
+# 2. Пересоздать volume (или просто запустите deploy.sh для автоматического создания)
 docker compose down
 docker volume rm budget_postgres_data
 docker volume create budget_postgres_data
+
+# ИЛИ просто запустите деплой (автоматическое создание):
+cd ~/familyBudget
+sudo ./deploy.sh
 
 # 3. Восстановить из S3 (локальные бэкапы тоже могут быть утеряны)
 docker compose up -d postgres

@@ -348,6 +348,36 @@ docker compose exec backend bash     # Shell in container
 ./logs.sh --follow backend  # Live tail
 ```
 
+### Docker Volume Management
+
+**Since version 1.2.0:** PostgreSQL Docker volume создается автоматически при деплое.
+
+**Автоматическое создание:**
+```bash
+# deploy.sh автоматически проверяет и создает volume если отсутствует
+cd ~/familyBudget
+sudo ./deploy.sh
+# Output: "PostgreSQL volume created: budget_postgres_data" (только при первом запуске)
+```
+
+**Ручное управление:**
+```bash
+# Проверить существование volume
+docker volume inspect budget_postgres_data
+
+# Список всех volumes проекта
+docker volume ls --filter "name=budget"
+
+# Проверить размер и использование
+docker system df -v | grep budget_postgres_data
+```
+
+**Troubleshooting:**
+- **Сбой создания volume:** Проверьте Docker daemon status, disk space, permissions
+- **Volume не найден после создания:** Проверьте `docker volume ls` (убедитесь что создание прошло успешно)
+
+Смотрите `/docs/BACKUP_RESTORE.md` для процедур disaster recovery.
+
 ### Backup & Restore
 
 ```bash

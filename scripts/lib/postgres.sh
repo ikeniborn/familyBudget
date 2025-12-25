@@ -374,3 +374,81 @@ check_postgres_health_pre_deploy() {
 
     return 0
 }
+
+# =============================================================================
+# DOCKER VOLUME MANAGEMENT (INITIALIZATION)
+# =============================================================================
+
+# Ensure PostgreSQL Docker volume exists (idempotent)
+# Creates volume if missing, does nothing if already exists
+# This is critical for first deployment on clean servers
+# Returns:
+#   0 - Volume exists or created successfully
+#   1 - Volume creation failed (should BLOCK deployment)
+ensure_postgres_volume_exists() {
+    local volume_name="budget_postgres_data"
+
+    step "Checking PostgreSQL Docker Volume"
+
+    # Check if volume already exists
+    if docker volume inspect "$volume_name" > /dev/null 2>&1; then
+        success "PostgreSQL volume already exists: $volume_name"
+
+        # Get volume metadata for diagnostics
+        local driver=$(docker volume inspect "$volume_name" --format '{{.Driver}}' 2>/dev/null || echo "unknown")
+        local mountpoint=$(docker volume inspect "$volume_name" --format '{{.Mountpoint}}' 2>/dev/null || echo "unknown")
+
+        info "  Driver: $driver"
+        info "  Mountpoint: $mountpoint"
+
+        return 0
+    fi
+
+    # Volume does not exist - create it
+    info "PostgreSQL volume not found - creating new volume..."
+    info "This is normal for first deployment on clean server"
+
+    if docker volume create "$volume_name" >> "$LOG_FILE" 2>&1; then
+        success "PostgreSQL volume created: $volume_name"
+
+        # Verify creation
+        if docker volume inspect "$volume_name" > /dev/null 2>&1; then
+            local driver=$(docker volume inspect "$volume_name" --format '{{.Driver}}' 2>/dev/null || echo "unknown")
+            local mountpoint=$(docker volume inspect "$volume_name" --format '{{.Mountpoint}}' 2>/dev/null || echo "unknown")
+
+            success "Volume verified successfully"
+            info "  Driver: $driver"
+            info "  Mountpoint: $mountpoint"
+            info "  Status: Ready for PostgreSQL data"
+
+            return 0
+        else
+            error "Volume creation succeeded but verification failed"
+            error "This should not happen - possible Docker daemon issue"
+            return 1
+        fi
+    else
+        error "Failed to create PostgreSQL volume: $volume_name"
+
+        # Diagnostic information
+        echo ""
+        echo "💡 TROUBLESHOOTING:"
+        echo "  1. Check Docker daemon status:"
+        echo "     sudo systemctl status docker"
+        echo ""
+        echo "  2. Check Docker disk space:"
+        echo "     docker system df"
+        echo ""
+        echo "  3. Check volume directory permissions:"
+        echo "     ls -ld /var/lib/docker/volumes/"
+        echo ""
+        echo "  4. Check logs:"
+        echo "     tail -50 $LOG_FILE"
+        echo ""
+        echo "  5. Try manual creation:"
+        echo "     docker volume create $volume_name"
+        echo ""
+
+        return 1
+    fi
+}
