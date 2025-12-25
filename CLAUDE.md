@@ -1016,20 +1016,21 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 
 ### Service Worker Updates
 
-**Rule:** Service worker uses **aggressive auto-update** strategy - updates activate automatically within 1 hour of deployment.
+**Rule:** Service worker uses **aggressive auto-update** strategy - updates activate and reload automatically.
 
 **Why this is critical:**
 - All users must be on same version for data consistency
 - Bug fixes and security patches deploy immediately
 - No manual user intervention required
 - Mobile app-like update experience
+- Zero user interaction needed
 
-**Implementation (since v5.4.0):**
+**Implementation (since v5.4.0, updated v5.5.0):**
 1. Service worker calls `skipWaiting()` on install (immediate activation)
 2. Service worker calls `clients.claim()` on activate (take control of all tabs)
 3. Update checks run every **1 hour** (plus on every page load)
-4. Users see 3-second countdown before automatic reload
-5. All tabs reload simultaneously
+4. Page **automatically reloads** when new SW activates (no countdown, no notification)
+5. All tabs reload independently when they detect the update
 
 **Update Flow:**
 
@@ -1050,12 +1051,12 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 [SW] Deleted 1 old caches
 [SW] Clients claimed
 [SW] Notifying 1 clients about SW update
-[PWA] New service worker activated, reloading in 3 seconds...
-[Countdown toast: "Обновление приложения через 3... 2... 1..."]
-[PWA] Reloading page...
-[Page reloads automatically]
+[PWA] New service worker activated
+[PWA] Version: 2025-12-25T14:30:00.000Z
+[PWA] Auto-reloading page to apply update...
+[Page reloads automatically - NO notification, NO countdown]
 
-# 4. Result: User on new version within 3 seconds
+# 4. Result: User on new version immediately (< 1 second)
 ```
 
 **Testing Update Flow:**
@@ -1086,9 +1087,10 @@ npm run minify:js
 # 1. Open app in 3 different browser tabs
 # 2. Deploy new version (or update sw.js locally)
 # 3. Reload any tab
-# 4. Verify: All 3 tabs show countdown simultaneously
-# 5. Verify: All 3 tabs reload within 3 seconds
-# 6. Verify: All tabs on same new version
+# 4. Verify: Tab that reloaded detects update and reloads automatically
+# 5. Wait for other tabs' update checks (max 1 hour)
+# 6. Verify: Each tab reloads automatically when it detects update
+# 7. Result: All tabs on new version (within 1 hour max)
 ```
 
 **Debugging:**

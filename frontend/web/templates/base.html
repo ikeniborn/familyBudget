@@ -1353,21 +1353,22 @@
     <!-- Service Worker Registration (PWA) - Aggressive Auto-Update -->
     <script>
         // Service Worker регистрация для Progressive Web App
-        // Стратегия: Aggressive Auto-Update с уведомлением и контролем пользователя
+        // Стратегия: Aggressive Auto-Update с автоматической перезагрузкой при обновлении
         if ('serviceWorker' in navigator) {
             let refreshing = false;
-            let updateNotificationShown = false; // Deduplicate update notifications
 
             // CRITICAL: Listen for controllerchange event (new SW activated)
+            // При обновлении SW автоматически перезагружаем страницу
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing || updateNotificationShown) return; // Deduplicate
+                if (refreshing) return; // Предотвращаем множественные перезагрузки
                 refreshing = true;
-                updateNotificationShown = true; // Mark as shown
 
-                console.log('[PWA] New service worker activated, showing update notification...');
+                console.log('[PWA] New service worker activated');
+                console.log('[PWA] Version:', new Date().toISOString());
+                console.log('[PWA] Auto-reloading page to apply update...');
 
-                // Show persistent update notification with user control
-                showUpdateNotification();
+                // Автоматическая перезагрузка без уведомления
+                window.location.reload();
             });
 
             window.addEventListener('load', () => {
@@ -1411,47 +1412,6 @@
                         console.error('[PWA] Service Worker registration failed:', err);
                     });
             });
-
-            // Show persistent update notification with user control
-            function showUpdateNotification() {
-                const toast = document.createElement('div');
-                toast.className = 'toast toast-top toast-center update-notification-toast';
-                toast.style.cssText = 'position: fixed; z-index: 9999;';
-                toast.innerHTML = `
-                    <div class="alert alert-info shadow-lg gap-4">
-                        <div class="flex-1 flex items-center">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current flex-shrink-0 w-6 h-6 mr-2">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                            </svg>
-                            <span>Доступно обновление приложения</span>
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="btn btn-sm btn-ghost" onclick="dismissUpdateNotification()">
-                                Позже
-                            </button>
-                            <button class="btn btn-sm btn-primary" onclick="reloadWithUpdate()">
-                                Обновить
-                            </button>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(toast);
-            }
-
-            // Dismiss update notification (hide it)
-            function dismissUpdateNotification() {
-                const toast = document.querySelector('.update-notification-toast');
-                if (toast) {
-                    toast.style.display = 'none';
-                    console.log('[PWA] Update notification dismissed by user');
-                }
-            }
-
-            // Reload page when user clicks Update button
-            function reloadWithUpdate() {
-                console.log('[PWA] User clicked Update button, reloading page...');
-                window.location.reload();
-            }
         } else {
             console.log('[PWA] Service Worker not supported in this browser');
         }

@@ -5,12 +5,13 @@
 Family Budget is implemented as a **Progressive Web App (PWA)** with comprehensive offline support, automatic updates, and native app-like experience.
 
 **Key Features:**
-- ✅ Service Worker with automatic updates
+- ✅ Service Worker with aggressive automatic updates
 - ✅ Offline-first architecture
 - ✅ Push notifications
 - ✅ Background sync
 - ✅ Install prompt for mobile/desktop
 - ✅ Responsive design optimized for all devices
+- ✅ Automatic reload on update (no user interaction required)
 
 ---
 
@@ -161,19 +162,19 @@ Family Budget uses **4 different caching strategies** optimized for each content
 ## Aggressive Auto-Update Strategy
 
 **Since:** v5.4.0
+**Updated:** v5.5.0 (automatic reload)
 **Status:** ✅ Active
 
 ### Overview
 
-Family Budget uses **aggressive automatic updates** with user control to ensure all users are on the latest version within reasonable time of deployment.
+Family Budget uses **aggressive fully automatic updates** to ensure all users are on the latest version immediately after deployment.
 
 **Key Decisions:**
 - ✅ `skipWaiting()` on install (immediate activation)
 - ✅ `clients.claim()` on activate (take control of all tabs)
-- ✅ Update checks every **1 hour** (was 24 hours)
-- ✅ Persistent update notification with "Update" button
-- ✅ Users can dismiss notification but must reload to apply update
-- ❌ No automatic reload (user chooses when to update)
+- ✅ Update checks every **1 hour** + on every page load
+- ✅ **Automatic page reload** when new SW activates (no user interaction)
+- ✅ Full console logging for debugging and monitoring
 
 ---
 
@@ -214,19 +215,20 @@ New SW: Send postMessage to all clients (SW_UPDATED)
 Browser: controllerchange event fires in all tabs
 ```
 
-#### Step 5: Clients Show Update Notification
+#### Step 5: Automatic Page Reload
 
 ```
 All Tabs: controllerchange listener fires
-All Tabs: Show persistent update notification
-All Tabs: Display "Обновить" and "Позже" buttons
-User Action: Click "Обновить" button
-Result: Page reloads and applies new version
+All Tabs: Log update information to console
+All Tabs: IMMEDIATELY reload via window.location.reload()
+Result: All tabs reload and apply new version (no user action required)
 ```
 
-**Alternative User Actions:**
-- Click "Позже" → Notification dismissed, can continue working
-- Ignore notification → App continues to work, notification remains visible
+**Key Benefits:**
+- ✅ Zero user interaction required
+- ✅ All users on new version within seconds
+- ✅ No stale code running
+- ✅ Consistent state across all tabs
 
 ---
 
@@ -237,13 +239,10 @@ Result: Page reloads and applies new version
 | 00:00 | Deploy new version to server |
 | 00:00 | First user reloads page → update detected |
 | 00:01 | New SW installs and activates immediately |
-| 00:01 | First user sees notification: "Доступно обновление приложения" with buttons |
-| 00:02 | First user clicks "Обновить" → page reloads |
-| 00:15 | Second user's hourly check → update detected → notification shown |
-| 00:20 | Second user clicks "Позже" → continues working |
-| 00:45 | Third user's hourly check → update detected → notification shown |
-| 01:30 | Second user reloads page manually → sees notification again → clicks "Обновить" |
-| 02:00 | Most users eventually update (when convenient for them) |
+| 00:01 | First user's page **automatically reloads** → on new version |
+| 00:15 | Second user's hourly check → update detected → **automatic reload** |
+| 00:45 | Third user's hourly check → update detected → **automatic reload** |
+| 01:00 | **100% users on new version** (max 1-hour delay) |
 
 ---
 
@@ -306,19 +305,22 @@ self.addEventListener('activate', (event) => {
 #### Frontend (base.html)
 
 ```javascript
-// Lines 1309-1410
+// Lines 1360-1414
 if ('serviceWorker' in navigator) {
     let refreshing = false;
 
-    // CRITICAL: Listen for controllerchange event
+    // CRITICAL: Listen for controllerchange event (new SW activated)
+    // При обновлении SW автоматически перезагружаем страницу
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return;
+        if (refreshing) return; // Предотвращаем множественные перезагрузки
         refreshing = true;
 
-        console.log('[PWA] New service worker activated, showing update notification...');
+        console.log('[PWA] New service worker activated');
+        console.log('[PWA] Version:', new Date().toISOString());
+        console.log('[PWA] Auto-reloading page to apply update...');
 
-        // Show persistent update notification with user control
-        showUpdateNotification();
+        // Автоматическая перезагрузка без уведомления
+        window.location.reload();
     });
 
     window.addEventListener('load', () => {
@@ -331,8 +333,7 @@ if ('serviceWorker' in navigator) {
 
                 // Auto-check for updates every 1 hour
                 setInterval(() => {
-                    console.log('[PWA] Checking for updates...');
-                    registration.update();
+                    registration.update(); // Silent check
                 }, 60 * 60 * 1000); // 1 hour = 3600000ms
 
                 // Handle update found
@@ -347,57 +348,22 @@ if ('serviceWorker' in navigator) {
 
                         if (newWorker.state === 'installed') {
                             if (navigator.serviceWorker.controller) {
-                                // Update available
+                                // Update available - will auto-activate via skipWaiting()
                                 console.log('[PWA] Update available, auto-activating...');
+                                // skipWaiting() already called in SW install event
+                                // controllerchange event will trigger reload
                             } else {
-                                // First install
+                                // First install - just log (silent UX)
                                 console.log('[PWA] Service worker installed for the first time');
-                                showToast('Приложение готово к работе офлайн', 'success', 3000);
                             }
                         }
                     });
                 });
+            })
+            .catch((err) => {
+                console.error('[PWA] Service Worker registration failed:', err);
             });
     });
-
-    // Show persistent update notification with user control
-    function showUpdateNotification() {
-        const toast = document.createElement('div');
-        toast.className = 'toast toast-top toast-center update-notification-toast';
-        toast.style.cssText = 'position: fixed; z-index: 9999;';
-        toast.innerHTML = `
-            <div class="alert alert-info shadow-lg gap-4">
-                <div class="flex-1 flex items-center">
-                    <svg ...>...</svg>
-                    <span>Доступно обновление приложения</span>
-                </div>
-                <div class="flex gap-2">
-                    <button class="btn btn-sm btn-ghost" onclick="dismissUpdateNotification()">
-                        Позже
-                    </button>
-                    <button class="btn btn-sm btn-primary" onclick="reloadWithUpdate()">
-                        Обновить
-                    </button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(toast);
-    }
-
-    // Dismiss update notification (hide it)
-    function dismissUpdateNotification() {
-        const toast = document.querySelector('.update-notification-toast');
-        if (toast) {
-            toast.style.display = 'none';
-            console.log('[PWA] Update notification dismissed by user');
-        }
-    }
-
-    // Reload page when user clicks Update button
-    function reloadWithUpdate() {
-        console.log('[PWA] User clicked Update button, reloading page...');
-        window.location.reload();
-    }
 }
 ```
 
@@ -409,10 +375,10 @@ if ('serviceWorker' in navigator) {
 |-----------|-------|-----------|
 | `skipWaiting()` | ✅ Always | Immediate activation, no waiting |
 | `clients.claim()` | ✅ Always | All tabs use new SW immediately |
-| Update check frequency | 1 hour | Balance between responsiveness and server load |
-| Update notification type | Persistent | Users control when to reload, prevents data loss |
-| Auto-reload | ❌ Disabled | Users choose convenient time for update |
-| State preservation | ❌ No | Consider for future versions |
+| Update check frequency | 1 hour + page load | Balance between responsiveness and server load |
+| Auto-reload | ✅ Enabled | Immediate update application, no stale code |
+| User interaction | ❌ None required | Zero-friction update experience |
+| State preservation | ❌ No | Users should save work frequently (future enhancement) |
 
 ---
 
@@ -420,45 +386,11 @@ if ('serviceWorker' in navigator) {
 
 | Risk | Impact | Probability | Mitigation |
 |------|--------|-------------|------------|
-| User ignores notification | MEDIUM | MEDIUM | App remains functional with old SW, new version available in notification |
-| Multiple notifications (multi-tab) | LOW | LOW | Each tab shows independent notification |
-| User dismisses notification | LOW | MEDIUM | Notification can be re-shown on next page reload |
-| Update delayed beyond 1 hour | LOW | MEDIUM | Users can update when convenient, app works normally |
-| Browser compatibility | LOW | LOW | Notification uses standard HTML/CSS (DaisyUI) |
-
----
-
-### Update Notification UI
-
-**Appearance:**
-- Fixed position: top-center
-- DaisyUI alert with info variant (blue background)
-- High z-index (9999) to ensure visibility
-- Contains:
-  - ✨ Refresh icon (SVG)
-  - 📝 Message: "Доступно обновление приложения"
-  - Two buttons:
-    - "Позже" - Dismiss notification (hide it)
-    - "Обновить" - Reload page with new SW
-
-**User Options:**
-1. Click "Обновить" → Immediately reload and apply update
-2. Click "Позже" → Dismiss notification, continue working
-3. Ignore notification → App continues to work normally, notification remains visible
-
-**Behavior:**
-- Notification persists across page interactions
-- Multiple tabs show independent notifications
-- Dismissing on one tab does NOT affect other tabs
-- Next page reload shows notification again if SW still updated
-- No automatic reload - user has full control
-
-**Implementation Notes:**
-- Alert element has class `update-notification-toast` for easy targeting
-- `refreshing` flag prevents multiple simultaneous reloads
-- Uses DaisyUI classes for consistent styling
-- Buttons are semantic `<button>` elements for accessibility
-- Console logs for debugging: `[PWA] Update notification dismissed by user`, `[PWA] User clicked Update button, reloading page...`
+| User loses unsaved form data | HIGH | LOW | Users should save work frequently; future: detect dirty forms |
+| Update interrupts transaction | MEDIUM | LOW | Future: delay reload if transaction in progress |
+| Multiple simultaneous reloads (multi-tab) | LOW | LOW | `refreshing` flag prevents duplicate reloads |
+| Update delayed beyond 1 hour | LOW | MEDIUM | Max 1-hour delay acceptable; users get latest version automatically |
+| Browser compatibility | LOW | LOW | Standard APIs (Service Worker, window.location.reload) |
 
 ---
 
@@ -581,7 +513,7 @@ if ('serviceWorker' in navigator) {
 2. Check current version in console: `[SW] Activating version: vXXXXXXXX_XXXX`
 3. Deploy new version (update `CACHE_VERSION` manually or via `scripts/update-sw-version.sh`)
 4. Reload page OR wait 1 hour
-5. Observe console logs:
+5. Observe console logs (page should auto-reload):
    ```
    [PWA] Checking for updates...
    [PWA] New service worker found, installing...
@@ -591,16 +523,13 @@ if ('serviceWorker' in navigator) {
    [SW] Deleted 1 old caches
    [SW] Clients claimed
    [SW] Notifying 1 clients about SW update
-   [PWA] New service worker activated, showing update notification...
+   [PWA] New service worker activated
+   [PWA] Version: 2025-12-25T...Z
+   [PWA] Auto-reloading page to apply update...
+   [Page reloads automatically]
    ```
-6. Verify update notification appears (not countdown toast)
-   - Should show: "Доступно обновление приложения"
-   - Should have "Обновить" and "Позже" buttons
-7. Test button behavior:
-   - Click "Позже" → Notification disappears
-   - Reload page → Notification appears again
-   - Click "Обновить" → Page reloads immediately
-8. After reload → Verify new version active: `[SW] Activating version: vXXXXXXXX_YYYY`
+6. After automatic reload → Verify new version active: `[SW] Activating version: vXXXXXXXX_YYYY`
+7. Verify NO notification shown (automatic reload, no user interaction)
 
 ---
 
@@ -610,12 +539,13 @@ if ('serviceWorker' in navigator) {
 1. Open app in 3 different tabs
 2. Deploy new version
 3. Trigger update in any tab (reload OR wait 1 hour)
-4. Verify all 3 tabs show update notification independently
-5. Test independent control:
-   - Tab 1: Click "Обновить" → Tab 1 reloads immediately
-   - Tab 2: Click "Позже" → Notification dismissed, continue working
-   - Tab 3: Ignore notification → Notification remains visible
-6. Verify: Each tab operates independently, no cross-tab interference
+4. Observe behavior:
+   - Tab that detected update: Reloads automatically
+   - Other tabs: Continue working until their next update check
+5. Wait for other tabs' update checks (max 1 hour):
+   - Each tab will automatically reload when it detects the update
+   - No cross-tab coordination needed (each tab manages itself)
+6. Verify: After 1 hour, all tabs are on new version
 
 ---
 
@@ -626,9 +556,10 @@ if ('serviceWorker' in navigator) {
 2. Open app for the first time
 3. Verify:
    - SW installs successfully
-   - Toast shown: "Приложение готово к работе офлайн"
-   - **NO reload triggered** (first install should not reload)
+   - Console log: "Service worker installed for the first time"
+   - **NO reload triggered** (first install does NOT reload)
    - Static cache populated
+4. Note: Only SW updates trigger reload, not first install
 
 ---
 
@@ -674,9 +605,10 @@ if ('serviceWorker' in navigator) {
 [PWA] Service worker state: installing
 [PWA] Service worker state: installed
 [PWA] Update available, auto-activating...
-[PWA] New service worker activated, showing update notification...
-[User clicks "Обновить" button]
-[PWA] User clicked Update button, reloading page...
+[PWA] New service worker activated
+[PWA] Version: 2025-12-25T14:30:00.000Z
+[PWA] Auto-reloading page to apply update...
+[Page reloads automatically - no user interaction]
 ```
 
 ---
@@ -777,17 +709,19 @@ Content-Security-Policy:
 ### Planned Features
 
 1. **Smart Update Scheduling**
-   - Detect if form is being edited
+   - Detect if form is being edited (dirty state detection)
    - Delay reload until form saved or user idle
+   - Prevent data loss during active transactions
 
 2. **Partial State Preservation**
-   - Save draft form data to localStorage
+   - Save draft form data to localStorage before reload
    - Restore after reload (for critical forms only)
+   - Preserve scroll position and UI state
 
-3. **Update Notification Options**
-   - "Update Now" button (immediate reload)
-   - "Update Later" button (delay 10 minutes)
-   - "Don't Ask Again" (wait until next session)
+3. **Progressive Update Strategy**
+   - Show countdown notification (5 seconds) before reload
+   - Allow user to cancel reload and save work
+   - Re-trigger reload after user-defined delay
 
 4. **Offline Conflict Resolution**
    - Last-Write-Wins (LWW) strategy
@@ -806,6 +740,6 @@ Content-Security-Policy:
 
 ---
 
-**Last Updated:** 2025-12-24
+**Last Updated:** 2025-12-25
 **Maintainer:** Development Team
 **Status:** ✅ Production Ready
