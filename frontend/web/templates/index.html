@@ -2904,10 +2904,30 @@ document.addEventListener('DOMContentLoaded', function() {
     // Each page's DOMContentLoaded can register its own handler on the same form element
     // Result: Multiple handlers execute on submit → duplicate POST requests → duplicate records in DB
     const transferForm = document.getElementById('form_transfer');
+    console.log('[index.html] Transfer form guard check:', {
+        formExists: !!transferForm,
+        alreadyRegistered: transferForm?.dataset?.submitHandlerRegistered,
+        timestamp: new Date().toISOString()
+    });
+
     if (transferForm && !transferForm.dataset.submitHandlerRegistered) {
         transferForm.dataset.submitHandlerRegistered = 'true';
+        console.log('[index.html] ✅ Transfer form submit handler REGISTERED');
+
+        // De-duplication guard: prevent simultaneous submissions
+        let isSubmitting = false;
+
         transferForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            // Guard against simultaneous submissions (race condition protection)
+            if (isSubmitting) {
+                console.warn('[index.html] ⚠️ Transfer submission already in progress, ignoring duplicate');
+                return;
+            }
+            isSubmitting = true;
+
+            console.log('[index.html] 🚀 Transfer form submit handler EXECUTING');
 
         const formData = new FormData(e.target);
 
@@ -3012,6 +3032,10 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error creating transfer:', error);
             showToast('Ошибка при создании перевода: ' + error.message, 'error');
         } finally {
+            // Reset submission guard
+            isSubmitting = false;
+            console.log('[index.html] ✅ Transfer submission completed, guard reset');
+
             // Re-enable button
             const submitBtn = e.target.querySelector('.save-btn');
             if (submitBtn) {

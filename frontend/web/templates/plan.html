@@ -1318,14 +1318,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Each page's DOMContentLoaded can register its own handler on the same form element
     // Result: Multiple handlers execute on submit → duplicate POST requests → duplicate records in DB
     const transferForm = document.getElementById('form_transfer');
+    console.log('[plan.html] Transfer form guard check:', {
+        formExists: !!transferForm,
+        alreadyRegistered: transferForm?.dataset?.submitHandlerRegistered,
+        timestamp: new Date().toISOString()
+    });
+
     if (transferForm && !transferForm.dataset.submitHandlerRegistered) {
         transferForm.dataset.submitHandlerRegistered = 'true';
+        console.log('[plan.html] ✅ Transfer form submit handler REGISTERED');
+
         transferForm.addEventListener('submit', async function(e) {
             e.preventDefault();
+            console.log('[plan.html] 🚀 Transfer form submit handler EXECUTING');
             await createTransfer(e);
         });
     } else if (transferForm) {
-        console.warn('[plan.html] Transfer form submit handler already registered, skipping duplicate registration');
+        console.warn('[plan.html] ⚠️ Transfer form submit handler already registered, skipping duplicate registration');
     }
 
     // Initialize CalendarWidget for filter date range (with custom trigger)
