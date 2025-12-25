@@ -231,14 +231,18 @@ regenerate_nginx_config() {
 
     # Load .env to get current DOMAIN and DEPLOYMENT_PROFILE
     set -a
-    source "$DEPLOY_DIR/.env" 2>/dev/null || {
-        warning "Failed to load .env file, skipping nginx configuration"
-        return 0
-    }
+    if ! source "$DEPLOY_DIR/.env" 2>/dev/null; then
+        error "Failed to load .env file from $DEPLOY_DIR/.env"
+        error "Nginx configuration cannot proceed without .env"
+        return 1
+    fi
     set +a
 
     local deployment_profile="${DEPLOYMENT_PROFILE:-basic}"
     local domain="${DOMAIN:-localhost}"
+
+    info "Deployment profile: $deployment_profile"
+    info "Domain: $domain"
 
     # Skip if basic profile (nginx not used)
     if [[ "$deployment_profile" != "full" ]]; then
@@ -839,7 +843,11 @@ main() {
     # CRITICAL: Regenerate nginx config IMMEDIATELY after sync
     # sync_update() may delete nginx/conf.d/*.conf as "orphaned" (not in repo)
     # This ensures nginx config is always present, even if deploy is interrupted later
-    regenerate_nginx_config
+    if ! regenerate_nginx_config; then
+        error "Failed to regenerate nginx configuration"
+        error "Nginx will not start without valid configuration"
+        exit 1
+    fi
     echo ""
 
     # Regenerate PWA icons if trigger file exists (AFTER sync, BEFORE SW cache update)
