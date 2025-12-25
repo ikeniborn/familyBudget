@@ -16,9 +16,13 @@
 При создании регламентного платежа через модальное окно на странице `/plan`, записи создавались в БД, но НЕ отображались без перезагрузки страницы (F5).
 
 ### Root Cause
-`plan.html` НЕ имел обработчиков WebSocket событий (`plan_created`, `plan_updated`, `plan_deleted`), хотя backend корректно broadcast эти события.
+**Две проблемы:**
+1. `plan.html` НЕ имел обработчиков WebSocket событий (`plan_created`, `plan_updated`, `plan_deleted`)
+2. **Redis Pub/Sub subscriber блокировался** - использовал `pubsub.listen()` внутри `async with get_redis()`, что не позволяло получать сообщения
 
 ### Решение
+
+#### Frontend Fix
 Добавлены WebSocket обработчики в `/frontend/web/templates/plan.html` (строки 5153-5219):
 
 ```javascript
@@ -55,11 +59,61 @@ function shouldReloadOnPlanCreated(planData) {
 }
 ```
 
+#### Backend Fix
+Исправлен Redis Pub/Sub subscriber в `/backend/app/services/redis_pubsub_service.py`:
+
+**Проблема:** `pubsub.listen()` блокировался внутри `async with get_redis()` context manager
+
+**Решение:** Использовать `pubsub.get_message()` с timeout в цикле:
+
+```python
+async with get_redis() as redis:
+    pubsub = redis.pubsub()
+    await pubsub.subscribe(BUDGET_EVENTS_CHANNEL)
+
+    logger.info(f"Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
+
+    # Use get_message() in a loop instead of listen()
+    while True:
+        message = await pubsub.get_message(ignore_subscribe_messages=False, timeout=1.0)
+
+        if message is None:
+            await asyncio.sleep(0.01)
+            continue
+
+        if message["type"] == "message":
+            event = json.loads(message["data"])
+            event_type = event.get("type")
+            event_data = event.get("data", {})
+
+            # Forward to local connections via callback
+            if _local_broadcast_callback:
+                await _local_broadcast_callback(event_type, event_data)
+```
+
+**Почему `listen()` не работал:**
+- `listen()` создаёт бесконечный async generator
+- Находится внутри `async with get_redis()`, который автоматически закрывает соединение
+- Соединение закрывалось до получения первого сообщения
+
+**Почему `get_message()` работает:**
+- Явный контроль над получением сообщений
+- Context manager остаётся открытым внутри `while True` цикла
+- Timeout позволяет yield control обратно в event loop
+
 ### Тестирование
 1. Открыть `/plan` в одной вкладке
 2. Открыть `/` в другой вкладке
 3. Создать плановую запись через модальное окно
 4. ✅ **Результат:** Запись появляется на `/plan` БЕЗ F5 + toast уведомление
+
+**Проверено логами:**
+```
+21:29:02 - [PUBSUB] Received message type: message
+21:29:02 - [PUBSUB] Parsed event: type=plan_created
+21:29:02 - Local broadcast: event=plan_created, connections=1
+21:29:02 - Local broadcast complete: sent to 1 clients
+```
 
 ---
 
@@ -283,12 +337,21 @@ docker compose logs -f backend
 **Приоритет:** LOW
 **Решение:** Увеличить `pageSize` с 50 до 100 ИЛИ добавить индикатор пагинации
 
+### Issue 3: WebSocket не восстанавливается после перезапуска backend
+**Приоритет:** MEDIUM
+**Симптом:** После перезапуска backend сервера WebSocket не переподключается автоматически - требуется перезагрузка страницы
+**Root Cause:** Логика reconnect в `BudgetWSClient` не обрабатывает сценарий потери соединения во время работы сервера
+**Workaround:** Пользователь перезагружает страницу вручную (F5)
+**TODO:** Добавить автоматический reconnect с exponential backoff в `budgetWSClient.js`
+
 ---
 
 ## Changelog
 
 **2025-12-25**
 - ✅ Добавлены WebSocket обработчики на `/plan` для real-time обновлений
+- ✅ Исправлен Redis Pub/Sub subscriber (переход с `listen()` на `get_message()`)
 - ✅ Добавлен comprehensive debug logging в edit modal
 - ✅ Подтверждена корректность фильтра `has_recurring_plan` (ВЫКЛЮЧЕН по умолчанию)
 - ✅ Создана документация по исправлениям
+- ✅ **Real-time обновления работают** - события доставляются через WebSocket

@@ -177,8 +177,7 @@ async def _subscriber_loop():
                 pubsub = redis.pubsub()
                 await pubsub.subscribe(BUDGET_EVENTS_CHANNEL)
 
-                logger.warning(f"[PUBSUB-DEBUG] Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
-                logger.warning(f"[PUBSUB-DEBUG] Starting message loop...")
+                logger.info(f"Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
 
                 # Use get_message() in a loop instead of listen()
                 # This prevents blocking and allows proper context manager handling
@@ -190,24 +189,19 @@ async def _subscriber_loop():
                         await asyncio.sleep(0.01)
                         continue
 
-                    logger.warning(f"[PUBSUB-DEBUG] Received message type: {message['type']}")
-
                     if message["type"] == "message":
                         try:
-                            logger.warning(f"[PUBSUB-DEBUG] Raw message data: {message['data']}")
                             event = json.loads(message["data"])
                             event_type = event.get("type")
                             event_data = event.get("data", {})
 
-                            logger.warning(f"[PUBSUB-DEBUG] Parsed event: type={event_type}, callback_registered={_local_broadcast_callback is not None}")
+                            logger.debug(f"Received Pub/Sub event: {event_type}")
 
                             # Forward to local connections via callback
                             if _local_broadcast_callback:
-                                logger.warning(f"[PUBSUB-DEBUG] Calling callback for event: {event_type}")
                                 await _local_broadcast_callback(event_type, event_data)
-                                logger.warning(f"[PUBSUB-DEBUG] Callback completed for event: {event_type}")
                             else:
-                                logger.warning(f"[PUBSUB] No callback registered, event {event_type} dropped!")
+                                logger.warning(f"No callback registered, event {event_type} dropped")
 
                         except json.JSONDecodeError as e:
                             logger.warning(f"Invalid JSON in Pub/Sub message: {e}")
