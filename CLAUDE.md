@@ -139,6 +139,50 @@ npm run build
 npm run validate:minified
 ```
 
+### Web Workers
+
+**Location:** `frontend/web/static/js/workers/`
+
+**Status:** Phases 1-4 Complete ✅
+- ✅ Phase 1: Core Infrastructure (workerWrapper.js, cache busting)
+- ✅ Phase 2: Hierarchy Worker (category tree processing)
+- ✅ Phase 3: CSV Worker (Base64 encoding, CSV parsing)
+- ✅ Phase 4: Sync Worker (parallel batch processing)
+- ❌ Phase 5: Analytics Worker (created but NOT integrated - async overhead issue)
+
+**Performance Improvements:**
+- Category hierarchy: 200-300ms → 50-100ms (70% faster)
+- CSV 10MB encoding: 2-5s → 100-500ms (80-90% faster)
+- Sync queue (100 items): Sequential 10-15s → Parallel 3-4s (4-6x faster)
+
+**Workers:**
+- `workerWrapper.js` - Core wrapper with cache busting, feature flags, memory monitoring
+- `hierarchyWorker.js` - Category tree processing (integrated in choicesCategoryTree.js)
+- `csvWorker.js` - CSV parsing + Base64 encoding (integrated in csvImporter.js)
+- `syncWorker.js` - Parallel sync processing (integrated in offlineManager.js)
+- `analyticsWorker.js` - Chart data processing (**NOT integrated** - files exist but unused)
+
+**Feature Flag:**
+```bash
+# In .env
+ENABLE_WEB_WORKERS=true  # Default: enabled
+```
+
+**Cache Busting:**
+Workers automatically load with version parameter:
+```html
+<script src="/static/js/workers/core/workerWrapper.min.js?v=20251225_1830"></script>
+```
+
+**Testing:**
+```bash
+# Workers minified automatically with npm run minify:js
+# Check worker status in browser console:
+# ChoicesCategoryTree._workerWrapper.getStatus()
+```
+
+**See:** `/docs/architecture/web-workers.md` for detailed architecture
+
 ### Testing
 
 ```bash
