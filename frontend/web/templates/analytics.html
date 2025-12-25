@@ -196,7 +196,6 @@ let currentPeriod = 'month';
 let currentPieType = 'expense';
 let currentWaterfallArticleId = null;
 let waterfallCategoriesData = [];
-let analyticsWorkerWrapper = null;  // Worker wrapper for chart data processing
 
 // Global type filter (applies to Plan-Fact, Pie, Heatmap)
 let currentGlobalType = 'expense';
@@ -237,19 +236,6 @@ document.addEventListener('DOMContentLoaded', function() {
             applyCustomRange(); // Apply when user clicks "Применить" button in calendar
         }
     });
-
-    // Initialize Analytics Worker
-    if (typeof WorkerWrapper !== 'undefined') {
-        try {
-            analyticsWorkerWrapper = new WorkerWrapper('/static/js/workers/analyticsWorker.min.js', {
-                idleTimeout: 30000,
-                debugMode: window.DEBUG_MODE || false
-            });
-        } catch (error) {
-            console.warn('[Analytics] Failed to initialize analytics worker:', error);
-            analyticsWorkerWrapper = null;
-        }
-    }
 
     // Initialize CFO filter
     loadCFOList();
@@ -922,7 +908,7 @@ async function loadPieData(type, period) {
 }
 
 // Update Pie chart with data
-async function updatePieChart(data) {
+function updatePieChart(data) {
     pieChart.hideLoading();
 
     // Handle empty data
@@ -945,67 +931,41 @@ async function updatePieChart(data) {
     let chartData;
     let othersData = null;
 
-    // For large datasets (>100 categories), use worker
-    if (data.categories.length > 100 && analyticsWorkerWrapper) {
-        try {
-            const result = await analyticsWorkerWrapper.execute({
-                action: 'preparePieData',
-                data: {
-                    categories: data.categories,
-                    amounts: data.amounts,
-                    percentages: data.percentages
-                }
-            });
+    // Synchronous processing (workers disabled - async overhead > performance gain for typical datasets)
+    if (data.categories.length > 10) {
+        // Топ 10 + "Прочее"
+        const top10 = data.categories.slice(0, 10).map((category, index) => ({
+            name: category,
+            value: data.amounts[index],
+            percent: data.percentages[index]
+        }));
 
-            chartData = result.chartData;
-            othersData = result.othersData;
+        const others = data.categories.slice(10).map((category, index) => ({
+            name: category,
+            value: data.amounts[index + 10],
+            percent: data.percentages[index + 10]
+        }));
 
-            if (window.DEBUG_MODE && result.duration > 50) {
-                console.log(`[Analytics] Worker pie data prepared: ${result.duration}ms (${result.numCategories} categories)`);
-            }
-        } catch (error) {
-            console.warn('[Analytics] Worker pie data preparation failed, using synchronous:', error);
-            // Fallback to synchronous processing below
-        }
-    }
+        const othersSum = others.reduce((sum, item) => sum + item.value, 0);
+        const othersPercent = others.reduce((sum, item) => sum + item.percent, 0);
 
-    // Synchronous fallback (or if worker not used)
-    if (!chartData) {
-        if (data.categories.length > 10) {
-            // Топ 10 + "Прочее"
-            const top10 = data.categories.slice(0, 10).map((category, index) => ({
-                name: category,
-                value: data.amounts[index],
-                percent: data.percentages[index]
-            }));
+        // Сортировка "Прочее" от большего к меньшему
+        others.sort((a, b) => b.value - a.value);
 
-            const others = data.categories.slice(10).map((category, index) => ({
-                name: category,
-                value: data.amounts[index + 10],
-                percent: data.percentages[index + 10]
-            }));
-
-            const othersSum = others.reduce((sum, item) => sum + item.value, 0);
-            const othersPercent = others.reduce((sum, item) => sum + item.percent, 0);
-
-            // Сортировка "Прочее" от большего к меньшему
-            others.sort((a, b) => b.value - a.value);
-
-            chartData = [...top10, {
-                name: 'Прочее',
-                value: othersSum,
-                percent: othersPercent,
-                othersData: others  // Сохраняем для специального тултипа
-            }];
-            othersData = others;
-        } else {
-            // Если категорий ≤ 10: показать все без "Прочее"
-            chartData = data.categories.map((category, index) => ({
-                name: category,
-                value: data.amounts[index],
-                percent: data.percentages[index]
-            }));
-        }
+        chartData = [...top10, {
+            name: 'Прочее',
+            value: othersSum,
+            percent: othersPercent,
+            othersData: others  // Сохраняем для специального тултипа
+        }];
+        othersData = others;
+    } else {
+        // Если категорий ≤ 10: показать все без "Прочее"
+        chartData = data.categories.map((category, index) => ({
+            name: category,
+            value: data.amounts[index],
+            percent: data.percentages[index]
+        }));
     }
 
     // Adaptive layout based on screen width
@@ -1411,7 +1371,7 @@ async function loadWaterfallData(period = 'year', articleId = null) {
 }
 
 // Update Waterfall chart with data
-async function updateWaterfallChart(data) {
+function updateWaterfallChart(data) {
     if (!waterfallChart) {
         console.error('Waterfall chart not initialized');
         return;
@@ -1430,72 +1390,40 @@ async function updateWaterfallChart(data) {
         return;
     }
 
-    // Build proper waterfall data structure
+    // Build proper waterfall data structure (synchronous - async overhead > performance gain)
     // Waterfall shows: Начало -> +Income -> -Expense -> Итого (cumulative)
-    let waterfallData = null;
-    let labels = null;
+    const waterfallData = [];
+    const labels = [];
 
-    // For large datasets (>50 periods), use worker
-    if (data.labels.length > 50 && analyticsWorkerWrapper) {
-        try {
-            const result = await analyticsWorkerWrapper.execute({
-                action: 'prepareWaterfallData',
-                data: {
-                    initial_balance: data.initial_balance,
-                    labels: data.labels,
-                    income: data.income,
-                    expense: data.expense,
-                    balance: data.balance
-                }
-            });
+    // Add starting point (from previous period balance)
+    const initialBalance = data.initial_balance || 0;
+    labels.push('Начало');
+    waterfallData.push({
+        value: initialBalance,
+        itemStyle: { color: '#90CAF9' }
+    });
 
-            waterfallData = result.waterfallData;
-            labels = result.labels;
+    // Add each period's net change
+    data.labels.forEach((label, index) => {
+        const income = data.income[index];
+        const expense = data.expense[index];
+        const net = income - expense;
 
-            if (window.DEBUG_MODE && result.duration > 50) {
-                console.log(`[Analytics] Worker waterfall data prepared: ${result.duration}ms (${data.labels.length} periods)`);
+        labels.push(label);
+        waterfallData.push({
+            value: net,
+            itemStyle: {
+                color: net >= 0 ? '#4CAF50' : '#f44336'  // Green for positive, red for negative
             }
-        } catch (error) {
-            console.warn('[Analytics] Worker waterfall data preparation failed, using synchronous:', error);
-            // Fallback to synchronous processing below
-        }
-    }
-
-    // Synchronous fallback (or if worker not used)
-    if (!waterfallData) {
-        waterfallData = [];
-        labels = [];
-
-        // Add starting point (from previous period balance)
-        const initialBalance = data.initial_balance || 0;
-        labels.push('Начало');
-        waterfallData.push({
-            value: initialBalance,
-            itemStyle: { color: '#90CAF9' }
         });
+    });
 
-        // Add each period's net change
-        data.labels.forEach((label, index) => {
-            const income = data.income[index];
-            const expense = data.expense[index];
-            const net = income - expense;
-
-            labels.push(label);
-            waterfallData.push({
-                value: net,
-                itemStyle: {
-                    color: net >= 0 ? '#4CAF50' : '#f44336'  // Green for positive, red for negative
-                }
-            });
-        });
-
-        // Add final cumulative balance
-        labels.push('Итого');
-        waterfallData.push({
-            value: data.balance[data.balance.length - 1],
-            itemStyle: { color: '#2196F3' }
-        });
-    }
+    // Add final cumulative balance
+    labels.push('Итого');
+    waterfallData.push({
+        value: data.balance[data.balance.length - 1],
+        itemStyle: { color: '#2196F3' }
+    });
 
     // Build subtitle
     const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
