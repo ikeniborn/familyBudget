@@ -75,6 +75,27 @@ Use these files to understand component relationships when planning changes or o
 
 ---
 
+### 2025-12-25: Emoji Icon Table Header Centering
+- **Change:** Added `text-center` class to emoji-only table headers (5 instances)
+- **Reason:** Visual consistency - icon-only headers should be centered, matching `index.html:247` reference
+- **Pattern:**
+  - Emoji-only headers: `<th class="text-center" title="...">EMOJI</th>` (centered)
+  - Text+emoji headers: `<th>EMOJI Text</th>` (left-aligned, unchanged)
+- **Files changed:**
+  - `frontend/web/templates/partials/recent_transactions.html:47` (☁️ offline indicator)
+  - `frontend/web/templates/facts.html:1339` (☁️ offline indicator)
+  - `frontend/web/templates/plan.html:2141` (🔔 notification)
+  - `frontend/web/templates/plan.html:2142` (🔄 recurring payment)
+  - `frontend/web/templates/plan.html:2143` (☁️ offline indicator)
+  - `docs/architecture/README.md` (this changelog)
+- **Impact:**
+  - Visual layout: Emoji icons centered in table header cells
+  - No functional changes
+  - Desktop-only (mobile uses card layout)
+  - Accessibility maintained (all have `title` attributes)
+
+---
+
 ### 2025-12-24: Navbar Icon Order Adjustment
 - **Change:** Moved Push Notification bell icon left of SSE status in navbar
 - **Reason:** Improved visual priority - push notifications are user-facing, SSE is background sync
