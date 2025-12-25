@@ -25,6 +25,9 @@
 set -e  # Exit on error
 set -u  # Exit on undefined variable
 
+# Prevent interactive prompts from apt-get
+export DEBIAN_FRONTEND=noninteractive
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -130,8 +133,15 @@ detect_os() {
 # Update system packages
 update_system() {
     info "Updating system packages..."
-    apt-get update -y >> "$LOG_FILE" 2>&1
-    apt-get upgrade -y >> "$LOG_FILE" 2>&1
+
+    if ! timeout 180 apt-get update -y >> "$LOG_FILE" 2>&1; then
+        error "apt-get update failed or timed out. Check network connection and $LOG_FILE"
+    fi
+
+    if ! timeout 600 apt-get upgrade -y >> "$LOG_FILE" 2>&1; then
+        error "apt-get upgrade failed or timed out. Check $LOG_FILE for details."
+    fi
+
     success "System packages updated"
 }
 
@@ -165,7 +175,9 @@ install_utilities() {
     for package in "${packages[@]}"; do
         if ! dpkg -l | grep -q "^ii  $package "; then
             info "Installing $package..."
-            apt-get install -y "$package" >> "$LOG_FILE" 2>&1
+            if ! timeout 300 apt-get install -y "$package" >> "$LOG_FILE" 2>&1; then
+                error "Failed to install $package (timeout or error). Check $LOG_FILE for details."
+            fi
         else
             info "$package is already installed"
         fi
@@ -245,7 +257,9 @@ install_docker() {
     # Add Docker's official GPG key
     info "Adding Docker GPG key..."
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    if ! curl -fsSL --max-time 60 --retry 3 https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg; then
+        error "Failed to download Docker GPG key. Check network connection and $LOG_FILE"
+    fi
     chmod a+r /etc/apt/keyrings/docker.gpg
 
     # Add Docker repository
@@ -255,11 +269,15 @@ install_docker() {
         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     # Update package index
-    apt-get update -y >> "$LOG_FILE" 2>&1
+    if ! timeout 180 apt-get update -y >> "$LOG_FILE" 2>&1; then
+        error "apt-get update failed or timed out while setting up Docker. Check $LOG_FILE"
+    fi
 
     # Install Docker Engine
     info "Installing Docker Engine..."
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >> "$LOG_FILE" 2>&1
+    if ! timeout 600 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >> "$LOG_FILE" 2>&1; then
+        error "Docker installation failed or timed out. Check $LOG_FILE for details."
+    fi
 
     # Start and enable Docker
     systemctl start docker
@@ -551,13 +569,27 @@ install_nodejs() {
 
     # Install NodeSource repository (Node.js 20.x LTS)
     info "Adding NodeSource repository for Node.js 20.x LTS..."
-    if ! curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >> "$LOG_FILE" 2>&1; then
-        error "Failed to add NodeSource repository. Check network connection and $LOG_FILE for details."
+
+    # Download NodeSource setup script with timeout
+    local setup_script="/tmp/nodesource_setup.sh"
+    if ! curl -fsSL --max-time 60 --retry 3 https://deb.nodesource.com/setup_20.x -o "$setup_script" >> "$LOG_FILE" 2>&1; then
+        error "Failed to download NodeSource setup script. Check network connection and $LOG_FILE for details."
     fi
 
-    # Update package index
+    # Execute setup script with timeout (5 minutes max)
+    if ! timeout 300 bash "$setup_script" >> "$LOG_FILE" 2>&1; then
+        rm -f "$setup_script"
+        error "NodeSource repository setup failed or timed out. Check $LOG_FILE for details."
+    fi
+    rm -f "$setup_script"
+
+    info "NodeSource repository added successfully"
+
+    # Update package index with timeout
     info "Updating package index..."
-    apt-get update -y >> "$LOG_FILE" 2>&1
+    if ! timeout 180 apt-get update -y >> "$LOG_FILE" 2>&1; then
+        error "apt-get update failed or timed out. Check $LOG_FILE for details."
+    fi
 
     # Install Node.js (includes npm) with error handling
     info "Installing Node.js and npm..."
@@ -568,11 +600,17 @@ install_nodejs() {
         ((install_attempts++))
         info "Installation attempt $install_attempts of $max_attempts..."
 
-        if apt-get install -y nodejs >> "$LOG_FILE" 2>&1; then
+        # Install with 10-minute timeout
+        if timeout 600 apt-get install -y nodejs >> "$LOG_FILE" 2>&1; then
             info "Node.js installation successful"
             break
         else
-            warning "Installation attempt $install_attempts failed"
+            local exit_code=$?
+            if [[ $exit_code -eq 124 ]]; then
+                warning "Installation attempt $install_attempts timed out (10 minutes)"
+            else
+                warning "Installation attempt $install_attempts failed (exit code: $exit_code)"
+            fi
 
             if [[ $install_attempts -lt $max_attempts ]]; then
                 warning "Cleaning up and retrying..."
