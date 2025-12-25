@@ -176,14 +176,20 @@ apt_with_retry install -y nodejs
 ### Check Components
 
 #### 1. Internet Connectivity Check
-Tests ICMP ping to multiple DNS servers.
+Tests internet connectivity using multiple fallback methods (no external dependencies required).
 
-**Targets:**
-- 8.8.8.8 (Google DNS)
-- 1.1.1.1 (Cloudflare DNS)
-- 208.67.222.222 (OpenDNS)
+**Methods** (priority order):
+1. **TCP connection test** (`/dev/tcp` bash built-in)
+   - 8.8.8.8:53 (Google DNS port 53)
+   - 1.1.1.1:53 (Cloudflare DNS port 53)
+   - **No external tools required** - uses bash built-in
+2. **HTTP request** (curl, if available)
+   - http://detectportal.firefox.com/success.txt
+   - http://www.google.com/generate_204
+3. **ICMP ping** (ping, if available)
+   - 8.8.8.8, 1.1.1.1
 
-**Success Criteria:** Any one ping succeeds within 2 seconds
+**Success Criteria:** Any one method succeeds within timeout (2-3 seconds)
 
 #### 2. DNS Resolution Check
 Tests domain name resolution using available tools.

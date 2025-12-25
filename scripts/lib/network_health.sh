@@ -21,30 +21,64 @@
 # CORE CONNECTIVITY CHECKS
 # =============================================================================
 
-# Check internet connectivity using ICMP ping
-# Tests multiple DNS servers: Google, Cloudflare, OpenDNS
+# Check internet connectivity using multiple methods
+# Priority: 1. TCP connection test (bash built-in), 2. curl, 3. ping (if available)
 # Returns: 0 if any succeed, 1 if all fail
 check_internet_connectivity() {
-    local dns_servers=(
-        "8.8.8.8"           # Google DNS
-        "1.1.1.1"           # Cloudflare DNS
-        "208.67.222.222"    # OpenDNS
+    local test_servers=(
+        "8.8.8.8:53"           # Google DNS (port 53)
+        "1.1.1.1:53"           # Cloudflare DNS (port 53)
+    )
+    local test_urls=(
+        "http://detectportal.firefox.com/success.txt"  # Mozilla connectivity check
+        "http://www.google.com/generate_204"            # Google connectivity check
     )
 
     local success=false
+    local method=""
 
-    for server in "${dns_servers[@]}"; do
-        if ping -c 1 -W 2 "$server" &>/dev/null; then
+    # Method 1: TCP connection test using bash built-in (no external tools required)
+    for server in "${test_servers[@]}"; do
+        local host="${server%:*}"
+        local port="${server#*:}"
+
+        if timeout 2 bash -c "echo >/dev/tcp/$host/$port" 2>/dev/null; then
             success=true
+            method="TCP connection to $host:$port"
             break
         fi
     done
 
+    # Method 2: Try curl if available (will be installed by install.sh)
+    if [[ "$success" != "true" ]] && command -v curl &>/dev/null; then
+        for url in "${test_urls[@]}"; do
+            if curl -s --max-time 3 --head "$url" &>/dev/null; then
+                success=true
+                method="HTTP request to $url"
+                break
+            fi
+        done
+    fi
+
+    # Method 3: Try ping if available (optional)
+    if [[ "$success" != "true" ]] && command -v ping &>/dev/null; then
+        for server in "8.8.8.8" "1.1.1.1"; do
+            if ping -c 1 -W 2 "$server" &>/dev/null; then
+                success=true
+                method="ICMP ping to $server"
+                break
+            fi
+        done
+    fi
+
     if [[ "$success" == "true" ]]; then
-        info "Internet connectivity: OK (ping successful)"
+        info "Internet connectivity: OK ($method)"
         return 0
     else
-        warning "Internet connectivity: FAILED (no ping response from DNS servers)"
+        warning "Internet connectivity: FAILED (no response from test servers)"
+        if ! command -v curl &>/dev/null; then
+            warning "  Note: curl not installed - install may fix this"
+        fi
         return 1
     fi
 }
