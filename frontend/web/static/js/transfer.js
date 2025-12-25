@@ -507,10 +507,12 @@ function initTransferModal() {
     setupPeriodButtons();
 
     // 6. Attach form submit handler
-    const form = document.querySelector('#form_transfer');
-    if (form) {
-        form.addEventListener('submit', handleTransferSubmit);
-    }
+    // DISABLED: Submit handler now registered in index.html (lines 4815+)
+    // This prevents double registration which causes duplicate validation errors
+    // const form = document.querySelector('#form_transfer');
+    // if (form) {
+    //     form.addEventListener('submit', handleTransferSubmit);
+    // }
 
     // 7. Load Financial Centers and Cost Centers dynamically
     loadTransferData();

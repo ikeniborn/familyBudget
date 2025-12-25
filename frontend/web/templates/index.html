@@ -490,8 +490,10 @@ function setTransferRecordType(type) {
         if (transferDateInput) {
             transferDateInput.disabled = true;
             transferDateInput.required = false;
-            // DON'T clear value - it may be needed when switching back to fact mode
-            console.log('[setTransferRecordType] Disabled transfer_date for plan transfer');
+            // CRITICAL: Clear value for plan transfers to prevent wrong date being sent to backend
+            // Plan transfers use transfer_plan_month (YYYY-MM-01), NOT transfer_date
+            transferDateInput.value = '';
+            console.log('[setTransferRecordType] Disabled and cleared transfer_date for plan transfer');
         }
 
         // Initialize period buttons for plan transfers (deferred to allow DOM update)
