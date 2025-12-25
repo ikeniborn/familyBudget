@@ -469,6 +469,36 @@ start_postgres_only() {
     fi
 }
 
+# Phase 1.2: Start Redis container only (dependency for backend)
+# Redis must be healthy before backend can start (backend depends_on redis with service_healthy)
+start_redis_only() {
+    step "Starting Redis (Phase 1.2/3)"
+
+    info "Starting redis container..."
+    local start_result=0
+
+    # Always use --build to ensure latest image
+    compose_cmd up --build -d redis >> "$LOG_FILE" 2>&1
+    start_result=$?
+
+    if [[ $start_result -eq 0 ]]; then
+        success "Redis container started"
+
+        # Wait for Redis to become healthy
+        info "Waiting for Redis to be ready..."
+        if wait_for_service "redis" 30; then
+            success "Redis is healthy and ready"
+            return 0
+        else
+            error "Redis failed to become healthy within 30s"
+            return 1
+        fi
+    else
+        error "Failed to start Redis container. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
 # Phase 1.5: Start backend container only (for migrations)
 # Backend container starts but application doesn't listen on port yet
 # This allows running migrations via 'docker compose exec backend'

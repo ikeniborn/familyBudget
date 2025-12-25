@@ -1307,9 +1307,10 @@ main() {
     fi
     echo ""
 
-    # PHASED STARTUP: PostgreSQL → Backend → Migrations → Application Services
-    # This eliminates race condition where backend starts before migrations complete
+    # PHASED STARTUP: PostgreSQL → Redis → Backend → Migrations → Application Services
+    # This eliminates race condition where backend starts before dependencies are ready
     # Phase 1: PostgreSQL only
+    # Phase 1.2: Redis only (dependency for backend)
     # Phase 1.5: Backend container (for running migrations)
     # Phase 2: Bot/Nginx (backend already running from Phase 1.5)
 
@@ -1332,10 +1333,12 @@ main() {
         fi
         echo ""
 
-        # Verify Redis health (non-blocking - Redis is optional but recommended)
-        if ! verify_redis_health_post_start; then
-            warning "Redis health verification failed - caching may be unavailable"
-            warning "Application will continue but may have reduced performance"
+        # Phase 1.2: Start Redis only (backend depends on Redis with service_healthy)
+        # Redis must be healthy before backend can start
+        if ! start_redis_only; then
+            error "Deployment failed: Redis failed to start"
+            error "Log file: $LOG_FILE"
+            exit 1
         fi
         echo ""
 
