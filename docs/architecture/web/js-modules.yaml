@@ -53,8 +53,33 @@ modules:
     description: "Hierarchical category selector (Choices.js plugin)"
     features:
       - "Filter by type (expense/income)"
+      - "Filter by financial center (whitelist pattern)"
       - "Parent indicators in dropdown"
       - "Search within categories"
+      - "Preserves selection when changing financial center (if category still available)"
+    initialization_options:
+      type: "Required - 'expense' or 'income'"
+      showLeafOnly: "Optional - only show leaf categories (default: false)"
+      financialCenterId: "Optional - filter categories by financial center"
+      onCategoryChange: "Optional - callback when category selected"
+    usage_patterns:
+      edit_modals: |
+        // ✅ For edit modals - initialize WITH financialCenterId
+        new BudgetShared.ChoicesCategoryTree('#edit-article', {
+            type: categoryType,
+            showLeafOnly: true,
+            financialCenterId: fact.financial_center_id,  // Filter by FC
+        });
+      create_modals: |
+        // ✅ For create modals - initialize WITHOUT financialCenterId
+        new BudgetShared.ChoicesCategoryTree('#article', {
+            type: categoryType,
+            showLeafOnly: true,
+            // No financialCenterId - user selects FC first
+        });
+    key_methods:
+      updateFinancialCenter: "Filters categories by financial center, preserves selection if available"
+      setSelectedCategory: "Sets the selected category by ID"
     depends_on:
       - "Choices.js (vendor)"
     included_in: budgetShared

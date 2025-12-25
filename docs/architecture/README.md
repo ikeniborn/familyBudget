@@ -26,6 +26,41 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-25: Category and Cost Center Filtering on Edit Modal Open
+- **Change:** Fixed category and cost center filtering to work correctly when opening edit modals
+- **Problem:**
+  - Categories were not filtered by financial center when opening edit modal
+  - When changing financial center, category reset even if it was available for the new account
+  - Cost centers were not filtered by financial center when opening edit modal
+- **Root Cause:**
+  - `ChoicesCategoryTree` initialized WITHOUT `financialCenterId` parameter in edit modals
+  - This loaded ALL categories initially (ignoring financial center whitelist)
+  - `filterEditCostCenters()` was not called after modal open
+  - When user changed FC, `updateFinancialCenter()` loaded filtered categories, but existing selection logic didn't work without initial filter
+- **Solution:**
+  - Initialize `ChoicesCategoryTree` WITH `financialCenterId` parameter in edit modals (pass `fact.financial_center_id`)
+  - Call `filterEditCostCenters(fact.financial_center_id)` after category selection
+  - Leverage existing `updateFinancialCenter()` logic which already preserves selection when category is available
+- **Implementation:**
+  - Added `financialCenterId: fact.financial_center_id` to ChoicesCategoryTree initialization in 3 edit modal functions
+  - Added `await filterEditCostCenters(fact.financial_center_id)` after category selection in 3 edit modal functions
+  - No changes to `choicesCategoryTree.js` - existing logic already correct
+- **Files changed:**
+  - `frontend/web/templates/index.html:1179-1196` (openEditFromDashboard - dashboard edit modal)
+  - `frontend/web/templates/facts.html:1579-1619` (showEditModal - facts page edit modal)
+  - `frontend/web/templates/plan.html:2439-2479` (showEditModal - plan page edit modal)
+  - `docs/architecture/frontend/javascript-patterns.yaml` (+46 lines) - added category_filtering_on_modal_open pattern
+  - `docs/architecture/web/js-modules.yaml` (+31 lines) - updated choicesCategoryTree documentation
+  - `docs/architecture/README.md` (this changelog entry)
+- **Impact:**
+  - Categories now filter correctly by financial center when opening edit modals
+  - When changing financial center, category selection is preserved if category is available for new FC
+  - Cost centers filter correctly by financial center when opening edit modals
+  - Better UX - users only see relevant categories/cost centers for selected account
+- **Pattern:** Edit modals initialize WITH context (FC filter), create modals initialize WITHOUT context (user selects FC first)
+
+---
+
 ### 2025-12-25: Modal Button Loading State Fix (v6.2)
 - **Change:** Introduced `setButtonLoading()` helper function to replace direct DaisyUI `.loading` class usage
 - **Problem:** Using `.classList.add('loading')` caused button expansion and horizontal scrolling in narrow modals

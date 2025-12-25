@@ -81,6 +81,53 @@ patterns:
         - "frontend/web/static/js/lists/listsManager.js:_setupProductAutocomplete()"
         - "frontend/web/static/js/lists/listsManager.js:_setupSuggestionsClickHandler()"
 
+    category_filtering_on_modal_open:
+      name: "Фильтрация категорий и мест затрат при открытии edit модала"
+      pattern: initialize_with_context
+      when_to_use:
+        - "Edit модалы где уже известен financial center"
+        - "Нужно показать только доступные категории для выбранного счета"
+        - "Требуется сохранить выбор категории при смене счета (если доступна)"
+      avoid_when:
+        - "Create модалы (пользователь сам выбирает счет с нуля)"
+        - "Transfer модалы (создание новых переводов)"
+      implementation:
+        example: |
+          // ✅ ПРАВИЛЬНО: Инициализация с financialCenterId фильтром
+          editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
+              type: categoryType,
+              showLeafOnly: true,
+              financialCenterId: fact.financial_center_id,  // Фильтр по счету
+              onCategoryChange: (category) => {
+                  // ...
+              }
+          });
+
+          // После установки категории - фильтровать места затрат
+          await editCategoryTreeSelect.setSelectedCategory(fact.article_id);
+          await filterEditCostCenters(fact.financial_center_id);
+        bad_example: |
+          // ❌ НЕПРАВИЛЬНО: Без фильтра при инициализации
+          editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
+              type: categoryType,
+              showLeafOnly: true,
+              // financialCenterId отсутствует! Загружаются ВСЕ категории
+          });
+          // При смене счета категория может сброситься
+      why_important:
+        - "Без фильтра загружаются ВСЕ категории (даже недоступные для счета)"
+        - "При смене счета категория сбрасывается даже если доступна для нового счета"
+        - "updateFinancialCenter() уже содержит логику сохранения выбора, но только если изначально был фильтр"
+      files:
+        - "frontend/web/templates/index.html:openEditFromDashboard():1179-1196"
+        - "frontend/web/templates/facts.html:showEditModal():1579-1619"
+        - "frontend/web/templates/plan.html:showEditModal():2439-2479"
+      related:
+        - "frontend/shared/static/js/choicesCategoryTree.js:updateFinancialCenter():844-912"
+      related_commits:
+        - commit: "fix(frontend): filter categories & cost centers by financial center on edit modal open"
+          description: "Added financialCenterId to ChoicesCategoryTree init, filterEditCostCenters call"
+
   # ---------------------------------------------------------------------------
   # MOBILE-SPECIFIC PATTERNS
   # ---------------------------------------------------------------------------

@@ -1191,6 +1191,7 @@ async function openEditFromDashboard(factId) {
             editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
                 type: categoryType,
                 showLeafOnly: true,
+                financialCenterId: fact.financial_center_id,
                 onCategoryChange: (category) => {
                 }
             });
@@ -1203,6 +1204,9 @@ async function openEditFromDashboard(factId) {
             } else {
                 console.warn('[Edit Modal] Category not found in map:', fact.article_id);
             }
+
+            // Filter cost centers by financial center
+            await filterEditCostCenters(fact.financial_center_id);
         }
 
         // Initialize CalendarWidget for edit modal date input

@@ -1579,6 +1579,7 @@ async function showEditModal(factId) {
         editCategoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#edit-article', {
             type: categoryType,
             showLeafOnly: true,
+            financialCenterId: fact.financial_center_id,  // Filter by FC
             onCategoryChange: (category) => {
                 debugLog('Category changed in edit modal:', category);
             }
@@ -1613,6 +1614,9 @@ async function showEditModal(factId) {
                         console.warn('[Edit Modal] Category not found in map:', fact.article_id, '(may be archived/inactive)');
                         // Leave default "-- Выберите категорию --" selected
                     }
+
+                    // Filter cost centers by financial center
+                    await filterEditCostCenters(fact.financial_center_id);
                 }
             }
         }, 150); // Check every 150ms
