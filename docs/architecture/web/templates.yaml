@@ -1296,18 +1296,32 @@ ui_standards:
         icon: "SVG trash can (Heroicons, h-4 w-4)"
         title: "title=\"Удалить\" (REQUIRED)"
         visibility: "Visible on mobile (< 768px), hidden on desktop"
-        location: "Inside edit modals, before modal action buttons"
+        location: "Inside modal-action div, first button before cancel/save"
+        layout_pattern: "Horizontal layout with flex-1 spacer"
         example: |
-          <div class="flex justify-center mt-4 mb-2 md:hidden">
-            <button type="button" class="btn btn-xs btn-error btn-square"
+          <div class="modal-action mt-3 flex flex-row gap-2">
+            <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
+            <button type="button" class="btn btn-xs btn-error btn-square md:hidden"
                     onclick="deleteFromEditModal()" title="Удалить">
-              <svg>...</svg>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
             </button>
+            <!-- Разделитель (пустое пространство) -->
+            <div class="flex-1 md:hidden"></div>
+            <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+            <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
           </div>
+        mobile_visual_result: "[🗑️] [------spacer------] [Отмена] [Сохранить]"
+        desktop_visual_result: "[Отмена] [Сохранить] (delete button hidden)"
         notes:
+          - "Pattern B (Horizontal Layout): Delete button in same row as action buttons"
+          - "flex-1 md:hidden spacer pushes Cancel/Save buttons to the right on mobile"
           - "Provides mobile delete path when desktop delete button hidden"
-          - "Placed in admin edit modals (articles, financial centers, etc.)"
+          - "Placed in admin edit modals (articles, financial centers, cost centers, stores, product groups)"
           - "Opposite visibility of desktop delete buttons"
+          - "Consistent with modal_edit_fact.html and modal_edit_plan.html components"
 
     archive:
       classes: "btn btn-xs btn-warning gap-1"
@@ -1491,18 +1505,35 @@ recent_changes:
           - "frontend/web/templates/components/modal_edit_fact.html"
           - "frontend/web/templates/components/modal_edit_plan.html"
 
-      - category: "Mobile Accessibility"
+      - category: "Mobile Accessibility - Pattern B (Horizontal Layout)"
         changes:
-          - "Added mobile delete buttons (md:hidden) to all admin edit modals"
+          - "Standardized mobile delete buttons to Pattern B (horizontal layout with spacer)"
+          - "Delete button placed inside modal-action div, first position before Cancel/Save"
+          - "flex-1 md:hidden spacer pushes Cancel/Save buttons to the right on mobile"
           - "Provides delete path on mobile devices without desktop mode"
           - "Each modal has dedicated deleteFromEditModal() JavaScript function"
-        pattern: '<div class="flex justify-center mt-4 mb-2 md:hidden"><button class="btn btn-xs btn-error btn-square" onclick="deleteFromEditModal()" title="Удалить">...</button></div>'
+          - "Consistent with modal_edit_fact.html and modal_edit_plan.html components"
+        pattern_description: "Pattern B (Horizontal): Delete button in same row as action buttons with spacer"
+        pattern_code: |
+          <div class="modal-action mt-3 flex flex-row gap-2">
+            <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteFromEditModal()" title="Удалить">...</button>
+            <div class="flex-1 md:hidden"></div>
+            <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+            <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
+          </div>
+        mobile_result: "[🗑️] [------spacer------] [Отмена] [Сохранить]"
+        desktop_result: "[Отмена] [Сохранить] (delete hidden)"
         files_affected:
           - "frontend/web/templates/admin_articles.html (deleteArticleFromEditModal)"
           - "frontend/web/templates/admin_financial_centers.html (deleteCenterFromEditModal)"
           - "frontend/web/templates/admin_cost_centers.html (deleteCenterFromEditModal)"
           - "frontend/web/templates/admin_stores.html (deleteStoreFromEditModal)"
           - "frontend/web/templates/admin_product_groups.html (deleteProductGroupFromEditModal)"
+        rationale:
+          - "Consistent with component templates (modal_edit_fact, modal_edit_plan)"
+          - "Cleaner visual layout - all buttons in one row"
+          - "Better space efficiency - no extra container div"
+          - "Easier to maintain - single modal-action div"
 
       - category: "Accessibility Improvements"
         changes:
