@@ -3331,6 +3331,12 @@ async function loadFinancialCenters() {
                 // Filter categories by selected FC
                 if (transactionCategoryTreeSelect) {
                     await transactionCategoryTreeSelect.updateFinancialCenter(fcId);
+                    // CRITICAL: Clear category selection in create modal after FC change
+                    // This prevents phantom auto-selection when user changes FC
+                    transactionCategoryTreeSelect.choices.removeActiveItems();
+                    if (transactionCategoryTreeSelect.element) {
+                        transactionCategoryTreeSelect.element.value = '';
+                    }
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_transaction', fcId);
@@ -3347,6 +3353,12 @@ async function loadFinancialCenters() {
                 // Filter categories by selected FC
                 if (planCategoryTreeSelect) {
                     await planCategoryTreeSelect.updateFinancialCenter(fcId);
+                    // CRITICAL: Clear category selection in create modal after FC change
+                    // This prevents phantom auto-selection when user changes FC
+                    planCategoryTreeSelect.choices.removeActiveItems();
+                    if (planCategoryTreeSelect.element) {
+                        planCategoryTreeSelect.element.value = '';
+                    }
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_plan', fcId);
