@@ -475,6 +475,12 @@ function setTransferRecordType(type) {
         if (transferDateInput) {
             transferDateInput.disabled = false;
             transferDateInput.required = true;
+
+            // If field is empty, set today's date (prevents validation error)
+            if (!transferDateInput.value || transferDateInput.value.trim() === '') {
+                transferDateInput.value = BudgetShared.DateFormatter.today();
+                console.log('[setTransferRecordType] Set default date for fact transfer:', transferDateInput.value);
+            }
         }
     } else if (type === 'plan') {
         factSection?.classList.add('hidden');
@@ -484,7 +490,8 @@ function setTransferRecordType(type) {
         if (transferDateInput) {
             transferDateInput.disabled = true;
             transferDateInput.required = false;
-            transferDateInput.value = '';  // Clear value to avoid confusion
+            // DON'T clear value - it may be needed when switching back to fact mode
+            console.log('[setTransferRecordType] Disabled transfer_date for plan transfer');
         }
 
         // Initialize period buttons for plan transfers (deferred to allow DOM update)
@@ -3082,6 +3089,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     transferDateInput.value = BudgetShared.DateFormatter.today();
                 }
 
+                console.log('[Transfer Submit] ✅ Transfer created successfully, showing toast');
                 showToast('Перевод успешно сохранен!', 'success');
 
                 // UI updates will be handled by SSE event (transfer_created)

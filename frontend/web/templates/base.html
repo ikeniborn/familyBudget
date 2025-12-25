@@ -1015,6 +1015,7 @@
         // When a dialog is open, toast is placed INSIDE the modal-box to appear above it
         // (HTML5 <dialog> creates a "top layer" that ignores z-index)
         function showToast(message, type = 'info', duration = 2000) {
+            console.log('[showToast] Called:', {message, type, stack: new Error().stack});
             let container;
 
             // Check if there's an open dialog (modal)
