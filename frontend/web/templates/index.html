@@ -627,6 +627,18 @@ function openPlanTransferModal() {
         setTransferRecordType('plan');
     }
 
+    // DIAGNOSTIC: Check transfer_date field state after setTransferRecordType
+    const transferDateInput = document.getElementById('transfer_date');
+    if (transferDateInput) {
+        console.log('[openPlanTransferModal] transfer_date state:', {
+            value: transferDateInput.value,
+            disabled: transferDateInput.disabled,
+            required: transferDateInput.required,
+            validity: transferDateInput.validity,
+            validationMessage: transferDateInput.validationMessage
+        });
+    }
+
     // Open transfer modal
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
@@ -4762,6 +4774,29 @@ function saveTransfer(button) {
 
     const form = document.getElementById(button.dataset.formId);
     console.log('[saveTransfer] Form element found:', !!form, form?.id);
+
+    // DIAGNOSTIC: Check all form fields state before validation
+    if (form) {
+        const transferDateInput = document.getElementById('transfer_date');
+        const recordTypeInput = document.getElementById('transfer_record_type');
+        const planMonthInput = document.getElementById('transfer_plan_month');
+
+        console.log('[saveTransfer] Form fields state BEFORE checkValidity():', {
+            record_type: recordTypeInput?.value,
+            transfer_date: {
+                value: transferDateInput?.value,
+                disabled: transferDateInput?.disabled,
+                required: transferDateInput?.required,
+                validity: transferDateInput?.validity?.valid,
+                validationMessage: transferDateInput?.validationMessage
+            },
+            transfer_plan_month: {
+                value: planMonthInput?.value,
+                disabled: planMonthInput?.disabled,
+                required: planMonthInput?.required
+            }
+        });
+    }
 
     if (form && form.checkValidity()) {
         console.log('[saveTransfer] ✅ Form is valid, calling requestSubmit()');
