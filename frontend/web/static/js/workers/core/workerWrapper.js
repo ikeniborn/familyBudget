@@ -12,11 +12,18 @@
  * @requires window.FEATURE_FLAGS.ENABLE_WEB_WORKERS
  */
 
-const WORKER_VERSION = 'v20251225_1523';  // Updated by scripts/update-worker-version.sh
+const WORKER_VERSION = 'v20251225_1830';  // Updated by scripts/update-worker-version.sh
 
 class WorkerWrapper {
     constructor(workerPath, options = {}) {
-        this.workerPath = workerPath;
+        // Add cache busting to worker URL (critical for updates)
+        // Only add if not already present
+        if (!workerPath.includes('?v=')) {
+            this.workerPath = `${workerPath}?v=${WORKER_VERSION}`;
+        } else {
+            this.workerPath = workerPath;
+        }
+
         this.options = {
             idleTimeout: options.idleTimeout || 10000,  // 10s (aggressive, from corrections)
             debugMode: options.debugMode || (typeof window !== 'undefined' && window.DEBUG_MODE),

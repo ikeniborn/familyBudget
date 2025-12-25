@@ -80,10 +80,10 @@ update_cache_versions() {
         # Поддерживает:
         # - .min.js / .min.css файлы (минифицированные)
         # - /webapp/, /web/, /static/, /shared/ paths
-        # - vendor/, offline/ и другие subdirectories
+        # - vendor/, offline/, workers/core/ и другие subdirectories (любая вложенность)
         perl -i.bak -pe "
-            s{(\\/webapp\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)?|\\/web\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)?|\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)?|\\/shared\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)?)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
-            s{(\\/webapp\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)?|\\/web\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)?|\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)?|\\/shared\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)?)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/web\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*|\\/shared\\/static\\/js\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?js)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
+            s{(\\/webapp\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/web\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*|\\/shared\\/static\\/css\\/(?:[a-zA-Z_\\-]+\\/)*)([a-zA-Z_\\-]+\\.(?:min\\.)?css)\\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}}g;
         " "$file" 2>&1
 
         local perl_exit=$?
