@@ -26,6 +26,117 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-25: Transfer System Critical Bug Fixes (v5.3.0)
+- **Change:** Fixed three critical bugs in transfer modal validation and submission
+- **Problems:**
+  1. **Double submit handler registration** - Red error "Укажите дату перевода" appeared on plan transfers despite period being selected
+  2. **Wrong date in transfer_date** - Plan transfers had current date (25.12.2025) instead of empty value
+  3. **Incorrect validation logic** - `validateTransferData()` checked `transfer_date` for BOTH fact and plan transfers
+- **Root Causes:**
+  1. **Double registration**: Both `transfer.js:512` and `index.html:4815` registered submit handlers on `#form_transfer`
+     - Caused duplicate validation errors and double toast notifications
+     - User saw conflicting validation from two different handlers
+  2. **Date clearing**: `setTransferRecordType('plan')` disabled but did NOT clear `transfer_date.value`
+     - Comment said "DON'T clear value" but this was incorrect for plan transfers
+     - Plan transfers use `transfer_plan_month` (YYYY-MM), NOT `transfer_date`
+     - Sending current date (25th) to backend caused validation mismatch
+  3. **Validation logic**: Function checked `!data.transfer_date` for both types
+     - For plan transfers, `transfer_date` is correctly null, but validation failed anyway
+     - Should check `transfer_plan_month` for plans, `transfer_date` for facts
+- **Solutions:**
+  1. **Disabled transfer.js handler** (Commit 7ca1f426):
+     - Commented out lines 510-515 in transfer.js
+     - Made index.html handler authoritative (lines 4815-4983)
+     - Added explanatory comment about double registration prevention
+  2. **Clear transfer_date for plans** (Commit 7ca1f426):
+     - Changed line 495 from "DON'T clear" to `transferDateInput.value = ''`
+     - Added CRITICAL comment explaining why clearing is necessary
+     - Plan transfers now send empty date, backend uses `plan_month`
+  3. **Conditional validation** (Commit eb70521e):
+     - Updated `validateTransferData(data, formData)` signature
+     - Added conditional: if `record_type === 'plan'` check `transfer_plan_month`, else check `transfer_date`
+     - Validates actual source field based on transfer type
+- **Evidence from user logs:**
+  ```javascript
+  // Before fix: Two handlers executing
+  [showToast] {message: 'Укажите дату перевода', stack: '...onclick (:7836:43)'}  // transfer.js (ERROR)
+  [Transfer Submit] Plan month: 2026-01  // index.html (SUCCESS)
+
+  // Wrong date in plan modal
+  [openPlanTransferModal] transfer_date state: {value: '25.12.2025', disabled: true}  // ❌ Should be empty
+  ```
+- **Files changed:**
+  - `frontend/web/static/js/transfer.js` (+5 lines, -5 lines) - Disabled submit handler registration
+  - `frontend/web/templates/index.html` (+3 lines, -2 lines) - Clear transfer_date for plans
+  - `frontend/web/static/js/transfer.js` (+14 lines, -7 lines) - Conditional validation logic
+  - `docs/architecture/transfers-system.md` (NEW, +867 lines) - Comprehensive architecture documentation
+  - `docs/architecture/README.md` (this changelog entry)
+- **Testing results (budget-dev.ikeniborn.ru):**
+  - ✅ Plan transfer: NO red validation error (was: "Укажите дату перевода")
+  - ✅ Plan transfer: Only ONE toast notification (was: two toasts)
+  - ✅ Plan transfer: `transfer_date.value = ''` (was: '25.12.2025')
+  - ✅ Plan transfer: Creates with `fact_date='2026-01-01'` (1st of selected month)
+  - ✅ Fact transfer: Works as before with selected date
+- **Impact:**
+  - User can now create plan transfers without confusing validation errors
+  - No more double notifications (cleaner UX)
+  - Backend receives correct data format for plan transfers
+  - Button state management improved with fallback logic
+- **Architecture documentation:** New comprehensive doc at `docs/architecture/transfers-system.md` covering:
+  - Data flow, components, validation architecture
+  - Record types (fact vs plan)
+  - Bug fix details with code examples
+  - State management, SSE integration
+  - Testing strategy, performance considerations
+  - Migration notes, future improvements
+
+---
+
+### 2025-12-25: Category State Reset on Create Modal Reopening
+- **Change:** Fixed category auto-fill with previous values when reopening create modals (Add Transaction, Add Plan, Transfer)
+- **Problem:**
+  - When reopening create modals after creating first record, categories auto-filled with previous selection
+  - Occurred in: Transfer modals (Fact/Plan Transfer), Add Transaction modal, Add Plan modal
+  - UX confusion - user expected empty category field on modal reopening
+- **Root Cause:**
+  - `ChoicesCategoryTree` instances are global variables (e.g., `fromCategoryTree`, `planCategoryTreeSelect`)
+  - Their state (`options.financialCenterId`) persisted between modal openings
+  - On second modal open: `previousFcId !== null` → `isInitialFiltering = false` → category preserved (phantom auto-selection)
+- **Solution:**
+  - Added explicit state reset (`financialCenterId = null`) before opening create modals
+  - Leveraged existing `isInitialFiltering` logic in `updateFinancialCenter()`:
+    - `previousFcId === null` → clear category (initial filtering)
+    - `previousFcId !== null` → preserve category if available (FC change inside modal)
+  - This ensures correct behavior for BOTH scenarios:
+    - **Modal reopening**: Categories empty ✅
+    - **FC change inside modal**: Category preserved if available ✅
+- **Implementation:**
+  - Added reset code to 5 modal open functions:
+    - `openTransferModal()` - Transfer modal (transfer.js:915-920)
+    - `openFactTransferModal()` - Fact Transfer modal (index.html:592-600)
+    - `openPlanTransferModal()` - Plan Transfer modal (index.html:653-661)
+    - `openAddTransactionModal()` - Add Transaction modal (index.html:2314-2319)
+    - `openAddPlanModal()` - Add Plan modal (index.html:4607-4612)
+  - No changes to `choicesCategoryTree.js` - existing `isInitialFiltering` logic already correct
+- **Files changed:**
+  - `frontend/web/static/js/transfer.js:915-920` (Transfer modal reset)
+  - `frontend/web/templates/index.html:592-600,653-661,2314-2319,4607-4612` (3 modal reset functions)
+  - `docs/architecture/frontend/javascript-patterns.yaml` (+77 lines) - added `reset_state_on_create_modal_open` pattern
+  - `docs/architecture/web/js-modules.yaml` (+16 lines) - updated `choicesCategoryTree` usage examples
+  - `docs/architecture/README.md` (this changelog entry)
+- **Impact:**
+  - Create modals now behave consistently: empty on first AND second opening
+  - Category selection still preserved when user changes FC inside modal (if available for new FC)
+  - Better UX - no phantom auto-selection confusion
+- **Pattern:** Create modals MUST reset global state on open; Edit modals preserve context
+- **Testing:** Verified on budget-test with all 3 modal types (Transfer, Add Transaction, Add Plan)
+- **Related commits:**
+  - `eb70521e` - Reset FC filter state on Transfer modal reopening
+  - `c067bf4f` - Reset FC filter state on Add Plan/Transaction modal reopening
+  - `c0465bdd` - Revert incorrect category clearing on FC change (preserves selection correctly)
+
+---
+
 ### 2025-12-25: Автоматическое Создание Docker Volume для PostgreSQL
 - **Change:** Добавлено автоматическое создание Docker volume `budget_postgres_data` при деплое
 - **Problem:** При первом деплое на чистом сервере возникала ошибка "external volume not found"

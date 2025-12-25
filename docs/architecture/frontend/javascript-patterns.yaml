@@ -128,6 +128,83 @@ patterns:
         - commit: "fix(frontend): filter categories & cost centers by financial center on edit modal open"
           description: "Added financialCenterId to ChoicesCategoryTree init, filterEditCostCenters call"
 
+    reset_state_on_create_modal_open:
+      name: "Сброс состояния фильтра при открытии create модала"
+      pattern: reset_global_state
+      when_to_use:
+        - "Create модалы (Add Transaction, Add Plan, Transfer)"
+        - "Модалы где пользователь выбирает financial center с нуля"
+        - "Нужно предотвратить автозаполнение категорий при повторном открытии модала"
+      avoid_when:
+        - "Edit модалы (там financialCenterId должен сохраняться)"
+      problem_solved:
+        description: |
+          При повторном открытии create модала (после создания первой записи) категории
+          автоматически заполнялись значениями с предыдущего открытия. Происходило из-за
+          того, что ChoicesCategoryTree инстансы - глобальные переменные, и их state
+          (options.financialCenterId) сохранялся между открытиями модала.
+
+          При втором открытии: previousFcId !== null → isInitialFiltering = false →
+          категория сохранялась (phantom auto-selection).
+      solution:
+        description: |
+          Явный сброс financialCenterId перед открытием create модалов.
+          Теперь при каждом открытии modal state сбрасывается → isInitialFiltering = true
+          → phantom selection НЕ сохраняется.
+      implementation:
+        example: |
+          // ✅ ПРАВИЛЬНО: Reset state перед открытием create модала
+          async function openAddPlanModal(modalId = 'modal_add_plan') {
+              // ... setup code ...
+
+              // CRITICAL: Reset FC filter state for create modals (not edit modals)
+              // This ensures isInitialFiltering works correctly on modal reopening
+              // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+              if (typeof planCategoryTreeSelect !== 'undefined' && planCategoryTreeSelect) {
+                  planCategoryTreeSelect.options.financialCenterId = null;
+              }
+
+              modal.showModal();
+          }
+        bad_example: |
+          // ❌ НЕПРАВИЛЬНО: Без reset state
+          async function openAddPlanModal(modalId = 'modal_add_plan') {
+              modal.showModal();
+              // previousFcId сохранился → isInitialFiltering = false → категория автозаполнится
+          }
+      behavior:
+        first_open: "Категории пустые ✅"
+        second_open: "Категории пустые ✅ (раньше автозаполнялись)"
+        fc_change_inside_modal: "Категория сохраняется если доступна для нового FC ✅"
+      files:
+        - "frontend/web/static/js/transfer.js:openTransferModal():915-920"
+        - "frontend/web/templates/index.html:openFactTransferModal():592-600"
+        - "frontend/web/templates/index.html:openPlanTransferModal():653-661"
+        - "frontend/web/templates/index.html:openAddTransactionModal():2314-2319"
+        - "frontend/web/templates/index.html:openAddPlanModal():4607-4612"
+      related:
+        - "frontend/shared/static/js/choicesCategoryTree.js:updateFinancialCenter():948-958 (isInitialFiltering logic)"
+      related_commits:
+        - commit: "eb70521e"
+          description: "Reset FC filter state on Transfer modal reopening"
+        - commit: "c067bf4f"
+          description: "Reset FC filter state on Add Plan/Transaction modal reopening"
+        - commit: "c0465bdd (revert c7fde80b)"
+          description: "Reverted incorrect clearing of category on FC change inside create modals"
+      testing_scenarios:
+        scenario_1:
+          description: "Повторное открытие create модала не автозаполняет категорию"
+          steps:
+            - "Открыть Add Plan → выбрать FC #1 → категория 'Продукты' → сохранить"
+            - "Открыть Add Plan снова → выбрать FC #1"
+            - "Проверить: категория ПУСТАЯ (не 'Продукты') ✅"
+        scenario_2:
+          description: "Смена FC внутри create модала сохраняет категорию (если доступна)"
+          steps:
+            - "Открыть Add Plan → выбрать FC #1 → категория 'Продукты'"
+            - "Сменить FC на #2"
+            - "Проверить: категория 'Продукты' ОСТАЕТСЯ (если доступна для FC #2) ✅"
+
   # ---------------------------------------------------------------------------
   # MOBILE-SPECIFIC PATTERNS
   # ---------------------------------------------------------------------------

@@ -77,8 +77,20 @@ modules:
             showLeafOnly: true,
             // No financialCenterId - user selects FC first
         });
+
+        // ⚠️ CRITICAL: Reset financialCenterId before reopening create modal
+        // Without this, categories auto-fill with previous values on second modal open
+        function openCreateModal() {
+            if (categoryTreeInstance) {
+                categoryTreeInstance.options.financialCenterId = null;  // Reset state
+            }
+            modal.showModal();
+        }
     key_methods:
-      updateFinancialCenter: "Filters categories by financial center, preserves selection if available"
+      updateFinancialCenter: |
+        Filters categories by financial center. Behavior depends on previous state:
+        - If previousFcId === null (initial filtering): Clears category selection
+        - If previousFcId !== null (FC change): Preserves category if available for new FC
       setSelectedCategory: "Sets the selected category by ID"
     depends_on:
       - "Choices.js (vendor)"
