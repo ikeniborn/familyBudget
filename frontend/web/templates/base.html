@@ -1312,11 +1312,13 @@
         // Стратегия: Aggressive Auto-Update с уведомлением и контролем пользователя
         if ('serviceWorker' in navigator) {
             let refreshing = false;
+            let updateNotificationShown = false; // Deduplicate update notifications
 
             // CRITICAL: Listen for controllerchange event (new SW activated)
             navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing) return;
+                if (refreshing || updateNotificationShown) return; // Deduplicate
                 refreshing = true;
+                updateNotificationShown = true; // Mark as shown
 
                 console.log('[PWA] New service worker activated, showing update notification...');
 
@@ -1334,8 +1336,7 @@
 
                         // CHANGED: Автоматическая проверка обновлений каждый час (было 24 часа)
                         setInterval(() => {
-                            console.log('[PWA] Checking for updates...');
-                            registration.update();
+                            registration.update(); // Silent check
                         }, 60 * 60 * 1000); // 1 hour = 3600000ms
 
                         // Обработка обновлений SW
@@ -1355,9 +1356,8 @@
                                         // skipWaiting() уже вызван в SW install event
                                         // controllerchange event триггерит reload
                                     } else {
-                                        // First install
+                                        // First install - just log, no toast (silent UX)
                                         console.log('[PWA] Service worker installed for the first time');
-                                        showToast('Приложение готово к работе офлайн', 'success', 3000);
                                     }
                                 }
                             });

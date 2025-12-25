@@ -935,13 +935,16 @@ main() {
 
     if [[ -f "scripts/update-sw-version.sh" ]]; then
         info "Running update-sw-version.sh in deployment directory..."
-        bash scripts/update-sw-version.sh || {
-            warning "Failed to update SW version, continuing deployment..."
-        }
+        if ! bash scripts/update-sw-version.sh; then
+            error "CRITICAL: Failed to update Service Worker version!"
+            error "Deployment ABORTED - cannot deploy with PLACEHOLDER version"
+            exit 1
+        fi
         echo ""
     else
-        warning "scripts/update-sw-version.sh not found, skipping SW version update"
-        echo ""
+        error "CRITICAL: scripts/update-sw-version.sh not found!"
+        error "Deployment ABORTED - cannot deploy without SW version update"
+        exit 1
     fi
 
     # POST-SYNC VERIFICATION: Ensure npm environment was NOT deleted by rsync

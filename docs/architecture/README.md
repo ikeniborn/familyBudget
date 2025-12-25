@@ -26,6 +26,36 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-25: Service Worker Optimization and Deployment Safety
+- **Change:** Comprehensive sw.js optimization and deployment safeguards
+- **Size Reduction:** 986 lines → 812 lines (-174 lines, -17.6%)
+- **Code Optimization:**
+  - Removed excessive comments (~69 lines)
+  - Removed CACHE_FIRST_PAGES strategy (~60 lines) - login pages now use Network First
+  - Simplified inline HTML fallbacks (~36 lines) - minimal offline messages
+  - Extracted duplicated code to functions (`cleanEntityData`, `handleSyncError`) (~40 lines)
+  - Removed unnecessary ETag checks (~24 lines) - cache busting via query string is sufficient
+  - Simplified VersionError handling (~10 lines)
+- **Production Logging:**
+  - Wrapped all console.log in DEBUG guards (9 statements)
+  - Only CRITICAL messages and errors remain visible in production
+  - Reduced console pollution by ~90%
+- **UX Improvements:**
+  - Removed intrusive "готово к работе офлайн" toast on first install
+  - Silenced hourly update check logs
+  - Added deduplication flag to prevent duplicate update notifications
+- **Deployment Safety:**
+  - SW version update failures now fatal (exit 1) instead of warnings
+  - Prevents deployment with CACHE_VERSION_PLACEHOLDER
+  - Critical safeguard against broken PWA updates
+- **Files changed:**
+  - `sw.js` (-174 lines)
+  - `deploy.sh` (fatal error on SW update failure)
+  - `frontend/web/templates/base.html` (notification deduplication)
+- **Impact:** Cleaner production logs, smaller file size, safer deployments, better UX
+
+---
+
 ### 2025-12-24: Cache Busting Coverage Extended to Vendor Libraries
 - **Change:** Added `?v=PLACEHOLDER` to vendor Choices.js library (choices.min.css, choices.min.js)
 - **Reason:** Ensure browser cache invalidation for all static assets, including third-party libraries
