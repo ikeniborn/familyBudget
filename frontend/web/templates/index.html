@@ -1284,12 +1284,20 @@ async function openEditFromDashboard(factId) {
 
             newEditFcSelect.addEventListener('change', async () => {
                 const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
+                console.log(`[index.html] 🔄 Financial Center changed in edit modal:`, {
+                    newFcId: fcId,
+                    currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
+                });
+
                 // Filter categories by selected FC (will preserve selection if category is still available)
                 if (editCategoryTreeSelect) {
                     await editCategoryTreeSelect.updateFinancialCenter(fcId);
                 }
                 // Filter cost centers by selected FC
                 await filterEditCostCenters(fcId);
+
+                console.log(`[index.html] ✅ Filtering complete. New category value:`,
+                    editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);
             });
         }
 
@@ -3099,11 +3107,29 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             // Reset submission guard
             isSubmitting = false;
-            console.log('[index.html] ✅ Transfer submission completed, guard reset');
+            console.log('[Transfer Submit] ========== FINALLY BLOCK ==========');
+            console.log('[Transfer Submit] isSubmitting reset to false');
 
             // Re-enable button
             const submitBtn = e.target.querySelector('.save-btn');
-            setButtonLoading(submitBtn, false);
+            console.log('[Transfer Submit] Button found in finally:', !!submitBtn);
+            if (submitBtn) {
+                console.log('[Transfer Submit] Button state before reset:', {
+                    disabled: submitBtn.disabled,
+                    innerHTML: submitBtn.innerHTML.substring(0, 50),
+                    hasOriginalHtml: !!submitBtn.dataset.originalHtml
+                });
+                setButtonLoading(submitBtn, false);
+                console.log('[Transfer Submit] ✅ setButtonLoading(false) called');
+            } else {
+                console.error('[Transfer Submit] ❌ ERROR: Button NOT found in finally block!');
+                // Fallback: try to find button globally
+                const globalBtn = document.querySelector('#form_transfer .save-btn');
+                if (globalBtn) {
+                    console.warn('[Transfer Submit] Found button globally, resetting...');
+                    setButtonLoading(globalBtn, false);
+                }
+            }
         }
         });
     } else if (transferForm) {

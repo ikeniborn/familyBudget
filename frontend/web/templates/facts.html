@@ -1639,6 +1639,32 @@ async function showEditModal(factId) {
     // Setup category type buttons handlers
     setupEditCategoryTypeButtons();
 
+    // Setup financial center change handler for edit modal
+    const editFcSelect = document.getElementById('edit-financial-center');
+    if (editFcSelect && editCategoryTreeSelect) {
+        // Remove previous listener if exists (prevent duplicates)
+        const newEditFcSelect = editFcSelect.cloneNode(true);
+        editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
+
+        newEditFcSelect.addEventListener('change', async () => {
+            const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
+            console.log(`[facts.html] 🔄 Financial Center changed in edit modal:`, {
+                newFcId: fcId,
+                currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
+            });
+
+            // Filter categories by selected FC (will preserve selection if category is still available)
+            if (editCategoryTreeSelect) {
+                await editCategoryTreeSelect.updateFinancialCenter(fcId);
+            }
+            // Filter cost centers by selected FC
+            await filterEditCostCenters(fcId);
+
+            console.log(`[facts.html] ✅ Filtering complete. New category value:`,
+                editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);
+        });
+    }
+
     // Initialize CalendarWidget for edit modal date input
     const editDateInput = document.getElementById('edit-date');
     if (editDateInput) {

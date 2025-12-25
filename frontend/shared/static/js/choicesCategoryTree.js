@@ -937,6 +937,14 @@ class ChoicesCategoryTree {
      * @param {number|null} financialCenterId - Financial center ID (null = show all)
      */
     async updateFinancialCenter(financialCenterId) {
+        console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter START ==========`);
+        console.log(`[ChoicesCategoryTree] Input: financialCenterId=${financialCenterId}`);
+        console.log(`[ChoicesCategoryTree] Current options:`, {
+            type: this.options.type,
+            showLeafOnly: this.options.showLeafOnly,
+            previousFinancialCenterId: this.options.financialCenterId
+        });
+
         // Update option
         this.options.financialCenterId = financialCenterId;
 
@@ -945,6 +953,7 @@ class ChoicesCategoryTree {
         if (financialCenterId) {
             const specificCacheKey = `${this.options.type}:${this.options.showInactive}:${financialCenterId}`;
             ChoicesCategoryTree._cache.delete(specificCacheKey);
+            console.log(`[ChoicesCategoryTree] Invalidated cache for key: ${specificCacheKey}`);
         }
 
         // Save current selection to restore it if still available
@@ -955,9 +964,23 @@ class ChoicesCategoryTree {
         const previousSelection = hasActiveSelection && this.element ? this.element.value : null;
         const previousSelectionId = previousSelection ? parseInt(previousSelection) : null;
 
+        console.log(`[ChoicesCategoryTree] Current selection state:`, {
+            activeItems,
+            hasActiveSelection,
+            previousSelection,
+            previousSelectionId,
+            elementValue: this.element ? this.element.value : null
+        });
+
         try {
             // Load new categories from API (with offline fallback)
             await this.loadCategories();
+
+            console.log(`[ChoicesCategoryTree] Loaded categories:`, {
+                totalCount: this.categories.length,
+                categoryMapSize: this.categoryMap.size,
+                sampleCategories: this.categories.slice(0, 3).map(c => ({id: c.id, name: c.name}))
+            });
 
             // Build hierarchy maps
             this.buildHierarchyMaps();
@@ -966,6 +989,11 @@ class ChoicesCategoryTree {
             const displayCategories = this.options.showLeafOnly
                 ? this.getLeafCategories()
                 : this.categories;
+
+            console.log(`[ChoicesCategoryTree] Display categories after leaf filter:`, {
+                displayCount: displayCategories.length,
+                showLeafOnly: this.options.showLeafOnly
+            });
 
             // Update Choices.js without full recreation
             if (this.choices) {
@@ -990,6 +1018,11 @@ class ChoicesCategoryTree {
                     };
                 });
 
+                console.log(`[ChoicesCategoryTree] Prepared choices for Choices.js:`, {
+                    choicesCount: choices.length,
+                    sampleChoices: choices.slice(0, 3).map(c => ({value: c.value, label: c.label}))
+                });
+
                 // Set new choices WITHOUT auto-selecting first item
                 // 4th parameter FALSE prevents Choices.js from auto-selecting
                 this.choices.setChoices(choices, 'value', 'label', false);
@@ -998,9 +1031,17 @@ class ChoicesCategoryTree {
                 const categoryStillAvailable = previousSelectionId &&
                     this.categoryMap.has(previousSelectionId);
 
+                console.log(`[ChoicesCategoryTree] Checking if category still available:`, {
+                    previousSelectionId,
+                    categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
+                    categoryStillAvailable,
+                    categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
+                });
+
                 if (categoryStillAvailable) {
                     // Category is available in new filtered list - restore selection
                     // setSelectedCategory will handle clearing and setting the value
+                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId}`);
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
@@ -1011,8 +1052,10 @@ class ChoicesCategoryTree {
                         this.element.value = '';
                     }
                     if (previousSelectionId) {
+                        console.log(`[ChoicesCategoryTree] ❌ RESET selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                         debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                     } else {
+                        console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
                         debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
                     }
                 }
@@ -1029,8 +1072,17 @@ class ChoicesCategoryTree {
                     console.warn(`[ChoicesCategoryTree] Offline: No categories available for FC ${financialCenterId}`);
                 }
             }
+
+            console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END ==========`);
+            console.log(`[ChoicesCategoryTree] Final state:`, {
+                financialCenterId: this.options.financialCenterId,
+                categoriesCount: this.categories.length,
+                finalElementValue: this.element ? this.element.value : null,
+                finalActiveItems: this.choices ? this.choices.getValue(true) : null
+            });
         } catch (error) {
-            console.error('[ChoicesCategoryTree] Error updating financial center:', error);
+            console.error('[ChoicesCategoryTree] ❌ ERROR in updateFinancialCenter:', error);
+            console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END (ERROR) ==========`);
         }
     }
 
