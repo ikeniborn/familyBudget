@@ -2171,6 +2171,18 @@ async function createTransfer(event) {
         record_type: 'fact'  // Transfers are always 'fact' type
     };
 
+    // ========== DEDUPLICATION: Generate sync_hash and content_hash ==========
+    const contentString = `${data.from_financial_center_id}|${data.to_financial_center_id}|${data.from_article_id}|${data.to_article_id}|${data.amount}|${data.transfer_date}|${data.description || ''}|${data.record_type}`;
+    const contentHash = window.offlineManager?.db?._md5(contentString) || null;
+    const createdDate = new Date().toISOString().split('T')[0];
+    const syncHash = contentHash ? window.offlineManager?.db?._md5(`${contentHash}|${createdDate}`) : null;
+
+    data.is_offline_sync = true;
+    data.sync_hash = syncHash;
+    data.content_hash = contentHash;
+
+    console.log('[Transfer facts.html] Deduplication enabled:', {sync_hash: syncHash?.substring(0, 8) + '...'});
+
     try {
         const response = await fetch('/api/v1/transfers', {
             method: 'POST',

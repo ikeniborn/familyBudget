@@ -2976,6 +2976,25 @@ document.addEventListener('DOMContentLoaded', function() {
             record_type: recordType  // 'fact' or 'plan'
         };
 
+        // ========== DEDUPLICATION: Generate sync_hash and content_hash ==========
+        // Generate content_hash for duplicate detection
+        const contentString = `${data.from_financial_center_id}|${data.to_financial_center_id}|${data.from_article_id}|${data.to_article_id}|${data.amount}|${data.transfer_date}|${data.description || ''}|${data.record_type}`;
+        const contentHash = window.offlineManager?.db?._md5(contentString) || null;
+
+        // Generate sync_hash = MD5(content_hash|created_date)
+        const createdDate = new Date().toISOString().split('T')[0];  // YYYY-MM-DD
+        const syncHash = contentHash ? window.offlineManager?.db?._md5(`${contentHash}|${createdDate}`) : null;
+
+        // Add hashes to payload (enables backend deduplication)
+        data.is_offline_sync = true;  // Enable deduplication check on backend
+        data.sync_hash = syncHash;
+        data.content_hash = contentHash;
+
+        console.log('[Transfer] Deduplication hashes generated:', {
+            sync_hash: syncHash?.substring(0, 8) + '...',
+            content_hash: contentHash?.substring(0, 8) + '...'
+        });
+
         try {
             // Transfer ALWAYS uses direct fetch (no offline support)
             const response = await fetch('/api/v1/transfers', {
