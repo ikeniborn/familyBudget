@@ -18,6 +18,18 @@ setup_backup_cron() {
         return 0
     fi
 
+    # Check if crontab is installed
+    if ! command -v crontab &> /dev/null; then
+        warning "crontab command not found - backup automation cannot be configured"
+        echo ""
+        echo "To install crontab:"
+        echo "  sudo apt-get update && sudo apt-get install -y cron"
+        echo ""
+        info "Manual backup can be run with: sudo $DEPLOY_DIR/scripts/backup.sh"
+        info "Skipping backup automation setup (non-critical - deployment will continue)"
+        return 0
+    fi
+
     # Source .env to check backup configuration
     set -a
     source "$DEPLOY_DIR/.env" 2>/dev/null || true
