@@ -3845,6 +3845,10 @@ function openAddPlanModal() {
             });
             modal.dataset.backdropHandlerAdded = 'true';
         }
+
+        // ✅ FIX: Initialize plan mode on modal open
+        // Without this, form validation fails until user manually changes plan mode
+        togglePlanMode(modalId);
     }
 }
 // Ensure function is globally accessible for onclick handlers
