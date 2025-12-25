@@ -754,3 +754,66 @@ telegram_webapp:
   validators:
     path: "frontend/webapp/static/js/validators.js"
     description: "Input validation"
+
+# ---------------------------------------------------------------------------
+# INLINE FUNCTIONS (plan.html)
+# ---------------------------------------------------------------------------
+plan_page_functions:
+  showEditModal:
+    path: "frontend/web/templates/plan.html (inline script, lines 2328-2613)"
+    description: |
+      Opens edit modal for any record (plan or fact).
+      Determines record type using fact.record_type field.
+      Loads recurring plan details if recurring_plan_id is present.
+    parameters:
+      - factId: "number (ID of fact to edit)"
+    logging:
+      - "[EDIT MODAL] Fact loaded: {fact object}"
+      - "[EDIT MODAL] record_type: plan/fact"
+      - "[EDIT MODAL] recurring_plan_id: {id or null}"
+      - "[EDIT MODAL] Record type is PLAN/FACT"
+      - "[EDIT MODAL] Fact has recurring_plan_id, loading plan details..."
+      - "[EDIT MODAL] Recurring plan API response status: {status}"
+      - "[EDIT MODAL] Recurring plan loaded successfully: {plan}"
+      - "[EDIT MODAL] Fact has NO recurring_plan_id, hiding recurring info"
+    key_logic:
+      record_type_check: |
+        Checks fact.record_type for 'plan' vs 'fact' (explicit type determination).
+        Logs record type for debugging purposes.
+      recurring_plan_check: |
+        Checks recurring_plan_id for recurring plan association.
+        If present, loads plan details via GET /api/v1/recurring-plans/{id}.
+        Shows recurring info section with template editing options.
+      category_initialization: |
+        Initializes ChoicesCategoryTree WITH financialCenterId for filtering.
+        Ensures category dropdown is pre-filtered by selected financial center.
+    important_notes: |
+      - record_type ('plan'/'fact') indicates budget record type
+      - recurring_plan_id indicates association with recurring payment template
+      - These are DIFFERENT concepts: a 'plan' record may or may not have recurring_plan_id
+      - All current logic with recurring_plan_id remains unchanged (only logging added)
+
+  updateFact:
+    path: "frontend/web/templates/plan.html (inline script, lines 2815-2972)"
+    description: |
+      Updates a fact record (single or template).
+      Routes to appropriate endpoint based on editScope.
+    parameters:
+      - event: "FormSubmitEvent"
+    logging:
+      - "[EDIT MODAL] updateFact called: {factId, recordType, recurringPlanId, editScope}"
+      - "[EDIT MODAL] Updating RECURRING PLAN TEMPLATE" (if template scope)
+      - "[EDIT MODAL] Updating SINGLE FACT" (if single scope)
+    key_logic:
+      scope_detection: |
+        if (recurringPlanId && editScope === 'template'):
+          PUT /api/v1/recurring-plans/{id}?regenerate_future=true
+        else:
+          PUT /api/v1/facts/{id}
+      reminder_handling: |
+        Reminders only processed for single scope (not for templates).
+        Uses BudgetShared.Reminders module for create/update/delete.
+    important_notes: |
+      - Template updates regenerate all future plan records
+      - Single updates only modify the specific fact
+      - Reminder datetime extracted from separate hidden field (edit-reminder-datetime)

@@ -172,6 +172,15 @@ async def create_fact(
                 "_duplicate_skipped": True,  # ✅ Indicates duplicate was skipped
             }
 
+    # Log fact creation
+    logger.info(
+        f"[FACTS CREATE] Creating new fact: "
+        f"record_type={fact_data.record_type}, "
+        f"article_id={fact_data.article_id}, "
+        f"amount={fact_data.amount}, "
+        f"user_id={current_user.id}"
+    )
+
     # Validate: Article must exist and be accessible
     article_stmt = select(Article).where(
         Article.id == fact_data.article_id
@@ -1290,6 +1299,15 @@ async def update_fact(
 
     for key, value in update_data.items():
         setattr(fact, key, value)
+
+    # Log what fields were updated
+    changed_fields = list(update_data.keys())
+    logger.info(
+        f"[FACTS UPDATE] Updating fact_id={fact_id}: "
+        f"record_type={fact.record_type}, "
+        f"changed_fields={changed_fields}, "
+        f"user_id={current_user.id}"
+    )
 
     fact.updated_at = datetime.utcnow()
 

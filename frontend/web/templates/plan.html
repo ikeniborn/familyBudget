@@ -2387,7 +2387,17 @@ async function showEditModal(factId) {
     }
 
     console.log('[EDIT MODAL] Fact loaded:', fact);
+    console.log('[EDIT MODAL] record_type:', fact.record_type);
     console.log('[EDIT MODAL] recurring_plan_id:', fact.recurring_plan_id);
+
+    // Определение типа записи на основе record_type
+    if (fact.record_type === 'plan') {
+        console.log('[EDIT MODAL] Record type is PLAN');
+    } else if (fact.record_type === 'fact') {
+        console.log('[EDIT MODAL] Record type is FACT');
+    } else {
+        console.warn('[EDIT MODAL] Unknown record_type:', fact.record_type);
+    }
 
     if (fact.recurring_plan_id) {
         // Это запись из recurring плана
@@ -2860,11 +2870,20 @@ async function updateFact(event) {
     const reminderDatetime = formData.get('reminder_datetime');
 
     try {
+        // Логирование вызова updateFact
+        console.log('[EDIT MODAL] updateFact called:', {
+            factId: factId,
+            recordType: factsData.find(f => f.id == factId)?.record_type,
+            recurringPlanId: recurringPlanId,
+            editScope: editScope
+        });
+
         let response;
         let successMessage = '✅ Факт успешно обновлен!';
 
         // Check if editing recurring plan template
         if (recurringPlanId && editScope === 'template') {
+            console.log('[EDIT MODAL] Updating RECURRING PLAN TEMPLATE');
             // Update recurring plan template
             // Fields that can be updated: amount, description, cost_center_id, end_date, is_active
             const templateData = {
@@ -2900,6 +2919,7 @@ async function updateFact(event) {
             });
             successMessage = '✅ Шаблон обновлен, будущие записи пересозданы!';
         } else {
+            console.log('[EDIT MODAL] Updating SINGLE FACT');
             // Update single fact
             response = await fetch(`/api/v1/facts/${factId}`, {
                 method: 'PUT',
