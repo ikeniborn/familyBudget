@@ -473,8 +473,8 @@ function setTransferRecordType(type) {
         factSection?.classList.add('hidden');
         planSection?.classList.remove('hidden');
 
-        // Initialize period buttons for plan transfers
-        setupTransferPeriodButtons();
+        // Initialize period buttons for plan transfers (deferred to allow DOM update)
+        setTimeout(() => setupTransferPeriodButtons(), 0);
     }
 }
 
@@ -545,15 +545,22 @@ function setupTransferPeriodButtons() {
 
 // Открыть модальное окно фактического перевода
 function openFactTransferModal() {
-    // Reset button state (fix: restore original HTML if button was in loading state)
+    console.log('[openFactTransferModal] Opening fact transfer modal');
+
+    // CRITICAL: Aggressively reset button state
     const form = document.getElementById('form_transfer');
     const submitBtn = form?.querySelector('.save-btn');
     if (submitBtn) {
+        // Force reset to default state
         submitBtn.disabled = false;
         if (submitBtn.dataset.originalHtml) {
             submitBtn.innerHTML = submitBtn.dataset.originalHtml;
             delete submitBtn.dataset.originalHtml;
+        } else {
+            // Fallback: restore default text if no saved state (fixes stuck spinner)
+            submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Сохранить';
         }
+        console.log('[openFactTransferModal] ✅ Button reset, disabled:', submitBtn.disabled);
     }
 
     // Set transfer type to 'fact'
@@ -578,15 +585,20 @@ window.openFactTransferModal = openFactTransferModal;
 function openPlanTransferModal() {
     console.log('[openPlanTransferModal] Opening plan transfer modal');
 
-    // Reset button state (fix: restore original HTML if button was in loading state)
+    // CRITICAL: Aggressively reset button state
     const form = document.getElementById('form_transfer');
     const submitBtn = form?.querySelector('.save-btn');
     if (submitBtn) {
+        // Force reset to default state
         submitBtn.disabled = false;
         if (submitBtn.dataset.originalHtml) {
             submitBtn.innerHTML = submitBtn.dataset.originalHtml;
             delete submitBtn.dataset.originalHtml;
+        } else {
+            // Fallback: restore default text if no saved state (fixes stuck spinner)
+            submitBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> Сохранить';
         }
+        console.log('[openPlanTransferModal] ✅ Button reset, disabled:', submitBtn.disabled);
     }
 
     // Set transfer type to 'plan'
