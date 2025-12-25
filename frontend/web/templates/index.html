@@ -588,6 +588,17 @@ function openFactTransferModal() {
     if (typeof setTransferRecordType === 'function') {
         setTransferRecordType('fact');
     }
+
+    // CRITICAL: Reset FC filter state for create modals (not edit modals)
+    // This ensures isInitialFiltering works correctly on modal reopening
+    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
+        fromCategoryTree.options.financialCenterId = null;
+    }
+    if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
+        toCategoryTree.options.financialCenterId = null;
+    }
+
     // Open transfer modal
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
@@ -637,6 +648,16 @@ function openPlanTransferModal() {
             validity: transferDateInput.validity,
             validationMessage: transferDateInput.validationMessage
         });
+    }
+
+    // CRITICAL: Reset FC filter state for create modals (not edit modals)
+    // This ensures isInitialFiltering works correctly on modal reopening
+    // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+    if (typeof fromCategoryTree !== 'undefined' && fromCategoryTree) {
+        fromCategoryTree.options.financialCenterId = null;
+    }
+    if (typeof toCategoryTree !== 'undefined' && toCategoryTree) {
+        toCategoryTree.options.financialCenterId = null;
     }
 
     // Open transfer modal

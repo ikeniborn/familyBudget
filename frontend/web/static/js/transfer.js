@@ -907,6 +907,16 @@ async function openTransferModal() {
         const fromFCSelect = document.querySelector('#from_financial_center');
         const toFCSelect = document.querySelector('#to_financial_center');
 
+        // CRITICAL: Reset FC filter state for create modals (not edit modals)
+        // This ensures isInitialFiltering works correctly on modal reopening
+        // Without this, previousFcId persists between modal openings, causing phantom auto-selection
+        if (fromCategoryTree) {
+            fromCategoryTree.options.financialCenterId = null;
+        }
+        if (toCategoryTree) {
+            toCategoryTree.options.financialCenterId = null;
+        }
+
         if (fromCategoryTree && fromFCSelect) {
             const fcId = fromFCSelect.value ? parseInt(fromFCSelect.value) : null;
             await fromCategoryTree.updateFinancialCenter(fcId);
@@ -1026,7 +1036,7 @@ async function handleTransferSubmit(event) {
     };
 
     // 2. Client-side validation
-    const validationError = validateTransferData(data);
+    const validationError = validateTransferData(data, formData);
     if (validationError) {
         if (typeof showToast === 'function') {
             showToast(validationError, 'error');
@@ -1161,7 +1171,7 @@ async function handleTransferSubmit(event) {
 /**
  * Validate Transfer Data (client-side)
  */
-function validateTransferData(data) {
+function validateTransferData(data, formData) {
     // Amount validation
     if (data.amount <= 0) {
         return 'Сумма должна быть больше 0';
@@ -1172,11 +1182,18 @@ function validateTransferData(data) {
         return 'Финансовые центры "откуда" и "куда" должны быть разными';
     }
 
-    // Required fields
-    if (!data.transfer_date) {
-        return data.record_type === 'plan'
-            ? 'Выберите период планирования'
-            : 'Укажите дату перевода';
+    // Date/Period validation - check actual source field based on record type
+    if (data.record_type === 'plan') {
+        // For plan transfers, check transfer_plan_month from form
+        const planMonth = formData ? formData.get('transfer_plan_month') : null;
+        if (!planMonth || planMonth === 'null' || planMonth === 'undefined') {
+            return 'Выберите период планирования';
+        }
+    } else {
+        // For fact transfers, check transfer_date
+        if (!data.transfer_date) {
+            return 'Укажите дату перевода';
+        }
     }
 
     if (!data.from_article_id || !data.to_article_id) {
