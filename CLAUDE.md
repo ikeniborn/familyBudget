@@ -76,6 +76,88 @@ All models use **SCD Type 1** (in-place updates) + separate **History tables** (
 - **Telegram Web Apps**: Standalone HTML pages for Menu Button
 - **Shared modules**: Category tree (Choices.js), calendar widget, date formatter
 
+## Installation Script Architecture
+
+**Main Script:** `install.sh` - System dependencies installation (Docker, Node.js, utilities)
+
+**Since version 1.0.0:** Installation Resilience Framework added
+
+### Resilience Components
+
+**1. Timeout & Retry Infrastructure** (`scripts/lib/timeout.sh`)
+- **Exponential backoff**: 5s → 10s → 20s → 40s → 60s (capped)
+- **Configurable timeouts** via environment variables:
+  - `TIMEOUT_APT_UPDATE=300` (5 min)
+  - `TIMEOUT_APT_UPGRADE=600` (10 min)
+  - `TIMEOUT_APT_INSTALL=600` (10 min)
+  - `TIMEOUT_NPM_INSTALL=900` (15 min)
+- **Retry configuration**:
+  - `MAX_RETRY_ATTEMPTS=3`
+  - `RETRY_BASE_DELAY=5`
+  - `RETRY_MAX_DELAY=60`
+
+**2. Network Pre-flight Checks** (`scripts/lib/network_health.sh`)
+- Internet connectivity (ICMP ping to 8.8.8.8, 1.1.1.1, 208.67.222.222)
+- DNS resolution (google.com, github.com, download.docker.com)
+- Repository accessibility (archive.ubuntu.com, download.docker.com, deb.nodesource.com)
+
+**3. Enhanced Error Reporting** (`scripts/lib/utils.sh`)
+- Context-aware error messages with recovery suggestions
+- Last 5 error lines extracted from log
+- Operation-specific troubleshooting (APT, NPM, Docker)
+
+### Core Functions
+
+```bash
+# Timeout & Retry
+apt_with_retry install -y nodejs          # APT with retry + exponential backoff
+npm_with_retry ci                         # NPM with timeout + retry
+curl_with_retry -fsSL https://...         # Curl with timeout + retry
+
+# Network Checks
+network_preflight_check "false"           # Run pre-flight (warn mode)
+suggest_network_fixes                     # Show troubleshooting steps
+
+# Error Reporting
+get_last_error_lines "$LOG_FILE" 5        # Last 5 errors from log
+suggest_fix_apt_update                    # APT troubleshooting
+suggest_fix_npm_install                   # NPM troubleshooting
+```
+
+### Usage Examples
+
+**Basic installation** (uses defaults):
+```bash
+sudo ./install.sh
+```
+
+**Custom timeouts** (slow network):
+```bash
+TIMEOUT_APT_INSTALL=1200 TIMEOUT_NPM_INSTALL=1800 sudo -E ./install.sh
+```
+
+**Manual network check**:
+```bash
+source scripts/lib/network_health.sh
+network_preflight_check "false"
+```
+
+### Troubleshooting Installation Failures
+
+**Check installation log:**
+```bash
+tail -f /var/log/familybudget_install.log
+```
+
+**Common issues:**
+1. **Network timeouts** → Increase timeout: `TIMEOUT_APT_INSTALL=1200 sudo -E ./install.sh`
+2. **DNS failures** → Check /etc/resolv.conf, add `nameserver 8.8.8.8`
+3. **Repository 404** → Check /etc/apt/sources.list for invalid repos
+4. **npm hangs** → Kill zombie processes: `sudo pkill -9 -f npm`
+5. **Docker GPG key** → Remove and retry: `sudo rm -f /etc/apt/keyrings/docker.gpg`
+
+**See:** `/docs/architecture/installation-resilience.md` for comprehensive guide
+
 ## Development Commands
 
 ### Local Development

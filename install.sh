@@ -28,6 +28,10 @@ set -u  # Exit on undefined variable
 # Prevent interactive prompts from apt-get
 export DEBIAN_FRONTEND=noninteractive
 
+# Source timeout and retry library
+# Note: Must source after LOG_FILE is set (done after check_root)
+# Will be sourced in main() function
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -134,12 +138,12 @@ detect_os() {
 update_system() {
     info "Updating system packages..."
 
-    if ! timeout 300 apt-get update -y >> "$LOG_FILE" 2>&1; then
-        error "apt-get update failed or timed out. Check network connection and $LOG_FILE"
+    if ! apt_with_retry update -y; then
+        error "apt-get update failed after retries. Check network connection and $LOG_FILE"
     fi
 
-    if ! timeout 600 apt-get upgrade -y >> "$LOG_FILE" 2>&1; then
-        error "apt-get upgrade failed or timed out. Check $LOG_FILE for details."
+    if ! apt_with_retry upgrade -y; then
+        error "apt-get upgrade failed after retries. Check $LOG_FILE for details."
     fi
 
     success "System packages updated"
@@ -174,29 +178,9 @@ install_utilities() {
 
     for package in "${packages[@]}"; do
         if ! dpkg -l | grep -q "^ii  $package "; then
-            info "Installing $package..."
-            # Try installation with retry logic (up to 3 attempts)
-            local attempt=1
-            local max_attempts=3
-            local install_success=false
-
-            while [[ $attempt -le $max_attempts ]]; do
-                if timeout 600 apt-get install -y "$package" >> "$LOG_FILE" 2>&1; then
-                    install_success=true
-                    break
-                else
-                    if [[ $attempt -lt $max_attempts ]]; then
-                        warning "Failed to install $package (attempt $attempt/$max_attempts), retrying in 5 seconds..."
-                        sleep 5
-                        # Update package lists before retry
-                        timeout 300 apt-get update -y >> "$LOG_FILE" 2>&1 || true
-                    fi
-                fi
-                ((attempt++))
-            done
-
-            if [[ "$install_success" != "true" ]]; then
-                error "Failed to install $package after $max_attempts attempts (timeout or error). Check $LOG_FILE for details."
+            # Use apt_with_retry which handles exponential backoff and retries
+            if ! apt_with_retry install -y "$package"; then
+                error "Failed to install $package after retries. Check $LOG_FILE for details."
             fi
         else
             info "$package is already installed"
@@ -277,8 +261,8 @@ install_docker() {
     # Add Docker's official GPG key
     info "Adding Docker GPG key..."
     install -m 0755 -d /etc/apt/keyrings
-    if ! curl -fsSL --max-time 60 --retry 3 https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg; then
-        error "Failed to download Docker GPG key. Check network connection and $LOG_FILE"
+    if ! curl_with_retry -fsSL https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg; then
+        error "Failed to download Docker GPG key after retries. Check network connection and $LOG_FILE"
     fi
     chmod a+r /etc/apt/keyrings/docker.gpg
 
@@ -289,14 +273,14 @@ install_docker() {
         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     # Update package index
-    if ! timeout 300 apt-get update -y >> "$LOG_FILE" 2>&1; then
-        error "apt-get update failed or timed out while setting up Docker. Check $LOG_FILE"
+    if ! apt_with_retry update -y; then
+        error "apt-get update failed after retries while setting up Docker. Check $LOG_FILE"
     fi
 
     # Install Docker Engine
     info "Installing Docker Engine..."
-    if ! timeout 600 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin >> "$LOG_FILE" 2>&1; then
-        error "Docker installation failed or timed out. Check $LOG_FILE for details."
+    if ! apt_with_retry install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin; then
+        error "Docker installation failed after retries. Check $LOG_FILE for details."
     fi
 
     # Start and enable Docker
@@ -590,65 +574,42 @@ install_nodejs() {
     # Install NodeSource repository (Node.js 20.x LTS)
     info "Adding NodeSource repository for Node.js 20.x LTS..."
 
-    # Download NodeSource setup script with timeout
+    # Download NodeSource setup script with retry
     local setup_script="/tmp/nodesource_setup.sh"
-    if ! curl -fsSL --max-time 60 --retry 3 https://deb.nodesource.com/setup_20.x -o "$setup_script" >> "$LOG_FILE" 2>&1; then
-        error "Failed to download NodeSource setup script. Check network connection and $LOG_FILE for details."
+    if ! curl_with_retry -fsSL https://deb.nodesource.com/setup_20.x -o "$setup_script"; then
+        error "Failed to download NodeSource setup script after retries. Check network connection and $LOG_FILE for details."
     fi
 
-    # Execute setup script with timeout (5 minutes max)
-    if ! timeout 300 bash "$setup_script" >> "$LOG_FILE" 2>&1; then
+    # Execute setup script with retry (5 minutes max)
+    if ! execute_with_retry 300 3 "NodeSource repository setup" bash "$setup_script"; then
         rm -f "$setup_script"
-        error "NodeSource repository setup failed or timed out. Check $LOG_FILE for details."
+        error "NodeSource repository setup failed after retries. Check $LOG_FILE for details."
     fi
     rm -f "$setup_script"
 
     info "NodeSource repository added successfully"
 
-    # Update package index with timeout
+    # Update package index with retry
     info "Updating package index..."
-    if ! timeout 300 apt-get update -y >> "$LOG_FILE" 2>&1; then
-        error "apt-get update failed or timed out. Check $LOG_FILE for details."
+    if ! apt_with_retry update -y; then
+        error "apt-get update failed after retries. Check $LOG_FILE for details."
     fi
 
-    # Install Node.js (includes npm) with error handling
+    # Install Node.js (includes npm) with error handling and retry
     info "Installing Node.js and npm..."
-    local install_attempts=0
-    local max_attempts=3
 
-    while [[ $install_attempts -lt $max_attempts ]]; do
-        ((install_attempts++))
-        info "Installation attempt $install_attempts of $max_attempts..."
+    # Fix any dpkg errors before installation
+    dpkg --configure -a >> "$LOG_FILE" 2>&1 || true
+    apt-get install -f -y >> "$LOG_FILE" 2>&1 || true
 
-        # Install with 10-minute timeout
-        if timeout 600 apt-get install -y nodejs >> "$LOG_FILE" 2>&1; then
-            info "Node.js installation successful"
-            break
-        else
-            local exit_code=$?
-            if [[ $exit_code -eq 124 ]]; then
-                warning "Installation attempt $install_attempts timed out (10 minutes)"
-            else
-                warning "Installation attempt $install_attempts failed (exit code: $exit_code)"
-            fi
+    # Clean cache before installation
+    apt-get clean >> "$LOG_FILE" 2>&1
+    rm -rf /var/cache/apt/archives/nodejs*.deb 2>/dev/null || true
 
-            if [[ $install_attempts -lt $max_attempts ]]; then
-                warning "Cleaning up and retrying..."
-
-                # Fix dpkg errors
-                dpkg --configure -a >> "$LOG_FILE" 2>&1 || true
-                apt-get install -f -y >> "$LOG_FILE" 2>&1 || true
-
-                # Clean cache and retry
-                apt-get clean >> "$LOG_FILE" 2>&1
-                rm -rf /var/cache/apt/archives/nodejs*.deb 2>/dev/null || true
-
-                sleep 2
-            else
-                error "Node.js installation failed after $max_attempts attempts. Check $LOG_FILE for details."
-            fi
-        fi
-    done
+    # Install with retry and timeout
+    if ! apt_with_retry install -y nodejs; then
+        error "Node.js installation failed after retries. Check $LOG_FILE for details."
+    fi
 
     # Verify installation
     if command_exists node && command_exists npm; then
@@ -846,10 +807,16 @@ install_npm_dependencies() {
         # Use npm ci for reproducible builds (if package-lock.json exists)
         if [[ -f "package-lock.json" ]]; then
             info "Using npm ci (clean install with locked versions)..."
-            su - "$username" -c "cd $isolated_dir && npm ci" >> "$LOG_FILE" 2>&1
+            if ! execute_with_retry "$TIMEOUT_NPM_INSTALL" "$MAX_RETRY_ATTEMPTS" "npm ci (as user $username)" \
+                su - "$username" -c "cd $isolated_dir && npm ci"; then
+                error "npm ci failed after retries. Check $LOG_FILE for details."
+            fi
         else
             warning "package-lock.json not found - using npm install (will create lock file)"
-            su - "$username" -c "cd $isolated_dir && npm install" >> "$LOG_FILE" 2>&1
+            if ! execute_with_retry "$TIMEOUT_NPM_INSTALL" "$MAX_RETRY_ATTEMPTS" "npm install (as user $username)" \
+                su - "$username" -c "cd $isolated_dir && npm install"; then
+                error "npm install failed after retries. Check $LOG_FILE for details."
+            fi
 
             # Copy generated package-lock.json back to repository for version control
             if [[ -f "$isolated_dir/package-lock.json" ]]; then
@@ -861,9 +828,13 @@ install_npm_dependencies() {
         warning "Running as root - installing npm packages as root (not recommended)"
 
         if [[ -f "package-lock.json" ]]; then
-            npm ci >> "$LOG_FILE" 2>&1
+            if ! npm_with_retry ci; then
+                error "npm ci failed after retries. Check $LOG_FILE for details."
+            fi
         else
-            npm install >> "$LOG_FILE" 2>&1
+            if ! npm_with_retry install; then
+                error "npm install failed after retries. Check $LOG_FILE for details."
+            fi
 
             # Copy generated package-lock.json back to repository
             if [[ -f "$isolated_dir/package-lock.json" ]]; then
@@ -1026,6 +997,24 @@ main() {
     check_root
     detect_os
 
+    # Source timeout and retry library
+    if [[ -f "$SCRIPT_DIR/scripts/lib/timeout.sh" ]]; then
+        # shellcheck source=scripts/lib/timeout.sh
+        source "$SCRIPT_DIR/scripts/lib/timeout.sh"
+        info "Loaded timeout and retry library"
+    else
+        warning "timeout.sh not found - using hardcoded timeouts"
+    fi
+
+    # Source network health check library
+    if [[ -f "$SCRIPT_DIR/scripts/lib/network_health.sh" ]]; then
+        # shellcheck source=scripts/lib/network_health.sh
+        source "$SCRIPT_DIR/scripts/lib/network_health.sh"
+        info "Loaded network health check library"
+    else
+        warning "network_health.sh not found - skipping network pre-flight checks"
+    fi
+
     # Confirmation
     echo ""
     warning "This script will install:"
@@ -1039,6 +1028,23 @@ main() {
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         info "Installation cancelled by user"
         exit 0
+    fi
+
+    # Run network pre-flight checks
+    if command -v network_preflight_check &>/dev/null; then
+        if ! network_preflight_check "false"; then
+            suggest_network_fixes
+            echo ""
+            warning "Network issues detected. Installation may fail or be slow."
+            warning "It is recommended to resolve network issues before continuing."
+            echo ""
+            read -p "Continue anyway? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                info "Installation cancelled by user"
+                exit 0
+            fi
+        fi
     fi
 
     # Installation steps

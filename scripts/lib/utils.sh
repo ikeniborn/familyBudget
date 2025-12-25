@@ -64,6 +64,131 @@ step() {
 }
 
 # =============================================================================
+# ENHANCED ERROR REPORTING
+# =============================================================================
+
+# Extract last N error lines from log file
+# Args:
+#   $1: log file path
+#   $2: number of lines (default: 5)
+# Returns: prints last N non-empty error lines
+get_last_error_lines() {
+    local log_file=${1:-$LOG_FILE}
+    local num_lines=${2:-5}
+
+    if [[ ! -f "$log_file" ]]; then
+        return
+    fi
+
+    # Extract last N lines containing errors (case-insensitive)
+    grep -iE "(error|failed|fatal|E:|W:)" "$log_file" | tail -n "$num_lines" | while IFS= read -r line; do
+        echo "  $line"
+    done
+}
+
+# Context-aware error reporting with actionable suggestions
+# Args:
+#   $1: operation name (e.g., "apt-get update")
+#   $2: exit code
+report_installation_error() {
+    local operation=$1
+    local exit_code=${2:-1}
+
+    echo ""
+    error_return "Operation failed: $operation (exit code: $exit_code)"
+    echo ""
+
+    # Show last errors from log
+    if [[ -f "$LOG_FILE" ]]; then
+        error_return "Last errors from log:"
+        get_last_error_lines "$LOG_FILE" 5
+        echo ""
+    fi
+
+    # Show operation-specific suggestions
+    case "$operation" in
+        *"apt-get update"*|*"apt-get upgrade"*)
+            suggest_fix_apt_update
+            ;;
+        *"npm"*)
+            suggest_fix_npm_install
+            ;;
+        *"docker"*)
+            suggest_fix_docker
+            ;;
+    esac
+
+    echo "Full log: $LOG_FILE"
+    echo ""
+}
+
+# Suggest fixes for apt-get update failures
+suggest_fix_apt_update() {
+    echo "Suggested fixes for apt-get update failure:"
+    echo "  1. Check internet connection:"
+    echo "     ping -c 3 google.com"
+    echo ""
+    echo "  2. Clear APT cache:"
+    echo "     sudo apt-get clean"
+    echo "     sudo rm -rf /var/lib/apt/lists/*"
+    echo "     sudo apt-get update"
+    echo ""
+    echo "  3. Check /etc/apt/sources.list for invalid repositories:"
+    echo "     cat /etc/apt/sources.list"
+    echo "     sudo nano /etc/apt/sources.list"
+    echo ""
+    echo "  4. Check for proxy issues:"
+    echo "     cat /etc/apt/apt.conf.d/proxy.conf"
+    echo ""
+    echo "  5. Try manually with verbose output:"
+    echo "     sudo apt-get update -y"
+    echo ""
+}
+
+# Suggest fixes for npm install failures
+suggest_fix_npm_install() {
+    echo "Suggested fixes for npm install failure:"
+    echo "  1. Clear npm cache:"
+    echo "     npm cache clean --force"
+    echo ""
+    echo "  2. Delete node_modules and retry:"
+    echo "     rm -rf node_modules package-lock.json"
+    echo "     npm install"
+    echo ""
+    echo "  3. Check disk space:"
+    echo "     df -h"
+    echo ""
+    echo "  4. Check npm registry access:"
+    echo "     npm config get registry"
+    echo "     curl -I https://registry.npmjs.org"
+    echo ""
+    echo "  5. Try with increased timeout:"
+    echo "     npm install --timeout=60000"
+    echo ""
+}
+
+# Suggest fixes for Docker installation failures
+suggest_fix_docker() {
+    echo "Suggested fixes for Docker installation failure:"
+    echo "  1. Remove conflicting packages:"
+    echo "     sudo apt-get remove -y docker docker-engine docker.io containerd runc"
+    echo "     sudo apt-get autoremove -y"
+    echo ""
+    echo "  2. Check Docker GPG key:"
+    echo "     ls -la /etc/apt/keyrings/docker.gpg"
+    echo "     sudo rm -f /etc/apt/keyrings/docker.gpg"
+    echo "     # Then re-run install.sh"
+    echo ""
+    echo "  3. Verify Docker repository:"
+    echo "     cat /etc/apt/sources.list.d/docker.list"
+    echo ""
+    echo "  4. Check kernel compatibility:"
+    echo "     uname -r"
+    echo "     # Docker requires kernel 3.10+"
+    echo ""
+}
+
+# =============================================================================
 # COMMAND CHECKS
 # =============================================================================
 
