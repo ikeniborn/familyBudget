@@ -2386,8 +2386,13 @@ async function showEditModal(factId) {
         recurringPlanIdField.value = fact.recurring_plan_id || '';
     }
 
+    console.log('[EDIT MODAL] Fact loaded:', fact);
+    console.log('[EDIT MODAL] recurring_plan_id:', fact.recurring_plan_id);
+
     if (fact.recurring_plan_id) {
         // Это запись из recurring плана
+        console.log('[EDIT MODAL] Fact has recurring_plan_id, loading plan details...');
+
         if (recurringInfoDiv) recurringInfoDiv.classList.remove('hidden');
         if (reminderContainer) reminderContainer.classList.add('hidden'); // Скрыть reminder для recurring
         if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden'); // Скрыть поля шаблона по умолчанию
@@ -2401,17 +2406,32 @@ async function showEditModal(factId) {
             const planResponse = await fetch(`/api/v1/recurring-plans/${fact.recurring_plan_id}`, {
                 credentials: 'include'
             });
-            if (planResponse.ok) {
-                currentRecurringPlan = await planResponse.json();
-                populateRecurringPlanInfo(currentRecurringPlan);
+
+            console.log('[EDIT MODAL] Recurring plan API response status:', planResponse.status);
+
+            if (!planResponse.ok) {
+                console.error('[EDIT MODAL] Failed to load recurring plan:', planResponse.status, planResponse.statusText);
+                if (planResponse.status === 403) {
+                    console.error('[EDIT MODAL] 403 Forbidden - check user permissions');
+                } else if (planResponse.status === 404) {
+                    console.error('[EDIT MODAL] 404 Not Found - plan may have been deleted');
+                }
+                // Скрыть секцию при ошибке
+                if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
             } else {
-                console.warn('[Edit Modal] Failed to load recurring plan:', planResponse.status);
+                currentRecurringPlan = await planResponse.json();
+                console.log('[EDIT MODAL] Recurring plan loaded successfully:', currentRecurringPlan);
+                populateRecurringPlanInfo(currentRecurringPlan);
+                console.log('[EDIT MODAL] Recurring plan info populated');
             }
         } catch (error) {
-            console.error('[Edit Modal] Error loading recurring plan:', error);
+            console.error('[EDIT MODAL] Error loading recurring plan:', error);
+            // Скрыть секцию при ошибке
+            if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
         }
     } else {
         // Обычная запись (не recurring)
+        console.log('[EDIT MODAL] Fact has NO recurring_plan_id, hiding recurring info');
         if (recurringInfoDiv) recurringInfoDiv.classList.add('hidden');
         if (reminderContainer) reminderContainer.classList.remove('hidden'); // Показать reminder
         if (templateFieldsDiv) templateFieldsDiv.classList.add('hidden');
@@ -2610,7 +2630,12 @@ function closeEditModal() {
  * @param {Object} plan - Recurring plan data from API
  */
 function populateRecurringPlanInfo(plan) {
-    if (!plan) return;
+    console.log('[POPULATE] populating recurring plan info:', plan);
+
+    if (!plan) {
+        console.warn('[POPULATE] Plan is null/undefined, skipping');
+        return;
+    }
 
     // Update status badge
     const statusBadge = document.getElementById('edit-recurring-status');
@@ -5149,5 +5174,72 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial update with delay to ensure offlineManager is initialized
     setTimeout(updateSaveButtonsVisibility, 1000);
 });
+
+// ============================================================
+// WebSocket Event Handlers для real-time обновлений
+// ============================================================
+
+// План создан
+window.budgetWSClient.on('plan_created', async (data) => {
+    console.log('[plan.html] plan_created event:', data);
+
+    // Если текущие фильтры соответствуют новому плану - обновить таблицу
+    if (shouldReloadOnPlanCreated(data)) {
+        await loadFacts(); // Перезагрузить таблицу
+        showToast('success', '✅ Добавлена новая плановая запись');
+    }
+});
+
+// План обновлен
+window.budgetWSClient.on('plan_updated', async (data) => {
+    console.log('[plan.html] plan_updated event:', data);
+
+    // Всегда перезагружать таблицу (план мог изменить видимость из-за фильтров)
+    await loadFacts();
+    showToast('info', '🔄 Плановая запись обновлена');
+});
+
+// План удален
+window.budgetWSClient.on('plan_deleted', async (data) => {
+    console.log('[plan.html] plan_deleted event:', data);
+
+    // Перезагрузить таблицу
+    await loadFacts();
+    showToast('warning', '🗑️ Плановая запись удалена');
+});
+
+// Регламентный план создан (генерирует несколько фактов)
+window.budgetWSClient.on('recurring_plan_created', async (data) => {
+    console.log('[plan.html] recurring_plan_created event:', data);
+
+    // Перезагрузить таблицу (появилось несколько новых записей)
+    await loadFacts();
+    showToast('success', `✅ Регламентный платеж создан (${data.facts_generated || '?'} записей)`);
+});
+
+// Helper: Проверка нужна ли перезагрузка при создании плана
+function shouldReloadOnPlanCreated(planData) {
+    // Всегда перезагружать если нет активных фильтров
+    if (!filters.article_id && !filters.article_type && !filters.date_from && !filters.has_recurring_plan) {
+        return true;
+    }
+
+    // Если фильтр по категории - проверить совпадение
+    if (filters.article_id && planData.article_id !== filters.article_id) {
+        return false;
+    }
+
+    // Если фильтр по типу категории - проверить совпадение
+    if (filters.article_type && planData.article_type !== filters.article_type) {
+        return false;
+    }
+
+    // Если фильтр по регламентным - проверить наличие recurring_plan_id
+    if (filters.has_recurring_plan && !planData.recurring_plan_id) {
+        return false;
+    }
+
+    return true;
+}
 </script>
 {% endblock %}
