@@ -457,12 +457,13 @@ function setTransferRecordType(type) {
     const planSection = document.getElementById('transfer-period-section-plan');
 
     if (!recordTypeInput) {
-        console.warn('transfer_record_type input not found');
+        console.warn('[setTransferRecordType] transfer_record_type input not found');
         return;
     }
 
     // Set record type
     recordTypeInput.value = type;
+    console.log('[setTransferRecordType] Set record_type to:', type, 'Value now:', recordTypeInput.value);
 
     // Toggle sections
     if (type === 'fact') {
@@ -560,6 +561,8 @@ window.openFactTransferModal = openFactTransferModal;
 
 // Открыть модальное окно планового перевода
 function openPlanTransferModal() {
+    console.log('[openPlanTransferModal] Opening plan transfer modal');
+
     // Reset button state
     const form = document.getElementById('form_transfer');
     const submitBtn = form?.querySelector('.save-btn');
@@ -573,14 +576,11 @@ function openPlanTransferModal() {
     if (typeof setTransferRecordType === 'function') {
         setTransferRecordType('plan');
     }
+
     // Open transfer modal
     const modal = document.querySelector('#transfer_modal');
     if (modal) {
-        // Set today as default date (today() already returns DD.MM.YYYY format)
-        const dateInput = document.querySelector('#transfer_date');
-        if (dateInput) {
-            dateInput.value = BudgetShared.DateFormatter.today();
-        }
+        // For plan transfers, NO need to set date input (uses period buttons instead)
         modal.showModal();
     }
 }
@@ -2866,17 +2866,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Get record_type from hidden field (set by openFactTransferModal or openPlanTransferModal)
         const recordType = formData.get('record_type'); // 'fact' or 'plan'
+        console.log('[Transfer Submit] record_type from form:', recordType);
 
         // Determine transfer date based on record_type
         let transferDate;
         if (recordType === 'plan') {
             // For plan transfers: use transfer_plan_month (YYYY-MM) and convert to YYYY-MM-01
             const planMonth = formData.get('transfer_plan_month'); // "2025-12"
+            console.log('[Transfer Submit] Plan month:', planMonth);
             transferDate = `${planMonth}-01`; // "2025-12-01"
         } else {
             // For fact transfers: use transfer_date (DD.MM.YYYY) and format to YYYY-MM-DD
-            transferDate = BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date'));
+            const rawDate = formData.get('transfer_date');
+            console.log('[Transfer Submit] Fact date (raw):', rawDate);
+            transferDate = BudgetShared.DateFormatter.formatForAPI(rawDate);
         }
+        console.log('[Transfer Submit] Final transfer_date:', transferDate, 'record_type:', recordType);
 
         const data = {
             from_financial_center_id: fromFC,
@@ -3416,7 +3421,8 @@ function updatePlanPeriodButtons() {
 
 // Установить обработчики для кнопок периода
 function setupPlanPeriodButtons() {
-    const periodButtons = document.querySelectorAll('.period-btn');
+    // Only select period buttons inside modal_add_plan (not transfer_modal)
+    const periodButtons = document.querySelectorAll('#form_modal_add_plan .period-btn');
     const hiddenInput = document.querySelector('#form_modal_add_plan input[name="plan_month"]');
 
     if (!hiddenInput || periodButtons.length === 0) return;
