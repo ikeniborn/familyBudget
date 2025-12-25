@@ -640,6 +640,129 @@ breadcrumbs = await article_service.get_breadcrumbs(article_id)
 - **FinancialCenter, CostCenter**: Shared - common directories for entire family
 - **user_id in BudgetFact**: Indicates WHO created record, but does NOT restrict access
 
+### Transfer Deduplication (Offline Sync & Duplicate Prevention)
+
+**Added in version 5.4.1** - Critical fix to prevent duplicate transfer creation.
+
+**Problem Solved:**
+- Frontend double-submission (multiple clicks, network retries, race conditions)
+- Offline sync repeated clicks
+- Multiple form submissions creating duplicate transfers
+
+**Architecture:**
+
+Transfers use **sync_hash + content_hash** deduplication pattern (same as Facts):
+
+```python
+# Migration: 20251214_v7h8i9j0k1l2_add_deduplication_hashes.py
+# Added to t_f_budget_fact and t_f_budget_fact_history:
+- sync_hash: VARCHAR(32) NULL - MD5(content_hash|user_id|created_date)
+- content_hash: VARCHAR(32) NULL - MD5(article_id|amount|fact_date|description|record_type)
+```
+
+**Deduplication Logic in transfers.py:143-241:**
+
+1. **Check for duplicate** (if `is_offline_sync=true` AND `sync_hash` provided):
+   ```python
+   # Search for existing transfer with same sync_hash < 24 hours
+   duplicate_stmt = select(BudgetFact).where(
+       BudgetFact.sync_hash == transfer.sync_hash,
+       BudgetFact.is_offline_sync == True,
+       BudgetFact.transfer_id.isnot(None),
+       BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
+   )
+   ```
+
+2. **Return existing transfer** (idempotent response):
+   ```python
+   if existing_fact:
+       # Load both expense and income facts via transfer_id
+       # Return TransferResponse with existing transfer_id + fact IDs
+       return TransferResponse(
+           transfer_id=existing_transfer_id,
+           expense_fact_id=expense_fact.id,
+           income_fact_id=income_fact.id,
+           ...
+       )
+   ```
+
+3. **Create new transfer** (if no duplicate found):
+   ```python
+   # Save sync_hash and content_hash to BOTH facts (expense + income)
+   expense_fact = BudgetFact(
+       ...,
+       sync_hash=transfer.sync_hash,
+       content_hash=transfer.content_hash,
+   )
+   income_fact = BudgetFact(
+       ...,
+       sync_hash=transfer.sync_hash,  # Same hash for both facts
+       content_hash=transfer.content_hash,
+   )
+   ```
+
+**Why sync_hash is SAME for both facts:**
+- Transfer creates 2 BudgetFact records (expense + income)
+- Both facts belong to same logical transfer operation
+- Same `sync_hash` allows duplicate detection on EITHER fact
+- Both facts share same `transfer_id` for linking
+
+**Testing Deduplication:**
+
+```bash
+# 1. Create transfer with sync_hash
+curl -X POST http://localhost:8000/api/v1/transfers \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "from_financial_center_id": 1,
+    "to_financial_center_id": 2,
+    "from_article_id": 10,
+    "to_article_id": 20,
+    "amount": 100.00,
+    "transfer_date": "2025-12-25",
+    "is_offline_sync": true,
+    "sync_hash": "abc123unique456hash789"
+  }'
+
+# Response: {"transfer_id": 100, "expense_fact_id": 200, "income_fact_id": 201, ...}
+
+# 2. Repeat SAME request → should return EXISTING transfer
+curl -X POST ... (same payload)
+
+# Response: {"transfer_id": 100, ...}  # Same IDs (no new transfer created!)
+
+# 3. Check database - should have exactly 2 BudgetFact records
+docker compose exec postgres psql -U familybudget -d familybudget -c \
+  "SELECT id, transfer_id, sync_hash FROM t_f_budget_fact WHERE transfer_id = 100;"
+
+# Expected: 2 rows (expense + income), both with same sync_hash
+
+# 4. Check logs - second request should log deduplication
+docker compose logs backend | grep "\[DEDUP\]"
+# Expected: [DEDUP] Transfer duplicate detected: sync_hash=abc123..., existing_transfer_id=100
+```
+
+**Comparison with facts.py:**
+
+| Feature | facts.py (single record) | transfers.py (2 records) |
+|---------|--------------------------|--------------------------|
+| Deduplication check | ✅ Yes (lines 111-173) | ✅ Yes (lines 173-241) |
+| sync_hash usage | ✅ Per-record hash | ✅ Same hash for expense + income |
+| content_hash usage | ✅ Per-record content | ✅ Same content for both facts |
+| Idempotent response | ✅ Returns existing fact | ✅ Returns existing transfer |
+| Time window | ✅ 24 hours | ✅ 24 hours |
+| Write-Behind support | ✅ Yes (async via Redis) | ⚠️ No (sync write only) |
+
+**Future Enhancement:**
+- Add Write-Behind pattern to transfers.py for async writes (like facts.py)
+- Would reduce latency from ~50ms to ~10ms for transfer creation
+
+**Related Files:**
+- `backend/app/schemas/transfer.py:69-78` - sync_hash/content_hash fields
+- `backend/app/api/v1/endpoints/transfers.py:173-241` - Deduplication logic
+- `backend/db/migrations/versions/20251214_v7h8i9j0k1l2_add_deduplication_hashes.py` - Migration
+
 ### JWT Authentication
 
 - JWT tokens in **httpOnly cookies** (security)
