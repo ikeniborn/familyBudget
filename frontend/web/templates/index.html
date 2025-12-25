@@ -455,6 +455,7 @@ function setTransferRecordType(type) {
     const recordTypeInput = document.getElementById('transfer_record_type');
     const factSection = document.getElementById('transfer-date-section-fact');
     const planSection = document.getElementById('transfer-period-section-plan');
+    const transferDateInput = document.getElementById('transfer_date');
 
     if (!recordTypeInput) {
         console.warn('[setTransferRecordType] transfer_record_type input not found');
@@ -465,13 +466,26 @@ function setTransferRecordType(type) {
     recordTypeInput.value = type;
     console.log('[setTransferRecordType] Set record_type to:', type, 'Value now:', recordTypeInput.value);
 
-    // Toggle sections
+    // Toggle sections and disable unused inputs to prevent validation
     if (type === 'fact') {
         factSection?.classList.remove('hidden');
         planSection?.classList.add('hidden');
+
+        // Enable transfer_date for fact transfers
+        if (transferDateInput) {
+            transferDateInput.disabled = false;
+            transferDateInput.required = true;
+        }
     } else if (type === 'plan') {
         factSection?.classList.add('hidden');
         planSection?.classList.remove('hidden');
+
+        // Disable transfer_date for plan transfers to prevent browser validation
+        if (transferDateInput) {
+            transferDateInput.disabled = true;
+            transferDateInput.required = false;
+            transferDateInput.value = '';  // Clear value to avoid confusion
+        }
 
         // Initialize period buttons for plan transfers (deferred to allow DOM update)
         setTimeout(() => setupTransferPeriodButtons(), 0);
@@ -3070,19 +3084,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 showToast('Перевод успешно сохранен!', 'success');
 
-                // Refresh UI
-                htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-                    target: '#recent-transactions',
-                    swap: 'innerHTML'
-                });
-                htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-                    target: '#quick-stats',
-                    swap: 'innerHTML'
-                });
-                htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
-                    target: '#account-balances',
-                    swap: 'innerHTML'
-                });
+                // UI updates will be handled by SSE event (transfer_created)
+                // No need for manual refresh - prevents double updates
             } else {
                 let errorMsg = 'Не удалось создать перевод';
                 try {
