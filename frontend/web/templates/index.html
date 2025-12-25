@@ -2965,7 +2965,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const syncHash = contentHash ? window.offlineManager?.db?._md5(`${contentHash}|${createdDate}`) : null;
 
         // Add hashes to payload (enables backend deduplication)
-        data.is_offline_sync = true;  // Enable deduplication check on backend
         data.sync_hash = syncHash;
         data.content_hash = contentHash;
 

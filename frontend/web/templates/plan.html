@@ -3624,7 +3624,6 @@ async function createTransfer(event) {
     const createdDate = new Date().toISOString().split('T')[0];
     const syncHash = contentHash ? window.offlineManager?.db?._md5(`${contentHash}|${createdDate}`) : null;
 
-    data.is_offline_sync = true;
     data.sync_hash = syncHash;
     data.content_hash = contentHash;
 

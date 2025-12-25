@@ -170,7 +170,7 @@ async def create_transfer(
     # - Duplicate transfers from repeated offline sync
     # - Duplicate transfers from multiple form submissions
     # - Duplicate transfers from double-click on save button
-    if transfer.is_offline_sync and transfer.sync_hash:
+    if transfer.sync_hash:
         from sqlmodel import select, and_
 
         # Search for transfer with same sync_hash within 24 hours
@@ -179,7 +179,6 @@ async def create_transfer(
         duplicate_stmt = select(BudgetFact).where(
             and_(
                 BudgetFact.sync_hash == transfer.sync_hash,
-                BudgetFact.is_offline_sync == True,
                 BudgetFact.transfer_id.isnot(None),  # Only transfer facts
                 BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
             )
