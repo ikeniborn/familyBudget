@@ -179,20 +179,29 @@ async def _subscriber_loop():
                 logger.info(f"Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
 
                 async for message in pubsub.listen():
+                    logger.debug(f"[PUBSUB] Received message type: {message['type']}")
+
                     if message["type"] == "message":
                         try:
+                            logger.debug(f"[PUBSUB] Raw message data: {message['data']}")
                             event = json.loads(message["data"])
                             event_type = event.get("type")
                             event_data = event.get("data", {})
 
+                            logger.info(f"[PUBSUB] Parsed event: type={event_type}, callback_registered={_local_broadcast_callback is not None}")
+
                             # Forward to local connections via callback
                             if _local_broadcast_callback:
+                                logger.debug(f"[PUBSUB] Calling callback for event: {event_type}")
                                 await _local_broadcast_callback(event_type, event_data)
+                                logger.debug(f"[PUBSUB] Callback completed for event: {event_type}")
+                            else:
+                                logger.warning(f"[PUBSUB] No callback registered, event {event_type} dropped!")
 
                         except json.JSONDecodeError as e:
                             logger.warning(f"Invalid JSON in Pub/Sub message: {e}")
                         except Exception as e:
-                            logger.error(f"Error processing Pub/Sub message: {e}")
+                            logger.error(f"Error processing Pub/Sub message: {e}", exc_info=True)
 
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub subscriber cancelled")
