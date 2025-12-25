@@ -469,6 +469,43 @@ start_postgres_only() {
     fi
 }
 
+# Phase 1.5: Start backend container only (for migrations)
+# Backend container starts but application doesn't listen on port yet
+# This allows running migrations via 'docker compose exec backend'
+start_backend_only() {
+    step "Starting Backend Container (Phase 1.5/3)"
+
+    info "Starting backend container for migrations..."
+    local start_result=0
+
+    # Always use --build to ensure latest image
+    compose_cmd up --build -d backend >> "$LOG_FILE" 2>&1
+    start_result=$?
+
+    if [[ $start_result -eq 0 ]]; then
+        success "Backend container started"
+
+        # Wait for container to be running (but not necessarily healthy)
+        info "Waiting for backend container to be ready..."
+        local max_wait=30
+        local elapsed=0
+        while [[ $elapsed -lt $max_wait ]]; do
+            if docker ps --filter "name=familybudget-backend" --filter "status=running" -q 2>/dev/null | grep -q .; then
+                success "Backend container is running"
+                return 0
+            fi
+            sleep 2
+            elapsed=$((elapsed + 2))
+        done
+
+        error "Backend container failed to start within ${max_wait}s"
+        return 1
+    else
+        error "Failed to start backend container. Check $LOG_FILE for details."
+        return 1
+    fi
+}
+
 # Clean up stuck or orphan containers that could cause naming conflicts
 # This prevents "container name already in use" errors during deployment
 cleanup_stuck_containers() {

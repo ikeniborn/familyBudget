@@ -1388,8 +1388,11 @@ main() {
     fi
     echo ""
 
-    # PHASED STARTUP: PostgreSQL → Migrations → Application Services
+    # PHASED STARTUP: PostgreSQL → Backend → Migrations → Application Services
     # This eliminates race condition where backend starts before migrations complete
+    # Phase 1: PostgreSQL only
+    # Phase 1.5: Backend container (for running migrations)
+    # Phase 2: Bot/Nginx (backend already running from Phase 1.5)
 
     # Phase 1: Start PostgreSQL only
     if ! start_postgres_only; then
@@ -1417,8 +1420,18 @@ main() {
         fi
         echo ""
 
-        # Run Alembic migrations BEFORE starting application services
-        # This ensures database schema is ready when backend starts
+        # Phase 1.5: Start backend container (needed for migrations)
+        # Backend container starts but application doesn't fully initialize yet
+        # This allows running migrations via 'docker compose exec backend'
+        if ! start_backend_only; then
+            error "Deployment failed: Backend container failed to start"
+            error "Log file: $LOG_FILE"
+            exit 1
+        fi
+        echo ""
+
+        # Run Alembic migrations (uses backend container started above)
+        # This ensures database schema is ready when backend fully starts
         # Admin user is created automatically during migration
         if ! run_alembic_migrations; then
             error "Deployment failed: Database migrations did not complete successfully"
@@ -1428,7 +1441,7 @@ main() {
         fi
         echo ""
 
-        # Verify database schema after migrations (before starting backend)
+        # Verify database schema after migrations
         if ! verify_database_schema; then
             error "Deployment failed: Database schema verification failed"
             error "Critical tables are missing - migrations may have failed partially"
@@ -1438,7 +1451,8 @@ main() {
         fi
         echo ""
 
-        # Phase 2: Start application services (backend, bot, nginx)
+        # Phase 2: Start remaining application services (bot, nginx)
+        # Backend already running, this starts bot/nginx only
         if ! start_application_services; then
             error "Deployment failed: Application services failed to start"
             error "Log file: $LOG_FILE"
