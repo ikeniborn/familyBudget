@@ -1406,6 +1406,7 @@ class BudgetWSClient {
             window.addEventListener('online', () => {
                 debugLog('[BudgetWS] Back online, reconnecting');
                 this.reconnectAttempts = 0;
+                this.useLongPolling = false;  // Reset long polling flag
                 this._createConnection();
             }, { once: true });
             return;
@@ -1439,6 +1440,11 @@ class BudgetWSClient {
             this.reconnectTimeout = null;
             this.reconnectAttempts++;
             this._updateStatusIndicator();
+
+            // CRITICAL: Reset long polling flag to allow WebSocket retry
+            // Without this, once fallback to long polling occurs, WebSocket is never attempted again
+            this.useLongPolling = false;
+
             this._createConnection();
         }, delay);
     }
