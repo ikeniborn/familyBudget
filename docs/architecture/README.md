@@ -26,6 +26,32 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-25: Modal Button Loading State Fix (v6.2)
+- **Change:** Introduced `setButtonLoading()` helper function to replace direct DaisyUI `.loading` class usage
+- **Problem:** Using `.classList.add('loading')` caused button expansion and horizontal scrolling in narrow modals
+  - DaisyUI adds spinner inline: `[Icon] Сохранить` → `[Spinner] [Icon] Сохранить`
+  - Button width increases, causing horizontal scroll in modals
+- **Solution:** Replace entire button innerHTML with controlled content
+  - `[Icon] Сохранить` → `[Spinner] Сохранение...`
+  - Fixed button width, no expansion
+- **Implementation:**
+  - New helper: `setButtonLoading(button, isLoading)` in `base.html`
+  - Adaptive spinner sizing: `loading-xs` for `btn-sm`, `loading-sm` for regular buttons
+  - Preserves original button HTML in `dataset.originalHtml`
+- **Files changed:**
+  - `frontend/web/templates/base.html` (+17 lines) - new `setButtonLoading()` function
+  - `frontend/web/templates/index.html` (29 replacements) - wrapper functions, form handlers, modal opens
+  - `frontend/web/templates/facts.html` (7 replacements) - wrapper functions, form handlers, modal open
+  - `frontend/web/templates/plan.html` (7 replacements) - wrapper functions, form handlers, modal opens
+  - `docs/architecture/frontend-loading-patterns.md` (v6.1 → v6.2) - updated documentation and migration guide
+  - `docs/architecture/README.md` (this changelog entry)
+- **Total changes:** 43 replacements across 3 template files
+- **Impact:** Cleaner modal UI, no horizontal scrolling, better UX on mobile
+- **Breaking:** Direct `.loading` class usage deprecated, use `setButtonLoading()` instead
+- **Migration guide:** See `/docs/architecture/frontend-loading-patterns.md` section "Migration Guide (v6.1 → v6.2)"
+
+---
+
 ### 2025-12-25: Service Worker Optimization and Deployment Safety
 - **Change:** Comprehensive sw.js optimization and deployment safeguards
 - **Size Reduction:** 986 lines → 812 lines (-174 lines, -17.6%)

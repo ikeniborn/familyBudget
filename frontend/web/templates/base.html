@@ -1185,6 +1185,25 @@
             }
         }
 
+        // Button loading state management (prevents double submit)
+        // Similar to setSubmitLoading but accepts button directly
+        function setButtonLoading(button, isLoading) {
+            if (!button) return;
+
+            if (isLoading) {
+                button.disabled = true;
+                button.dataset.originalHtml = button.innerHTML;
+                // Use loading-xs for btn-sm, loading-sm otherwise
+                const spinnerSize = button.classList.contains('btn-sm') ? 'loading-xs' : 'loading-sm';
+                button.innerHTML = `<span class="loading loading-spinner ${spinnerSize}"></span> Сохранение...`;
+            } else {
+                button.disabled = false;
+                if (button.dataset.originalHtml) {
+                    button.innerHTML = button.dataset.originalHtml;
+                }
+            }
+        }
+
         // Logout handler
         async function handleLogout() {
             try {

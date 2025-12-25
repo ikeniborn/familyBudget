@@ -537,7 +537,6 @@ function openFactTransferModal() {
     const submitBtn = form?.querySelector('.save-btn');
     if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.classList.remove('loading');
         delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
     }
 
@@ -568,7 +567,6 @@ function openPlanTransferModal() {
     const submitBtn = form?.querySelector('.save-btn');
     if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.classList.remove('loading');
         delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
     }
 
@@ -2204,7 +2202,6 @@ function openAddTransactionModal() {
     const submitBtn = form?.querySelector('.save-btn');
     if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.classList.remove('loading');
         delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
     }
 
@@ -2537,10 +2534,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             // Re-enable button
             const submitBtn = e.target.querySelector('.save-btn');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('loading');
-            }
+            setButtonLoading(submitBtn, false);
         }
     });
 
@@ -2566,10 +2560,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('[Plan Submit] ❌ ERROR: plan_month is empty or null!');
             showToast('Ошибка: не выбран период планирования', 'error');
             const btn = e.target.querySelector('.save-btn');
-            if (btn) {
-                btn.disabled = false;
-                btn.classList.remove('loading');
-            }
+            setButtonLoading(btn, false);
             return;
         }
 
@@ -2609,10 +2600,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     showToast('Ошибка: не удалось собрать настройки регулярного платежа', 'error');
                     // Re-enable button
                     const submitBtn = e.target.querySelector('.save-btn');
-                    if (submitBtn) {
-                        submitBtn.disabled = false;
-                        submitBtn.classList.remove('loading');
-                    }
+                    setButtonLoading(submitBtn, false);
                     return;
                 }
 
@@ -2753,10 +2741,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Re-enable button
                 const submitBtn = e.target.querySelector('.save-btn');
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.classList.remove('loading');
-                }
+                setButtonLoading(submitBtn, false);
                 return;
             }
 
@@ -2889,10 +2874,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             // Re-enable button
             const submitBtn = e.target.querySelector('.save-btn');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('loading');
-            }
+            setButtonLoading(submitBtn, false);
         }
 
         console.log('[Plan Submit] ========== COMPLETE ==========');
@@ -2939,10 +2921,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showToast('Ошибка: счет отправления и получения должны различаться', 'error');
             // Re-enable button
             const submitBtn = e.target.querySelector('.save-btn');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('loading');
-            }
+            setButtonLoading(submitBtn, false);
             return;
         }
 
@@ -3057,10 +3036,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Re-enable button
             const submitBtn = e.target.querySelector('.save-btn');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.classList.remove('loading');
-            }
+            setButtonLoading(submitBtn, false);
         }
         });
     } else if (transferForm) {
@@ -4473,7 +4449,6 @@ function openAddPlanModal() {
     const submitBtn = form?.querySelector('.save-btn');
     if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.classList.remove('loading');
         delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
     }
 
@@ -4624,16 +4599,14 @@ function formatDatetimeForInput(date) {
 // Wrapper functions for each modal type (with double-click prevention)
 function saveTransaction(button) {
     if (button.disabled) return; // Already processing
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
         // Re-enable button if validation fails
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 }
@@ -4649,9 +4622,8 @@ function savePlan(button) {
         return;
     }
 
-    button.disabled = true;
-    button.classList.add('loading');
-    console.log('[savePlan] ✅ Button disabled and loading class added');
+    setButtonLoading(button, true);
+    console.log('[savePlan] ✅ Button disabled and loading state set');
 
     const form = document.getElementById(button.dataset.formId);
     console.log('[savePlan] Form element found:', !!form, form?.id);
@@ -4662,8 +4634,7 @@ function savePlan(button) {
     } else {
         console.warn('[savePlan] ⚠️ Form invalid or not found, re-enabling button');
         // Re-enable button if validation fails
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 
@@ -4672,16 +4643,14 @@ function savePlan(button) {
 
 function saveTransfer(button) {
     if (button.disabled) return;
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
         // Re-enable button if validation fails
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 }
@@ -4712,8 +4681,7 @@ async function saveTransactionOffline(button) {
     }
 
     // Disable button and show loading
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     try {
         const formData = new FormData(form);
@@ -4773,8 +4741,7 @@ async function saveTransactionOffline(button) {
         console.error('[saveTransactionOffline] Error:', error);
         showToast('Ошибка при сохранении: ' + error.message, 'error');
     } finally {
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
     }
 }
 
@@ -4800,8 +4767,7 @@ async function savePlanOffline(button) {
     }
 
     // Disable button and show loading
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     try {
         const formData = new FormData(form);
@@ -4861,8 +4827,7 @@ async function savePlanOffline(button) {
         console.error('[savePlanOffline] Error:', error);
         showToast('Ошибка при сохранении: ' + error.message, 'error');
     } finally {
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
     }
 }
 
@@ -4888,8 +4853,7 @@ async function saveTransferOffline(button) {
     }
 
     // Disable button and show loading
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     try {
         const formData = new FormData(form);
@@ -4964,8 +4928,7 @@ async function saveTransferOffline(button) {
         console.error('[saveTransferOffline] Error:', error);
         showToast('Ошибка при сохранении: ' + error.message, 'error');
     } finally {
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
     }
 }
 

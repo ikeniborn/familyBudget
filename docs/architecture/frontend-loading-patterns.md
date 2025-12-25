@@ -1,7 +1,7 @@
 # Frontend Loading Patterns
 
-**Last Updated:** 2025-12-23
-**Version:** v6.1
+**Last Updated:** 2025-12-25
+**Version:** v6.2
 
 ## Overview
 
@@ -462,30 +462,70 @@ async function updateFact(event) {
 
 ---
 
-## Modal Button State Management (v6.1+)
+## Modal Button State Management (v6.2+)
 
-**Last Updated:** 2025-12-24
-**Breaking Changes:** Removed `setSubmitLoading()` from index.html, adopted facts.html/plan.html pattern
+**Last Updated:** 2025-12-25
+**Breaking Changes:** Introduced `setButtonLoading()` helper function, deprecated direct `.loading` class usage
 
-### Recommended Pattern (facts.html/plan.html style)
+### Helper Function: `setButtonLoading()`
 
-**Architecture:** Wrapper function controls button state, form submit handler only does async API call.
+**Location:** `frontend/web/templates/base.html` (global utility function)
+
+**Purpose:** Manage button loading state with controlled content replacement (prevents button expansion).
+
+**Implementation:**
+```javascript
+function setButtonLoading(button, isLoading) {
+    if (!button) return;
+
+    if (isLoading) {
+        button.disabled = true;
+        button.dataset.originalHtml = button.innerHTML;
+        // Use loading-xs for btn-sm, loading-sm otherwise
+        const spinnerSize = button.classList.contains('btn-sm') ? 'loading-xs' : 'loading-sm';
+        button.innerHTML = `<span class="loading loading-spinner ${spinnerSize}"></span> Сохранение...`;
+    } else {
+        button.disabled = false;
+        if (button.dataset.originalHtml) {
+            button.innerHTML = button.dataset.originalHtml;
+        }
+    }
+}
+```
+
+**Key Features:**
+- ✅ **Content replacement** instead of inline addition (prevents button expansion)
+- ✅ **Fixed button width** (no horizontal scrolling in modals)
+- ✅ **Adaptive spinner size** (`loading-xs` for `btn-sm`, `loading-sm` for regular)
+- ✅ **Original HTML preservation** in `dataset.originalHtml`
+- ✅ **Graceful degradation** (null-safe, checks for button existence)
+
+**Why this is better than `.classList.add('loading')`:**
+
+| Approach | Button Content | Result |
+|----------|----------------|--------|
+| **OLD: `.classList.add('loading')`** | `[Icon] Сохранить` → `[Spinner] [Icon] Сохранить` | ❌ Button expands, causes horizontal scroll |
+| **NEW: `setButtonLoading(button, true)`** | `[Icon] Сохранить` → `[Spinner] Сохранение...` | ✅ Fixed width, clean UI |
+
+---
+
+### Recommended Pattern (v6.2+)
+
+**Architecture:** Wrapper function controls button state using `setButtonLoading()`, form submit handler only does async API call.
 
 **Wrapper Function (saveTransaction, savePlan, saveTransfer):**
 ```javascript
 function saveTransaction(button) {
     if (button.disabled) return; // Prevent double-click
 
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
         // Re-enable button if validation fails
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 }
@@ -520,22 +560,20 @@ document.getElementById('form_modal_add_transaction').addEventListener('submit',
         console.error('Error creating transaction:', error);
         showToast('Ошибка: ' + error.message, 'error');
     } finally {
-        // Re-enable button
+        // Re-enable button using setButtonLoading()
         const submitBtn = e.target.querySelector('.save-btn');
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('loading');
-        }
+        setButtonLoading(submitBtn, false);
     }
 });
 ```
 
 **Why this pattern works:**
 - ✅ Button disabled only once (no double-disable race condition)
-- ✅ No HTML replacement (avoids stale `dataset.originalHtml` cache)
+- ✅ Controlled HTML replacement (prevents button expansion)
 - ✅ Validation errors handled immediately in wrapper
 - ✅ Form handler just does async call + button restoration
 - ✅ Button always restored in finally block (even on error)
+- ✅ Cleaner code (single function call vs. 3 lines)
 
 ---
 
@@ -670,7 +708,7 @@ document.getElementById('form_transfer').addEventListener('submit', async functi
 
 ---
 
-### Best Practices (v6.1+)
+### Best Practices (v6.2+)
 
 #### 1. Always Pair `form.requestSubmit()` with `addEventListener('submit')`
 
@@ -701,20 +739,18 @@ function saveTransaction(button) {
 #### 2. Wrapper Functions Handle Validation + Button Disable
 
 ```javascript
-// ✅ CORRECT:
+// ✅ CORRECT (v6.2+):
 function saveTransaction(button) {
     if (button.disabled) return; // Double-click prevention
 
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
         // Validation failed - re-enable button immediately
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 }
@@ -722,7 +758,7 @@ function saveTransaction(button) {
 
 **Responsibilities:**
 - Check `button.disabled` to prevent double-click
-- Disable button and add loading class
+- Call `setButtonLoading(button, true)` to show loading state
 - Validate form BEFORE calling `requestSubmit()`
 - Re-enable button if validation fails (no API call needed)
 
@@ -753,12 +789,9 @@ document.getElementById('form_modal_add_transaction').addEventListener('submit',
         console.error('Error:', error);
         showToast('Error: ' + error.message, 'error');
     } finally {
-        // Always restore button
+        // Always restore button using setButtonLoading()
         const submitBtn = e.target.querySelector('.save-btn');
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('loading');
-        }
+        setButtonLoading(submitBtn, false);
     }
 });
 ```
@@ -865,6 +898,109 @@ If you have modal forms using the old `setSubmitLoading()` pattern:
 
       modal_add_transaction.showModal();
   }
+```
+
+---
+
+### Migration Guide (v6.1 → v6.2)
+
+**Problem:** Using DaisyUI `.loading` class directly causes button expansion and horizontal scrolling in narrow modals.
+
+**Solution:** Replace direct `.classList` operations with `setButtonLoading()` helper function.
+
+#### Step 1: Update Wrapper Functions
+
+Replace `classList` operations with `setButtonLoading()` calls:
+
+```diff
+  function saveTransaction(button) {
+      if (button.disabled) return;
+-     button.disabled = true;
+-     button.classList.add('loading');
++     setButtonLoading(button, true);
+
+      const form = document.getElementById(button.dataset.formId);
+      if (form && form.checkValidity()) {
+          form.requestSubmit();
+      } else {
+-         button.disabled = false;
+-         button.classList.remove('loading');
++         setButtonLoading(button, false);
+          form?.reportValidity();
+      }
+  }
+```
+
+**Files affected:**
+- `index.html`: 6 wrapper functions (saveTransaction, savePlan, saveTransfer + 3 offline versions)
+- `facts.html`: 2 wrapper functions (saveTransaction, saveTransfer)
+- `plan.html`: 2 wrapper functions (savePlan, saveTransfer)
+
+#### Step 2: Update Form Submit Handlers
+
+Replace button restoration in `finally` blocks:
+
+```diff
+  form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      try {
+          // ... API call ...
+      } finally {
+          const submitBtn = e.target.querySelector('.save-btn');
+-         if (submitBtn) {
+-             submitBtn.disabled = false;
+-             submitBtn.classList.remove('loading');
+-         }
++         setButtonLoading(submitBtn, false);
+      }
+  });
+```
+
+**Files affected:**
+- `index.html`: 7 form submit handlers
+- `facts.html`: 2 form submit handlers
+- `plan.html`: 3 form submit handlers
+
+#### Step 3: Update Modal Open Functions
+
+Remove `.classList.remove('loading')` line (keep `delete dataset.originalHtml`):
+
+```diff
+  function openAddTransactionModal() {
+      const form = document.getElementById('form_modal_add_transaction');
+      const submitBtn = form?.querySelector('.save-btn');
+      if (submitBtn) {
+          submitBtn.disabled = false;
+-         submitBtn.classList.remove('loading');
+          delete submitBtn.dataset.originalHtml;
+      }
+      // ... rest of function ...
+  }
+```
+
+**Files affected:**
+- `index.html`: 4 modal open functions
+- `facts.html`: 1 modal open function
+- `plan.html`: 2 modal open functions
+
+#### Total Changes
+
+| File | Wrapper Functions | Form Handlers | Modal Opens | **Total** |
+|------|-------------------|---------------|-------------|-----------|
+| `index.html` | 6 functions | 7 locations | 4 locations | **17** |
+| `facts.html` | 2 functions | 2 locations | 1 location | **5** |
+| `plan.html` | 2 functions | 3 locations | 2 locations | **7** |
+| **TOTAL** | **10** | **12** | **7** | **29** |
+
+#### Verification
+
+After migration, confirm:
+```bash
+# Should return 0 matches
+grep -r "classList\.\(add\|remove\)('loading')" frontend/web/templates/index.html
+grep -r "classList\.\(add\|remove\)('loading')" frontend/web/templates/facts.html
+grep -r "classList\.\(add\|remove\)('loading')" frontend/web/templates/plan.html
 ```
 
 ---

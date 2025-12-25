@@ -2153,10 +2153,7 @@ async function createTransfer(event) {
     if (fromFC === toFC) {
         showToast('Ошибка: счет отправления и получения должны различаться', 'error');
         const submitBtn = event.target.querySelector('.save-btn');
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('loading');
-        }
+        setButtonLoading(submitBtn, false);
         return;
     }
 
@@ -2205,10 +2202,7 @@ async function createTransfer(event) {
         showToast('Ошибка: ' + error.message, 'error');
     } finally {
         const submitBtn = event.target.querySelector('.save-btn');
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('loading');
-        }
+        setButtonLoading(submitBtn, false);
     }
 }
 
@@ -2245,7 +2239,6 @@ function openCreateModal() {
         const submitBtn = form?.querySelector('.save-btn');
         if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.classList.remove('loading');
             delete submitBtn.dataset.originalHtml; // Clear cache (if exists)
         }
 
@@ -2313,16 +2306,14 @@ function updateSaveButtonsVisibility() {
  */
 function saveTransaction(button) {
     if (button.disabled) return; // Already processing - prevent double-click
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
         // Re-enable button if validation fails
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 }
@@ -2334,16 +2325,14 @@ function saveTransaction(button) {
  */
 function saveTransfer(button) {
     if (button.disabled) return; // Already processing - prevent double-click
-    button.disabled = true;
-    button.classList.add('loading');
+    setButtonLoading(button, true);
 
     const form = document.getElementById(button.dataset.formId);
     if (form && form.checkValidity()) {
         form.requestSubmit();
     } else {
         // Re-enable button if validation fails
-        button.disabled = false;
-        button.classList.remove('loading');
+        setButtonLoading(button, false);
         form?.reportValidity();
     }
 }
