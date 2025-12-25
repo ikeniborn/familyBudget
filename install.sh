@@ -434,19 +434,42 @@ create_directories() {
     # Get the username for ownership
     local username="${SUDO_USER:-$USER}"
 
-    # Verify we're running from the repository
-    if [[ ! -f "$REPO_DIR/nginx/conf.d/app.conf.template" ]]; then
-        warning "Nginx template not found in repository: $REPO_DIR/nginx/conf.d/app.conf.template"
-        warning "Please ensure install.sh is run from the repository directory"
-        warning "setup.sh may fail without this template"
-    else
-        cp "$REPO_DIR/nginx/conf.d/app.conf.template" "$DEPLOY_DIR/nginx/conf.d/" || \
-            warning "Failed to copy nginx template (setup.sh may fail)"
+    # Verify we're running from the repository and copy nginx templates
+    local nginx_templates_found=0
+
+    # Copy app-http.conf.template
+    if [[ -f "$REPO_DIR/nginx/conf.d/app-http.conf.template" ]]; then
+        cp "$REPO_DIR/nginx/conf.d/app-http.conf.template" "$DEPLOY_DIR/nginx/conf.d/" || \
+            warning "Failed to copy nginx HTTP template (setup.sh may fail)"
         # Set correct ownership on copied file
         if [[ "$username" != "root" ]]; then
-            chown "$username:$username" "$DEPLOY_DIR/nginx/conf.d/app.conf.template"
+            chown "$username:$username" "$DEPLOY_DIR/nginx/conf.d/app-http.conf.template"
         fi
-        info "Copied: nginx/conf.d/app.conf.template"
+        info "Copied: nginx/conf.d/app-http.conf.template"
+        nginx_templates_found=1
+    else
+        warning "Nginx HTTP template not found: $REPO_DIR/nginx/conf.d/app-http.conf.template"
+    fi
+
+    # Copy app-https.conf.template
+    if [[ -f "$REPO_DIR/nginx/conf.d/app-https.conf.template" ]]; then
+        cp "$REPO_DIR/nginx/conf.d/app-https.conf.template" "$DEPLOY_DIR/nginx/conf.d/" || \
+            warning "Failed to copy nginx HTTPS template (setup.sh may fail)"
+        # Set correct ownership on copied file
+        if [[ "$username" != "root" ]]; then
+            chown "$username:$username" "$DEPLOY_DIR/nginx/conf.d/app-https.conf.template"
+        fi
+        info "Copied: nginx/conf.d/app-https.conf.template"
+        nginx_templates_found=1
+    else
+        warning "Nginx HTTPS template not found: $REPO_DIR/nginx/conf.d/app-https.conf.template"
+    fi
+
+    # Check if any templates were found
+    if [[ $nginx_templates_found -eq 0 ]]; then
+        warning "No nginx templates found in repository"
+        warning "Please ensure install.sh is run from the repository directory"
+        warning "setup.sh may fail without these templates"
     fi
 
     if [[ ! -f "$REPO_DIR/.env.example" ]]; then
