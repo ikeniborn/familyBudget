@@ -2790,7 +2790,7 @@ document.addEventListener('DOMContentLoaded', function() {
             amount: parseFloat(formData.get('amount')),
             transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
             description: formData.get('description') || null,
-            record_type: 'transfer'
+            record_type: 'fact'  // Transfers are always 'fact' type (actual transfers)
         };
 
         try {

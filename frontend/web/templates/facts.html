@@ -2148,7 +2148,8 @@ async function createTransfer(event) {
         to_article_id: parseInt(formData.get('to_article_id')),
         amount: parseFloat(formData.get('amount')),
         transfer_date: BudgetShared.DateFormatter.formatForAPI(formData.get('transfer_date')),
-        description: formData.get('description') || null
+        description: formData.get('description') || null,
+        record_type: 'fact'  // Transfers are always 'fact' type
     };
 
     try {
