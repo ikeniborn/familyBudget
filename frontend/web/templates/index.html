@@ -2941,12 +2941,17 @@ document.addEventListener('DOMContentLoaded', function() {
             // Re-enable button
             const submitBtn = e.target.querySelector('.save-btn');
             setButtonLoading(submitBtn, false);
+            isSubmitting = false;  // ← CRITICAL: Reset guard
             return;
         }
 
         // Get record_type from hidden field (set by openFactTransferModal or openPlanTransferModal)
         const recordType = formData.get('record_type'); // 'fact' or 'plan'
+        console.log('[Transfer Submit] ========== VALIDATION START ==========');
         console.log('[Transfer Submit] record_type from form:', recordType);
+        console.log('[Transfer Submit] record_type type:', typeof recordType);
+        console.log('[Transfer Submit] record_type === "plan":', recordType === 'plan');
+        console.log('[Transfer Submit] record_type === "fact":', recordType === 'fact');
 
         // Determine transfer date based on record_type
         let transferDate;
@@ -3020,8 +3025,18 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             if (response.ok) {
+                // Save record_type before reset (to restore after)
+                const savedRecordType = recordType;
+
                 transfer_modal.close();
                 e.target.reset();
+
+                // Restore record_type after reset (prevent switching to default 'fact')
+                const recordTypeInput = document.getElementById('transfer_record_type');
+                if (recordTypeInput && savedRecordType) {
+                    recordTypeInput.value = savedRecordType;
+                    console.log('[Transfer Submit] ✅ Restored record_type after reset:', savedRecordType);
+                }
 
                 // Reset date to today
                 const transferDateInput = document.querySelector('#form_transfer input[name="transfer_date"]');
