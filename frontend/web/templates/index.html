@@ -2899,8 +2899,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Transfer form submit handler (with offline support)
-    document.getElementById('form_transfer').addEventListener('submit', async function(e) {
-        e.preventDefault();
+    // CRITICAL: Guard against duplicate event listener registration
+    // Problem: Multiple pages (index.html, facts.html, plan.html) include modal_transfer.html
+    // Each page's DOMContentLoaded can register its own handler on the same form element
+    // Result: Multiple handlers execute on submit → duplicate POST requests → duplicate records in DB
+    const transferForm = document.getElementById('form_transfer');
+    if (transferForm && !transferForm.dataset.submitHandlerRegistered) {
+        transferForm.dataset.submitHandlerRegistered = 'true';
+        transferForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
 
         const formData = new FormData(e.target);
 
@@ -3012,7 +3019,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 submitBtn.classList.remove('loading');
             }
         }
-    });
+        });
+    } else if (transferForm) {
+        console.warn('[index.html] Transfer form submit handler already registered, skipping duplicate registration');
+    }
 });
 
 // Загрузить категории для обеих форм (первоначальная загрузка)

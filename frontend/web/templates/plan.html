@@ -1313,10 +1313,20 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Transfer form submit handler (online only)
-    document.getElementById('form_transfer').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        await createTransfer(e);
-    });
+    // CRITICAL: Guard against duplicate event listener registration
+    // Problem: Multiple pages (index.html, facts.html, plan.html) include modal_transfer.html
+    // Each page's DOMContentLoaded can register its own handler on the same form element
+    // Result: Multiple handlers execute on submit → duplicate POST requests → duplicate records in DB
+    const transferForm = document.getElementById('form_transfer');
+    if (transferForm && !transferForm.dataset.submitHandlerRegistered) {
+        transferForm.dataset.submitHandlerRegistered = 'true';
+        transferForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            await createTransfer(e);
+        });
+    } else if (transferForm) {
+        console.warn('[plan.html] Transfer form submit handler already registered, skipping duplicate registration');
+    }
 
     // Initialize CalendarWidget for filter date range (with custom trigger)
     new BudgetShared.CalendarWidget({
