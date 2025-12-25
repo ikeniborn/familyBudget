@@ -140,7 +140,7 @@ self.addEventListener('activate', (event) => {
       await self.clients.claim();
       if (DEBUG) console.log('[SW] Clients claimed');
 
-      // Notify all clients about update
+      // Notify all clients about update with VERSION
       const clients = await self.clients.matchAll({ type: 'window' });
       if (DEBUG) console.log('[SW] Notifying', clients.length, 'clients about SW update');
 
@@ -311,6 +311,14 @@ self.addEventListener('message', (event) => {
 
   if (event.data.action === 'skipWaiting') {
     self.skipWaiting();
+  }
+
+  // Запрос текущей версии SW
+  if (event.data.action === 'getVersion') {
+    event.ports[0].postMessage({
+      type: 'VERSION_RESPONSE',
+      version: CACHE_VERSION
+    });
   }
 
   if (event.data.action === 'clearCache') {

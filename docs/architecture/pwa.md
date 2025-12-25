@@ -219,17 +219,22 @@ Browser: controllerchange event fires in all tabs
 
 ```
 All Tabs: controllerchange listener fires
-All Tabs: Get new Service Worker URL (contains version)
-All Tabs: Compare with saved version in localStorage
+All Tabs: Request CACHE_VERSION from new SW via postMessage + MessageChannel
+All Tabs: Compare CACHE_VERSION with saved version in localStorage
 IF version unchanged:
   - Log: "✓ Version unchanged, skipping reload"
   - Skip reload (prevents reload loops)
 ELSE:
   - Log: "⚡ Version changed, reloading page..."
-  - Save new version to localStorage
+  - Save new CACHE_VERSION to localStorage
   - IMMEDIATELY reload via window.location.reload()
 Result: Only tabs with actual version change reload
 ```
+
+**Why CACHE_VERSION instead of scriptURL:**
+- `scriptURL` never changes (`/sw.min.js` is always the same URL)
+- `CACHE_VERSION` is the actual version identifier (e.g., `v20251225_1430`)
+- Using MessageChannel for request-response pattern ensures reliable version comparison
 
 **Key Benefits:**
 - ✅ Zero user interaction required
@@ -318,46 +323,89 @@ if ('serviceWorker' in navigator) {
     let refreshing = false;
     const SW_VERSION_KEY = 'pwa_sw_version';
 
+    // Helper function to get CACHE_VERSION from SW via MessageChannel
+    async function getSWVersion(controller) {
+        if (!controller) return null;
+
+        return new Promise((resolve) => {
+            const messageChannel = new MessageChannel();
+            const timeout = setTimeout(() => {
+                console.warn('[PWA] Timeout getting SW version');
+                resolve(null);
+            }, 5000);
+
+            messageChannel.port1.onmessage = (event) => {
+                clearTimeout(timeout);
+                if (event.data.type === 'VERSION_RESPONSE') {
+                    console.log('[PWA] Received SW version:', event.data.version);
+                    resolve(event.data.version);
+                } else {
+                    resolve(null);
+                }
+            };
+
+            controller.postMessage(
+                { action: 'getVersion' },
+                [messageChannel.port2]
+            );
+        });
+    }
+
     // CRITICAL: Listen for controllerchange event (new SW activated)
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
+    navigator.serviceWorker.addEventListener('controllerchange', async () => {
         if (refreshing) return;
 
         const newController = navigator.serviceWorker.controller;
         if (!newController) return;
 
-        // Получаем URL нового Service Worker (содержит версию)
-        const newVersion = newController.scriptURL;
+        console.log('[PWA] New service worker activated');
+        console.log('[PWA] Requesting CACHE_VERSION from new SW...');
+
+        // Request CACHE_VERSION from new Service Worker
+        const newVersion = await getSWVersion(newController);
         const savedVersion = localStorage.getItem(SW_VERSION_KEY);
 
-        console.log('[PWA] New service worker activated');
-        console.log('[PWA] New SW URL:', newVersion);
-        console.log('[PWA] Saved SW URL:', savedVersion);
+        console.log('[PWA] New SW CACHE_VERSION:', newVersion);
+        console.log('[PWA] Saved CACHE_VERSION:', savedVersion);
 
-        // Проверяем, изменилась ли версия
+        // If failed to get version, reload for safety
+        if (!newVersion) {
+            console.warn('[PWA] ⚠️ Failed to get CACHE_VERSION, reloading for safety...');
+            refreshing = true;
+            window.location.reload();
+            return;
+        }
+
+        // Check if version changed
         if (newVersion === savedVersion) {
             console.log('[PWA] ✓ Version unchanged, skipping reload');
             return;
         }
 
-        // Версия изменилась - перезагружаем
+        // Version changed - reload
         refreshing = true;
         console.log('[PWA] ⚡ Version changed, reloading page...');
+        console.log('[PWA] Previous CACHE_VERSION:', savedVersion);
+        console.log('[PWA] New CACHE_VERSION:', newVersion);
 
-        // Сохраняем новую версию перед перезагрузкой
+        // Save new version before reload
         localStorage.setItem(SW_VERSION_KEY, newVersion);
 
-        // Автоматическая перезагрузка
+        // Automatic reload
         window.location.reload();
     });
 
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.min.js')
-            .then((registration) => {
-                // Сохраняем текущую версию SW при загрузке
+            .then(async (registration) => {
+                // Get and save current CACHE_VERSION on load
                 if (navigator.serviceWorker.controller) {
-                    const currentVersion = navigator.serviceWorker.controller.scriptURL;
-                    localStorage.setItem(SW_VERSION_KEY, currentVersion);
-                    console.log('[PWA] Current SW version saved:', currentVersion);
+                    console.log('[PWA] Getting current CACHE_VERSION from SW...');
+                    const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
+                    if (currentVersion) {
+                        localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                        console.log('[PWA] Current CACHE_VERSION saved:', currentVersion);
+                    }
                 }
 
                 // Check for updates on every page load
@@ -618,34 +666,40 @@ if ('serviceWorker' in navigator) {
 
 **Critical Events (Version Changed):**
 ```
-[SW] Installing version: vXXXXXXXX_XXXX
+[SW] Installing version: v20251225_1430
 [SW] Caching static files
 [SW] Caching offline page assets
 [SW] CRITICAL: Forcing immediate activation via skipWaiting()
-[SW] Activating version: vXXXXXXXX_XXXX
+[SW] Activating version: v20251225_1430
 [SW] Deleted N old caches
 [SW] Clients claimed
 [SW] Notifying N clients about SW update
 [PWA] Service Worker registered: /
-[PWA] Current SW version saved: https://example.com/sw.min.js
+[PWA] Getting current CACHE_VERSION from SW...
+[PWA] Received SW version: v20251225_1430
+[PWA] Current CACHE_VERSION saved: v20251225_1430
 [PWA] New service worker found, installing...
 [PWA] Service worker state: installing
 [PWA] Service worker state: installed
 [PWA] Update available, auto-activating...
 [PWA] New service worker activated
-[PWA] New SW URL: https://example.com/sw.min.js?v=20251225_1430
-[PWA] Saved SW URL: https://example.com/sw.min.js
+[PWA] Requesting CACHE_VERSION from new SW...
+[PWA] Received SW version: v20251225_1530
+[PWA] New SW CACHE_VERSION: v20251225_1530
+[PWA] Saved CACHE_VERSION: v20251225_1430
 [PWA] ⚡ Version changed, reloading page...
-[PWA] Previous version: https://example.com/sw.min.js
-[PWA] New version: https://example.com/sw.min.js?v=20251225_1430
+[PWA] Previous CACHE_VERSION: v20251225_1430
+[PWA] New CACHE_VERSION: v20251225_1530
 [Page reloads automatically]
 ```
 
 **Critical Events (Version Unchanged - No Reload):**
 ```
 [PWA] New service worker activated
-[PWA] New SW URL: https://example.com/sw.min.js?v=20251225_1430
-[PWA] Saved SW URL: https://example.com/sw.min.js?v=20251225_1430
+[PWA] Requesting CACHE_VERSION from new SW...
+[PWA] Received SW version: v20251225_1430
+[PWA] New SW CACHE_VERSION: v20251225_1430
+[PWA] Saved CACHE_VERSION: v20251225_1430
 [PWA] ✓ Version unchanged, skipping reload
 [PWA] Application already on latest version
 [No reload occurs - prevents reload loop]

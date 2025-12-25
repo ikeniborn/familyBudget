@@ -1059,9 +1059,10 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 1. Service worker calls `skipWaiting()` on install (immediate activation)
 2. Service worker calls `clients.claim()` on activate (take control of all tabs)
 3. Update checks run every **1 hour** (plus on every page load)
-4. Version tracking via localStorage prevents unnecessary reloads
-5. Page **conditionally reloads** only if SW version changed
-6. All tabs reload independently when they detect version change
+4. Version tracking via localStorage + MessageChannel prevents unnecessary reloads
+5. Page requests CACHE_VERSION from SW via postMessage + MessageChannel
+6. Page **conditionally reloads** only if CACHE_VERSION changed
+7. All tabs reload independently when they detect version change
 
 **Update Flow:**
 
@@ -1076,22 +1077,28 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 # Console logs (if version changed):
 [PWA] Checking for updates...
 [PWA] New service worker found, installing...
-[SW] Installing version: v20251224_2029
+[SW] Installing version: v20251225_1530
 [SW] CRITICAL: Forcing immediate activation via skipWaiting()
-[SW] Activating version: v20251224_2029
+[SW] Activating version: v20251225_1530
 [SW] Deleted 1 old caches
 [SW] Clients claimed
 [SW] Notifying 1 clients about SW update
 [PWA] New service worker activated
-[PWA] New SW URL: https://example.com/sw.min.js?v=20251225_1430
-[PWA] Saved SW URL: https://example.com/sw.min.js
+[PWA] Requesting CACHE_VERSION from new SW...
+[PWA] Received SW version: v20251225_1530
+[PWA] New SW CACHE_VERSION: v20251225_1530
+[PWA] Saved CACHE_VERSION: v20251225_1430
 [PWA] ⚡ Version changed, reloading page...
+[PWA] Previous CACHE_VERSION: v20251225_1430
+[PWA] New CACHE_VERSION: v20251225_1530
 [Page reloads automatically - NO notification, NO countdown]
 
 # Alternative: If version unchanged (prevents reload loop)
 [PWA] New service worker activated
-[PWA] New SW URL: https://example.com/sw.min.js?v=20251225_1430
-[PWA] Saved SW URL: https://example.com/sw.min.js?v=20251225_1430
+[PWA] Requesting CACHE_VERSION from new SW...
+[PWA] Received SW version: v20251225_1430
+[PWA] New SW CACHE_VERSION: v20251225_1430
+[PWA] Saved CACHE_VERSION: v20251225_1430
 [PWA] ✓ Version unchanged, skipping reload
 [PWA] Application already on latest version
 [No reload occurs]

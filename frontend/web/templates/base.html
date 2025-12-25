@@ -1358,9 +1358,41 @@
             let refreshing = false;
             const SW_VERSION_KEY = 'pwa_sw_version';
 
+            /**
+             * Получить CACHE_VERSION из Service Worker через MessageChannel
+             * @param {ServiceWorker} controller - Service Worker controller
+             * @returns {Promise<string|null>} CACHE_VERSION или null
+             */
+            async function getSWVersion(controller) {
+                if (!controller) return null;
+
+                return new Promise((resolve) => {
+                    const messageChannel = new MessageChannel();
+                    const timeout = setTimeout(() => {
+                        console.warn('[PWA] Timeout getting SW version');
+                        resolve(null);
+                    }, 5000); // 5 second timeout
+
+                    messageChannel.port1.onmessage = (event) => {
+                        clearTimeout(timeout);
+                        if (event.data.type === 'VERSION_RESPONSE') {
+                            console.log('[PWA] Received SW version:', event.data.version);
+                            resolve(event.data.version);
+                        } else {
+                            resolve(null);
+                        }
+                    };
+
+                    controller.postMessage(
+                        { action: 'getVersion' },
+                        [messageChannel.port2]
+                    );
+                });
+            }
+
             // CRITICAL: Listen for controllerchange event (new SW activated)
             // При обновлении SW автоматически перезагружаем страницу
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
+            navigator.serviceWorker.addEventListener('controllerchange', async () => {
                 if (refreshing) return; // Предотвращаем множественные перезагрузки
 
                 const newController = navigator.serviceWorker.controller;
@@ -1369,13 +1401,23 @@
                     return;
                 }
 
-                // Получаем URL нового Service Worker (содержит версию)
-                const newVersion = newController.scriptURL;
+                // Получаем CACHE_VERSION из нового Service Worker
+                console.log('[PWA] New service worker activated');
+                console.log('[PWA] Requesting CACHE_VERSION from new SW...');
+
+                const newVersion = await getSWVersion(newController);
                 const savedVersion = localStorage.getItem(SW_VERSION_KEY);
 
-                console.log('[PWA] New service worker activated');
-                console.log('[PWA] New SW URL:', newVersion);
-                console.log('[PWA] Saved SW URL:', savedVersion);
+                console.log('[PWA] New SW CACHE_VERSION:', newVersion);
+                console.log('[PWA] Saved CACHE_VERSION:', savedVersion);
+
+                // Если не удалось получить версию, перезагружаем для безопасности
+                if (!newVersion) {
+                    console.warn('[PWA] ⚠️ Failed to get CACHE_VERSION, reloading for safety...');
+                    refreshing = true;
+                    window.location.reload();
+                    return;
+                }
 
                 // Проверяем, изменилась ли версия
                 if (newVersion === savedVersion) {
@@ -1387,8 +1429,8 @@
                 // Версия изменилась - перезагружаем
                 refreshing = true;
                 console.log('[PWA] ⚡ Version changed, reloading page...');
-                console.log('[PWA] Previous version:', savedVersion);
-                console.log('[PWA] New version:', newVersion);
+                console.log('[PWA] Previous CACHE_VERSION:', savedVersion);
+                console.log('[PWA] New CACHE_VERSION:', newVersion);
 
                 // Сохраняем новую версию перед перезагрузкой
                 localStorage.setItem(SW_VERSION_KEY, newVersion);
@@ -1399,14 +1441,19 @@
 
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/sw.min.js')
-                    .then((registration) => {
+                    .then(async (registration) => {
                         console.log('[PWA] Service Worker registered:', registration.scope);
 
                         // Сохраняем текущую версию SW при загрузке
                         if (navigator.serviceWorker.controller) {
-                            const currentVersion = navigator.serviceWorker.controller.scriptURL;
-                            localStorage.setItem(SW_VERSION_KEY, currentVersion);
-                            console.log('[PWA] Current SW version saved:', currentVersion);
+                            console.log('[PWA] Getting current CACHE_VERSION from SW...');
+                            const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
+                            if (currentVersion) {
+                                localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                                console.log('[PWA] Current CACHE_VERSION saved:', currentVersion);
+                            } else {
+                                console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
+                            }
                         }
 
                         // Проверка обновлений при каждой загрузке страницы
@@ -1437,11 +1484,8 @@
                                     } else {
                                         // First install - just log, no toast (silent UX)
                                         console.log('[PWA] Service worker installed for the first time');
-                                        // Сохраняем версию при первой установке
-                                        if (newWorker.scriptURL) {
-                                            localStorage.setItem(SW_VERSION_KEY, newWorker.scriptURL);
-                                            console.log('[PWA] First install version saved:', newWorker.scriptURL);
-                                        }
+                                        // Note: Version will be saved on controllerchange or next page load
+                                        // (cannot get CACHE_VERSION from installing worker via postMessage)
                                     }
                                 }
                             });
