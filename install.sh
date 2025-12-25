@@ -608,7 +608,12 @@ install_nodejs() {
 
     # Install with retry and timeout
     if ! apt_with_retry install -y nodejs; then
-        error "Node.js installation failed after retries. Check $LOG_FILE for details."
+        warning "Node.js installation via apt failed after retries."
+        warning "Trying alternative installation method (direct binary download)..."
+
+        if ! install_nodejs_manual; then
+            error "Node.js installation failed with both methods. Check $LOG_FILE for details."
+        fi
     fi
 
     # Verify installation
@@ -621,6 +626,104 @@ install_nodejs() {
         success "npm installed successfully (version: $npm_version)"
     else
         error "Node.js/npm installation failed - executables not found in PATH"
+    fi
+}
+
+# Alternative installation method: Install Node.js from official binaries
+# Used as fallback when apt-get installation fails or times out
+install_nodejs_manual() {
+    info "Installing Node.js from official binaries (alternative method)..."
+
+    # Detect architecture
+    local arch
+    arch=$(uname -m)
+    case "$arch" in
+        x86_64)
+            arch="x64"
+            ;;
+        aarch64|arm64)
+            arch="arm64"
+            ;;
+        armv7l)
+            arch="armv7l"
+            ;;
+        *)
+            error "Unsupported architecture: $arch"
+            return 1
+            ;;
+    esac
+
+    # Node.js version to install (LTS)
+    local node_version="20.18.1"  # Latest LTS as of Dec 2024
+    local node_tarball="node-v${node_version}-linux-${arch}.tar.xz"
+    local node_url="https://nodejs.org/dist/v${node_version}/${node_tarball}"
+    local download_path="/tmp/${node_tarball}"
+
+    info "Downloading Node.js v${node_version} for ${arch}..."
+    if ! curl_with_retry -fsSL -o "$download_path" "$node_url"; then
+        error_return "Failed to download Node.js binary from nodejs.org"
+        return 1
+    fi
+
+    # Verify download
+    if [[ ! -f "$download_path" ]]; then
+        error_return "Download failed - file not found: $download_path"
+        return 1
+    fi
+
+    local file_size
+    file_size=$(stat -c%s "$download_path" 2>/dev/null || echo "0")
+    if [[ "$file_size" -lt 10000000 ]]; then  # Less than 10MB is suspicious
+        error_return "Downloaded file is too small (${file_size} bytes) - download may be incomplete"
+        rm -f "$download_path"
+        return 1
+    fi
+
+    info "Extracting Node.js to /usr/local..."
+
+    # Extract to temporary location first
+    local temp_extract="/tmp/node-extract-$$"
+    mkdir -p "$temp_extract"
+
+    if ! tar -xJf "$download_path" -C "$temp_extract" >> "$LOG_FILE" 2>&1; then
+        error_return "Failed to extract Node.js tarball"
+        rm -rf "$temp_extract" "$download_path"
+        return 1
+    fi
+
+    # Move files to /usr/local
+    local extracted_dir="$temp_extract/node-v${node_version}-linux-${arch}"
+
+    if [[ ! -d "$extracted_dir" ]]; then
+        error_return "Extracted directory not found: $extracted_dir"
+        rm -rf "$temp_extract" "$download_path"
+        return 1
+    fi
+
+    # Copy binaries
+    info "Installing binaries to /usr/local/bin..."
+    cp -f "$extracted_dir/bin/node" /usr/local/bin/node
+    cp -f "$extracted_dir/bin/npm" /usr/local/bin/npm
+    cp -f "$extracted_dir/bin/npx" /usr/local/bin/npx
+    chmod +x /usr/local/bin/node /usr/local/bin/npm /usr/local/bin/npx
+
+    # Copy libraries and includes
+    cp -rf "$extracted_dir/lib" /usr/local/
+    cp -rf "$extracted_dir/include" /usr/local/
+    cp -rf "$extracted_dir/share" /usr/local/
+
+    # Cleanup
+    rm -rf "$temp_extract" "$download_path"
+
+    # Verify installation
+    if command_exists node && command_exists npm; then
+        local node_version_installed
+        node_version_installed=$(node --version)
+        success "Node.js installed manually (version: $node_version_installed)"
+        return 0
+    else
+        error_return "Manual Node.js installation failed - executables not found"
+        return 1
     fi
 }
 
