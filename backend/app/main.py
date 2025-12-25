@@ -347,6 +347,10 @@ templates = Jinja2Templates(directory=str(FrontendPaths.WEB_TEMPLATES))
 from backend.app.utils.template_filters import register_filters
 register_filters(templates.env)
 
+# Add config as global template variable (for feature flags)
+from backend.app.core.config import get_settings
+templates.env.globals["config"] = get_settings()
+
 # PWA endpoints (must be before web_router to avoid being caught by catch-all routes)
 # Support both GET and HEAD methods - browsers use HEAD to check for Service Worker updates
 @app.api_route("/sw.min.js", methods=["GET", "HEAD"], include_in_schema=False)
