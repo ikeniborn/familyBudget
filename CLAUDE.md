@@ -1059,8 +1059,9 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 1. Service worker calls `skipWaiting()` on install (immediate activation)
 2. Service worker calls `clients.claim()` on activate (take control of all tabs)
 3. Update checks run every **1 hour** (plus on every page load)
-4. Page **automatically reloads** when new SW activates (no countdown, no notification)
-5. All tabs reload independently when they detect the update
+4. Version tracking via localStorage prevents unnecessary reloads
+5. Page **conditionally reloads** only if SW version changed
+6. All tabs reload independently when they detect version change
 
 **Update Flow:**
 
@@ -1072,7 +1073,7 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 # CACHE_VERSION set to: v20251224_2029 (timestamp)
 
 # 3. Users trigger update check (page reload OR hourly check)
-# Console logs:
+# Console logs (if version changed):
 [PWA] Checking for updates...
 [PWA] New service worker found, installing...
 [SW] Installing version: v20251224_2029
@@ -1082,11 +1083,20 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 [SW] Clients claimed
 [SW] Notifying 1 clients about SW update
 [PWA] New service worker activated
-[PWA] Version: 2025-12-25T14:30:00.000Z
-[PWA] Auto-reloading page to apply update...
+[PWA] New SW URL: https://example.com/sw.min.js?v=20251225_1430
+[PWA] Saved SW URL: https://example.com/sw.min.js
+[PWA] ⚡ Version changed, reloading page...
 [Page reloads automatically - NO notification, NO countdown]
 
-# 4. Result: User on new version immediately (< 1 second)
+# Alternative: If version unchanged (prevents reload loop)
+[PWA] New service worker activated
+[PWA] New SW URL: https://example.com/sw.min.js?v=20251225_1430
+[PWA] Saved SW URL: https://example.com/sw.min.js?v=20251225_1430
+[PWA] ✓ Version unchanged, skipping reload
+[PWA] Application already on latest version
+[No reload occurs]
+
+# 4. Result: User on new version immediately (< 1 second), no unnecessary reloads
 ```
 
 **Testing Update Flow:**

@@ -215,20 +215,28 @@ New SW: Send postMessage to all clients (SW_UPDATED)
 Browser: controllerchange event fires in all tabs
 ```
 
-#### Step 5: Automatic Page Reload
+#### Step 5: Version Check and Conditional Reload
 
 ```
 All Tabs: controllerchange listener fires
-All Tabs: Log update information to console
-All Tabs: IMMEDIATELY reload via window.location.reload()
-Result: All tabs reload and apply new version (no user action required)
+All Tabs: Get new Service Worker URL (contains version)
+All Tabs: Compare with saved version in localStorage
+IF version unchanged:
+  - Log: "✓ Version unchanged, skipping reload"
+  - Skip reload (prevents reload loops)
+ELSE:
+  - Log: "⚡ Version changed, reloading page..."
+  - Save new version to localStorage
+  - IMMEDIATELY reload via window.location.reload()
+Result: Only tabs with actual version change reload
 ```
 
 **Key Benefits:**
 - ✅ Zero user interaction required
 - ✅ All users on new version within seconds
 - ✅ No stale code running
-- ✅ Consistent state across all tabs
+- ✅ Prevents unnecessary reload loops
+- ✅ Intelligent version tracking via localStorage
 
 ---
 
@@ -305,63 +313,81 @@ self.addEventListener('activate', (event) => {
 #### Frontend (base.html)
 
 ```javascript
-// Lines 1360-1414
+// Lines 1357-1456
 if ('serviceWorker' in navigator) {
     let refreshing = false;
+    const SW_VERSION_KEY = 'pwa_sw_version';
 
     // CRITICAL: Listen for controllerchange event (new SW activated)
-    // При обновлении SW автоматически перезагружаем страницу
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (refreshing) return; // Предотвращаем множественные перезагрузки
-        refreshing = true;
+        if (refreshing) return;
+
+        const newController = navigator.serviceWorker.controller;
+        if (!newController) return;
+
+        // Получаем URL нового Service Worker (содержит версию)
+        const newVersion = newController.scriptURL;
+        const savedVersion = localStorage.getItem(SW_VERSION_KEY);
 
         console.log('[PWA] New service worker activated');
-        console.log('[PWA] Version:', new Date().toISOString());
-        console.log('[PWA] Auto-reloading page to apply update...');
+        console.log('[PWA] New SW URL:', newVersion);
+        console.log('[PWA] Saved SW URL:', savedVersion);
 
-        // Автоматическая перезагрузка без уведомления
+        // Проверяем, изменилась ли версия
+        if (newVersion === savedVersion) {
+            console.log('[PWA] ✓ Version unchanged, skipping reload');
+            return;
+        }
+
+        // Версия изменилась - перезагружаем
+        refreshing = true;
+        console.log('[PWA] ⚡ Version changed, reloading page...');
+
+        // Сохраняем новую версию перед перезагрузкой
+        localStorage.setItem(SW_VERSION_KEY, newVersion);
+
+        // Автоматическая перезагрузка
         window.location.reload();
     });
 
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.min.js')
             .then((registration) => {
-                console.log('[PWA] Service Worker registered:', registration.scope);
+                // Сохраняем текущую версию SW при загрузке
+                if (navigator.serviceWorker.controller) {
+                    const currentVersion = navigator.serviceWorker.controller.scriptURL;
+                    localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                    console.log('[PWA] Current SW version saved:', currentVersion);
+                }
 
                 // Check for updates on every page load
                 registration.update();
 
                 // Auto-check for updates every 1 hour
                 setInterval(() => {
-                    registration.update(); // Silent check
-                }, 60 * 60 * 1000); // 1 hour = 3600000ms
+                    console.log('[PWA] Running hourly update check...');
+                    registration.update();
+                }, 60 * 60 * 1000);
 
                 // Handle update found
                 registration.addEventListener('updatefound', () => {
                     const newWorker = registration.installing;
                     if (!newWorker) return;
 
-                    console.log('[PWA] New service worker found, installing...');
-
                     newWorker.addEventListener('statechange', () => {
-                        console.log('[PWA] Service worker state:', newWorker.state);
-
                         if (newWorker.state === 'installed') {
                             if (navigator.serviceWorker.controller) {
-                                // Update available - will auto-activate via skipWaiting()
                                 console.log('[PWA] Update available, auto-activating...');
-                                // skipWaiting() already called in SW install event
-                                // controllerchange event will trigger reload
                             } else {
-                                // First install - just log (silent UX)
+                                // First install - save version
                                 console.log('[PWA] Service worker installed for the first time');
+                                if (newWorker.scriptURL) {
+                                    localStorage.setItem(SW_VERSION_KEY, newWorker.scriptURL);
+                                }
                             }
                         }
                     });
                 });
-            })
-            .catch((err) => {
-                console.error('[PWA] Service Worker registration failed:', err);
             });
     });
 }
@@ -376,7 +402,8 @@ if ('serviceWorker' in navigator) {
 | `skipWaiting()` | ✅ Always | Immediate activation, no waiting |
 | `clients.claim()` | ✅ Always | All tabs use new SW immediately |
 | Update check frequency | 1 hour + page load | Balance between responsiveness and server load |
-| Auto-reload | ✅ Enabled | Immediate update application, no stale code |
+| Auto-reload | ✅ Enabled (conditional) | Reload only if version changed |
+| Version tracking | localStorage | Prevents unnecessary reload loops |
 | User interaction | ❌ None required | Zero-friction update experience |
 | State preservation | ❌ No | Users should save work frequently (future enhancement) |
 
@@ -589,7 +616,7 @@ if ('serviceWorker' in navigator) {
 
 ### Console Logs
 
-**Critical Events:**
+**Critical Events (Version Changed):**
 ```
 [SW] Installing version: vXXXXXXXX_XXXX
 [SW] Caching static files
@@ -600,15 +627,28 @@ if ('serviceWorker' in navigator) {
 [SW] Clients claimed
 [SW] Notifying N clients about SW update
 [PWA] Service Worker registered: /
-[PWA] Checking for updates...
+[PWA] Current SW version saved: https://example.com/sw.min.js
 [PWA] New service worker found, installing...
 [PWA] Service worker state: installing
 [PWA] Service worker state: installed
 [PWA] Update available, auto-activating...
 [PWA] New service worker activated
-[PWA] Version: 2025-12-25T14:30:00.000Z
-[PWA] Auto-reloading page to apply update...
-[Page reloads automatically - no user interaction]
+[PWA] New SW URL: https://example.com/sw.min.js?v=20251225_1430
+[PWA] Saved SW URL: https://example.com/sw.min.js
+[PWA] ⚡ Version changed, reloading page...
+[PWA] Previous version: https://example.com/sw.min.js
+[PWA] New version: https://example.com/sw.min.js?v=20251225_1430
+[Page reloads automatically]
+```
+
+**Critical Events (Version Unchanged - No Reload):**
+```
+[PWA] New service worker activated
+[PWA] New SW URL: https://example.com/sw.min.js?v=20251225_1430
+[PWA] Saved SW URL: https://example.com/sw.min.js?v=20251225_1430
+[PWA] ✓ Version unchanged, skipping reload
+[PWA] Application already on latest version
+[No reload occurs - prevents reload loop]
 ```
 
 ---

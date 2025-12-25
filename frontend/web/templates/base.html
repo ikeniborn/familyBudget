@@ -1356,16 +1356,42 @@
         // Стратегия: Aggressive Auto-Update с автоматической перезагрузкой при обновлении
         if ('serviceWorker' in navigator) {
             let refreshing = false;
+            const SW_VERSION_KEY = 'pwa_sw_version';
 
             // CRITICAL: Listen for controllerchange event (new SW activated)
             // При обновлении SW автоматически перезагружаем страницу
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 if (refreshing) return; // Предотвращаем множественные перезагрузки
-                refreshing = true;
+
+                const newController = navigator.serviceWorker.controller;
+                if (!newController) {
+                    console.log('[PWA] No controller available after controllerchange');
+                    return;
+                }
+
+                // Получаем URL нового Service Worker (содержит версию)
+                const newVersion = newController.scriptURL;
+                const savedVersion = localStorage.getItem(SW_VERSION_KEY);
 
                 console.log('[PWA] New service worker activated');
-                console.log('[PWA] Version:', new Date().toISOString());
-                console.log('[PWA] Auto-reloading page to apply update...');
+                console.log('[PWA] New SW URL:', newVersion);
+                console.log('[PWA] Saved SW URL:', savedVersion);
+
+                // Проверяем, изменилась ли версия
+                if (newVersion === savedVersion) {
+                    console.log('[PWA] ✓ Version unchanged, skipping reload');
+                    console.log('[PWA] Application already on latest version');
+                    return;
+                }
+
+                // Версия изменилась - перезагружаем
+                refreshing = true;
+                console.log('[PWA] ⚡ Version changed, reloading page...');
+                console.log('[PWA] Previous version:', savedVersion);
+                console.log('[PWA] New version:', newVersion);
+
+                // Сохраняем новую версию перед перезагрузкой
+                localStorage.setItem(SW_VERSION_KEY, newVersion);
 
                 // Автоматическая перезагрузка без уведомления
                 window.location.reload();
@@ -1376,11 +1402,19 @@
                     .then((registration) => {
                         console.log('[PWA] Service Worker registered:', registration.scope);
 
+                        // Сохраняем текущую версию SW при загрузке
+                        if (navigator.serviceWorker.controller) {
+                            const currentVersion = navigator.serviceWorker.controller.scriptURL;
+                            localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                            console.log('[PWA] Current SW version saved:', currentVersion);
+                        }
+
                         // Проверка обновлений при каждой загрузке страницы
                         registration.update();
 
                         // CHANGED: Автоматическая проверка обновлений каждый час (было 24 часа)
                         setInterval(() => {
+                            console.log('[PWA] Running hourly update check...');
                             registration.update(); // Silent check
                         }, 60 * 60 * 1000); // 1 hour = 3600000ms
 
@@ -1403,6 +1437,11 @@
                                     } else {
                                         // First install - just log, no toast (silent UX)
                                         console.log('[PWA] Service worker installed for the first time');
+                                        // Сохраняем версию при первой установке
+                                        if (newWorker.scriptURL) {
+                                            localStorage.setItem(SW_VERSION_KEY, newWorker.scriptURL);
+                                            console.log('[PWA] First install version saved:', newWorker.scriptURL);
+                                        }
                                     }
                                 }
                             });
