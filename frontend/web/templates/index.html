@@ -4434,6 +4434,10 @@ function openAddPlanModal() {
     const modal = document.getElementById(modalId);
     if (modal && modal.showModal) {
         modal.showModal();
+
+        // ✅ FIX: Initialize plan mode on modal open
+        // Without this, form validation fails until user manually changes plan mode
+        togglePlanMode(modalId);
     }
 }
 // Ensure function is globally accessible for onclick handlers
