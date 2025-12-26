@@ -1631,6 +1631,27 @@ class ChoicesCategoryTree {
     static _cache = new Map();
     static _pendingRequests = new Map();  // key: "type:showInactive:fcPart" -> Promise
 
+    // Web Worker for hierarchy processing (Phase 2: Performance Optimization)
+    static _workerWrapper = null;
+
+    /**
+     * Initialize Web Worker for category hierarchy processing.
+     * Called automatically on first use, or can be preloaded.
+     */
+    static initializeWorker() {
+        if (!this._workerWrapper && typeof WorkerWrapper !== 'undefined') {
+            try {
+                this._workerWrapper = new WorkerWrapper('/static/js/workers/hierarchyWorker.min.js', {
+                    idleTimeout: 30000,  // 30s for category tree (less aggressive than default)
+                    debugMode: window.DEBUG_MODE || false
+                });
+            } catch (error) {
+                console.warn('[ChoicesCategoryTree] Failed to initialize worker:', error);
+                this._workerWrapper = null;
+            }
+        }
+    }
+
     /**
      * Preload categories for offline use.
      * Call this on page load to cache both expense and income categories.
@@ -1891,9 +1912,46 @@ class ChoicesCategoryTree {
 
     /**
      * Build hierarchy maps for efficient lookups.
+     * Uses Web Worker for performance (with automatic fallback to sync processing).
      */
-    buildHierarchyMaps() {
-        // Build categoryMap (id -> category)
+    async buildHierarchyMaps() {
+        const startTime = performance.now();
+
+        // Try worker-based processing first
+        if (ChoicesCategoryTree._workerWrapper && this.categories.length > 0) {
+            try {
+                ChoicesCategoryTree.initializeWorker();
+
+                // Execute worker task
+                const result = await ChoicesCategoryTree._workerWrapper.execute({
+                    action: 'buildMaps',
+                    data: { categories: this.categories }
+                });
+
+                // Convert plain objects back to Maps
+                this.categoryMap = new Map(Object.entries(result.categoryMap));
+                this.childrenMap = new Map(
+                    Object.entries(result.childrenMap).map(([key, val]) => [parseInt(key), val])
+                );
+
+                const duration = Math.round(performance.now() - startTime);
+                if (window.DEBUG_MODE) {
+                    console.log(`[ChoicesCategoryTree] Worker buildMaps: ${duration}ms (${this.categories.length} categories)`);
+                }
+
+                // Resolve initialization promise
+                if (this._initPromise) {
+                    this._initPromise();
+                    this._initPromise = null;
+                }
+                return;
+            } catch (error) {
+                // Worker failed, fall back to synchronous
+                console.warn('[ChoicesCategoryTree] Worker buildMaps failed, using synchronous:', error);
+            }
+        }
+
+        // Synchronous fallback (original implementation)
         this.categoryMap.clear();
         this.childrenMap.clear();
 
@@ -1907,6 +1965,11 @@ class ChoicesCategoryTree {
                 }
                 this.childrenMap.get(category.parent_id).push(category.id);
             }
+        }
+
+        const duration = Math.round(performance.now() - startTime);
+        if (window.DEBUG_MODE) {
+            console.log(`[ChoicesCategoryTree] Synchronous buildMaps: ${duration}ms (${this.categories.length} categories)`);
         }
 
         // Resolve initialization promise (for waitForReady() method)
@@ -1966,17 +2029,37 @@ class ChoicesCategoryTree {
 
     /**
      * Get parent chain for a category (from root to parent, excluding self).
-     * Builds chain locally using categoryMap (no API calls).
+     * Uses Web Worker for large datasets (>100 categories), synchronous for small.
      *
      * @param {number} categoryId - Category ID
-     * @returns {Array} Array of parent categories (root to parent)
+     * @returns {Promise<Array>|Array} Array of parent categories (root to parent)
      */
     getParentChain(categoryId) {
+        const category = this.categoryMap.get(categoryId);
+
+        if (!category || !category.parent_id) {
+            return [];  // No parents
+        }
+
+        // For large datasets (>100 categories), use worker
+        if (this.categories.length > 100 && ChoicesCategoryTree._workerWrapper) {
+            return this._getParentChainWorker(categoryId);
+        }
+
+        // Synchronous for small datasets
+        return this._getParentChainSync(categoryId);
+    }
+
+    /**
+     * Synchronous parent chain (original implementation).
+     * @private
+     */
+    _getParentChainSync(categoryId) {
         const chain = [];
         const category = this.categoryMap.get(categoryId);
 
         if (!category || !category.parent_id) {
-            return chain;  // No parents
+            return chain;
         }
 
         let currentParentId = category.parent_id;
@@ -1990,6 +2073,29 @@ class ChoicesCategoryTree {
         }
 
         return chain;
+    }
+
+    /**
+     * Worker-based parent chain for large datasets.
+     * @private
+     */
+    async _getParentChainWorker(categoryId) {
+        try {
+            ChoicesCategoryTree.initializeWorker();
+
+            // Convert Maps to plain objects for worker
+            const categoryMap = Object.fromEntries(this.categoryMap);
+
+            const result = await ChoicesCategoryTree._workerWrapper.execute({
+                action: 'getParentChain',
+                data: { categoryId, categoryMap }
+            });
+
+            return result;
+        } catch (error) {
+            console.warn('[ChoicesCategoryTree] Worker getParentChain failed, using synchronous:', error);
+            return this._getParentChainSync(categoryId);
+        }
     }
 
     /**
@@ -2415,6 +2521,26 @@ class ChoicesCategoryTree {
      * @param {number|null} financialCenterId - Financial center ID (null = show all)
      */
     async updateFinancialCenter(financialCenterId) {
+        console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter START ==========`);
+        console.log(`[ChoicesCategoryTree] Input: financialCenterId=${financialCenterId}`);
+        console.log(`[ChoicesCategoryTree] Current options:`, {
+            type: this.options.type,
+            showLeafOnly: this.options.showLeafOnly,
+            previousFinancialCenterId: this.options.financialCenterId
+        });
+
+        // Detect if this is initial filtering (from no filter to a filter)
+        // vs changing filter (from one FC to another)
+        const previousFcId = this.options.financialCenterId;
+        const isInitialFiltering = previousFcId === null && financialCenterId !== null;
+
+        console.log(`[ChoicesCategoryTree] Filter change type:`, {
+            previousFcId,
+            newFcId: financialCenterId,
+            isInitialFiltering,
+            note: isInitialFiltering ? 'Initial filter - do NOT preserve selection' : 'FC changed - preserve if valid'
+        });
+
         // Update option
         this.options.financialCenterId = financialCenterId;
 
@@ -2423,19 +2549,37 @@ class ChoicesCategoryTree {
         if (financialCenterId) {
             const specificCacheKey = `${this.options.type}:${this.options.showInactive}:${financialCenterId}`;
             ChoicesCategoryTree._cache.delete(specificCacheKey);
+            console.log(`[ChoicesCategoryTree] Invalidated cache for key: ${specificCacheKey}`);
         }
 
         // Save current selection to restore it if still available
-        // CRITICAL: Only save selection if it's a real user selection, not a phantom value
-        // Check if there are actually active items in Choices.js (user made explicit selection)
+        // CRITICAL FIX: Read directly from element.value instead of choices.getValue()
+        // choices.getValue() may return undefined even when element has a value
+        // This happens when category is set via element.value = '123' before Choices.js syncs
+        const elementValue = this.element ? this.element.value : null;
+        const previousSelectionId = elementValue ? parseInt(elementValue) : null;
+
+        // Also get Choices.js API value for logging (but don't rely on it for logic)
         const activeItems = this.choices ? this.choices.getValue(true) : null;
         const hasActiveSelection = activeItems && Array.isArray(activeItems) && activeItems.length > 0;
-        const previousSelection = hasActiveSelection && this.element ? this.element.value : null;
-        const previousSelectionId = previousSelection ? parseInt(previousSelection) : null;
+
+        console.log(`[ChoicesCategoryTree] Current selection state:`, {
+            elementValue,
+            previousSelectionId,
+            activeItems,
+            hasActiveSelection,
+            note: elementValue && !hasActiveSelection ? 'Element has value but Choices.js not synced yet' : 'OK'
+        });
 
         try {
             // Load new categories from API (with offline fallback)
             await this.loadCategories();
+
+            console.log(`[ChoicesCategoryTree] Loaded categories:`, {
+                totalCount: this.categories.length,
+                categoryMapSize: this.categoryMap.size,
+                sampleCategories: this.categories.slice(0, 3).map(c => ({id: c.id, name: c.name}))
+            });
 
             // Build hierarchy maps
             this.buildHierarchyMaps();
@@ -2444,6 +2588,11 @@ class ChoicesCategoryTree {
             const displayCategories = this.options.showLeafOnly
                 ? this.getLeafCategories()
                 : this.categories;
+
+            console.log(`[ChoicesCategoryTree] Display categories after leaf filter:`, {
+                displayCount: displayCategories.length,
+                showLeafOnly: this.options.showLeafOnly
+            });
 
             // Update Choices.js without full recreation
             if (this.choices) {
@@ -2468,29 +2617,56 @@ class ChoicesCategoryTree {
                     };
                 });
 
+                console.log(`[ChoicesCategoryTree] Prepared choices for Choices.js:`, {
+                    choicesCount: choices.length,
+                    sampleChoices: choices.slice(0, 3).map(c => ({value: c.value, label: c.label}))
+                });
+
                 // Set new choices WITHOUT auto-selecting first item
                 // 4th parameter FALSE prevents Choices.js from auto-selecting
                 this.choices.setChoices(choices, 'value', 'label', false);
 
-                // Check if we need to restore previous selection
+                // Check if we should preserve selection
+                // Only preserve if:
+                // 1. This is NOT initial filtering (FC is changing from one value to another, not from null to value)
+                // 2. Previous selection exists
+                // 3. Category is available in new filtered list
                 const categoryStillAvailable = previousSelectionId &&
                     this.categoryMap.has(previousSelectionId);
 
-                if (categoryStillAvailable) {
-                    // Category is available in new filtered list - restore selection
-                    // setSelectedCategory will handle clearing and setting the value
+                console.log(`[ChoicesCategoryTree] Checking if category still available:`, {
+                    previousSelectionId,
+                    categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
+                    categoryStillAvailable,
+                    isInitialFiltering,
+                    shouldPreserve: categoryStillAvailable && !isInitialFiltering,
+                    categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
+                });
+
+                if (categoryStillAvailable && !isInitialFiltering) {
+                    // Category is available in new filtered list AND this is not initial filtering
+                    // Restore selection (user explicitly selected this category before changing FC)
+                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId}`);
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
-                    // No previous selection OR category not available anymore
+                    // Don't preserve selection if:
+                    // - This is initial filtering (applying filter for first time)
+                    // - No previous selection
+                    // - Category not available in new filtered list
                     // Clear any auto-selection that Choices.js made
                     this.choices.removeActiveItems();
                     if (this.element) {
                         this.element.value = '';
                     }
-                    if (previousSelectionId) {
+                    if (isInitialFiltering && previousSelectionId) {
+                        console.log(`[ChoicesCategoryTree] 🚫 NOT preserving selection on initial filter (previousId=${previousSelectionId})`);
+                        debugLog(`[ChoicesCategoryTree] Cleared phantom selection on initial filter: ${previousSelectionId}`);
+                    } else if (previousSelectionId) {
+                        console.log(`[ChoicesCategoryTree] ❌ RESET selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                         debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                     } else {
+                        console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
                         debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);
                     }
                 }
@@ -2507,8 +2683,17 @@ class ChoicesCategoryTree {
                     console.warn(`[ChoicesCategoryTree] Offline: No categories available for FC ${financialCenterId}`);
                 }
             }
+
+            console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END ==========`);
+            console.log(`[ChoicesCategoryTree] Final state:`, {
+                financialCenterId: this.options.financialCenterId,
+                categoriesCount: this.categories.length,
+                finalElementValue: this.element ? this.element.value : null,
+                finalActiveItems: this.choices ? this.choices.getValue(true) : null
+            });
         } catch (error) {
-            console.error('[ChoicesCategoryTree] Error updating financial center:', error);
+            console.error('[ChoicesCategoryTree] ❌ ERROR in updateFinancialCenter:', error);
+            console.log(`[ChoicesCategoryTree] ========== updateFinancialCenter END (ERROR) ==========`);
         }
     }
 
