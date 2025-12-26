@@ -142,6 +142,109 @@ source scripts/lib/network_health.sh
 network_preflight_check "false"
 ```
 
+### Docker GPG Key Validation (v1.1.0)
+
+**Since version 1.1.0**: Comprehensive GPG key validation with retry and binary verification.
+
+**Problem Solved:**
+- Installation hung on interactive prompt "File exists. Overwrite? (y/N)"
+- "gpg: no valid OpenPGP data found" error from corrupted key files
+- No validation of existing keys before deletion
+
+**Validation Pipeline (5 checkpoints):**
+
+1. **Check existing key** → validate before removing (keep if valid, skip re-download)
+2. **Download to temp file** → validate text format (not HTML error page)
+3. **Convert to binary** (`gpg --dearmor`) → monitor stderr for errors
+4. **Validate binary result** → check structure + gpg --list-keys
+5. **Install to final location** → cleanup temp files
+
+**Retry Strategy:**
+- Max 3 attempts with exponential backoff (5s → 10s → 20s)
+- Validates at EACH step (download, conversion, installation)
+- Creates backup before replacing valid keys
+
+**Functions:**
+
+```bash
+# Validate binary GPG key file structure
+validate_gpg_key_file /etc/apt/keyrings/docker.gpg
+# Returns: 0 if valid, 1 if invalid
+# Checks: binary signature (magic bytes) + gpg --list-keys + error keywords
+
+# Create timestamped backup
+backup_gpg_key /etc/apt/keyrings/docker.gpg
+# Creates: docker.gpg.backup.YYYYMMDD_HHMMSS
+# Auto-cleanup: keeps only 5 most recent backups
+
+# Setup Docker GPG key with comprehensive validation
+setup_docker_gpg_key
+# Full pipeline with retry: validate existing → download → convert → validate binary → install
+```
+
+**Usage:**
+
+```bash
+# Standard installation (automatic validation)
+sudo ./install.sh
+
+# Manual GPG key check
+validate_gpg_key_file /etc/apt/keyrings/docker.gpg && echo "Valid" || echo "Invalid"
+
+# Force fresh GPG key download (remove existing first)
+sudo rm -f /etc/apt/keyrings/docker.gpg
+sudo ./install.sh
+```
+
+**Location:** install.sh:241-632
+
+### Repository Detection (v1.1.0)
+
+**Since version 1.1.0**: Smart repository directory detection for error recovery.
+
+**Problem Solved:**
+- Confusing "Required template files are missing" error when install.sh run from wrong directory
+- No guidance on how to fix template file issues
+- Manual troubleshooting required to find correct repository path
+
+**Detection Methods (priority order):**
+
+1. **Git repository root** (`git rev-parse --show-toplevel`) - MOST RELIABLE
+2. **Walk up directory tree** (max 5 levels) looking for marker files - FALLBACK
+3. **Common locations** (`~/familyBudget`, `~/Documents/familyBudget`, etc.) - LAST RESORT
+
+**Marker Files:**
+- `install.sh` (installation script)
+- `.env.example` (environment template)
+- `nginx/conf.d/app-http.conf.template` (nginx config template)
+
+**Functions:**
+
+```bash
+# Auto-detect repository directory
+detect_repo_directory "$(pwd)"
+# Returns: repository path if found
+# Exit code: 0 if found, 1 if not found
+```
+
+**Usage:**
+
+```bash
+# Auto-detection in error messages (automatic)
+cd /wrong/directory
+sudo ./install.sh
+# Output: [SUCCESS] Repository found: /home/user/familyBudget
+#         Suggested fix: cd /home/user/familyBudget && sudo ./install.sh
+
+# Manual repository override via CLI
+sudo ./install.sh --repo-dir ~/familyBudget
+
+# Show help
+./install.sh --help
+```
+
+**Location:** scripts/lib/utils.sh:202-349
+
 ### Troubleshooting Installation Failures
 
 **Check installation log:**

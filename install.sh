@@ -238,6 +238,399 @@ install_python_packages() {
     success "Python packages installed"
 }
 
+# =============================================================================
+# GPG KEY VALIDATION FUNCTIONS (v1.1.0)
+# =============================================================================
+
+# Validate binary GPG key file structure
+# Validates that a GPG keyring file is valid and contains keys
+# Args:
+#   $1: path to GPG key file (binary format)
+# Returns:
+#   0 if valid, 1 if invalid
+# Validation checks:
+#   - File exists and non-empty
+#   - File has GPG binary signature (specific magic bytes)
+#   - gpg can list keys without errors
+#   - Key data is present in output
+validate_gpg_key_file() {
+    local gpg_file=$1
+
+    # Check file exists and non-empty
+    if [[ ! -f "$gpg_file" ]]; then
+        warning "GPG key file does not exist: $gpg_file"
+        return 1
+    fi
+
+    if [[ ! -s "$gpg_file" ]]; then
+        warning "GPG key file is empty: $gpg_file"
+        return 1
+    fi
+
+    info "Validating GPG key structure: $gpg_file"
+
+    # Check binary signature (GPG binary files start with specific bytes)
+    # Common GPG packet types:
+    # 0x99 = Public Key Packet (most common)
+    # 0x9a = Public-Key Encrypted Session Key Packet
+    # 0xc5 = Compressed Data Packet
+    # 0xc6 = Symmetrically Encrypted Data Packet
+    # 0xa6 = Public-Subkey Packet
+    # 0x8c = Marker Packet
+    # 0x95 = Trust Packet
+    local first_byte
+    first_byte=$(od -An -tx1 -N1 "$gpg_file" 2>/dev/null | tr -d ' ')
+
+    if [[ ! "$first_byte" =~ ^(99|9a|c5|c6|a6|8c|95)$ ]]; then
+        warning "GPG key file has invalid binary signature: 0x$first_byte"
+        info "Expected GPG packet marker: 0x99, 0x9a, 0xc5, 0xc6, 0xa6, 0x8c, or 0x95"
+        return 1
+    fi
+
+    info "GPG binary signature check: PASSED (0x$first_byte)"
+
+    # Try to list keys using gpg (most reliable validation)
+    # Redirect stderr to capture errors
+    local gpg_output
+    local gpg_exit_code
+
+    info "Running: gpg --no-default-keyring --keyring $gpg_file --list-keys"
+    gpg_output=$(gpg --no-default-keyring --keyring "$gpg_file" --list-keys 2>&1)
+    gpg_exit_code=$?
+
+    if [[ $gpg_exit_code -ne 0 ]]; then
+        warning "GPG key file failed validation: gpg --list-keys returned exit code $gpg_exit_code"
+        echo "GPG output:" >> "$LOG_FILE"
+        echo "$gpg_output" >> "$LOG_FILE"
+        return 1
+    fi
+
+    # Check that gpg output contains key information (not empty/error)
+    if [[ -z "$gpg_output" ]]; then
+        warning "GPG key file appears empty: no keys found in keyring"
+        return 1
+    fi
+
+    # Check for error keywords in output (even if exit code was 0)
+    if echo "$gpg_output" | grep -qiE "(error|failed|invalid|no valid)"; then
+        warning "GPG validation output contains errors:"
+        echo "$gpg_output" | head -5
+        echo "Full GPG output:" >> "$LOG_FILE"
+        echo "$gpg_output" >> "$LOG_FILE"
+        return 1
+    fi
+
+    info "GPG key validation: PASSED"
+    info "Keys found in keyring:"
+    echo "$gpg_output" | grep -E "^(pub|sub)" | while IFS= read -r line; do
+        info "  $line"
+    done
+
+    return 0
+}
+
+# Create timestamped backup of GPG key file
+# Creates backup with format: filename.backup.YYYYMMDD_HHMMSS
+# Cleans up old backups (keeps only 5 most recent)
+# Args:
+#   $1: path to GPG key file
+# Returns:
+#   0 if backup created, 1 if failed
+backup_gpg_key() {
+    local gpg_file=$1
+    local backup_file="${gpg_file}.backup.$(date +%Y%m%d_%H%M%S)"
+
+    if [[ ! -f "$gpg_file" ]]; then
+        info "No existing GPG key to backup"
+        return 0
+    fi
+
+    info "Creating backup of GPG key..."
+
+    if cp "$gpg_file" "$backup_file" 2>>"$LOG_FILE"; then
+        chmod 644 "$backup_file"
+        success "Backed up GPG key to: $backup_file"
+
+        # Clean up old backups (keep only 5 most recent)
+        local backup_dir
+        backup_dir=$(dirname "$gpg_file")
+        local backup_pattern
+        backup_pattern="$(basename "$gpg_file").backup.*"
+
+        # Count existing backups
+        local backup_count
+        backup_count=$(find "$backup_dir" -maxdepth 1 -name "$backup_pattern" 2>/dev/null | wc -l)
+
+        if [[ $backup_count -gt 5 ]]; then
+            info "Cleaning up old GPG backups (keeping 5 most recent)..."
+
+            # List backups by modification time (oldest first), skip first (backup_count - 5)
+            find "$backup_dir" -maxdepth 1 -name "$backup_pattern" -type f 2>/dev/null | \
+                xargs ls -t | tail -n +6 | while IFS= read -r old_backup; do
+                    rm -f "$old_backup"
+                    info "Removed old backup: $old_backup"
+                done
+        fi
+
+        return 0
+    else
+        warning "Failed to backup GPG key to: $backup_file"
+        return 1
+    fi
+}
+
+# Helper function: calculate exponential backoff delay
+# Args:
+#   $1: attempt number (1-based)
+# Returns:
+#   delay in seconds (5, 10, 20, capped at 60)
+calculate_backoff_delay() {
+    local attempt=$1
+    local base_delay=5
+    local max_delay=60
+
+    # Exponential: 5 * 2^(attempt-1)
+    local delay=$((base_delay * (1 << (attempt - 1))))
+
+    # Cap at max_delay
+    if [[ $delay -gt $max_delay ]]; then
+        delay=$max_delay
+    fi
+
+    echo "$delay"
+}
+
+# Download, validate, and install Docker GPG key with retry
+# Comprehensive validation at multiple checkpoints:
+# 1. Check existing key - keep if valid
+# 2. Download to temp file - validate text format
+# 3. Convert to binary (gpg --dearmor) - check stderr
+# 4. Validate binary result - check structure
+# 5. Install to final location - cleanup temp files
+# Uses execute_with_retry for resilience with exponential backoff
+# Returns:
+#   0 if successful, exits on failure after max attempts
+setup_docker_gpg_key() {
+    local max_attempts=3
+    local attempt=1
+    local gpg_keyring="/etc/apt/keyrings/docker.gpg"
+
+    info "Setting up Docker GPG key with validation (max attempts: $max_attempts)..."
+
+    # CRITICAL FIX v1.1.0: Check if existing key is valid BEFORE removing
+    # Previous version blindly deleted existing key, risking loss of valid key
+    if [[ -f "$gpg_keyring" ]]; then
+        info "Existing Docker GPG key found at: $gpg_keyring"
+        info "Validating existing key before replacement..."
+
+        if validate_gpg_key_file "$gpg_keyring"; then
+            success "Existing Docker GPG key is VALID - keeping it (no re-download needed)"
+            info "Skipping GPG key setup - existing key passes all validation checks"
+            return 0
+        else
+            warning "Existing Docker GPG key is INVALID or corrupted"
+            info "Key will be replaced with fresh download from Docker repository"
+
+            # Backup before replacement (even if invalid, for forensics)
+            backup_gpg_key "$gpg_keyring" || warning "Backup failed, continuing anyway"
+
+            # Remove invalid key
+            info "Removing invalid GPG key: $gpg_keyring"
+            rm -f "$gpg_keyring"
+        fi
+    else
+        info "No existing Docker GPG key found - will download fresh key"
+    fi
+
+    # Retry loop for download + conversion
+    while [[ $attempt -le $max_attempts ]]; do
+        info "========================================="
+        info "GPG Key Setup Attempt $attempt of $max_attempts"
+        info "========================================="
+
+        local temp_gpg_file="/tmp/docker-gpg-$$.tmp"
+        local temp_binary_file="/tmp/docker-gpg-binary-$$.tmp"
+        local gpg_stderr="/tmp/gpg-stderr-$$.tmp"
+
+        # Step 1: Download GPG key
+        info "[Step 1/5] Downloading Docker GPG key from https://download.docker.com/linux/$OS/gpg"
+
+        if ! curl_with_retry -fsSL "https://download.docker.com/linux/$OS/gpg" -o "$temp_gpg_file"; then
+            warning "[$attempt/$max_attempts] Download failed via curl_with_retry"
+            rm -f "$temp_gpg_file"
+
+            if [[ $attempt -lt $max_attempts ]]; then
+                local delay
+                delay=$(calculate_backoff_delay "$attempt")
+                warning "Retrying in ${delay}s..."
+                sleep "$delay"
+                ((attempt++))
+                continue
+            else
+                error "Failed to download Docker GPG key after $max_attempts attempts. Check network connection and $LOG_FILE"
+            fi
+        fi
+
+        info "[Step 1/5] Download complete: $(stat --format='%s bytes' "$temp_gpg_file" 2>/dev/null || echo 'size unknown')"
+
+        # Step 2: Validate downloaded content (TEXT format)
+        info "[Step 2/5] Validating downloaded content (text format)"
+
+        # Check 2.1: Not empty
+        if [[ ! -s "$temp_gpg_file" ]]; then
+            warning "[$attempt/$max_attempts] Downloaded file is empty"
+            rm -f "$temp_gpg_file"
+
+            if [[ $attempt -lt $max_attempts ]]; then
+                local delay
+                delay=$(calculate_backoff_delay "$attempt")
+                warning "Retrying in ${delay}s..."
+                sleep "$delay"
+                ((attempt++))
+                continue
+            else
+                error "Downloaded GPG key file is empty after $max_attempts attempts. Check Docker repository availability."
+            fi
+        fi
+
+        # Check 2.2: Not HTML/XML (common proxy/captive portal error)
+        if file "$temp_gpg_file" 2>/dev/null | grep -qiE "(html|xml)"; then
+            warning "[$attempt/$max_attempts] Downloaded file is HTML/XML (not GPG key)"
+            info "File type: $(file "$temp_gpg_file" 2>/dev/null)"
+            info "First 10 lines (saved to $LOG_FILE):"
+            head -10 "$temp_gpg_file" | tee -a "$LOG_FILE"
+            rm -f "$temp_gpg_file"
+
+            if [[ $attempt -lt $max_attempts ]]; then
+                local delay
+                delay=$(calculate_backoff_delay "$attempt")
+                warning "Retrying in ${delay}s..."
+                sleep "$delay"
+                ((attempt++))
+                continue
+            else
+                error "Downloaded file is HTML/XML after $max_attempts attempts. Check proxy/firewall and Docker repository availability."
+            fi
+        fi
+
+        # Check 2.3: Contains GPG format markers (ASCII-armored)
+        if ! grep -q "BEGIN PGP" "$temp_gpg_file" 2>/dev/null; then
+            warning "[$attempt/$max_attempts] Downloaded file missing 'BEGIN PGP' marker"
+            info "File type: $(file "$temp_gpg_file" 2>/dev/null || echo 'unknown')"
+            info "First 5 lines:"
+            head -5 "$temp_gpg_file" | tee -a "$LOG_FILE"
+            rm -f "$temp_gpg_file"
+
+            if [[ $attempt -lt $max_attempts ]]; then
+                local delay
+                delay=$(calculate_backoff_delay "$attempt")
+                warning "Retrying in ${delay}s..."
+                sleep "$delay"
+                ((attempt++))
+                continue
+            else
+                error "Downloaded file failed GPG format validation after $max_attempts attempts"
+            fi
+        fi
+
+        info "[Step 2/5] Text format validation: PASSED"
+
+        # Step 3: Convert to binary format (gpg --dearmor)
+        info "[Step 3/5] Converting GPG key to binary format (gpg --dearmor)"
+
+        # CRITICAL FIX v1.1.0: Capture and check stderr from gpg --dearmor
+        # Previous version redirected stderr to log but never checked it
+        if gpg --yes --dearmor < "$temp_gpg_file" > "$temp_binary_file" 2>"$gpg_stderr"; then
+            info "[Step 3/5] Conversion exit code: 0 (success)"
+
+            # Even if exit code 0, check stderr for warnings
+            if [[ -s "$gpg_stderr" ]]; then
+                info "[Step 3/5] GPG stderr output (check for warnings):"
+                cat "$gpg_stderr" | tee -a "$LOG_FILE"
+
+                # Check for critical errors in stderr (even if exit code was 0)
+                if grep -qiE "(error|failed|invalid|no valid)" "$gpg_stderr" 2>/dev/null; then
+                    warning "[$attempt/$max_attempts] GPG conversion produced errors in stderr"
+                    cat "$gpg_stderr"
+                    rm -f "$temp_gpg_file" "$temp_binary_file" "$gpg_stderr"
+
+                    if [[ $attempt -lt $max_attempts ]]; then
+                        local delay
+                        delay=$(calculate_backoff_delay "$attempt")
+                        warning "Retrying in ${delay}s..."
+                        sleep "$delay"
+                        ((attempt++))
+                        continue
+                    else
+                        error "GPG conversion failed (stderr errors) after $max_attempts attempts. Check $LOG_FILE"
+                    fi
+                fi
+            fi
+        else
+            local gpg_exit=$?
+            warning "[$attempt/$max_attempts] GPG conversion command failed with exit code: $gpg_exit"
+            if [[ -s "$gpg_stderr" ]]; then
+                warning "GPG stderr output:"
+                cat "$gpg_stderr" | tee -a "$LOG_FILE"
+            fi
+            rm -f "$temp_gpg_file" "$temp_binary_file" "$gpg_stderr"
+
+            if [[ $attempt -lt $max_attempts ]]; then
+                local delay
+                delay=$(calculate_backoff_delay "$attempt")
+                warning "Retrying in ${delay}s..."
+                sleep "$delay"
+                ((attempt++))
+                continue
+            else
+                error "GPG conversion failed after $max_attempts attempts. Check $LOG_FILE for details."
+            fi
+        fi
+
+        info "[Step 3/5] Conversion complete: $(stat --format='%s bytes' "$temp_binary_file" 2>/dev/null || echo 'size unknown')"
+
+        # Step 4: Validate binary output BEFORE installing
+        # CRITICAL FIX v1.1.0: Validate converted binary, not just text format
+        # Previous version skipped binary validation entirely
+        info "[Step 4/5] Validating converted binary GPG key"
+
+        if validate_gpg_key_file "$temp_binary_file"; then
+            info "[Step 4/5] Binary validation: PASSED"
+        else
+            warning "[$attempt/$max_attempts] Converted GPG key failed binary validation"
+            rm -f "$temp_gpg_file" "$temp_binary_file" "$gpg_stderr"
+
+            if [[ $attempt -lt $max_attempts ]]; then
+                local delay
+                delay=$(calculate_backoff_delay "$attempt")
+                warning "Retrying in ${delay}s..."
+                sleep "$delay"
+                ((attempt++))
+                continue
+            else
+                error "Converted GPG key failed validation after $max_attempts attempts"
+            fi
+        fi
+
+        # Step 5: Install to final location
+        info "[Step 5/5] Installing validated GPG key to $gpg_keyring"
+
+        if mv "$temp_binary_file" "$gpg_keyring" 2>>"$LOG_FILE"; then
+            chmod a+r "$gpg_keyring"
+            rm -f "$temp_gpg_file" "$gpg_stderr"
+            success "Docker GPG key installed and validated successfully"
+            info "Final validation of installed key:"
+            validate_gpg_key_file "$gpg_keyring"
+            return 0
+        else
+            error "Failed to install GPG key to $gpg_keyring (filesystem error)"
+        fi
+    done
+
+    # Should never reach here (error exits above handle all failure paths)
+    error "Unexpected error in Docker GPG key setup - this should not happen"
+}
+
 # Install Docker
 install_docker() {
     if command_exists docker; then
@@ -258,64 +651,16 @@ install_docker() {
     info "Removing old Docker versions if any..."
     apt-get remove -y docker docker-engine docker.io containerd runc >> "$LOG_FILE" 2>&1 || true
 
-    # Add Docker's official GPG key
-    info "Adding Docker GPG key..."
+    # Add Docker's official GPG key with comprehensive validation (v1.1.0)
+    # Uses new setup_docker_gpg_key() function which:
+    # - Validates existing key before removing (keep if valid)
+    # - Downloads to temp file and validates text format
+    # - Converts to binary (gpg --dearmor) and checks stderr
+    # - Validates binary result before installation
+    # - Retries on failure with exponential backoff (3 attempts)
+    # - Creates backup before replacing valid keys
     install -m 0755 -d /etc/apt/keyrings
-
-    # CRITICAL FIX: Remove old GPG key file to prevent interactive prompt
-    # Without this, gpg --dearmor asks "File exists. Overwrite? (y/N)" which breaks automation
-    if [[ -f /etc/apt/keyrings/docker.gpg ]]; then
-        info "Removing old Docker GPG key (prevents gpg interactive prompt)..."
-        rm -f /etc/apt/keyrings/docker.gpg
-    fi
-
-    # Download GPG key to temporary file for validation
-    local temp_gpg_file="/tmp/docker-gpg-$$.tmp"
-    info "Downloading Docker GPG key from https://download.docker.com/linux/$OS/gpg..."
-
-    if ! curl_with_retry -fsSL https://download.docker.com/linux/$OS/gpg -o "$temp_gpg_file"; then
-        rm -f "$temp_gpg_file"
-        error "Failed to download Docker GPG key after retries. Check network connection and $LOG_FILE"
-    fi
-
-    # CRITICAL FIX: Validate downloaded content (ensure it's not HTML error page)
-    info "Validating downloaded GPG key..."
-    if [[ ! -s "$temp_gpg_file" ]]; then
-        rm -f "$temp_gpg_file"
-        error "Downloaded GPG key file is empty. Check network and Docker repository availability."
-    fi
-
-    # Check if file contains HTML (common error response from proxies/captive portals)
-    if file "$temp_gpg_file" 2>/dev/null | grep -qiE "(html|xml|text/plain)"; then
-        warning "Downloaded file appears to be HTML/text, not a GPG key"
-        info "First 10 lines of downloaded file (saved to log):"
-        head -10 "$temp_gpg_file" | while IFS= read -r line; do
-            echo "  $line" >> "$LOG_FILE"
-        done
-        rm -f "$temp_gpg_file"
-        error "Downloaded file is not a valid GPG key (got HTML/text instead). Check Docker repository availability: https://download.docker.com"
-    fi
-
-    # Check if file starts with typical GPG markers (ASCII-armored or binary)
-    if ! grep -q "BEGIN PGP" "$temp_gpg_file" 2>/dev/null && \
-       ! od -An -tx1 -N4 "$temp_gpg_file" 2>/dev/null | grep -qE "(c5|99|9a)"; then
-        warning "Downloaded file does not appear to be a valid GPG key"
-        info "File type: $(file "$temp_gpg_file" 2>/dev/null || echo 'unknown')"
-        rm -f "$temp_gpg_file"
-        error "Downloaded file failed GPG format validation. Check Docker repository."
-    fi
-
-    # Convert to binary format (gpg --dearmor)
-    info "Converting GPG key to binary format..."
-    if ! gpg --yes --dearmor < "$temp_gpg_file" > /etc/apt/keyrings/docker.gpg 2>>"$LOG_FILE"; then
-        rm -f "$temp_gpg_file"
-        error "Failed to convert GPG key to binary format. Check $LOG_FILE for gpg errors."
-    fi
-
-    rm -f "$temp_gpg_file"
-    chmod a+r /etc/apt/keyrings/docker.gpg
-
-    success "Docker GPG key added and validated successfully"
+    setup_docker_gpg_key
 
     # Add Docker repository
     info "Adding Docker repository..."
@@ -483,16 +828,45 @@ create_directories() {
         echo ""
         warning "This means install.sh was run from the WRONG directory!"
         echo ""
-        info "Correct usage:"
-        echo "  1. Clone the repository (if not already done):"
-        echo "     git clone <repository-url> ~/familyBudget"
+
+        # ENHANCEMENT v1.1.0: Attempt auto-detection of repository directory
+        info "Attempting to auto-detect correct repository directory..."
         echo ""
-        echo "  2. Change to repository directory:"
-        echo "     cd ~/familyBudget"
-        echo ""
-        echo "  3. Run install.sh from repository root:"
-        echo "     sudo ./install.sh"
-        echo ""
+
+        local detected_repo
+        detected_repo=$(detect_repo_directory "$REPO_DIR")
+
+        if [[ $? -eq 0 ]] && [[ -n "$detected_repo" ]]; then
+            # Auto-detection succeeded
+            success "Repository found: $detected_repo"
+            echo ""
+            info "SUGGESTED FIX - Re-run install.sh from detected repository:"
+            echo ""
+            echo "  cd $detected_repo"
+            echo "  sudo ./install.sh"
+            echo ""
+        else
+            # Auto-detection failed
+            warning "Could not auto-detect repository directory"
+            echo ""
+            info "MANUAL STEPS to find and run install.sh correctly:"
+            echo ""
+            echo "  1. Find your repository directory:"
+            echo "     find ~ -name 'install.sh' -type f 2>/dev/null | grep familyBudget"
+            echo ""
+            echo "  2. Change to repository directory (from step 1):"
+            echo "     cd <path-from-step-1-directory>"
+            echo ""
+            echo "  3. Run install.sh from repository root:"
+            echo "     sudo ./install.sh"
+            echo ""
+            echo "  Alternative: Clone repository fresh if not found:"
+            echo "     git clone <repository-url> ~/familyBudget"
+            echo "     cd ~/familyBudget"
+            echo "     sudo ./install.sh"
+            echo ""
+        fi
+
         info "Current directory: $REPO_DIR"
         info "Expected: Repository root directory containing:"
         echo "  - nginx/conf.d/app-http.conf.template"
@@ -1181,11 +1555,86 @@ print_summary() {
     echo "========================================================================"
 }
 
+# Show usage information
+# Displays help message with available command-line options
+show_usage() {
+    cat << EOF
+Family Budget - System Installation Script
+
+Usage:
+  $0 [OPTIONS]
+
+Options:
+  --repo-dir DIR        Use custom repository directory instead of script location
+                        (Default: directory where install.sh is located)
+  -h, --help            Show this help message and exit
+
+Examples:
+  # Standard installation from repository directory
+  cd ~/familyBudget
+  sudo ./install.sh
+
+  # Installation with custom repository directory
+  sudo /path/to/install.sh --repo-dir ~/familyBudget
+
+  # Show help
+  ./install.sh --help
+
+Description:
+  This script installs system dependencies for Family Budget:
+  • Docker Engine and Docker Compose
+  • Node.js (via NVM or NodeSource)
+  • Python packages (boto3, pywebpush)
+  • UFW Firewall with basic rules
+  • Required system utilities
+
+  Run this script FIRST before setup.sh or deploy.sh.
+
+Logs:
+  Installation log: $LOG_FILE
+
+For more information, see:
+  README.md - User documentation
+  CLAUDE.md - Developer documentation
+EOF
+}
+
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
 main() {
+    # Parse command-line arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --repo-dir)
+                if [[ -z "$2" ]]; then
+                    echo "[ERROR] --repo-dir requires a directory argument"
+                    echo ""
+                    show_usage
+                    exit 1
+                fi
+                if [[ ! -d "$2" ]]; then
+                    echo "[ERROR] Repository directory does not exist: $2"
+                    exit 1
+                fi
+                REPO_DIR="$(cd "$2" && pwd)"
+                echo "[INFO] Using custom repository directory: $REPO_DIR"
+                shift 2
+                ;;
+            -h|--help)
+                show_usage
+                exit 0
+                ;;
+            *)
+                echo "[ERROR] Unknown option: $1"
+                echo ""
+                show_usage
+                exit 1
+                ;;
+        esac
+    done
+
     # Initialize log file
     mkdir -p "$(dirname "$LOG_FILE")"
     touch "$LOG_FILE"

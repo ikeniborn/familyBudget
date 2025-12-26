@@ -200,6 +200,155 @@ command_exists() {
 }
 
 # =============================================================================
+# REPOSITORY DETECTION (v1.1.0)
+# =============================================================================
+
+# Detect repository directory using multiple heuristics
+# Attempts to find the Family Budget repository root directory by trying:
+# 1. Git repository root (if in git repo) - MOST RELIABLE
+# 2. Walk up directory tree looking for marker files - FALLBACK
+# 3. Common installation locations - LAST RESORT
+#
+# Args:
+#   $1: starting directory (optional, default: pwd)
+# Returns:
+#   prints repository directory path if found (stdout)
+#   returns 0 if found, 1 if not found
+#
+# Marker files used for detection:
+#   - install.sh (installation script)
+#   - .env.example (environment template)
+#   - nginx/conf.d/app-http.conf.template (nginx config template)
+#
+# Usage:
+#   local repo_dir
+#   repo_dir=$(detect_repo_directory "$(pwd)")
+#   if [[ $? -eq 0 ]]; then
+#       echo "Repository found: $repo_dir"
+#   fi
+detect_repo_directory() {
+    local start_dir="${1:-$(pwd)}"
+    local repo_marker_files=("install.sh" ".env.example" "nginx/conf.d/app-http.conf.template")
+
+    info "Attempting to auto-detect repository directory..."
+    info "Starting search from: $start_dir"
+
+    # Method 1: Git repository root (most reliable)
+    if command_exists git; then
+        info "Method 1: Checking git repository root..."
+
+        local git_root
+        git_root=$(cd "$start_dir" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+
+        if [[ -n "$git_root" ]] && [[ -d "$git_root" ]]; then
+            info "Git root found: $git_root"
+
+            # Verify marker files exist in git root
+            local all_found=true
+            for marker in "${repo_marker_files[@]}"; do
+                if [[ ! -e "$git_root/$marker" ]]; then
+                    info "  Missing marker: $marker"
+                    all_found=false
+                    break
+                fi
+            done
+
+            if [[ "$all_found" == "true" ]]; then
+                info "Repository detected via git: $git_root"
+                info "All marker files found in git root"
+                echo "$git_root"
+                return 0
+            else
+                info "Git root missing marker files - not a valid Family Budget repository"
+            fi
+        else
+            info "Not inside a git repository"
+        fi
+    else
+        info "git command not available - skipping git detection"
+    fi
+
+    # Method 2: Walk up directory tree looking for marker files
+    info "Method 2: Walking up directory tree (max 5 levels)..."
+
+    local current_dir="$start_dir"
+    local max_depth=5
+    local depth=0
+
+    while [[ $depth -lt $max_depth ]]; do
+        info "  Checking directory (depth $depth): $current_dir"
+
+        # Check if all marker files exist in current directory
+        local all_found=true
+        for marker in "${repo_marker_files[@]}"; do
+            if [[ ! -e "$current_dir/$marker" ]]; then
+                all_found=false
+                break
+            fi
+        done
+
+        if [[ "$all_found" == "true" ]]; then
+            info "Repository detected via marker files: $current_dir"
+            echo "$current_dir"
+            return 0
+        fi
+
+        # Move up one directory
+        local parent_dir
+        parent_dir=$(dirname "$current_dir")
+
+        # Stop if reached root or no change
+        if [[ "$parent_dir" == "$current_dir" ]] || [[ "$parent_dir" == "/" ]]; then
+            info "  Reached filesystem root - stopping tree walk"
+            break
+        fi
+
+        current_dir="$parent_dir"
+        ((depth++))
+    done
+
+    info "No repository found via directory tree walk"
+
+    # Method 3: Check common locations
+    info "Method 3: Checking common installation locations..."
+
+    local common_locations=(
+        "$HOME/familyBudget"
+        "$HOME/Documents/familyBudget"
+        "$HOME/Documents/Project/familyBudget"
+        "$HOME/projects/familyBudget"
+        "/opt/budget"
+    )
+
+    for location in "${common_locations[@]}"; do
+        if [[ -d "$location" ]]; then
+            info "  Checking: $location"
+
+            # Verify marker files
+            local all_found=true
+            for marker in "${repo_marker_files[@]}"; do
+                if [[ ! -e "$location/$marker" ]]; then
+                    all_found=false
+                    break
+                fi
+            done
+
+            if [[ "$all_found" == "true" ]]; then
+                info "Repository detected in common location: $location"
+                echo "$location"
+                return 0
+            fi
+        fi
+    done
+
+    # Not found
+    warning "Could not auto-detect repository directory"
+    info "Tried methods: git root, directory tree walk, common locations"
+    info "Searched for marker files: ${repo_marker_files[*]}"
+    return 1
+}
+
+# =============================================================================
 # PRIVILEGE CHECKS
 # =============================================================================
 

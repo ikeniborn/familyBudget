@@ -260,16 +260,72 @@ check_deploy_dir() {
     done
 
     if [[ ${#missing_templates[@]} -gt 0 ]]; then
-        error "Required template files are missing:"
+        error "Required template files are missing from $DEPLOY_DIR:"
         for template in "${missing_templates[@]}"; do
             echo "  ✗ $template"
         done
         echo ""
         warning "This typically means install.sh was not run correctly."
-        info "Please run install.sh from the repository directory:"
-        echo "  cd ~/familyBudget  # (or your repository location)"
-        echo "  sudo ./install.sh"
         echo ""
+
+        # ENHANCEMENT v1.1.0: Attempt auto-detection of repository directory
+        info "Attempting to auto-detect repository directory..."
+
+        # Source utils.sh to get detect_repo_directory function
+        local script_dir
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+        if [[ -f "$script_dir/scripts/lib/utils.sh" ]]; then
+            source "$script_dir/scripts/lib/utils.sh"
+        elif [[ -f "scripts/lib/utils.sh" ]]; then
+            source "scripts/lib/utils.sh"
+        else
+            warning "Could not find scripts/lib/utils.sh - skipping auto-detection"
+        fi
+
+        # Try auto-detection if function is available
+        if command -v detect_repo_directory &>/dev/null; then
+            local detected_repo
+            detected_repo=$(detect_repo_directory "$(pwd)" 2>/dev/null)
+
+            if [[ $? -eq 0 ]] && [[ -n "$detected_repo" ]]; then
+                # Auto-detection succeeded
+                echo ""
+                success "Repository found: $detected_repo"
+                echo ""
+                info "OPTION 1 - Re-run install.sh from correct directory (RECOMMENDED):"
+                echo ""
+                echo "  cd $detected_repo"
+                echo "  sudo ./install.sh"
+                echo ""
+                info "OPTION 2 - Manual copy of template files (ADVANCED):"
+                echo ""
+                echo "  sudo cp $detected_repo/nginx/conf.d/app-http.conf.template $DEPLOY_DIR/nginx/conf.d/"
+                echo "  sudo cp $detected_repo/nginx/conf.d/app-https.conf.template $DEPLOY_DIR/nginx/conf.d/"
+                echo "  sudo cp $detected_repo/.env.example $DEPLOY_DIR/"
+                echo ""
+                echo "  Then re-run setup.sh:"
+                echo "  ./setup.sh"
+                echo ""
+            else
+                # Auto-detection failed
+                echo ""
+                info "Please run install.sh from the repository directory:"
+                echo ""
+                echo "  cd ~/familyBudget  # (or your repository location)"
+                echo "  sudo ./install.sh"
+                echo ""
+            fi
+        else
+            # Function not available
+            echo ""
+            info "Please run install.sh from the repository directory:"
+            echo ""
+            echo "  cd ~/familyBudget  # (or your repository location)"
+            echo "  sudo ./install.sh"
+            echo ""
+        fi
+
         exit 1
     fi
 
