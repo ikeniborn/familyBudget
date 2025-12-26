@@ -337,16 +337,27 @@ docker compose logs -f backend
 **Приоритет:** LOW
 **Решение:** Увеличить `pageSize` с 50 до 100 ИЛИ добавить индикатор пагинации
 
-### Issue 3: WebSocket не восстанавливается после перезапуска backend
-**Приоритет:** MEDIUM
+### Issue 3: WebSocket не восстанавливается после перезапуска backend ✅ ИСПРАВЛЕНО
+**Приоритет:** MEDIUM → ✅ **RESOLVED**
 **Симптом:** После перезапуска backend сервера WebSocket не переподключается автоматически - требуется перезагрузка страницы
-**Root Cause:** Логика reconnect в `BudgetWSClient` не обрабатывает сценарий потери соединения во время работы сервера
-**Workaround:** Пользователь перезагружает страницу вручную (F5)
-**TODO:** Добавить автоматический reconnect с exponential backoff в `budgetWSClient.js`
+**Root Cause:** Флаг `useLongPolling` устанавливается в `true` при таймауте WebSocket (например, во время перезапуска backend), но НИКОГДА не сбрасывается обратно в `false` перед попытками reconnect. В результате `_createConnection()` (строка 807) сразу переключается на long polling вместо попытки восстановить WebSocket.
+**Решение:** Добавлен reset `useLongPolling = false` в двух местах:
+- **Строка 1445:** В `_scheduleReconnect()` timeout callback перед `_createConnection()`
+- **Строка 1409:** В 'online' event handler перед `_createConnection()`
+**Результат:** WebSocket автоматически переподключается после перезапуска backend БЕЗ перезагрузки страницы
+**Файл:** `frontend/web/static/js/budget/budgetWSClient.js`
+**Коммит:** `5e8563c2` - fix(frontend): reset useLongPolling flag in WebSocket reconnect logic
+**Тестирование:** ✅ Проверено на budget-dev.ikeniborn.ru - reconnect работает автоматически
 
 ---
 
 ## Changelog
+
+**2025-12-26**
+- ✅ **Исправлен WebSocket автоматический reconnect** - добавлен reset `useLongPolling` флага
+- ✅ **Исправлен deploy.sh** - создание `sw.min.js.gz` при отсутствии файла
+- ✅ Протестировано на budget-dev - reconnect работает после перезапуска backend
+- ✅ Обновлена документация с подробным описанием решения
 
 **2025-12-25**
 - ✅ Добавлены WebSocket обработчики на `/plan` для real-time обновлений
