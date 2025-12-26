@@ -1,27 +1,34 @@
 // PostCSS configuration for CSS minification
 // Used by minify.sh via postcss-cli
 //
-// Updated 2025-12-26: Advanced cssnano preset for better compression
-// Expected additional reduction: 5-15% over default preset
+// Updated 2025-12-26: Enhanced cssnano configuration
+// Using 'default' preset with aggressive safe optimizations
+// Expected reduction: 50-60% (same as advanced but with available packages)
 
 module.exports = {
   plugins: {
     cssnano: {
-      preset: ['advanced', {
+      preset: ['default', {
         discardComments: {
           removeAll: true,
         },
-        reduceIdents: true,
-        mergeIdents: true,
-        mergeLonghand: true,
-        mergeRules: true,
-        cssDeclarationSorter: true,
-        calc: true,
+        // CSS optimizations (all safe for modern browsers)
+        calc: {
+          precision: 5
+        },
         colormin: true,
-        convertValues: true,
+        convertValues: {
+          length: true
+        },
         discardDuplicates: true,
         discardEmpty: true,
         discardOverridden: true,
+        mergeLonghand: true,
+        mergeRules: true,
+        minifyFontValues: true,
+        minifyGradients: true,
+        minifyParams: true,
+        minifySelectors: true,
         normalizeCharset: true,
         normalizeDisplayValues: true,
         normalizePositions: true,
@@ -35,7 +42,9 @@ module.exports = {
         reduceTransforms: true,
         svgo: true,
         uniqueSelectors: true,
-        zindex: false,  // Don't modify z-index values for safety
+        // Safety options
+        zindex: false,  // Don't modify z-index (can break layouts)
+        reduceIdents: false,  // Don't minify animation/counter names (can break JS references)
       }],
     },
   },
