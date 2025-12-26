@@ -1067,9 +1067,15 @@ main() {
     local sw_min="$DEPLOY_DIR/sw.min.js"
     local sw_min_gz="$DEPLOY_DIR/sw.min.js.gz"
 
+    # Check 1: Fix if files are directories (Docker artifact)
     if [[ -d "$sw_min" ]] || [[ -d "$sw_min_gz" ]]; then
         warning "Service Worker minified files are directories (Docker artifact) - fixing..."
         rm -rf "$sw_min" "$sw_min_gz"
+    fi
+
+    # Check 2: Create if files are missing (first deployment or deleted)
+    if [[ ! -f "$sw_min" ]] || [[ ! -f "$sw_min_gz" ]]; then
+        warning "Service Worker minified files missing - creating..."
 
         # Re-run minification for Service Worker only
         if [[ -f "$DEPLOY_DIR/sw.js" ]]; then
@@ -1078,6 +1084,8 @@ main() {
                 source scripts/lib/minify.sh
                 minify_service_worker
             )
+        else
+            error_return "Cannot create Service Worker minified files: sw.js not found"
         fi
     fi
 
