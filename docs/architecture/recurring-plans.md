@@ -214,7 +214,28 @@ The migration uses actual database constraint names (not SQLAlchemy auto-generat
 - `ck_recurring_plan_frequency_type` - Validates frequency_type values
 - `ck_recurring_plan_frequency_value_range` - Validates frequency_value ranges
 
-**Important:** If migration fails with "constraint does not exist", verify actual constraint names:
+**Data Migration:**
+⚠️ **CRITICAL:** Migration deletes existing daily/weekly recurring plans:
+```sql
+DELETE FROM t_d_recurring_plan
+WHERE frequency_type IN ('daily', 'weekly')
+```
+
+**Impact:**
+- All daily and weekly recurring plans will be **permanently deleted**
+- Users should be notified to recreate plans as monthly/quarterly/yearly
+- Test data with empty descriptions will be removed
+
+**Before Migration:**
+If production data exists, export daily/weekly plans:
+```sql
+-- Export daily/weekly plans for manual conversion
+SELECT * FROM t_d_recurring_plan
+WHERE frequency_type IN ('daily', 'weekly');
+```
+
+**Troubleshooting:**
+If migration fails with "constraint does not exist", verify actual constraint names:
 ```sql
 SELECT conname, contype FROM pg_constraint
 WHERE conrelid = 't_d_recurring_plan'::regclass;
