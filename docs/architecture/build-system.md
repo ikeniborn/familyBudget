@@ -1,7 +1,7 @@
 # Build System Architecture
 
-**Last Updated:** 2025-12-26
-**Version:** 5.6.0
+**Last Updated:** 2025-12-27
+**Version:** 5.7.0
 
 ## Overview
 
@@ -42,10 +42,40 @@ npm run build
 
 **Key optimizations in `.terserrc.json`:**
 - **3-pass compression** (`passes: 3`) - Multiple optimization rounds for maximum compression
-- **Top-level mangling** (`toplevel: true`) - Rename global variables (safe for IIFE modules)
+- **Top-level mangling disabled** (`toplevel: false`) - ⚠️ Prevents identifier conflicts between files
+- **Console logging cleanup** (`drop_console: ["log", "info", "debug"]`) - 🔇 Removes debug logs from production
 - **Unsafe optimizations** (`unsafe_arrows`, `unsafe_math`, etc.) - Aggressive but safe for modern browsers
 - **Boolean to integer** (`booleans_as_integers: true`) - `true`→1, `false`→0 for smaller output
 - **ECMAScript 2020** (`ecma: 2020`) - Use modern syntax features for better optimization
+
+**⚠️ Important: toplevel minification disabled (v5.7.0+)**
+
+After enabling `toplevel: true`, multiple minified files declared same identifiers (`const e`, `class t`) in global scope, causing "Identifier has already been declared" errors. Solution: disable toplevel to preserve original class/const names.
+
+**Trade-off:** ~5-10% larger files, but prevents critical runtime errors.
+
+**🔇 Console logging cleanup (v5.7.0+)**
+
+Production builds automatically remove debug logging to reduce file size and improve security:
+- **Removed**: `console.log()`, `console.info()`, `console.debug()`
+- **Preserved**: `console.warn()`, `console.error()`, `console.group()`, `console.groupEnd()`
+
+**Benefits**:
+- Cleaner production console (only warnings and errors)
+- Smaller file sizes (~2-5% additional reduction)
+- No sensitive debug information leaked to production
+- Source files unchanged - developers can still use console.log during development
+
+**Development workflow**:
+```javascript
+// Source code (budgetWSClient.js)
+console.log('[WS-WAKE] Wake Health Check');  // Visible in development
+console.error('[WS] Connection failed');      // Visible in both dev and prod
+
+// After minification (budgetWSClient.min.js)
+// console.log removed automatically
+console.error('[WS] Connection failed');      // Preserved
+```
 
 **Full configuration:**
 ```json
@@ -54,13 +84,17 @@ npm run build
   "compress": {
     "passes": 3,
     "booleans_as_integers": true,
-    "drop_console": false,
+    "drop_console": ["log", "info", "debug"],
     "unsafe_arrows": true,
     "unsafe_math": true
   },
   "mangle": {
-    "toplevel": true
-  }
+    "toplevel": false
+  },
+  "format": {
+    "wrap_iife": true
+  },
+  "toplevel": false
 }
 ```
 
@@ -416,6 +450,13 @@ curl -H "Accept-Encoding: gzip" -I http://localhost/static/js/budgetShared.min.j
 ---
 
 ## Change Log
+
+**2025-12-27 (v5.7.0):**
+- 🔇 **Console logging cleanup**: Configured Terser to drop console.log/info/debug in production
+- ⚠️ **Fixed toplevel minification**: Disabled toplevel to prevent identifier conflicts between files
+- Added comprehensive documentation for console dropping and toplevel limitations
+- Preserves console.warn and console.error for production debugging
+- Additional ~2-5% file size reduction from console removal
 
 **2025-12-26 (v5.6.0):**
 - Added advanced Terser configuration (3-8% additional compression)
