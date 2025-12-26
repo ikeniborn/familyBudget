@@ -30,25 +30,21 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Upgrade schema to support yearly frequency."""
 
-    # Drop old CHECK constraints
-    op.drop_constraint('t_d_recurring_plan_frequency_type_check', 't_d_recurring_plan', type_='check')
+    # Drop old CHECK constraints (using actual constraint names from DB)
+    op.drop_constraint('ck_recurring_plan_frequency_type', 't_d_recurring_plan', type_='check')
+    op.drop_constraint('ck_recurring_plan_frequency_value_range', 't_d_recurring_plan', type_='check')
 
     # Create new CHECK constraint (remove daily/weekly, add yearly)
     op.execute("""
         ALTER TABLE t_d_recurring_plan
-        ADD CONSTRAINT t_d_recurring_plan_frequency_type_check
+        ADD CONSTRAINT ck_recurring_plan_frequency_type
         CHECK (frequency_type IN ('monthly', 'quarterly', 'yearly'))
     """)
 
     # Update frequency_value constraint for yearly MMDD format
     op.execute("""
         ALTER TABLE t_d_recurring_plan
-        DROP CONSTRAINT IF EXISTS t_d_recurring_plan_frequency_value_check
-    """)
-
-    op.execute("""
-        ALTER TABLE t_d_recurring_plan
-        ADD CONSTRAINT t_d_recurring_plan_frequency_value_check
+        ADD CONSTRAINT ck_recurring_plan_frequency_value_range
         CHECK (
             (frequency_type = 'monthly' AND frequency_value BETWEEN 1 AND 28) OR
             (frequency_type = 'quarterly' AND frequency_value BETWEEN 1 AND 28) OR
@@ -66,20 +62,20 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema to previous version (restore daily/weekly)."""
 
-    # Drop new CHECK constraints
-    op.drop_constraint('t_d_recurring_plan_frequency_type_check', 't_d_recurring_plan', type_='check')
-    op.drop_constraint('t_d_recurring_plan_frequency_value_check', 't_d_recurring_plan', type_='check')
+    # Drop new CHECK constraints (using actual constraint names from DB)
+    op.drop_constraint('ck_recurring_plan_frequency_type', 't_d_recurring_plan', type_='check')
+    op.drop_constraint('ck_recurring_plan_frequency_value_range', 't_d_recurring_plan', type_='check')
 
     # Restore old CHECK constraints (with daily/weekly)
     op.execute("""
         ALTER TABLE t_d_recurring_plan
-        ADD CONSTRAINT t_d_recurring_plan_frequency_type_check
+        ADD CONSTRAINT ck_recurring_plan_frequency_type
         CHECK (frequency_type IN ('daily', 'weekly', 'monthly', 'quarterly'))
     """)
 
     op.execute("""
         ALTER TABLE t_d_recurring_plan
-        ADD CONSTRAINT t_d_recurring_plan_frequency_value_check
+        ADD CONSTRAINT ck_recurring_plan_frequency_value_range
         CHECK (frequency_value >= 1 AND frequency_value <= 31)
     """)
 
