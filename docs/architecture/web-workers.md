@@ -356,60 +356,30 @@ mobileList.innerHTML = result.mobileHTML;
 
 ---
 
-#### 6. analyticsWorker (Chart Data Processing)
+#### 6. analyticsWorker (Chart Data Processing) - REMOVED
 
-**Location**: `frontend/web/static/js/workers/analyticsWorker.js`
+**Status**: ❌ **DELETED in v5.6.0** (2025-12-26)
 
-**Purpose**: Chart data transformation in background thread.
+**Original Location**: `frontend/web/static/js/workers/analyticsWorker.js` (DELETED)
 
-**Actions Supported**:
-- `prepareWaterfallData`: Build waterfall chart structure (Начало → +Income → -Expense → Итого)
-- `preparePieData`: Process pie chart (top 10 + "Прочее" logic)
-- `aggregateByPeriod`: Aggregate by time periods (day/week/month/quarter/year)
-- `filterByCategory`: Filter by category IDs with hierarchy support
+**Purpose**: Chart data transformation in background thread (never integrated).
 
-**Performance Target**: 1000+ rows: 500ms → 100ms (80% faster)
-
-**Integration Status**: ❌ **NOT Integrated (Phase 5 Reverted)**
-
-**Reason for Revert** (Commit: 068f6b52):
-1. **Async Overhead Problem**: Functions became `async`, added 5-15ms overhead
-2. **Worker Threshold Too High**: >100 categories for pie, >50 periods for waterfall
-3. **Typical Usage**: Most users have <50 categories → worker NEVER used
-4. **Result**: Async overhead ALWAYS present, worker RARELY used
-5. **Performance Impact**: Charts became 2-3x SLOWER instead of faster
-
-**Before Revert**:
-```javascript
-async function updatePieChart(data) {
-    // Worker check adds async overhead (5-15ms)
-    if (data.categories.length > 100 && analyticsWorkerWrapper) {
-        const result = await analyticsWorkerWrapper.execute(...);
-    }
-    // Synchronous fallback (most common path)
-}
-```
-
-**After Revert**:
-```javascript
-function updatePieChart(data) {
-    // Pure synchronous processing (5-10ms)
-    if (data.categories.length > 10) {
-        const top10 = data.categories.slice(0, 10).map(...);
-        // ...
-    }
-}
-```
-
-**Performance Comparison**:
-| Metric | Before Fix | After Fix | Improvement |
-|--------|-----------|-----------|-------------|
-| Typical dataset (<50 categories) | 20-30ms | 5-10ms | **2-3x faster** |
-| Large dataset (>100 categories) | Worker used | Sync fallback | Same speed |
+**Reason for Removal**:
+1. **Never Integrated**: Created but never integrated into production code
+2. **Async Overhead Problem**: Would have added 5-15ms overhead to all chart operations
+3. **Worker Threshold Too High**: >100 categories for pie, >50 periods for waterfall
+4. **Typical Usage**: Most users have <50 categories → worker would NEVER activate
+5. **Performance Impact**: Async overhead ALWAYS present, worker RARELY used → net slowdown
 
 **Lesson Learned**: Async/await overhead > worker benefit for small datasets. Workers should NOT change function signatures.
 
-**Status**: ❌ **Worker Created but NOT Integrated** (files exist but unused)
+**Files Deleted**:
+- `frontend/web/static/js/workers/analyticsWorker.js` (11KB)
+- `frontend/web/static/js/workers/analyticsWorker.min.js` (3.7KB)
+
+**Removed in**: Commit 4186c000 (v5.6.0 Frontend Optimization)
+
+**Current Status**: Charts use synchronous processing (5-10ms for typical datasets)
 
 ---
 
