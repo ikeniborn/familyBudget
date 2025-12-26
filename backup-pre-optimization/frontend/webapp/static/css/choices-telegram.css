@@ -1,0 +1,251 @@
+/**
+ * Choices.js - Telegram Web App Theme
+ *
+ * Custom styles for Choices.js to match Telegram theme.
+ * Uses CSS variables from Telegram Web App SDK.
+ *
+ * @version 1.0.0
+ * @requires choices.min.css
+ */
+
+/* Container */
+.choices-telegram {
+    margin-bottom: 0;
+    font-size: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Inner container */
+.choices-telegram .choices__inner {
+    min-height: 44px;
+    padding: 8px 12px;
+    font-size: 16px;
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    border: 1px solid var(--tg-theme-hint-color, #d1d5db);
+    border-radius: 8px;
+    transition: border-color 0.15s ease;
+}
+
+.choices-telegram .choices__inner:focus,
+.choices-telegram.is-focused .choices__inner {
+    border-color: var(--tg-theme-button-color, #3b82f6);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.choices-telegram.is-disabled .choices__inner {
+    background-color: var(--tg-theme-secondary-bg-color, #f3f4f6);
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Input */
+.choices-telegram .choices__input {
+    font-size: 16px;
+    color: var(--tg-theme-text-color, #000000);
+    background-color: transparent;
+    padding: 4px 0;
+}
+
+.choices-telegram .choices__input::placeholder {
+    color: var(--tg-theme-hint-color, #9ca3af);
+    opacity: 1;
+}
+
+/* Selected item (single select) */
+.choices-telegram .choices__list--single .choices__item {
+    color: var(--tg-theme-text-color, #000000);
+    padding: 4px 0;
+}
+
+.choices-telegram .choices__placeholder {
+    color: var(--tg-theme-hint-color, #9ca3af);
+    opacity: 1;
+}
+
+/* CRITICAL: Hide placeholder in selected area when another item is selected */
+/* This fixes the bug where placeholder div remains visible after category selection */
+.choices-telegram .choices__list--single .choices__item[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with class="undefined undefined" (malformed Choices.js output) */
+/* Only hide if it has data-value="" (empty = placeholder) AND is not the only child */
+.choices-telegram .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with only "undefined" class (no choices__item) - must have empty data-value */
+.choices-telegram .choices__list--single > .undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices-telegram .choices__list--single > div.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder in dropdown list */
+.choices-telegram .choices__list--dropdown .choices__placeholder,
+.choices-telegram .choices__list--dropdown .choices__item[data-value=""] {
+    display: none !important;
+}
+
+/* Dropdown */
+.choices-telegram .choices__list--dropdown {
+    background-color: var(--tg-theme-bg-color, #ffffff);
+    border: 1px solid var(--tg-theme-hint-color, #d1d5db);
+    border-radius: 8px;
+    margin-top: 4px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+/* Add spacing between search input and dropdown list (UX improvement for mobile) */
+.choices-telegram .choices__list--dropdown .choices__list {
+    max-height: 280px;
+    margin-top: 8px;
+}
+
+/* Dropdown items */
+.choices-telegram .choices__list--dropdown .choices__item {
+    padding: 12px 16px;
+    font-size: 16px;
+    color: var(--tg-theme-text-color, #000000);
+    transition: background-color 0.15s ease;
+}
+
+.choices-telegram .choices__list--dropdown .choices__item--selectable {
+    cursor: pointer;
+}
+
+.choices-telegram .choices__list--dropdown .choices__item--selectable:hover,
+.choices-telegram .choices__list--dropdown .choices__item--selectable.is-highlighted {
+    background-color: var(--tg-theme-secondary-bg-color, #f3f4f6);
+}
+
+.choices-telegram .choices__list--dropdown .choices__item--selectable:active {
+    background-color: var(--tg-theme-button-color, #3b82f6);
+    color: var(--tg-theme-button-text-color, #ffffff);
+}
+
+.choices-telegram .choices__item--disabled {
+    color: var(--tg-theme-hint-color, #9ca3af);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+/* Search input in dropdown */
+.choices-telegram .choices__input--cloned {
+    font-size: 16px;
+    color: var(--tg-theme-text-color, #000000);
+    background-color: transparent;
+}
+
+/* Group headings */
+.choices-telegram .choices__group .choices__heading {
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 16px 4px;
+    color: var(--tg-theme-hint-color, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Empty state */
+.choices-telegram .choices__item--choice.has-no-results,
+.choices-telegram .choices__item--choice.has-no-choices {
+    color: var(--tg-theme-hint-color, #9ca3af);
+    padding: 16px;
+    text-align: center;
+}
+
+/* Remove button (for multiple select) */
+.choices-telegram .choices__button {
+    background-color: transparent;
+    border: none;
+    color: var(--tg-theme-hint-color, #9ca3af);
+    font-size: 20px;
+    padding: 0 8px;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.choices-telegram .choices__button:hover {
+    color: var(--tg-theme-destructive-text-color, #ef4444);
+}
+
+/* Loading state */
+.choices-telegram .choices__list--dropdown .is-loading {
+    opacity: 0.6;
+}
+
+/* Path display (custom element) */
+.category-path {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--tg-theme-hint-color, #9ca3af);
+    line-height: 1.5;
+    padding: 4px 0;
+    word-break: break-word;
+}
+
+.category-path:empty {
+    display: none;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+    .choices-telegram .choices__inner {
+        background-color: var(--tg-theme-bg-color, #1f2937);
+        border-color: var(--tg-theme-hint-color, #4b5563);
+    }
+
+    .choices-telegram .choices__list--dropdown {
+        background-color: var(--tg-theme-bg-color, #1f2937);
+        border-color: var(--tg-theme-hint-color, #4b5563);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    .choices-telegram .choices__list--dropdown .choices__item--selectable:hover,
+    .choices-telegram .choices__list--dropdown .choices__item--selectable.is-highlighted {
+        background-color: var(--tg-theme-secondary-bg-color, #374151);
+    }
+}
+
+/* Accessibility */
+.choices-telegram:focus-visible {
+    outline: 2px solid var(--tg-theme-button-color, #3b82f6);
+    outline-offset: 2px;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+    .choices-telegram .choices__inner {
+        min-height: 48px;
+        font-size: 16px;  /* Prevent zoom on iOS */
+    }
+
+    .choices-telegram .choices__list--dropdown .choices__item {
+        padding: 14px 16px;
+        font-size: 16px;
+    }
+}
+
+/* Scrollbar styling for dropdown (WebKit) */
+.choices-telegram .choices__list--dropdown::-webkit-scrollbar {
+    width: 8px;
+}
+
+.choices-telegram .choices__list--dropdown::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.choices-telegram .choices__list--dropdown::-webkit-scrollbar-thumb {
+    background-color: var(--tg-theme-hint-color, #d1d5db);
+    border-radius: 4px;
+}
+
+.choices-telegram .choices__list--dropdown::-webkit-scrollbar-thumb:hover {
+    background-color: var(--tg-theme-button-color, #3b82f6);
+}

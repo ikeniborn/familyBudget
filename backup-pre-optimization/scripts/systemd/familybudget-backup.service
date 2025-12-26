@@ -1,0 +1,33 @@
+[Unit]
+Description=Family Budget PostgreSQL Backup Service
+Documentation=file:///path/to/project/scripts/README.md
+After=network.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/opt/familybudget
+
+# Environment file
+EnvironmentFile=/opt/familybudget/.env
+
+# Backup command
+ExecStart=/opt/familybudget/scripts/backup.sh
+
+# Logging
+StandardOutput=append:/var/log/familybudget/backup.log
+StandardError=append:/var/log/familybudget/backup_error.log
+
+# Security settings
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+# Resource limits
+TimeoutStartSec=1h
+CPUQuota=50%
+MemoryLimit=512M
+
+[Install]
+WantedBy=multi-user.target

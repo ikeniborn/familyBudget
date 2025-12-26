@@ -1,0 +1,669 @@
+/**
+ * Choices.js - Tailwind CSS Theme
+ *
+ * Custom styles for Choices.js to integrate with Tailwind CSS design system.
+ * Compatible with DaisyUI components.
+ *
+ * @version 1.0.0
+ * @requires choices.min.css
+ * @requires tailwindcss
+ */
+
+/* Container */
+.choices-tailwind {
+    @apply mb-0 text-base;
+}
+
+/* Inner container - matches Tailwind input styling */
+.choices-tailwind .choices__inner {
+    @apply min-h-[44px] px-3 py-2 text-base bg-white border border-gray-300 rounded-lg transition-colors duration-150;
+}
+
+.choices-tailwind .choices__inner:focus,
+.choices-tailwind.is-focused .choices__inner {
+    @apply border-blue-500 ring-2 ring-blue-100 outline-none;
+}
+
+.choices-tailwind.is-disabled .choices__inner {
+    @apply bg-gray-100 opacity-60 cursor-not-allowed;
+}
+
+/* Dark mode - inner container */
+.dark .choices-tailwind .choices__inner {
+    @apply bg-gray-800 border-gray-600 text-white;
+}
+
+.dark .choices-tailwind.is-focused .choices__inner {
+    @apply border-blue-400 ring-blue-900;
+}
+
+.dark .choices-tailwind.is-disabled .choices__inner {
+    @apply bg-gray-700;
+}
+
+/* Input */
+.choices-tailwind .choices__input {
+    @apply text-base text-gray-900 bg-transparent py-1;
+}
+
+.choices-tailwind .choices__input::placeholder {
+    @apply text-gray-400;
+}
+
+.dark .choices-tailwind .choices__input {
+    @apply text-white;
+}
+
+.dark .choices-tailwind .choices__input::placeholder {
+    @apply text-gray-500;
+}
+
+/* Selected item (single select) */
+.choices-tailwind .choices__list--single .choices__item,
+.choices-telegram .choices__list--single .choices__item {
+    @apply text-gray-900 py-1;
+}
+
+.dark .choices-tailwind .choices__list--single .choices__item,
+.dark .choices-telegram .choices__list--single .choices__item {
+    @apply text-white;
+}
+
+.choices-tailwind .choices__placeholder,
+.choices-telegram .choices__placeholder {
+    @apply text-gray-400 opacity-100;
+}
+
+.dark .choices-tailwind .choices__placeholder,
+.dark .choices-telegram .choices__placeholder {
+    @apply text-gray-500;
+}
+
+/* Hide placeholder item in dropdown (it should only show in selected area) */
+/* Global rules (work for all Choices.js instances) */
+.choices__list--dropdown .choices__placeholder {
+    display: none !important;
+}
+
+/* Hide placeholder item by data attribute (Choices.js uses data-value="" for placeholder) */
+.choices__list--dropdown .choices__item[data-value=""] {
+    display: none !important;
+}
+
+/* Hide disabled placeholder items in dropdown */
+.choices__list--dropdown .choices__item--disabled.choices__placeholder {
+    display: none !important;
+}
+
+/* Also target by text content hint - items that look like placeholders */
+.choices__list--dropdown .choices__item--choice:first-child[data-value=""] {
+    display: none !important;
+}
+
+/* Tailwind/Telegram-specific rules (for specificity) */
+.choices-tailwind .choices__list--dropdown .choices__placeholder,
+.choices-telegram .choices__list--dropdown .choices__placeholder {
+    display: none !important;
+}
+
+/* ============================================================================
+ * GLOBAL DROPDOWN STYLES (applies to ALL Choices.js instances)
+ * Fixes transparent background issue for dropdowns without wrapper class
+ * ============================================================================ */
+.choices__list--dropdown {
+    background-color: white !important;
+    opacity: 1 !important;
+    z-index: 30 !important;
+    border: 1px solid rgb(209 213 219) !important; /* gray-300 */
+    border-radius: 0.5rem !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dark .choices__list--dropdown {
+    background-color: rgb(31 41 55) !important; /* gray-800 */
+    border-color: rgb(75 85 99) !important; /* gray-600 */
+}
+
+/* Global dropdown item styles for readability */
+.choices__list--dropdown .choices__item {
+    color: rgb(17 24 39) !important; /* gray-900 */
+    padding: 0.75rem 1rem !important;
+}
+
+.dark .choices__list--dropdown .choices__item {
+    color: rgb(255 255 255) !important; /* white */
+}
+
+.choices__list--dropdown .choices__item--selectable:hover,
+.choices__list--dropdown .choices__item--selectable.is-highlighted {
+    background-color: rgb(243 244 246) !important; /* gray-100 */
+}
+
+.dark .choices__list--dropdown .choices__item--selectable:hover,
+.dark .choices__list--dropdown .choices__item--selectable.is-highlighted {
+    background-color: rgb(55 65 81) !important; /* gray-700 */
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item[data-value=""],
+.choices-telegram .choices__list--dropdown .choices__item[data-value=""] {
+    display: none !important;
+}
+
+/* CRITICAL: Hide placeholder in selected area when another item is selected */
+/* This fixes the bug where placeholder div remains visible after category selection */
+.choices__list--single .choices__item[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices-tailwind .choices__list--single .choices__item[data-value=""]:not(:only-child),
+.choices-telegram .choices__list--single .choices__item[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with class="undefined undefined" (malformed Choices.js output) */
+/* Only hide if it has data-value="" (empty = placeholder) AND is not the only child */
+.choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices-tailwind .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child),
+.choices-telegram .choices__list--single .choices__item.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Hide placeholder div with only "undefined" class (no choices__item) - must have empty data-value */
+.choices__list--single > .undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+.choices__list--single > div.undefined[data-value=""]:not(:only-child) {
+    display: none !important;
+}
+
+/* Dropdown */
+.choices-tailwind .choices__list--dropdown {
+    @apply bg-white border border-gray-300 rounded-lg mt-1 shadow-lg max-h-[280px] overflow-y-auto;
+    /* Force solid background and readable z-index (below header z-40, above charts z-1) */
+    background-color: white !important;
+    opacity: 1 !important;
+    z-index: 30 !important;
+}
+
+/* Add spacing between search input and dropdown list (UX improvement for mobile) */
+.choices-tailwind .choices__list--dropdown .choices__list {
+    @apply mt-2;
+}
+
+.dark .choices-tailwind .choices__list--dropdown {
+    @apply bg-gray-800 border-gray-600 shadow-2xl;
+    /* Force solid background in dark mode */
+    background-color: rgb(31 41 55) !important; /* gray-800 */
+}
+
+.choices-tailwind .choices__list--dropdown .choices__list {
+    @apply max-h-[280px];
+}
+
+/* Dropdown items */
+.choices-tailwind .choices__list--dropdown .choices__item {
+    @apply px-4 py-3 text-base transition-colors duration-150;
+    /* Force readable text color */
+    color: rgb(17 24 39) !important; /* gray-900 */
+}
+
+.dark .choices-tailwind .choices__list--dropdown .choices__item {
+    /* Force readable text color in dark mode */
+    color: rgb(255 255 255) !important; /* white */
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item--selectable {
+    @apply cursor-pointer;
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item--selectable:hover,
+.choices-tailwind .choices__list--dropdown .choices__item--selectable.is-highlighted {
+    @apply bg-gray-100;
+}
+
+.dark .choices-tailwind .choices__list--dropdown .choices__item--selectable:hover,
+.dark .choices-tailwind .choices__list--dropdown .choices__item--selectable.is-highlighted {
+    @apply bg-gray-700;
+}
+
+.choices-tailwind .choices__list--dropdown .choices__item--selectable:active {
+    @apply bg-blue-500 text-white;
+}
+
+.dark .choices-tailwind .choices__list--dropdown .choices__item--selectable:active {
+    @apply bg-blue-600;
+}
+
+.choices-tailwind .choices__item--disabled {
+    @apply text-gray-400 cursor-not-allowed opacity-50;
+}
+
+.dark .choices-tailwind .choices__item--disabled {
+    @apply text-gray-500;
+}
+
+/* Search input in dropdown */
+.choices-tailwind .choices__input--cloned {
+    @apply text-base text-gray-900 bg-transparent;
+}
+
+.dark .choices-tailwind .choices__input--cloned {
+    @apply text-white;
+}
+
+/* Group headings */
+.choices-tailwind .choices__group .choices__heading {
+    @apply text-sm font-semibold px-4 py-2 text-gray-500 uppercase tracking-wide;
+}
+
+.dark .choices-tailwind .choices__group .choices__heading {
+    @apply text-gray-400;
+}
+
+/* Empty state */
+.choices-tailwind .choices__item--choice.has-no-results,
+.choices-tailwind .choices__item--choice.has-no-choices {
+    @apply text-gray-400 py-4 text-center;
+}
+
+.dark .choices-tailwind .choices__item--choice.has-no-results,
+.dark .choices-tailwind .choices__item--choice.has-no-choices {
+    @apply text-gray-500;
+}
+
+/* Remove button (for multiple select) */
+.choices-tailwind .choices__button {
+    @apply bg-transparent border-0 text-gray-400 text-xl px-2 cursor-pointer transition-colors duration-150;
+}
+
+.choices-tailwind .choices__button:hover {
+    @apply text-red-500;
+}
+
+.dark .choices-tailwind .choices__button {
+    @apply text-gray-500;
+}
+
+.dark .choices-tailwind .choices__button:hover {
+    @apply text-red-400;
+}
+
+/* Loading state */
+.choices-tailwind .choices__list--dropdown .is-loading {
+    @apply opacity-60;
+}
+
+/* Path display (custom element) */
+.category-path {
+    @apply mt-2 text-sm text-gray-500 leading-relaxed break-words;
+}
+
+.dark .category-path {
+    @apply text-gray-400;
+}
+
+.category-path:empty {
+    @apply hidden;
+}
+
+/* Accessibility */
+.choices-tailwind:focus-visible {
+    @apply outline-2 outline-blue-500 outline-offset-2;
+}
+
+/* CRITICAL: Prevent zoom on input focus (iOS/Android/Yandex Browser) - GLOBAL RULE */
+/* Apply to ALL devices, not just mobile, to ensure consistent behavior */
+.choices-tailwind .choices__input,
+.choices-tailwind .choices__input--cloned,
+.choices-tailwind input.choices__input,
+.choices-tailwind input.choices__input--cloned {
+    font-size: 16px !important;  /* Minimum to prevent auto-zoom on mobile browsers */
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+    .choices-tailwind .choices__inner {
+        @apply min-h-[48px] text-base;  /* Prevent zoom on iOS */
+        touch-action: manipulation;  /* Prevent double-tap zoom */
+    }
+
+    .choices-tailwind .choices__list--dropdown .choices__item {
+        @apply py-3.5 text-base;
+    }
+
+    /* CRITICAL: Prevent zoom on ALL input elements (iOS/Android/Yandex Browser) */
+    /* Mobile-specific overrides with maximum specificity */
+    .choices-tailwind .choices__input,
+    .choices-tailwind .choices__input--cloned,
+    .choices-tailwind input.choices__input,
+    .choices-tailwind input.choices__input--cloned {
+        font-size: 16px !important;  /* Minimum to prevent zoom */
+        min-height: 44px !important;  /* Touch-friendly height */
+        max-height: none !important;  /* Prevent height constraints */
+        line-height: 1.5 !important;  /* Ensure readability */
+        -webkit-text-size-adjust: 100% !important;  /* Disable font boosting */
+        -moz-text-size-adjust: 100% !important;
+        -ms-text-size-adjust: 100% !important;
+        text-size-adjust: 100% !important;
+        touch-action: manipulation !important;  /* Prevent double-tap zoom */
+        user-select: text !important;  /* Allow text selection */
+    }
+
+    /* Prevent zoom on dropdown itself */
+    .choices-tailwind .choices__list--dropdown {
+        touch-action: manipulation;
+    }
+}
+
+/* Scrollbar styling for dropdown (WebKit) */
+.choices-tailwind .choices__list--dropdown::-webkit-scrollbar {
+    @apply w-2;
+}
+
+.choices-tailwind .choices__list--dropdown::-webkit-scrollbar-track {
+    @apply bg-transparent;
+}
+
+.choices-tailwind .choices__list--dropdown::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 rounded;
+}
+
+.dark .choices-tailwind .choices__list--dropdown::-webkit-scrollbar-thumb {
+    @apply bg-gray-600;
+}
+
+.choices-tailwind .choices__list--dropdown::-webkit-scrollbar-thumb:hover {
+    @apply bg-blue-500;
+}
+
+.dark .choices-tailwind .choices__list--dropdown::-webkit-scrollbar-thumb:hover {
+    @apply bg-blue-400;
+}
+
+/* DaisyUI integration */
+.choices-tailwind.input-bordered .choices__inner {
+    @apply border-base-300;
+}
+
+.choices-tailwind.input-primary .choices__inner {
+    @apply border-primary;
+}
+
+.choices-tailwind.input-primary.is-focused .choices__inner {
+    @apply border-primary ring-primary ring-opacity-20;
+}
+
+.choices-tailwind.input-secondary .choices__inner {
+    @apply border-secondary;
+}
+
+.choices-tailwind.input-secondary.is-focused .choices__inner {
+    @apply border-secondary ring-secondary ring-opacity-20;
+}
+
+.choices-tailwind.input-error .choices__inner {
+    @apply border-error;
+}
+
+.choices-tailwind.input-error.is-focused .choices__inner {
+    @apply border-error ring-error ring-opacity-20;
+}
+
+/* Size variants */
+.choices-tailwind.input-sm .choices__inner {
+    @apply min-h-[36px] px-2.5 py-1.5 text-sm;
+}
+
+.choices-tailwind.input-lg .choices__inner {
+    @apply min-h-[52px] px-4 py-3 text-lg;
+}
+
+/* Product group parent path styling (smaller and gray) */
+/* Applied in dropdown items and selected item display */
+.product-group-parents,
+.choices__list--dropdown .product-group-parents,
+.choices__list--single .product-group-parents,
+.choices__item .product-group-parents {
+    color: rgb(107 114 128) !important; /* gray-500 */
+    font-size: 0.8em !important;
+    font-weight: 400 !important;
+    opacity: 0.85;
+}
+
+.dark .product-group-parents,
+.dark .choices__list--dropdown .product-group-parents,
+.dark .choices__list--single .product-group-parents,
+.dark .choices__item .product-group-parents {
+    color: rgb(156 163 175) !important; /* gray-400 */
+}
+
+/* ============================================================================
+ * Visual separator lines - top and bottom of dropdown list
+ * Improves visual separation between search input and list items
+ * ============================================================================ */
+.choices__list--dropdown .choices__list {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.choices__list--dropdown .choices__list::before {
+    content: '';
+    display: block;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0 1rem 0.5rem 1rem;
+}
+
+.choices__list--dropdown .choices__list::after {
+    content: '';
+    display: block;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+    margin: 0.5rem 1rem 0 1rem;
+}
+
+.dark .choices__list--dropdown .choices__list::before,
+.dark .choices__list--dropdown .choices__list::after {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================================
+ * MULTI-SELECT MODE: Comma-Separated Display
+ * ============================================================================ */
+
+/* Container for comma-separated items */
+.choices-tailwind .choices__list--multiple,
+.choices.is-multiple .choices__list--multiple {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: center;
+    padding: 0.25rem 0;
+}
+
+/* Individual comma-separated item */
+.choices__item--comma {
+    display: inline;
+    font-size: 0.875rem;
+    color: inherit;
+    padding: 0;
+    margin: 0;
+    background: transparent !important;
+    border: none !important;
+}
+
+/* Add comma separator between items */
+.choices__item--comma:not(:last-child)::after {
+    content: ', ';
+}
+
+/* ============================================================================
+ * MULTI-SELECT MODE: Badge Style with Remove Buttons
+ * ============================================================================ */
+
+/* Container for badge items */
+.choices.is-multiple .choices__list--multiple:has(.choices__item--badge) {
+    gap: 0.375rem;
+    padding: 0.25rem 0;
+}
+
+/* Individual badge item */
+.choices__item--badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    background-color: #dbeafe;  /* blue-100 */
+    color: #1e40af;  /* blue-800 */
+    border-radius: 9999px;  /* full rounded */
+    transition: all 0.15s ease;
+}
+
+.choices__item--badge:hover {
+    background-color: #bfdbfe;  /* blue-200 */
+}
+
+.dark .choices__item--badge {
+    background-color: #1e3a5f;
+    color: #93c5fd;  /* blue-300 */
+}
+
+.dark .choices__item--badge:hover {
+    background-color: #1e4976;
+}
+
+/* Badge text */
+.choices__item--badge-text {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Remove button inside badge */
+.choices__item--badge .choices__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    padding: 0;
+    margin-left: 0.125rem;
+    font-size: 0.875rem;
+    font-weight: bold;
+    line-height: 1;
+    color: #3b82f6;  /* blue-500 */
+    background: transparent;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.choices__item--badge .choices__button:hover {
+    color: #ffffff;
+    background-color: #ef4444;  /* red-500 */
+}
+
+.dark .choices__item--badge .choices__button {
+    color: #60a5fa;  /* blue-400 */
+}
+
+.dark .choices__item--badge .choices__button:hover {
+    color: #ffffff;
+    background-color: #dc2626;  /* red-600 */
+}
+
+/* Mobile optimizations for badges */
+@media (max-width: 640px) {
+    .choices__item--badge {
+        font-size: 0.75rem;
+        padding: 0.1875rem 0.375rem;
+    }
+
+    .choices__item--badge-text {
+        max-width: 100px;
+    }
+
+    .choices__item--badge .choices__button {
+        width: 1.125rem;
+        height: 1.125rem;
+        font-size: 1rem;
+    }
+}
+
+/* ============================================================================
+ * Clear button outside form (под формой справа)
+ * ============================================================================ */
+
+/* Wrapper for clear button (positioned under form) */
+.choices__clear-wrapper {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+}
+
+/* Clear all button styling - only X icon */
+.choices__clear-all {
+    display: none;  /* Hidden by default, shown via JS */
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem;
+    color: #6b7280;  /* gray-500 */
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.choices__clear-all:hover {
+    color: #ef4444;  /* red-500 */
+    background-color: #fef2f2;  /* red-50 */
+}
+
+.dark .choices__clear-all {
+    color: #9ca3af;  /* gray-400 */
+}
+
+.dark .choices__clear-all:hover {
+    color: #f87171;  /* red-400 */
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* ============================================================================
+ * Clickable area for dropdown (multi-select)
+ * ============================================================================ */
+
+/* Make entire inner area clickable */
+.choices.is-multiple .choices__inner,
+.choices-tailwind.is-multiple .choices__inner {
+    cursor: pointer;
+    min-height: 44px;
+}
+
+/* Mobile optimizations for multi-select */
+@media (max-width: 640px) {
+    .choices__item--comma {
+        font-size: 0.8125rem;  /* Slightly smaller on mobile */
+    }
+
+    .choices.is-multiple .choices__inner,
+    .choices-tailwind.is-multiple .choices__inner {
+        min-height: 48px;
+    }
+
+    .choices__clear-all {
+        padding: 0.5rem;  /* Larger touch target on mobile */
+    }
+}

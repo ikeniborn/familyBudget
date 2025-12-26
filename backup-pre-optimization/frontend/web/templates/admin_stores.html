@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+{% from "components/modal_confirm.html" import confirm_modal %}
+{% from "components/status_filter.html" import status_filter %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">🏪 Управление магазинами</h1>
+        <p class="text-base-content/70">Управляйте магазинами и торговыми точками для списков покупок</p>
+    </div>
+
+    <!-- Stores Table -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <h2 class="card-title text-2xl">🏪 Магазины</h2>
+                <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                    Новый магазин
+                </button>
+            </div>
+
+            <!-- Status Filter (from macro) -->
+            {{ status_filter() }}
+
+            <div id="stores-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Store Modal -->
+<dialog id="create-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новый магазин</h3>
+        <form id="create-form" onsubmit="createStore(event)" class="space-y-2 sm:space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Например: Walmart" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📍 Адрес</span>
+                </label>
+                <input type="text" id="create-address" name="address" maxlength="500" placeholder="123 Main St, City" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📄 Описание</span>
+                </label>
+                <textarea id="create-description" name="description" rows="3" placeholder="Введите описание..." class="textarea textarea-bordered"></textarea>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">✅ Создать</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Edit Store Modal -->
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать магазин</h3>
+        <form id="edit-form" onsubmit="updateStore(event)" class="space-y-2 sm:space-y-4">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📍 Адрес</span>
+                </label>
+                <input type="text" id="edit-address" name="address" maxlength="500" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📄 Описание</span>
+                </label>
+                <textarea id="edit-description" name="description" rows="3" class="textarea textarea-bordered"></textarea>
+            </div>
+            <!-- Modal Actions (Cancel/Save + Mobile Delete) -->
+            <div class="modal-action mt-3 flex flex-row gap-2">
+                <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
+                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteStoreFromEditModal()" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+                <!-- Разделитель (пустое пространство) -->
+                <div class="flex-1 md:hidden"></div>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Confirmation Dialog (from macro) -->
+{{ confirm_modal() }}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/confirmDialog.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/adminStatusFilter.js?v=PLACEHOLDER"></script>
+<script>
+// Global state
+let storesData = [];
+
+// Status filter callback (used by adminStatusFilter.js)
+window.onStatusFilterChange = function(status) {
+    currentStatusFilter = status;
+    renderStoresTable();
+};
+let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
+const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+
+// Load stores on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadStores();
+});
+
+// Load stores from API
+async function loadStores() {
+    const container = document.getElementById('stores-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        // Include inactive stores if viewing "all" or "archived" filter
+        let url = '/api/v1/stores?limit=1000';
+        if (currentStatusFilter === 'all' || currentStatusFilter === 'archived') {
+            url += '&include_inactive=true';
+        }
+
+        const response = await fetch(url, {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        storesData = data.stores || [];
+
+        renderStoresTable();
+    } catch (error) {
+        console.error('Failed to load stores:', error);
+        container.innerHTML = '<div class="alert alert-error"><span>❌ Ошибка загрузки магазинов. Попробуйте перезагрузить страницу.</span></div>';
+    }
+}
+
+// Render stores table
+function renderStoresTable() {
+    const container = document.getElementById('stores-table-container');
+
+    // Filter stores by status
+    let filteredStores = storesData;
+    if (currentStatusFilter === 'active') {
+        filteredStores = storesData.filter(s => s.is_active);
+    } else if (currentStatusFilter === 'archived') {
+        filteredStores = storesData.filter(s => !s.is_active);
+    }
+
+    if (filteredStores.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-8 text-base-content/70">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <p class="text-lg">Магазины не найдены</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Build table HTML
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
+                <thead>
+                    <tr>
+                        <th class="w-12">#</th>
+                        <th>Название</th>
+                        <th class="hidden md:table-cell">Адрес</th>
+                        <th class="hidden md:table-cell">Код</th>
+                        <th class="text-center">Статус</th>
+                        <th class="text-right">Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    filteredStores.forEach((store, index) => {
+        const statusBadge = store.is_active
+            ? '<span class="badge badge-success badge-sm">✓</span>'
+            : '<span class="badge badge-ghost badge-sm">📦</span>';
+
+        // Actions column - Edit for all users, Archive/Delete only for admins
+        let actions = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${store.id})" title="Редактировать">✏️</button>`;
+
+        // Admin-only buttons: Archive/Restore and Delete
+        if (isAdmin) {
+            if (store.is_active) {
+                actions += `
+                    <button class="btn btn-xs btn-warning gap-1" onclick="archiveStore(${store.id})" title="Архивировать">📦</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteStore(${store.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            } else {
+                actions += `
+                    <button class="btn btn-xs btn-success gap-1" onclick="restoreStore(${store.id})" title="Восстановить">♻️</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deleteStore(${store.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            }
+        }
+        const actionsCell = `<td class="text-right space-x-1">${actions}</td>`;
+
+        html += `
+            <tr>
+                <td>${index + 1}</td>
+                <td>
+                    <div class="font-semibold">${escapeHtml(store.name)}</div>
+                    ${store.description ? `<div class="text-sm text-base-content/70 mt-1">${escapeHtml(store.description)}</div>` : ''}
+                </td>
+                <td class="hidden md:table-cell">${store.address ? escapeHtml(store.address) : '<span class="text-base-content/50">—</span>'}</td>
+                <td class="hidden md:table-cell"><span class="badge badge-outline badge-sm">${store.code}</span></td>
+                <td class="text-center">${statusBadge}</td>
+                ${actionsCell}
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// updateStatusFilter is provided by adminStatusFilter.js
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-form').reset();
+    document.getElementById('create-modal').showModal();
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').close();
+}
+
+// Extract error message from response
+function extractErrorMessage(error, defaultMessage) {
+    if (!error.detail) return defaultMessage;
+    if (typeof error.detail === 'string') return error.detail;
+    if (Array.isArray(error.detail)) {
+        // Pydantic validation errors
+        return error.detail.map(e => e.msg).join(', ');
+    }
+    return defaultMessage;
+}
+
+// Create store
+async function createStore(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = {
+        name: form.name.value.trim(),
+        address: form.address.value.trim() || null,
+        description: form.description.value.trim() || null,
+    };
+
+    try {
+        const response = await fetch('/api/v1/stores', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(extractErrorMessage(error, 'Failed to create store'));
+        }
+
+        closeCreateModal();
+        await loadStores();
+        showToast('✅ Магазин создан успешно', 'success');
+    } catch (error) {
+        console.error('Failed to create store:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Show edit modal
+function showEditModal(storeId) {
+    const store = storesData.find(s => s.id === storeId);
+    if (!store) {
+        showToast('❌ Магазин не найден', 'error');
+        return;
+    }
+
+    document.getElementById('edit-id').value = store.id;
+    document.getElementById('edit-name').value = store.name;
+    document.getElementById('edit-address').value = store.address || '';
+    document.getElementById('edit-description').value = store.description || '';
+
+    document.getElementById('edit-modal').showModal();
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').close();
+}
+
+// Delete store from edit modal (mobile only)
+function deleteStoreFromEditModal() {
+    const storeId = document.getElementById('edit-id').value;
+    closeEditModal();
+    deleteStore(storeId);
+}
+
+// Update store
+async function updateStore(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const storeId = form.id.value;
+    const formData = {
+        name: form.name.value.trim(),
+        address: form.address.value.trim() || null,
+        description: form.description.value.trim() || null,
+    };
+
+    try {
+        const response = await fetch(`/api/v1/stores/${storeId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(formData),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(extractErrorMessage(error, 'Failed to update store'));
+        }
+
+        closeEditModal();
+        await loadStores();
+        showToast('✅ Магазин обновлен успешно', 'success');
+    } catch (error) {
+        console.error('Failed to update store:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Archive store
+async function archiveStore(storeId) {
+    const store = storesData.find(s => s.id === storeId);
+    const confirmed = await showConfirmDialog(
+        'Архивировать магазин?',
+        `Вы уверены, что хотите архивировать "${store.name}"?\n\nАрхивный магазин будет скрыт из выпадающих списков, но данные сохранятся.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/v1/stores/${storeId}/archive`, {
+            method: 'PUT',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to archive store');
+        }
+
+        await loadStores();
+        showToast('✅ Магазин архивирован', 'success');
+    } catch (error) {
+        console.error('Failed to archive store:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Restore store
+async function restoreStore(storeId) {
+    const store = storesData.find(s => s.id === storeId);
+    const confirmed = await showConfirmDialog(
+        'Восстановить магазин?',
+        `Вы уверены, что хотите восстановить "${store.name}"?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/v1/stores/${storeId}/restore`, {
+            method: 'PUT',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to restore store');
+        }
+
+        await loadStores();
+        showToast('✅ Магазин восстановлен', 'success');
+    } catch (error) {
+        console.error('Failed to restore store:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Delete store
+async function deleteStore(storeId) {
+    const store = storesData.find(s => s.id === storeId);
+    const confirmed = await showConfirmDialog(
+        'Удалить магазин?',
+        `⚠️ ВНИМАНИЕ: Вы уверены, что хотите УДАЛИТЬ "${store.name}"?\n\nЭто действие НЕОБРАТИМО и удалит все связанные данные:\n• Все товары в списках покупок для этого магазина\n\nРекомендуется использовать архивирование вместо удаления.`
+    );
+
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`/api/v1/stores/${storeId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to delete store');
+        }
+
+        await loadStores();
+        showToast('✅ Магазин удален', 'success');
+    } catch (error) {
+        console.error('Failed to delete store:', error);
+        showToast(`❌ Ошибка: ${error.message}`, 'error');
+    }
+}
+
+// Show toast notification
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} fixed bottom-4 right-4 w-auto max-w-md z-50 shadow-lg`;
+    toast.innerHTML = `<span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

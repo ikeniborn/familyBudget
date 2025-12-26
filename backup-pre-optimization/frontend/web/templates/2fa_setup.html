@@ -1,0 +1,394 @@
+{% extends "base.html" %}
+
+{% block title %}Настройка 2FA{% endblock %}
+
+{% block extra_head %}
+<!-- qr-creator for generating QR codes (local vendor copy, 0 dependencies) -->
+<script src="/static/js/vendor/qr-creator.min.js?v=PLACEHOLDER"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <div class="mb-6">
+        <a href="/security" class="btn btn-ghost btn-sm gap-2 mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Назад к настройкам
+        </a>
+        <h1 class="text-2xl font-bold mb-2">Настройка двухфакторной аутентификации</h1>
+        <p class="opacity-70">Добавьте дополнительный уровень защиты вашего аккаунта</p>
+    </div>
+
+    <!-- Step 1: Generate QR -->
+    <div id="step-1" class="card bg-base-100 shadow-lg mb-6">
+        <div class="card-body">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="badge badge-primary">Шаг 1</div>
+                <h2 class="card-title text-lg">Настройте приложение-аутентификатор</h2>
+            </div>
+
+            <div class="alert alert-info mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                    <div class="font-medium">Рекомендуемые приложения:</div>
+                    <ul class="text-sm list-disc list-inside">
+                        <li>Google Authenticator</li>
+                        <li>Authy</li>
+                        <li>Microsoft Authenticator</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="qr-container" class="text-center">
+                <div class="loading loading-spinner loading-lg"></div>
+                <p class="text-sm opacity-70 mt-2">Загрузка QR-кода...</p>
+            </div>
+
+            <div id="qr-ready" class="hidden">
+                <!-- QR Code -->
+                <div class="flex justify-center mb-4">
+                    <div id="qrcode" class="bg-white p-4 rounded-lg"></div>
+                </div>
+
+                <!-- Hint to expand manual entry -->
+                <div class="alert alert-info text-sm mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-5 h-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>Не можете отсканировать QR-код? <strong>Раздвиньте шторку ниже</strong> &#8595;</span>
+                </div>
+
+                <!-- Manual entry - collapsible section -->
+                <div class="collapse collapse-arrow bg-base-200 rounded-lg">
+                    <input type="checkbox" class="peer" />
+                    <div class="collapse-title text-sm font-medium">
+                        <span class="flex items-center gap-2 pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-info" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            Ввести код вручную
+                        </span>
+                    </div>
+                    <div class="collapse-content">
+                        <div class="form-control">
+                            <label class="label">
+                                <span class="label-text text-xs">Секретный ключ (введите в приложении)</span>
+                            </label>
+                            <div class="flex gap-2">
+                                <input type="text" id="secret-display" readonly
+                                       class="input input-bordered input-sm flex-1 font-mono text-xs select-all">
+                                <button type="button" onclick="copySecret()" class="btn btn-sm btn-outline gap-1">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    Копировать
+                                </button>
+                            </div>
+                            <p class="text-xs opacity-60 mt-2">Выберите "Ввести вручную" в приложении и вставьте этот ключ</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="goToStep2()" class="btn btn-primary w-full mt-4">
+                    Далее
+                </button>
+            </div>
+
+            <div id="qr-error" class="hidden">
+                <div class="alert alert-error">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span id="qr-error-text">Ошибка загрузки</span>
+                </div>
+                <button onclick="initSetup()" class="btn btn-outline btn-sm mt-2">
+                    Попробовать снова
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Verify Code -->
+    <div id="step-2" class="card bg-base-100 shadow-lg mb-6 hidden">
+        <div class="card-body">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="badge badge-primary">Шаг 2</div>
+                <h2 class="card-title text-lg">Подтвердите настройку</h2>
+            </div>
+
+            <p class="text-sm opacity-70 mb-4">
+                Введите 6-значный код из приложения-аутентификатора для подтверждения настройки.
+            </p>
+
+            <form id="verify-setup-form" onsubmit="handleVerifySetup(event)">
+                <div class="form-control w-full mb-4">
+                    <input type="text" name="code" id="verify-code"
+                           class="input input-bordered input-lg w-full text-center font-mono text-2xl tracking-widest"
+                           placeholder="000000"
+                           required maxlength="6" pattern="[0-9]{6}"
+                           inputmode="numeric" autocomplete="one-time-code">
+                </div>
+
+                <div id="verify-error" class="alert alert-error hidden text-sm mb-4">
+                    <span id="verify-error-text"></span>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="button" onclick="goToStep1()" class="btn btn-ghost flex-1">
+                        Назад
+                    </button>
+                    <button type="submit" id="verify-btn" class="btn btn-primary flex-1">
+                        <span id="verify-btn-text">Подтвердить</span>
+                        <span id="verify-btn-loading" class="loading loading-spinner loading-sm hidden"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Step 3: Backup Codes -->
+    <div id="step-3" class="card bg-base-100 shadow-lg mb-6 hidden">
+        <div class="card-body">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="badge badge-success">Готово</div>
+                <h2 class="card-title text-lg">Сохраните backup коды</h2>
+            </div>
+
+            <div class="alert alert-warning mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div>
+                    <div class="font-medium">Важно!</div>
+                    <div class="text-sm">Эти коды показываются только один раз. Сохраните их в надежном месте.</div>
+                </div>
+            </div>
+
+            <div id="backup-codes-container" class="bg-base-200 rounded-lg p-4 mb-4">
+                <div class="grid grid-cols-2 gap-2 font-mono text-sm" id="backup-codes-grid">
+                    <!-- Backup codes will be inserted here -->
+                </div>
+            </div>
+
+            <div class="flex gap-2 mb-4">
+                <button onclick="copyBackupCodes()" class="btn btn-outline btn-sm flex-1 gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Копировать
+                </button>
+                <button onclick="downloadBackupCodes()" class="btn btn-outline btn-sm flex-1 gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Скачать
+                </button>
+            </div>
+
+            <div class="form-control mb-4">
+                <label class="label cursor-pointer justify-start gap-3">
+                    <input type="checkbox" id="confirm-saved" class="checkbox checkbox-primary">
+                    <span class="label-text">Я сохранил backup коды в надежном месте</span>
+                </label>
+            </div>
+
+            <a href="/security" id="finish-btn" class="btn btn-primary w-full disabled" disabled>
+                Завершить настройку
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+let setupSecret = null;
+let backupCodes = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    initSetup();
+
+    // Enable finish button when checkbox is checked
+    document.getElementById('confirm-saved')?.addEventListener('change', function(e) {
+        const finishBtn = document.getElementById('finish-btn');
+        if (e.target.checked) {
+            finishBtn.classList.remove('btn-disabled');
+            finishBtn.removeAttribute('disabled');
+        } else {
+            finishBtn.classList.add('btn-disabled');
+            finishBtn.setAttribute('disabled', 'disabled');
+        }
+    });
+});
+
+async function initSetup() {
+    const qrContainer = document.getElementById('qr-container');
+    const qrReady = document.getElementById('qr-ready');
+    const qrError = document.getElementById('qr-error');
+
+    qrContainer.classList.remove('hidden');
+    qrReady.classList.add('hidden');
+    qrError.classList.add('hidden');
+
+    try {
+        const response = await fetch('/api/v1/auth/setup-2fa', {
+            method: 'POST',
+            credentials: 'same-origin'
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Ошибка настройки 2FA');
+
+        setupSecret = data.secret;
+
+        // Generate QR code (using qr-creator library, 0 dependencies)
+        const qrcodeDiv = document.getElementById('qrcode');
+        qrcodeDiv.innerHTML = ''; // Clear previous content
+        QrCreator.render({
+            text: data.qr_uri,
+            radius: 0,
+            ecLevel: 'M',
+            fill: '#000000',
+            background: '#ffffff',
+            size: 200
+        }, qrcodeDiv);
+
+        // Show secret for manual entry
+        document.getElementById('secret-display').value = data.secret;
+
+        qrContainer.classList.add('hidden');
+        qrReady.classList.remove('hidden');
+
+    } catch (error) {
+        console.error('Setup error:', error);
+        qrContainer.classList.add('hidden');
+        qrError.classList.remove('hidden');
+        document.getElementById('qr-error-text').textContent = error.message;
+    }
+}
+
+function copySecret() {
+    const secret = document.getElementById('secret-display').value;
+    navigator.clipboard.writeText(secret).then(() => {
+        showToast('Секретный ключ скопирован', 'success');
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        showToast('Ошибка копирования', 'error');
+    });
+}
+
+function goToStep1() {
+    document.getElementById('step-1').classList.remove('hidden');
+    document.getElementById('step-2').classList.add('hidden');
+    document.getElementById('step-3').classList.add('hidden');
+}
+
+function goToStep2() {
+    document.getElementById('step-1').classList.add('hidden');
+    document.getElementById('step-2').classList.remove('hidden');
+    document.getElementById('step-3').classList.add('hidden');
+    document.getElementById('verify-code').focus();
+}
+
+async function handleVerifySetup(e) {
+    e.preventDefault();
+
+    const btn = document.getElementById('verify-btn');
+    const btnText = document.getElementById('verify-btn-text');
+    const btnLoading = document.getElementById('verify-btn-loading');
+    const errorDiv = document.getElementById('verify-error');
+    const errorText = document.getElementById('verify-error-text');
+
+    const code = document.getElementById('verify-code').value.trim();
+
+    errorDiv.classList.add('hidden');
+    btn.disabled = true;
+    btnText.classList.add('hidden');
+    btnLoading.classList.remove('hidden');
+
+    try {
+        const response = await fetch('/api/v1/auth/verify-2fa-setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ code: code })
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.detail || 'Неверный код');
+
+        // Success - show backup codes
+        backupCodes = data.backup_codes;
+        showBackupCodes(data.backup_codes);
+
+        document.getElementById('step-2').classList.add('hidden');
+        document.getElementById('step-3').classList.remove('hidden');
+
+        showToast('2FA успешно настроена!', 'success');
+
+    } catch (error) {
+        console.error('Verify error:', error);
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = error.message;
+        document.getElementById('verify-code').value = '';
+        document.getElementById('verify-code').focus();
+    } finally {
+        btn.disabled = false;
+        btnText.classList.remove('hidden');
+        btnLoading.classList.add('hidden');
+    }
+}
+
+function showBackupCodes(codes) {
+    const grid = document.getElementById('backup-codes-grid');
+    grid.innerHTML = codes.map((code, i) => `
+        <div class="p-2 bg-base-100 rounded text-center">${i + 1}. ${code}</div>
+    `).join('');
+}
+
+function copyBackupCodes() {
+    const text = backupCodes.join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Backup коды скопированы', 'success');
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        showToast('Ошибка копирования', 'error');
+    });
+}
+
+function downloadBackupCodes() {
+    const content = `Семейный бюджет - Backup коды 2FA
+Дата: ${new Date().toLocaleString('ru-RU')}
+
+ВАЖНО: Храните эти коды в надежном месте!
+Каждый код можно использовать только один раз.
+
+${backupCodes.map((code, i) => `${i + 1}. ${code}`).join('\n')}
+`;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'family-budget-backup-codes.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('Файл скачан', 'success');
+}
+
+// Auto-submit when 6 digits entered
+document.getElementById('verify-code')?.addEventListener('input', function(e) {
+    const value = e.target.value.replace(/\D/g, '');
+    e.target.value = value;
+    if (value.length === 6) {
+        setTimeout(() => {
+            document.getElementById('verify-setup-form').requestSubmit();
+        }, 300);
+    }
+});
+</script>
+{% endblock %}

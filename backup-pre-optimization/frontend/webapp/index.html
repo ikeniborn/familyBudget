@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Семейный бюджет</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+
+    <style>
+        /* Main menu specific styles */
+        .menu-header {
+            text-align: center;
+            padding: 24px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            margin-bottom: 24px;
+        }
+
+        .menu-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 8px;
+        }
+
+        .menu-subtitle {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+            max-width: 100%;
+        }
+
+        .menu-item {
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--tg-theme-bg-color);
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 12px;
+            padding: 12px 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .menu-item:active {
+            background-color: var(--tg-theme-secondary-bg-color);
+            transform: scale(0.95);
+        }
+
+        .menu-item-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .menu-item-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--tg-theme-text-color);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .menu-item.primary {
+            background: linear-gradient(135deg, var(--tg-theme-button-color), var(--tg-theme-link-color));
+            border: none;
+        }
+
+        .menu-item.primary .menu-item-icon,
+        .menu-item.primary .menu-item-label {
+            color: var(--tg-theme-button-text-color);
+        }
+
+        .quick-stats {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            min-height: 140px;
+            position: relative;
+        }
+
+        #stats-content {
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #stats-content.loaded {
+            opacity: 1;
+        }
+
+        .quick-stats-loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--tg-theme-hint-color);
+            font-size: 14px;
+        }
+
+        .quick-stats-title {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 12px;
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+        }
+
+        .stats-row:last-child {
+            border-bottom: none;
+        }
+
+        .stats-label {
+            font-size: 14px;
+            color: var(--tg-theme-text-color);
+        }
+
+        .stats-value {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .stats-value.income {
+            color: #34c759;
+        }
+
+        .stats-value.expense {
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .stats-value.balance {
+            color: var(--tg-theme-link-color);
+        }
+
+        /* FAB (Floating Action Button) */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--tg-theme-button-color), var(--tg-theme-link-color));
+            border: none;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: var(--tg-theme-button-text-color);
+            z-index: 1000;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .fab:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--tg-theme-bg-color);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 320px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .modal-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-button {
+            padding: 16px;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 12px;
+            background-color: var(--tg-theme-secondary-bg-color);
+            color: var(--tg-theme-text-color);
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .modal-button:active {
+            background-color: var(--tg-theme-section-bg-color);
+            transform: scale(0.98);
+        }
+
+        .modal-button-icon {
+            font-size: 24px;
+        }
+
+        .modal-close {
+            margin-top: 12px;
+            padding: 12px;
+            border: none;
+            background: none;
+            color: var(--tg-theme-hint-color);
+            font-size: 14px;
+            cursor: pointer;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="menu-header">
+            <div class="menu-title">💰 Семейный бюджет</div>
+            <div class="menu-subtitle" id="user-greeting">Добро пожаловать!</div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="quick-stats" id="quick-stats">
+            <div class="quick-stats-loading" id="stats-loading">Загрузка...</div>
+            <div id="stats-content" style="display: none;">
+                <div class="quick-stats-title">Сегодня</div>
+                <div class="stats-row">
+                    <span class="stats-label">Доходы</span>
+                    <span class="stats-value income" id="today-income">+0.00</span>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Расходы</span>
+                    <span class="stats-value expense" id="today-expense">-0.00</span>
+                </div>
+                <div class="stats-row">
+                    <span class="stats-label">Баланс</span>
+                    <span class="stats-value balance" id="today-balance">0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Menu Grid (3x3 for Phase 3) -->
+        <div class="menu-grid">
+            <!-- Today's transactions -->
+            <a href="/webapp/today.html" class="menu-item">
+                <div class="menu-item-icon">📅</div>
+                <div class="menu-item-label">Сегодня</div>
+            </a>
+
+            <!-- List all transactions -->
+            <a href="/webapp/list.html" class="menu-item">
+                <div class="menu-item-icon">📋</div>
+                <div class="menu-item-label">Список</div>
+            </a>
+
+            <!-- Statistics -->
+            <a href="/webapp/stats.html" class="menu-item">
+                <div class="menu-item-icon">📊</div>
+                <div class="menu-item-label">Статистика</div>
+            </a>
+
+            <!-- Summary -->
+            <a href="/webapp/summary.html" class="menu-item">
+                <div class="menu-item-icon">📊</div>
+                <div class="menu-item-label">План & Факт</div>
+            </a>
+        </div>
+
+        <!-- FAB (Floating Action Button) -->
+        <button class="fab" id="fab-button" aria-label="Добавить транзакцию">
+            ➕
+        </button>
+
+        <!-- Modal for transaction type selection -->
+        <div class="modal" id="transaction-modal">
+            <div class="modal-content">
+                <div class="modal-title">Добавить транзакцию</div>
+                <div class="modal-buttons">
+                    <button class="modal-button" id="add-fact-button">
+                        <span class="modal-button-icon">💰</span>
+                        <span>Фактическая</span>
+                    </button>
+                    <button class="modal-button" id="add-plan-button">
+                        <span class="modal-button-icon">📝</span>
+                        <span>Плановая</span>
+                    </button>
+                </div>
+                <button class="modal-close" id="modal-close-button">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/theme.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/validators.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
+
+    <script>
+        // Page-specific initialization
+        window.pageInit = async function(app) {
+            console.log('Main menu page init');
+
+            // Hide BackButton on main menu (this is root page)
+            app.tg.BackButton.hide();
+
+            // Update user greeting
+            const user = app.auth.getUser();
+            if (user) {
+                const greeting = user.first_name
+                    ? `Привет, ${user.first_name}!`
+                    : 'Добро пожаловать!';
+                document.getElementById('user-greeting').textContent = greeting;
+            }
+
+            // Load today's quick stats
+            await loadQuickStats(app);
+
+            // Add haptic feedback to menu items
+            const menuItems = document.querySelectorAll('.menu-item');
+            menuItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    app.ui.hapticLight();
+                });
+            });
+
+            // FAB and Modal handlers
+            const fabButton = document.getElementById('fab-button');
+            const modal = document.getElementById('transaction-modal');
+            const addFactButton = document.getElementById('add-fact-button');
+            const addPlanButton = document.getElementById('add-plan-button');
+            const modalCloseButton = document.getElementById('modal-close-button');
+
+            // Open modal
+            fabButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                modal.classList.add('active');
+            });
+
+            // Close modal on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    app.ui.hapticLight();
+                    modal.classList.remove('active');
+                }
+            });
+
+            // Close modal on close button
+            modalCloseButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                modal.classList.remove('active');
+            });
+
+            // Navigate to fact form
+            addFactButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                window.location.href = '/webapp/add.html';
+            });
+
+            // Navigate to plan form
+            addPlanButton.addEventListener('click', () => {
+                app.ui.hapticLight();
+                window.location.href = '/webapp/addplan.html';
+            });
+
+            console.log('Main menu ready');
+        };
+
+        async function loadQuickStats(app) {
+            try {
+                // Get today's date range (use LOCAL timezone, not UTC)
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const dateFrom = `${year}-${month}-${day}`;
+
+                // Tomorrow's date for upper bound
+                const tomorrow = new Date(today);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const yearTomorrow = tomorrow.getFullYear();
+                const monthTomorrow = String(tomorrow.getMonth() + 1).padStart(2, '0');
+                const dayTomorrow = String(tomorrow.getDate()).padStart(2, '0');
+                const dateTo = `${yearTomorrow}-${monthTomorrow}-${dayTomorrow}`;
+
+                // Fetch today's facts
+                const result = await app.api.listFacts({
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    limit: 1000
+                });
+
+                const facts = result.facts || [];
+
+                // Hide loading
+                document.getElementById('stats-loading').style.display = 'none';
+
+                if (facts.length > 0) {
+                    // Calculate summary based on article_type
+                    let income = 0;
+                    let expense = 0;
+
+                    facts.forEach(fact => {
+                        const amount = parseFloat(fact.amount);
+                        if (fact.article_type === 'income') {
+                            income += amount;
+                        } else if (fact.article_type === 'expense') {
+                            expense += amount;
+                        }
+                    });
+
+                    const balance = income - expense;
+
+                    // Update display
+                    document.getElementById('today-income').textContent = `+${app.ui.formatAmount(income)}`;
+                    document.getElementById('today-expense').textContent = `-${app.ui.formatAmount(expense)}`;
+
+                    const balanceElement = document.getElementById('today-balance');
+                    const sign = balance >= 0 ? '+' : '-';
+                    balanceElement.textContent = `${sign}${app.ui.formatAmount(Math.abs(balance))}`;
+
+                    // Show stats
+                    const statsContent = document.getElementById('stats-content');
+                    statsContent.style.display = 'block';
+                    setTimeout(() => statsContent.classList.add('loaded'), 10);
+                } else {
+                    // Show empty state
+                    const statsContent = document.getElementById('stats-content');
+                    statsContent.style.display = 'block';
+                    setTimeout(() => statsContent.classList.add('loaded'), 10);
+                }
+
+            } catch (error) {
+                console.error('Failed to load quick stats:', error);
+                document.getElementById('stats-loading').style.display = 'none';
+                // Don't show stats if loading failed
+            }
+        }
+    </script>
+</body>
+</html>

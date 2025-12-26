@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Все факты - Семейный бюджет</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/shared-components.min.css?v=PLACEHOLDER">
+
+    <style>
+        /* List page specific styles */
+        /* page-header, page-title, filters-*, transaction-*, pagination moved to shared-components.css */
+
+        /* Transactions List container */
+        .transactions-list {
+            margin-bottom: 16px;
+        }
+
+        /* ========== RESPONSIVE IMPROVEMENTS ========== */
+        /* Base transaction-* styles moved to shared-components.css */
+        /* Additional responsive overrides below */
+
+        /* Ensure proper text truncation in flex container */
+        .transaction-details {
+            min-width: 0;  /* CRITICAL for text-overflow to work in flex container */
+            overflow: hidden;
+        }
+
+        .transaction-category {
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .transaction-category.has-breadcrumb {
+            cursor: help;
+            border-bottom: 1px dotted var(--tg-theme-hint-color);
+        }
+
+        .transaction-description {
+            max-width: 150px;
+            position: relative;
+        }
+
+        .transaction-description.truncated {
+            cursor: pointer;
+            color: var(--tg-theme-link-color);
+        }
+
+        .transaction-description.truncated::after {
+            content: ' →';
+            margin-left: 2px;
+            font-weight: bold;
+        }
+
+        /* Small mobile (480px+) */
+        @media (min-width: 480px) {
+            .transaction-category {
+                max-width: 220px;
+            }
+
+            .transaction-description {
+                max-width: 200px;
+            }
+        }
+
+        /* Tablet (640px+) */
+        @media (min-width: 640px) {
+            .transaction-category {
+                max-width: 300px;
+            }
+
+            .transaction-description {
+                max-width: 280px;
+            }
+
+            .transaction-item {
+                padding: 14px;
+            }
+        }
+
+        /* Desktop (768px+) */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .transaction-description {
+                max-width: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title">Все факты</div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="filters-section">
+            <div class="filters-header" id="filters-header">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="filters-title">Фильтры</span>
+                    <span class="filters-badge" id="filters-badge" style="display: none;">а</span>
+                </div>
+                <span class="filters-toggle"></span>
+            </div>
+            <div class="filters-content" id="filters-content">
+                <div class="filters-body">
+                    <!-- Date Range -->
+                    <div class="filter-group">
+                        <label class="filter-label" title="Выберите период для фильтрации фактов">Период</label>
+                        <div class="filter-row">
+                            <input type="text" id="filter-date-from" class="input" placeholder="ДД.ММ.ГГГГ" title="Дата начала периода">
+                            <input type="text" id="filter-date-to" class="input" placeholder="ДД.ММ.ГГГГ" title="Дата окончания периода">
+                        </div>
+                    </div>
+
+                    <!-- Transaction Type -->
+                    <div class="filter-group">
+                        <label class="filter-label" title="Фильтр по типу факта">Тип</label>
+                        <select id="filter-type" class="input" title="Выберите тип факта">
+                            <option value="">Все</option>
+                            <option value="expense">Расходы</option>
+                            <option value="income">Доходы</option>
+                        </select>
+                    </div>
+
+                    <!-- Category -->
+                    <div class="filter-group">
+                        <label class="filter-label" title="Фильтр по категории факта">Категория</label>
+                        <select id="filter-category" class="input" title="Выберите категорию">
+                            <option value="">Все категории</option>
+                            <!-- Categories will be loaded dynamically -->
+                        </select>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="filter-group">
+                        <label class="filter-label" title="Поиск фактов по тексту описания">Поиск по описанию</label>
+                        <input type="text" id="filter-search" class="input" placeholder="Введите текст..." title="Введите текст для поиска">
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="filter-actions">
+                        <button class="btn btn-secondary" id="clear-filters-btn">Сбросить</button>
+                        <button class="btn btn-primary" id="apply-filters-btn">Применить</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-state" id="loading-state">
+            <div>Загрузка фактов...</div>
+        </div>
+
+        <!-- Transactions List -->
+        <div class="transactions-list" id="transactions-list" style="display: none;">
+            <!-- Transactions will be inserted here -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <div class="empty-state-icon">📭</div>
+            <div class="empty-state-text">Нет фактов по выбранным фильтрам</div>
+            <button class="btn btn-secondary" id="reset-filters-btn">Сбросить фильтры</button>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/theme.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/validators.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
+
+    <script>
+        // app is already declared globally in app.js
+        let facts = [];
+        let categories = [];
+
+        // Pagination state
+        let currentPage = 1;
+        let totalPages = 1;
+        const PAGE_SIZE = 20;
+
+        // Filter state
+        let activeFilters = {
+            dateFrom: null,
+            dateTo: null,
+            type: null,
+            categoryId: null,
+            search: null
+        };
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('List page init');
+            app = budgetApp;
+
+
+            // Setup filters toggle
+            setupFiltersToggle();
+
+            // Load categories for filter
+            await loadCategories();
+
+            // Load transactions with filters
+            await loadTransactions();
+
+            // Setup filter actions
+            document.getElementById('apply-filters-btn').addEventListener('click', () => {
+                app.ui.hapticLight();
+                applyFilters();
+            });
+
+            document.getElementById('clear-filters-btn').addEventListener('click', () => {
+                app.ui.hapticLight();
+                clearFilters();
+            });
+
+            document.getElementById('reset-filters-btn').addEventListener('click', () => {
+                app.ui.hapticLight();
+                clearFilters();
+            });
+
+            // Setup BackButton to return to main menu
+            app.setupBackButton(() => {
+                window.location.href = '/webapp/index.html';
+            });
+
+            console.log('List page ready');
+        };
+
+        function setupFiltersToggle() {
+            const header = document.getElementById('filters-header');
+            const content = document.getElementById('filters-content');
+            const toggle = header.querySelector('.filters-toggle');
+
+            header.addEventListener('click', () => {
+                app.ui.hapticLight();
+                const isExpanded = content.classList.contains('expanded');
+
+                if (isExpanded) {
+                    content.classList.remove('expanded');
+                    toggle.classList.remove('expanded');
+                } else {
+                    content.classList.add('expanded');
+                    toggle.classList.add('expanded');
+                }
+            });
+        }
+
+        async function loadCategories() {
+            try {
+                const result = await app.api.listArticles({ limit: 1000 });
+                categories = result.articles || [];
+
+                // Build a Set of parent category IDs (categories that have children)
+                const parentIds = new Set();
+                categories.forEach(category => {
+                    if (category.parent_id) {
+                        parentIds.add(category.parent_id);
+                    }
+                });
+
+                // Filter to only leaf categories (categories without children)
+                const leafCategories = categories.filter(category => !parentIds.has(category.id));
+
+                // Populate category filter with only leaf categories
+                const categorySelect = document.getElementById('filter-category');
+                leafCategories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        async function loadTransactions() {
+            const loadingState = document.getElementById('loading-state');
+            const transactionsList = document.getElementById('transactions-list');
+            const emptyState = document.getElementById('empty-state');
+
+            try {
+                // Show loading
+                loadingState.style.display = 'block';
+                transactionsList.style.display = 'none';
+                emptyState.style.display = 'none';
+
+                // Build query params
+                const params = {
+                    limit: PAGE_SIZE,
+                    offset: (currentPage - 1) * PAGE_SIZE
+                };
+
+                if (activeFilters.dateFrom) params.date_from = activeFilters.dateFrom;
+                if (activeFilters.dateTo) params.date_to = activeFilters.dateTo;
+                if (activeFilters.type) params.type = activeFilters.type;
+                if (activeFilters.categoryId) params.article_id = activeFilters.categoryId;
+                if (activeFilters.search) params.search = activeFilters.search;
+
+                // Fetch facts
+                const result = await app.api.listFacts(params);
+                facts = result.facts || [];
+                const total = result.total || 0;
+
+                // Calculate total pages
+                totalPages = Math.ceil(total / PAGE_SIZE);
+                if (totalPages === 0) totalPages = 1;
+
+                // Hide loading
+                loadingState.style.display = 'none';
+
+                if (facts.length === 0) {
+                    // Show empty state
+                    emptyState.style.display = 'block';
+                } else {
+                    // Render transactions
+                    renderTransactions(facts);
+                    transactionsList.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Failed to load transactions:', error);
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузкик ${error.message}</div>`;
+            }
+        }
+
+        function renderTransactions(facts) {
+            const list = document.getElementById('transactions-list');
+            list.innerHTML = '';
+
+            // Sort by created_at descending (most recent first)
+            const sortedFacts = [...facts].sort((a, b) => {
+                const dateA = new Date(a.created_at || a.fact_date);
+                const dateB = new Date(b.created_at || b.fact_date);
+                return dateB - dateA;
+            });
+
+            sortedFacts.forEach(fact => {
+                const item = createTransactionItem(fact);
+                list.appendChild(item);
+            });
+        }
+
+        function createTransactionItem(fact) {
+            const item = document.createElement('div');
+            item.className = 'transaction-item';
+            item.dataset.factId = fact.id;
+
+            // Find category once for reuse
+            const categoryObj = categories.find(c => c.id === fact.article_id);
+            const isExpense = categoryObj ? categoryObj.type === 'expense' : fact.amount < 0;
+
+            // Icon
+            const icon = document.createElement('div');
+            icon.className = 'transaction-icon';
+            icon.textContent = isExpense ? '💸' : '💰';
+
+            // Details
+            const details = document.createElement('div');
+            details.className = 'transaction-details';
+
+            const category = document.createElement('div');
+            category.className = 'transaction-category';
+            category.textContent = categoryObj ? categoryObj.name : `Категория #${fact.article_id}`;
+
+            // Breadcrumb tooltip для вложенных категорий
+            if (categoryObj && categoryObj.parent_id) {
+                category.classList.add('has-breadcrumb');
+                loadCategoryPath(categoryObj.id).then(path => {
+                    category.title = path.join(' › ');
+                }).catch(err => {
+                    console.warn(`Failed to load breadcrumb for category ${categoryObj.id}:`, err);
+                    category.title = categoryObj.name;
+                });
+            }
+
+            const description = document.createElement('div');
+            description.className = 'transaction-description';
+
+            // Truncate с modal для длинных комментариев
+            const DESCRIPTION_THRESHOLD = 25; // Порог для mobile
+            if (fact.description) {
+                if (fact.description.length > DESCRIPTION_THRESHOLD) {
+                    description.textContent = fact.description.substring(0, 22) + '...';
+                    description.classList.add('truncated');
+                    description.title = fact.description; // Tooltip fallback
+
+                    // Modal при клике
+                    description.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Не открывать edit.html
+                        app.ui.hapticLight();
+                        app.ui.showPopup({
+                            title: 'Описание',
+                            message: fact.description,
+                            buttons: [{type: 'close'}]
+                        });
+                    });
+                } else {
+                    description.textContent = fact.description;
+                }
+            } else {
+                description.textContent = 'Без описания';
+                description.style.fontStyle = 'italic';
+                description.style.opacity = '0.6';
+            }
+
+            const time = document.createElement('div');
+            time.className = 'transaction-time';
+            time.textContent = formatDateTime(new Date(fact.created_at || fact.fact_date));
+
+            details.appendChild(category);
+            details.appendChild(description);
+            details.appendChild(time);
+
+            // Amount
+            const amount = document.createElement('div');
+            amount.className = `transaction-amount ${isExpense ? 'expense' : 'income'}`;
+            const amountValue = Math.abs(fact.amount);
+            amount.textContent = `${isExpense ? '-' : '+'}${app.ui.formatAmount(amountValue)}`;
+
+            // Assemble
+            item.appendChild(icon);
+            item.appendChild(details);
+            item.appendChild(amount);
+
+            // Click handler - navigate to edit
+            item.addEventListener('click', () => {
+                app.ui.hapticLight();
+                window.location.href = `/webapp/edit.html?id=${fact.id}`;
+            });
+
+            return item;
+        }
+
+        /**
+         * Load category path (breadcrumb) for nested categories.
+         * Calls backend API: GET /api/v1/articles/{id}/ancestors?include_self=true
+         *
+         * @param {number} articleId - Category ID
+         * @returns {Promise<string[]>} - Array of category names (root → article)
+         */
+        async function loadCategoryPath(articleId) {
+            try {
+                const result = await app.api.get(`/api/v1/articles/${articleId}/ancestors`, {
+                    include_self: true
+                });
+
+                if (result.articles && Array.isArray(result.articles)) {
+                    return result.articles.map(a => a.name);
+                }
+
+                return [];
+            } catch (error) {
+                console.error(`Failed to load category path for ${articleId}:`, error);
+                throw error;
+            }
+        }
+
+        function applyFilters() {
+            // Read filter values
+            const dateFrom = document.getElementById('filter-date-from').value;
+            const dateTo = document.getElementById('filter-date-to').value;
+            const type = document.getElementById('filter-type').value;
+            const categoryId = document.getElementById('filter-category').value;
+            const search = document.getElementById('filter-search').value.trim();
+
+            // Update active filters
+            activeFilters = {
+                dateFrom: dateFrom || null,
+                dateTo: dateTo || null,
+                type: type || null,
+                categoryId: categoryId ? parseInt(categoryId) : null,
+                search: search || null
+            };
+
+            // Update filters badge
+            updateFiltersBadge();
+
+            // Reset to page 1
+            currentPage = 1;
+
+            // Reload transactions
+            loadTransactions();
+
+            // Collapse filters
+            const content = document.getElementById('filters-content');
+            const toggle = document.querySelector('.filters-toggle');
+            content.classList.remove('expanded');
+            toggle.classList.remove('expanded');
+        }
+
+        function clearFilters() {
+            // Clear all filter inputs
+            document.getElementById('filter-date-from').value = '';
+            document.getElementById('filter-date-to').value = '';
+            document.getElementById('filter-type').value = '';
+            document.getElementById('filter-category').value = '';
+            document.getElementById('filter-search').value = '';
+
+            // Reset active filters
+            activeFilters = {
+                dateFrom: null,
+                dateTo: null,
+                type: null,
+                categoryId: null,
+                search: null
+            };
+
+            // Update badge
+            updateFiltersBadge();
+
+            // Reset to page 1
+            currentPage = 1;
+
+            // Reload transactions
+            loadTransactions();
+        }
+
+        function updateFiltersBadge() {
+            const badge = document.getElementById('filters-badge');
+            let activeCount = 0;
+
+            if (activeFilters.dateFrom) activeCount++;
+            if (activeFilters.dateTo) activeCount++;
+            if (activeFilters.type) activeCount++;
+            if (activeFilters.categoryId) activeCount++;
+            if (activeFilters.search) activeCount++;
+
+            if (activeCount > 0) {
+                badge.textContent = activeCount;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function formatDateTime(date) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        }
+    </script>
+</body>
+</html>

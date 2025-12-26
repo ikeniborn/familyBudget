@@ -1,0 +1,2279 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<!-- ECharts library -->
+<script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
+<!-- BudgetShared bundle already included in base.html -->
+<link rel="stylesheet" href="/static/css/calendar-widget.css?v=PLACEHOLDER">
+
+<!-- ECharts tooltip z-index fix -->
+<style>
+    /* Override ECharts default tooltip z-index to be below header (z-40) */
+    .echarts-tooltip,
+    div[class^='echarts-tooltip'],
+    div[class*=' echarts-tooltip'] {
+        z-index: 30 !important;
+    }
+
+    /* Ensure charts don't block header */
+    .chart-container canvas {
+        position: relative;
+        z-index: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="space-y-6 pt-4">
+    <!-- Page Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 class="text-3xl font-bold">📊 Панель аналитики</h1>
+    </div>
+
+    {% if not user %}
+        <div class="alert alert-warning shadow-lg">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <span>Пожалуйста, <a href="/api/v1/auth/telegram-login" class="link link-hover font-semibold">войдите</a> для просмотра аналитики.</span>
+        </div>
+    {% else %}
+        <!-- Period Filter (Unified for ALL charts) -->
+        <div class="card bg-base-100 shadow-md" role="group" aria-label="Фильтр периода для всех графиков">
+            <div class="card-body p-4">
+                <div class="flex flex-col gap-3">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <label id="period-label" class="font-semibold text-sm">Период (для всех графиков):</label>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" id="filter-month" data-period="month" onclick="updatePeriod('month')" aria-pressed="true" aria-labelledby="period-label filter-month">Месяц</button>
+                            <button class="btn btn-sm btn-outline" id="filter-quarter" data-period="quarter" onclick="updatePeriod('quarter')" aria-pressed="false" aria-labelledby="period-label filter-quarter">Квартал</button>
+                            <button class="btn btn-sm btn-outline" id="filter-year" data-period="year" onclick="updatePeriod('year')" aria-pressed="false" aria-labelledby="period-label filter-year">Год</button>
+                            <button class="btn btn-sm btn-outline" id="filter-custom" data-period="custom" onclick="toggleCustomRange()" aria-pressed="false" aria-labelledby="period-label filter-custom">Произвольный</button>
+                        </div>
+                    </div>
+
+                    <!-- Custom Range Picker (hidden by default) -->
+                    <div id="custom-range-container" class="flex flex-wrap items-center gap-2" style="display: none;">
+                        <input type="text" id="date-from" class="input input-sm input-bordered w-48" placeholder="От..." readonly>
+                        <span class="text-sm">—</span>
+                        <input type="text" id="date-to" class="input input-sm input-bordered w-48" placeholder="До..." readonly>
+                        <!-- Calendar trigger button (range mode) -->
+                        <div id="analytics-date-range-trigger"></div>
+                        <button class="btn btn-sm btn-ghost" onclick="cancelCustomRange()">Отмена</button>
+                    </div>
+
+                    <!-- Period Display Text -->
+                    <div id="period-display" class="text-sm text-base-content/70"></div>
+
+                    <!-- Account Filter -->
+                    <div class="flex flex-wrap items-center gap-3 mt-3">
+                        <label for="cfo-filter" class="font-semibold text-sm">Счет:</label>
+                        <select id="cfo-filter" class="select select-bordered w-full sm:w-64" onchange="updateCFOFilter()">
+                            <option value="all" selected>Все счета</option>
+                            <!-- Options will be loaded dynamically via JS from /api/v1/financial-centers/list -->
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Waterfall Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-waterfall">
+                <div class="card-body p-3">
+                    <div class="flex justify-between items-center mb-1">
+                        <h2 id="chart-title-waterfall" class="card-title text-base mb-0">💧 Каскадная диаграмма</h2>
+                        <button id="waterfall-reset" class="btn btn-xs btn-outline" onclick="resetWaterfallDrilldown()" style="display: none;" aria-label="Сбросить фильтр категории">
+                            ← Сбросить фильтр
+                        </button>
+                    </div>
+                    <div id="chart-waterfall" class="chart-container" role="img" aria-label="Каскадная диаграмма кумулятивного денежного потока с детализацией"></div>
+                </div>
+            </div>
+
+            <!-- Spending Trends Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-trends">
+                <div class="card-body p-3">
+                    <div class="flex justify-between items-start mb-1">
+                        <h2 id="chart-title-trends" class="card-title text-base mb-0">📈 Динамика расходов и доходов</h2>
+                        <div class="flex gap-1">
+                            <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('csv')" title="Экспорт динамики в CSV">📄</button>
+                            <button class="btn btn-ghost btn-xs" onclick="exportTrendsData('excel')" title="Экспорт динамики в Excel">📊</button>
+                        </div>
+                    </div>
+
+                    <!-- Trends Chart Mode Filter -->
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="text-sm text-base-content/70">Режим:</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-sm btn-primary" id="trends-mode-cumulative" onclick="updateTrendsMode('cumulative')" aria-pressed="true">
+                                Накопительно
+                            </button>
+                            <button class="btn btn-sm btn-outline" id="trends-mode-normal" onclick="updateTrendsMode('normal')" aria-pressed="false">
+                                По периодам
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="chart-trends" class="chart-container" role="img" aria-label="Линейный график динамики доходов и расходов"></div>
+                </div>
+            </div>
+
+            <!-- Operation Type Filter (applies to Plan-Fact, Pie Chart, Heatmap) -->
+            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="operation-type-label">
+                <div class="card-body p-3">
+                    <div class="flex flex-col gap-3">
+                        <!-- Unified Operation Type Filter -->
+                        <div class="flex flex-wrap items-center gap-3">
+                            <label id="operation-type-label" class="font-semibold text-sm">Тип категории:</label>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-error" id="operation-type-expense" onclick="updateOperationType('expense')" aria-pressed="true">Расходы</button>
+                                <button class="btn btn-sm btn-outline" id="operation-type-income" onclick="updateOperationType('income')" aria-pressed="false">Доходы</button>
+                                <button class="btn btn-sm btn-outline" id="operation-type-debit" onclick="updateOperationType('debit')" aria-pressed="false">Списание</button>
+                                <button class="btn btn-sm btn-outline" id="operation-type-credit" onclick="updateOperationType('credit')" aria-pressed="false">Пополнение</button>
+                            </div>
+                        </div>
+
+                        <!-- Category Filter (multiple selection) -->
+                        <div class="flex flex-col gap-2">
+                            <label for="categories-filter" class="font-semibold text-sm">Фильтр по категориям:</label>
+                            <select id="categories-filter" class="choices-category-tree" multiple data-placeholder="Выберите категории...">
+                                <!-- Options will be loaded dynamically via ChoicesCategoryTree (budgetShared.js) -->
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plan vs Fact Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-planfact">
+                <div class="card-body p-3">
+                    <h2 id="chart-title-planfact" class="card-title text-base mb-1">📊 План&Факт</h2>
+
+                    <!-- Chart Mode Filter (moved from global filters) -->
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="text-sm text-base-content/70">Режим:</span>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-sm btn-primary" id="chart-mode-cumulative" onclick="updateChartMode('cumulative')" aria-pressed="true" title="Накопительный итог с начала периода">Накопительно</button>
+                            <button class="btn btn-sm btn-outline" id="chart-mode-normal" onclick="updateChartMode('normal')" aria-pressed="false" title="Значения за каждый период">По периодам</button>
+                        </div>
+                    </div>
+
+                    <div id="chart-plan-fact" class="chart-container" role="img" aria-label="Гистограмма сравнения плановых и фактических расходов"></div>
+                </div>
+            </div>
+
+            <!-- Category Breakdown Chart -->
+            <div class="card bg-base-100 shadow-lg" aria-labelledby="chart-title-pie">
+                <div class="card-body p-3">
+                    <h2 id="chart-title-pie" class="card-title text-base mb-1">🥧 Разбивка по категориям</h2>
+                    <div id="chart-pie" class="chart-container" role="img" aria-label="Круговая диаграмма разбивки фактических расходов по категориям"></div>
+                </div>
+            </div>
+
+            <!-- Heatmap Chart (Full Width) -->
+            <div class="card bg-base-100 shadow-lg col-span-full" aria-labelledby="chart-title-heatmap">
+                <div class="card-body p-3">
+                    <h2 id="chart-title-heatmap" class="card-title text-base mb-1">🔥 Тепловая карта</h2>
+                    <div id="chart-heatmap" class="chart-container" role="img" aria-label="Тепловая карта паттернов фактов"></div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Global variables
+let planFactChart = null;
+let trendsChart = null;
+let pieChart = null;
+let waterfallChart = null;
+let heatmapChart = null;
+let currentPeriod = 'month';
+let currentPieType = 'expense';
+let currentWaterfallArticleId = null;
+let waterfallCategoriesData = [];
+
+// Global type filter (applies to Plan-Fact, Pie, Heatmap)
+let currentGlobalType = 'expense';
+
+// Chart mode filter (for Plan-Fact chart: normal vs cumulative)
+// Load from localStorage or default to 'cumulative'
+let currentChartMode = localStorage.getItem('budgetChartMode') || 'cumulative';
+
+// Trends chart mode filter (normal vs cumulative)
+// Load from localStorage or default to 'cumulative'
+let currentTrendsMode = localStorage.getItem('budgetTrendsMode') || 'cumulative';
+
+// Custom date range state
+let customRangeActive = false;
+let customDateFrom = null;
+let customDateTo = null;
+let rangePicker = null;
+
+// New filters (v5.1.3)
+let currentCFOId = null;  // null = all centers
+let currentCategoryIds = [];  // [] = all categories
+let categoryChoices = null;  // Choices.js instance
+
+// Period mapping for different chart types
+// Backend now handles all period logic directly, so we pass period as-is
+
+// Initialize charts on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize CalendarWidget for custom date range (with custom trigger)
+    new BudgetShared.CalendarWidget({
+        mode: 'range',
+        startInputElement: document.getElementById('date-from'),
+        endInputElement: document.getElementById('date-to'),
+        triggerContainer: '#analytics-date-range-trigger',
+        onSelect: (startDate, endDate) => {
+            customDateFrom = startDate;  // DD.MM.YYYY format
+            customDateTo = endDate;
+            applyCustomRange(); // Apply when user clicks "Применить" button in calendar
+        }
+    });
+
+    // Initialize CFO filter
+    loadCFOList();
+
+    // Initialize category filter
+    initCategoryFilter();
+
+    // Sync chart mode UI with saved preference
+    syncChartModeUI();
+    syncTrendsModeUI();
+
+    // Initial load with default period (month)
+    const defaultPeriod = 'month';
+
+    // Update period display text
+    updatePeriodDisplay(defaultPeriod);
+
+    initPlanFactChart();
+    loadPlanFactData(defaultPeriod);
+
+    initTrendsChart();
+    loadTrendsData(defaultPeriod);
+
+    initPieChart();
+    loadPieData('expense', defaultPeriod);
+
+    initWaterfallChart();
+    loadWaterfallData(defaultPeriod);
+
+    initHeatmapChart();
+    loadHeatmapData(defaultPeriod);
+});
+
+// Helper function to create empty state option for charts
+function createEmptyStateOption(icon, title, subtitle) {
+    return {
+        title: {
+            text: title,
+            subtext: subtitle,
+            left: 'center',
+            top: 'middle',
+            textStyle: {
+                fontSize: 16,
+                color: '#999',
+                fontWeight: 'normal'
+            },
+            subtextStyle: {
+                fontSize: 14,
+                color: '#bbb'
+            }
+        },
+        graphic: {
+            type: 'text',
+            left: 'center',
+            top: '60%',
+            style: {
+                text: icon,
+                fontSize: 48,
+                fill: '#ccc'
+            }
+        },
+        xAxis: { show: false },
+        yAxis: { show: false },
+        series: []
+    };
+}
+
+// Initialize Plan vs Fact chart
+function initPlanFactChart() {
+    const chartDom = document.getElementById('chart-plan-fact');
+    planFactChart = echarts.init(chartDom);
+
+    // Show loading state
+    planFactChart.showLoading();
+}
+
+// Load Plan vs Fact data from API
+async function loadPlanFactData(period) {
+    try {
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/plan-fact?period=${period}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        updatePlanFactChart(data);
+    } catch (error) {
+        console.error('Error loading plan-fact data:', error);
+        planFactChart.hideLoading();
+
+        // Show error message
+        planFactChart.setOption({
+            title: {
+                text: 'Ошибка загрузки данных',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+// Update Plan vs Fact chart with data
+function updatePlanFactChart(data) {
+    planFactChart.hideLoading();
+
+    // Handle empty data
+    if (!data.labels || data.labels.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '📊',
+            'Нет данных',
+            'Добавьте факты или планы для просмотра графика'
+        );
+        planFactChart.setOption(emptyOption);
+        return;
+    }
+
+    const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            extraCssText: 'z-index: 30 !important;',
+            axisPointer: {
+                type: 'shadow'
+            },
+            formatter: function(params) {
+                const isCumulative = data.chart_mode === 'cumulative';
+                let result = `<strong>${params[0].axisValue}</strong><br/>`;
+
+                params.forEach((param, index) => {
+                    const value = param.value.toFixed(2);
+                    const seriesName = param.seriesName;
+
+                    if (isCumulative) {
+                        // Show both period value and cumulative value
+                        const periodValue = index === 0
+                            ? (data.plan_period && data.plan_period[param.dataIndex] || 0)
+                            : (data.fact_period && data.fact_period[param.dataIndex] || 0);
+
+                        result += `${param.marker} ${seriesName}:<br/>`;
+                        result += `&nbsp;&nbsp;За период: ${periodValue.toFixed(2)} ₽<br/>`;
+                        result += `&nbsp;&nbsp;<strong>Накопительно: ${value} ₽</strong><br/>`;
+                    } else {
+                        // Normal mode: just show the value
+                        result += `${param.marker} ${seriesName}: ${value} ₽<br/>`;
+                    }
+                });
+
+                // Calculate difference (План - Факт: положительное = экономия, отрицательное = превышение)
+                if (params.length === 2) {
+                    const diff = params[0].value - params[1].value;  // План - Факт
+                    const diffPercent = params[0].value > 0 ? ((Math.abs(diff) / params[0].value) * 100).toFixed(1) : 0;
+                    const diffColor = diff >= 0 ? '#4CAF50' : '#f44336';
+                    const modeHint = isCumulative ? ' (накопительно)' : '';
+
+                    // Label based on sign
+                    let label = '';
+                    if (diff > 0) {
+                        label = 'Экономия';
+                    } else if (diff < 0) {
+                        label = 'Превышение';
+                    } else {
+                        label = 'В пределах плана';
+                    }
+
+                    result += `<span style="color: ${diffColor}">${label}${modeHint}: ${diff.toFixed(2)} ₽ (${diffPercent}%)</span>`;
+                }
+
+                return result;
+            }
+        },
+        legend: {
+            data: ['План', 'Факт'],
+            bottom: 10
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: data.labels,
+            axisLabel: {
+                rotate: data.labels.length > 10 ? 45 : 0
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Сумма (₽)',
+            axisLabel: {
+                formatter: function(value) {
+                    return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
+                }
+            }
+        },
+        series: [
+            {
+                name: 'План',
+                type: 'bar',
+                data: data.plan,
+                itemStyle: {
+                    color: '#2196F3',
+                    borderRadius: [4, 4, 0, 0]
+                },
+                emphasis: {
+                    itemStyle: {
+                        color: '#1976D2'
+                    }
+                }
+            },
+            {
+                name: 'Факт',
+                type: 'bar',
+                data: data.fact,
+                itemStyle: {
+                    color: '#4CAF50',
+                    borderRadius: [4, 4, 0, 0]
+                },
+                emphasis: {
+                    itemStyle: {
+                        color: '#388E3C'
+                    }
+                }
+            }
+        ]
+    };
+
+    planFactChart.setOption(option);
+}
+
+// Update period filter (applies to ALL charts)
+function updatePeriod(period) {
+    currentPeriod = period;
+    customRangeActive = false;  // Deactivate custom range
+
+    // Update active button (DaisyUI btn-group)
+    document.querySelectorAll('#filter-month, #filter-quarter, #filter-year, #filter-custom').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+    const activeBtn = document.getElementById(`filter-${period}`);
+    activeBtn.classList.remove('btn-outline');
+    activeBtn.classList.add('btn-primary');
+    activeBtn.setAttribute('aria-pressed', 'true');
+
+    // Hide custom range container
+    document.getElementById('custom-range-container').style.display = 'none';
+
+    // Update period display text
+    updatePeriodDisplay(period);
+
+    // Reload ALL charts with the selected period
+    loadPlanFactData(period);
+    loadTrendsData(period);
+    loadPieData(currentPieType, period);
+    loadWaterfallData(period, currentWaterfallArticleId);
+    loadHeatmapData(period);
+}
+
+// Update period display text
+function updatePeriodDisplay(period, dateFrom = null, dateTo = null) {
+    const displayEl = document.getElementById('period-display');
+    if (!displayEl) return;
+
+    // Helper to calculate days difference
+    const calculateDays = (start, end) => {
+        const diffMs = end.getTime() - start.getTime();
+        return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
+    };
+
+    // Helper to format days count
+    const formatDays = (days) => {
+        if (days === 1) return '1 день';
+        if (days >= 2 && days <= 4) return `${days} дня`;
+        return `${days} дней`;
+    };
+
+    let text = '';
+    if (dateFrom && dateTo) {
+        // Custom range - parse dates and calculate days (v5.1.3)
+        const startDate = BudgetShared.DateFormatter.parse(dateFrom);
+        const endDate = BudgetShared.DateFormatter.parse(dateTo);
+        const daysCount = calculateDays(startDate, endDate);
+        text = `Выбран период: ${dateFrom} — ${dateTo} (${formatDays(daysCount)})`;
+    } else {
+        const today = new Date();
+        const formatDate = (date) => {
+            const d = String(date.getDate()).padStart(2, '0');
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const y = date.getFullYear();
+            return `${d}.${m}.${y}`;
+        };
+
+        switch (period) {
+            case 'month':
+                // Current calendar month (from 1st day to today)
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last day
+                const monthDisplayEnd = today < monthEnd ? today : monthEnd;
+                const monthDays = calculateDays(monthStart, monthDisplayEnd);
+                text = `Выбран месяц: ${formatDate(monthStart)} — ${formatDate(monthDisplayEnd)} (${formatDays(monthDays)})`;
+                break;
+            case 'quarter':
+                // Current calendar quarter (from Q start to today)
+                const currentMonth = today.getMonth();
+                const quarterNum = Math.floor(currentMonth / 3) + 1;
+                const quarterFirstMonth = (quarterNum - 1) * 3;
+                const quarterStart = new Date(today.getFullYear(), quarterFirstMonth, 1);
+                const quarterLastMonth = quarterFirstMonth + 2;
+                const quarterEnd = new Date(today.getFullYear(), quarterLastMonth + 1, 0);
+                const quarterDisplayEnd = today < quarterEnd ? today : quarterEnd;
+                const quarterDays = calculateDays(quarterStart, quarterDisplayEnd);
+                text = `Выбран квартал Q${quarterNum}: ${formatDate(quarterStart)} — ${formatDate(quarterDisplayEnd)} (${formatDays(quarterDays)})`;
+                break;
+            case 'year':
+                // Current calendar year (from Jan 1 to today)
+                const yearStart = new Date(today.getFullYear(), 0, 1); // Jan 1
+                const yearEnd = new Date(today.getFullYear(), 11, 31); // Dec 31
+                const yearDisplayEnd = today < yearEnd ? today : yearEnd;
+                const yearDays = calculateDays(yearStart, yearDisplayEnd);
+                text = `Выбран год ${today.getFullYear()}: ${formatDate(yearStart)} — ${formatDate(yearDisplayEnd)} (${formatDays(yearDays)})`;
+                break;
+        }
+    }
+
+    displayEl.textContent = text;
+}
+
+// Toggle custom range picker visibility
+function toggleCustomRange() {
+    const container = document.getElementById('custom-range-container');
+    const customBtn = document.getElementById('filter-custom');
+
+    if (container.style.display === 'none') {
+        // Show custom range
+        container.style.display = 'flex';
+        customBtn.classList.remove('btn-outline');
+        customBtn.classList.add('btn-primary');
+        customBtn.setAttribute('aria-pressed', 'true');
+
+        // Deactivate other buttons
+        document.querySelectorAll('#filter-month, #filter-quarter, #filter-year').forEach(btn => {
+            btn.classList.remove('btn-primary');
+            btn.classList.add('btn-outline');
+            btn.setAttribute('aria-pressed', 'false');
+        });
+    } else {
+        cancelCustomRange();
+    }
+}
+
+// Apply custom date range
+function applyCustomRange() {
+    if (!customDateFrom || !customDateTo) {
+        alert('Пожалуйста, выберите диапазон дат');
+        return;
+    }
+
+    customRangeActive = true;
+
+    // Update period display
+    updatePeriodDisplay(null, customDateFrom, customDateTo);
+
+    // Convert DD.MM.YYYY to YYYY-MM-DD for API
+    const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+    const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
+
+    // Reload all charts with custom dates
+    loadPlanFactDataCustom(isoFrom, isoTo);
+    loadTrendsDataCustom(isoFrom, isoTo);
+    loadPieDataCustom(currentPieType, isoFrom, isoTo);
+    loadWaterfallDataCustom(isoFrom, isoTo, currentWaterfallArticleId);  // v5.1.3: preserve drill-down
+    loadHeatmapDataCustom(isoFrom, isoTo);
+}
+
+// Cancel custom range selection
+function cancelCustomRange() {
+    const container = document.getElementById('custom-range-container');
+    const customBtn = document.getElementById('filter-custom');
+
+    container.style.display = 'none';
+    customBtn.classList.remove('btn-primary');
+    customBtn.classList.add('btn-outline');
+    customBtn.setAttribute('aria-pressed', 'false');
+
+    customRangeActive = false;
+    customDateFrom = null;
+    customDateTo = null;
+
+    // Clear inputs
+    document.getElementById('date-from').value = '';
+    document.getElementById('date-to').value = '';
+
+    // Revert to default period (month)
+    updatePeriod('month');
+}
+
+// Initialize Trends chart
+function initTrendsChart() {
+    const chartDom = document.getElementById('chart-trends');
+    trendsChart = echarts.init(chartDom);
+    trendsChart.showLoading();
+}
+
+// Load Trends data from API
+async function loadTrendsData(period) {
+    try {
+        // Build query string with CFO filter (v5.1.3) and chart mode
+        let url = `/api/v1/analytics/trends?period=${period}&record_type=fact&chart_mode=${currentTrendsMode}`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data) {
+            throw new Error('Empty response from server');
+        }
+
+        updateTrendsChart(data);
+    } catch (error) {
+        console.error('Error loading trends data:', error);
+        trendsChart.hideLoading();
+
+        trendsChart.setOption({
+            title: {
+                text: 'Ошибка загрузки данных',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+// Update Trends chart with data
+function updateTrendsChart(data) {
+    trendsChart.hideLoading();
+
+    // Handle empty data
+    if (!data.labels || data.labels.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '📈',
+            'Нет данных',
+            'Добавьте факты для просмотра динамики'
+        );
+        trendsChart.setOption(emptyOption);
+        return;
+    }
+
+    const periodMap = { month: '4 недели', quarter: 'квартал', year: '12 месяцев' };
+    const periodLabel = periodMap[data.period] || data.period;
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            extraCssText: 'z-index: 30 !important;',
+            axisPointer: {
+                type: 'cross',
+                label: {
+                    backgroundColor: '#6a7985'
+                }
+            },
+            formatter: function(params) {
+                const isCumulative = data.chart_mode === 'cumulative';
+                const label = params[0].axisValue;
+                let result = `<strong>${label}</strong><br/>`;
+
+                params.forEach((param, index) => {
+                    const value = param.value.toFixed(2);
+                    const seriesName = param.seriesName;
+
+                    if (isCumulative) {
+                        // Show both period value and cumulative value
+                        const periodValue = index === 0
+                            ? (data.income_period && data.income_period[param.dataIndex] || 0)
+                            : (data.expense_period && data.expense_period[param.dataIndex] || 0);
+
+                        result += `${param.marker} ${seriesName}:<br/>`;
+                        result += `&nbsp;&nbsp;За период: ${periodValue.toFixed(2)} ₽<br/>`;
+                        result += `&nbsp;&nbsp;<strong>Накопительно: ${value} ₽</strong><br/>`;
+                    } else {
+                        // Normal mode: just show the value
+                        result += `${param.marker} ${seriesName}: ${value} ₽<br/>`;
+                    }
+                });
+
+                // Calculate net
+                if (params.length === 2) {
+                    const net = params[0].value - params[1].value;
+                    const netColor = net >= 0 ? '#4CAF50' : '#f44336';
+                    const modeHint = isCumulative ? ' (накопительно)' : '';
+                    result += `<span style="color: ${netColor}">Чистый доход${modeHint}: ${net.toFixed(2)} ₽</span>`;
+                }
+
+                return result;
+            }
+        },
+        legend: {
+            data: ['Доходы', 'Расходы'],
+            bottom: 10
+        },
+        grid: {
+            left: '3%',
+            right: '4%',
+            bottom: '15%',
+            top: '10%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: data.labels,
+            axisLabel: {
+                rotate: data.labels.length > 15 ? 45 : 0
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Сумма (₽)',
+            axisLabel: {
+                formatter: function(value) {
+                    return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
+                }
+            }
+        },
+        series: [
+            {
+                name: 'Доходы',
+                type: 'line',
+                smooth: true,
+                data: data.income,
+                lineStyle: {
+                    color: '#4CAF50',
+                    width: 2
+                },
+                itemStyle: {
+                    color: '#4CAF50'
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(76, 175, 80, 0.3)' },
+                            { offset: 1, color: 'rgba(76, 175, 80, 0.05)' }
+                        ]
+                    }
+                }
+            },
+            {
+                name: 'Расходы',
+                type: 'line',
+                smooth: true,
+                data: data.expense,
+                lineStyle: {
+                    color: '#f44336',
+                    width: 2
+                },
+                itemStyle: {
+                    color: '#f44336'
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(244, 67, 54, 0.3)' },
+                            { offset: 1, color: 'rgba(244, 67, 54, 0.05)' }
+                        ]
+                    }
+                }
+            }
+        ]
+    };
+
+    trendsChart.setOption(option);
+}
+
+// Initialize Pie chart
+function initPieChart() {
+    const chartDom = document.getElementById('chart-pie');
+    pieChart = echarts.init(chartDom);
+    pieChart.showLoading();
+}
+
+// Load Pie chart data from API
+async function loadPieData(type, period) {
+    try {
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/category-breakdown?type=${type}&period=${period}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data) {
+            throw new Error('Empty response from server');
+        }
+
+        updatePieChart(data);
+    } catch (error) {
+        console.error('Error loading pie data:', error);
+        pieChart.hideLoading();
+
+        pieChart.setOption({
+            title: {
+                text: 'Ошибка загрузки данных',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        }, true);  // notMerge: true - clear old data
+    }
+}
+
+// Update Pie chart with data
+function updatePieChart(data) {
+    pieChart.hideLoading();
+
+    // Handle empty data
+    if (!data.categories || data.categories.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '🥧',
+            'Нет данных',
+            'Добавьте факты для просмотра распределения по категориям'
+        );
+        pieChart.setOption(emptyOption, true);  // notMerge: true - clear old data (v5.1.3 bugfix)
+        return;
+    }
+
+    const typeMap = { expense: 'Расходы', income: 'Доходы' };
+    const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
+    const typeLabel = typeMap[data.type] || data.type;
+    const periodLabel = periodMap[data.period] || data.period;
+
+    // Prepare data for ECharts with TOP 10 + "Прочее" logic
+    let chartData;
+    let othersData = null;
+
+    // Synchronous processing (workers disabled - async overhead > performance gain for typical datasets)
+    if (data.categories.length > 10) {
+        // Топ 10 + "Прочее"
+        const top10 = data.categories.slice(0, 10).map((category, index) => ({
+            name: category,
+            value: data.amounts[index],
+            percent: data.percentages[index]
+        }));
+
+        const others = data.categories.slice(10).map((category, index) => ({
+            name: category,
+            value: data.amounts[index + 10],
+            percent: data.percentages[index + 10]
+        }));
+
+        const othersSum = others.reduce((sum, item) => sum + item.value, 0);
+        const othersPercent = others.reduce((sum, item) => sum + item.percent, 0);
+
+        // Сортировка "Прочее" от большего к меньшему
+        others.sort((a, b) => b.value - a.value);
+
+        chartData = [...top10, {
+            name: 'Прочее',
+            value: othersSum,
+            percent: othersPercent,
+            othersData: others  // Сохраняем для специального тултипа
+        }];
+        othersData = others;
+    } else {
+        // Если категорий ≤ 10: показать все без "Прочее"
+        chartData = data.categories.map((category, index) => ({
+            name: category,
+            value: data.amounts[index],
+            percent: data.percentages[index]
+        }));
+    }
+
+    // Adaptive layout based on screen width
+    const screenWidth = window.innerWidth;
+    const isMobile = screenWidth < 640;
+    const isTablet = screenWidth >= 640 && screenWidth < 1024;
+
+    // Adjust chart container height based on number of categories and screen size
+    const chartDom = document.getElementById('chart-pie');
+    const numCategories = chartData.length;
+
+    // Calculate required height for legend
+    const legendItemWidth = isMobile ? 100 : 130;  // Approximate width per legend item
+    const containerWidth = chartDom.offsetWidth;
+    const itemsPerRow = Math.floor(containerWidth / legendItemWidth);
+    const legendRows = Math.ceil(numCategories / itemsPerRow);
+    const legendHeight = legendRows * (isMobile ? 25 : 30);  // Height per row
+
+    // Base height + legend height + padding
+    const minHeight = isMobile ? 280 : 400;
+    const dynamicHeight = Math.max(minHeight, minHeight + legendHeight + 80);
+    chartDom.style.height = `${dynamicHeight}px`;
+
+    // Rebuild chart with new height
+    pieChart.dispose();
+    pieChart = echarts.init(chartDom);
+
+    // Adaptive configuration
+    let legendConfig, seriesConfig;
+
+    if (isMobile) {
+        // Mobile: legend below chart, smaller pie radius
+        legendConfig = {
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 5,
+            itemWidth: 10,
+            itemHeight: 10,
+            textStyle: {
+                fontSize: 10
+            },
+            formatter: function(name) {
+                return name.length > 12 ? name.substring(0, 12) + '...' : name;
+            }
+        };
+        seriesConfig = {
+            radius: ['25%', '45%'],
+            center: ['50%', '35%'],  // Move up to make room for legend
+            label: {
+                show: true,
+                formatter: '{d}%',
+                fontSize: 10
+            }
+        };
+    } else if (isTablet) {
+        // Tablet: medium size
+        legendConfig = {
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 10,
+            itemWidth: 12,
+            itemHeight: 12,
+            textStyle: {
+                fontSize: 11
+            },
+            formatter: function(name) {
+                return name.length > 14 ? name.substring(0, 14) + '...' : name;
+            }
+        };
+        seriesConfig = {
+            radius: ['28%', '50%'],
+            center: ['50%', '40%'],
+            label: {
+                show: true,
+                formatter: '{d}%',
+                fontSize: 11
+            }
+        };
+    } else {
+        // Desktop: full size
+        legendConfig = {
+            orient: 'horizontal',
+            left: 'center',
+            bottom: 15,
+            itemWidth: 14,
+            itemHeight: 14,
+            textStyle: {
+                fontSize: 12
+            },
+            formatter: function(name) {
+                return name.length > 15 ? name.substring(0, 15) + '...' : name;
+            }
+        };
+        seriesConfig = {
+            radius: ['30%', '55%'],
+            center: ['50%', '43%'],
+            label: {
+                show: true,
+                formatter: '{d}%',
+                fontSize: 12
+            }
+        };
+    }
+
+    const option = {
+        tooltip: {
+            trigger: 'item',
+            confine: true,
+            extraCssText: 'z-index: 30 !important;',
+            formatter: function(params) {
+                // Специальный тултип для "Прочее"
+                if (params.name === 'Прочее' && params.data.othersData) {
+                    let html = `<strong>${params.name}</strong><br/>`;
+                    html += `Всего: ${params.value.toFixed(2)} ₽ (${params.percent.toFixed(1)}%)<br/><br/>`;
+                    html += '<div style="font-size: 12px;">';
+
+                    const displayItems = params.data.othersData.slice(0, 10);
+                    const remainingCount = params.data.othersData.length - 10;
+
+                    displayItems.forEach(item => {
+                        html += `<div style="margin-bottom: 2px;">`;
+                        html += `${item.name}: ${item.value.toFixed(2)} ₽ (${item.percent.toFixed(1)}%)`;
+                        html += `</div>`;
+                    });
+
+                    if (remainingCount > 0) {
+                        html += `<div style="margin-top: 4px; font-style: italic; color: #999;">`;
+                        html += `... и еще ${remainingCount} ${remainingCount === 1 ? 'категория' : remainingCount < 5 ? 'категории' : 'категорий'}`;
+                        html += `</div>`;
+                    }
+
+                    html += '</div>';
+                    return html;
+                }
+
+                // Обычный тултип
+                let html = `<strong>${params.name}</strong><br/>`;
+                html += `Сумма: ${params.value.toFixed(2)} ₽<br/>`;
+                html += `Процент: ${params.percent.toFixed(1)}%`;
+                return html;
+            }
+        },
+        legend: legendConfig,
+        series: [
+            {
+                name: typeLabel,
+                type: 'pie',
+                radius: seriesConfig.radius,
+                center: seriesConfig.center,
+                avoidLabelOverlap: true,
+                itemStyle: {
+                    borderRadius: 10,
+                    borderColor: '#fff',
+                    borderWidth: 2
+                },
+                label: seriesConfig.label,
+                emphasis: {
+                    label: {
+                        show: true,
+                        fontSize: isMobile ? 12 : 14,
+                        fontWeight: 'bold'
+                    },
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowOffsetX: 0,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                },
+                labelLine: {
+                    show: true
+                },
+                data: chartData
+            }
+        ]
+    };
+
+    pieChart.setOption(option, true);  // notMerge: true - clear old data (v5.1.3 bugfix)
+}
+
+// Update operation type filter (unified: expense/income/debit/credit)
+function updateOperationType(type) {
+    // Use type directly (no mapping needed - backend supports all 4 types)
+    // - expense: расход (все траты)
+    // - income: доход (все поступления)
+    // - debit: списание (только списания)
+    // - credit: пополнение (только пополнения)
+
+    currentGlobalType = type;
+    currentPieType = type;
+
+    // Clear category filter BEFORE reloading charts
+    currentCategoryIds = [];
+
+    // Update active button and ARIA states
+    const expenseBtn = document.getElementById('operation-type-expense');
+    const incomeBtn = document.getElementById('operation-type-income');
+    const debitBtn = document.getElementById('operation-type-debit');
+    const creditBtn = document.getElementById('operation-type-credit');
+
+    // Reset all buttons to outline
+    [expenseBtn, incomeBtn, debitBtn, creditBtn].forEach(btn => {
+        btn.classList.remove('btn-error', 'btn-success', 'btn-info', 'btn-warning');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    // Set active button with color
+    let activeBtn;
+    if (type === 'expense') {
+        activeBtn = expenseBtn;
+        activeBtn.classList.add('btn-error');
+    } else if (type === 'income') {
+        activeBtn = incomeBtn;
+        activeBtn.classList.add('btn-success');
+    } else if (type === 'debit') {
+        activeBtn = debitBtn;
+        activeBtn.classList.add('btn-info');
+    } else if (type === 'credit') {
+        activeBtn = creditBtn;
+        activeBtn.classList.add('btn-warning');
+    }
+
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline');
+        activeBtn.setAttribute('aria-pressed', 'true');
+    }
+
+    // Reload charts that depend on operation type filter
+    if (customRangeActive) {
+        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
+        loadPlanFactDataCustom(isoFrom, isoTo);
+        loadPieDataCustom(type, isoFrom, isoTo);  // Use type directly
+        loadHeatmapDataCustom(isoFrom, isoTo);
+    } else {
+        loadPlanFactData(currentPeriod);
+        loadPieData(type, currentPeriod);  // Use type directly
+        loadHeatmapData(currentPeriod);
+    }
+
+    // Update category filter with exact type (expense/income/debit/credit)
+    // This ensures dropdown shows only categories matching the selected operation type
+
+    if (categoryChoices && typeof categoryChoices.updateType === 'function') {
+        categoryChoices.updateType(type).catch(error => {
+            console.error('Failed to update category filter type:', error);
+            if (typeof initCategoryFilter === 'function') {
+                initCategoryFilter();
+            }
+        });
+    } else if (typeof initCategoryFilter === 'function') {
+        initCategoryFilter();
+    }
+}
+
+// Update chart mode (normal vs cumulative) for Plan-Fact chart
+function updateChartMode(mode) {
+    currentChartMode = mode;
+
+    // Save to localStorage
+    localStorage.setItem('budgetChartMode', mode);
+
+    // Update UI
+    syncChartModeUI();
+
+    // Reload Plan-Fact chart with new mode
+    if (customRangeActive) {
+        // Convert DD.MM.YYYY to YYYY-MM-DD
+        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
+        loadPlanFactDataCustom(isoFrom, isoTo);
+    } else {
+        loadPlanFactData(currentPeriod);
+    }
+}
+
+// Sync chart mode UI with current state
+function syncChartModeUI() {
+    // Update button states
+    document.querySelectorAll('#chart-mode-cumulative, #chart-mode-normal').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    const activeBtn = document.getElementById(`chart-mode-${currentChartMode}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline');
+        activeBtn.classList.add('btn-primary');
+        activeBtn.setAttribute('aria-pressed', 'true');
+    }
+
+    // Update hint text
+    const hintText = currentChartMode === 'cumulative'
+        ? 'Накопительный итог с начала периода'
+        : 'Значения за каждый период';
+    const hintElement = document.getElementById('chart-mode-hint');
+    if (hintElement) {
+        hintElement.textContent = hintText;
+    }
+}
+
+// Update trends chart mode (normal vs cumulative) for Trends chart
+function updateTrendsMode(mode) {
+    currentTrendsMode = mode;
+
+    // Save to localStorage
+    localStorage.setItem('budgetTrendsMode', mode);
+
+    // Update UI
+    syncTrendsModeUI();
+
+    // Reload Trends chart with new mode
+    // Backend support: TBD in analytics.py
+    if (customRangeActive) {
+        // Convert DD.MM.YYYY to YYYY-MM-DD
+        const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
+        const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
+        loadTrendsDataCustom(isoFrom, isoTo);
+    } else {
+        loadTrendsData(currentPeriod);
+    }
+}
+
+// Sync trends mode UI with current state
+function syncTrendsModeUI() {
+    // Update button states
+    document.querySelectorAll('#trends-mode-cumulative, #trends-mode-normal').forEach(btn => {
+        btn.classList.remove('btn-primary');
+        btn.classList.add('btn-outline');
+        btn.setAttribute('aria-pressed', 'false');
+    });
+
+    const activeBtn = document.getElementById(`trends-mode-${currentTrendsMode}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('btn-outline');
+        activeBtn.classList.add('btn-primary');
+        activeBtn.setAttribute('aria-pressed', 'true');
+    }
+}
+
+// Note: updatePeriod function is defined earlier in the file
+
+// Initialize Waterfall chart
+function initWaterfallChart() {
+    const chartDom = document.getElementById('chart-waterfall');
+    waterfallChart = echarts.init(chartDom);
+    waterfallChart.showLoading();
+}
+
+// Load Waterfall data from API
+async function loadWaterfallData(period = 'year', articleId = null) {
+    try {
+        let url = `/api/v1/analytics/waterfall?period=${period}`;
+        if (articleId) {
+            url += `&article_id=${articleId}`;
+        }
+
+        // Add CFO filter if specified (v5.1.3)
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Validate data before accessing properties
+        if (!data) {
+            throw new Error('Empty response from server');
+        }
+
+        waterfallCategoriesData = data.categories || [];
+        updateWaterfallChart(data);
+
+        // Show/hide reset button based on drill-down state
+        const resetBtn = document.getElementById('waterfall-reset');
+        if (resetBtn) {
+            if (articleId) {
+                resetBtn.style.display = 'inline-block';
+            } else {
+                resetBtn.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading waterfall data:', error);
+        waterfallChart.hideLoading();
+
+        waterfallChart.setOption({
+            title: {
+                text: 'Ошибка загрузки данных',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+// Update Waterfall chart with data
+function updateWaterfallChart(data) {
+    if (!waterfallChart) {
+        console.error('Waterfall chart not initialized');
+        return;
+    }
+
+    waterfallChart.hideLoading();
+
+    // Handle empty data
+    if (!data || !data.labels || data.labels.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '💧',
+            'Нет данных',
+            'Добавьте факты для просмотра денежного потока'
+        );
+        waterfallChart.setOption(emptyOption);
+        return;
+    }
+
+    // Build proper waterfall data structure (synchronous - async overhead > performance gain)
+    // Waterfall shows: Начало -> +Income -> -Expense -> Итого (cumulative)
+    const waterfallData = [];
+    const labels = [];
+
+    // Add starting point (from previous period balance)
+    const initialBalance = data.initial_balance || 0;
+    labels.push('Начало');
+    waterfallData.push({
+        value: initialBalance,
+        itemStyle: { color: '#90CAF9' }
+    });
+
+    // Add each period's net change
+    data.labels.forEach((label, index) => {
+        const income = data.income[index];
+        const expense = data.expense[index];
+        const net = income - expense;
+
+        labels.push(label);
+        waterfallData.push({
+            value: net,
+            itemStyle: {
+                color: net >= 0 ? '#4CAF50' : '#f44336'  // Green for positive, red for negative
+            }
+        });
+    });
+
+    // Add final cumulative balance
+    labels.push('Итого');
+    waterfallData.push({
+        value: data.balance[data.balance.length - 1],
+        itemStyle: { color: '#2196F3' }
+    });
+
+    // Build subtitle
+    const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
+    let subtitle = `${periodMap[data.period] || data.period}`;
+    if (data.article_name) {
+        subtitle += ` - ${data.article_name}`;
+    }
+
+    const option = {
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            extraCssText: 'z-index: 30 !important;',
+            axisPointer: {
+                type: 'shadow'
+            },
+            formatter: function(params) {
+                const labelIndex = params[0].dataIndex;
+
+                // Skip first (Start) and last (Total)
+                if (labelIndex === 0) {
+                    return `<strong>Начало</strong><br/>Начальный баланс: ${initialBalance.toFixed(2)} ₽`;
+                }
+
+                if (labelIndex === labels.length - 1) {
+                    const finalBalance = data.balance[data.balance.length - 1];
+                    return `<strong>Итого</strong><br/>Конечный баланс: ${finalBalance.toFixed(2)} ₽`;
+                }
+
+                // Regular period data
+                const dataIndex = labelIndex - 1;
+                const label = data.labels[dataIndex];
+                const income = data.income[dataIndex];
+                const expense = data.expense[dataIndex];
+                const net = income - expense;
+                const cumulative = data.balance[dataIndex];
+
+                let tooltip = `<strong>${label}</strong><br/>`;
+                tooltip += `Доходы: ${income.toFixed(2)} ₽<br/>`;
+                tooltip += `Расходы: ${expense.toFixed(2)} ₽<br/>`;
+                tooltip += `<hr style="margin: 5px 0"/>`;
+                tooltip += `Чистый доход: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span><br/>`;
+                tooltip += `Накопительный итог: ${cumulative.toFixed(2)} ₽`;
+
+                // Show categories for drill-down
+                if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
+                    tooltip += `<br/><br/><em style="color: #999; font-size: 11px;">Нажмите для детализации по категории</em>`;
+                }
+
+                return tooltip;
+            }
+        },
+        grid: {
+            left: '5%',
+            right: '5%',
+            bottom: '15%',  // v5.1.3: увеличен отступ (12% → 15%) для поворачиваемых подписей оси X
+            top: '20%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: labels,
+            axisLabel: {
+                rotate: data.labels.length > 8 ? 45 : 0,
+                fontSize: 11
+            }
+        },
+        yAxis: {
+            type: 'value',
+            name: 'Сумма (₽)',
+            axisLabel: {
+                formatter: function(value) {
+                    return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
+                }
+            }
+        },
+        series: [
+            {
+                name: 'Waterfall',
+                type: 'bar',
+                data: waterfallData,
+                label: {
+                    show: false
+                },
+                emphasis: {
+                    focus: 'series',
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+
+    waterfallChart.setOption(option, true);  // true = notMerge for clean refresh
+
+    // Add click event for drill-down
+    waterfallChart.off('click');  // Remove previous listeners
+    waterfallChart.on('click', function(params) {
+        // Skip Start and Total bars
+        if (params.dataIndex === 0 || params.dataIndex === labels.length - 1) {
+            return;
+        }
+
+        // Already in drill-down mode - do nothing
+        if (data.article_id) {
+            return;
+        }
+
+        // Get the actual data index (subtract 1 for Start bar)
+        const dataIndex = params.dataIndex - 1;
+        const categories = waterfallCategoriesData[dataIndex];
+
+        if (!categories || categories.length === 0) {
+            return;
+        }
+
+        // Show drill-down modal with categories
+        showWaterfallDrilldownModal(data.labels[dataIndex], categories);
+    });
+}
+
+// Reset waterfall drill-down to main view
+function resetWaterfallDrilldown() {
+    currentWaterfallArticleId = null;
+    // Use current global period
+    loadWaterfallData(currentPeriod, null);
+}
+
+// Show drill-down modal with category list
+function showWaterfallDrilldownModal(periodLabel, categories) {
+    // Build modal HTML (with mobile optimization: max-h-[85vh] sm:max-h-[90vh] overflow-y-auto)
+    let modalHtml = `
+        <div id="waterfall-drilldown-modal" class="modal" style="display: block;">
+            <div class="modal-content max-h-[85vh] sm:max-h-[90vh] overflow-y-auto">
+                <div class="modal-header">
+                    <h3>Детализация: ${periodLabel}</h3>
+                    <span class="modal-close" onclick="closeWaterfallDrilldownModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <p>Выберите категорию для просмотра детализации:</p>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Категория</th>
+                                    <th>Тип</th>
+                                    <th>Сумма</th>
+                                    <th>Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+    `;
+
+    categories.forEach(cat => {
+        const typeLabel = cat.type === 'income' ? 'Доход' : 'Расход';
+        const typeColor = cat.type === 'income' ? '#4CAF50' : '#f44336';
+        const amountFormatted = cat.amount.toFixed(2);
+
+        modalHtml += `
+            <tr>
+                <td><strong>${cat.name}</strong></td>
+                <td><span style="color: ${typeColor}">${typeLabel}</span></td>
+                <td>${amountFormatted} ₽</td>
+                <td>
+                    <button class="btn-primary btn-small" onclick="selectWaterfallArticle(${cat.id}, '${cat.name.replace(/'/g, "\\'")}')">
+                        Смотреть
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+
+    modalHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeWaterfallDrilldownModal()">Отмена</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Insert modal into DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Close modal on outside click
+    const modal = document.getElementById('waterfall-drilldown-modal');
+    window.onclick = function(event) {
+        if (event.target === modal) {
+            closeWaterfallDrilldownModal();
+        }
+    };
+}
+
+// Close drill-down modal
+function closeWaterfallDrilldownModal() {
+    const modal = document.getElementById('waterfall-drilldown-modal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Select article for drill-down
+function selectWaterfallArticle(articleId, articleName) {
+    currentWaterfallArticleId = articleId;
+    closeWaterfallDrilldownModal();
+    loadWaterfallData(currentPeriod, articleId);
+}
+
+// Initialize Heatmap chart
+function initHeatmapChart() {
+    const chartDom = document.getElementById('chart-heatmap');
+    heatmapChart = echarts.init(chartDom);
+    heatmapChart.showLoading();
+}
+
+// Load Heatmap data from API
+async function loadHeatmapData(period = 'quarter') {
+    try {
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/heatmap?period=${period}&article_type=${currentGlobalType}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data) {
+            throw new Error('Empty response from server');
+        }
+
+        updateHeatmapChart(data);
+    } catch (error) {
+        console.error('Error loading heatmap data:', error);
+        heatmapChart.hideLoading();
+
+        heatmapChart.setOption({
+            title: {
+                text: 'Ошибка загрузки данных',
+                subtext: error.message,
+                left: 'center',
+                top: 'middle',
+                textStyle: { color: '#f44336' }
+            }
+        });
+    }
+}
+
+// Update Heatmap chart with data (supports dynamic aggregation)
+function updateHeatmapChart(data) {
+    if (!heatmapChart) {
+        console.error('Heatmap chart not initialized');
+        return;
+    }
+
+    heatmapChart.hideLoading();
+
+    // Handle empty data
+    if (!data || !data.xAxis || data.xAxis.length === 0 || !data.yAxis || data.yAxis.length === 0) {
+        const emptyOption = createEmptyStateOption(
+            '🔥',
+            'Нет данных',
+            'Добавьте факты для просмотра тепловой карты'
+        );
+        heatmapChart.setOption(emptyOption);
+        return;
+    }
+
+    // Transform data to ECharts format: [xIndex, yIndex, value]
+    const heatmapData = [];
+    let allValues = [];
+
+    data.data.forEach((row, yIndex) => {
+        row.forEach((value, xIndex) => {
+            heatmapData.push([xIndex, yIndex, value]);
+            if (value > 0) allValues.push(value);
+        });
+    });
+
+    // Find max value for visualMap
+    const maxValue = allValues.length > 0 ? Math.max(...allValues) : 1000;
+
+    // Dynamic chart height based on aggregation type and number of rows
+    const chartDom = document.getElementById('chart-heatmap');
+    const minHeight = 300;
+    const rowHeight = data.aggregation === 'day' ? 80 : 30;  // Taller for single-row day view
+    const dynamicHeight = Math.max(minHeight, data.yAxis.length * rowHeight + 150);
+    chartDom.style.height = `${dynamicHeight}px`;
+
+    // Rebuild chart with new height
+    heatmapChart.dispose();
+    heatmapChart = echarts.init(chartDom);
+
+    // Period labels with fallback
+    const periodMap = { month: 'Месяц', quarter: 'Квартал', year: 'Год' };
+    const periodLabel = periodMap[data.period] || data.period || 'Период';
+
+    // Aggregation labels with fallback
+    const aggregationMap = {
+        day: 'по дням',
+        week: 'по неделям',
+        month: 'по месяцам',
+        single_week: 'неделя'
+    };
+    const aggregationLabel = aggregationMap[data.aggregation] || 'агрегация';
+
+    // Determine label based on transaction type or category type
+    const typeMap = {
+        expense: 'расходов',
+        income: 'доходов',
+        debit: 'списаний',
+        credit: 'пополнений'
+    };
+    const typeLabelSingularMap = {
+        expense: 'Расход',
+        income: 'Доход',
+        debit: 'Списание',
+        credit: 'Пополнение'
+    };
+
+    const operationType = currentGlobalType;
+    const typeLabel = typeMap[operationType] || 'расходов';
+    const typeLabelSingular = typeLabelSingularMap[operationType] || 'Расход';
+
+    // Build title with validation
+    const titleText = `Тепловая карта (${periodLabel}, ${aggregationLabel})`;
+    const subtitleText = (data.start_date && data.end_date)
+        ? `${data.start_date} — ${data.end_date}`
+        : '';
+
+    const option = {
+        tooltip: {
+            position: 'top',
+            confine: true,
+            extraCssText: 'z-index: 30 !important;',
+            formatter: function(params) {
+                const xLabel = data.xAxis[params.value[0]];
+                const yLabel = data.yAxis[params.value[1]];
+                const amount = params.value[2].toFixed(2);
+
+                // Build tooltip based on aggregation
+                let tooltipText = '';
+                if (data.aggregation === 'day') {
+                    // Daily: just show date
+                    tooltipText = `<strong>${xLabel}</strong><br/>`;
+                } else if (data.aggregation === 'week') {
+                    // Weekly: show day + week
+                    tooltipText = `<strong>${xLabel}, ${yLabel}</strong><br/>`;
+
+                    // Add date if available (for month period only)
+                    if (data.date_mapping && data.date_mapping[params.value[1]] && data.date_mapping[params.value[1]][params.value[0]]) {
+                        const dateStr = data.date_mapping[params.value[1]][params.value[0]];
+                        tooltipText += `<span class="text-xs opacity-70">${dateStr}</span><br/>`;
+                    }
+                } else {
+                    // Monthly: show week/day + month
+                    tooltipText = `<strong>${yLabel}, ${xLabel}</strong><br/>`;
+                }
+
+                tooltipText += `${typeLabelSingular}: ${amount} ₽`;
+                return tooltipText;
+            }
+        },
+        grid: {
+            left: '10%',
+            right: '10%',
+            bottom: data.aggregation === 'day' ? '18%' : '15%',  // v5.1.3: увеличен отступ для day (10% → 18%) чтобы visualMap не наезжал на ось X
+            top: '15%',
+            containLabel: true
+        },
+        xAxis: {
+            type: 'category',
+            data: data.xAxis,
+            splitArea: {
+                show: true
+            },
+            axisLabel: {
+                fontSize: 12,
+                rotate: data.aggregation === 'month' && data.xAxis.length > 10 ? 45 : 0
+            }
+        },
+        yAxis: {
+            type: 'category',
+            data: data.yAxis,
+            splitArea: {
+                show: true
+            },
+            axisLabel: {
+                fontSize: 12
+            },
+            // v5.1.4: inverse only for months (show oldest at top, newest at bottom)
+            // For weeks with ISO numbers: false (show smallest week numbers at top)
+            inverse: data.aggregation === 'month'
+        },
+        visualMap: {
+            type: 'continuous',
+            min: 0,
+            max: maxValue > 0 ? maxValue : 1000,
+            // Color gradients: 4 types (expense=red, income=green, debit=blue, credit=orange)
+            inRange: {
+                color: currentGlobalType === 'debit'
+                    ? ['#FFFFFF', '#e3f2fd', '#90caf9', '#42a5f5', '#1e88e5', '#1565c0', '#0d47a1']  // Blue gradient
+                    : currentGlobalType === 'credit'
+                    ? ['#FFFFFF', '#fff3e0', '#ffcc80', '#ff9800', '#f57c00', '#e65100', '#bf360c']  // Orange gradient
+                    : currentGlobalType === 'expense'
+                    ? ['#FFFFFF', '#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336']  // Red gradient
+                    : ['#FFFFFF', '#eef5ee', '#c8e6c9', '#81c784', '#4caf50', '#388e3c', '#2e7d32']  // Green gradient (income)
+            },
+            calculable: true,
+            orient: 'horizontal',
+            left: 'center',
+            bottom: '0%',
+            textStyle: {
+                fontSize: 11
+            }
+        },
+        series: [
+            {
+                name: typeLabelSingularMap[operationType] || 'Операции',
+                type: 'heatmap',
+                data: heatmapData,
+                label: {
+                    show: false
+                },
+                emphasis: {
+                    itemStyle: {
+                        shadowBlur: 10,
+                        shadowColor: 'rgba(0, 0, 0, 0.5)'
+                    }
+                }
+            }
+        ]
+    };
+
+    heatmapChart.setOption(option);
+}
+
+// ============================================================================
+// Responsive Chart Resize with ResizeObserver
+// ============================================================================
+
+/**
+ * Debounce function to limit resize event frequency
+ * @param {Function} func - Function to debounce
+ * @param {number} wait - Wait time in milliseconds
+ * @returns {Function} Debounced function
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/**
+ * Resize all charts
+ */
+function resizeAllCharts() {
+    const charts = [planFactChart, trendsChart, pieChart, waterfallChart, heatmapChart];
+    charts.forEach(chart => {
+        if (chart && !chart.isDisposed()) {
+            try {
+                chart.resize();
+            } catch (error) {
+                console.error('Error resizing chart:', error);
+            }
+        }
+    });
+}
+
+// Debounced resize function (150ms delay)
+const debouncedResize = debounce(resizeAllCharts, 150);
+
+// Setup ResizeObserver for chart containers
+function setupChartResizeObserver() {
+    // Check if ResizeObserver is supported
+    if (typeof ResizeObserver === 'undefined') {
+        console.warn('ResizeObserver not supported, falling back to window resize');
+        window.addEventListener('resize', debouncedResize);
+        return;
+    }
+
+    // Create ResizeObserver instance
+    const resizeObserver = new ResizeObserver(entries => {
+        // Use requestAnimationFrame for better performance
+        requestAnimationFrame(() => {
+            debouncedResize();
+        });
+    });
+
+    // Observe all chart containers
+    const chartContainers = document.querySelectorAll('.chart-container');
+    chartContainers.forEach(container => {
+        resizeObserver.observe(container);
+    });
+
+    // Also listen to window resize as fallback
+    window.addEventListener('resize', debouncedResize);
+}
+
+// Initialize ResizeObserver after charts are created
+document.addEventListener('DOMContentLoaded', function() {
+    // Wait for charts to initialize
+    setTimeout(setupChartResizeObserver, 500);
+});
+
+// ============================================================================
+// Custom Date Range Loading Functions
+// ============================================================================
+
+async function loadPlanFactDataCustom(dateFrom, dateTo) {
+    try {
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/plan-fact?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&chart_mode=${currentChartMode}`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updatePlanFactChart(data);
+    } catch (error) {
+        console.error('Error loading plan-fact data:', error);
+        planFactChart.hideLoading();
+    }
+}
+
+async function loadTrendsDataCustom(dateFrom, dateTo) {
+    try {
+        // Build query string with CFO filter (v5.1.3) and chart mode
+        let url = `/api/v1/analytics/trends?date_from=${dateFrom}&date_to=${dateTo}&record_type=fact&chart_mode=${currentTrendsMode}`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updateTrendsChart(data);
+    } catch (error) {
+        console.error('Error loading trends data:', error);
+        trendsChart.hideLoading();
+    }
+}
+
+async function loadPieDataCustom(type, dateFrom, dateTo) {
+    try {
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/category-breakdown?type=${type}&date_from=${dateFrom}&date_to=${dateTo}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updatePieChart(data);
+    } catch (error) {
+        console.error('Error loading pie chart data:', error);
+        pieChart.hideLoading();
+    }
+}
+
+async function loadWaterfallDataCustom(dateFrom, dateTo, articleId = null) {
+    try {
+        let url = `/api/v1/analytics/waterfall?date_from=${dateFrom}&date_to=${dateTo}`;
+        if (articleId) url += `&article_id=${articleId}`;
+
+        // Add CFO filter if specified (v5.1.3)
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updateWaterfallChart(data);
+    } catch (error) {
+        console.error('Error loading waterfall data:', error);
+        waterfallChart.hideLoading();
+    }
+}
+
+async function loadHeatmapDataCustom(dateFrom, dateTo) {
+    try {
+        // Build query string with filters (v5.1.3)
+        let url = `/api/v1/analytics/heatmap?date_from=${dateFrom}&date_to=${dateTo}&article_type=${currentGlobalType}&record_type=fact`;
+
+        // Add CFO filter if specified
+        if (currentCFOId !== null) {
+            url += `&cfo_id=${currentCFOId}`;
+        }
+
+        // Add category filter if specified (multiple IDs)
+        if (currentCategoryIds && currentCategoryIds.length > 0) {
+            currentCategoryIds.forEach(id => {
+                url += `&article_ids=${id}`;
+            });
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        updateHeatmapChart(data);
+    } catch (error) {
+        console.error('Error loading heatmap data:', error);
+        heatmapChart.hideLoading();
+    }
+}
+
+// ============================================================================
+// Export Functions
+// ============================================================================
+
+/**
+ * Export all transactions to specified format
+ * @param {string} format - 'csv', 'excel', or 'pdf'
+ */
+function exportAllTransactions(format) {
+    // Build export URL
+    let url = `/api/v1/export/facts/${format}`;
+
+    // Open in new tab to trigger download
+    window.open(url, '_blank');
+}
+
+/**
+ * Export trends data to specified format
+ * @param {string} format - 'csv' or 'excel'
+ */
+function exportTrendsData(format) {
+    // Get current days setting
+    const days = currentTrendsDays;
+
+    // Build export URL
+    let url = `/api/v1/export/analytics/trends/${format}?days=${days}`;
+
+    // Open in new tab to trigger download
+    window.open(url, '_blank');
+}
+
+// ============================================================================
+// NEW FILTERS (v5.1.3): CFO and Category filters
+// ============================================================================
+
+/**
+ * Load CFO (Financial Centers) list from API
+ */
+async function loadCFOList() {
+    try {
+        const response = await fetch('/api/v1/financial-centers/?limit=1000');
+        if (!response.ok) {
+            console.error('Failed to load CFO list:', response.statusText);
+            return;
+        }
+
+        const data = await response.json();
+        const select = document.getElementById('cfo-filter');
+
+        // Add CFO options
+        data.financial_centers.forEach(cfo => {
+            const option = document.createElement('option');
+            option.value = cfo.id;  // Fixed: use 'id' instead of 'financial_center_id' (v5.1.3)
+            option.textContent = cfo.name;
+            select.appendChild(option);
+        });
+
+        // Restore saved CFO filter from localStorage (v5.79.0)
+        const savedCFO = localStorage.getItem('budgetCFOFilter');
+        if (savedCFO !== null) {
+            // Check if saved value exists in options
+            const optionExists = Array.from(select.options).some(opt => opt.value === savedCFO);
+            if (optionExists) {
+                select.value = savedCFO;
+                currentCFOId = savedCFO === 'all' ? null : parseInt(savedCFO);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading CFO list:', error);
+    }
+}
+
+/**
+ * Update CFO filter - called when user selects a financial center
+ */
+function updateCFOFilter() {
+    const select = document.getElementById('cfo-filter');
+    const selectedValue = select.value;
+
+    // Update global state
+    currentCFOId = selectedValue === 'all' ? null : parseInt(selectedValue);
+
+    // Save to localStorage (v5.79.0)
+    localStorage.setItem('budgetCFOFilter', selectedValue);
+
+    // Reload all charts with new CFO filter (v5.1.3)
+    if (planFactChart) loadPlanFactData(currentPeriod);
+    if (pieChart) loadPieData(currentGlobalType, currentPeriod);
+    if (heatmapChart) loadHeatmapData(currentPeriod);
+    if (trendsChart) loadTrendsData(currentPeriod);
+    if (waterfallChart) loadWaterfallData(currentPeriod, currentWaterfallArticleId);
+}
+
+/**
+ * Initialize category filter using ChoicesCategoryTree
+ */
+function initCategoryFilter() {
+    if (typeof BudgetShared === 'undefined' || !BudgetShared.ChoicesCategoryTree) {
+        console.warn('BudgetShared.ChoicesCategoryTree not available');
+        return;
+    }
+
+    try {
+        // Destroy previous instance if exists (v5.1.3 bugfix)
+        if (categoryChoices && typeof categoryChoices.destroy === 'function') {
+            categoryChoices.destroy();
+            categoryChoices = null;
+        }
+
+        // Initialize ChoicesCategoryTree with current type (expense/income) (v5.1.3)
+        categoryChoices = new BudgetShared.ChoicesCategoryTree('#categories-filter', {
+            type: currentGlobalType,  // 'expense' or 'income'
+            multiple: true,           // Enable multi-select for filter (v5.1.3)
+            showPath: false,          // Hide breadcrumbs for filter page (v5.1.3)
+            showClearButton: false,   // Hide clear-all button (v5.1.4)
+            onChange: (selectedArticles) => {  // Changed from onSelect to onChange (v5.1.3)
+                updateCategoryFilter(selectedArticles);
+            }
+        });
+    } catch (error) {
+        console.error('Error initializing category filter:', error);
+    }
+}
+
+/**
+ * Update category filter - called when user selects categories
+ * @param {Array} selectedArticles - Array of selected article objects {id, name, ...}
+ */
+function updateCategoryFilter(selectedArticles) {
+    // Update global state
+    currentCategoryIds = selectedArticles.map(a => a.id);
+
+    // Reload affected charts (Plan-Fact, Pie, Heatmap) - v5.1.3
+    if (planFactChart) loadPlanFactData(currentPeriod);
+    if (pieChart) loadPieData(currentGlobalType, currentPeriod);
+    if (heatmapChart) loadHeatmapData(currentPeriod);
+}
+
+// Note: When updateGlobalType() is called (switching between expense/income),
+// the category filter should be re-initialized with the new type:
+// Original updateGlobalType function should call: initCategoryFilter()
+</script>
+
+<style>
+/* Custom styles for ECharts integration with Tailwind/DaisyUI */
+
+/* Smooth transitions for button state changes */
+.btn-group .btn {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Chart container responsive styles */
+.chart-container {
+    width: 100%;
+    height: 400px;
+    min-height: 300px;
+}
+
+/* Responsive chart heights */
+@media (max-width: 640px) {
+    /* Mobile - smaller charts */
+    .chart-container {
+        height: 280px;
+        min-height: 280px;
+    }
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+    /* Tablet - medium charts */
+    .chart-container {
+        height: 400px;
+        min-height: 380px;
+    }
+}
+
+@media (min-width: 1024px) {
+    /* Desktop - full size charts */
+    .chart-container {
+        height: 500px;
+        min-height: 450px;
+    }
+}
+
+@media (min-width: 1536px) {
+    /* Large desktop - larger charts */
+    .chart-container {
+        height: 550px;
+        min-height: 500px;
+    }
+}
+
+/* Heatmap specific - dynamic height handled by JS */
+#chart-heatmap.chart-container {
+    height: auto;
+    min-height: 400px;
+}
+</style>
+{% endblock %}

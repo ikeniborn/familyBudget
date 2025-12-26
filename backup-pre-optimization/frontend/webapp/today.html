@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Сегодня - Семейный бюджет</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/shared-components.min.css?v=PLACEHOLDER">
+
+    <style>
+        /* Today page specific styles */
+        /* page-header, page-title, summary-card/row/label/value moved to shared-components.css */
+
+        /* Override page-title for subtitle support */
+        .page-title {
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        /* Override summary-card for today's compact layout */
+        .summary-card {
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .summary-row {
+            padding: 8px 0;
+        }
+
+        .summary-label {
+            font-size: 14px;
+        }
+
+        .summary-value {
+            font-size: 16px;
+        }
+
+        /* transaction-*, empty-state moved to shared-components.css */
+
+        .transactions-list {
+            margin-bottom: 80px;
+        }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        /* ========== RESPONSIVE IMPROVEMENTS ========== */
+
+        /* Base mobile styles: ensure proper text truncation */
+        .transaction-details {
+            flex: 1;
+            min-width: 0;  /* CRITICAL for text-overflow to work in flex container */
+            overflow: hidden;
+        }
+
+        .transaction-category {
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .transaction-category.has-breadcrumb {
+            cursor: help;
+            border-bottom: 1px dotted var(--tg-theme-hint-color);
+        }
+
+        .transaction-description {
+            max-width: 150px;
+            position: relative;
+        }
+
+        .transaction-description.truncated {
+            cursor: pointer;
+            color: var(--tg-theme-link-color);
+        }
+
+        .transaction-description.truncated::after {
+            content: ' →';
+            margin-left: 2px;
+            font-weight: bold;
+        }
+
+        /* Small mobile (480px+) */
+        @media (min-width: 480px) {
+            .transaction-category {
+                max-width: 220px;
+            }
+
+            .transaction-description {
+                max-width: 200px;
+            }
+        }
+
+        /* Tablet (640px+) */
+        @media (min-width: 640px) {
+            .transaction-category {
+                max-width: 300px;
+            }
+
+            .transaction-description {
+                max-width: 280px;
+            }
+
+            .transaction-item {
+                padding: 14px;
+            }
+        }
+
+        /* Desktop (768px+) */
+        @media (min-width: 768px) {
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+
+            .transaction-description {
+                max-width: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title">Факты сегодня</div>
+            <div class="page-subtitle" id="today-date">Загрузка...</div>
+        </div>
+
+        <!-- Summary Card -->
+        <div class="summary-card" id="summary-card" style="display: none;">
+            <div class="summary-row">
+                <span class="summary-label">Расходы:</span>
+                <span class="summary-value expense" id="summary-expense">0.00</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Доходы:</span>
+                <span class="summary-value income" id="summary-income">0.00</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">Баланс:</span>
+                <span class="summary-value balance" id="summary-balance">0.00</span>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-state" id="loading-state">
+            <div>Загрузка фактов...</div>
+        </div>
+
+        <!-- Transactions List -->
+        <div class="transactions-list" id="transactions-list" style="display: none;">
+            <!-- Transactions will be inserted here -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <div class="empty-state-icon">📊</div>
+            <div class="empty-state-text">Нет фактов за сегодня</div>
+            <button class="btn btn-primary" onclick="window.location.href='/webapp/add.html'">
+                Добавить факт
+            </button>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/theme.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/validators.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
+
+    <script>
+        // app is already declared globally in app.js
+        let facts = [];
+        let categories = [];
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('Today page init');
+            app = budgetApp;
+
+            // Set today's date
+            const today = new Date();
+            document.getElementById('today-date').textContent = formatDate(today);
+
+            // Load today's transactions
+            await loadTodayTransactions();
+
+            // Setup BackButton to return to main menu
+            app.setupBackButton(() => {
+                window.location.href = '/webapp/index.html';
+            });
+
+            console.log('Today page ready');
+        };
+
+        async function loadTodayTransactions() {
+            const loadingState = document.getElementById('loading-state');
+            const summaryCard = document.getElementById('summary-card');
+            const transactionsList = document.getElementById('transactions-list');
+            const emptyState = document.getElementById('empty-state');
+
+            try {
+                // Load categories first
+                const categoriesResult = await app.api.listArticles({ limit: 1000 });
+                categories = categoriesResult.articles || [];
+
+                // Get today's date range (only today, not including tomorrow)
+                // Use LOCAL timezone, not UTC (fixes timezone bug)
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                const dateFrom = `${year}-${month}-${day}`;
+                const dateTo = dateFrom; // Same day - API uses inclusive range
+
+                // Fetch facts
+                const result = await app.api.listFacts({
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    record_type: 'fact',
+                    limit: 1000  // All transactions for today
+                });
+
+                facts = result.facts || [];
+
+                // Hide loading
+                loadingState.style.display = 'none';
+
+                if (facts.length === 0) {
+                    // Show empty state
+                    emptyState.style.display = 'block';
+                } else {
+                    // Calculate summary
+                    const summary = calculateSummary(facts);
+                    updateSummary(summary);
+                    summaryCard.style.display = 'block';
+
+                    // Render transactions
+                    renderTransactions(facts);
+                    transactionsList.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Failed to load transactions:', error);
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузки: ${error.message}</div>`;
+            }
+        }
+
+        function calculateSummary(facts) {
+            let income = 0;
+            let expense = 0;
+
+            facts.forEach(fact => {
+                const amount = parseFloat(fact.amount) || 0;
+                // Use article_type from API response instead of amount sign
+                if (fact.article_type === 'income') {
+                    income += amount;
+                } else if (fact.article_type === 'expense') {
+                    expense += amount;
+                }
+            });
+
+            const balance = income - expense;
+
+            return { income, expense, balance };
+        }
+
+        function updateSummary(summary) {
+            const expense = isNaN(summary.expense) ? 0 : summary.expense;
+            const income = isNaN(summary.income) ? 0 : summary.income;
+            const balance = isNaN(summary.balance) ? 0 : summary.balance;
+
+            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(expense)} `;
+            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(income)} `;
+
+            const balanceElement = document.getElementById('summary-balance');
+            const balanceFormatted = app.ui.formatAmount(Math.abs(balance));
+            balanceElement.textContent = `${balance >= 0 ? '+' : '-'}${balanceFormatted} `;
+        }
+
+        function renderTransactions(facts) {
+            const list = document.getElementById('transactions-list');
+            list.innerHTML = '';
+
+            // Sort by created_at descending (most recent first)
+            const sortedFacts = [...facts].sort((a, b) => {
+                const dateA = new Date(a.created_at || a.fact_date);
+                const dateB = new Date(b.created_at || b.fact_date);
+                return dateB - dateA;
+            });
+
+            sortedFacts.forEach(fact => {
+                const item = createTransactionItem(fact);
+                list.appendChild(item);
+            });
+        }
+
+        function createTransactionItem(fact) {
+            const item = document.createElement('div');
+            item.className = 'transaction-item';
+            item.dataset.factId = fact.id;
+
+            // Find category to get name and type
+            const categoryObj = categories.find(c => c.id === fact.article_id);
+            const isExpense = categoryObj ? categoryObj.type === 'expense' : fact.amount < 0;
+
+            // Icon (based on category type)
+            const icon = document.createElement('div');
+            icon.className = 'transaction-icon';
+            icon.textContent = isExpense ? '💸' : '💰';
+
+            // Details
+            const details = document.createElement('div');
+            details.className = 'transaction-details';
+
+            const category = document.createElement('div');
+            category.className = 'transaction-category';
+            category.textContent = categoryObj ? categoryObj.name : 'Без категории';
+
+            // Breadcrumb tooltip для вложенных категорий
+            if (categoryObj && categoryObj.parent_id) {
+                category.classList.add('has-breadcrumb');
+                loadCategoryPath(categoryObj.id).then(path => {
+                    category.title = path.join(' › ');
+                }).catch(err => {
+                    console.warn(`Failed to load breadcrumb for category ${categoryObj.id}:`, err);
+                    category.title = categoryObj.name;
+                });
+            }
+
+            const description = document.createElement('div');
+            description.className = 'transaction-description';
+
+            // Truncate с modal для длинных комментариев
+            const DESCRIPTION_THRESHOLD = 25; // Порог для mobile
+            if (fact.description) {
+                if (fact.description.length > DESCRIPTION_THRESHOLD) {
+                    description.textContent = fact.description.substring(0, 22) + '...';
+                    description.classList.add('truncated');
+                    description.title = fact.description; // Tooltip fallback
+
+                    // Modal при клике
+                    description.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Не открывать edit.html
+                        app.ui.hapticLight();
+                        app.ui.showPopup({
+                            title: 'Описание',
+                            message: fact.description,
+                            buttons: [{type: 'close'}]
+                        });
+                    });
+                } else {
+                    description.textContent = fact.description;
+                }
+            } else {
+                description.textContent = 'Без описания';
+                description.style.fontStyle = 'italic';
+                description.style.opacity = '0.6';
+            }
+
+            const time = document.createElement('div');
+            time.className = 'transaction-time';
+            time.textContent = formatTime(new Date(fact.created_at || fact.fact_date));
+
+            details.appendChild(category);
+            details.appendChild(description);
+            details.appendChild(time);
+
+            // Amount
+            const amount = document.createElement('div');
+            amount.className = `transaction-amount ${isExpense ? 'expense' : 'income'}`;
+            const amountValue = Math.abs(fact.amount);
+            amount.textContent = `${isExpense ? '-' : '+'}${app.ui.formatAmount(amountValue)} `;
+
+            // Assemble
+            item.appendChild(icon);
+            item.appendChild(details);
+            item.appendChild(amount);
+
+            // Click handler - show edit/delete menu
+            item.addEventListener('click', () => {
+                app.ui.hapticLight();
+                showTransactionMenu(fact);
+            });
+
+            return item;
+        }
+
+        /**
+         * Load category path (breadcrumb) for nested categories.
+         * Calls backend API: GET /api/v1/articles/{id}/ancestors?include_self=true
+         *
+         * @param {number} articleId - Category ID
+         * @returns {Promise<string[]>} - Array of category names (root → article)
+         */
+        async function loadCategoryPath(articleId) {
+            try {
+                const result = await app.api.get(`/api/v1/articles/${articleId}/ancestors`, {
+                    include_self: true
+                });
+
+                if (result.articles && Array.isArray(result.articles)) {
+                    return result.articles.map(a => a.name);
+                }
+
+                return [];
+            } catch (error) {
+                console.error(`Failed to load category path for ${articleId}:`, error);
+                throw error;
+            }
+        }
+
+        function showTransactionMenu(fact) {
+            // TODO: Show action sheet with Edit/Delete options
+            // For now, just navigate to edit
+            window.location.href = `/webapp/edit.html?id=${fact.id}`;
+        }
+
+        function formatDate(date) {
+            const day = date.getDate();
+            const months = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+            const month = months[date.getMonth()];
+            const year = date.getFullYear();
+            return `${day} ${month} ${year}`;
+        }
+
+        function formatTime(date) {
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Статистика - Семейный бюджет</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/shared-components.min.css?v=PLACEHOLDER">
+
+    <style>
+        /* Stats page specific styles */
+        /* page-header, page-title, period-selector, summary-card moved to shared-components.css */
+
+        /* Category breakdown */
+        .breakdown-section {
+            margin-bottom: 24px;
+        }
+
+        .breakdown-header {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 12px;
+            padding: 0 4px;
+        }
+
+        .category-breakdown-list {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .category-breakdown-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+        }
+
+        .category-breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-icon {
+            font-size: 24px;
+            margin-right: 12px;
+        }
+
+        .category-info {
+            flex: 1;
+        }
+
+        .category-name {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--tg-theme-text-color);
+            margin-bottom: 4px;
+        }
+
+        .category-percentage {
+            font-size: 12px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .category-amount {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--tg-theme-text-color);
+        }
+
+        .category-amount.expense {
+            color: var(--tg-theme-destructive-text-color);
+        }
+
+        .category-amount.income {
+            color: #34c759;
+        }
+
+        /* Progress bar */
+        .category-progress {
+            height: 4px;
+            background-color: var(--tg-theme-section-separator-color);
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+
+        .category-progress-bar {
+            height: 100%;
+            background-color: var(--tg-theme-link-color);
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            color: var(--tg-theme-hint-color);
+            margin-bottom: 24px;
+        }
+
+        /* Loading state */
+        .loading-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .loading-spinner {
+            font-size: 48px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Custom range container */
+        .custom-range-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 16px;
+            margin-bottom: 24px;
+        }
+
+        .custom-range-container input {
+            flex: 1;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+        }
+
+        .custom-range-container button {
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            border: 1px solid var(--tg-theme-button-color);
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            cursor: pointer;
+        }
+
+        .custom-range-container button.cancel {
+            background-color: transparent;
+            color: var(--tg-theme-button-color);
+        }
+
+        @media (max-width: 640px) {
+            .custom-range-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title">Статистика</div>
+        </div>
+
+        <!-- Period Selector -->
+        <div class="period-selector">
+            <button class="period-btn active" data-period="today">День</button>
+            <button class="period-btn" data-period="week">Неделя</button>
+            <button class="period-btn" data-period="month">Месяц</button>
+            <button class="period-btn" data-period="year">Год</button>
+            <button class="period-btn" data-period="custom">Произвольный</button>
+        </div>
+
+        <!-- Custom Range Container (hidden by default) -->
+        <div class="custom-range-container" id="custom-range-container" style="display: none;">
+            <input type="text" id="date-from" readonly placeholder="ДД.ММ.ГГГГ">
+            <span>—</span>
+            <input type="text" id="date-to" readonly placeholder="ДД.ММ.ГГГГ">
+            <button onclick="applyCustomRange()">Применить</button>
+            <button class="cancel" onclick="cancelCustomRange()">Отмена</button>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading-state" id="loading-state">
+            <div class="loading-spinner"></div>
+            <div style="margin-top: 16px;">Загрузка статистики...</div>
+        </div>
+
+        <!-- Content (hidden initially) -->
+        <div id="stats-content" style="display: none;">
+            <!-- Summary Card -->
+            <div class="summary-card">
+                <div class="summary-title" id="period-title">За сегодня</div>
+
+                <div class="summary-row">
+                    <span class="summary-label">📉 Расходы</span>
+                    <span class="summary-value expense" id="summary-expense">0.00</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">📈 Доходы</span>
+                    <span class="summary-value income" id="summary-income">0.00</span>
+                </div>
+
+                <div class="summary-row">
+                    <span class="summary-label">💰 Баланс</span>
+                    <span class="summary-value balance" id="summary-balance">0.00</span>
+                </div>
+            </div>
+
+            <!-- Expense Breakdown -->
+            <div class="breakdown-section" id="expense-breakdown-section" style="display: none;">
+                <div class="breakdown-header">Расходы по категориям</div>
+                <div class="category-breakdown-list" id="expense-breakdown">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Income Breakdown -->
+            <div class="breakdown-section" id="income-breakdown-section" style="display: none;">
+                <div class="breakdown-header">Доходы по категориям</div>
+                <div class="category-breakdown-list" id="income-breakdown">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <div class="empty-state-icon">📊</div>
+            <div class="empty-state-text">Нет данных за выбранный период</div>
+            <button class="btn btn-primary" onclick="window.location.href='/webapp/add.html'">
+                Добавить факт
+            </button>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/theme.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/validators.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
+
+    <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
+    <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+
+    <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
+
+    <script>
+        // app is already declared globally in app.js
+        let facts = [];
+        let categories = [];
+        let currentPeriod = 'today';
+
+        // Custom date range variables
+        let calendarWidget = null;
+        let customDateFrom = null;
+        let customDateTo = null;
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('Stats page init');
+            app = budgetApp;
+
+            // Setup period selector
+            setupPeriodSelector();
+
+            // Load categories
+            await loadCategories();
+
+            // Load stats for default period
+            await loadStats(currentPeriod);
+
+            // Setup BackButton to return to main menu
+            app.setupBackButton(() => {
+                window.location.href = '/webapp/index.html';
+            });
+
+            console.log('Stats page ready');
+        };
+
+        function setupPeriodSelector() {
+            const buttons = document.querySelectorAll('.period-btn');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', async () => {
+                    app.ui.hapticLight();
+
+                    const period = button.dataset.period;
+
+                    // Handle custom period - show calendar
+                    if (period === 'custom') {
+                        // Update active state
+                        buttons.forEach(b => b.classList.remove('active'));
+                        button.classList.add('active');
+
+                        // Show custom range container
+                        toggleCustomRange();
+                        return;
+                    }
+
+                    // Regular period - hide custom range and load stats
+                    document.getElementById('custom-range-container').style.display = 'none';
+
+                    // Update active state
+                    buttons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Update current period
+                    currentPeriod = period;
+
+                    // Reload stats
+                    await loadStats(currentPeriod);
+                });
+            });
+        }
+
+        function toggleCustomRange() {
+            const container = document.getElementById('custom-range-container');
+            container.style.display = 'flex';
+
+            // Initialize CalendarWidget if not created yet
+            if (!calendarWidget && typeof BudgetShared !== 'undefined' && BudgetShared.CalendarWidget) {
+                try {
+                    // Use native date inputs for simplicity
+                    const dateFromInput = document.getElementById('date-from');
+                    const dateToInput = document.getElementById('date-to');
+
+                    // Change inputs to native date type for better UX
+                    dateFromInput.type = 'date';
+                    dateToInput.type = 'date';
+
+                    // Set max to today
+                    const today = new Date().toISOString().split('T')[0];
+                    dateFromInput.max = today;
+                    dateToInput.max = today;
+
+                    // Set default values (last 30 days)
+                    const from = new Date();
+                    from.setDate(from.getDate() - 30);
+                    dateFromInput.value = from.toISOString().split('T')[0];
+                    dateToInput.value = today;
+
+                    calendarWidget = true; // Mark as initialized
+                } catch (error) {
+                    console.error('Failed to initialize calendar:', error);
+                }
+            }
+        }
+
+        function applyCustomRange() {
+            const dateFromInput = document.getElementById('date-from');
+            const dateToInput = document.getElementById('date-to');
+
+            customDateFrom = dateFromInput.value; // YYYY-MM-DD format
+            customDateTo = dateToInput.value;
+
+            if (!customDateFrom || !customDateTo) {
+                app.tg.showAlert('Выберите даты');
+                return;
+            }
+
+            if (customDateFrom > customDateTo) {
+                app.tg.showAlert('Дата "от" должна быть раньше даты "до"');
+                return;
+            }
+
+            // Hide custom range container
+            document.getElementById('custom-range-container').style.display = 'none';
+
+            // Update current period
+            currentPeriod = 'custom';
+
+            // Load stats with custom dates
+            loadStats(currentPeriod);
+
+            app.ui.hapticLight();
+        }
+
+        function cancelCustomRange() {
+            // Hide custom range container
+            document.getElementById('custom-range-container').style.display = 'none';
+
+            // Reset to previous preset period (or default to today)
+            if (currentPeriod === 'custom') {
+                currentPeriod = 'today';
+            }
+
+            // Update button states
+            const buttons = document.querySelectorAll('.period-btn');
+            buttons.forEach(b => {
+                b.classList.remove('active');
+                if (b.dataset.period === currentPeriod) {
+                    b.classList.add('active');
+                }
+            });
+
+            // Reload stats with preset period
+            loadStats(currentPeriod);
+
+            app.ui.hapticLight();
+        }
+
+        async function loadCategories() {
+            try {
+                const result = await app.api.listArticles({});
+                categories = result.articles || [];
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+            }
+        }
+
+        async function loadStats(period) {
+            const loadingState = document.getElementById('loading-state');
+            const statsContent = document.getElementById('stats-content');
+            const emptyState = document.getElementById('empty-state');
+
+            try {
+                // Show loading
+                loadingState.style.display = 'block';
+                statsContent.style.display = 'none';
+                emptyState.style.display = 'none';
+
+                // Get date range for period
+                const { dateFrom, dateTo } = getDateRange(period);
+
+                // Fetch facts for period
+                // TODO: Replace with backend stats endpoint when available
+                const result = await app.api.listFacts({
+                    date_from: dateFrom,
+                    date_to: dateTo,
+                    record_type: 'fact',
+                    limit: 10000  // Get all facts for aggregation
+                });
+
+                facts = result.facts || [];
+
+                // Hide loading
+                loadingState.style.display = 'none';
+
+                if (facts.length === 0) {
+                    // Show empty state
+                    emptyState.style.display = 'block';
+                } else {
+                    // Calculate and display stats
+                    displayStats(facts, period);
+                    statsContent.style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+                loadingState.innerHTML = `<div style="color: var(--tg-theme-destructive-text-color);">Ошибка загрузки: ${error.message}</div>`;
+            }
+        }
+
+        function getDateRange(period) {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            let dateFrom, dateTo;
+
+            // Handle custom period
+            if (period === 'custom' && customDateFrom && customDateTo) {
+                return {
+                    dateFrom: customDateFrom, // Already in YYYY-MM-DD format
+                    dateTo: customDateTo
+                };
+            }
+
+            switch (period) {
+                case 'today':
+                    dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+
+                case 'week':
+                    // Last 7 days
+                    dateFrom = new Date(now);
+                    dateFrom.setDate(dateFrom.getDate() - 7);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+
+                case 'month':
+                    // Current month
+                    dateFrom = new Date(now.getFullYear(), now.getMonth(), 1);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+
+                case 'year':
+                    // Current year
+                    dateFrom = new Date(now.getFullYear(), 0, 1);
+                    dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+            }
+
+            // Format dates for API (YYYY-MM-DD) - use LOCAL timezone, not UTC
+            const formatLocalDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            };
+
+            return {
+                dateFrom: formatLocalDate(dateFrom),
+                dateTo: formatLocalDate(dateTo)
+            };
+        }
+
+        function displayStats(facts, period) {
+            // Update period title with dates
+            const periodTitles = {
+                'today': 'За сегодня',
+                'week': 'За неделю',
+                'month': 'За месяц',
+                'year': 'За год',
+                'custom': 'Произвольный период'
+            };
+
+            let title = periodTitles[period] || 'Период';
+
+            // Add dates to title if available
+            if (typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
+                const range = getDateRange(period);
+                if (range && range.dateFrom && range.dateTo) {
+                    const displayFrom = BudgetShared.DateFormatter.formatForDisplay(range.dateFrom);
+                    const displayTo = BudgetShared.DateFormatter.formatForDisplay(range.dateTo);
+                    title += `: ${displayFrom} — ${displayTo}`;
+                }
+            }
+
+            document.getElementById('period-title').textContent = title;
+
+            // Calculate summary
+            const summary = calculateSummary(facts);
+            updateSummary(summary);
+
+            // Calculate category breakdown
+            const expenseByCategory = calculateCategoryBreakdown(facts, 'expense');
+            const incomeByCategory = calculateCategoryBreakdown(facts, 'income');
+
+            // Display breakdowns
+            displayCategoryBreakdown('expense', expenseByCategory, summary.expense);
+            displayCategoryBreakdown('income', incomeByCategory, summary.income);
+        }
+
+        function calculateSummary(facts) {
+            let income = 0;
+            let expense = 0;
+
+            facts.forEach(fact => {
+                const amount = parseFloat(fact.amount) || 0;
+                // Use article_type from API response instead of amount sign
+                if (fact.article_type === 'income') {
+                    income += amount;
+                } else if (fact.article_type === 'expense') {
+                    expense += amount;
+                }
+            });
+
+            const balance = income - expense;
+
+            return { income, expense, balance };
+        }
+
+        function updateSummary(summary) {
+            document.getElementById('summary-expense').textContent = `-${app.ui.formatAmount(summary.expense)}`;
+            document.getElementById('summary-income').textContent = `+${app.ui.formatAmount(summary.income)}`;
+
+            const balanceElement = document.getElementById('summary-balance');
+            const balanceFormatted = app.ui.formatAmount(Math.abs(summary.balance));
+            const sign = summary.balance >= 0 ? '+' : '-';
+            balanceElement.textContent = `${sign}${balanceFormatted}`;
+        }
+
+        function calculateCategoryBreakdown(facts, type) {
+            const breakdown = {};
+
+            facts.forEach(fact => {
+                // Use article_type from API response instead of amount sign
+                if (fact.article_type === type) {
+                    const categoryId = fact.article_id;
+                    const amount = Math.abs(fact.amount);
+
+                    if (!breakdown[categoryId]) {
+                        breakdown[categoryId] = {
+                            categoryId,
+                            total: 0,
+                            count: 0
+                        };
+                    }
+
+                    breakdown[categoryId].total += amount;
+                    breakdown[categoryId].count += 1;
+                }
+            });
+
+            // Convert to array and sort by total descending
+            const breakdownArray = Object.values(breakdown);
+            breakdownArray.sort((a, b) => b.total - a.total);
+
+            return breakdownArray;
+        }
+
+        function displayCategoryBreakdown(type, breakdown, totalAmount) {
+            const sectionId = `${type}-breakdown-section`;
+            const listId = `${type}-breakdown`;
+            const section = document.getElementById(sectionId);
+            const list = document.getElementById(listId);
+
+            if (breakdown.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = '';
+
+            // Show top 5 categories
+            const topCategories = breakdown.slice(0, 5);
+
+            topCategories.forEach(item => {
+                const category = categories.find(c => c.id === item.categoryId);
+                const categoryName = category ? category.name : `Категория #${item.categoryId}`;
+                const percentage = totalAmount > 0 ? (item.total / totalAmount * 100).toFixed(1) : 0;
+
+                const element = createCategoryBreakdownItem(
+                    categoryName,
+                    item.total,
+                    percentage,
+                    type
+                );
+
+                list.appendChild(element);
+            });
+        }
+
+        function createCategoryBreakdownItem(name, amount, percentage, type) {
+            const item = document.createElement('div');
+            item.className = 'category-breakdown-item';
+
+            const icon = document.createElement('div');
+            icon.className = 'category-icon';
+            icon.textContent = type === 'expense' ? '💸' : '💰';
+
+            const info = document.createElement('div');
+            info.className = 'category-info';
+
+            const nameEl = document.createElement('div');
+            nameEl.className = 'category-name';
+            nameEl.textContent = name;
+
+            const percentageEl = document.createElement('div');
+            percentageEl.className = 'category-percentage';
+            percentageEl.textContent = `${percentage}% от ${type === 'expense' ? 'расходов' : 'доходов'}`;
+
+            const progress = document.createElement('div');
+            progress.className = 'category-progress';
+
+            const progressBar = document.createElement('div');
+            progressBar.className = 'category-progress-bar';
+            progressBar.style.width = `${percentage}%`;
+
+            progress.appendChild(progressBar);
+
+            info.appendChild(nameEl);
+            info.appendChild(percentageEl);
+            info.appendChild(progress);
+
+            const amountEl = document.createElement('div');
+            amountEl.className = `category-amount ${type}`;
+            amountEl.textContent = `${type === 'expense' ? '-' : '+'}${app.ui.formatAmount(amount)}`;
+
+            item.appendChild(icon);
+            item.appendChild(info);
+            item.appendChild(amountEl);
+
+            return item;
+        }
+    </script>
+</body>
+</html>

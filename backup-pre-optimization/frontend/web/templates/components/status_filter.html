@@ -1,0 +1,47 @@
+{#
+    Status Filter Macros
+    Displays all/active/archived filter buttons for admin pages.
+
+    Two variants:
+    1. status_filter() - Full block with label and wrapper div
+    2. status_filter_buttons() - Just the btn-group for inline usage
+
+    Usage:
+        {% from "components/status_filter.html" import status_filter, status_filter_buttons %}
+
+        Full block with label:
+        {{ status_filter() }}
+
+        Just buttons (for inline layouts):
+        {{ status_filter_buttons(fixed_height=true) }}
+
+    Parameters:
+        - all_id (str): ID for "Все" button (default: 'status-all')
+        - active_id (str): ID for "Активные" button (default: 'status-active')
+        - archived_id (str): ID for "Архивные" button (default: 'status-archived')
+        - on_change (str): JavaScript function to call on button click (default: 'updateStatusFilter')
+        - fixed_height (bool): Apply fixed height styles for alignment with other elements (default: false)
+#}
+
+{# Just the btn-group (for inline layouts like admin_articles, admin_product_groups) #}
+{% macro status_filter_buttons(all_id='status-all', active_id='status-active', archived_id='status-archived', on_change='updateStatusFilter', fixed_height=false) %}
+<div class="btn-group">
+    {% if fixed_height %}
+    <button class="btn btn-sm" id="{{ all_id }}" onclick="{{ on_change }}('all')" aria-pressed="true" style="height: 3rem; min-height: 3rem;">Все</button>
+    <button class="btn btn-sm btn-outline" id="{{ active_id }}" onclick="{{ on_change }}('active')" aria-pressed="false" style="height: 3rem; min-height: 3rem;">✓ Активные</button>
+    <button class="btn btn-sm btn-outline" id="{{ archived_id }}" onclick="{{ on_change }}('archived')" aria-pressed="false" style="height: 3rem; min-height: 3rem;">📦 Архивные</button>
+    {% else %}
+    <button class="btn btn-sm" id="{{ all_id }}" onclick="{{ on_change }}('all')" aria-pressed="true">Все</button>
+    <button class="btn btn-sm btn-outline" id="{{ active_id }}" onclick="{{ on_change }}('active')" aria-pressed="false">✓ Активные</button>
+    <button class="btn btn-sm btn-outline" id="{{ archived_id }}" onclick="{{ on_change }}('archived')" aria-pressed="false">📦 Архивные</button>
+    {% endif %}
+</div>
+{% endmacro %}
+
+{# Full block with label (for standalone status filter like admin_financial_centers, admin_stores, admin_cost_centers) #}
+{% macro status_filter(all_id='status-all', active_id='status-active', archived_id='status-archived', on_change='updateStatusFilter', fixed_height=false) %}
+<div class="flex flex-wrap items-center gap-3 mb-4">
+    <label class="font-semibold text-sm">Статус:</label>
+    {{ status_filter_buttons(all_id=all_id, active_id=active_id, archived_id=archived_id, on_change=on_change, fixed_height=fixed_height) }}
+</div>
+{% endmacro %}

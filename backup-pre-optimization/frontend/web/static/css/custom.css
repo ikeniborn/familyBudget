@@ -1,0 +1,352 @@
+/**
+ * Family Budget - Custom Tailwind/DaisyUI Styles
+ *
+ * This file contains custom styles that extend Tailwind CSS and DaisyUI.
+ * Use this for project-specific styling that can't be achieved with utility classes.
+ */
+
+/* Custom theme adjustments */
+:root {
+    --chart-bg: #ffffff;
+    --chart-text: #333333;
+}
+
+[data-theme="dark"] {
+    --chart-bg: #1e1e1e;
+    --chart-text: #e0e0e0;
+}
+
+/* ECharts custom styles */
+.echarts-container {
+    @apply w-full;
+}
+
+/* Loading animation for charts */
+.chart-loading {
+    @apply flex items-center justify-center min-h-[400px] text-primary text-lg;
+}
+
+.chart-loading::after {
+    content: '...';
+    animation: dots 1.5s steps(4, end) infinite;
+}
+
+@keyframes dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+}
+
+/* Smooth card hover effects */
+.card-hoverable {
+    @apply transition-all duration-200 ease-in-out;
+}
+
+.card-hoverable:hover {
+    @apply -translate-y-1 shadow-xl;
+}
+
+/* Active menu item indicator */
+.menu li > a.active {
+    @apply bg-primary text-primary-content;
+}
+
+/* Custom scrollbar for dark mode */
+[data-theme="dark"] ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    @apply bg-base-200;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    @apply bg-base-content/20 rounded-lg;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    @apply bg-base-content/30;
+}
+
+/* Improved contrast for dark theme */
+[data-theme="dark"] .card-title {
+    @apply text-base-content;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .card-body {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+[data-theme="dark"] .label-text {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* Better visibility for chart titles in dark mode */
+[data-theme="dark"] #chart-plan-fact,
+[data-theme="dark"] #chart-trends,
+[data-theme="dark"] #chart-pie,
+[data-theme="dark"] #chart-waterfall,
+[data-theme="dark"] #chart-heatmap {
+    color: var(--chart-text);
+}
+
+/* Fix for select dropdowns text truncation */
+.select {
+    min-width: 0; /* Prevent grid overflow */
+    overflow: visible; /* Show full text */
+}
+
+.select option {
+    white-space: normal; /* Allow text wrapping in options */
+    padding: 0.5rem; /* Better spacing */
+}
+
+/* Ensure filter selects have enough space */
+#filter-financial-center,
+#filter-cost-center,
+#filter-user,
+#filter-article,
+#filter-record-type {
+    min-width: 200px !important; /* Increased minimum width */
+    width: 100%; /* Full width within container */
+    max-width: none !important; /* Remove max-width constraint */
+    text-overflow: clip; /* Don't show ellipsis */
+    white-space: nowrap; /* Keep text on one line */
+}
+
+/* Ensure parent containers don't constrain selects */
+.form-control select {
+    overflow: visible;
+}
+
+/* Hierarchical category select styling */
+.category-parent {
+    font-weight: bold !important;
+    font-style: italic;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .category-parent {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.category-leaf {
+    padding-left: 1rem;
+}
+
+/* Better visual hierarchy for select options */
+select option.category-parent {
+    color: var(--tw-text-opacity, 1);
+    opacity: 0.7;
+}
+
+select option.category-leaf {
+    color: inherit;
+    padding-left: 0.5rem;
+}
+
+/* ==================================
+   Category Filter Colors (Phase 1: UI/UX Improvements)
+   ================================== */
+
+/* Expense categories - red */
+select.category-filter option[data-type="expense"] {
+    color: #ef4444; /* Tailwind red-500 */
+}
+
+/* Income categories - green */
+select.category-filter option[data-type="income"] {
+    color: #10b981; /* Tailwind green-500 */
+}
+
+/* Debit categories (списание) - blue in dropdowns */
+select.category-filter option[data-type="debit"] {
+    color: #3b82f6; /* Tailwind blue-500 */
+}
+
+/* Credit categories (пополнение) - orange in dropdowns */
+select.category-filter option[data-type="credit"] {
+    color: #f97316; /* Tailwind orange-500 */
+}
+
+/* For Choices.js dropdown items */
+.choices__list--dropdown .choices__item--choice[data-type="expense"] {
+    color: #ef4444;
+}
+
+.choices__list--dropdown .choices__item--choice[data-type="income"] {
+    color: #10b981;
+}
+
+.choices__list--dropdown .choices__item--choice[data-type="debit"] {
+    color: #3b82f6;
+}
+
+.choices__list--dropdown .choices__item--choice[data-type="credit"] {
+    color: #f97316;
+}
+
+/* ==================================
+   Type Badge Colors (Admin Panel)
+   ================================== */
+
+/* Expense badge - light red with pill shape */
+.badge-type-expense {
+    display: inline-block;
+    background-color: #fee2e2; /* Tailwind red-100 */
+    color: #991b1b; /* Tailwind red-800 */
+    padding: 0.375rem 1rem;
+    border-radius: 9999px; /* Full pill/oval shape */
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Income badge - light green with pill shape */
+.badge-type-income {
+    display: inline-block;
+    background-color: #d1fae5; /* Tailwind green-100 */
+    color: #065f46; /* Tailwind green-800 */
+    padding: 0.375rem 1rem;
+    border-radius: 9999px; /* Full pill/oval shape */
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Debit badge (списание) - light blue with pill shape */
+.badge-type-debit {
+    display: inline-block;
+    background-color: #dbeafe; /* Tailwind blue-100 */
+    color: #1e40af; /* Tailwind blue-800 */
+    padding: 0.375rem 1rem;
+    border-radius: 9999px; /* Full pill/oval shape */
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Credit badge (пополнение) - light orange with pill shape */
+.badge-type-credit {
+    display: inline-block;
+    background-color: #fed7aa; /* Tailwind orange-200 */
+    color: #9a3412; /* Tailwind orange-800 */
+    padding: 0.375rem 1rem;
+    border-radius: 9999px; /* Full pill/oval shape */
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* ==================================
+   Choices.js Dropdown Background (Analytics)
+   ================================== */
+
+/* Fix transparent background issue - make dropdown opaque */
+.choices__list--dropdown {
+    background-color: #ffffff !important; /* White background */
+    border: 1px solid #d1d5db; /* Gray border */
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); /* Shadow for depth */
+    z-index: 100; /* Ensure it's above charts */
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .choices__list--dropdown {
+        background-color: #1f2937 !important; /* Dark gray background */
+        border-color: #374151; /* Darker border */
+    }
+}
+
+/* ==================================
+   Mobile: Prevent Auto-Zoom on Form Fields
+   ================================== */
+
+/**
+ * Fix for iOS Safari and Android Chrome auto-zoom behavior.
+ *
+ * Problem:
+ * - Mobile browsers automatically zoom when user focuses on form fields with font-size < 16px
+ * - This causes page to zoom in, making it difficult to fill forms and submit
+ * - Affects: <select>, <input>, <textarea> in DaisyUI (default font-size ~14px)
+ *
+ * Solution:
+ * - Set font-size to 16px for all form elements on mobile devices
+ * - Prevents auto-zoom while maintaining accessibility (users can still pinch-zoom)
+ * - 16px is the recommended minimum for mobile forms (iOS HIG, Material Design)
+ *
+ * Note:
+ * - Choices.js category selects already have 16px (choices-tailwind.css:211)
+ * - This rule applies to DaisyUI native selects (account, cost location), inputs (amount, date), and textareas (description)
+ *
+ * @see https://stackoverflow.com/questions/2989263/disable-auto-zoom-in-input-text-tag-safari-on-iphone
+ * @see frontend/web/static/css/choices-tailwind.css:209-217 (Choices.js mobile optimization)
+ */
+@media (max-width: 640px) {
+    /* DaisyUI form elements */
+    .select,
+    .input,
+    .textarea {
+        font-size: 16px !important;
+    }
+
+    /* DaisyUI select options */
+    .select option {
+        font-size: 16px !important;
+    }
+
+    /* Form labels (improve readability on mobile) */
+    .label-text {
+        font-size: 14px;
+    }
+}
+
+/* ==================================
+   Mobile: Larger Modal Action Buttons
+   15% increase for better touch targets
+   ================================== */
+@media (max-width: 640px) {
+    .modal-action .btn {
+        min-height: 2.875rem;       /* 46px vs default 40px (~15% larger) */
+        padding-left: 1.15rem;      /* ~15% increase from 1rem */
+        padding-right: 1.15rem;
+        font-size: 0.9375rem;       /* 15px vs default 13px */
+    }
+
+    /* Ensure icons scale proportionally */
+    .modal-action .btn svg {
+        width: 1.125rem;            /* 18px vs default 16px */
+        height: 1.125rem;
+    }
+}
+
+/* ==================================
+   Unified Save Button (Online/Offline)
+   ================================== */
+
+/* Default state: online - green */
+.save-btn {
+    background-color: oklch(var(--su));
+    border-color: oklch(var(--su));
+    color: oklch(var(--suc));
+}
+
+.save-btn:hover {
+    background-color: oklch(var(--su) / 0.9);
+    border-color: oklch(var(--su) / 0.9);
+}
+
+/* Offline mode: orange/warning */
+html.offline-mode .save-btn {
+    background-color: oklch(var(--wa)) !important;
+    border-color: oklch(var(--wa)) !important;
+    color: oklch(var(--wac)) !important;
+}
+
+html.offline-mode .save-btn:hover {
+    background-color: oklch(var(--wa) / 0.9) !important;
+    border-color: oklch(var(--wa) / 0.9) !important;
+}

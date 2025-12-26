@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Добавить факт - Семейный бюджет</title>
+
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/webapp/static/css/telegram-theme.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/app.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/forms.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/shared-components.min.css?v=PLACEHOLDER">
+
+    <!-- Choices.js -->
+    <link rel="stylesheet" href="/webapp/static/css/vendor/choices.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/webapp/static/css/choices-telegram.min.css?v=PLACEHOLDER">
+
+    <!-- Choices.js JS - load in head to ensure it's available before use -->
+    <script src="/webapp/static/js/vendor/choices.min.js?v=PLACEHOLDER"></script>
+
+    <style>
+        /* Add transaction specific styles */
+        /* page-header, page-title, amount-input, quick-amount-buttons moved to shared-components.css */
+
+        /* Extra margin for add page header */
+        .page-header {
+            margin-bottom: 24px;
+        }
+
+        .category-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--tg-theme-section-separator-color);
+            border-radius: 12px;
+            background-color: var(--tg-theme-bg-color);
+        }
+
+        .category-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--tg-theme-section-separator-color);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .category-item:last-child {
+            border-bottom: none;
+        }
+
+        .category-item:active {
+            background-color: var(--tg-theme-secondary-bg-color);
+        }
+
+        .category-item.selected {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+        }
+
+        .category-item-name {
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .category-loading {
+            padding: 16px;
+            text-align: center;
+            color: var(--tg-theme-hint-color);
+        }
+
+        .toggle-btn {
+            font-size: 16px;
+            font-weight: 500;
+            padding: 12px;
+        }
+
+        .toggle-btn.active {
+            background-color: var(--tg-theme-button-color);
+            color: var(--tg-theme-button-text-color);
+            border-color: var(--tg-theme-button-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <div class="page-title">Добавить факт</div>
+        </div>
+
+        <!-- Account Select - ПЕРВЫМ для фильтрации категорий -->
+        <div class="form-group">
+            <label class="form-label form-label-required">Счет</label>
+            <select id="financial-center" class="form-input" required>
+                <option value="">Загрузка...</option>
+            </select>
+            <span class="error-message" id="financial-center-error"></span>
+        </div>
+
+        <!-- Transaction Type Selector -->
+        <div class="form-group">
+            <label class="form-label">Тип категории</label>
+            <div class="quick-amount-buttons" style="grid-template-columns: repeat(2, 1fr);">
+                <button type="button" class="quick-amount-btn toggle-btn active" data-type="expense">Расход</button>
+                <button type="button" class="quick-amount-btn toggle-btn" data-type="income">Доход</button>
+            </div>
+        </div>
+
+        <!-- Quick Amount Buttons -->
+        <div class="form-group">
+            <label class="form-label">Быстрый выбор суммы</label>
+            <div class="quick-amount-buttons">
+                <button type="button" class="quick-amount-btn" data-amount="100">100 </button>
+                <button type="button" class="quick-amount-btn" data-amount="500">500 </button>
+                <button type="button" class="quick-amount-btn" data-amount="1000">1000 </button>
+                <button type="button" class="quick-amount-btn" data-amount="5000">5000 </button>
+            </div>
+        </div>
+
+        <!-- Amount Input -->
+        <div class="form-group">
+            <label class="form-label form-label-required">Сумма</label>
+            <div class="amount-input-wrapper">
+                <input
+                    type="number"
+                    id="amount"
+                    class="amount-input expense"
+                    placeholder="0"
+                    step="1"
+                    min="1"
+                    max="9999999"
+                    inputmode="numeric"
+                    required
+                >
+                <span class="currency-label"></span>
+            </div>
+            <span class="error-message" id="amount-error"></span>
+        </div>
+
+        <!-- Category Select (фильтруется по выбранному счету) -->
+        <div class="form-group">
+            <label class="form-label form-label-required">Категория</label>
+            <select id="category-select" class="form-input" required>
+                <option value="">Загрузка категорий...</option>
+            </select>
+            <div id="category-path-display" class="category-path-info" style="display: none;"></div>
+            <span class="error-message" id="category-error"></span>
+        </div>
+
+        <!-- Cost Location Select -->
+        <div class="form-group">
+            <label class="form-label">Место затрат</label>
+            <select id="cost-center" class="form-input">
+                <option value="">-- Не выбрано --</option>
+            </select>
+            <span class="error-message" id="cost-center-error"></span>
+        </div>
+
+        <!-- Description (optional) -->
+        <div class="form-group">
+            <label class="form-label">Описание (необязательно)</label>
+            <textarea
+                id="description"
+                class="form-textarea"
+                placeholder="Добавьте комментарий..."
+                maxlength="200"
+                rows="3"
+            ></textarea>
+            <span class="char-counter" id="description-counter">0 / 200</span>
+        </div>
+
+        <!-- Date Select -->
+        <div class="form-group">
+            <label class="form-label form-label-required">Дата</label>
+            <div class="quick-amount-buttons" style="margin-bottom: 8px;">
+                <button type="button" class="quick-amount-btn" data-days="0">Сегодня</button>
+                <button type="button" class="quick-amount-btn" data-days="-1">Вчера</button>
+                <button type="button" class="quick-amount-btn" data-days="-2">Позавчера</button>
+            </div>
+            <input
+                type="date"
+                id="fact-date"
+                class="form-input"
+                required
+            >
+            <span class="error-message" id="date-error"></span>
+        </div>
+    </div>
+
+    <!-- Core JS modules -->
+    <script src="/webapp/static/js/storage.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/theme.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/validators.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/ui.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/auth.min.js?v=PLACEHOLDER"></script>
+    <script src="/webapp/static/js/api.min.js?v=PLACEHOLDER"></script>
+
+    <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
+    <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+
+    <script src="/webapp/static/js/app.min.js?v=PLACEHOLDER"></script>
+
+    <script>
+        let formState = {
+            factType: 'expense',  // 'income' or 'expense'
+            amount: null,
+            categoryId: null,
+            financialCenterId: null,
+            costCenterId: null,
+            description: '',
+            factDate: null
+        };
+
+        let categories = [];
+        let financialCenters = [];
+        let costCenters = [];
+        let categoryTreeSelect = null;
+        // app is already declared globally in app.js
+
+        // Page-specific initialization
+        window.pageInit = async function(budgetApp) {
+            console.log('Add transaction page init');
+            app = budgetApp;
+
+            // Setup transaction type selector
+            setupTypeSelector();
+
+            // Setup quick amount buttons
+            setupQuickAmountButtons();
+
+            // Setup amount input
+            setupAmountInput();
+
+            // Setup description counter
+            setupDescriptionCounter();
+
+            // Setup date input (default: today)
+            setupDateInput();
+
+            // Setup quick date buttons
+            setupQuickDateButtons();
+
+            // Load financial centers FIRST (for category filtering)
+            await loadFinancialCenters();
+
+            // Load cost centers
+            await loadCostCenters();
+
+            // Load categories (will filter by FC if selected)
+            await loadCategories();
+
+            // Setup MainButton for save
+            setupMainButton();
+
+            // Setup BackButton to return to main menu
+            app.setupBackButton(() => {
+                window.location.href = '/webapp/index.html';
+            });
+            // Explicitly show BackButton
+            app.tg.BackButton.show();
+
+            console.log('Add transaction page ready');
+        };
+
+        function setupTypeSelector() {
+            const buttons = document.querySelectorAll('.toggle-btn[data-type]');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Update active state
+                    buttons.forEach(b => b.classList.remove('active'));
+                    button.classList.add('active');
+
+                    // Update form state
+                    formState.factType = button.dataset.type;
+
+                    // Clear category selection when changing type to avoid mismatch
+                    formState.categoryId = null;
+
+                    // Update amount input style
+                    const amountInput = document.getElementById('amount');
+                    amountInput.classList.remove('income', 'expense');
+                    amountInput.classList.add(formState.factType);
+
+                    // Reload categories for selected type
+                    loadCategories();
+
+                    // Haptic feedback
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        function setupQuickAmountButtons() {
+            const buttons = document.querySelectorAll('.quick-amount-btn[data-amount]');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const amount = parseFloat(button.dataset.amount);
+                    document.getElementById('amount').value = Math.round(amount);
+                    formState.amount = amount;
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        function setupAmountInput() {
+            const amountInput = document.getElementById('amount');
+
+            amountInput.addEventListener('input', () => {
+                const value = parseFloat(amountInput.value);
+                formState.amount = isNaN(value) ? null : value;
+
+                // Clear error on input
+                document.getElementById('amount-error').textContent = '';
+                amountInput.classList.remove('input-error');
+            });
+        }
+
+        function setupDescriptionCounter() {
+            const textarea = document.getElementById('description');
+            const counter = document.getElementById('description-counter');
+
+            textarea.addEventListener('input', () => {
+                const length = textarea.value.length;
+                counter.textContent = `${length} / 200`;
+
+                if (length > 200) {
+                    counter.classList.add('over-limit');
+                } else {
+                    counter.classList.remove('over-limit');
+                }
+
+                formState.description = textarea.value;
+            });
+        }
+
+        function setupDateInput() {
+            const dateInput = document.getElementById('fact-date');
+
+            // Set default to today (native date input accepts YYYY-MM-DD)
+            if (typeof BudgetShared !== 'undefined' && BudgetShared.DateFormatter) {
+                BudgetShared.DateFormatter.initNativeDateInput(dateInput);
+                formState.factDate = dateInput.value; // Already in YYYY-MM-DD format
+            } else {
+                console.warn('BudgetShared.DateFormatter not loaded');
+                // Fallback: set today's date manually
+                const today = new Date().toISOString().split('T')[0];
+                dateInput.value = today;
+                formState.factDate = today;
+            }
+
+            dateInput.addEventListener('input', () => {
+                // Native date input value is already in YYYY-MM-DD format
+                formState.factDate = dateInput.value;
+
+                // Clear error
+                document.getElementById('date-error').textContent = '';
+                dateInput.classList.remove('input-error');
+            });
+
+            dateInput.addEventListener('blur', () => {
+                // Native date input automatically validates format
+                if (!dateInput.value) {
+                    document.getElementById('date-error').textContent = 'Дата обязательна';
+                    dateInput.classList.add('input-error');
+                }
+            });
+        }
+
+        function setupQuickDateButtons() {
+            const buttons = document.querySelectorAll('.quick-amount-buttons button[data-days]');
+            const dateInput = document.getElementById('fact-date');
+
+            buttons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const daysOffset = parseInt(button.dataset.days);
+                    const date = new Date();
+                    date.setDate(date.getDate() + daysOffset);
+
+                    // Format for native date input (YYYY-MM-DD)
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const isoDate = `${year}-${month}-${day}`;
+
+                    // Set value for native date input (accepts YYYY-MM-DD)
+                    dateInput.value = isoDate;
+                    formState.factDate = isoDate;
+
+                    // Clear error
+                    document.getElementById('date-error').textContent = '';
+                    dateInput.classList.remove('input-error');
+
+                    // Haptic feedback
+                    app.ui.hapticLight();
+                });
+            });
+        }
+
+        async function loadCategories() {
+            const categorySelect = document.getElementById('category-select');
+
+            try {
+                if (categoryTreeSelect) {
+                    // Update existing instance (more efficient than destroy/recreate)
+                    await categoryTreeSelect.updateType(formState.factType);
+                } else {
+                    // Create ChoicesCategoryTree instance
+                    if (typeof BudgetShared !== 'undefined' && BudgetShared.ChoicesCategoryTree) {
+                        categoryTreeSelect = new BudgetShared.ChoicesCategoryTree('#category-select', {
+                            type: formState.factType,
+                            auth: window.auth,  // Pass auth instance for Bearer token
+                            showLeafOnly: true,
+                            onCategoryChange: (category) => {
+                                formState.categoryId = category ? category.id : null;
+
+                                // Clear error
+                                document.getElementById('category-error').textContent = '';
+
+                                // Haptic feedback
+                                app.ui.hapticLight();
+
+                                console.log('Category changed:', category);
+                            }
+                        });
+                    } else {
+                        console.warn('BudgetShared.ChoicesCategoryTree not loaded');
+                        throw new Error('ChoicesCategoryTree not available');
+                    }
+                }
+
+            } catch (error) {
+                console.error('Failed to load categories:', error);
+                app.tg.showAlert('Ошибка загрузки категорий');
+            }
+        }
+
+        async function loadFinancialCenters() {
+            const select = document.getElementById('financial-center');
+
+            try {
+                const result = await app.api.get('/api/v1/financial-centers', { limit: 1000 });
+                financialCenters = result.financial_centers || [];
+
+                if (financialCenters.length === 0) {
+                    select.innerHTML = '<option value="">Центры не найдены</option>';
+                    return;
+                }
+
+                // Clear and populate select
+                select.innerHTML = '<option value="">Выберите счет</option>';
+                financialCenters.forEach(fc => {
+                    const option = document.createElement('option');
+                    option.value = fc.id;
+                    option.textContent = fc.name;
+                    select.appendChild(option);
+                });
+
+                // Setup change handler - update category filter when FC changes
+                select.addEventListener('change', async () => {
+                    const fcId = parseInt(select.value) || null;
+                    formState.financialCenterId = fcId;
+                    document.getElementById('financial-center-error').textContent = '';
+
+                    // Update category filter based on selected FC
+                    if (categoryTreeSelect) {
+                        await categoryTreeSelect.updateFinancialCenter(fcId);
+                    }
+
+                    app.ui.hapticLight();
+                });
+
+            } catch (error) {
+                console.error('Failed to load accounts:', error);
+                select.innerHTML = '<option value="">Ошибка загрузки счетов</option>';
+                app.ui.showError('Не удалось загрузить список счетов. Попробуйте перезагрузить страницу.');
+            }
+        }
+
+        async function loadCostCenters() {
+            const select = document.getElementById('cost-center');
+
+            try {
+                const result = await app.api.get('/api/v1/cost-centers', { limit: 1000 });
+                costCenters = result.cost_centers || [];
+
+                if (costCenters.length === 0) {
+                    select.innerHTML = '<option value="">-- Не выбрано --</option>';
+                    return;
+                }
+
+                // Clear and populate select
+                select.innerHTML = '<option value="">-- Не выбрано --</option>';
+                costCenters.forEach(cc => {
+                    const option = document.createElement('option');
+                    option.value = cc.id;
+                    option.textContent = cc.name;
+                    select.appendChild(option);
+                });
+
+                // Setup change handler
+                select.addEventListener('change', () => {
+                    formState.costCenterId = parseInt(select.value) || null;
+                    document.getElementById('cost-center-error').textContent = '';
+                    app.ui.hapticLight();
+                });
+
+            } catch (error) {
+                console.error('Failed to load cost centers:', error);
+                select.innerHTML = '<option value="">-- Не выбрано --</option>';
+                // МЗ опциональны, поэтому ошибку не показываем пользователю
+                console.warn('Cost centers are optional - continuing without them');
+            }
+        }
+
+        function setupMainButton() {
+            const mainButton = app.tg.MainButton;
+
+            mainButton.setText('Сохранить');
+            mainButton.show();
+            mainButton.enable();
+
+            mainButton.onClick(async () => {
+                await handleSave();
+            });
+        }
+
+        async function handleSave() {
+            console.log('Saving transaction...', formState);
+
+            // Validate form
+            const errors = validateForm();
+            if (Object.keys(errors).length > 0) {
+                app.ui.hapticError();
+                return;
+            }
+
+            // Show loading
+            app.ui.showLoading('Сохранение...');
+
+            try {
+                // Save to database via API
+                const result = await app.api.createFact({
+                    article_id: formState.categoryId,
+                    fact_date: formState.factDate,
+                    amount: formState.amount,
+                    description: formState.description || null,
+                    record_type: 'fact',
+                    financial_center_id: formState.financialCenterId,
+                    cost_center_id: formState.costCenterId
+                });
+
+                console.log('Fact created:', result);
+
+                app.ui.hideLoading();
+                app.ui.showSuccess('Факт добавлен!', () => {
+                    // Reset form for next entry
+                    resetForm();
+                    // Focus on amount input
+                    document.getElementById('amount').focus();
+                });
+
+                // Haptic feedback
+                app.ui.hapticSuccess();
+
+            } catch (error) {
+                console.error('Save error:', error);
+                app.ui.hideLoading();
+                app.ui.showError(`Ошибка: ${error.detail || error.message}`);
+            }
+        }
+
+        function resetForm() {
+            // Reset form state
+            formState.amount = null;
+            formState.categoryId = null;
+            formState.financialCenterId = null;
+            formState.costCenterId = null;
+            formState.description = '';
+
+            // Clear inputs
+            document.getElementById('amount').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('description-counter').textContent = '0 / 200';
+
+            // Clear selected category
+            const categorySelect = document.getElementById('category-select');
+            categorySelect.value = '';
+
+            // Clear selected financial center and cost center
+            document.getElementById('financial-center').value = '';
+            document.getElementById('cost-center').value = '';
+
+            // Clear errors
+            document.getElementById('amount-error').textContent = '';
+            document.getElementById('category-error').textContent = '';
+            document.getElementById('financial-center-error').textContent = '';
+            document.getElementById('cost-center-error').textContent = '';
+            document.getElementById('amount').classList.remove('input-error');
+
+            console.log('Form reset');
+        }
+
+        function validateForm() {
+            const errors = {};
+
+            // Amount validation
+            const amountInput = document.getElementById('amount');
+            const amountError = Validators.amount(formState.amount);
+            if (amountError) {
+                errors.amount = amountError;
+                document.getElementById('amount-error').textContent = amountError;
+                amountInput.classList.add('input-error');
+            }
+
+            // Category validation
+            if (!formState.categoryId || formState.categoryId <= 0) {
+                errors.category = 'Выберите категорию';
+                document.getElementById('category-error').textContent = 'Выберите категорию';
+            }
+
+            // Account validation
+            if (!formState.financialCenterId || formState.financialCenterId <= 0) {
+                errors.financialCenter = 'Выберите счет';
+                document.getElementById('financial-center-error').textContent = 'Выберите счет';
+            }
+
+            // Date validation
+            const dateInput = document.getElementById('fact-date');
+            const dateError = Validators.date(formState.factDate);
+            if (dateError) {
+                errors.date = dateError;
+                document.getElementById('date-error').textContent = dateError;
+                dateInput.classList.add('input-error');
+            }
+
+            return errors;
+        }
+    </script>
+</body>
+</html>

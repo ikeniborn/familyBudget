@@ -1,0 +1,1128 @@
+{% extends "base.html" %}
+{% from "components/modal_confirm.html" import confirm_modal %}
+{% from "components/mobile_alert.html" import mobile_restriction_alert %}
+{% from "components/status_filter.html" import status_filter_buttons %}
+
+{% block content %}
+<!-- Mobile restriction alert (from macro) -->
+{{ mobile_restriction_alert() }}
+
+<!-- Main content (hidden on mobile) -->
+<div class="hidden md:block space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold mb-2">📁 Управление категориями бюджета</h1>
+        <p class="text-base-content/70">Создавайте и редактируйте категории доходов и расходов с иерархической структурой</p>
+    </div>
+
+    <!-- Articles Table -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <div class="mb-4">
+                <div class="flex flex-col gap-3 mb-3">
+                    <div class="flex justify-between items-center">
+                        <h2 class="card-title text-2xl">📊 Категории</h2>
+                        <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Новая категория
+                        </button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <select id="filter-type" class="select select-bordered" onchange="toggleTypeFilter(this.value)">
+                            <option value="all">📋 Все</option>
+                            <option value="income">💰 Доход</option>
+                            <option value="expense">💸 Расход</option>
+                            <option value="debit">📤 Списание</option>
+                            <option value="credit">📥 Пополнение</option>
+                        </select>
+                        <div class="form-control flex-1 min-w-[200px] max-w-xs">
+                            <div class="flex items-center gap-0">
+                                <span class="bg-base-200 px-3 h-12 flex items-center rounded-l-lg border border-r-0 border-base-300">🔍</span>
+                                <input type="text" id="search-input" placeholder="Поиск по названию..." class="input input-bordered w-full rounded-l-none" />
+                            </div>
+                        </div>
+                        {{ status_filter_buttons(fixed_height=true) }}
+                    </div>
+                </div>
+            </div>
+
+            <div id="articles-table-container" class="min-h-[200px]">
+                <div class="flex items-center justify-center py-8">
+                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Create Article Modal -->
+<dialog id="create-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✨ Создать новую категорию</h3>
+        <form id="create-form" onsubmit="createArticle(event)" class="space-y-2 sm:space-y-4">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Введите название категории" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🏷️ Тип*</span>
+                </label>
+                <select id="create-type" name="type" required class="select select-bordered">
+                    <option value="income">💰 Доход</option>
+                    <option value="expense">💸 Расход</option>
+                    <option value="debit">📤 Списание</option>
+                    <option value="credit">📥 Пополнение</option>
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📂 Родительская категория</span>
+                </label>
+                <select id="create-parent" name="parent_id" class="select select-bordered">
+                    <option value="">-- Корневой уровень --</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-control" id="create-fc-container">
+                <label class="label">
+                    <span class="label-text">🏦 Счета</span>
+                </label>
+                <select id="create-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
+                    <!-- Will be populated dynamically -->
+                </select>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Не выбрано = категория доступна для всех счетов. Удерживайте Ctrl для выбора нескольких.
+                </p>
+            </div>
+            <div class="modal-action">
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeCreateModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">✅ Создать</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Edit Article Modal -->
+<dialog id="edit-modal" class="modal">
+    <div class="modal-box w-full max-w-2xl p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto my-auto">
+        <h3 class="font-bold text-lg mb-2 sm:mb-4">✏️ Редактировать категорию</h3>
+        <form id="edit-form" onsubmit="updateArticle(event)" class="space-y-2 sm:space-y-4">
+            <input type="hidden" id="edit-id" name="id">
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📝 Название*</span>
+                </label>
+                <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">💰 Тип*</span>
+                </label>
+                <select id="edit-type" name="type" required class="select select-bordered">
+                    <option value="expense">💸 Расход</option>
+                    <option value="income">💵 Доход</option>
+                    <option value="debit">📤 Списание</option>
+                    <option value="credit">📥 Пополнение</option>
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">📂 Родительская категория</span>
+                </label>
+                <select id="edit-parent" name="parent_id" class="select select-bordered">
+                    <option value="">-- Корневой уровень --</option>
+                    <!-- Will be populated dynamically -->
+                </select>
+            </div>
+            <div class="form-control">
+                <label class="label cursor-pointer">
+                    <span class="label-text">✅ Активная категория</span>
+                    <input type="checkbox" id="edit-is-active" name="is_active" class="checkbox" checked />
+                </label>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Неактивные категории скрыты из выбора при добавлении фактов. Изменение статуса применится ко всем подкатегориям рекурсивно.
+                </p>
+            </div>
+            <div class="form-control" id="edit-fc-container">
+                <label class="label">
+                    <span class="label-text">🏦 Счета</span>
+                </label>
+                <select id="edit-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
+                    <!-- Will be populated dynamically -->
+                </select>
+                <p class="text-sm text-base-content/60 mt-1">
+                    Не выбрано = категория доступна для всех счетов. Удерживайте Ctrl для выбора нескольких.
+                </p>
+                <p class="text-sm text-warning mt-1" id="edit-fc-non-leaf-warning" style="display: none;">
+                    ⚠️ Привязка к счёту доступна только для листовых категорий (без подкатегорий).
+                </p>
+            </div>
+            <div class="modal-action mt-3 flex flex-row gap-2">
+                <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
+                <button type="button" class="btn btn-xs btn-error btn-square md:hidden" onclick="deleteArticleFromEditModal()" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+                <!-- Разделитель (пустое пространство) -->
+                <div class="flex-1 md:hidden"></div>
+                <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
+                <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
+            </div>
+        </form>
+    </div>
+    <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+    </form>
+</dialog>
+
+<!-- Confirmation Dialog (from macro) -->
+{{ confirm_modal() }}
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/adminStatusFilter.js?v=PLACEHOLDER"></script>
+<script>
+// Status filter callback (used by adminStatusFilter.js)
+window.onStatusFilterChange = function(status) {
+    currentStatusFilter = status;
+    loadArticles();
+};
+
+// Check if current user is admin
+const isAdmin = {{ 'true' if user.is_admin else 'false' }};
+
+// Global state
+let currentType = 'all';
+let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
+let currentSearchQuery = '';
+let articlesData = [];
+let financialCentersData = []; // List of all financial centers
+
+// Custom confirmation dialog
+let confirmModalResolveCallback = null;
+
+function showConfirmDialog(message, title = 'Подтверждение') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const titleEl = document.getElementById('confirm-title');
+        const messageEl = document.getElementById('confirm-message');
+
+        titleEl.textContent = title;
+        messageEl.textContent = message;
+        confirmModalResolveCallback = resolve;
+
+        modal.showModal();
+    });
+}
+
+function confirmModalResolve(result) {
+    const modal = document.getElementById('confirm-modal');
+    modal.close();
+
+    if (confirmModalResolveCallback) {
+        confirmModalResolveCallback(result);
+        confirmModalResolveCallback = null;
+    }
+}
+
+// Load articles on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadArticles();
+    loadFinancialCenters();
+
+    // Search input event listener for real-time filtering (with null check)
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            updateSearchFilter(e.target.value);
+        });
+    }
+
+    // Добавляем обработчик изменения типа в модальном окне создания
+    // для динамического обновления списка родительских статей (with null check)
+    const createType = document.getElementById('create-type');
+    if (createType) {
+        createType.addEventListener('change', function() {
+            populateParentSelect('create-parent', this.value);
+        });
+    }
+});
+
+// Load financial centers for multiselect
+async function loadFinancialCenters() {
+    try {
+        const response = await fetch('/api/v1/financial-centers', {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        financialCentersData = data.financial_centers || [];
+        populateFinancialCenterSelect('create-financial-centers', []);
+        populateFinancialCenterSelect('edit-financial-centers', []);
+    } catch (error) {
+        console.error('Error loading financial centers:', error);
+    }
+}
+
+// Populate financial center multiselect
+function populateFinancialCenterSelect(selectId, selectedIds) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+
+    // Clear existing options
+    select.innerHTML = '';
+
+    // Normalize selectedIds to integers for comparison (handles string/number mismatch)
+    const normalizedSelectedIds = (selectedIds || []).map(id => parseInt(id, 10));
+
+    // Add options for each financial center
+    financialCentersData.forEach(fc => {
+        const option = document.createElement('option');
+        const fcIdInt = parseInt(fc.id, 10);
+        option.value = fc.id;
+        option.textContent = fc.name;
+        option.selected = normalizedSelectedIds.includes(fcIdInt);
+        select.appendChild(option);
+    });
+}
+
+// Update FC container visibility based on is_leaf status
+function updateFCContainerVisibility(containerId, warningId, isLeaf) {
+    const container = document.getElementById(containerId);
+    const warning = document.getElementById(warningId);
+    const select = container?.querySelector('select');
+
+    if (!container) return;
+
+    if (isLeaf) {
+        // Leaf article - show select, hide warning
+        if (select) select.disabled = false;
+        if (warning) warning.style.display = 'none';
+    } else {
+        // Non-leaf article - disable select, show warning
+        if (select) select.disabled = true;
+        if (warning) warning.style.display = 'block';
+    }
+}
+
+// Toggle type filter (all/income/expense/debit/credit)
+function toggleTypeFilter(type) {
+    currentType = type;
+    loadArticles();
+}
+
+// Update search filter
+function updateSearchFilter(query) {
+    currentSearchQuery = query.trim();
+    renderArticlesTable(articlesData);
+}
+
+// Load articles from API
+async function loadArticles() {
+    const container = document.getElementById('articles-table-container');
+    container.innerHTML = '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>';
+
+    try {
+        // Determine include_inactive based on status filter
+        const includeInactive = currentStatusFilter !== 'active'; // 'all' and 'archived' need inactive articles
+        // Admin uses admin endpoint with full features, non-admin uses user endpoint
+        let url;
+        if (isAdmin) {
+            url = `/api/v1/admin/articles?include_inactive=${includeInactive}`;
+        } else {
+            url = `/api/v1/articles?flat=true&include_inactive=${includeInactive}`;
+        }
+
+        const response = await fetch(url, {
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const responseData = await response.json();
+        if (isAdmin) {
+            articlesData = responseData;  // Direct array for admin
+        } else {
+            articlesData = responseData.articles;  // Extract nested array for non-admin
+        }
+        renderArticlesTable(articlesData);
+    } catch (error) {
+        console.error('Error loading articles:', error);
+        container.innerHTML = `<div class="alert alert-error"><span>❌ Ошибка загрузки категорий: ${error.message}</span></div>`;
+    }
+}
+
+// Render articles table with hierarchy
+function renderArticlesTable(articles) {
+    const container = document.getElementById('articles-table-container');
+
+    // Filter by current type (all/income/expense)
+    let filtered = currentType === 'all'
+        ? articles
+        : articles.filter(a => a.type === currentType);
+
+    // Filter by status (all/active/archived)
+    if (currentStatusFilter === 'active') {
+        filtered = filtered.filter(a => a.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filtered = filtered.filter(a => a.is_active === false);
+    }
+    // 'all' - no filtering by is_active
+
+    // Filter by search query
+    if (currentSearchQuery) {
+        const query = currentSearchQuery.toLowerCase();
+        filtered = filtered.filter(a => a.name.toLowerCase().includes(query));
+    }
+
+    if (filtered.length === 0) {
+        const message = currentSearchQuery
+            ? `📝 Категории не найдены по запросу "${currentSearchQuery}". Попробуйте изменить поисковый запрос.`
+            : '📝 Категории не найдены. Нажмите "➕ Новая категория" для создания.';
+        container.innerHTML = `<div class="text-center py-8 text-base-content/60">${message}</div>`;
+        return;
+    }
+
+    // Build hierarchy tree
+    const tree = buildTree(filtered);
+
+    let html = `
+        <div class="overflow-x-auto">
+            <table class="table table-zebra table-sm">
+                <thead>
+                    <tr>
+                        <th>📝 Название</th>
+                        <th>🏷️ Тип</th>
+                        <th>🏦 Счет</th>
+                        <th>🔢 Код</th>
+                        <th>👤 Владелец</th>
+                        <th>⚙️ Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    // Render tree recursively
+    html += renderTreeNodes(tree, 0);
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = html;
+}
+
+// Build hierarchy tree
+function buildTree(articles) {
+    const map = {};
+    const roots = [];
+
+    // Create map
+    articles.forEach(article => {
+        map[article.id] = { ...article, children: [] };
+    });
+
+    // Build tree
+    articles.forEach(article => {
+        if (article.parent_id && map[article.parent_id]) {
+            map[article.parent_id].children.push(map[article.id]);
+        } else {
+            roots.push(map[article.id]);
+        }
+    });
+
+    return roots;
+}
+
+// Helper: Get FC names from IDs
+function getFCNamesLabel(fcIds) {
+    if (!fcIds || fcIds.length === 0) {
+        return '<span class="badge badge-ghost">Все</span>';
+    }
+    const names = fcIds.map(id => {
+        const fc = financialCentersData.find(f => f.id === id);
+        return fc ? fc.name : `#${id}`;
+    });
+    // If more than 2 FCs, show first 2 and count
+    if (names.length > 2) {
+        return `<span class="badge badge-info badge-sm">${names.slice(0, 2).join(', ')} +${names.length - 2}</span>`;
+    }
+    return `<span class="badge badge-info badge-sm">${names.join(', ')}</span>`;
+}
+
+// Render tree nodes recursively
+function renderTreeNodes(nodes, level) {
+    let html = '';
+
+    nodes.forEach(node => {
+        const indent = '&nbsp;&nbsp;&nbsp;&nbsp;'.repeat(level);
+        const prefix = level > 0 ? '↳ ' : '';
+        // Show user_name (first_name) from backend
+        const ownerLabel = node.user_name || '—';
+        // Show FC names (or "Все" if empty)
+        const fcLabel = getFCNamesLabel(node.financial_center_ids);
+
+        // Full type mapping for all 4 types (with colored badges)
+        let typeLabel, typeBadge;
+        switch (node.type) {
+            case 'income':
+                typeLabel = '💰 Доход';
+                typeBadge = '<span class="badge-type-income gap-1">' + typeLabel + '</span>';
+                break;
+            case 'expense':
+                typeLabel = '💸 Расход';
+                typeBadge = '<span class="badge-type-expense gap-1">' + typeLabel + '</span>';
+                break;
+            case 'debit':
+                typeLabel = '📤 Списание';
+                typeBadge = '<span class="badge-type-debit gap-1">' + typeLabel + '</span>';
+                break;
+            case 'credit':
+                typeLabel = '📥 Пополнение';
+                typeBadge = '<span class="badge-type-credit gap-1">' + typeLabel + '</span>';
+                break;
+            default:
+                typeLabel = '❓ Неизвестно';
+                typeBadge = '<span class="badge badge-error gap-1">' + typeLabel + '</span>';
+        }
+
+        // Archived badge
+        const archivedBadge = !node.is_active
+            ? '<span class="badge badge-warning ml-2">📦 Архивная</span>'
+            : '';
+
+        // Action buttons (icon-only) - Edit for all users, Archive/Delete only for admins
+        let actionButtons = `<button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${node.id})" title="Изменить">✏️</button>`;
+
+        // Admin-only buttons: Archive/Restore and Delete
+        if (isAdmin) {
+            if (node.is_active) {
+                actionButtons += `
+                    <button class="btn btn-xs btn-warning gap-1" onclick="archiveArticle(${node.id}, event)" title="Архивировать">📦</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deactivateArticle(${node.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            } else {
+                actionButtons += `
+                    <button class="btn btn-xs btn-success gap-1" onclick="restoreArticle(${node.id}, event)" title="Восстановить">♻️</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deactivateArticle(${node.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+            }
+        }
+        const actionsCell = `<td><div class="flex gap-1">${actionButtons}</div></td>`;
+
+        html += `
+            <tr data-article-id="${node.id}">
+                <td class="font-medium">${indent}${prefix}${node.name}${archivedBadge}</td>
+                <td>${typeBadge}</td>
+                <td>${fcLabel}</td>
+                <td class="font-mono text-sm">${node.code || '—'}</td>
+                <td>${ownerLabel}</td>
+                ${actionsCell}
+            </tr>
+        `;
+
+        // Render children recursively
+        if (node.children.length > 0) {
+            html += renderTreeNodes(node.children, level + 1);
+        }
+    });
+
+    return html;
+}
+
+// Show create modal
+function showCreateModal() {
+    document.getElementById('create-modal').showModal();
+    // Устанавливаем тип на основе фильтра, если он не 'all'
+    const initialType = currentType !== 'all' ? currentType : 'expense';
+    document.getElementById('create-type').value = initialType;
+    populateParentSelect('create-parent', initialType);
+}
+
+// Close create modal
+function closeCreateModal() {
+    document.getElementById('create-modal').close();
+    document.getElementById('create-form').reset();
+    // Clear financial center selection
+    populateFinancialCenterSelect('create-financial-centers', []);
+}
+
+// Populate parent select dropdown
+function populateParentSelect(selectId, type, excludeArticleId = null) {
+    const select = document.getElementById(selectId);
+
+    // Clear existing options (except first)
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+
+    // Get articles of same type (exclude current article if editing)
+    const sameType = articlesData.filter(a => a.type === type && a.id != excludeArticleId);
+
+    // Build tree for proper ordering
+    const tree = buildTree(sameType);
+
+    // Add options with hierarchy
+    function addOptions(nodes, level) {
+        nodes.forEach(node => {
+            // Create visual tree structure with non-breaking spaces
+            // Using \u00A0 (non-breaking space) to prevent browser from collapsing whitespace
+            let prefix = '';
+            if (level > 0) {
+                // Each level adds 2 non-breaking spaces for indentation
+                prefix = '\u00A0\u00A0'.repeat(level - 1) + '└─\u00A0';
+            }
+
+            const option = document.createElement('option');
+            option.value = node.id;
+            option.textContent = prefix + node.name;
+
+            // Add visual indicator for parent categories
+            if (node.children.length > 0) {
+                option.textContent += ' 📁';
+            }
+
+            select.appendChild(option);
+
+            if (node.children.length > 0) {
+                addOptions(node.children, level + 1);
+            }
+        });
+    }
+
+    addOptions(tree, 0);
+}
+
+// Create article
+async function createArticle(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+
+    // Get selected financial center IDs from multiselect
+    const fcSelect = document.getElementById('create-financial-centers');
+    const financialCenterIds = Array.from(fcSelect.selectedOptions).map(opt => parseInt(opt.value));
+
+    const data = {
+        name: formData.get('name'),
+        type: formData.get('type'),
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
+        financial_center_ids: financialCenterIds.length > 0 ? financialCenterIds : null
+    };
+
+    try {
+        const response = await fetch('/api/v1/articles', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Add helpful hints based on error type
+            if (errorMessage.includes('родительская категория') || errorMessage.includes('parent')) {
+                errorMessage += '\n\n💡 Совет: Измените родительскую категорию или удалите привязку (выберите "-- Корневой уровень --")';
+            } else if (errorMessage.includes('уже существует') || errorMessage.includes('already exists')) {
+                errorMessage += '\n\n💡 Совет: Измените имя категории или выберите другой тип';
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        // Success
+        closeCreateModal();
+        await loadArticles();
+        showNotification('✅ Категория успешно создана!', 'success');
+    } catch (error) {
+        console.error('Error creating article:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Show edit modal
+async function showEditModal(articleId) {
+    const article = articlesData.find(a => a.id === articleId);
+    if (!article) return;
+
+    document.getElementById('edit-id').value = article.id;
+    document.getElementById('edit-name').value = article.name;
+    document.getElementById('edit-type').value = article.type;
+    populateParentSelect('edit-parent', article.type, article.id);
+    document.getElementById('edit-parent').value = article.parent_id || '';
+    document.getElementById('edit-is-active').checked = article.is_active !== false;
+
+    // Ensure financial centers are loaded (race condition protection)
+    if (financialCentersData.length === 0) {
+        await loadFinancialCenters();
+    }
+
+    // Populate financial center multiselect with current selection
+    const fcIds = article.financial_center_ids || [];
+    debugLog('[showEditModal] Article FC IDs:', fcIds, 'FC Data count:', financialCentersData.length);
+    populateFinancialCenterSelect('edit-financial-centers', fcIds);
+
+    // Show/hide FC container based on is_leaf status
+    const isLeaf = article.is_leaf !== false; // Default to true if not set
+    updateFCContainerVisibility('edit-fc-container', 'edit-fc-non-leaf-warning', isLeaf);
+
+    // Add event listener for type change to update parent list dynamically
+    const editTypeSelect = document.getElementById('edit-type');
+    const editParentSelect = document.getElementById('edit-parent');
+    const originalType = article.type;
+    const originalParentId = article.parent_id;
+
+    // Remove old listener if exists
+    editTypeSelect.replaceWith(editTypeSelect.cloneNode(true));
+    const newEditTypeSelect = document.getElementById('edit-type');
+    newEditTypeSelect.value = article.type;
+
+    newEditTypeSelect.addEventListener('change', function() {
+        const newType = this.value;
+        const oldParentId = editParentSelect.value;
+
+        // Update parent select with new type (exclude current article)
+        populateParentSelect('edit-parent', newType, article.id);
+
+        // Check if old parent is still valid (same type)
+        if (oldParentId && originalType !== newType) {
+            const oldParentArticle = articlesData.find(a => a.id == oldParentId);
+            if (oldParentArticle && oldParentArticle.type !== newType) {
+                // Parent has different type - clear selection and show warning
+                editParentSelect.value = '';
+                showNotification(
+                    `⚠️ Родительская категория "${oldParentArticle.name}" имеет тип "${oldParentArticle.type}". ` +
+                    `Выберите новую родительскую категорию с типом "${newType}" или оставьте корневой уровень.`,
+                    'warning'
+                );
+            } else {
+                // Try to keep the same parent if it's compatible
+                editParentSelect.value = oldParentId || '';
+            }
+        }
+    });
+
+    document.getElementById('edit-modal').showModal();
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('edit-modal').close();
+    document.getElementById('edit-form').reset();
+}
+
+// Delete article from edit modal (mobile only)
+function deleteArticleFromEditModal() {
+    const articleId = document.getElementById('edit-id').value;
+    closeEditModal();
+    deactivateArticle(articleId);
+}
+
+// Update article
+async function updateArticle(event) {
+    event.preventDefault();
+
+    const formData = new FormData(event.target);
+    const articleId = formData.get('id');
+
+    // Get selected financial center IDs from multiselect (only if enabled)
+    const fcSelect = document.getElementById('edit-financial-centers');
+    let financialCenterIds = null;
+    if (fcSelect && !fcSelect.disabled) {
+        financialCenterIds = Array.from(fcSelect.selectedOptions).map(opt => parseInt(opt.value));
+    }
+
+    const data = {
+        name: formData.get('name'),
+        type: formData.get('type'),
+        parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
+        is_active: document.getElementById('edit-is-active').checked,
+        financial_center_ids: financialCenterIds
+    };
+
+    try {
+        const response = await fetch(`/api/v1/articles/${articleId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            // Add helpful hints based on error type
+            if (errorMessage.includes('родительская категория') || errorMessage.includes('parent')) {
+                errorMessage += '\n\n💡 Совет: Измените родительскую категорию или удалите привязку (выберите "-- Корневой уровень --")';
+            } else if (errorMessage.includes('уже существует') || errorMessage.includes('already exists')) {
+                errorMessage += '\n\n💡 Совет: Измените имя категории или выберите другой тип';
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        // Success - get new article data from response (SCD2 creates new version with new ID)
+        const updatedArticle = await response.json();
+
+        // CRITICAL: Update modal's hidden ID field with new ID from SCD2 version
+        // Without this, if user clicks "Save" again without closing modal, it will send old ID → 404
+        document.getElementById('edit-id').value = updatedArticle.id;
+
+        closeEditModal();
+        await loadArticles();
+        showNotification('✅ Категория успешно обновлена!', 'success');
+    } catch (error) {
+        console.error('Error updating article:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// Deactivate article
+async function deactivateArticle(articleId) {
+    // First confirmation - warning about physical deletion
+    const firstConfirm = await showConfirmDialog(
+        '⚠️ ВНИМАНИЕ: Физическое удаление категории!\n\n' +
+        '❌ Будет ФИЗИЧЕСКИ УДАЛЕНА:\n' +
+        '  • Сама категория\n' +
+        '  • Связанные записи в иерархии\n\n' +
+        '✅ Будет СОХРАНЕНО для аудита:\n' +
+        '  • История изменений (с меткой DELETE)\n\n' +
+        '⚠️ БЛОКИРОВКА удаления если:\n' +
+        '  • Есть дочерние категории\n' +
+        '  • Категория используется в фактах\n\n' +
+        'Это действие НЕОБРАТИМО!\n\n' +
+        'Продолжить удаление?',
+        '⚠️ ФИЗИЧЕСКОЕ УДАЛЕНИЕ'
+    );
+
+    if (!firstConfirm) {
+        return;
+    }
+
+    // Second confirmation - final check
+    const secondConfirm = await showConfirmDialog(
+        '🔴 ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ!\n\n' +
+        'Вы действительно хотите ФИЗИЧЕСКИ УДАЛИТЬ эту категорию?\n\n' +
+        'Это действие НЕВОЗМОЖНО отменить!\n\n' +
+        'Нажмите OK для окончательного подтверждения.',
+        '🔴 ФИНАЛЬНОЕ ПОДТВЕРЖДЕНИЕ'
+    );
+
+    if (!secondConfirm) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+
+            // Extract meaningful error message
+            let errorMessage = 'Неизвестная ошибка';
+
+            if (typeof error.detail === 'string') {
+                errorMessage = error.detail;
+            } else if (error.detail && typeof error.detail === 'object') {
+                // Handle object-type errors - extract message if exists
+                if (error.detail.message) {
+                    errorMessage = error.detail.message;
+                } else {
+                    errorMessage = JSON.stringify(error.detail);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            throw new Error(errorMessage);
+        }
+
+        // Success
+        await loadArticles();
+        showNotification('✅ Категория успешно удалена!', 'success');
+    } catch (error) {
+        console.error('Error deactivating article:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
+// updateStatusFilter is provided by adminStatusFilter.js
+
+// Helper: Format FastAPI error detail (handles both string and array)
+function formatErrorDetail(detail) {
+    if (!detail) return 'Неизвестная ошибка';
+
+    // If detail is a string, return it directly
+    if (typeof detail === 'string') {
+        return detail;
+    }
+
+    // If detail is an array (FastAPI validation errors)
+    if (Array.isArray(detail)) {
+        return detail.map(err => {
+            const location = err.loc ? err.loc.join(' → ') : '';
+            const message = err.msg || '';
+            return location ? `${location}: ${message}` : message;
+        }).join('; ');
+    }
+
+    // Fallback: stringify object
+    return JSON.stringify(detail);
+}
+
+// Archive article and all descendants
+async function archiveArticle(articleId, event) {
+    const confirmed = await showConfirmDialog(
+        '📦 Архивировать эту категорию?\n\nВсе подкатегории будут также архивированы рекурсивно.\nИсторические данные сохранятся.',
+        '📦 Архивирование категории'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    // Show loading indicator and disable button
+    const button = event?.target?.closest('button');
+    const originalContent = button?.innerHTML;
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Архивация...';
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: false })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            const errorMessage = formatErrorDetail(error.detail);
+            throw new Error(errorMessage);
+        }
+
+        await loadArticles();
+        showNotification('✅ Категория и все подкатегории архивированы!', 'success');
+    } catch (error) {
+        console.error('Error archiving article:', error);
+        showNotification(`❌ Ошибка архивирования: ${error.message}`, 'error');
+    } finally {
+        // Restore button state (if button still exists)
+        if (button && originalContent) {
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
+    }
+}
+
+// Restore article and all descendants
+async function restoreArticle(articleId, event) {
+    const confirmed = await showConfirmDialog(
+        '♻️ Восстановить эту категорию?\n\nВсе подкатегории будут также восстановлены рекурсивно.',
+        '♻️ Восстановление категории'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    // Show loading indicator and disable button
+    const button = event?.target?.closest('button');
+    const originalContent = button?.innerHTML;
+    if (button) {
+        button.disabled = true;
+        button.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Восстановление...';
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/articles/${articleId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: true })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            const errorMessage = formatErrorDetail(error.detail);
+            throw new Error(errorMessage);
+        }
+
+        await loadArticles();
+        showNotification('✅ Категория и все подкатегории восстановлены!', 'success');
+    } catch (error) {
+        console.error('Error restoring article:', error);
+        showNotification(`❌ Ошибка восстановления: ${error.message}`, 'error');
+    } finally {
+        // Restore button state (if button still exists)
+        if (button && originalContent) {
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
+    }
+}
+
+// Utility: Show notification (toast instead of alert)
+// Uses global showToast from base.html for consistent centered toasts
+function showNotification(message, type) {
+    // Handle error objects properly
+    if (typeof message === 'object' && message !== null) {
+        message = message.detail || message.message || JSON.stringify(message);
+    }
+
+    // Use global showToast from base.html (centered, with proper animations)
+    if (typeof showToast === 'function') {
+        showToast(message, type);
+        return;
+    }
+
+    // Fallback: Use global toast container from base.html (centered, high z-index)
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        // Fallback: create container if not found (positioned below navbar, centered)
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert ${type === 'error' ? 'alert-error' : type === 'warning' ? 'alert-warning' : 'alert-success'} shadow-xl pointer-events-auto`;
+    toast.style.cssText = `
+        max-width: min(90vw, 400px);
+        width: auto;
+        animation: toastSlideDown 0.3s ease-out;
+        cursor: pointer;
+    `;
+    toast.innerHTML = `<span>${message}</span>`;
+
+    // Add animation keyframes if not exists
+    if (!document.getElementById('toast-animations')) {
+        const style = document.createElement('style');
+        style.id = 'toast-animations';
+        style.textContent = `
+            @keyframes toastSlideDown {
+                from {
+                    transform: translateY(-20px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+            @keyframes toastSlideUp {
+                from {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+                to {
+                    transform: translateY(-20px);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    // Add to container
+    toastContainer.appendChild(toast);
+
+    // Auto-dismiss after 5 seconds
+    const dismissTimeout = setTimeout(() => {
+        toast.style.animation = 'toastSlideUp 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+
+    // Click to dismiss
+    toast.addEventListener('click', () => {
+        clearTimeout(dismissTimeout);
+        toast.style.animation = 'toastSlideUp 0.3s ease-out';
+        setTimeout(() => toast.remove(), 300);
+    });
+}
+</script>
+{% endblock %}

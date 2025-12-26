@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block title %}Вход через Telegram{% endblock %}
+
+{% block extra_head %}
+<!-- Preload Telegram widget script to avoid race condition with TWidgetLogin -->
+<link rel="preload" href="https://telegram.org/js/telegram-widget.js?22" as="script">
+{% endblock %}
+
+{% block content %}
+<div class="login-page">
+    <div class="login-container">
+        <div class="login-header">
+            <h1>Вход через Telegram</h1>
+            <p class="subtitle">Мгновенный доступ без пароля</p>
+        </div>
+
+        <div class="login-card">
+            <div class="login-icon">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="#0088cc" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                </svg>
+            </div>
+
+            <h2 class="text-xl font-bold mb-2">Авторизация через Telegram</h2>
+            <p class="text-sm opacity-70 mb-6">
+                Нажмите кнопку ниже для входа через ваш Telegram аккаунт.
+            </p>
+
+            <div class="telegram-widget-container" id="telegram-widget-container"
+                 data-bot-username="{{ bot_username }}"
+                 data-callback-url="{{ callback_url }}">
+                <!-- State: LOADING - Loader (shows while widget is loading) -->
+                <div class="telegram-placeholder" id="telegram-placeholder">
+                    <div class="telegram-loader">
+                        <span class="loading loading-spinner loading-md text-primary"></span>
+                        <span class="telegram-loader-text">Загрузка...</span>
+                    </div>
+                </div>
+                <!-- State: ERROR - Error state (shows if widget fails to load) -->
+                <div class="telegram-error hidden" id="telegram-error">
+                    <div class="alert alert-warning">
+                        <svg class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div class="flex flex-col gap-1">
+                            <span class="font-medium">Виджет Telegram не загрузился</span>
+                            <span class="text-sm opacity-70">Возможно, сервис временно недоступен или заблокирован</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2 mt-3">
+                        <button type="button" class="btn btn-primary gap-2" id="telegram-retry-btn">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Попробовать снова
+                        </button>
+                        <a href="https://t.me/{{ bot_username }}" target="_blank" rel="noopener noreferrer"
+                           class="btn btn-outline btn-sm gap-2">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+                            </svg>
+                            Открыть бота в Telegram
+                        </a>
+                    </div>
+                </div>
+                <!-- State: SUCCESS - Telegram Login Widget (dynamically injected) -->
+                <script async src="https://telegram.org/js/telegram-widget.js?22"
+                        data-telegram-login="{{ bot_username }}"
+                        data-size="large"
+                        data-auth-url="{{ callback_url }}"
+                        data-request-access="write">
+                </script>
+            </div>
+
+            <div class="mt-6 text-sm">
+                <div class="flex items-center gap-2 justify-center text-success mb-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Не нужно запоминать пароль
+                </div>
+                <div class="flex items-center gap-2 justify-center text-success mb-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Мгновенная активация
+                </div>
+                <div class="flex items-center gap-2 justify-center text-success">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Доступ к боту @{{ bot_username }}
+                </div>
+            </div>
+
+            <div class="mt-6 p-3 bg-base-200 rounded-lg text-sm">
+                <p class="opacity-70">
+                    <strong>Нет Telegram?</strong>
+                    Скачайте с <a href="https://telegram.org/" target="_blank" class="link link-primary">telegram.org</a>
+                </p>
+            </div>
+
+            <div class="divider">ИЛИ</div>
+
+            <a href="/login-email" class="btn btn-outline w-full gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Назад к Email входу
+            </a>
+        </div>
+
+        <div class="login-security">
+            <h3>Безопасность Telegram OAuth</h3>
+            <div class="security-grid">
+                <div class="security-item">
+                    <strong>HMAC-SHA256</strong>
+                    <p>Проверка подлинности</p>
+                </div>
+                <div class="security-item">
+                    <strong>5 минут</strong>
+                    <p>Время жизни токена</p>
+                </div>
+                <div class="security-item">
+                    <strong>HTTPS</strong>
+                    <p>Шифрование данных</p>
+                </div>
+                <div class="security-item">
+                    <strong>JWT</strong>
+                    <p>Безопасные сессии</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.login-page {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+}
+
+.login-container {
+    max-width: 450px;
+    width: 100%;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+.login-header .subtitle {
+    font-size: 1rem;
+    opacity: 0.7;
+}
+
+.login-card {
+    background: var(--fallback-b1,oklch(var(--b1)/1));
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-icon {
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: center;
+}
+
+.telegram-widget-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 50px;
+    margin: 1.5rem 0;
+    position: relative;
+}
+
+.telegram-placeholder {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: var(--fallback-b1,oklch(var(--b1)/1));
+    z-index: 10;
+}
+
+.telegram-placeholder.hidden {
+    display: none;
+}
+
+.telegram-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.telegram-loader-text {
+    font-size: 0.875rem;
+    opacity: 0.7;
+}
+
+.telegram-error {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: var(--fallback-b1,oklch(var(--b1)/1));
+    z-index: 10;
+    padding: 1rem 0;
+}
+
+.telegram-error.hidden {
+    display: none;
+}
+
+.telegram-error .alert {
+    text-align: left;
+}
+
+.telegram-error .btn {
+    min-width: 200px;
+}
+
+.login-security {
+    background: var(--fallback-b2,oklch(var(--b2)/1));
+    border-radius: 12px;
+    padding: 1.5rem;
+}
+
+.login-security h3 {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+}
+
+.security-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.security-item {
+    text-align: center;
+}
+
+.security-item strong {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 0.25rem;
+}
+
+.security-item p {
+    font-size: 0.75rem;
+    opacity: 0.6;
+    margin: 0;
+}
+
+@media (max-width: 640px) {
+    .login-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .login-card {
+        padding: 1.5rem;
+    }
+
+    .security-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+}
+</style>
+
+<script>
+/**
+ * Telegram Widget State Machine
+ * States: loading -> success | error
+ * Guarantees: One UI element is ALWAYS visible (never empty space)
+ */
+(function() {
+    'use strict';
+
+    // Configuration
+    var LOAD_TIMEOUT_MS = 15000;  // 15 seconds
+    var RETRY_COOLDOWN_MS = 2000; // 2 seconds between retries
+    var MAX_RETRIES = 3;
+
+    // State
+    var state = 'loading'; // 'loading' | 'success' | 'error'
+    var retryCount = 0;
+    var lastRetryTime = 0;
+    var timeoutId = null;
+    var observer = null;
+
+    // DOM Elements
+    var container = document.getElementById('telegram-widget-container');
+    var placeholder = document.getElementById('telegram-placeholder');
+    var errorDiv = document.getElementById('telegram-error');
+    var retryBtn = document.getElementById('telegram-retry-btn');
+
+    if (!container || !placeholder || !errorDiv) {
+        console.error('[TelegramWidget] Required DOM elements not found');
+        return;
+    }
+
+    /**
+     * Transition to a new state and update UI
+     */
+    function transitionTo(newState) {
+        if (state === newState) return;
+
+        state = newState;
+
+        // Update UI based on state
+        switch (newState) {
+            case 'loading':
+                placeholder.classList.remove('hidden');
+                errorDiv.classList.add('hidden');
+                break;
+            case 'success':
+                placeholder.classList.add('hidden');
+                errorDiv.classList.add('hidden');
+                break;
+            case 'error':
+                placeholder.classList.add('hidden');
+                errorDiv.classList.remove('hidden');
+                break;
+        }
+    }
+
+    /**
+     * Check if node is the Telegram widget iframe
+     */
+    function isTelegramWidget(node) {
+        return node.tagName === 'IFRAME' ||
+               (node.classList && node.classList.contains('tgme_widget_login'));
+    }
+
+    /**
+     * Wait for iframe to fully load before hiding placeholder
+     */
+    function waitForIframeLoad(iframe) {
+        // If iframe is already loaded (cached), transition immediately
+        // Check if iframe has content by trying to access its dimensions
+        if (iframe.contentWindow) {
+            try {
+                // iframe загружен, если его размеры > 0
+                var rect = iframe.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    // Iframe already has dimensions, checking load state
+                }
+            } catch (e) {
+                // Cross-origin, можем только ждать load event
+            }
+        }
+
+        // Listen for load event
+        iframe.addEventListener('load', function onLoad() {
+            iframe.removeEventListener('load', onLoad);
+            transitionTo('success');
+            cleanup();
+        });
+
+        // Fallback: если load event не сработал за 5 секунд после появления iframe,
+        // но iframe видим - считаем загруженным
+        setTimeout(function() {
+            if (state === 'loading') {
+                var rect = iframe.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    transitionTo('success');
+                    cleanup();
+                }
+            }
+        }, 5000);
+    }
+
+    /**
+     * Create and start MutationObserver to detect widget load
+     */
+    function startObserver() {
+        observer = new MutationObserver(function(mutations) {
+            for (var i = 0; i < mutations.length; i++) {
+                var mutation = mutations[i];
+                for (var j = 0; j < mutation.addedNodes.length; j++) {
+                    var node = mutation.addedNodes[j];
+                    if (isTelegramWidget(node)) {
+                        // Don't transition yet - wait for iframe to load
+                        if (node.tagName === 'IFRAME') {
+                            waitForIframeLoad(node);
+                        } else {
+                            // For other elements (like div with class), find iframe inside
+                            var iframe = node.querySelector ? node.querySelector('iframe') : null;
+                            if (iframe) {
+                                waitForIframeLoad(iframe);
+                            } else {
+                                // Wait for iframe to appear inside
+                                var innerObserver = new MutationObserver(function(innerMutations) {
+                                    for (var k = 0; k < innerMutations.length; k++) {
+                                        for (var l = 0; l < innerMutations[k].addedNodes.length; l++) {
+                                            var innerNode = innerMutations[k].addedNodes[l];
+                                            if (innerNode.tagName === 'IFRAME') {
+                                                innerObserver.disconnect();
+                                                waitForIframeLoad(innerNode);
+                                                return;
+                                            }
+                                        }
+                                    }
+                                });
+                                innerObserver.observe(node, { childList: true, subtree: true });
+                            }
+                        }
+                        // Stop main observer - we're now waiting for iframe load
+                        observer.disconnect();
+                        return;
+                    }
+                }
+            }
+        });
+
+        observer.observe(container, { childList: true, subtree: true });
+    }
+
+    /**
+     * Start timeout for error state
+     */
+    function startTimeout() {
+        timeoutId = setTimeout(function() {
+            if (state === 'loading') {
+                transitionTo('error');
+                cleanup();
+            }
+        }, LOAD_TIMEOUT_MS);
+    }
+
+    /**
+     * Cleanup observer and timeout
+     */
+    function cleanup() {
+        if (observer) {
+            observer.disconnect();
+            observer = null;
+        }
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+        }
+    }
+
+    /**
+     * Handle retry button click
+     */
+    function handleRetry() {
+        // Throttle retries
+        var now = Date.now();
+        if (now - lastRetryTime < RETRY_COOLDOWN_MS) {
+            return;
+        }
+
+        // Check retry limit
+        if (retryCount >= MAX_RETRIES) {
+            if (typeof showToast === 'function') {
+                showToast('Превышено количество попыток. Попробуйте открыть бота напрямую.', 'warning');
+            }
+            return;
+        }
+
+        lastRetryTime = now;
+        retryCount++;
+
+        // Transition to loading state
+        transitionTo('loading');
+
+        // Remove old script and iframe
+        var oldScript = container.querySelector('script[src*="telegram-widget"]');
+        var oldIframe = container.querySelector('iframe');
+        if (oldScript) oldScript.remove();
+        if (oldIframe) oldIframe.remove();
+
+        // Create and inject new script with cache-busting
+        var script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://telegram.org/js/telegram-widget.js?22&_t=' + Date.now();
+        script.setAttribute('data-telegram-login', container.dataset.botUsername);
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-auth-url', container.dataset.callbackUrl);
+        script.setAttribute('data-request-access', 'write');
+
+        container.appendChild(script);
+
+        // Restart observer and timeout
+        startObserver();
+        startTimeout();
+    }
+
+    // Attach retry handler
+    if (retryBtn) {
+        retryBtn.addEventListener('click', handleRetry);
+    }
+
+    // Initial setup
+    startObserver();
+    startTimeout();
+})();
+</script>
+{% endblock %}

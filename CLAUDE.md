@@ -221,6 +221,70 @@ npm run build
 npm run validate:minified
 ```
 
+### Build System & Optimization (v5.6.0)
+
+**Build pipeline** (as of 2025-12-26):
+- **Minification**: Terser (JS) + cssnano (CSS) with advanced configs
+- **Pre-compression**: Gzip -9 for all assets (60-70% delivery reduction)
+- **Bundling**: budgetShared.js combines DateFormatter, CalendarWidget, ChoicesCategoryTree
+- **Cache busting**: Automatic versioning via query parameters
+
+**Configuration files:**
+- `.terserrc.json` - Advanced JS minification (3-pass, toplevel mangling, unsafe optimizations)
+- `postcss.config.js` - Advanced CSS minification (advanced preset, identifier reduction)
+
+**Build commands:**
+```bash
+npm run build:css       # Tailwind CSS compilation
+npm run bundle          # Bundle shared modules
+npm run minify:js       # Minify JavaScript (uses .terserrc.json)
+npm run minify:css      # Minify CSS (uses postcss.config.js)
+npm run precompress     # Gzip pre-compression for all assets
+npm run build           # Full build pipeline (all of the above)
+```
+
+**Performance benchmarks:**
+- JS: 60-70% raw reduction, 75-80% gzipped
+- CSS: 50-60% raw reduction, 70-75% gzipped
+- Delivery: 60-70% reduction via pre-compressed .gz files
+- Build time: ~15-20 seconds (full build)
+
+**See:** `/docs/architecture/build-system.md` for detailed documentation
+
+### Logging System (v5.6.0)
+
+**Browser logging** (as of 2025-12-26):
+- **Centralized Logger class** with environment-based control
+- **Module-specific prefixes**: [PWA], [SW], [DB], [SYNC], [API], [PERF], [FORM]
+- **Environment detection**: Auto-disable in production, full logging in development
+- **Pre-configured loggers**: `window.logAPI`, `window.logDB`, `window.logSync`, etc.
+
+**Configuration:** `frontend/web/static/js/config/logging.js`
+
+**Usage:**
+```javascript
+// Use pre-configured logger
+logAPI.info('Request started');
+logAPI.time('API call');
+// ... operation ...
+logAPI.timeEnd('API call');
+
+// Create custom logger
+const logCustom = new Logger('[CUSTOM]', 'CUSTOM');
+logCustom.info('Custom log message');
+
+// Runtime control (debugging)
+setLoggingLevel('API', false);  // Disable API logging
+getLoggingStatus();             // Get current config
+```
+
+**Performance monitoring:**
+- **PerformanceMonitor**: Automatic page load metrics + Core Web Vitals
+- **Metrics tracked**: DNS, TCP, Request, Response, DOM processing, LCP, FID, CLS
+- **Available via**: `window.perfMonitor.getMetrics()`
+
+**See:** Logger class (`frontend/web/static/js/utils/logger.js`) and PerformanceMonitor (`frontend/web/static/js/utils/performanceMonitor.js`)
+
 ### Web Workers
 
 **Location:** `frontend/web/static/js/workers/`
@@ -245,7 +309,7 @@ npm run validate:minified
 - `csvWorker.js` - CSV parsing + Base64 encoding (integrated in csvImporter.js)
 - `syncWorker.js` - Parallel sync processing (integrated in offlineManager.js)
 - `pendingRecordsWorker.js` - Pending records HTML generation (integrated in index.html)
-- `analyticsWorker.js` - Chart data processing (**NOT integrated** - files exist but unused)
+- `analyticsWorker.js` - Chart data processing (**REMOVED v5.6.0** - never integrated, async overhead issue)
 
 **Feature Flag:**
 ```bash
