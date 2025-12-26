@@ -3806,6 +3806,311 @@ async function notifyPendingRecords() {
     }
 }
 
+// ============================================================================
+// PendingRecordsRenderer - Web Worker integration for pending records HTML generation
+// ============================================================================
+
+class PendingRecordsRenderer {
+    static _workerWrapper = null;
+    static WORKER_THRESHOLD = 10; // Aggressive threshold (NOT >100 like analyticsWorker)
+
+    /**
+     * Initialize Web Worker for pending records HTML generation
+     * Lazy initialization - only creates worker when needed
+     */
+    static initializeWorker() {
+        if (this._workerWrapper) return this._workerWrapper;
+
+        try {
+            // Check if WorkerWrapper is available
+            if (typeof WorkerWrapper === 'undefined') {
+                if (window.DEBUG_MODE) {
+                    console.warn('[PendingRecords] WorkerWrapper not available, using sync fallback');
+                }
+                return null;
+            }
+
+            // Check feature flag
+            const isEnabled = window.FEATURE_FLAGS?.ENABLE_WEB_WORKERS !== false;
+            if (!isEnabled) {
+                if (window.DEBUG_MODE) {
+                    console.log('[PendingRecords] Web Workers disabled via feature flag');
+                }
+                return null;
+            }
+
+            // Create worker wrapper
+            this._workerWrapper = new WorkerWrapper('/static/js/workers/pendingRecordsWorker.min.js', {
+                idleTimeout: 10000,  // 10s (aggressive termination)
+                debugMode: window.DEBUG_MODE || false
+            });
+
+            if (window.DEBUG_MODE) {
+                console.log('[PendingRecords] Worker initialized successfully');
+            }
+
+            return this._workerWrapper;
+
+        } catch (error) {
+            console.warn('[PendingRecords] Worker initialization failed:', error);
+            this._workerWrapper = null;
+            return null;
+        }
+    }
+
+    /**
+     * Generate HTML synchronously (fallback)
+     * Uses existing logic from loadPendingRecords for consistency
+     */
+    static generateHTMLSync(items, maxRetries = 5) {
+        const startTime = performance.now();
+
+        const tableRows = [];
+        const mobileItems = [];
+        let totalRecords = 0;
+
+        // EXISTING LOGIC: Copy-paste from lines 3908-4114
+        // (Will be extracted to this method during refactoring)
+        items.forEach(item => {
+            const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
+            const shortDate = formatShortDate(date);
+            const statusBadge = getStatusBadge(item);
+            const statusBadgeMobile = getStatusBadgeMobile(item);
+            const description = item.data.description || '—';
+
+            // Notification indicator
+            const hasNotification = item.data.notification_enabled === true;
+            const bellIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>';
+            const notificationCell = hasNotification
+                ? `<td class="text-center text-success" title="Уведомление включено">${bellIcon}</td>`
+                : '<td class="text-center opacity-30">—</td>';
+
+            // For transfers, create two entries (debit and credit)
+            if (item.entity === 'transfer') {
+                const isPlanTransfer = item.data.record_type === 'plan';
+                const typeLabel = isPlanTransfer
+                    ? '<span class="badge badge-info badge-sm">План</span>'
+                    : '<span class="badge badge-success badge-sm">Факт</span>';
+                const typeLabelXs = isPlanTransfer
+                    ? '<span class="badge badge-info badge-xs">План</span>'
+                    : '<span class="badge badge-success badge-xs">Факт</span>';
+
+                // Debit row
+                const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
+                const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
+                const debitAmount = formatAmount(item.data.amount, 'debit');
+
+                tableRows.push(`
+                    <tr>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button>
+                        </td>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
+                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
+                        <td class="text-info font-medium">${debitAmount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td class="text-center opacity-30">—</td>
+                        ${notificationCell}
+                        <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+
+                const debitLine2Parts = [shortDate, fromCfo, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="handleTransferEditClick(${item.id}, 'from')">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${fromCategory}</span>
+                            <span class="text-info font-bold whitespace-nowrap">${debitAmount}</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${debitLine2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
+                // Credit row
+                const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
+                const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
+                const creditAmount = formatAmount(item.data.amount, 'credit');
+
+                tableRows.push(`
+                    <tr>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button>
+                        </td>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
+                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
+                        <td class="text-warning font-medium">${creditAmount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        <td class="text-center opacity-30">—</td>
+                        ${notificationCell}
+                        <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+
+                const creditLine2Parts = [shortDate, toCfo, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="handleTransferEditClick(${item.id}, 'to')">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${toCategory}</span>
+                            <span class="text-warning font-bold whitespace-nowrap">${creditAmount}</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${creditLine2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
+                totalRecords += 2;
+            } else {
+                // Regular fact or plan - single entry
+                const typeLabel = getRecordTypeLabel(item.entity);
+                const typeLabelXs = getRecordTypeLabelXs(item.entity);
+                const cfoName = item.data.financial_center_name ||
+                    (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
+                const categoryName = item.data.article_name ||
+                    (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
+
+                const factType = item.data.fact_type || item.data.article_type || '';
+                let colorClass;
+                switch (factType) {
+                    case 'expense':
+                        colorClass = 'text-error';
+                        break;
+                    case 'income':
+                        colorClass = 'text-success';
+                        break;
+                    case 'debit':
+                        colorClass = 'text-info';
+                        break;
+                    case 'credit':
+                        colorClass = 'text-warning';
+                        break;
+                    default:
+                        colorClass = '';
+                }
+
+                const formattedAmount = formatAmount(item.data.amount, factType);
+                const editButton = `<button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>`;
+                const deleteButton = `
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                `;
+
+                const isRecurring = item.entity === 'recurring';
+                const recurringCell = isRecurring
+                    ? '<td class="text-center">🔄</td>'
+                    : '<td class="text-center opacity-30">—</td>';
+
+                tableRows.push(`
+                    <tr>
+                        <td class="text-center">${editButton}</td>
+                        <td>${typeLabel}</td>
+                        <td>${date}</td>
+                        <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
+                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
+                        <td class="${colorClass} font-medium">${formattedAmount}</td>
+                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
+                        ${recurringCell}
+                        ${notificationCell}
+                        <td>${statusBadge}</td>
+                        <td class="text-center">${deleteButton}</td>
+                    </tr>
+                `);
+
+                const line2Parts = [shortDate, cfoName, description].filter(p => p && p !== '—');
+                mobileItems.push(`
+                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                         onclick="openEditPendingRecord(${item.id}, '${item.entity}')">
+                        <div class="flex items-center gap-2">
+                            ${typeLabelXs}
+                            <span class="flex-1 font-medium truncate">${categoryName}</span>
+                            <span class="${colorClass} font-bold whitespace-nowrap">${formattedAmount}</span>
+                            ${statusBadgeMobile}
+                        </div>
+                        <div class="text-xs text-base-content/60 mt-1 truncate">
+                            ${line2Parts.join(' • ')}
+                        </div>
+                    </div>
+                `);
+
+                totalRecords += 1;
+            }
+        });
+
+        const duration = performance.now() - startTime;
+        if (window.DEBUG_MODE) {
+            console.log(`[PendingRecords] Sync rendering: ${items.length} items in ${duration.toFixed(2)}ms`);
+        }
+
+        return {
+            desktopHTML: tableRows.join(''),
+            mobileHTML: mobileItems.join(''),
+            itemCount: totalRecords
+        };
+    }
+
+    /**
+     * Generate HTML using worker (async)
+     * Falls back to sync if worker unavailable
+     */
+    static async generateHTMLAsync(items, maxRetries = 5) {
+        const startTime = performance.now();
+
+        try {
+            const wrapper = this.initializeWorker();
+            if (!wrapper) {
+                // Worker not available, use sync fallback
+                return this.generateHTMLSync(items, maxRetries);
+            }
+
+            // Execute in worker
+            const result = await wrapper.execute({
+                action: 'generatePendingRecordsHTML',
+                data: { items, maxRetries }
+            });
+
+            const duration = performance.now() - startTime;
+            if (window.DEBUG_MODE) {
+                console.log(`[PendingRecords] Worker rendering: ${items.length} items in ${duration.toFixed(2)}ms`);
+            }
+
+            return result;
+
+        } catch (error) {
+            console.warn('[PendingRecords] Worker execution failed, using sync fallback:', error);
+            return this.generateHTMLSync(items, maxRetries);
+        }
+    }
+}
+
 // Load and display pending records from sync queue
 async function loadPendingRecords() {
     debugLog('[loadPendingRecords] Starting...');
@@ -3876,246 +4181,33 @@ async function loadPendingRecords() {
             }
         }
 
-        // Generate rows (desktop) and list items (mobile)
-        // Transfers generate two entries (debit + credit)
-        const tableRows = [];
-        const mobileItems = [];
-        let totalRecords = 0;
+        // ✅ NEW: Use PendingRecordsRenderer with Web Worker for HTML generation
+        // Feature gate: Use worker for >10 items (aggressive threshold)
+        // Automatic fallback to sync for small datasets or worker unavailable
 
-        // Helper: format short date (dd.mm)
-        const formatShortDate = (dateStr) => {
-            if (!dateStr || dateStr === '—') return '—';
-            const parts = dateStr.split('-');
-            if (parts.length === 3) {
-                return `${parts[2]}.${parts[1]}`;
+        const maxRetries = window.offlineManager?.maxRetries || 5;
+        let result;
+
+        if (pendingItems.length > PendingRecordsRenderer.WORKER_THRESHOLD) {
+            // Worker path (for large datasets)
+            result = await PendingRecordsRenderer.generateHTMLAsync(pendingItems, maxRetries);
+
+            if (window.DEBUG_MODE) {
+                console.log(`[loadPendingRecords] Used worker for ${pendingItems.length} items`);
             }
-            return dateStr;
-        };
+        } else {
+            // Sync path (for small datasets < 10 items)
+            result = PendingRecordsRenderer.generateHTMLSync(pendingItems, maxRetries);
 
-        // Format amount with +/- sign (without decimals and currency)
-        const formatAmount = (amount, articleType) => {
-            if (!amount) return '—';
-            const value = Math.floor(parseFloat(amount));
-            const formatted = value.toLocaleString('ru-RU').replace(/\s/g, ' ');
-            if (articleType === 'expense' || articleType === 'debit') {
-                return `-${formatted}`;
-            } else if (articleType === 'income' || articleType === 'credit') {
-                return `+${formatted}`;
+            if (window.DEBUG_MODE) {
+                console.log(`[loadPendingRecords] Small dataset (${pendingItems.length} items), used sync`);
             }
-            return formatted;
-        };
+        }
 
-        pendingItems.forEach(item => {
-            const date = item.data.fact_date || item.data.plan_date || item.data.transfer_date || '—';
-            const shortDate = formatShortDate(date);
-            const statusBadge = getStatusBadge(item);
-            const statusBadgeMobile = getStatusBadgeMobile(item);
-            const description = item.data.description || '—';
-
-            // Notification indicator (only for plans)
-            const hasNotification = item.data.notification_enabled === true;
-            const bellIcon = '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>';
-            const notificationCell = hasNotification
-                ? `<td class="text-center text-success" title="Уведомление включено">${bellIcon}</td>`
-                : '<td class="text-center opacity-30">—</td>';
-
-            // For transfers, create two entries (debit and credit)
-            if (item.entity === 'transfer') {
-                // Record type for transfer: fact or plan (badge HTML)
-                const isPlanTransfer = item.data.record_type === 'plan';
-                const typeLabel = isPlanTransfer
-                    ? '<span class="badge badge-info badge-sm">План</span>'
-                    : '<span class="badge badge-success badge-sm">Факт</span>';
-                const typeLabelXs = isPlanTransfer
-                    ? '<span class="badge badge-info badge-xs">План</span>'
-                    : '<span class="badge badge-success badge-xs">Факт</span>';
-
-                // Debit row (списание) - amount in blue with minus
-                const fromCfo = item.data.from_financial_center_name || `ID: ${item.data.from_financial_center_id || '—'}`;
-                const fromCategory = item.data.from_article_name || `ID: ${item.data.from_article_id || '—'}`;
-                const debitAmount = formatAmount(item.data.amount, 'debit');
-
-                // Desktop table row
-                tableRows.push(`
-                    <tr>
-                        <td class="text-center">
-                            <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'from')" title="Редактировать (перевод будет разделён)">✏️</button>
-                        </td>
-                        <td>${typeLabel}</td>
-                        <td>${date}</td>
-                        <td class="max-w-[100px] truncate" title="${fromCfo}">${fromCfo}</td>
-                        <td class="max-w-[100px] truncate" title="${fromCategory}">${fromCategory}</td>
-                        <td class="text-info font-medium">${debitAmount}</td>
-                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
-                        <td class="text-center opacity-30">—</td>
-                        ${notificationCell}
-                        <td>${statusBadge}</td>
-                        <td class="text-center">
-                            <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        </td>
-                    </tr>
-                `);
-
-                // Mobile list item (debit)
-                const debitLine2Parts = [shortDate, fromCfo, description].filter(p => p && p !== '—');
-                mobileItems.push(`
-                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
-                         onclick="handleTransferEditClick(${item.id}, 'from')">
-                        <div class="flex items-center gap-2">
-                            ${typeLabelXs}
-                            <span class="flex-1 font-medium truncate">${fromCategory}</span>
-                            <span class="text-info font-bold whitespace-nowrap">${debitAmount}</span>
-                            ${statusBadgeMobile}
-                        </div>
-                        <div class="text-xs text-base-content/60 mt-1 truncate">
-                            ${debitLine2Parts.join(' • ')}
-                        </div>
-                    </div>
-                `);
-
-                // Credit row (пополнение) - amount in orange with plus
-                const toCfo = item.data.to_financial_center_name || `ID: ${item.data.to_financial_center_id || '—'}`;
-                const toCategory = item.data.to_article_name || `ID: ${item.data.to_article_id || '—'}`;
-                const creditAmount = formatAmount(item.data.amount, 'credit');
-
-                // Desktop table row
-                tableRows.push(`
-                    <tr>
-                        <td class="text-center">
-                            <button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); handleTransferEditClick(${item.id}, 'to')" title="Редактировать (перевод будет разделён)">✏️</button>
-                        </td>
-                        <td>${typeLabel}</td>
-                        <td>${date}</td>
-                        <td class="max-w-[100px] truncate" title="${toCfo}">${toCfo}</td>
-                        <td class="max-w-[100px] truncate" title="${toCategory}">${toCategory}</td>
-                        <td class="text-warning font-medium">${creditAmount}</td>
-                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
-                        <td class="text-center opacity-30">—</td>
-                        ${notificationCell}
-                        <td>${statusBadge}</td>
-                        <td class="text-center">
-                            <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                            </button>
-                        </td>
-                    </tr>
-                `);
-
-                // Mobile list item (credit)
-                const creditLine2Parts = [shortDate, toCfo, description].filter(p => p && p !== '—');
-                mobileItems.push(`
-                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
-                         onclick="handleTransferEditClick(${item.id}, 'to')">
-                        <div class="flex items-center gap-2">
-                            ${typeLabelXs}
-                            <span class="flex-1 font-medium truncate">${toCategory}</span>
-                            <span class="text-warning font-bold whitespace-nowrap">${creditAmount}</span>
-                            ${statusBadgeMobile}
-                        </div>
-                        <div class="text-xs text-base-content/60 mt-1 truncate">
-                            ${creditLine2Parts.join(' • ')}
-                        </div>
-                    </div>
-                `);
-
-                totalRecords += 2;
-            } else {
-                // Regular fact or plan - single entry
-                const typeLabel = getRecordTypeLabel(item.entity);
-                const typeLabelXs = getRecordTypeLabelXs(item.entity);
-                const cfoName = item.data.financial_center_name ||
-                    (item.data.financial_center_id ? `ID: ${item.data.financial_center_id}` : '—');
-                const categoryName = item.data.article_name ||
-                    (item.data.article_id ? `ID: ${item.data.article_id}` : '—');
-
-                // Determine color based on fact_type (expense/income for facts)
-                const factType = item.data.fact_type || item.data.article_type || '';
-                let colorClass;
-                switch (factType) {
-                    case 'expense':
-                        colorClass = 'text-error';
-                        break;
-                    case 'income':
-                        colorClass = 'text-success';
-                        break;
-                    case 'debit':
-                        colorClass = 'text-info';
-                        break;
-                    case 'credit':
-                        colorClass = 'text-warning';
-                        break;
-                    default:
-                        colorClass = '';
-                }
-
-                // Format amount with +/- sign based on type
-                const formattedAmount = formatAmount(item.data.amount, factType);
-
-                // Edit button for pending records
-                const editButton = `<button class="btn btn-xs btn-primary gap-1" onclick="event.stopPropagation(); openEditPendingRecord(${item.id}, '${item.entity}')" title="Редактировать">✏️</button>`;
-
-                // Delete button for pending records
-                const deleteButton = `
-                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); deletePendingRecord(${item.id})" title="Удалить">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                    </button>
-                `;
-
-                // Recurring indicator (only for recurring plans)
-                const isRecurring = item.entity === 'recurring';
-                const recurringCell = isRecurring
-                    ? '<td class="text-center">🔄</td>'
-                    : '<td class="text-center opacity-30">—</td>';
-
-                // Desktop table row
-                tableRows.push(`
-                    <tr>
-                        <td class="text-center">${editButton}</td>
-                        <td>${typeLabel}</td>
-                        <td>${date}</td>
-                        <td class="max-w-[100px] truncate" title="${cfoName}">${cfoName}</td>
-                        <td class="max-w-[100px] truncate" title="${categoryName}">${categoryName}</td>
-                        <td class="${colorClass} font-medium">${formattedAmount}</td>
-                        <td class="max-w-[150px] truncate" title="${description}">${description}</td>
-                        ${recurringCell}
-                        ${notificationCell}
-                        <td>${statusBadge}</td>
-                        <td class="text-center">${deleteButton}</td>
-                    </tr>
-                `);
-
-                // Mobile list item
-                const line2Parts = [shortDate, cfoName, description].filter(p => p && p !== '—');
-                mobileItems.push(`
-                    <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
-                         onclick="openEditPendingRecord(${item.id}, '${item.entity}')">
-                        <div class="flex items-center gap-2">
-                            ${typeLabelXs}
-                            <span class="flex-1 font-medium truncate">${categoryName}</span>
-                            <span class="${colorClass} font-bold whitespace-nowrap">${formattedAmount}</span>
-                            ${statusBadgeMobile}
-                        </div>
-                        <div class="text-xs text-base-content/60 mt-1 truncate">
-                            ${line2Parts.join(' • ')}
-                        </div>
-                    </div>
-                `);
-
-                totalRecords += 1;
-            }
-        });
-
-        countBadge.textContent = totalRecords;
-        tbody.innerHTML = tableRows.join('');
-        mobileList.innerHTML = mobileItems.join('');
+        // Update DOM
+        countBadge.textContent = result.itemCount;
+        tbody.innerHTML = result.desktopHTML;
+        mobileList.innerHTML = result.mobileHTML;
     } catch (error) {
         console.error('[Pending Records] Error loading:', error);
     }
