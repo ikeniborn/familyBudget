@@ -52,7 +52,8 @@
             FORM: true,                // Form submission/validation
             WORKER: isDevelopment,     // Web Workers (dev only)
             PLAN: true,                // Recurring plan operations
-            CSV: true                  // CSV import/export
+            CSV: true,                 // CSV import/export
+            WS_DIAG: true              // WebSocket diagnostics modal
         },
 
         // Environment info (for debugging)

@@ -1015,6 +1015,61 @@ _resetPongTimeout()                // Layer 4: Set pong timeout
 
 ---
 
+## WebSocket Diagnostics Modal
+
+### Purpose
+
+Provides debugging interface for WebSocket connection issues on mobile devices (especially iOS Safari).
+
+### Trigger
+
+Triple-tap on WebSocket status badge in header (#budget-sse-status-indicator).
+
+### Implementation
+
+**Location:**
+- Modal HTML: `/frontend/web/templates/base.html` (around line 1993)
+- JavaScript: `/frontend/web/static/js/budget/budgetWSClient.js`, `showDiagnostics()` method (line 2032)
+
+**Features:**
+- ✅ Scrollable modal (max-height: 90dvh)
+- ✅ Mobile-optimized (iOS Safari 18+, Yandex Browser)
+- ✅ Comprehensive logging ([WS_DIAG] prefix)
+- ✅ Graceful fallback to alert() if modal unavailable
+- ✅ Dark mode compatible (DaisyUI)
+
+**Diagnostic Data Displayed:**
+
+| Section | Data Points |
+|---------|-------------|
+| Connection Status | Connected, Enabled, WS State, Long Polling, Polling Active |
+| Browser Detection | Safari iOS Mode, Needs Longer Timeout, User Agent |
+| Multi-Tab Coordination | Leader, MultiTab Initialized/Supported, Has Channel, Last Heartbeat |
+| Reconnection State | Reconnect Attempts, Limit Reached, Approaching Limit |
+| Error Tracking | Last Error, Connection History (last 10 events) |
+
+**Console Logging:**
+
+All diagnostic data is also logged to browser console with `[WS_DIAG]` prefix for remote debugging.
+
+**Usage:**
+
+```javascript
+// Manual trigger (from console)
+window.budgetWSClient.showDiagnostics();
+
+// Triple-tap trigger (user-facing)
+// Tap WebSocket badge 3 times quickly (within 500ms)
+```
+
+**Mobile Scrolling:**
+
+Modal uses existing mobile CSS patterns (90dvh, overflow-y: auto) to ensure close button is always accessible on small screens. See `base.html` lines 52-97 for implementation.
+
+**Version:** 5.7.0+ (December 2025)
+
+---
+
 ## Future Enhancements
 
 ### Planned Features

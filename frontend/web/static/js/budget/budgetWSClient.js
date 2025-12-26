@@ -14,6 +14,15 @@
  * @version 2.0.0
  */
 
+// WebSocket Diagnostic Logger
+const logWSDiag = typeof Logger !== 'undefined' ? new Logger('[WS_DIAG]', 'WS_DIAG') : {
+    info: () => {},
+    error: () => {},
+    table: () => {},
+    groupCollapsed: () => {},
+    groupEnd: () => {}
+};
+
 class BudgetWSClient {
     constructor() {
         this.ws = null;
@@ -2017,33 +2026,132 @@ class BudgetWSClient {
     }
 
     /**
-     * Show visual diagnostic alert (for iOS Safari debugging)
+     * Show visual diagnostic modal (for iOS Safari debugging)
      * Tap status indicator 3 times quickly to trigger
      */
     showDiagnostics() {
+        logWSDiag.info('Opening diagnostic modal');
+
         const diag = this.diagnose();
-        const lines = [
-            `Connected: ${diag.isConnected}`,
-            `Enabled: ${diag.enabled}`,
-            `WS State: ${diag.wsState}`,
-            `Long Polling: ${diag.useLongPolling}`,
-            `Polling Active: ${diag.pollingActive}`,
-            ``,
-            `Safari iOS: ${diag.safariIOSMode}`,
-            `Leader: ${diag.isLeader}`,
-            `MultiTab Init: ${diag.multiTabInitialized}`,
-            `MultiTab Supported: ${diag.multiTabSupported}`,
-            `Has Channel: ${diag.hasChannel}`,
-            ``,
-            `Reconnects: ${diag.reconnectAttempts}`,
-            `Limit Reached: ${diag.limitReached}`,
-            ``,
-            `Last Error: ${diag.lastError ? diag.lastError.message : 'none'}`,
-            ``,
-            `History (${diag.history.length}):`,
-            ...diag.history.slice(-10).map(h => `  ${new Date(h.time).toLocaleTimeString()}: ${h.event}`)
+
+        // Log full diagnostic data to console for debugging
+        logWSDiag.groupCollapsed('WebSocket Diagnostic Data');
+        logWSDiag.table(diag);
+        logWSDiag.groupEnd();
+
+        // Build HTML content for modal (structured sections)
+        const sections = [
+            {
+                title: 'Connection Status',
+                items: [
+                    { label: 'Connected', value: diag.isConnected, highlight: !diag.isConnected },
+                    { label: 'Enabled', value: diag.enabled },
+                    { label: 'WS State', value: diag.wsState },
+                    { label: 'Long Polling', value: diag.useLongPolling, highlight: diag.useLongPolling },
+                    { label: 'Polling Active', value: diag.pollingActive }
+                ]
+            },
+            {
+                title: 'Browser Detection',
+                items: [
+                    { label: 'Safari iOS Mode', value: diag.safariIOSMode, highlight: diag.safariIOSMode },
+                    { label: 'Needs Longer Timeout', value: diag.needsLongerTimeout }
+                ]
+            },
+            {
+                title: 'Multi-Tab Coordination',
+                items: [
+                    { label: 'Leader', value: diag.isLeader, highlight: diag.isLeader },
+                    { label: 'MultiTab Initialized', value: diag.multiTabInitialized },
+                    { label: 'MultiTab Supported', value: diag.multiTabSupported },
+                    { label: 'Has Channel', value: diag.hasChannel },
+                    { label: 'Last Leader Heartbeat', value: diag.lastLeaderHeartbeat || 'none' }
+                ]
+            },
+            {
+                title: 'Reconnection State',
+                items: [
+                    { label: 'Reconnect Attempts', value: `${diag.reconnectAttempts} / ${diag.maxReconnectAttempts}`, highlight: diag.reconnectAttempts > 0 },
+                    { label: 'Limit Reached', value: diag.limitReached, highlight: diag.limitReached },
+                    { label: 'Approaching Limit', value: diag.approachingLimit, highlight: diag.approachingLimit }
+                ]
+            },
+            {
+                title: 'Error Tracking',
+                items: [
+                    { label: 'Last Error', value: diag.lastError ? diag.lastError.message : 'none', highlight: !!diag.lastError }
+                ]
+            }
         ];
-        alert('[BudgetWS Diagnostics]\n\n' + lines.join('\n'));
+
+        // Build HTML
+        let contentHTML = '';
+
+        sections.forEach(section => {
+            contentHTML += `<div class="border-l-4 border-primary pl-3">`;
+            contentHTML += `<h4 class="font-bold text-base mb-2">${section.title}</h4>`;
+            contentHTML += `<dl class="space-y-1">`;
+
+            section.items.forEach(item => {
+                const valueClass = item.highlight ? 'text-warning font-bold' : 'text-base-content/70';
+                contentHTML += `<div class="flex justify-between gap-4">`;
+                contentHTML += `<dt class="font-semibold">${item.label}:</dt>`;
+                contentHTML += `<dd class="${valueClass}">${item.value}</dd>`;
+                contentHTML += `</div>`;
+            });
+
+            contentHTML += `</dl></div>`;
+        });
+
+        // Add connection history
+        if (diag.history && diag.history.length > 0) {
+            contentHTML += `<div class="border-l-4 border-secondary pl-3">`;
+            contentHTML += `<h4 class="font-bold text-base mb-2">Connection History (last ${diag.history.length})</h4>`;
+            contentHTML += `<ul class="space-y-1 text-xs">`;
+
+            diag.history.slice(-10).forEach(h => {
+                const time = new Date(h.time).toLocaleTimeString();
+                contentHTML += `<li><span class="text-base-content/50">${time}:</span> ${h.event}</li>`;
+            });
+
+            contentHTML += `</ul></div>`;
+        }
+
+        // Add user agent
+        contentHTML += `<div class="border-l-4 border-accent pl-3">`;
+        contentHTML += `<h4 class="font-bold text-base mb-2">Browser Info</h4>`;
+        contentHTML += `<p class="text-xs break-all text-base-content/70">${diag.userAgent}</p>`;
+        contentHTML += `</div>`;
+
+        // Update modal content
+        const contentElement = document.getElementById('ws-diagnostics-content');
+        if (!contentElement) {
+            logWSDiag.error('Modal content element not found (#ws-diagnostics-content)');
+            // Fallback to alert if modal not available
+            const lines = [
+                `Connected: ${diag.isConnected}`,
+                `Enabled: ${diag.enabled}`,
+                `WS State: ${diag.wsState}`,
+                `Long Polling: ${diag.useLongPolling}`,
+                `Safari iOS: ${diag.safariIOSMode}`,
+                `Leader: ${diag.isLeader}`,
+                `Reconnects: ${diag.reconnectAttempts}`,
+                `Last Error: ${diag.lastError ? diag.lastError.message : 'none'}`
+            ];
+            alert('[BudgetWS Diagnostics]\n\n' + lines.join('\n'));
+            return;
+        }
+
+        contentElement.innerHTML = contentHTML;
+
+        // Show modal
+        const modal = document.getElementById('ws-diagnostics-modal');
+        if (modal) {
+            modal.showModal();
+            logWSDiag.info('Diagnostic modal opened');
+        } else {
+            logWSDiag.error('Modal element not found (#ws-diagnostics-modal)');
+        }
     }
 
     /**

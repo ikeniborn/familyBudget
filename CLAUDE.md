@@ -1367,6 +1367,34 @@ document.addEventListener('visibilitychange', () => {
 
 **Complete 5-layer strategy:** See `/docs/architecture/pwa.md` → "WebSocket Recovery After Long Sleep"
 
+### WebSocket Diagnostics Modal (v5.7.0+)
+
+**Since version 5.7.0:** WebSocket diagnostic alert replaced with scrollable DaisyUI modal.
+
+**Problem Solved:**
+- Native `alert()` didn't support scrolling on iOS Safari 18+ / Yandex Browser
+- Close button appeared below viewport (inaccessible)
+
+**Solution:**
+- DaisyUI modal with 90dvh max-height
+- Singleton pattern (modal created once, content updated)
+- Comprehensive logging via Logger class ([WS_DIAG] prefix)
+
+**Trigger:** Triple-tap on WebSocket badge (#budget-sse-status-indicator)
+
+**Implementation:**
+- Modal HTML: `base.html` (around line 1993)
+- JavaScript: `budgetWSClient.js`, `showDiagnostics()` method (line 2032)
+- Logging: Uses existing Logger class (logger.js)
+
+**Key Features:**
+- Mobile-first design (works on iOS Safari, Yandex Browser)
+- Dark mode compatible
+- Graceful fallback to alert() if modal unavailable
+- Console logging for remote debugging
+
+**See:** `/docs/architecture/pwa.md` → "WebSocket Diagnostics Modal" for detailed documentation
+
 ## Workflow for Updating Application
 
 **Critical to understand three directories:**
