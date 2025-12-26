@@ -832,6 +832,14 @@ main() {
     sync_code_to_deploy
     echo ""
 
+    # Analyze sync changes for smart restart decisions
+    # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
+    # - Uses SYNC_CHANGED_FILES environment variable set by sync_update()
+    # - Sets NEEDS_BACKEND_RECREATE, NEEDS_BOT_RECREATE, NEEDS_NGINX_RECREATE flags
+    # - Flags used by start_application_services() to selectively recreate containers
+    analyze_sync_changes
+    echo ""
+
     # VERSION MANAGEMENT (AFTER SYNC!)
     # IMPORTANT: Must run AFTER sync_code_to_deploy() because:
     # 1. Reads current version from DEPLOY_DIR (copied from repo)

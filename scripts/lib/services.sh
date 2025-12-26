@@ -624,14 +624,93 @@ start_application_services() {
     # This prevents "container name already in use" errors
     cleanup_stuck_containers
 
-    # Start backend/bot/nginx (postgres already running)
-    # Use --remove-orphans to clean up any leftover containers from previous deployments
+    # Smart restart: selectively recreate containers based on changed files
+    # Uses flags set by analyze_sync_changes() in sync.sh:
+    # - NEEDS_BACKEND_RECREATE: Jinja2 templates, static files, Python code changed
+    # - NEEDS_BOT_RECREATE: Bot Python code changed
+    # - NEEDS_NGINX_RECREATE: Nginx config changed
+
+    info "Smart restart mode enabled:"
+    info "  Backend recreate: ${NEEDS_BACKEND_RECREATE:-false}"
     if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-        compose_cmd --profile full up $build_flag -d --remove-orphans backend bot nginx >> "$LOG_FILE" 2>&1
-        start_result=$?
+        info "  Bot recreate:     ${NEEDS_BOT_RECREATE:-false}"
+        info "  Nginx recreate:   ${NEEDS_NGINX_RECREATE:-false}"
+    fi
+    echo ""
+
+    # Strategy: Recreate only services with changes, keep others running
+    # This is MUCH faster than full recreate (2-3 sec vs 10-15 sec per service)
+    # and clears Python/Jinja2 cache only where needed
+
+    local services_to_recreate=()
+    local services_to_check=()
+
+    # Determine which services need recreation
+    if [[ "${NEEDS_BACKEND_RECREATE:-false}" == "true" ]]; then
+        services_to_recreate+=("backend")
+        info "✓ Backend will be recreated (code/templates changed)"
     else
-        compose_cmd up $build_flag -d --remove-orphans backend >> "$LOG_FILE" 2>&1
-        start_result=$?
+        services_to_check+=("backend")
+        info "  Backend will be kept running (no changes)"
+    fi
+
+    if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+        if [[ "${NEEDS_BOT_RECREATE:-false}" == "true" ]]; then
+            services_to_recreate+=("bot")
+            info "✓ Bot will be recreated (code changed)"
+        else
+            services_to_check+=("bot")
+            info "  Bot will be kept running (no changes)"
+        fi
+
+        if [[ "${NEEDS_NGINX_RECREATE:-false}" == "true" ]]; then
+            services_to_recreate+=("nginx")
+            info "✓ Nginx will be recreated (config changed)"
+        else
+            services_to_check+=("nginx")
+            info "  Nginx will be kept running (no changes)"
+        fi
+    fi
+    echo ""
+
+    # Step 1: Recreate services with changes (--force-recreate)
+    if [[ ${#services_to_recreate[@]} -gt 0 ]]; then
+        info "Recreating ${#services_to_recreate[@]} service(s): ${services_to_recreate[*]}"
+        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            compose_cmd --profile full up $build_flag -d --force-recreate --remove-orphans "${services_to_recreate[@]}" >> "$LOG_FILE" 2>&1
+            start_result=$?
+        else
+            compose_cmd up $build_flag -d --force-recreate --remove-orphans "${services_to_recreate[@]}" >> "$LOG_FILE" 2>&1
+            start_result=$?
+        fi
+
+        if [[ $start_result -ne 0 ]]; then
+            error "Failed to recreate services. Check $LOG_FILE for details."
+            return 1
+        fi
+        success "Services recreated successfully"
+    else
+        info "No services need recreation (code unchanged)"
+        start_result=0
+    fi
+
+    # Step 2: Ensure unchanged services are running (--no-recreate)
+    # This doesn't rebuild or recreate, just ensures container is up
+    if [[ ${#services_to_check[@]} -gt 0 ]]; then
+        info "Ensuring ${#services_to_check[@]} service(s) are running: ${services_to_check[*]}"
+        if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+            compose_cmd --profile full up -d --no-recreate "${services_to_check[@]}" >> "$LOG_FILE" 2>&1
+            local check_result=$?
+        else
+            compose_cmd up -d --no-recreate "${services_to_check[@]}" >> "$LOG_FILE" 2>&1
+            local check_result=$?
+        fi
+
+        if [[ $check_result -ne 0 ]]; then
+            warning "Some services may not be running. Check $LOG_FILE for details."
+        else
+            success "All services verified running"
+        fi
     fi
 
     # Show container status

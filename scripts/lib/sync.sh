@@ -377,11 +377,12 @@ sync_update() {
     info "To:   $DEPLOY_DIR"
     echo ""
 
-    # Show preview
-    # IMPORTANT: .npm-isolated/ and .migration_checksums excluded (production-only, not synced)
-    # CRITICAL: node_modules/ excluded (only .npm-isolated/node_modules should exist in production)
-    info "Preview of changes (first 20 files):"
-    rsync -avnc \
+    # Capture full list of changed files for smart restart detection
+    # Using --itemize-changes to get detailed file change information
+    # Format: >f..t...... path/to/file (> = transferred, f = file, t = timestamp changed)
+    info "Analyzing changes for smart restart detection..."
+    local changed_files_raw
+    changed_files_raw=$(rsync -avnc --itemize-changes \
         --exclude='.env' \
         --exclude='node_modules/' \
         --exclude='data/' \
@@ -404,7 +405,14 @@ sync_update() {
         --exclude='.claude/' \
         --exclude='.gitignore' \
         --exclude='.git*' \
-        "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null | grep -v "/$" | grep -v "^sending\|^sent\|^total" | head -20
+        "$repo_dir/" "$DEPLOY_DIR/" 2>/dev/null)
+
+    # Export for later analysis (filter only actual file transfers, not directories)
+    export SYNC_CHANGED_FILES=$(echo "$changed_files_raw" | grep '^>' | awk '{print $2}' | grep -v '/$')
+
+    # Show preview (first 20 files)
+    info "Preview of changes (first 20 files):"
+    echo "$SYNC_CHANGED_FILES" | head -20
 
     echo ""
     info "Proceeding with update sync (auto-confirmed)..."
@@ -670,6 +678,111 @@ sync_clean() {
         error "Failed to sync code. Check $LOG_FILE for details."
         return 1
     fi
+}
+
+# Analyze which services need recreation based on sync changes
+# Uses SYNC_CHANGED_FILES environment variable set by sync_update()
+# Sets environment variables:
+#   - NEEDS_BACKEND_RECREATE=true  if frontend/web/templates, static, or backend/app changed
+#   - NEEDS_BOT_RECREATE=true      if bot/ changed
+#   - NEEDS_NGINX_RECREATE=true    if nginx/ changed
+analyze_sync_changes() {
+    info "Analyzing sync changes for smart restart decisions..."
+
+    # Initialize flags (default: no recreation needed)
+    export NEEDS_BACKEND_RECREATE=false
+    export NEEDS_BOT_RECREATE=false
+    export NEEDS_NGINX_RECREATE=false
+
+    # Check if SYNC_CHANGED_FILES is set (from sync_update)
+    if [[ -z "${SYNC_CHANGED_FILES:-}" ]]; then
+        info "No file changes detected in sync - containers may not need recreation"
+        info "This is normal if code is up-to-date or sync was skipped"
+        return 0
+    fi
+
+    # Count total changes
+    local total_changes
+    total_changes=$(echo "$SYNC_CHANGED_FILES" | wc -l)
+    info "Analyzing $total_changes changed file(s)..."
+
+    # Analyze which directories have changes
+    local backend_related_changes=false
+    local bot_changes=false
+    local nginx_changes=false
+
+    while IFS= read -r file; do
+        # Skip empty lines
+        [[ -z "$file" ]] && continue
+
+        # Backend needs recreation if:
+        # - Jinja2 templates changed (frontend/web/templates/**)
+        #   → Templates cached in memory by Jinja2, need container restart
+        # - Static files changed (frontend/web/static/**)
+        #   → May be cached by FastAPI static file handler
+        # - Python code changed (backend/app/**)
+        #   → Python .pyc cache needs invalidation
+        # - Frontend Python code changed (frontend/web/*.py)
+        #   → FastAPI route handlers need reload
+        if [[ "$file" == frontend/web/templates/* ]] || \
+           [[ "$file" == frontend/web/static/* ]] || \
+           [[ "$file" == backend/app/* ]] || \
+           [[ "$file" == frontend/web/*.py ]]; then
+            backend_related_changes=true
+        fi
+
+        # Bot needs recreation if bot/ directory changed
+        # - Python .pyc cache needs invalidation
+        # - Bot handlers and commands need reload
+        if [[ "$file" == bot/* ]]; then
+            bot_changes=true
+        fi
+
+        # Nginx needs recreation if nginx/ directory changed
+        # - Config files need reload
+        # - Reverse proxy rules may have changed
+        if [[ "$file" == nginx/* ]]; then
+            nginx_changes=true
+        fi
+    done <<< "$SYNC_CHANGED_FILES"
+
+    # Set flags and report decisions
+    if [[ "$backend_related_changes" == "true" ]]; then
+        export NEEDS_BACKEND_RECREATE=true
+        success "✓ Backend recreation REQUIRED (templates/static/Python code changes)"
+    else
+        info "  Backend recreation NOT needed (no relevant changes)"
+    fi
+
+    if [[ "$bot_changes" == "true" ]]; then
+        export NEEDS_BOT_RECREATE=true
+        success "✓ Bot recreation REQUIRED (bot code changes)"
+    else
+        info "  Bot recreation NOT needed (no bot changes)"
+    fi
+
+    if [[ "$nginx_changes" == "true" ]]; then
+        export NEEDS_NGINX_RECREATE=true
+        success "✓ Nginx recreation REQUIRED (nginx config changes)"
+    else
+        info "  Nginx recreation NOT needed (no nginx changes)"
+    fi
+
+    # If no specific services identified BUT files changed, recreate backend as safety
+    # This covers edge cases like:
+    # - requirements.txt changes (dependencies)
+    # - Dockerfile changes (build process)
+    # - Other Python files not in backend/app or bot/
+    if [[ "$backend_related_changes" == "false" ]] && \
+       [[ "$bot_changes" == "false" ]] && \
+       [[ "$nginx_changes" == "false" ]] && \
+       [[ -n "$SYNC_CHANGED_FILES" ]]; then
+        export NEEDS_BACKEND_RECREATE=true
+        warning "File changes detected but not categorized - recreating backend as safety measure"
+        warning "Changed files: $(echo "$SYNC_CHANGED_FILES" | head -5 | tr '\n' ', ')"
+    fi
+
+    return 0
 }
 
 # Main code synchronization function
