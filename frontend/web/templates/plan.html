@@ -2715,25 +2715,29 @@ function populateRecurringPlanInfo(plan) {
 
 /**
  * Get human-readable frequency text
- * @param {string} type - Frequency type (daily, weekly, monthly, quarterly)
- * @param {number|null} value - Frequency value
+ * @param {string} type - Frequency type (monthly, quarterly, yearly)
+ * @param {number|null} value - Frequency value (1-28 for monthly/quarterly, 101-1231 for yearly)
  * @returns {string} Human-readable text
  */
 function getFrequencyDisplayText(type, value) {
-    const weekdays = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+    console.log(`[PLAN] getFrequencyDisplayText: type=${type}, value=${value}`);
 
     switch (type) {
-        case 'daily':
-            return 'Ежедневно';
-        case 'weekly':
-            return value !== null && value >= 0 && value <= 6
-                ? `Каждый ${weekdays[value].toLowerCase()}`
-                : 'Еженедельно';
         case 'monthly':
             return value ? `Каждое ${value}-е число месяца` : 'Ежемесячно';
         case 'quarterly':
             return value ? `Каждое ${value}-е число квартала` : 'Ежеквартально';
+        case 'yearly':
+            if (!value) return 'Ежегодно';
+            const month = Math.floor(value / 100);
+            const day = value % 100;
+            const monthNames = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+            const monthName = monthNames[month - 1] || '';
+            console.log(`[PLAN] Yearly decoded: ${value} → ${day} ${monthName}`);
+            return `Ежегодно, ${day} ${monthName}`;
         default:
+            console.warn(`[PLAN] Unknown frequency type: ${type}`);
             return type;
     }
 }
@@ -4357,25 +4361,71 @@ function initRecurringFields(modalId) {
  */
 function updateFrequencyFields(modalId) {
     const frequencySelect = document.querySelector(`#${modalId} select[name="frequency_type"]`);
-    const weekdayPicker = document.getElementById(`weekday-picker-${modalId}`);
     const monthdayPicker = document.getElementById(`monthday-picker-${modalId}`);
+    const yearlyPicker = document.getElementById(`yearly-picker-${modalId}`);
+
+    console.log('[PLAN] updateFrequencyFields called, modalId:', modalId);
 
     if (!frequencySelect) return;
 
     const frequency = frequencySelect.value;
+    console.log('[PLAN] Selected frequency:', frequency);
 
-    // Show/hide appropriate picker
-    if (weekdayPicker) {
-        weekdayPicker.classList.toggle('hidden', frequency !== 'weekly');
+    // Show/hide appropriate picker based on frequency
+    if (monthdayPicker) {
+        monthdayPicker.classList.toggle('hidden', frequency !== 'monthly' && frequency !== 'quarterly');
     }
 
-    if (monthdayPicker) {
-        monthdayPicker.classList.toggle('hidden', frequency === 'daily' || frequency === 'weekly');
+    if (yearlyPicker) {
+        yearlyPicker.classList.toggle('hidden', frequency !== 'yearly');
     }
 
     updateRecurringPreview(modalId);
 }
 window.updateFrequencyFields = updateFrequencyFields;
+
+/**
+ * Update yearly frequency_value (encode month + day to MMDD format)
+ */
+function updateYearlyFrequencyValue(modalId) {
+    const monthSelect = document.querySelector(`#${modalId} select[name="frequency_value_month"]`);
+    const daySelect = document.querySelector(`#${modalId} select[name="frequency_value_day"]`);
+    const hiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_yearly"]`);
+
+    const month = parseInt(monthSelect.value);
+    const day = parseInt(daySelect.value);
+
+    console.log(`[PLAN] updateYearlyFrequencyValue: month=${month}, day=${day}`);
+
+    if (!month || !day) {
+        hiddenInput.value = '';
+        updateRecurringPreview(modalId);
+        return;
+    }
+
+    // Validate day for month
+    const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    const maxDay = daysInMonth[month - 1];
+
+    if (day > maxDay) {
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+                            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        alert(`${monthNames[month - 1]} имеет только ${maxDay} дней. Выберите день 1-${maxDay}.`);
+        daySelect.value = '';
+        hiddenInput.value = '';
+        console.warn(`[PLAN] Invalid day ${day} for month ${month}`);
+        return;
+    }
+
+    // Encode MMDD
+    const frequencyValue = (month * 100) + day;
+    hiddenInput.value = frequencyValue;
+
+    console.log(`[PLAN] Encoded frequency_value: ${frequencyValue} (MMDD format)`);
+
+    updateRecurringPreview(modalId);
+}
+window.updateYearlyFrequencyValue = updateYearlyFrequencyValue;
 
 /**
  * Update duration-specific fields visibility
@@ -4442,17 +4492,8 @@ function updateRecurringPreview(modalId) {
 
     // Build frequency text
     let frequencyText = '';
-    const dayNames = ['понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота', 'воскресенье'];
 
     switch (frequency) {
-        case 'daily':
-            frequencyText = 'Ежедневно';
-            break;
-        case 'weekly':
-            const weekdayBtn = document.querySelector(`#weekday-picker-${modalId} .weekday-btn.btn-active`);
-            const dayIndex = weekdayBtn ? parseInt(weekdayBtn.dataset.day) : 0;
-            frequencyText = `Еженедельно, ${dayNames[dayIndex]}`;
-            break;
         case 'monthly':
             const monthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
             const monthDay = monthdaySelect ? monthdaySelect.value : '1';
@@ -4462,6 +4503,15 @@ function updateRecurringPreview(modalId) {
             const qMonthdaySelect = document.querySelector(`#${modalId} select[name="frequency_value_monthday"]`);
             const qMonthDay = qMonthdaySelect ? qMonthdaySelect.value : '1';
             frequencyText = `Ежеквартально, ${qMonthDay}-го числа`;
+            break;
+        case 'yearly':
+            const yearlyHiddenInput = document.querySelector(`#${modalId} input[name="frequency_value_yearly"]`);
+            const yearlyValue = yearlyHiddenInput ? parseInt(yearlyHiddenInput.value) : null;
+            if (yearlyValue) {
+                frequencyText = getFrequencyDisplayText('yearly', yearlyValue);
+            } else {
+                frequencyText = 'Ежегодно (выберите дату)';
+            }
             break;
     }
 

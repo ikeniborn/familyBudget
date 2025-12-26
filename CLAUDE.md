@@ -799,6 +799,76 @@ breadcrumbs = await article_service.get_breadcrumbs(article_id)
 - **FinancialCenter, CostCenter**: Shared - common directories for entire family
 - **user_id in BudgetFact**: Indicates WHO created record, but does NOT restrict access
 
+### Recurring Plans: Yearly Frequency Encoding
+
+**Since version 6.2.0**: Yearly recurring plans use MMDD encoding for `frequency_value`.
+
+**Encoding scheme**:
+- Format: `(month * 100) + day`
+- Range: 101 (Jan 1) to 1231 (Dec 31)
+- Examples: 115 = Jan 15, 315 = Mar 15, 615 = Jun 15, 1231 = Dec 31
+
+**Validation**:
+- Pydantic validator checks month (1-12) and day validity for month
+- PostgreSQL CHECK constraint enforces range 101-1231 for yearly
+- February 29 NOT allowed (avoids leap year complexity)
+- Invalid dates rejected: Apr 31, Feb 30, month 13, etc.
+
+**Frontend Implementation**:
+- Yearly uses separate month/day selects (not single number input)
+- JavaScript encodes to MMDD via `updateYearlyFrequencyValue()`
+- JavaScript decodes for display via `getFrequencyDisplayText()`
+- Preview shows: "Ежегодно, 15 марта"
+- Client-side validation prevents invalid combinations (e.g., Feb 31)
+
+**Backend Implementation**:
+- `_calculate_next_occurrence()` decodes MMDD, calculates next year's date
+- Algorithm: If current date >= target date this year, use next year
+- `_get_frequency_display()` decodes to human-readable Russian text
+- Comprehensive logging with `[CALC_NEXT]` and `[VALIDATION]` prefixes
+
+**Example calculation**:
+```python
+# March 15 every year (frequency_value=315)
+_calculate_next_occurrence(from_date=date(2025, 1, 1))
+# → date(2025, 3, 15)  # Before March 15 this year
+
+_calculate_next_occurrence(from_date=date(2025, 3, 20))
+# → date(2026, 3, 15)  # After March 15 this year
+```
+
+**Logging**:
+```python
+# Backend validation
+logger.info("[VALIDATION] yearly frequency_value=315 validated (month=3, day=15)")
+
+# Backend calculation
+logger.info("[CALC_NEXT] Yearly: decoded frequency_value=315 → month=3, day=15, from_date=2025-01-01")
+logger.info("[CALC_NEXT] Yearly: 2025-01-01 → 2025-03-15")
+
+# Frontend
+console.log('[PLAN] updateYearlyFrequencyValue: month=3, day=15')
+console.log('[PLAN] Encoded frequency_value: 315 (MMDD format)')
+console.log('[PLAN] Yearly decoded: 315 → 15 марта')
+```
+
+**Related Files**:
+- Backend: `backend/app/schemas/recurring_plan.py` (lines 127-175)
+- Backend: `backend/app/services/recurring_plan_service.py` (lines 756-807)
+- Frontend: `frontend/web/templates/components/modal_plan.html` (lines 155-187)
+- Frontend: `frontend/web/templates/plan.html` (lines 2722-2743, 4358-4424, 4486-4516)
+- Migration: `backend/db/migrations/versions/20251226_e8e69b30e4db_*.py`
+- Documentation: `/docs/architecture/recurring-plans.md`
+
+**Supported frequency types** (as of v6.2.0):
+- `monthly` - Every Nth day of month (1-28)
+- `quarterly` - Every Nth day of quarter (1-28)
+- `yearly` - Every year on specific date (MMDD format)
+
+**Removed frequency types** (as of v6.2.0):
+- `daily` - Removed (too granular for budget planning)
+- `weekly` - Removed (too granular for budget planning)
+
 ### Transfer Deduplication (Offline Sync & Duplicate Prevention)
 
 **Added in version 5.4.1** - Critical fix to prevent duplicate transfer creation.

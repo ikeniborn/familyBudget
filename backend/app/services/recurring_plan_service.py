@@ -753,6 +753,29 @@ class RecurringPlanService:
                     last_day = date(current_year, next_quarter_month + 1, 1) - timedelta(days=1)
                 return last_day
 
+        elif frequency_type == "yearly":
+            # frequency_value is MMDD format (e.g., 315 = March 15)
+            # Decode month and day
+            target_month = frequency_value // 100
+            target_day = frequency_value % 100
+
+            logger.info(
+                f"[CALC_NEXT] Yearly: decoded frequency_value={frequency_value} → "
+                f"month={target_month}, day={target_day}, from_date={from_date}"
+            )
+
+            # Calculate next occurrence
+            next_year = from_date.year
+
+            # If we already passed this date this year, use next year
+            if (from_date.month, from_date.day) >= (target_month, target_day):
+                next_year += 1
+
+            next_date = date(next_year, target_month, target_day)
+
+            logger.info(f"[CALC_NEXT] Yearly: {from_date} → {next_date}")
+            return next_date
+
         return None
 
     def _get_frequency_display(
@@ -761,22 +784,27 @@ class RecurringPlanService:
         frequency_value: Optional[int],
     ) -> str:
         """Get human-readable frequency description."""
-        weekdays = ["понедельник", "вторник", "среду", "четверг", "пятницу", "субботу", "воскресенье"]
-
-        if frequency_type == "daily":
-            return "Ежедневно"
-
-        elif frequency_type == "weekly":
-            day_name = weekdays[frequency_value or 0]
-            return f"Каждую {day_name}"
-
-        elif frequency_type == "monthly":
+        if frequency_type == "monthly":
             day = frequency_value or 1
             return f"Каждое {day}-е число месяца"
 
         elif frequency_type == "quarterly":
             day = frequency_value or 1
             return f"Каждое {day}-е число квартала"
+
+        elif frequency_type == "yearly":
+            if not frequency_value:
+                return "Ежегодно"
+
+            # Decode MMDD format
+            month = frequency_value // 100
+            day = frequency_value % 100
+
+            month_names = ["января", "февраля", "марта", "апреля", "мая", "июня",
+                           "июля", "августа", "сентября", "октября", "ноября", "декабря"]
+            month_name = month_names[month - 1] if 1 <= month <= 12 else str(month)
+
+            return f"Ежегодно, {day} {month_name}"
 
         return frequency_type
 

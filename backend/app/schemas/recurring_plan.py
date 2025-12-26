@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from backend.app.utils.timezone import now_local
 
 
-FrequencyType = Literal["daily", "weekly", "monthly", "quarterly"]
+FrequencyType = Literal["monthly", "quarterly", "yearly"]
 RecordType = Literal["plan", "fact"]
 DurationType = Literal["indefinite", "count", "end_date"]
 
@@ -126,25 +126,51 @@ class RecurringPlanCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_frequency_value(self):
-        """Validate frequency_value based on frequency_type."""
+        """Validate frequency_value based on frequency_type.
+
+        Rules:
+        - monthly/quarterly: 1-28 (day of month)
+        - yearly: 101-1231 (MMDD format, e.g., 115 = Jan 15, 1231 = Dec 31)
+        """
         freq_type = self.frequency_type
         freq_value = self.frequency_value
 
-        if freq_type == "daily":
-            if freq_value is not None:
-                raise ValueError("frequency_value must be null for daily frequency")
-
-        elif freq_type == "weekly":
+        if freq_type in ("monthly", "quarterly"):
             if freq_value is None:
-                raise ValueError("frequency_value is required for weekly frequency (0=Mon, 6=Sun)")
-            if not (0 <= freq_value <= 6):
-                raise ValueError("frequency_value must be 0-6 for weekly (0=Mon, 6=Sun)")
-
-        elif freq_type in ("monthly", "quarterly"):
-            if freq_value is None:
-                raise ValueError(f"frequency_value is required for {freq_type} frequency (1-28)")
+                raise ValueError(f"frequency_value is required for {freq_type} frequency")
             if not (1 <= freq_value <= 28):
                 raise ValueError("frequency_value must be 1-28 for monthly/quarterly")
+
+        elif freq_type == "yearly":
+            if freq_value is None:
+                raise ValueError("frequency_value is required for yearly frequency")
+            if not (101 <= freq_value <= 1231):
+                raise ValueError("yearly frequency_value must be 101-1231 (MMDD format)")
+
+            # Decode and validate month/day
+            month = freq_value // 100
+            day = freq_value % 100
+
+            if not (1 <= month <= 12):
+                raise ValueError(f"Invalid month: {month} (must be 1-12)")
+
+            # Days in month validation (no Feb 29 support)
+            days_in_month = {1:31, 2:28, 3:31, 4:30, 5:31, 6:30,
+                             7:31, 8:31, 9:30, 10:31, 11:30, 12:31}
+            max_day = days_in_month[month]
+
+            if not (1 <= day <= max_day):
+                raise ValueError(
+                    f"Invalid day {day} for month {month}. Must be 1-{max_day}"
+                )
+
+            # Log successful validation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(
+                f"[VALIDATION] yearly frequency_value={freq_value} validated "
+                f"(month={month}, day={day})"
+            )
 
         return self
 
