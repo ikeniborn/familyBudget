@@ -261,10 +261,61 @@ install_docker() {
     # Add Docker's official GPG key
     info "Adding Docker GPG key..."
     install -m 0755 -d /etc/apt/keyrings
-    if ! curl_with_retry -fsSL https://download.docker.com/linux/$OS/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg; then
+
+    # CRITICAL FIX: Remove old GPG key file to prevent interactive prompt
+    # Without this, gpg --dearmor asks "File exists. Overwrite? (y/N)" which breaks automation
+    if [[ -f /etc/apt/keyrings/docker.gpg ]]; then
+        info "Removing old Docker GPG key (prevents gpg interactive prompt)..."
+        rm -f /etc/apt/keyrings/docker.gpg
+    fi
+
+    # Download GPG key to temporary file for validation
+    local temp_gpg_file="/tmp/docker-gpg-$$.tmp"
+    info "Downloading Docker GPG key from https://download.docker.com/linux/$OS/gpg..."
+
+    if ! curl_with_retry -fsSL https://download.docker.com/linux/$OS/gpg -o "$temp_gpg_file"; then
+        rm -f "$temp_gpg_file"
         error "Failed to download Docker GPG key after retries. Check network connection and $LOG_FILE"
     fi
+
+    # CRITICAL FIX: Validate downloaded content (ensure it's not HTML error page)
+    info "Validating downloaded GPG key..."
+    if [[ ! -s "$temp_gpg_file" ]]; then
+        rm -f "$temp_gpg_file"
+        error "Downloaded GPG key file is empty. Check network and Docker repository availability."
+    fi
+
+    # Check if file contains HTML (common error response from proxies/captive portals)
+    if file "$temp_gpg_file" 2>/dev/null | grep -qiE "(html|xml|text/plain)"; then
+        warning "Downloaded file appears to be HTML/text, not a GPG key"
+        info "First 10 lines of downloaded file (saved to log):"
+        head -10 "$temp_gpg_file" | while IFS= read -r line; do
+            echo "  $line" >> "$LOG_FILE"
+        done
+        rm -f "$temp_gpg_file"
+        error "Downloaded file is not a valid GPG key (got HTML/text instead). Check Docker repository availability: https://download.docker.com"
+    fi
+
+    # Check if file starts with typical GPG markers (ASCII-armored or binary)
+    if ! grep -q "BEGIN PGP" "$temp_gpg_file" 2>/dev/null && \
+       ! od -An -tx1 -N4 "$temp_gpg_file" 2>/dev/null | grep -qE "(c5|99|9a)"; then
+        warning "Downloaded file does not appear to be a valid GPG key"
+        info "File type: $(file "$temp_gpg_file" 2>/dev/null || echo 'unknown')"
+        rm -f "$temp_gpg_file"
+        error "Downloaded file failed GPG format validation. Check Docker repository."
+    fi
+
+    # Convert to binary format (gpg --dearmor)
+    info "Converting GPG key to binary format..."
+    if ! gpg --yes --dearmor < "$temp_gpg_file" > /etc/apt/keyrings/docker.gpg 2>>"$LOG_FILE"; then
+        rm -f "$temp_gpg_file"
+        error "Failed to convert GPG key to binary format. Check $LOG_FILE for gpg errors."
+    fi
+
+    rm -f "$temp_gpg_file"
     chmod a+r /etc/apt/keyrings/docker.gpg
+
+    success "Docker GPG key added and validated successfully"
 
     # Add Docker repository
     info "Adding Docker repository..."
@@ -403,6 +454,56 @@ configure_ufw() {
 # Create deployment directory structure
 create_directories() {
     info "Creating deployment directory structure in $DEPLOY_DIR..."
+
+    # PRE-FLIGHT CHECK: Verify we're in repository and critical templates exist
+    info "Verifying repository structure and template files..."
+
+    local critical_templates=(
+        "$REPO_DIR/nginx/conf.d/app-http.conf.template"
+        "$REPO_DIR/nginx/conf.d/app-https.conf.template"
+        "$REPO_DIR/.env.example"
+    )
+
+    local missing_templates=()
+    for template in "${critical_templates[@]}"; do
+        if [[ ! -f "$template" ]]; then
+            missing_templates+=("$template")
+        fi
+    done
+
+    if [[ ${#missing_templates[@]} -gt 0 ]]; then
+        echo ""
+        error_return "CRITICAL: Template files not found in repository!"
+        echo ""
+        echo "Missing template files:"
+        for template in "${missing_templates[@]}"; do
+            # Remove REPO_DIR prefix for cleaner output
+            echo "  ✗ ${template/#$REPO_DIR\//}"
+        done
+        echo ""
+        warning "This means install.sh was run from the WRONG directory!"
+        echo ""
+        info "Correct usage:"
+        echo "  1. Clone the repository (if not already done):"
+        echo "     git clone <repository-url> ~/familyBudget"
+        echo ""
+        echo "  2. Change to repository directory:"
+        echo "     cd ~/familyBudget"
+        echo ""
+        echo "  3. Run install.sh from repository root:"
+        echo "     sudo ./install.sh"
+        echo ""
+        info "Current directory: $REPO_DIR"
+        info "Expected: Repository root directory containing:"
+        echo "  - nginx/conf.d/app-http.conf.template"
+        echo "  - nginx/conf.d/app-https.conf.template"
+        echo "  - .env.example"
+        echo "  - install.sh, setup.sh, deploy.sh"
+        echo ""
+        exit 1
+    fi
+
+    success "Repository structure verified - all critical template files found"
 
     # Create deployment directory if it doesn't exist
     if [[ ! -d "$DEPLOY_DIR" ]]; then
