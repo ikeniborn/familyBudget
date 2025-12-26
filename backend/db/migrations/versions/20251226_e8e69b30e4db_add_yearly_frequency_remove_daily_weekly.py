@@ -34,6 +34,13 @@ def upgrade() -> None:
     op.drop_constraint('ck_recurring_plan_frequency_type', 't_d_recurring_plan', type_='check')
     op.drop_constraint('ck_recurring_plan_frequency_value_range', 't_d_recurring_plan', type_='check')
 
+    # Data migration: Delete existing daily/weekly plans (no longer supported)
+    # Note: These frequency types are being removed from the system
+    op.execute("""
+        DELETE FROM t_d_recurring_plan
+        WHERE frequency_type IN ('daily', 'weekly')
+    """)
+
     # Create new CHECK constraint (remove daily/weekly, add yearly)
     op.execute("""
         ALTER TABLE t_d_recurring_plan
