@@ -28,7 +28,7 @@
     "keep_fnames": false,
     "module": false,
     "safari10": false,
-    "toplevel": true,
+    "toplevel": false,
     "reserved": ["$", "exports", "require"]
   },
   "format": {
@@ -37,8 +37,9 @@
     "ascii_only": false,
     "beautify": false,
     "braces": false,
-    "semicolons": true
+    "semicolons": true,
+    "wrap_iife": true
   },
   "sourceMap": false,
-  "toplevel": true
+  "toplevel": false
 }
