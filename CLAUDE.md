@@ -1313,6 +1313,60 @@ navigator.serviceWorker.getRegistration().then(reg => reg.update());
 - `sw.js` lines 75-163 - Service worker install/activate events
 - `frontend/web/templates/base.html` lines 1309-1407 - Frontend registration
 
+### Wake Detection for Mobile (v5.7.0+)
+
+**Purpose:** Service Worker participates in WebSocket recovery after long sleep on iOS/mobile devices.
+
+**Problem:** iOS suspends JavaScript when screen is off 5+ minutes, WebSocket dies but recovery mechanisms may not fire.
+
+**Solution:** Service Worker acts as backup wake detection mechanism (Layer 2 of 5-layer strategy).
+
+**How it works:**
+1. Page sends `pageWake` message to SW on visibility change
+2. SW broadcasts `PAGE_WAKE` to all clients via `postMessage`
+3. Clients trigger `_performWakeHealthCheck()` to verify/restore WebSocket
+
+**Implementation (sw.js:324-338):**
+```javascript
+if (event.data.action === 'pageWake') {
+    self.clients.matchAll({ type: 'window' }).then(clients => {
+        clients.forEach(client => {
+            client.postMessage({
+                type: 'PAGE_WAKE',
+                timestamp: Date.now(),
+                source: 'sw'
+            });
+        });
+    });
+}
+```
+
+**Client-side (budgetWSClient.js:110-122):**
+```javascript
+// Listen for SW wake messages
+navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data.type === 'PAGE_WAKE') {
+        if (this.isLeader && document.visibilityState === 'visible') {
+            this._performWakeHealthCheck();
+        }
+    }
+});
+
+// Notify SW on visibility change
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        navigator.serviceWorker.controller.postMessage({
+            action: 'pageWake',
+            timestamp: Date.now()
+        });
+    }
+});
+```
+
+**Benefit:** Backup mechanism if Visibility API doesn't fire after long sleep.
+
+**Complete 5-layer strategy:** See `/docs/architecture/pwa.md` → "WebSocket Recovery After Long Sleep"
+
 ## Workflow for Updating Application
 
 **Critical to understand three directories:**

@@ -321,6 +321,22 @@ self.addEventListener('message', (event) => {
     });
   }
 
+  // Layer 2: Page wake detection (для iOS/mobile recovery)
+  // Уведомляет все вкладки что страница вернулась из sleep режима
+  if (event.data.action === 'pageWake') {
+    if (DEBUG) console.log('[SW] Page wake detected, notifying all clients');
+
+    self.clients.matchAll({ type: 'window' }).then(clients => {
+      clients.forEach(client => {
+        client.postMessage({
+          type: 'PAGE_WAKE',
+          timestamp: Date.now(),
+          source: 'sw'
+        });
+      });
+    });
+  }
+
   if (event.data.action === 'clearCache') {
     event.waitUntil(
       caches.keys().then((cacheNames) => {

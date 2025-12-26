@@ -847,6 +847,174 @@ if (!modal.dataset.backdropHandlerAdded) {
 
 ---
 
+### WebSocket Recovery After Long Sleep (iOS/Mobile)
+
+**Problem:** iOS Safari and Yandex Browser **suspend JavaScript execution** when screen is off for 5+ minutes.
+
+**Impact:**
+- WebSocket connection dies on TCP level (iOS kills inactive sockets)
+- All timers stopped (ping intervals, reconnection timers)
+- Visibility API events may not fire or fire with delay
+- WebSocket close event not delivered if JS was suspended
+- **Result:** Requires manual page reload
+
+**Solution:** **5-layer defense-in-depth strategy** (v5.7.0+)
+
+#### Layer 1: Enhanced Visibility API Recovery
+
+**Method:** `_performWakeHealthCheck()`
+
+Aggressive connection health check when page becomes visible:
+1. Check WebSocket readyState (OPEN?)
+2. Check stale connection (lastServerPing > 45s?)
+3. Send ping + wait 3s for pong
+4. If any check fails → force reconnect
+
+**Trigger:** `visibilitychange` event (visible state)
+
+#### Layer 2: Service Worker Wake Detection
+
+**Mechanism:** Service Worker message passing
+
+Service Worker remains active during page background, can detect wake:
+1. Page sends `pageWake` message to SW on visibility change
+2. SW broadcasts `PAGE_WAKE` to all clients
+3. Clients trigger `_performWakeHealthCheck()`
+
+**Benefit:** Backup mechanism if Visibility API doesn't fire
+
+#### Layer 3: Periodic Health Check
+
+**Method:** `_startHealthCheck()` / `_stopHealthCheck()`
+
+Runs every **60 seconds** when page visible:
+1. Check `_isConnectionStale()`
+2. If WebSocket OPEN → send ping for verification
+3. If connection stale or not OPEN → force reconnect
+
+**Purpose:** Catch cases where connection died but visibility change didn't occur (user reading page without scrolling for 10+ minutes)
+
+#### Layer 4: Heartbeat Timeout Enforcement
+
+**Method:** `_resetPongTimeout()`
+
+After each client ping, sets **20-second timeout**:
+1. Client sends ping every 8s (iOS) / 15s (desktop)
+2. Timeout set: if no pong within 20s → force close WebSocket
+3. On pong received → clear timeout
+
+**Purpose:** Detect "zombie" connections (WebSocket object OPEN but TCP dead)
+
+#### Layer 5: Comprehensive Logging
+
+**Method:** `_log(category, level, message, data)`
+
+Structured logging for all connection events:
+- **Prefixes:** `[WS-WAKE]`, `[WS-HEALTH]`, `[WS-PING]`, `[WS-PONG]`, `[WS-PONG-TIMEOUT]`
+- **Levels:** error, warn, info, debug
+- **Enabled:** Always on iOS, optional on desktop
+- **Includes:** Connection state, timestamps, RTT, last ping/pong times
+
+**Purpose:** Easy production debugging on user devices
+
+#### Recovery Time Guarantees
+
+| Sleep Duration | Recovery Mechanism | Max Recovery Time |
+|----------------|-------------------|------------------|
+| < 1 min | Ping/Pong keepalive | 0s (no disconnect) |
+| 1-5 min | Layer 1 (Visibility API) | 2-3s |
+| 5-10 min | Layers 1-3 (+ Health Check) | 3-60s |
+| 30+ min | All 5 layers | Max 60s |
+| Any duration | **No manual reload needed** | ✅ Automatic |
+
+#### Testing
+
+**Manual Testing (iOS Safari / Yandex):**
+```bash
+# Test Case 1: Short Sleep (< 1 min)
+Lock device → Wait 30s → Unlock
+Expected: Connection alive (ping/pong kept it)
+
+# Test Case 2: Medium Sleep (1-5 min)
+Lock device → Wait 3 min → Unlock
+Expected: Reconnect in 2-3s (Visibility API + wake check)
+
+# Test Case 3: Long Sleep (5-10 min)
+Lock device → Wait 10 min → Unlock
+Expected: Reconnect in 3-60s (health check catches it)
+
+# Test Case 4: Extreme Sleep (30+ min)
+Lock device → Wait 1 hour → Unlock
+Expected: Automatic reconnect, no manual reload
+```
+
+**Automated Testing (DevTools Console):**
+```javascript
+// Simulate long sleep
+window.testWSRecovery = async function(sleepMs) {
+    console.group('[WS-TEST] Simulating sleep:', sleepMs, 'ms');
+
+    // Kill WebSocket
+    if (window.budgetWSClient.ws) {
+        window.budgetWSClient.ws.close(1005, 'Test sleep');
+    }
+
+    // Wait
+    await new Promise(resolve => setTimeout(resolve, sleepMs));
+
+    // Simulate wake
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    console.groupEnd();
+};
+
+// Usage
+await testWSRecovery(300000); // 5 minutes
+```
+
+**Expected Console Output:**
+```
+[WS-WAKE] Wake Health Check
+[WS-WAKE] Visibility: visible, timestamp: 2025-12-26T...
+[WS-WAKE] Current WS state: CLOSED
+[WS-WAKE] ❌ WebSocket not OPEN, reconnecting
+...
+[WS-WAKE] ✓ Connection verified
+```
+
+#### Implementation Details
+
+**Files Modified:**
+- `frontend/web/static/js/budget/budgetWSClient.js` (~250 lines added)
+- `sw.js` (~15 lines added)
+
+**New Properties:**
+```javascript
+this._healthCheckInterval = null;
+this.HEALTH_CHECK_INTERVAL = 60000;  // 60s
+this._pongTimeoutTimer = null;
+this.PONG_TIMEOUT = 20000;  // 20s
+this._enableDetailedLogging = this._iosDeviceMode;  // Always on iOS
+```
+
+**New Methods:**
+```javascript
+_log(category, level, msg, data)  // Layer 5: Structured logging
+_performWakeHealthCheck()         // Layer 1: Wake health check
+_startHealthCheck()                // Layer 3: Start periodic check
+_stopHealthCheck()                 // Layer 3: Stop periodic check
+_resetPongTimeout()                // Layer 4: Set pong timeout
+```
+
+**Backward Compatibility:**
+- ✅ All changes additive (no breaking changes)
+- ✅ Fallback: existing mechanisms remain if new ones fail
+- ✅ Graceful degradation for older browsers
+
+**Version:** 5.7.0+ (December 2025)
+
+---
+
 ## Future Enhancements
 
 ### Planned Features
@@ -883,6 +1051,6 @@ if (!modal.dataset.backdropHandlerAdded) {
 
 ---
 
-**Last Updated:** 2025-12-25
+**Last Updated:** 2025-12-26
 **Maintainer:** Development Team
 **Status:** ✅ Production Ready

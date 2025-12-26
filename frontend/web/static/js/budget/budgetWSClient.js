@@ -94,6 +94,33 @@ class BudgetWSClient {
             this.CLIENT_PING_INTERVAL = 8000;  // 8 seconds (vs 15 default) - keep iOS connection alive
         }
 
+        // ==================== WAKE RECOVERY ENHANCEMENTS ====================
+        // Layer 3: Periodic health check (60s interval when visible)
+        this._healthCheckInterval = null;
+        this.HEALTH_CHECK_INTERVAL = 60000;  // 60 seconds
+
+        // Layer 4: Pong timeout enforcement (force close if no pong)
+        this._pongTimeoutTimer = null;
+        this.PONG_TIMEOUT = 20000;  // 20 seconds
+
+        // Layer 5: Enhanced logging (always enabled on iOS for debugging)
+        this._enableDetailedLogging = this._iosDeviceMode;
+
+        // Layer 2: Service Worker wake detection (backup mechanism)
+        if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data.type === 'PAGE_WAKE') {
+                    this._log('SW', 'info', 'Service Worker detected page wake', {
+                        timestamp: event.data.timestamp,
+                        source: event.data.source
+                    });
+                    if (this.isLeader && document.visibilityState === 'visible') {
+                        this._performWakeHealthCheck();
+                    }
+                }
+            });
+        }
+
         // Close connection on page unload
         window.addEventListener('beforeunload', () => {
             this._silentClose();
@@ -124,28 +151,18 @@ class BudgetWSClient {
                     this._lastVisibilityChange = now;
                 }
 
+                // Layer 2: Notify Service Worker about page wake
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        action: 'pageWake',
+                        timestamp: Date.now()
+                    });
+                }
+
+                // Layer 1: Enhanced Visibility API Recovery
+                // Perform aggressive health check on wake
                 if (this.isLeader) {
-                    if (this._isConnectionStale()) {
-                        debugLog('[BudgetWS] Connection stale, forcing reconnect');
-                        this._forceReconnect();
-                        return;
-                    }
-
-                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        this.isConnected = true;
-                        this._updateStatusIndicator();
-                        return;
-                    }
-
-                    if (this.useLongPolling && this._pollingActive) {
-                        this._updateStatusIndicator();
-                        return;
-                    }
-
-                    if (!this.isConnected && this.enabled) {
-                        debugLog('[BudgetWS] Tab visible, leader reconnecting');
-                        this._forceReconnect();
-                    }
+                    this._performWakeHealthCheck();
                 }
 
                 if (!this.isLeader && this.channel) {
@@ -214,6 +231,193 @@ class BudgetWSClient {
         } catch (e) {
             return false;
         }
+    }
+
+    // ==================== WAKE RECOVERY METHODS ====================
+
+    /**
+     * Layer 5: Structured logging for debugging
+     * Logs WebSocket events with context for easy production debugging
+     * @param {string} category - Log category (WAKE, HEALTH, PING, PONG, etc.)
+     * @param {string} level - Log level (error, warn, info, debug)
+     * @param {string} message - Log message
+     * @param {Object} data - Additional data
+     * @private
+     */
+    _log(category, level, message, data = {}) {
+        if (!this._enableDetailedLogging && level !== 'error') return;
+
+        const prefix = `[WS-${category}]`;
+        const timestamp = new Date().toISOString();
+
+        const logData = {
+            timestamp,
+            category,
+            level,
+            message,
+            ...data,
+            // Context
+            isConnected: this.isConnected,
+            wsState: this.ws ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][this.ws.readyState] : 'NO_WS',
+            lastServerPing: this.lastServerPing ? ((Date.now() - this.lastServerPing) + 'ms ago') : 'never',
+            lastPong: this.lastPongReceived ? ((Date.now() - this.lastPongReceived) + 'ms ago') : 'never'
+        };
+
+        switch (level) {
+            case 'error':
+                console.error(prefix, message, logData);
+                break;
+            case 'warn':
+                console.warn(prefix, message, logData);
+                break;
+            case 'info':
+                console.log(prefix, message, logData);
+                break;
+            case 'debug':
+                if (this._enableDetailedLogging) {
+                    console.log(prefix, message, logData);
+                }
+                break;
+        }
+
+        // Store in history for debugging
+        this._logHistory(`${category}:${level}:${message}`);
+    }
+
+    /**
+     * Layer 1: Enhanced Visibility API Recovery
+     * Performs aggressive connection health check when page becomes visible
+     * Handles cases where WebSocket died during long sleep (5+ minutes)
+     * @private
+     */
+    _performWakeHealthCheck() {
+        console.group('[WS-WAKE] Wake Health Check');
+        this._log('WAKE', 'info', 'Visibility: visible', {
+            timestamp: new Date().toISOString()
+        });
+
+        // Check 1: WebSocket readyState
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+            this._log('WAKE', 'warn', 'WebSocket not OPEN, reconnecting', {
+                wsState: this.ws ? this.ws.readyState : 'null'
+            });
+            console.groupEnd();
+            this._forceReconnect();
+            return;
+        }
+
+        // Check 2: Stale connection (no ping > PING_TIMEOUT)
+        if (this._isConnectionStale()) {
+            this._log('WAKE', 'warn', 'Connection stale, reconnecting', {
+                timeSinceLastPing: Date.now() - this.lastServerPing
+            });
+            console.groupEnd();
+            this._forceReconnect();
+            return;
+        }
+
+        // Check 3: Send ping to verify bidirectional communication
+        this._log('WAKE', 'info', 'Sending verification ping');
+        this._sendMessage({ type: 'ping' });
+
+        // Set timeout to check if pong received
+        setTimeout(() => {
+            const timeSincePong = Date.now() - this.lastPongReceived;
+            if (timeSincePong > 10000) {
+                this._log('WAKE', 'warn', 'No pong response within 3s, reconnecting', {
+                    timeSincePong
+                });
+                console.groupEnd();
+                this._forceReconnect();
+            } else {
+                this._log('WAKE', 'info', 'Connection verified ✓');
+                console.groupEnd();
+            }
+        }, 3000);
+    }
+
+    /**
+     * Layer 3: Start periodic health check
+     * Checks connection health every 60 seconds when page is visible
+     * Catches cases where connection died but visibility change didn't trigger
+     * @private
+     */
+    _startHealthCheck() {
+        if (this._healthCheckInterval) return;
+
+        this._log('HEALTH', 'info', 'Starting periodic health checks', {
+            interval: `${this.HEALTH_CHECK_INTERVAL}ms`
+        });
+
+        this._healthCheckInterval = setInterval(() => {
+            // Only check if visible and leader
+            if (document.visibilityState !== 'visible' || !this.isLeader) {
+                return;
+            }
+
+            console.group('[WS-HEALTH] Periodic Check');
+            this._log('HEALTH', 'debug', 'Periodic health check running');
+
+            if (this._isConnectionStale()) {
+                this._log('HEALTH', 'warn', 'Connection stale');
+                console.groupEnd();
+                this._forceReconnect();
+                return;
+            }
+
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this._log('HEALTH', 'debug', 'Connection healthy ✓');
+                // Send ping for verification
+                this._sendMessage({ type: 'ping' });
+            } else {
+                this._log('HEALTH', 'warn', 'WebSocket not OPEN');
+                console.groupEnd();
+                this._forceReconnect();
+                return;
+            }
+
+            console.groupEnd();
+        }, this.HEALTH_CHECK_INTERVAL);
+    }
+
+    /**
+     * Layer 3: Stop periodic health check
+     * @private
+     */
+    _stopHealthCheck() {
+        if (this._healthCheckInterval) {
+            clearInterval(this._healthCheckInterval);
+            this._healthCheckInterval = null;
+            this._log('HEALTH', 'info', 'Stopped periodic health checks');
+        }
+    }
+
+    /**
+     * Layer 4: Reset pong timeout timer
+     * Sets timeout to force close WebSocket if pong not received
+     * Detects "zombie" connections where WebSocket is OPEN but TCP is dead
+     * @private
+     */
+    _resetPongTimeout() {
+        // Clear existing timeout
+        if (this._pongTimeoutTimer) {
+            clearTimeout(this._pongTimeoutTimer);
+        }
+
+        // Set new timeout
+        this._pongTimeoutTimer = setTimeout(() => {
+            console.group('[WS-PONG-TIMEOUT]');
+            this._log('PONG-TIMEOUT', 'error', 'No pong received, force closing', {
+                timeout: `${this.PONG_TIMEOUT}ms`,
+                lastPong: this.lastPongReceived ? (Date.now() - this.lastPongReceived) : 'never'
+            });
+            console.groupEnd();
+
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                // Force close (will trigger onclose → reconnect)
+                this.ws.close(1000, 'Pong timeout');
+            }
+        }, this.PONG_TIMEOUT);
     }
 
     // ==================== MULTI-TAB SUPPORT ====================
@@ -621,6 +825,7 @@ class BudgetWSClient {
 
     /**
      * Close existing connection cleanly
+     * Layer 3: Stops health check
      * @private
      */
     _closeExistingConnection() {
@@ -640,6 +845,10 @@ class BudgetWSClient {
             clearInterval(this.pingInterval);
             this.pingInterval = null;
         }
+
+        // Layer 3: Stop periodic health check
+        this._stopHealthCheck();
+
         this._pollingActive = false;
         this.isConnected = false;
         this.connectionId = null;
@@ -853,6 +1062,9 @@ class BudgetWSClient {
                 this._updateStatusIndicator();
                 this._notifyHandlers('connect', {});
                 this._startClientPing();
+
+                // Layer 3: Start periodic health check
+                this._startHealthCheck();
             };
 
             this.ws.onmessage = (event) => {
@@ -880,6 +1092,10 @@ class BudgetWSClient {
                 this.isConnected = false;
                 this.connectionId = null;
                 this._stopClientPing();
+
+                // Layer 3: Stop periodic health check
+                this._stopHealthCheck();
+
                 this._updateStatusIndicator();
 
                 // Handle specific close codes
@@ -976,7 +1192,15 @@ class BudgetWSClient {
             case 'pong':
                 // Response to our client ping
                 this.lastPongReceived = Date.now();
-                debugLog('[BudgetWS] Pong received');
+                const rtt = this.lastServerPing ? (Date.now() - this.lastServerPing) : 0;
+                this._log('PONG', 'debug', 'Pong received', { rtt: `${rtt}ms` });
+                debugLog('[BudgetWS] Pong received, RTT:', rtt, 'ms');
+
+                // Layer 4: Clear pong timeout on successful response
+                if (this._pongTimeoutTimer) {
+                    clearTimeout(this._pongTimeoutTimer);
+                    this._pongTimeoutTimer = null;
+                }
                 break;
 
             case 'online_status':
@@ -1052,6 +1276,7 @@ class BudgetWSClient {
 
     /**
      * Start client ping interval
+     * Layer 4: Sets pong timeout after each ping
      * @private
      */
     _startClientPing() {
@@ -1059,19 +1284,30 @@ class BudgetWSClient {
 
         this.pingInterval = setInterval(() => {
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                this._log('PING', 'debug', 'Sending client ping');
                 this._sendMessage({ type: 'ping' });
+
+                // Layer 4: Set pong timeout
+                this._resetPongTimeout();
             }
         }, this.CLIENT_PING_INTERVAL);
     }
 
     /**
      * Stop client ping interval
+     * Layer 4: Clears pong timeout
      * @private
      */
     _stopClientPing() {
         if (this.pingInterval) {
             clearInterval(this.pingInterval);
             this.pingInterval = null;
+        }
+
+        // Layer 4: Clear pong timeout
+        if (this._pongTimeoutTimer) {
+            clearTimeout(this._pongTimeoutTimer);
+            this._pongTimeoutTimer = null;
         }
     }
 
@@ -1316,6 +1552,7 @@ class BudgetWSClient {
 
     /**
      * Silent close (for page unload)
+     * Layer 3: Stops health check
      * @private
      */
     _silentClose() {
@@ -1334,6 +1571,9 @@ class BudgetWSClient {
         }
         this.isLeader = false;
         this._multiTabInitialized = false;
+
+        // Layer 3: Stop periodic health check
+        this._stopHealthCheck();
 
         // Notify server via sendBeacon
         if (this.connectionId) {
