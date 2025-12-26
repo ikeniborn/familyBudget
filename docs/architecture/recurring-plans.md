@@ -209,6 +209,17 @@ def validate_frequency_value(self):
 - Updated frequency_value CHECK constraint for yearly MMDD format (101-1231)
 - Added column comment explaining yearly encoding
 
+**Constraint Names:**
+The migration uses actual database constraint names (not SQLAlchemy auto-generated names):
+- `ck_recurring_plan_frequency_type` - Validates frequency_type values
+- `ck_recurring_plan_frequency_value_range` - Validates frequency_value ranges
+
+**Important:** If migration fails with "constraint does not exist", verify actual constraint names:
+```sql
+SELECT conname, contype FROM pg_constraint
+WHERE conrelid = 't_d_recurring_plan'::regclass;
+```
+
 ## Testing
 
 ### Backend Test Example
