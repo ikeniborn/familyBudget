@@ -798,6 +798,55 @@ Content-Security-Policy:
 
 ---
 
+## Mobile Features
+
+### iOS Safari Modal Interaction Fixes
+
+**Problem:** iOS Safari синтезирует "click outside" события при взаимодействии с интерактивными элементами внутри `<dialog>` (Choices.js dropdown, date picker, etc.)
+
+**Root Cause:** `<form method="dialog" class="modal-backdrop">` автоматически закрывает dialog при любом click событии на backdrop, включая синтетические события от iOS.
+
+**Solution Pattern (применён во всех модальных окнах):**
+
+```javascript
+// ✅ Правильный подход: Explicit backdrop handler
+if (!modal.dataset.backdropHandlerAdded) {
+    modal.addEventListener('click', (e) => {
+        // Закрываем ТОЛЬКО при клике напрямую на backdrop
+        if (e.target === modal) {
+            modal.close();
+        }
+    });
+    modal.dataset.backdropHandlerAdded = 'true';
+}
+```
+
+```html
+<!-- ✅ HTML: Простой div вместо form -->
+<div class="modal-backdrop"></div>
+```
+
+**Benefits:**
+- Choices.js dropdown работает с первого тапа
+- Date picker не закрывает modal
+- Полный контроль над поведением modal
+- Консистентность между всеми модальными окнами
+
+**Affected Browsers:**
+- Safari 18+ (iOS 17+)
+- Yandex Browser (iOS)
+- Chrome iOS (использует WebKit)
+- Firefox iOS (использует WebKit)
+
+**Applied to:**
+- modal_add_transaction ✅ (версия 6.3.0)
+- modal_edit_fact ✅ (ранее)
+- modal_transfer ✅ (ранее)
+- modal_add_plan ✅ (ранее)
+- modal_edit_plan ✅ (ранее)
+
+---
+
 ## Future Enhancements
 
 ### Planned Features

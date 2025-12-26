@@ -2318,8 +2318,36 @@ function openAddTransactionModal() {
         transactionCategoryTreeSelect.options.financialCenterId = null;
     }
 
+    // ✅ FIX iOS Safari: Handle backdrop clicks explicitly (instead of form method="dialog")
+    // This prevents iOS Safari synthetic clicks from closing modal during Choices.js interaction
+    const modal = document.getElementById('modal_add_transaction');
+    if (modal && !modal.dataset.backdropHandlerAdded) {
+        console.log('[openAddTransactionModal] Adding backdrop click handler for iOS Safari fix');
+        modal.addEventListener('click', (e) => {
+            console.log('[BACKDROP] Click detected:', {
+                target: e.target.tagName,
+                targetId: e.target.id,
+                targetClass: e.target.className,
+                isModal: e.target === modal,
+                timestamp: new Date().toISOString()
+            });
+
+            // Close only if click is directly on dialog (backdrop area)
+            // NOT if click is on modal-box or its children
+            if (e.target === modal) {
+                console.log('[BACKDROP] Closing modal (click on backdrop)');
+                modal.close();
+            } else {
+                console.log('[BACKDROP] Ignoring click (not on backdrop)');
+            }
+        });
+        modal.dataset.backdropHandlerAdded = 'true';
+    }
+
     // Открыть модальное окно
+    console.log('[openAddTransactionModal] Calling modal.showModal()');
     modal_add_transaction.showModal();
+    console.log('[openAddTransactionModal] Modal opened successfully');
 }
 // Ensure function is globally accessible for onclick handlers
 window.openAddTransactionModal = openAddTransactionModal;
@@ -3224,6 +3252,12 @@ async function loadTransactionCategories() {
                 type: transactionType,
                 showLeafOnly: true,
                 onCategoryChange: (category) => {
+                    console.log('[CATEGORY] Category changed:', {
+                        categoryId: category?.id,
+                        categoryName: category?.name,
+                        timestamp: new Date().toISOString(),
+                        modalOpen: document.getElementById('modal_add_transaction')?.open
+                    });
                     debugLog('Transaction category changed:', category);
                     // Update fact hints for current month
                     loadFactHints(category);
@@ -3328,9 +3362,15 @@ async function loadFinancialCenters() {
         if (transactionFcSelect) {
             transactionFcSelect.addEventListener('change', async () => {
                 const fcId = transactionFcSelect.value ? parseInt(transactionFcSelect.value) : null;
+                console.log('[FC_CHANGE] Financial center changed:', {
+                    fcId: fcId,
+                    timestamp: new Date().toISOString()
+                });
                 // Filter categories by selected FC
                 if (transactionCategoryTreeSelect) {
+                    console.log('[FC_CHANGE] Updating category tree with new FC');
                     await transactionCategoryTreeSelect.updateFinancialCenter(fcId);
+                    console.log('[FC_CHANGE] Category tree updated successfully');
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_transaction', fcId);

@@ -977,6 +977,23 @@ When adding new components:
 - **Files**: `frontend/web/static/js/budget/budgetWSClient.js`
 - **Result**: Stable reconnection after wake from sleep with no flickering
 
+**11. Modal double-tap на iOS Safari при выборе категории (MEDIUM)**
+- **Problem**: В modal_add_transaction требуется два тапа для выбора категории после смены счета (Safari 18+, Yandex)
+- **Root cause**: Устаревший паттерн `<form method="dialog">` для backdrop вызывает автоматическое закрытие при Choices.js dropdown interaction
+  - iOS Safari синтезирует "click outside" событие при клике на dropdown item
+  - `<form method="dialog">` интерпретирует это как submit → `dialog.close()`
+  - Choices.js не успевает зафиксировать выбор → требуется второй тап
+- **Fix**: Три изменения:
+  1. HTML: Заменили `<form method="dialog">` на `<div class="modal-backdrop"></div>`
+  2. JavaScript: Добавили explicit backdrop handler с проверкой `e.target === modal`
+  3. Logging: Добавили детальное логирование для отладки мобильных проблем
+- **Files affected**:
+  - `frontend/web/templates/components/modal_transaction.html` (строки 120-122)
+  - `frontend/web/templates/index.html` (функция `openAddTransactionModal`)
+  - `frontend/shared/static/js/choicesCategoryTree.js` (метод `initChoices`)
+- **Result**: Choices.js dropdown работает с первого тапа на всех браузерах
+- **Related**: Аналогичная проблема была исправлена ранее в modal_edit_fact, modal_transfer, modal_plan
+
 ### Known Limitations (Deferred)
 
 | Issue | Status | Notes |
