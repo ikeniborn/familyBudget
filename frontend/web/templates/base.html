@@ -1108,6 +1108,16 @@
     <!-- ✅ FIX 4: Shared reminder utilities -->
     <script src="/shared/static/js/reminders.js?v=PLACEHOLDER"></script>
 
+    <!-- User data for LogsCollector -->
+    <script>
+        // Expose user data to JavaScript for LogsCollector
+        window.userData = {
+            id: {{ user.id }},
+            username: "{{ user.username or user.first_name or 'User' }}",
+            isAdmin: {{ 'true' if user.is_admin else 'false' }}
+        };
+    </script>
+
     <!-- Logs Collector for Admin Logs Page -->
     <script src="/static/js/utils/logsCollector.min.js?v=PLACEHOLDER"></script>
     <script>
