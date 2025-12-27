@@ -2187,8 +2187,39 @@ class ChoicesCategoryTree {
 
         // Listen for change events
         this.element.addEventListener('change', (event) => {
+            console.log('[ChoicesCategoryTree] Change event:', {
+                elementId: this.element.id,
+                value: event.target.value,
+                timestamp: new Date().toISOString()
+            });
             this.handleCategoryChange(event);
         });
+
+        // Add event listeners for Choices.js dropdown interaction (debugging iOS Safari)
+        if (this.choices) {
+            this.element.addEventListener('showDropdown', () => {
+                console.log('[ChoicesCategoryTree] Dropdown opened:', {
+                    elementId: this.element.id,
+                    timestamp: new Date().toISOString()
+                });
+            });
+
+            this.element.addEventListener('hideDropdown', () => {
+                console.log('[ChoicesCategoryTree] Dropdown closed:', {
+                    elementId: this.element.id,
+                    timestamp: new Date().toISOString()
+                });
+            });
+
+            this.element.addEventListener('choice', (event) => {
+                console.log('[ChoicesCategoryTree] Item selected:', {
+                    elementId: this.element.id,
+                    choiceId: event.detail.choice.value,
+                    choiceLabel: event.detail.choice.label,
+                    timestamp: new Date().toISOString()
+                });
+            });
+        }
 
         // Add clear-all button for multiple mode (if enabled)
         if (this.options.multiple && this.options.showClearButton) {
