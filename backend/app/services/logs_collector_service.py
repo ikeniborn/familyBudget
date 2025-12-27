@@ -19,10 +19,12 @@ Date: 2025-12-27
 import asyncio
 import json
 import re
-import subprocess
 from collections import deque
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
+
+import docker
+from docker.errors import DockerException, NotFound
 
 from backend.app.core.logging import get_logger
 
@@ -76,7 +78,7 @@ class LogsCollectorService:
         tail: int = 500
     ) -> List[Dict[str, Any]]:
         """
-        Collect logs from Docker container using subprocess.
+        Collect logs from Docker container using Docker SDK.
 
         Args:
             service: Container name (backend, bot, postgres, nginx)
@@ -91,40 +93,33 @@ class LogsCollectorService:
         """
         logger.info(f"[LOGS_COLLECTOR] Collecting Docker logs for service={service}, since={since}, tail={tail}")
 
-        cmd = [
-            "docker", "compose",
-            "-f", "/opt/budget/docker-compose.yml",
-            "logs",
-            "--tail", str(tail),
-            "--since", since,
-            "--no-log-prefix",  # Remove Docker timestamp prefix
-            service
-        ]
-
         try:
-            # Use asyncio subprocess for non-blocking execution
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
+            # Convert "1h", "30m" format to seconds for Docker API
+            since_seconds = self._parse_since_to_seconds(since)
 
-            # Wait with timeout
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(),
-                timeout=10.0
-            )
+            # Connect to Docker daemon via socket
+            client = docker.DockerClient(base_url='unix://var/run/docker.sock')
 
-            if process.returncode != 0:
-                logger.error(
-                    f"[LOGS_COLLECTOR] Docker logs command failed for service={service}, "
-                    f"returncode={process.returncode}, stderr={stderr.decode()[:500]}"
-                )
+            # Get container name (compose adds project prefix)
+            container_name = f"familybudget-{service}"
+
+            # Get container
+            try:
+                container = client.containers.get(container_name)
+            except NotFound:
+                logger.warning(f"[LOGS_COLLECTOR] Container not found: {container_name}")
                 return []
+
+            # Get logs from container
+            logs_output = container.logs(
+                since=since_seconds,
+                tail=tail,
+                timestamps=False,  # We'll parse timestamps from JSON logs
+            ).decode('utf-8')
 
             # Parse logs
             logs = []
-            for line in stdout.decode().splitlines():
+            for line in logs_output.splitlines():
                 if not line.strip():
                     continue
 
@@ -161,11 +156,8 @@ class LogsCollectorService:
             logger.info(f"[LOGS_COLLECTOR] Collected {len(logs)} logs from service={service}")
             return logs
 
-        except asyncio.TimeoutError:
-            logger.error(f"[LOGS_COLLECTOR] Timeout collecting logs for service={service}")
-            return []
-        except FileNotFoundError:
-            logger.error(f"[LOGS_COLLECTOR] Docker compose not found - check PATH and installation")
+        except DockerException as e:
+            logger.error(f"[LOGS_COLLECTOR] Docker error for service={service}: {e}")
             return []
         except Exception as e:
             logger.error(f"[LOGS_COLLECTOR] Error collecting logs for service={service}: {e}", exc_info=True)
@@ -408,3 +400,44 @@ class LogsCollectorService:
             return datetime.fromisoformat(timestamp_str)
         except (ValueError, AttributeError):
             return datetime.min
+
+    def _parse_since_to_seconds(self, since: str) -> int:
+        """
+        Parse 'since' parameter to seconds for Docker API.
+
+        Supports:
+        - "1h" → 3600
+        - "30m" → 1800
+        - "2d" → 172800
+        - "2025-12-27" → calculates delta from now
+
+        Args:
+            since: Time range string
+
+        Returns:
+            Number of seconds from now
+        """
+        try:
+            # Check if it's a duration format (e.g., "1h", "30m", "2d")
+            if since[-1] in ['h', 'm', 'd', 's']:
+                unit = since[-1]
+                value = int(since[:-1])
+
+                if unit == 's':
+                    return value
+                elif unit == 'm':
+                    return value * 60
+                elif unit == 'h':
+                    return value * 3600
+                elif unit == 'd':
+                    return value * 86400
+
+            # Try parsing as date
+            target_date = datetime.fromisoformat(since)
+            delta = datetime.now() - target_date
+            return int(delta.total_seconds())
+
+        except (ValueError, IndexError):
+            # Default to 1 hour if parsing fails
+            logger.warning(f"[LOGS_COLLECTOR] Failed to parse since={since}, defaulting to 1h")
+            return 3600

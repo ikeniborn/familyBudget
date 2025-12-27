@@ -31,6 +31,7 @@ python-json-logger==3.2.1
 
 # Monitoring
 psutil==6.1.1
+docker==7.1.0  # Docker SDK for collecting container logs
 
 # Background Jobs
 apscheduler==3.11.0
