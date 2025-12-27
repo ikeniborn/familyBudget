@@ -707,6 +707,48 @@ if ('serviceWorker' in navigator) {
 
 ---
 
+### Cache Monitoring (Admin)
+
+**Since version v6.2**, administrators can monitor client-side cache health via `/admin/monitoring` page.
+
+**Metrics Displayed:**
+
+| Metric | Description | Source |
+|--------|-------------|--------|
+| **Active Clients** | Number of browsers with metrics < 5min old | Client UUIDs |
+| **Total SW Cache Size** | Aggregated Service Worker cache across all clients | Cache API (sampled) |
+| **Pending IndexedDB Records** | Unsynced offline transactions | `IndexedDBManager.getInfo()` |
+| **Storage Quota Usage** | Average browser storage utilization (%) | `navigator.storage.estimate()` |
+
+**Individual Client Details:**
+- Client ID (first 8 chars of UUID)
+- SW cache size (MB)
+- IDB pending count
+- Storage quota usage (%)
+- Last update timestamp
+
+**Use Cases:**
+
+1. **Cache Bloat Detection** - Identify clients with excessive cached files
+2. **Offline Sync Queue Health** - Monitor pending records awaiting sync
+3. **Storage Quota Issues** - Alert when clients approach 80% quota usage
+4. **Client-Side Performance** - Debug slow load times due to large caches
+
+**Collection Strategy:**
+- Metrics sent **only** when admin viewing monitoring page
+- Auto-refresh every 5 seconds (aligned with other metrics)
+- 5-minute TTL for client data (auto-cleanup)
+- Sampled SW cache estimation (80% faster than full iteration)
+
+**Performance:**
+- Collection time: ~40-100ms per client
+- Network overhead: ~20-30KB per request (gzipped)
+- Memory footprint: ~10MB for 100 concurrent clients
+
+**See:** `/docs/architecture/caching-strategy.md` → "Client-Side Cache Monitoring" for detailed implementation.
+
+---
+
 ## Performance
 
 ### Metrics

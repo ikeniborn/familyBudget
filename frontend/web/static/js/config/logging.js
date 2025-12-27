@@ -53,7 +53,8 @@
             WORKER: isDevelopment,     // Web Workers (dev only)
             PLAN: true,                // Recurring plan operations
             CSV: true,                 // CSV import/export
-            WS_DIAG: true              // WebSocket diagnostics modal
+            WS_DIAG: true,             // WebSocket diagnostics modal
+            CACHE: isDevelopment       // Cache metrics collection (dev only)
         },
 
         // Environment info (for debugging)

@@ -15,6 +15,7 @@ from backend.app.api.v1.endpoints import (
     articles_router,
     auth_router,
     budget_ws_router,
+    cache_metrics_router,
     consent_router,
     cost_centers_router,
     facts_router,
@@ -128,3 +129,6 @@ api_router.include_router(import_templates_router)
 # Primary: WebSocket (bidirectional, no buffering)
 # Fallback: Long Polling (10 sec interval)
 api_router.include_router(budget_ws_router)
+
+# Cache Metrics endpoints (Admin Monitoring - Client-Side Cache) ✅
+api_router.include_router(cache_metrics_router)

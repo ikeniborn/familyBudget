@@ -52,29 +52,31 @@ from backend.app.api.v1.endpoints.shopping_csv_import import router as shopping_
 from backend.app.api.v1.endpoints.import_templates import router as import_templates_router
 from backend.app.api.v1.endpoints.google_sheets_import import router as google_sheets_import_router
 from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
+from backend.app.api.v1.endpoints.cache_metrics import router as cache_metrics_router
 from backend.app.api.v1.endpoints.staging import router as staging_router
 
 __all__ = [
     "auth_router",
     "articles_router",
+    "budget_ws_router",
+    "cache_metrics_router",
     "consent_router",
-    "financial_centers_router",
     "cost_centers_router",
     "facts_router",
-    "users_router",
-    "notifications_router",
+    "financial_centers_router",
+    "google_sheets_import_router",
     "import_router",
-    "transfers_router",
+    "import_templates_router",
+    "notifications_router",
+    "product_groups_router",
     "push_router",
     "recurring_plans_router",
     "reminders_router",
-    "stores_router",
-    "product_groups_router",
-    "shopping_lists_router",
-    "shopping_list_items_router",
     "shopping_csv_import_router",
-    "import_templates_router",
-    "google_sheets_import_router",
-    "budget_ws_router",
+    "shopping_list_items_router",
+    "shopping_lists_router",
     "staging_router",
+    "stores_router",
+    "transfers_router",
+    "users_router",
 ]
