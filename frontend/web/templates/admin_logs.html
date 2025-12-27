@@ -406,12 +406,42 @@ function initializeCalendar() {
  * Initialize page
  */
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('[ADMIN_LOGS] DOMContentLoaded event fired');
+
+    // Check if Logger class is available
+    if (typeof Logger === 'undefined') {
+        console.error('[ADMIN_LOGS] Logger class not found!');
+        alert('Ошибка: Logger класс не загружен. Проверьте консоль.');
+        return;
+    }
+
     // Initialize logger FIRST
     logAdmin = new Logger('[ADMIN_LOGS]', 'ADMIN_LOGS');
     logAdmin.info('Страница системных логов загружена');
 
+    // Check if CalendarWidget is available
+    if (typeof CalendarWidget === 'undefined') {
+        logAdmin.error('CalendarWidget класс не найден!');
+        console.error('[ADMIN_LOGS] CalendarWidget class not found!');
+        alert('Ошибка: CalendarWidget не загружен. Проверьте консоль.');
+        return;
+    }
+
+    // Check if DateFormatter is available
+    if (typeof DateFormatter === 'undefined') {
+        logAdmin.error('DateFormatter класс не найден!');
+        console.error('[ADMIN_LOGS] DateFormatter class not found!');
+        alert('Ошибка: DateFormatter не загружен. Проверьте консоль.');
+        return;
+    }
+
     // Initialize calendar widget
-    initializeCalendar();
+    try {
+        initializeCalendar();
+    } catch (error) {
+        logAdmin.error('Ошибка инициализации календаря:', error);
+        console.error('[ADMIN_LOGS] Calendar initialization error:', error);
+    }
 
     // Setup event listeners for buttons
     document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
@@ -419,6 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-reset').addEventListener('click', resetFilters);
 
     // Load initial logs
+    logAdmin.info('Загрузка начальных логов...');
     refreshLogs();
 });
 </script>
