@@ -363,6 +363,20 @@ html.offline-mode .save-btn:hover {
 
 /* FAB Toolbar - fixed bottom toolbar with safe-area support */
 .fab-toolbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background-color: oklch(var(--b1));
+    border-top: 1px solid oklch(var(--bc) / 0.2);
+    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+
+    /* Safe-area padding */
+    padding-bottom: var(--safe-area-inset-bottom);
+    padding-left: var(--safe-area-inset-left);
+    padding-right: var(--safe-area-inset-right);
+
     /* GPU acceleration for smooth animations */
     transform: translateZ(0);
     -webkit-backface-visibility: hidden;
@@ -372,14 +386,32 @@ html.offline-mode .save-btn:hover {
     -webkit-overflow-scrolling: touch;
 }
 
-.fab-toolbar .btn {
-    /* Touch-friendly minimum size (WCAG 2.1 Level AAA) */
-    min-height: 48px;
+/* FAB Toolbar container - flex layout with centered content */
+.fab-toolbar-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
+/* FAB buttons - consistent sizing */
+.fab-toolbar .btn {
+    min-height: 48px;
+    min-width: 64px;
+    flex-shrink: 0;
+}
+
+/* Dropdown menu above toolbar */
 .fab-toolbar .dropdown-content {
-    /* Ensure dropdown appears above toolbar */
     z-index: 60;
+}
+
+/* Button text - show on larger screens */
+.fab-btn-text {
+    display: inline;
 }
 
 /* Hide FAB on print */
@@ -396,10 +428,16 @@ html.offline-mode .save-btn:hover {
     }
 }
 
-/* Mobile optimization: smaller buttons on narrow screens */
+/* Mobile optimization: smaller buttons and icons */
 @media (max-width: 640px) {
+    .fab-toolbar-container {
+        gap: 0.25rem;
+        padding: 0.75rem 0.5rem;
+    }
+
     .fab-toolbar .btn {
         font-size: 0.875rem; /* 14px */
+        min-width: 56px;
         padding-left: 0.5rem;
         padding-right: 0.5rem;
     }
@@ -412,14 +450,19 @@ html.offline-mode .save-btn:hover {
 
 /* Hide button text on very narrow screens (icons only) */
 @media (max-width: 380px) {
-    .fab-toolbar .btn span {
+    .fab-btn-text {
         display: none !important;
+    }
+
+    .fab-toolbar .btn {
+        min-width: 48px;
     }
 }
 
 /* Tablet optimization: wider max-width */
 @media (min-width: 641px) and (max-width: 1023px) {
-    .fab-toolbar > div {
+    .fab-toolbar-container {
         max-width: 700px;
+        gap: 0.75rem;
     }
 }
