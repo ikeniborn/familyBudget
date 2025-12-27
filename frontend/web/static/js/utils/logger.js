@@ -62,6 +62,16 @@ class Logger {
     info(...args) {
         if (this.isLevelEnabled('info')) {
             console.log(this.prefix, ...args);
+
+            // Send to LogsCollector if available (for admin logs page)
+            if (window.logsCollector) {
+                window.logsCollector.captureLog(
+                    'info',
+                    this.prefix,
+                    args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '),
+                    new Date().toISOString()
+                );
+            }
         }
     }
 
@@ -72,6 +82,16 @@ class Logger {
     warn(...args) {
         if (this.isEnabled) {
             console.warn(this.prefix, ...args);
+
+            // Send to LogsCollector if available (for admin logs page)
+            if (window.logsCollector) {
+                window.logsCollector.captureLog(
+                    'warning',
+                    this.prefix,
+                    args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '),
+                    new Date().toISOString()
+                );
+            }
         }
     }
 
@@ -82,6 +102,16 @@ class Logger {
     error(...args) {
         // Errors always logged regardless of config
         console.error(this.prefix, ...args);
+
+        // Send to LogsCollector if available (for admin logs page)
+        if (window.logsCollector) {
+            window.logsCollector.captureLog(
+                'error',
+                this.prefix,
+                args.map(arg => typeof arg === 'object' ? JSON.stringify(arg) : String(arg)).join(' '),
+                new Date().toISOString()
+            );
+        }
     }
 
     /**
