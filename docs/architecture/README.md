@@ -26,6 +26,44 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-27: Admin Credentials & Timezone Configuration (v1.2)
+- **Change 1:** Fixed ADMIN_EMAIL/PASSWORD environment variables not passed to Docker container
+- **Problem:**
+  - Variables set in `/opt/budget/.env` but script logged "ADMIN_EMAIL or ADMIN_PASSWORD not set"
+  - `docker-compose.yml` had `ADMIN_TELEGRAM_ID` but missing `ADMIN_EMAIL` and `ADMIN_PASSWORD`
+  - Environment variables not passed from host `.env` to container environment
+- **Solution:**
+  - Added `ADMIN_EMAIL: ${ADMIN_EMAIL:-}` to docker-compose.yml backend environment (line 173)
+  - Added `ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}` to docker-compose.yml backend environment (line 174)
+  - Both variables optional (defaults to empty string if not set)
+- **Change 2:** Added interactive timezone configuration to setup.sh
+- **Problem:**
+  - No timezone selection during setup - always defaulted to UTC
+  - Users couldn't configure application timezone without manual .env editing
+  - Timezone affects timestamps, scheduled tasks, log entries
+- **Solution:**
+  - New function `configure_timezone()` in setup.sh (lines 1416-1469)
+  - Auto-detects system timezone from `/etc/timezone` or `timedatectl`
+  - Interactive prompt with common timezone examples
+  - Validates timezone format (Region/City or UTC)
+  - Saves to CONFIG["SYSTEM_TIMEZONE"] and writes to .env file
+  - Called in main() workflow after configure_redis() (line 1864)
+- **Files changed:**
+  - `docker-compose.yml` (+4 lines) - Added ADMIN_EMAIL/PASSWORD environment variables
+  - `setup.sh` (+57 lines) - Added configure_timezone() function + main() call + sed command
+  - `docs/architecture/README.md` (this changelog entry)
+- **Impact:**
+  - Admin user creation now works correctly (credentials passed to container)
+  - Users can interactively select timezone during setup
+  - Timezone configuration persistent in .env file
+  - Default remains UTC if user presses Enter without input
+- **Testing:**
+  - Bash syntax validation passed (`bash -n setup.sh`)
+  - Docker Compose validates successfully
+- **Related:** Closes gap in initial setup workflow - all essential configs now interactive
+
+---
+
 ### 2025-12-27: Admin User Creation Script Import Fix (v1.1)
 - **Change:** Fixed ModuleNotFoundError in create_admin_user.py when running inside Docker container
 - **Problem:** Script failed during deployment with error `ModuleNotFoundError: No module named 'backend'`

@@ -168,6 +168,10 @@ services:
 
       # Admin
       ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:?ADMIN_TELEGRAM_ID is required}
+      # Admin email/password authentication (optional - emergency access)
+      # Leave empty to disable email/password admin login
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
 
       # CORS (JSON array format for Pydantic Settings)
       CORS_ORIGINS: ${CORS_ORIGINS:-["https://${DOMAIN}","https://web.telegram.org","https://oauth.telegram.org"]}
