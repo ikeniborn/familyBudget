@@ -501,6 +501,7 @@
     <!-- Choices.js -->
     <link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=PLACEHOLDER">
     <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/static/css/modal-dropdowns-fix.min.css?v=PLACEHOLDER">
 
     <!-- Extra Styles (from child templates) -->
     {% block extra_styles %}{% endblock %}
@@ -1477,6 +1478,20 @@
 
             // Close when clicking outside
             document.addEventListener('click', (e) => {
+                // Ignore clicks inside modals
+                const isInsideModal = e.target.closest('.modal-box, [role="dialog"]');
+                if (isInsideModal) {
+                    console.log('[GLOBAL_CLICK] Ignoring click inside modal');
+                    return;
+                }
+
+                // Ignore clicks inside Choices dropdowns
+                const isInsideChoices = e.target.closest('.choices__list--dropdown, .choices__inner, .choices');
+                if (isInsideChoices) {
+                    console.log('[GLOBAL_CLICK] Ignoring click inside Choices dropdown');
+                    return;
+                }
+
                 if (isOpen && !menuDropdown.contains(e.target)) {
                     closeMenu();
                 }

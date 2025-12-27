@@ -1086,32 +1086,28 @@ class ChoicesCategoryTree {
                     categoryMapHasIt: previousSelectionId ? this.categoryMap.has(previousSelectionId) : 'N/A',
                     categoryStillAvailable,
                     isInitialFiltering,
-                    shouldPreserve: categoryStillAvailable && !isInitialFiltering,
+                    willPreserve: categoryStillAvailable,  // Always preserve if available (isInitialFiltering check removed)
                     categoryMapKeys: Array.from(this.categoryMap.keys()).slice(0, 10)
                 });
 
-                if (categoryStillAvailable && !isInitialFiltering) {
-                    // Category is available in new filtered list AND this is not initial filtering
-                    // Restore selection (user explicitly selected this category before changing FC)
-                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId}`);
+                if (categoryStillAvailable) {
+                    // ALWAYS preserve if category is available for new FC
+                    // This supports user workflow: Select category → Select FC → Category stays if compatible
+                    // The isInitialFiltering check was removed to allow this valid use case
+                    // "Phantom auto-selection" is already prevented by categoryStillAvailable check
+                    console.log(`[ChoicesCategoryTree] ✅ PRESERVING selection: ${previousSelectionId} (available in FC ${financialCenterId})`);
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
                 } else {
-                    // Don't preserve selection if:
-                    // - This is initial filtering (applying filter for first time)
-                    // - No previous selection
-                    // - Category not available in new filtered list
+                    // Only clear if category NOT available for new FC OR no previous selection
                     // Clear any auto-selection that Choices.js made
                     this.choices.removeActiveItems();
                     if (this.element) {
                         this.element.value = '';
                     }
-                    if (isInitialFiltering && previousSelectionId) {
-                        console.log(`[ChoicesCategoryTree] 🚫 NOT preserving selection on initial filter (previousId=${previousSelectionId})`);
-                        debugLog(`[ChoicesCategoryTree] Cleared phantom selection on initial filter: ${previousSelectionId}`);
-                    } else if (previousSelectionId) {
-                        console.log(`[ChoicesCategoryTree] ❌ RESET selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
-                        debugLog(`[ChoicesCategoryTree] Reset selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
+                    if (previousSelectionId) {
+                        console.log(`[ChoicesCategoryTree] ❌ CLEARING selection: category ${previousSelectionId} not available for FC ${financialCenterId}`);
+                        debugLog(`[ChoicesCategoryTree] Cleared selection (category ${previousSelectionId} not available for FC ${financialCenterId})`);
                     } else {
                         console.log(`[ChoicesCategoryTree] ℹ️ No previous selection - keeping empty`);
                         debugLog(`[ChoicesCategoryTree] No previous selection - keeping empty`);

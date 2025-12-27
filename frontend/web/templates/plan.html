@@ -1726,14 +1726,31 @@ async function loadFinancialCenters() {
             });
 
             // Add change listener to filter categories, cost centers AND reload plan hints when account changes
-            createSelect.addEventListener('change', async () => {
+            createSelect.addEventListener('change', async (e) => {
                 const fcId = createSelect.value ? parseInt(createSelect.value) : null;
+                console.log('[FC_CHANGE] Financial center changed in create plan modal:', {
+                    fcId: fcId,
+                    timestamp: new Date().toISOString()
+                });
+
+                // CRITICAL: Stop event propagation to prevent global listeners from interfering
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('[FC_CHANGE] Stopped event propagation');
+
                 // Filter categories by selected FC
                 if (createCategoryTreeSelect) {
+                    console.log('[FC_CHANGE] Updating category tree with new FC');
                     await createCategoryTreeSelect.updateFinancialCenter(fcId);
+                    console.log('[FC_CHANGE] Category tree updated successfully');
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_plan', fcId);
+
+                // Small delay to allow DOM to settle (mobile browser optimization)
+                await new Promise(resolve => setTimeout(resolve, 50));
+                console.log('[FC_CHANGE] DOM settled, category dropdown ready');
+
                 // Update plan hints
                 const selectedCategory = createCategoryTreeSelect ? createCategoryTreeSelect.getSelectedCategory() : null;
                 loadPlanHints(selectedCategory);
@@ -2550,19 +2567,30 @@ async function showEditModal(factId) {
         const newEditFcSelect = editFcSelect.cloneNode(true);
         editFcSelect.parentNode.replaceChild(newEditFcSelect, editFcSelect);
 
-        newEditFcSelect.addEventListener('change', async () => {
+        newEditFcSelect.addEventListener('change', async (e) => {
             const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
             console.log(`[plan.html] 🔄 Financial Center changed in edit modal:`, {
                 newFcId: fcId,
                 currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
             });
 
+            // CRITICAL: Stop event propagation to prevent global listeners from interfering
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            console.log('[FC_CHANGE] Stopped event propagation');
+
             // Filter categories by selected FC (will preserve selection if category is still available)
             if (editCategoryTreeSelect) {
+                console.log('[FC_CHANGE] Updating category tree with new FC');
                 await editCategoryTreeSelect.updateFinancialCenter(fcId);
+                console.log('[FC_CHANGE] Category tree updated successfully');
             }
             // Filter cost centers by selected FC
             await filterEditCostCenters(fcId);
+
+            // Small delay to allow DOM to settle (mobile browser optimization)
+            await new Promise(resolve => setTimeout(resolve, 50));
+            console.log('[FC_CHANGE] DOM settled, category dropdown ready');
 
             console.log(`[plan.html] ✅ Filtering complete. New category value:`,
                 editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);

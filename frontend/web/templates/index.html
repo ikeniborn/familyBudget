@@ -3373,12 +3373,18 @@ async function loadFinancialCenters() {
         // Add change listeners to filter categories AND cost centers when account changes
         const transactionFcSelect = document.querySelector('#form_modal_add_transaction select[name="financial_center_id"]');
         if (transactionFcSelect) {
-            transactionFcSelect.addEventListener('change', async () => {
+            transactionFcSelect.addEventListener('change', async (e) => {
                 const fcId = transactionFcSelect.value ? parseInt(transactionFcSelect.value) : null;
                 console.log('[FC_CHANGE] Financial center changed:', {
                     fcId: fcId,
                     timestamp: new Date().toISOString()
                 });
+
+                // CRITICAL: Stop event propagation to prevent global listeners from interfering
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('[FC_CHANGE] Stopped event propagation');
+
                 // Filter categories by selected FC
                 if (transactionCategoryTreeSelect) {
                     console.log('[FC_CHANGE] Updating category tree with new FC');
@@ -3387,6 +3393,11 @@ async function loadFinancialCenters() {
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_transaction', fcId);
+
+                // Small delay to allow DOM to settle (mobile browser optimization)
+                await new Promise(resolve => setTimeout(resolve, 50));
+                console.log('[FC_CHANGE] DOM settled, category dropdown ready');
+
                 // Update fact hints for current month
                 const selectedCategory = transactionCategoryTreeSelect ? transactionCategoryTreeSelect.getSelectedCategory() : null;
                 loadFactHints(selectedCategory);
@@ -3395,14 +3406,31 @@ async function loadFinancialCenters() {
 
         const planFcSelect = document.querySelector('#form_modal_add_plan select[name="financial_center_id"]');
         if (planFcSelect) {
-            planFcSelect.addEventListener('change', async () => {
+            planFcSelect.addEventListener('change', async (e) => {
                 const fcId = planFcSelect.value ? parseInt(planFcSelect.value) : null;
+                console.log('[FC_CHANGE] Financial center changed in plan modal:', {
+                    fcId: fcId,
+                    timestamp: new Date().toISOString()
+                });
+
+                // CRITICAL: Stop event propagation to prevent global listeners from interfering
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('[FC_CHANGE] Stopped event propagation');
+
                 // Filter categories by selected FC
                 if (planCategoryTreeSelect) {
+                    console.log('[FC_CHANGE] Updating category tree with new FC');
                     await planCategoryTreeSelect.updateFinancialCenter(fcId);
+                    console.log('[FC_CHANGE] Category tree updated successfully');
                 }
                 // Filter cost centers by selected FC
                 await filterCostCenterDropdown('#form_modal_add_plan', fcId);
+
+                // Small delay to allow DOM to settle (mobile browser optimization)
+                await new Promise(resolve => setTimeout(resolve, 50));
+                console.log('[FC_CHANGE] DOM settled, category dropdown ready');
+
                 // Update plan hints
                 const selectedCategory = planCategoryTreeSelect ? planCategoryTreeSelect.getSelectedCategory() : null;
                 loadPlanHints(selectedCategory);

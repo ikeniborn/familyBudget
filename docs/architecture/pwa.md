@@ -1654,6 +1654,62 @@ Modal uses existing mobile CSS patterns (90dvh, overflow-y: auto) to ensure clos
 
 ---
 
+## Mobile Menu Pattern for Secondary Pages
+
+### Overview
+
+Secondary pages (e.g., `/lists`) use custom mobile menus that differ from main app navigation while maintaining DaisyUI component structure and z-index hierarchy.
+
+### Implementation Pattern
+
+**Structure:**
+- DaisyUI `btm-nav` for bottom navigation
+- DaisyUI `dropdown` for expandable menus
+- Hide on desktop via `md:hidden`
+- Body/content padding to prevent overlap
+
+**Example** (`lists.html`):
+```html
+<div class="btm-nav md:hidden z-50" id="page-mobile-menu">
+  <button onclick="navigateHome()">Home</button>
+  <div class="dropdown dropdown-top dropdown-end">
+    <label tabindex="0">Add</label>
+    <ul class="dropdown-content menu">
+      <li><a onclick="openModal('modal_1')">Option 1</a></li>
+    </ul>
+  </div>
+</div>
+
+<style>
+  @media (max-width: 768px) {
+    #page-content { padding-bottom: 5rem; }
+    .modal-open #page-mobile-menu { z-index: 40; }
+  }
+</style>
+```
+
+### Z-Index Management
+
+**CRITICAL**: Mobile menu must lower z-index when modal is open to prevent overlap.
+
+**Hierarchy**:
+- Modal backdrop: `z-index: 1000`
+- Modal content: `z-index: 1001`
+- Choices dropdown (in modal): `z-index: 1050`
+- Mobile menu (normal): `z-index: 50`
+- Mobile menu (modal open): `z-index: 40`
+
+### Testing Checklist
+
+- [ ] Menu visible only on mobile (<768px)
+- [ ] Dropdown opens upward (dropdown-top)
+- [ ] No content overlap (body padding)
+- [ ] Z-index lowers when modal opens
+- [ ] Touch events work on iOS Safari
+- [ ] PWA installed mode works correctly
+
+---
+
 ## WebSocket RTT-Based Slow Connection Detection (v6.5.0+)
 
 ### Overview
