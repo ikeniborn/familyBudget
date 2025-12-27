@@ -1037,6 +1037,103 @@ if (data.session_token && data.requires_2fa) {
 
 **See**: `/docs/architecture/authentication.md` for complete architecture and `/docs/architecture/admin-setup.md` for setup guide.
 
+### WebAuthn Biometric Authentication (v6.5.0+)
+
+**Since version 6.5.0**: Users can enable WebAuthn biometric authentication (TouchID/FaceID/Windows Hello) as an additional login method.
+
+**Purpose**: Provide passwordless biometric login while maintaining backward compatibility with existing authentication methods (Telegram OAuth, Email+Password).
+
+**Architecture**: WebAuthn as **optional parallel method** (NOT replacing existing flows)
+
+**Supported Authenticators**: Platform authenticators only (TouchID, FaceID, Windows Hello - no hardware keys like YubiKey)
+
+**User Flow**:
+1. User registers via Telegram OAuth OR Email+Password (existing flows)
+2. After login, navigate to Settings → Security → "Добавить биометрию"
+3. WebAuthn credential enrolled (public key stored in database)
+4. Next login: Identifier-first approach shows available methods (WebAuthn button if enrolled)
+5. User clicks "Use TouchID/FaceID" → biometric prompt → logged in
+
+**Database Tables**:
+- `t_d_webauthn_credential` - Public keys, sign counts, device metadata
+- `t_f_webauthn_challenge` - Temporary challenges (10-min TTL, single-use)
+- `t_f_webauthn_audit_log` - Comprehensive audit trail
+
+**API Endpoints** (`backend/app/api/v1/endpoints/webauthn.py`):
+- `POST /api/v1/webauthn/register/options` - Generate registration challenge (requires JWT, 5 req/min)
+- `POST /api/v1/webauthn/register/verify` - Verify credential registration (requires JWT, 5 req/min)
+- `POST /api/v1/webauthn/authenticate/options` - Generate auth challenge (public, 10 req/min)
+- `POST /api/v1/webauthn/authenticate/verify` - Verify auth and issue JWT tokens (public, 10 req/min)
+- `GET /api/v1/webauthn/credentials` - List user's credentials (requires JWT)
+- `DELETE /api/v1/webauthn/credentials/{credential_id}` - Revoke credential (requires JWT + password/TOTP)
+- `GET /api/v1/auth/methods?identifier=email` - Check available auth methods (public)
+
+**Security Features**:
+- **Challenge-response**: 10-min expiry, single-use, ownership validation
+- **Sign count validation**: Detects cloned credentials (auto-revoke on regression)
+- **Origin validation**: Prevents phishing (RP ID verification)
+- **Audit logging**: All registration/authentication events logged
+- **Rate limiting**: 5-10 requests/minute depending on endpoint
+
+**Browser Support**:
+| Browser | Platform | Support |
+|---------|----------|---------|
+| Safari 14+ | iOS 14+ | ✅ TouchID / FaceID |
+| Chrome 70+ | Android 9+ | ✅ Fingerprint / Face |
+| Chrome 90+ | macOS | ✅ TouchID |
+| Edge 90+ | Windows 10+ | ✅ Windows Hello |
+
+**Configuration** (`.env`):
+```bash
+# Production
+WEBAUTHN_RP_ID=familybudget.example.com
+WEBAUTHN_RP_NAME="Family Budget"
+WEBAUTHN_ORIGIN=https://familybudget.example.com
+
+# Development
+WEBAUTHN_RP_ID=localhost
+WEBAUTHN_ORIGIN=http://localhost:8000
+```
+
+**Code Example** (service layer):
+```python
+# backend/app/services/webauthn_service.py
+
+# Registration
+options = await create_registration_challenge(session, user, ip, user_agent)
+credential = await verify_and_store_credential(
+    session, user, challenge, credential_data, device_name, ip, user_agent
+)
+
+# Authentication
+options = await create_authentication_challenge(session, identifier)
+user, access_token, refresh_token = await verify_authentication_and_issue_tokens(
+    session, challenge, credential_data, ip, user_agent
+)
+
+# Sign count regression detection (cloned credential)
+if new_sign_count > 0 and new_sign_count <= stored_count:
+    logger.critical("[WEBAUTHN_SERVICE] ⚠️ CLONED CREDENTIAL DETECTED")
+    cred.is_revoked = True  # Auto-revoke
+    await broadcast_webauthn_credential_compromised(user.id, credential_id, "sign_count_regression")
+    raise ValueError("Credential compromised")
+```
+
+**WebSocket Integration** (`backend/app/api/v1/endpoints/budget_ws.py`):
+- `webauthn_credential_added` - Real-time notification after credential registration
+- `webauthn_credential_revoked` - Real-time notification after credential deletion
+- `webauthn_credential_compromised` - Security alert for cloned credentials (includes push notification)
+
+**Scheduled Cleanup** (`backend/app/scheduler.py`):
+- Hourly job to delete expired challenges (10-min TTL)
+- Prevents table bloat in `t_f_webauthn_challenge`
+
+**Troubleshooting**:
+- **"NotAllowedError" on iOS**: User gesture timeout (iOS Safari 15.5+ freebie counter quirk) - Fix: Call `navigator.credentials.get()` directly in click handler
+- **"Credential compromised"**: Sign count regression (cloned authenticator detected) - Fix: Credential auto-revoked, user must use password/Telegram and re-register
+
+**See**: Plan file at `.claude/plans/giggly-imagining-puffin.md` for complete implementation details.
+
 ### User Notification Preferences (v6.4.0+)
 
 **Since version 6.4.0**: Users can independently control Web Push and Telegram bot notifications.
