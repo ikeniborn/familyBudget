@@ -44,14 +44,16 @@ class LogsCollectorService:
     postgres_logs: deque = deque(maxlen=500)
     nginx_logs: deque = deque(maxlen=500)
 
-    # Service name mapping
-    SERVICE_NAMES = {
-        'browser': browser_logs,
-        'backend': backend_logs,
-        'bot': bot_logs,
-        'postgres': postgres_logs,
-        'nginx': nginx_logs
-    }
+    @property
+    def SERVICE_NAMES(self):
+        """Get service name to deque mapping (dynamic property)."""
+        return {
+            'browser': self.browser_logs,
+            'backend': self.backend_logs,
+            'bot': self.bot_logs,
+            'postgres': self.postgres_logs,
+            'nginx': self.nginx_logs
+        }
 
     # Sensitive data patterns (regex)
     SENSITIVE_PATTERNS = [
