@@ -183,6 +183,8 @@
 // IMPORTANT: Declare logger at the very beginning to avoid initialization errors
 let logAdmin;
 let logCalendar = null;
+let autoRefreshInterval = null;
+const AUTO_REFRESH_INTERVAL_MS = 10000; // 10 seconds auto-refresh
 
 /**
  * Escape HTML to prevent XSS
@@ -403,6 +405,39 @@ function initializeCalendar() {
 }
 
 /**
+ * Start auto-refresh timer
+ */
+function startAutoRefresh() {
+    // Stop existing timer if any
+    stopAutoRefresh();
+
+    if (logAdmin) {
+        logAdmin.info(`Запуск автообновления каждые ${AUTO_REFRESH_INTERVAL_MS / 1000} секунд`);
+    }
+
+    // Set up interval
+    autoRefreshInterval = setInterval(() => {
+        if (logAdmin) {
+            logAdmin.debug('Автообновление логов...');
+        }
+        refreshLogs();
+    }, AUTO_REFRESH_INTERVAL_MS);
+}
+
+/**
+ * Stop auto-refresh timer
+ */
+function stopAutoRefresh() {
+    if (autoRefreshInterval) {
+        if (logAdmin) {
+            logAdmin.info('Остановка автообновления');
+        }
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+    }
+}
+
+/**
  * Initialize page
  */
 document.addEventListener('DOMContentLoaded', () => {
@@ -451,6 +486,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load initial logs
     logAdmin.info('Загрузка начальных логов...');
     refreshLogs();
+
+    // Start auto-refresh timer
+    startAutoRefresh();
+
+    // Stop auto-refresh when page is hidden
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            logAdmin.info('Страница скрыта - остановка автообновления');
+            stopAutoRefresh();
+        } else {
+            logAdmin.info('Страница видима - запуск автообновления');
+            refreshLogs(); // Immediate refresh
+            startAutoRefresh();
+        }
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+        stopAutoRefresh();
+    });
 });
 </script>
 {% endblock %}

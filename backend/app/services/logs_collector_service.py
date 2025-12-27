@@ -97,8 +97,11 @@ class LogsCollectorService:
             # Convert "1h", "30m" format to seconds for Docker API
             since_seconds = self._parse_since_to_seconds(since)
 
-            # Connect to Docker daemon via socket
-            client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+            # Connect to Docker daemon via socket with timeout
+            client = docker.DockerClient(
+                base_url='unix://var/run/docker.sock',
+                timeout=30  # 30 seconds timeout (prevent hanging)
+            )
 
             # Get container name (compose adds project prefix)
             container_name = f"familybudget-{service}"
@@ -292,9 +295,9 @@ class LogsCollectorService:
         else:
             services_to_collect = [service]
 
-        # Collect Docker logs asynchronously
+        # Collect Docker logs asynchronously (reduced tail for performance)
         for svc in services_to_collect:
-            docker_logs = await self.collect_docker_logs(svc, since="1h", tail=500)
+            docker_logs = await self.collect_docker_logs(svc, since="5m", tail=100)
 
             # Store in appropriate deque
             if svc == "backend":
