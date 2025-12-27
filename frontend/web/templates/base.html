@@ -679,17 +679,32 @@
                 </div>
             </div>
 
-            <!-- Push Notification Bell Button -->
+            <!-- Push Bell Button (visual indicator with navigation to settings) -->
             <div id="push-bell-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center">
                 <button id="push-bell-btn"
                         class="btn btn-ghost btn-circle btn-sm sm:btn-md hidden"
-                        onclick="window.budgetPushManager && window.budgetPushManager.toggleSubscription()"
-                        aria-label="Управление push-уведомлениями">
-                    <svg id="push-bell-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                        onclick="navigateToNotificationSettings()"
+                        aria-label="Настройки уведомлений">
+                    <svg id="push-bell-icon"
+                         xmlns="http://www.w3.org/2000/svg"
+                         class="h-5 w-5 sm:h-6 sm:w-6"
+                         fill="none"
+                         viewBox="0 0 24 24"
+                         stroke="currentColor"
+                         stroke-width="1.5">
+                        <!-- Enabled bell icon (default) -->
+                        <path id="bell-enabled-icon"
+                              stroke-linecap="round" stroke-linejoin="round"
+                              d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+
+                        <!-- Muted bell icon (shown when disabled, hidden by default) -->
+                        <path id="bell-muted-icon"
+                              style="display: none;"
+                              stroke-linecap="round" stroke-linejoin="round"
+                              d="M9.143 17.082a23.848 23.848 0 0 0 5.714 0m-5.714 0a24.255 24.255 0 0 1-5.714 0M9.143 17.082a3 3 0 1 1 5.714 0m-9.143-7.332A6 6 0 0 1 6 9.75V9a6 6 0 0 1 6-6 5.985 5.985 0 0 1 4.243 1.757M18 9.75V9a5.985 5.985 0 0 0-1.757-4.243M21 21L3 3" />
                     </svg>
                 </button>
-                <span id="push-bell-tooltip" class="hidden">Push-уведомления</span>
+                <span id="push-bell-tooltip" class="hidden">Настройки уведомлений</span>
             </div>
 
             <!-- Budget WebSocket Status Indicator (real-time sync status) -->
@@ -1561,6 +1576,54 @@
         window.offlineManager = new OfflineManager();
         // budgetPushManager singleton уже создан в pushManager.js
 
+        // ============================================================================
+        // Push Bell Button State Management
+        // ============================================================================
+
+        // Navigate to notification settings
+        function navigateToNotificationSettings() {
+            window.location.href = '/notifications';
+        }
+
+        // Update push bell button state
+        async function updatePushBellState() {
+            try {
+                const response = await fetch('/api/v1/users/me', { credentials: 'include' });
+                if (!response.ok) {
+                    console.warn('[PUSH_BELL] Failed to fetch user preferences');
+                    return;
+                }
+
+                const user = await response.json();
+                const pushEnabled = user.enable_push_notifications ?? true;
+
+                console.log('[PUSH_BELL] User push preference:', pushEnabled);
+
+                const bellButton = document.getElementById('push-bell-btn');
+                const enabledIcon = document.getElementById('bell-enabled-icon');
+                const mutedIcon = document.getElementById('bell-muted-icon');
+                const tooltip = document.getElementById('push-bell-tooltip');
+
+                if (!bellButton) return;
+
+                if (pushEnabled) {
+                    // Enabled state
+                    enabledIcon.style.display = 'block';
+                    mutedIcon.style.display = 'none';
+                    bellButton.classList.remove('text-base-content/50');
+                    tooltip.textContent = 'Настройки уведомлений (вкл)';
+                } else {
+                    // Disabled state (muted bell)
+                    enabledIcon.style.display = 'none';
+                    mutedIcon.style.display = 'block';
+                    bellButton.classList.add('text-base-content/50');
+                    tooltip.textContent = 'Настройки уведомлений (выкл)';
+                }
+            } catch (error) {
+                console.error('[PUSH_BELL] Error updating bell state:', error);
+            }
+        }
+
         // Initialize on load
         document.addEventListener('DOMContentLoaded', async () => {
             // Helper to log to budgetWSClient history (visible in diagnostic tap)
@@ -1581,6 +1644,9 @@
                 initLog('push_mgr_start');
                 await window.budgetPushManager.init();
                 initLog('push_mgr_done');
+
+                // Update push bell button state (after slight delay to ensure DOM is ready)
+                setTimeout(updatePushBellState, 1000);
 
                 // Initialize Budget WebSocket for real-time updates
                 initLog('ws_check');

@@ -1037,6 +1037,78 @@ if (data.session_token && data.requires_2fa) {
 
 **See**: `/docs/architecture/authentication.md` for complete architecture and `/docs/architecture/admin-setup.md` for setup guide.
 
+### User Notification Preferences (v6.4.0+)
+
+**Since version 6.4.0**: Users can independently control Web Push and Telegram bot notifications.
+
+**Purpose**: Give users fine-grained control over notification delivery channels while maintaining backward compatibility.
+
+**Architecture**: Two boolean fields in User model (SCD Type 1 + UserHistory):
+- `enable_push_notifications` (default: TRUE)
+- `enable_telegram_notifications` (default: TRUE)
+
+**Storage**: User table (`t_d_user`) with partial index for performance:
+```sql
+CREATE INDEX idx_user_notifications_enabled
+ON t_d_user(id)
+WHERE enable_push_notifications = TRUE OR enable_telegram_notifications = TRUE;
+```
+
+**API Endpoint**: `PATCH /api/v1/users/me/notification-preferences`
+
+**Example Usage**:
+```bash
+# Disable Web Push, keep Telegram enabled
+curl -X PATCH "/api/v1/users/me/notification-preferences?enable_push=false&enable_telegram=true" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Notification Filtering**: Applied in service layer BEFORE sending notifications:
+
+**NotificationService** (`backend/app/services/notification_service.py`):
+- `send_weekly_reports()`: Checks `enable_telegram_notifications` before sending
+- `check_all_budget_thresholds()`: Filters telegram_ids by preference
+
+**ReminderService** (`backend/app/services/reminder_service.py`):
+- `send_reminder()`: Checks BOTH `enable_push_notifications` and `enable_telegram_notifications` before sending
+- Optimization: Checks preferences at `send_reminder()` level (user already loaded) to avoid duplicate DB queries
+
+**Frontend Implementation**:
+
+1. **Notifications Page** (`/notifications`):
+   - Accessible on mobile devices (removed desktop-only restriction)
+   - Settings section with 2 DaisyUI toggles (Push + Telegram)
+   - Auto-save on toggle change via API
+   - Success/error messages with 3-second auto-hide
+   - Notifications List hidden on mobile (`hidden md:block`)
+
+2. **Push Bell Button** (`base.html`):
+   - Visual indicator only (NOT toggle)
+   - Shows enabled bell OR muted bell icon based on `enable_push_notifications`
+   - onclick navigates to `/notifications` page
+   - Tooltip changes: "Настройки уведомлений (вкл)" / "(выкл)"
+   - Reduced opacity (50%) when disabled
+
+**Logging Prefixes**:
+- `[USER_PREF]` - API preference updates
+- `[NOTIF_FILTER]` - Service layer filtering (skipped users)
+- `[NOTIF_SETTINGS]` - Frontend settings page
+- `[PUSH_BELL]` - Frontend bell button state
+
+**Affected Notifications**: ALL notification types respect preferences (v6.4.0+):
+- `budget_threshold` - Budget threshold alerts
+- `budget_exceeded` - Budget exceeded warnings
+- `weekly_report` - Weekly summaries
+- `plan_reminder` - Scheduled reminders
+
+**Scope**: Applies to ALL notifications including existing `ScheduledReminder` records (checked at send time, not creation time).
+
+**Backward Compatibility**: Default values TRUE for both fields → Existing users receive all notifications as before (opt-out model).
+
+**Edge Case**: If user disables BOTH channels → No notifications sent (allowed, UI should show warning).
+
+**See**: `/docs/architecture/notifications.md` for complete architecture, testing strategy, and deployment guide.
+
 ### Recurring Plans: Yearly Frequency Encoding
 
 **Since version 6.2.0**: Yearly recurring plans use MMDD encoding for `frequency_value`.

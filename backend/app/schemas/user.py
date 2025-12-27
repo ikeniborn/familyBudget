@@ -164,6 +164,18 @@ class UserUpdate(BaseModel):
         examples=[True, False]
     )
 
+    enable_push_notifications: Optional[bool] = Field(
+        default=None,
+        description="Enable Web Push notifications for this user",
+        examples=[True, False]
+    )
+
+    enable_telegram_notifications: Optional[bool] = Field(
+        default=None,
+        description="Enable Telegram bot notifications for this user",
+        examples=[True, False]
+    )
+
 
 class UserResponse(BaseModel):
     """
@@ -241,6 +253,18 @@ class UserResponse(BaseModel):
         examples=[True, False]
     )
 
+    enable_push_notifications: bool = Field(
+        default=True,
+        description="Enable Web Push notifications for this user",
+        examples=[True, False]
+    )
+
+    enable_telegram_notifications: bool = Field(
+        default=True,
+        description="Enable Telegram bot notifications for this user",
+        examples=[True, False]
+    )
+
     merged_into_user_id: Optional[int] = Field(
         default=None,
         description="Target user ID if this account was merged into another",
@@ -283,6 +307,8 @@ class UserResponse(BaseModel):
                 "photo_url": "/static/avatars/1.jpg",
                 "is_admin": False,
                 "is_active": True,
+                "enable_push_notifications": True,
+                "enable_telegram_notifications": True,
                 "last_login_at": "2025-11-14T10:30:00Z",
                 "created_at": "2025-10-13T12:00:00Z",
                 "updated_at": "2025-10-13T12:00:00Z"
@@ -367,6 +393,18 @@ class UserHistoryResponse(BaseModel):
         default=None,
         description="Last login at time of change (snapshot)",
         examples=["2025-11-14T10:30:00Z"]
+    )
+
+    enable_push_notifications: Optional[bool] = Field(
+        default=None,
+        description="Push notifications preference at time of change (snapshot)",
+        examples=[True, False]
+    )
+
+    enable_telegram_notifications: Optional[bool] = Field(
+        default=None,
+        description="Telegram notifications preference at time of change (snapshot)",
+        examples=[True, False]
     )
 
     # SCD Type 2 fields (temporal validity)

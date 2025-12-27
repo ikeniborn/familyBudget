@@ -335,21 +335,34 @@ class ReminderService:
             financial_center_name=financial_center_name,
         )
 
-        # Send Telegram notification
+        # Send Telegram notification (check user preference)
         telegram_sent = False
         if user.telegram_id:
-            telegram_sent = await self._send_telegram(user.telegram_id, message)
-            reminder.telegram_sent = telegram_sent
+            if user.enable_telegram_notifications:
+                telegram_sent = await self._send_telegram(user.telegram_id, message)
+                reminder.telegram_sent = telegram_sent
+            else:
+                logger.info(
+                    f"[NOTIF_FILTER] Skipping Telegram reminder for user {user.id}: "
+                    "Telegram notifications disabled"
+                )
 
-        # Send Web Push notification
-        web_push_sent = await self._send_web_push_to_user(
-            session=session,
-            user_id=user.id,
-            title="Напоминание о плане",
-            body=message,
-            fact_id=fact.id,
-        )
-        reminder.web_push_sent = web_push_sent
+        # Send Web Push notification (check user preference)
+        web_push_sent = False
+        if user.enable_push_notifications:
+            web_push_sent = await self._send_web_push_to_user(
+                session=session,
+                user_id=user.id,
+                title="Напоминание о плане",
+                body=message,
+                fact_id=fact.id,
+            )
+            reminder.web_push_sent = web_push_sent
+        else:
+            logger.info(
+                f"[NOTIF_FILTER] Skipping Web Push reminder for user {user.id}: "
+                "Push notifications disabled"
+            )
 
         # Update reminder status
         if telegram_sent or web_push_sent:

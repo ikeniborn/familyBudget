@@ -7,17 +7,64 @@
 {% endblock %}
 
 {% block content %}
-<!-- Mobile restriction alert (from macro) -->
-{{ mobile_restriction_alert() }}
-
-<!-- Main content (hidden on mobile) -->
-<div class="hidden md:block space-y-6">
+<!-- Main content (NOW VISIBLE ON ALL DEVICES) -->
+<div class="space-y-6">
     <!-- Page Header -->
     <div class="mb-6">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <h1 class="text-3xl font-bold mb-2">🔔 История уведомлений</h1>
                 <p class="text-base-content/70">Просмотр бюджетных уведомлений и оповещений о превышении лимитов</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Settings Section -->
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body">
+            <h2 class="card-title text-2xl mb-4">⚙️ Настройки уведомлений</h2>
+
+            <!-- Loading Indicator -->
+            <div id="settings-loading" class="flex justify-center py-4">
+                <span class="loading loading-spinner loading-md"></span>
+            </div>
+
+            <!-- Settings Form -->
+            <div id="settings-form" style="display: none;">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Push Toggle -->
+                    <div class="form-control">
+                        <label class="label cursor-pointer justify-start gap-4">
+                            <input type="checkbox"
+                                   id="enable-push"
+                                   class="toggle toggle-primary toggle-lg"
+                                   onchange="saveNotificationPreferences()" />
+                            <div>
+                                <span class="label-text font-semibold text-lg">🔔 Push-уведомления</span>
+                                <p class="text-sm text-base-content/60">Браузерные уведомления</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Telegram Toggle -->
+                    <div class="form-control">
+                        <label class="label cursor-pointer justify-start gap-4">
+                            <input type="checkbox"
+                                   id="enable-telegram"
+                                   class="toggle toggle-primary toggle-lg"
+                                   onchange="saveNotificationPreferences()" />
+                            <div>
+                                <span class="label-text font-semibold text-lg">📱 Telegram уведомления</span>
+                                <p class="text-sm text-base-content/60">Сообщения от бота</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Status Message -->
+                <div id="settings-status" class="alert mt-4" style="display: none;">
+                    <span id="settings-status-text"></span>
+                </div>
             </div>
         </div>
     </div>
@@ -117,8 +164,8 @@
         </div>
     </div>
 
-    <!-- Notifications List -->
-    <div class="card bg-base-100 shadow-lg">
+    <!-- Notifications List (desktop only) -->
+    <div class="hidden md:block card bg-base-100 shadow-lg">
         <div class="card-body">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                 <h2 class="card-title text-2xl">📜 Список уведомлений</h2>
@@ -495,6 +542,105 @@ function showError(message) {
         <p class="text-base-content/70">${message}</p>
     `;
     emptyState.style.display = 'block';
+}
+
+// ============================================================================
+// Notification Preferences Management
+// ============================================================================
+
+// Global state
+let currentPreferences = { enable_push: false, enable_telegram: false };
+
+// Load preferences on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadNotificationPreferences();
+    loadNotifications();
+});
+
+// Load preferences from API
+async function loadNotificationPreferences() {
+    try {
+        console.log('[NOTIF_SETTINGS] Loading notification preferences...');
+
+        const response = await fetch('/api/v1/users/me', { credentials: 'include' });
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const user = await response.json();
+        currentPreferences.enable_push = user.enable_push_notifications ?? true;
+        currentPreferences.enable_telegram = user.enable_telegram_notifications ?? true;
+
+        console.log('[NOTIF_SETTINGS] Loaded preferences:', currentPreferences);
+
+        // Update UI
+        document.getElementById('enable-push').checked = currentPreferences.enable_push;
+        document.getElementById('enable-telegram').checked = currentPreferences.enable_telegram;
+
+        // Show form
+        document.getElementById('settings-loading').style.display = 'none';
+        document.getElementById('settings-form').style.display = 'block';
+    } catch (error) {
+        console.error('[NOTIF_SETTINGS] Error loading preferences:', error);
+        showSettingsStatus('Ошибка загрузки настроек', 'error');
+        document.getElementById('settings-loading').style.display = 'none';
+        document.getElementById('settings-form').style.display = 'block';
+    }
+}
+
+// Save preferences to API
+async function saveNotificationPreferences() {
+    try {
+        const enablePush = document.getElementById('enable-push').checked;
+        const enableTelegram = document.getElementById('enable-telegram').checked;
+
+        console.log('[NOTIF_SETTINGS] Saving preferences:', { enablePush, enableTelegram });
+
+        const params = new URLSearchParams({
+            enable_push: enablePush,
+            enable_telegram: enableTelegram
+        });
+
+        const response = await fetch(`/api/v1/users/me/notification-preferences?${params}`, {
+            method: 'PATCH',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || `HTTP ${response.status}`);
+        }
+
+        const user = await response.json();
+        currentPreferences.enable_push = user.enable_push_notifications;
+        currentPreferences.enable_telegram = user.enable_telegram_notifications;
+
+        console.log('[NOTIF_SETTINGS] Preferences saved successfully');
+        showSettingsStatus('✓ Настройки сохранены', 'success');
+
+    } catch (error) {
+        console.error('[NOTIF_SETTINGS] Error saving preferences:', error);
+        showSettingsStatus('⚠ Ошибка: ' + error.message, 'error');
+
+        // Revert UI to previous state
+        document.getElementById('enable-push').checked = currentPreferences.enable_push;
+        document.getElementById('enable-telegram').checked = currentPreferences.enable_telegram;
+    }
+}
+
+// Show status message
+function showSettingsStatus(message, type) {
+    const statusDiv = document.getElementById('settings-status');
+    const statusText = document.getElementById('settings-status-text');
+
+    statusText.textContent = message;
+    statusDiv.className = `alert mt-4 ${type === 'success' ? 'alert-success' : 'alert-error'}`;
+    statusDiv.style.display = 'flex';
+
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        statusDiv.style.display = 'none';
+    }, 3000);
 }
 </script>
 {% endblock %}
