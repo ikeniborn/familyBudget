@@ -1338,12 +1338,17 @@ async function openEditFromDashboard(factId) {
                 console.log('[openEditFromDashboard] Restored FC value after clone:', newEditFcSelect.value);
             }
 
-            newEditFcSelect.addEventListener('change', async () => {
+            newEditFcSelect.addEventListener('change', async (e) => {
                 const fcId = newEditFcSelect.value ? parseInt(newEditFcSelect.value) : null;
                 console.log(`[index.html] 🔄 Financial Center changed in edit modal:`, {
                     newFcId: fcId,
                     currentCategoryValue: editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null
                 });
+
+                // CRITICAL: Stop event propagation to prevent global listeners from interfering
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                console.log('[FC_CHANGE] Stopped event propagation');
 
                 // Filter categories by selected FC (will preserve selection if category is still available)
                 if (editCategoryTreeSelect) {
@@ -1351,6 +1356,10 @@ async function openEditFromDashboard(factId) {
                 }
                 // Filter cost centers by selected FC
                 await filterEditCostCenters(fcId);
+
+                // Small delay to allow DOM to settle (mobile browser optimization)
+                await new Promise(resolve => setTimeout(resolve, 50));
+                console.log('[FC_CHANGE] DOM settled, category dropdown ready');
 
                 console.log(`[index.html] ✅ Filtering complete. New category value:`,
                     editCategoryTreeSelect ? (editCategoryTreeSelect.element ? editCategoryTreeSelect.element.value : null) : null);
@@ -2816,6 +2825,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     } else {
                         showToast(`Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`, 'success');
                         debugLog('[index.html createPlan] Recurring plan created:', result);
+                        // Update pending records table (to show new plans with reminders)
+                        loadPendingRecords();
                         // Update recent records table
                         htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                             target: '#recent-transactions',
@@ -2854,6 +2865,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         showToast(`Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`, 'success');
                         debugLog('[index.html createPlan] Recurring plan created:', createdPlan);
 
+                        // Update pending records table (to show new plans with reminders)
+                        loadPendingRecords();
                         // Update recent records table
                         htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
                             target: '#recent-transactions',

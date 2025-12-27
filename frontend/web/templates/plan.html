@@ -4334,10 +4334,11 @@ function resetRecurringOnlyFields(modalId) {
     if (monthdaySelect) monthdaySelect.value = '1';
 
     const durationSelect = document.querySelector(`#${modalId} select[name="duration_type"]`);
-    if (durationSelect) durationSelect.value = ''; // Reset to empty (no selection)
+    if (durationSelect) durationSelect.value = 'count'; // Default to count (not empty)
 
-    document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
-    document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
+    // Don't hide fields here - let updateDurationFields() handle visibility based on value
+    // document.getElementById(`occurrences-field-${modalId}`)?.classList.add('hidden');
+    // document.getElementById(`end-date-field-${modalId}`)?.classList.add('hidden');
 
     const recurringReminderCheckbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
     if (recurringReminderCheckbox) {
