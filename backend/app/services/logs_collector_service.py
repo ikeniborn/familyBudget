@@ -389,7 +389,24 @@ class LogsCollectorService:
         return level_map.get(level.upper(), "info")
 
     def _detect_level_from_text(self, line: str) -> str:
-        """Detect log level from plain text line."""
+        """Detect log level from plain text line.
+
+        Special handling for nginx access logs - uses HTTP status code.
+        Format: IP - - [DATE] "REQUEST" STATUS SIZE
+        """
+        # Nginx access log detection: extract HTTP status code
+        nginx_access_pattern = r'"[^"]*"\s+(\d{3})\s+'
+        match = re.search(nginx_access_pattern, line)
+        if match:
+            status_code = int(match.group(1))
+            if 200 <= status_code < 400:
+                return "info"  # Success or redirect (2xx, 3xx)
+            elif 400 <= status_code < 500:
+                return "warning"  # Client error (4xx)
+            elif 500 <= status_code < 600:
+                return "error"  # Server error (5xx)
+
+        # Fallback: keyword-based detection for other logs
         line_upper = line.upper()
         if "ERROR" in line_upper or "FATAL" in line_upper or "CRITICAL" in line_upper:
             return "error"
