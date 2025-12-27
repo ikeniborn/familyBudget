@@ -592,3 +592,44 @@ compose_cmd() {
     # Profile is managed dynamically via start_services() through COMPOSE_PROFILE variable
     (cd "$DEPLOY_DIR" && docker compose $compose_files "$@")
 }
+
+# =============================================================================
+# ADMIN PASSWORD GENERATION & VALIDATION
+# =============================================================================
+
+# Generate secure admin password (OWASP 2023 compliant)
+# Returns: 24-character password with all required character types
+# Format: [uppercase][lowercase][digit][special][20 random chars]
+# Example: Xy5!a7bF3cG9hJ2kP8qR4tU6
+generate_admin_password() {
+    # Generate random base (20 characters from base64, no special chars)
+    local base
+    base=$(openssl rand -base64 32 | tr -d '/+=' | head -c 20)
+
+    # Ensure requirements by prepending guaranteed characters
+    # shellcheck disable=SC2207
+    local upper=$(echo {A..Z} | tr ' ' '\n' | shuf | head -c 1)
+    # shellcheck disable=SC2207
+    local lower=$(echo {a..z} | tr ' ' '\n' | shuf | head -c 1)
+    # shellcheck disable=SC2207
+    local digit=$(echo {0..9} | tr ' ' '\n' | shuf | head -c 1)
+    # shellcheck disable=SC2207
+    local special=$(echo '!@#$%^&*' | fold -w1 | shuf | head -c 1)
+
+    # Combine: 4 guaranteed chars + 20 random = 24 total
+    echo "${upper}${lower}${digit}${special}${base}"
+}
+
+# Validate email format (basic regex)
+# Args: $1 - email address
+# Returns: 0 if valid, 1 if invalid
+# Example: validate_email "admin@example.com" && echo "Valid"
+validate_email() {
+    local email="$1"
+
+    if [[ "$email" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}

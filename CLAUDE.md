@@ -966,6 +966,77 @@ breadcrumbs = await article_service.get_breadcrumbs(article_id)
 - **FinancialCenter, CostCenter**: Shared - common directories for entire family
 - **user_id in BudgetFact**: Indicates WHO created record, but does NOT restrict access
 
+### Admin Authentication Bypass (v6.3.0+)
+
+**Since version 6.3.0**: Admin users can login via email/password WITHOUT 2FA requirement.
+
+**Purpose**: Emergency access for system recovery if 2FA device lost.
+
+**Implementation**: `/api/v1/auth/login` endpoint checks `is_admin` flag after email/password validation. If admin, generates JWT tokens directly and skips 2FA session creation.
+
+**Security**: Regular users ALWAYS require 2FA. Admin bypass restricted to `is_admin=True` only.
+
+**Configuration**: Set ADMIN_EMAIL and ADMIN_PASSWORD in .env during setup.sh. Admin user created automatically by scripts/create_admin_user.py during deployment.
+
+**Code Example:**
+```python
+# backend/app/api/v1/endpoints/auth.py
+@router.post("/login")
+async def login_email(
+    request: Request,
+    response: Response,
+    data: EmailLoginRequest,
+    ...
+) -> EmailLoginResponse | AuthResponse:
+    user = await authenticate_with_password(session, data.email, data.password)
+
+    # Admin bypass: Skip 2FA for emergency access
+    if user.is_admin:
+        logger.info(f"[AUTH_EMAIL] Admin login bypass: user_id={user.id}, bypassing 2FA")
+        access_token = create_access_token(user_id=user.id, ...)
+        refresh_token, expires = create_refresh_token(user_id=user.id)
+        # ... set cookies, store refresh token in DB
+        return AuthResponse(
+            user=...,
+            message="Admin authentication successful (2FA bypassed)",
+            access_token=access_token,
+            refresh_token=refresh_token,
+        )
+
+    # Regular users: Require 2FA (existing logic)
+    session_token = await create_2fa_session(session, user.id)
+    return EmailLoginResponse(requires_2fa=True, session_token=session_token)
+```
+
+**Logging**: All admin logins logged with `[AUTH_EMAIL]` prefix. Failed attempts logged with IP address.
+
+**Frontend Detection:**
+```javascript
+// frontend/web/templates/login_email.html
+const data = await response.json();
+
+// Admin bypass: AuthResponse has access_token + refresh_token
+if (data.access_token && data.refresh_token) {
+    console.log('[AUTH_EMAIL] Admin bypass detected - redirecting to dashboard');
+    window.location.href = '/';
+    return;
+}
+
+// Regular user: EmailLoginResponse has session_token + requires_2fa
+if (data.session_token && data.requires_2fa) {
+    console.log('[AUTH_EMAIL] Regular user - 2FA required');
+    window.location.href = '/2fa-verify';
+}
+```
+
+**Security Measures:**
+- Strong password requirements (OWASP 2023: 24 chars, uppercase, lowercase, digit, special)
+- Rate limiting (5 attempts/minute)
+- Argon2id password hashing
+- Comprehensive logging (success + failures with IP)
+
+**See**: `/docs/architecture/authentication.md` for complete architecture and `/docs/architecture/admin-setup.md` for setup guide.
+
 ### Recurring Plans: Yearly Frequency Encoding
 
 **Since version 6.2.0**: Yearly recurring plans use MMDD encoding for `frequency_value`.

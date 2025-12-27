@@ -90,8 +90,13 @@ from backend.app.services.jwt import (
 )
 from backend.app.services.telegram_auth import validate_telegram_auth
 
+# Standard library imports
+import logging
+from datetime import datetime
+
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 @router.get(
@@ -965,14 +970,20 @@ async def register_email(
 @limiter.limit("5/minute")
 async def login_email(
     request: Request,
+    response: Response,
     data: EmailLoginRequest,
     session: AsyncSession = Depends(get_session),
-) -> EmailLoginResponse:
-    """Login with email/password, returns 2FA session token."""
+) -> EmailLoginResponse | AuthResponse:
+    """Login with email/password, returns 2FA session token or direct auth for admin."""
     # Step 1: Authenticate with email/password (timing-safe)
     user = await authenticate_with_password(session, data.email, data.password)
 
     if user is None:
+        logger.warning(
+            f"[AUTH_EMAIL] Failed login attempt: email={data.email}, "
+            f"reason=invalid_credentials, "
+            f"ip={request.client.host if request.client else 'unknown'}"
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password"
@@ -980,10 +991,102 @@ async def login_email(
 
     # Step 2: Check if user is active
     if not user.is_active:
+        logger.warning(
+            f"[AUTH_EMAIL] Inactive user login attempt: user_id={user.id}, "
+            f"email={data.email}, ip={request.client.host if request.client else 'unknown'}"
+        )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account pending activation. Please contact administrator."
         )
+
+    # ========================================================================
+    # ADMIN BYPASS: Skip 2FA for admin users (SECURITY EXCEPTION)
+    # ========================================================================
+    if user.is_admin:
+        logger.info(
+            f"[AUTH_EMAIL] Admin login bypass: user_id={user.id}, "
+            f"email={data.email}, bypassing 2FA requirement, "
+            f"ip={request.client.host if request.client else 'unknown'}"
+        )
+
+        # Generate JWT tokens directly (skip 2FA session)
+        access_token = create_access_token(
+            user_id=user.id,
+            telegram_id=user.telegram_id
+        )
+        refresh_token, refresh_expires = create_refresh_token(user_id=user.id)
+        refresh_token_hash = hash_token(refresh_token)
+
+        # Store refresh token in database
+        db_refresh_token = RefreshToken(
+            user_id=user.id,
+            token_hash=refresh_token_hash,
+            expires_at=refresh_expires,
+        )
+        session.add(db_refresh_token)
+
+        # Update last login timestamp
+        user.last_login_at = datetime.utcnow()
+        user.updated_at = datetime.utcnow()
+        session.add(user)
+
+        await session.commit()
+
+        # Set JWT cookies (same as /verify-2fa endpoint)
+        secure_cookie = settings.APP_ENV == "production" and settings.SSL_TYPE != "none"
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=secure_cookie,
+            samesite="lax",
+            max_age=60 * 60 * 24 * 7,  # 7 days
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=secure_cookie,
+            samesite="lax",
+            max_age=60 * 60 * 24 * 30,  # 30 days
+        )
+
+        logger.info(
+            f"[AUTH_EMAIL] Admin login successful: user_id={user.id}, "
+            f"email={data.email}, 2FA bypassed"
+        )
+
+        # Return AuthResponse (tokens included)
+        user_response = UserResponse(
+            id=user.id,
+            telegram_id=user.telegram_id,
+            email=user.email,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            photo_url=user.photo_url,
+            is_admin=user.is_admin,
+            is_active=user.is_active,
+            two_factor_enabled=user.two_factor_enabled,
+        )
+
+        return AuthResponse(
+            user=user_response,
+            message="Admin authentication successful (2FA bypassed)",
+            access_token=access_token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+        )
+
+    # ========================================================================
+    # REGULAR USER FLOW: Require 2FA (existing logic, no changes)
+    # ========================================================================
+
+    logger.info(
+        f"[AUTH_EMAIL] Regular user login: user_id={user.id}, "
+        f"email={data.email}, 2FA required"
+    )
 
     # Step 3: Create 2FA session (5-min TTL)
     session_token = await create_2fa_session(session, user.id)

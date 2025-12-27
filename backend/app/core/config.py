@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # Note: If not provided, will be auto-fetched from Telegram API at startup
     ADMIN_TELEGRAM_ID: int  # Telegram ID of the admin user
 
+    # Admin Email Authentication (optional - emergency access without 2FA)
+    ADMIN_EMAIL: str | None = None  # Admin email for emergency login (bypasses 2FA)
+    ADMIN_PASSWORD: str | None = None  # Admin initial password (should be changed)
+
     # Internal API
     API_INTERNAL_KEY: str  # Shared secret for internal bot-to-backend communication
 

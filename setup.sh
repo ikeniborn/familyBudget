@@ -795,6 +795,57 @@ collect_configuration() {
 
     echo ""
 
+    # Admin Email Authentication (optional - emergency access)
+    print_message "$CYAN" "▶ Admin Email Authentication (Optional - Emergency Access)"
+    info "Admin can login via email/password WITHOUT 2FA (security exception)"
+    info "Regular users ALWAYS require 2FA for email/password login"
+    info "Leave blank to use Telegram authentication only"
+    echo ""
+
+    prompt_yes_no "Configure admin email login?" "SETUP_ADMIN_EMAIL" "n"
+
+    if [[ "${CONFIG[SETUP_ADMIN_EMAIL]}" == "y" ]]; then
+        prompt "Admin email (optional)" "ADMIN_EMAIL" ""
+
+        if [[ -n "${CONFIG[ADMIN_EMAIL]}" ]]; then
+            # Validate email format
+            if ! validate_email "${CONFIG[ADMIN_EMAIL]}"; then
+                error "Invalid email format"
+                CONFIG["ADMIN_EMAIL"]=""
+            else
+                echo ""
+                info "Password requirements (OWASP 2023):"
+                echo "  ✓ Minimum 12 characters"
+                echo "  ✓ At least one uppercase letter (A-Z)"
+                echo "  ✓ At least one lowercase letter (a-z)"
+                echo "  ✓ At least one digit (0-9)"
+                echo "  ✓ At least one special character (!@#$%^&*...)"
+                echo ""
+
+                # Generate secure password
+                local generated_password
+                generated_password=$(generate_admin_password)
+
+                success "Auto-generated secure password: $generated_password"
+                info "Accept this or enter your own (hidden input)"
+                echo ""
+
+                prompt "Admin password (or press Enter for auto-generated)" "ADMIN_PASSWORD" "$generated_password" true
+
+                success "Admin email authentication configured"
+                info "Admin: ${CONFIG[ADMIN_EMAIL]}"
+                warning "SECURITY: Password is for INITIAL login only"
+                warning "Change password after first login (optional)"
+            fi
+        fi
+    else
+        info "Admin email authentication disabled (Telegram only)"
+        CONFIG["ADMIN_EMAIL"]=""
+        CONFIG["ADMIN_PASSWORD"]=""
+    fi
+
+    echo ""
+
     # Application settings
     print_message "$CYAN" "▶ Application Settings"
     prompt "Environment (development/staging/production)" "APP_ENV" "production"
@@ -1384,6 +1435,10 @@ create_env_file() {
     sed -i "s/^TELEGRAM_BOT_TOKEN=.*/TELEGRAM_BOT_TOKEN=${CONFIG[TELEGRAM_BOT_TOKEN]}/" "$env_file"
     sed -i "s/^TELEGRAM_BOT_USERNAME=.*/TELEGRAM_BOT_USERNAME=${CONFIG[TELEGRAM_BOT_USERNAME]}/" "$env_file"
     sed -i "s/^ADMIN_TELEGRAM_ID=.*/ADMIN_TELEGRAM_ID=${CONFIG[ADMIN_TELEGRAM_ID]}/" "$env_file"
+
+    # Admin email authentication
+    sed -i "s/^ADMIN_EMAIL=.*/ADMIN_EMAIL=${CONFIG[ADMIN_EMAIL]:-}/" "$env_file"
+    sed -i "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=${CONFIG[ADMIN_PASSWORD]:-}/" "$env_file"
 
     sed -i "s/^APP_ENV=.*/APP_ENV=${CONFIG[APP_ENV]}/" "$env_file"
     sed -i "s/^DOMAIN=.*/DOMAIN=${CONFIG[DOMAIN]}/" "$env_file"

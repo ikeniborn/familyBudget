@@ -1378,12 +1378,28 @@ main() {
 
         # Run Alembic migrations (uses backend container started above)
         # This ensures database schema is ready when backend fully starts
-        # Admin user is created automatically during migration
         if ! run_alembic_migrations; then
             error "Deployment failed: Database migrations did not complete successfully"
             error "Please check the logs and fix any migration issues before redeploying"
             error "Log file: $LOG_FILE"
             exit 1
+        fi
+        echo ""
+
+        # Create admin user (if ADMIN_EMAIL configured)
+        # This allows admin login via email/password WITHOUT 2FA (security exception)
+        # Regular users ALWAYS require 2FA for email/password login
+        step "Creating Admin User"
+        info "Checking if admin email/password configured..."
+        if docker compose exec -T backend python scripts/create_admin_user.py; then
+            success "Admin user creation completed"
+            info "Admin can now login via:"
+            info "  - Telegram OAuth (ADMIN_TELEGRAM_ID)"
+            info "  - Email + Password (ADMIN_EMAIL) - bypasses 2FA"
+        else
+            warning "Admin user creation skipped or failed"
+            info "This is not critical - admin can still use Telegram authentication"
+            info "Check logs above for details"
         fi
         echo ""
 

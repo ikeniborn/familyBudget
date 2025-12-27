@@ -238,6 +238,8 @@ async function handleLogin(e) {
     btnLoading.classList.remove('hidden');
 
     try {
+        console.log('[AUTH_EMAIL] Login attempt:', email);
+
         const response = await fetch('/api/v1/auth/login', {
             method: 'POST',
             headers: {
@@ -300,6 +302,7 @@ async function handleLogin(e) {
 
         if (!response.ok) {
             const errorMessage = getErrorMessage(data, response.status);
+            console.error('[AUTH_EMAIL] Login failed:', response.status, data.detail);
 
             // Handle specific error codes
             if (response.status === 403) {
@@ -316,8 +319,18 @@ async function handleLogin(e) {
             throw new Error(errorMessage);
         }
 
-        // Success - check which 2FA flow to use
+        // Admin bypass detection: AuthResponse has access_token + refresh_token
+        // Regular user: EmailLoginResponse has session_token + requires_2fa
+        if (data.access_token && data.refresh_token) {
+            console.log('[AUTH_EMAIL] Admin bypass detected - JWT tokens received');
+            console.log('[AUTH_EMAIL] Redirecting to dashboard (2FA skipped)');
+            window.location.href = '/';
+            return;
+        }
+
+        // Success - check which 2FA flow to use (regular users only)
         if (data.requires_2fa_setup && data.session_token) {
+            console.log('[AUTH_EMAIL] Regular user: 2FA setup required');
             // User needs to set up 2FA first (first-time login without 2FA)
             showToast('Настройте двухфакторную аутентификацию', 'info');
             sessionStorage.setItem('2fa_session_token', data.session_token);
@@ -326,6 +339,7 @@ async function handleLogin(e) {
             sessionStorage.setItem('2fa_totp_uri', data.totp_uri);
             window.location.href = '/2fa-setup-login';
         } else if (data.requires_2fa && data.session_token) {
+            console.log('[AUTH_EMAIL] Regular user: 2FA verification required');
             // User has 2FA enabled - just need to verify code
             showToast('Введите код из приложения-аутентификатора', 'info');
             sessionStorage.setItem('2fa_session_token', data.session_token);
@@ -337,7 +351,7 @@ async function handleLogin(e) {
         }
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('[AUTH_EMAIL] Login error:', error);
         errorDiv.classList.remove('hidden');
         errorText.textContent = error.message;
     } finally {
