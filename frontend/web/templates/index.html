@@ -62,8 +62,8 @@
 
         <!-- Full Width Layout: Quick Stats, Quick Actions, Recent Transactions -->
         <div class="grid grid-cols-1 gap-6">
-            <!-- Quick Actions -->
-            <div class="card bg-base-100 shadow-xl">
+            <!-- Quick Actions Block (Desktop only, hidden on mobile) -->
+            <div class="card bg-base-100 shadow-xl hidden md:block">
                 <div class="card-body p-4 md:p-6">
                     <h2 class="card-title text-lg md:text-xl mb-3 md:mb-4">💡 Быстрые действия</h2>
 
@@ -6055,6 +6055,13 @@ window.addEventListener('resize', () => {
             applyAccountBalancesState();
         }
     }, 100); // 100ms debounce
+
+    // Page-specific logging (PWA Mobile UI Improvements - Phase 4)
+    console.log('[INDEX_PAGE] Page loaded:', {
+        fabVisible: !!document.getElementById('fab-toolbar'),
+        quickActionsVisible: window.innerWidth >= 768, // md breakpoint
+        breakpoint: window.innerWidth >= 768 ? 'desktop' : 'mobile'
+    });
 });
 </script>
 

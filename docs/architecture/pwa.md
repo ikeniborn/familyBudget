@@ -1599,6 +1599,104 @@ _resetPongTimeout()                // Layer 4: Set pong timeout
 
 ---
 
+## Mobile UI Enhancements (v6.6.0+)
+
+### Safe-Area Inset Support
+
+**Since:** v6.6.0 (December 2025)
+**Status:** ✅ Active
+
+Family Budget implements comprehensive safe-area inset support for notched devices (iPhone X+, Android Pie+).
+
+**Components with safe-area:**
+- ✅ Header/Navbar - top padding accounts for notch/Dynamic Island
+- ✅ Mobile menu dropdown - positioned below expanded navbar
+- ✅ Progress bar - aligned with navbar bottom edge
+- ✅ Pending sync badge - offset from notch and rounded corners
+- ✅ Main content - bottom padding clears FAB toolbar + home indicator
+- ✅ FAB toolbar - bottom padding clears home indicator
+
+**Viewport Configuration:**
+```html
+<meta name="viewport" content="viewport-fit=cover">
+```
+
+**CSS Variables:**
+- `--safe-area-inset-top` - Notch/Dynamic Island height (0-54px)
+- `--safe-area-inset-bottom` - Home indicator height (0-34px)
+- `--safe-area-inset-left` - Rounded corner offset (0px)
+- `--safe-area-inset-right` - Rounded corner offset (0px)
+
+**Device Support:**
+- ✅ iPhone 7/8 (no notch) - 0px insets, standard layout
+- ✅ iPhone X/11/12 (notch) - 44px top, 34px bottom
+- ✅ iPhone 14 Pro (Dynamic Island) - 54px top, 34px bottom
+- ✅ Android without notch - 0px insets
+- ✅ Android Pie+ with notch - device-specific insets
+
+**Testing:**
+```javascript
+// Console verification
+console.log('[PWA_SAFE_AREA] top:',
+    getComputedStyle(document.documentElement)
+        .getPropertyValue('--safe-area-inset-top'));
+```
+
+---
+
+### Fixed Bottom FAB Toolbar
+
+**Pattern:** Material Design Floating Action Bar (toolbar variant)
+
+**Visibility:** Index, Facts, and Plan pages only
+
+**Layout:**
+- Fixed position at bottom of viewport
+- 4 buttons: Факт (primary), Перевод, Списки, Ещё (dropdown)
+- Safe-area bottom padding for home indicator clearance
+- Max-width 600px for tablet optimization
+
+**Implementation:**
+- Component: `frontend/web/templates/components/fab_toolbar.html`
+- Conditional include in `base.html`: `{% if request.path in ['/', '/facts', '/plan'] %}`
+- Z-index: 50 (above content, below modals)
+
+**Mobile Optimizations:**
+- Touch-friendly button size (≥48px)
+- Text hidden on narrow screens (<380px)
+- Icons always visible
+- Dropdown menu opens upward
+
+**Desktop Behavior:**
+- FAB visible on Index/Facts/Plan pages
+- Quick Actions card (index.html) hidden on mobile, visible on desktop
+
+**Logging:**
+```javascript
+[FAB_TOOLBAR] Toolbar initialized: { page: "/facts", buttonsCount: 4 }
+[FAB_TOOLBAR] Button clicked: { label: "Добавить транзакцию" }
+```
+
+---
+
+### Removed Duplicate Buttons
+
+**Changes:**
+- Facts page header: Removed "Добавить факт" and "Добавить перевод" buttons
+- Plan page header: Removed "Добавить план" and "Добавить перевод" buttons
+- Kept: CSV export buttons (unique functionality)
+
+**Rationale:**
+- Avoid redundancy with FAB toolbar
+- Cleaner page headers
+- Consistent UX across mobile/desktop
+
+**Desktop Experience:**
+- Quick Actions card still available (index.html)
+- FAB toolbar provides alternative on Facts/Plan pages
+
+---
+
 ## WebSocket Diagnostics Modal
 
 ### Purpose

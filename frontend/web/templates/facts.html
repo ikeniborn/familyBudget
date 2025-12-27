@@ -18,15 +18,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление финансовых фактов с расширенными фильтрами</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-success gap-1" onclick="openCreateModal()" title="Добавить новый факт">
-                    ➕ Добавить факт
-                </button>
-                <button class="btn btn-sm btn-warning gap-1" onclick="openTransferModal()" title="Перевод между счетами">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                    </svg>
-                    Добавить перевод
-                </button>
+                <!-- Export button kept - not duplicated in FAB -->
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных фактов в CSV">
                     📄 CSV
                 </button>
@@ -2440,6 +2432,13 @@ document.addEventListener('DOMContentLoaded', function() {
             debugLog('[WS] Facts page handlers registered with debouncing');
         }
     }, 1000);
+
+    // Page-specific logging (PWA Mobile UI Improvements - Phase 4)
+    console.log('[FACTS_PAGE] Page loaded:', {
+        fabVisible: !!document.getElementById('fab-toolbar'),
+        headerButtonsCount: document.querySelectorAll('h1 ~ div .btn').length,
+        exportButtonPresent: !!document.querySelector('[onclick*="exportFilteredFacts"]')
+    });
 });
 </script>
 {% endblock %}

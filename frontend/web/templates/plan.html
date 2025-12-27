@@ -24,12 +24,7 @@
                 <p class="text-base-content/70">Просмотр, редактирование и удаление планируемых транзакций</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button class="btn btn-sm btn-info gap-1" onclick="openAddPlanModal()" title="Добавить новый план">
-                    ➕ Добавить план
-                </button>
-                <button class="btn btn-sm btn-warning gap-1" onclick="openPlanTransferModal()" title="Добавить перевод">
-                    🔄 Добавить перевод
-                </button>
+                <!-- Export button kept - not duplicated in FAB -->
                 <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
                     📄 CSV
                 </button>
@@ -5385,5 +5380,14 @@ function shouldReloadOnPlanCreated(planData) {
 
     return true;
 }
+
+// Page-specific logging (PWA Mobile UI Improvements - Phase 4)
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('[PLAN_PAGE] Page loaded:', {
+        fabVisible: !!document.getElementById('fab-toolbar'),
+        headerButtonsCount: document.querySelectorAll('h1 ~ div .btn').length,
+        exportButtonPresent: !!document.querySelector('[onclick*="exportFilteredFacts"]')
+    });
+});
 </script>
 {% endblock %}

@@ -1,0 +1,106 @@
+<!-- Fixed Bottom FAB Toolbar -->
+<div id="fab-toolbar" class="fab-toolbar fixed bottom-0 left-0 right-0 z-50 bg-base-100 shadow-2xl border-t border-base-300"
+     style="padding-bottom: var(--safe-area-inset-bottom);
+            padding-left: var(--safe-area-inset-left);
+            padding-right: var(--safe-area-inset-right);">
+
+    <!-- Toolbar container with safe horizontal spacing -->
+    <div class="flex items-center justify-around gap-2 px-4 py-3" style="max-width: 600px; margin: 0 auto;">
+
+        <!-- Button 1: Add Transaction (PRIMARY) -->
+        <button class="btn btn-success btn-sm flex-1 max-w-32"
+                onclick="openAddTransactionModal()"
+                aria-label="Добавить транзакцию"
+                title="Добавить факт">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span class="hidden sm:inline">Факт</span>
+        </button>
+
+        <!-- Button 2: Transfer -->
+        <button class="btn btn-warning btn-sm flex-1 max-w-32"
+                onclick="openFactTransferModal()"
+                aria-label="Добавить перевод"
+                title="Перевод между счетами">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+            </svg>
+            <span class="hidden sm:inline">Перевод</span>
+        </button>
+
+        <!-- Button 3: Lists -->
+        <a href="/lists" class="btn btn-accent btn-sm flex-1 max-w-32"
+           aria-label="Перейти к спискам"
+           title="Списки покупок">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            </svg>
+            <span class="hidden sm:inline">Списки</span>
+        </a>
+
+        <!-- Button 4: More (Dropdown) -->
+        <div class="dropdown dropdown-top dropdown-end">
+            <button tabindex="0" class="btn btn-ghost btn-sm btn-circle"
+                    aria-label="Дополнительные действия"
+                    title="Ещё">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
+                </svg>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu p-2 shadow-lg bg-base-100 rounded-box w-56 mb-2 border border-base-300">
+                <li>
+                    <a onclick="openAddPlanModal()">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>План: Расход/Доход</span>
+                    </a>
+                </li>
+                <li>
+                    <a onclick="openPlanTransferModal()">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
+                        </svg>
+                        <span>План: Перевод</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const fabToolbar = document.getElementById('fab-toolbar');
+    if (!fabToolbar) return;
+
+    console.log('[FAB_TOOLBAR] Toolbar initialized:', {
+        page: window.location.pathname,
+        buttonsCount: fabToolbar.querySelectorAll('.btn').length,
+        position: 'fixed bottom',
+        safeAreaBottom: getComputedStyle(fabToolbar).paddingBottom,
+        zIndex: getComputedStyle(fabToolbar).zIndex
+    });
+
+    // Log button clicks
+    fabToolbar.querySelectorAll('.btn').forEach((btn, index) => {
+        btn.addEventListener('click', (e) => {
+            const buttonLabel = btn.getAttribute('aria-label') || btn.textContent.trim();
+            console.log(`[FAB_TOOLBAR] Button clicked:`, {
+                index,
+                label: buttonLabel,
+                timestamp: new Date().toISOString()
+            });
+        });
+    });
+
+    // Log dropdown menu interactions
+    const dropdown = fabToolbar.querySelector('.dropdown');
+    if (dropdown) {
+        dropdown.addEventListener('click', () => {
+            console.log('[FAB_TOOLBAR] Dropdown menu opened');
+        });
+    }
+})();
+</script>

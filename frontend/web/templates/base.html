@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="description" content="Семейный бюджет - Track your income and expenses with powerful analytics">
     <meta name="theme-color" content="#4CAF50">
     <meta name="app-env" content="{{ app_env|default('production') }}">
@@ -101,15 +101,15 @@
             #mobile-menu-content {
                 /* Fixed position для гарантированного отображения на экране */
                 position: fixed !important;
-                top: 4rem !important; /* Под navbar */
-                right: 0.5rem !important;
+                top: calc(4rem + var(--safe-area-inset-top)) !important; /* Под navbar + safe-area */
+                right: calc(0.5rem + var(--safe-area-inset-right)) !important;
                 left: auto !important;
                 /* Фиксированная ширина */
                 width: 14rem !important; /* 224px */
                 min-width: 14rem !important;
-                /* Высота по содержимому, но не больше экрана */
-                max-height: calc(100dvh - 5rem) !important;
-                max-height: calc(var(--real-vh, 1vh) * 100 - 5rem) !important;
+                /* Высота по содержимому, но не больше экрана - учитываем safe-area */
+                max-height: calc(100dvh - 5rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom)) !important;
+                max-height: calc(var(--real-vh, 1vh) * 100 - 5rem - var(--safe-area-inset-top) - var(--safe-area-inset-bottom)) !important;
                 /* Вертикальный скролл, без горизонтального */
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
@@ -212,11 +212,11 @@
             }
         }
 
-        /* Navigation Progress Bar - под navbar (4rem = 64px на всех breakpoints) */
+        /* Navigation Progress Bar - под navbar (4rem = 64px на всех breakpoints) + safe-area */
         .navigation-progress {
             position: fixed;
-            top: 4rem; /* 64px - DaisyUI navbar height одинаков на всех экранах */
-            left: 0;
+            top: calc(4rem + var(--safe-area-inset-top)); /* 64px + notch offset */
+            left: var(--safe-area-inset-left);
             width: 0%;
             height: 3px;
             /* Fallback for Safari < 15.4 (no oklch support) */
@@ -665,7 +665,10 @@
     <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 btn btn-primary btn-sm">Skip to main content</a>
 
     <!-- DaisyUI Navbar -->
-    <header class="navbar bg-base-100 shadow-lg sticky top-0 z-40" role="banner">
+    <header class="navbar bg-base-100 shadow-lg sticky top-0 z-40" role="banner"
+            style="padding-top: calc(0.5rem + var(--safe-area-inset-top));
+                   padding-left: var(--safe-area-inset-left);
+                   padding-right: var(--safe-area-inset-right);">
         <div class="navbar-start">
             <a href="/" class="btn btn-ghost text-lg sm:text-xl font-bold text-primary px-2 sm:px-4" aria-label="Семейный бюджет home">
                 💰 <span class="sm:hidden">СБ</span><span class="hidden sm:inline">Семейный бюджет</span>
@@ -993,7 +996,9 @@
     </div>
 
     <!-- Pending Sync Badge -->
-    <div id="pending-sync-badge" class="fixed top-16 left-4 z-50 hidden">
+    <div id="pending-sync-badge" class="fixed z-50 hidden"
+         style="top: calc(4rem + var(--safe-area-inset-top));
+                left: calc(1rem + var(--safe-area-inset-left));">
         <div class="badge badge-error gap-2 p-3 shadow-lg">
             <svg xmlns="http://www.w3.org/2000/svg" class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -1004,9 +1009,18 @@
     </div>
 
     <!-- Main Content -->
-    <main id="main-content" class="flex-1 container mx-auto px-4 py-8 max-w-7xl" role="main">
+    <main id="main-content" class="flex-1 container mx-auto max-w-7xl" role="main"
+          style="padding-left: calc(1rem + var(--safe-area-inset-left));
+                 padding-right: calc(1rem + var(--safe-area-inset-right));
+                 padding-top: 2rem;
+                 padding-bottom: calc(2rem + var(--safe-area-inset-bottom) + 80px);">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Fixed Bottom FAB Toolbar (only on specific pages) -->
+    {% if request.path in ['/', '/facts', '/plan'] %}
+        {% include 'components/fab_toolbar.html' %}
+    {% endif %}
 
     <!-- FAB Buttons (outside main container for proper fixed positioning) -->
     {% block fab_buttons %}{% endblock %}
@@ -1434,6 +1448,46 @@
         });
 
         debugLog('[Mobile Modal Fix] Initialized real viewport height calculation');
+
+        // Safe-Area Inset Detection and Logging (PWA Mobile UI Improvements)
+        (function logSafeAreaInsets() {
+            const safeAreaTop = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top');
+            const safeAreaBottom = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-bottom');
+            const safeAreaLeft = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-left');
+            const safeAreaRight = getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-right');
+
+            console.log('[PWA_SAFE_AREA] Detected insets:', {
+                top: safeAreaTop || '0px',
+                bottom: safeAreaBottom || '0px',
+                left: safeAreaLeft || '0px',
+                right: safeAreaRight || '0px',
+                device: navigator.userAgent.includes('iPhone') ? 'iPhone' :
+                        navigator.userAgent.includes('Android') ? 'Android' : 'Desktop'
+            });
+
+            // Detect notch/Dynamic Island
+            const hasNotch = safeAreaTop && parseInt(safeAreaTop) > 20;
+            if (hasNotch) {
+                console.log('[PWA_SAFE_AREA] ✅ Notch/Dynamic Island detected, inset applied');
+            } else {
+                console.log('[PWA_SAFE_AREA] ℹ️ No notch detected, standard viewport');
+            }
+
+            // Monitor header height changes (useful for debugging safe-area)
+            const header = document.querySelector('header.navbar');
+            if (header) {
+                const observer = new ResizeObserver((entries) => {
+                    for (let entry of entries) {
+                        const height = entry.contentRect.height;
+                        console.log('[PWA_HEADER] Height:', Math.round(height) + 'px', {
+                            paddingTop: getComputedStyle(header).paddingTop,
+                            safeAreaTop: getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top')
+                        });
+                    }
+                });
+                observer.observe(header);
+            }
+        })();
 
         // Mobile Menu Toggle (for iOS PWA compatibility)
         // DaisyUI dropdown relies on CSS :focus which doesn't work well on iOS PWA

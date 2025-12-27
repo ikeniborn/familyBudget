@@ -9,6 +9,12 @@
 :root {
     --chart-bg: #ffffff;
     --chart-text: #333333;
+
+    /* Safe area insets for notched devices (iPhone X+, Android Pie+) */
+    --safe-area-inset-top: env(safe-area-inset-top, 0);
+    --safe-area-inset-right: env(safe-area-inset-right, 0);
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0);
+    --safe-area-inset-left: env(safe-area-inset-left, 0);
 }
 
 [data-theme="dark"] {
@@ -349,4 +355,71 @@ html.offline-mode .save-btn {
 html.offline-mode .save-btn:hover {
     background-color: oklch(var(--wa) / 0.9) !important;
     border-color: oklch(var(--wa) / 0.9) !important;
+}
+
+/* ==================================
+   FAB Toolbar Styles (Phase 2: PWA Mobile UI)
+   ================================== */
+
+/* FAB Toolbar - fixed bottom toolbar with safe-area support */
+.fab-toolbar {
+    /* GPU acceleration for smooth animations */
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+
+    /* Prevents content from showing through on iOS */
+    -webkit-overflow-scrolling: touch;
+}
+
+.fab-toolbar .btn {
+    /* Touch-friendly minimum size (WCAG 2.1 Level AAA) */
+    min-height: 48px;
+}
+
+.fab-toolbar .dropdown-content {
+    /* Ensure dropdown appears above toolbar */
+    z-index: 60;
+}
+
+/* Hide FAB on print */
+@media print {
+    .fab-toolbar {
+        display: none;
+    }
+}
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .fab-toolbar {
+        transition: none;
+    }
+}
+
+/* Mobile optimization: smaller buttons on narrow screens */
+@media (max-width: 640px) {
+    .fab-toolbar .btn {
+        font-size: 0.875rem; /* 14px */
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+
+    .fab-toolbar .btn svg {
+        width: 1.25rem; /* 20px */
+        height: 1.25rem;
+    }
+}
+
+/* Hide button text on very narrow screens (icons only) */
+@media (max-width: 380px) {
+    .fab-toolbar .btn span {
+        display: none !important;
+    }
+}
+
+/* Tablet optimization: wider max-width */
+@media (min-width: 641px) and (max-width: 1023px) {
+    .fab-toolbar > div {
+        max-width: 700px;
+    }
 }
