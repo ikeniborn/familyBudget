@@ -275,7 +275,7 @@
     border: 2px solid transparent;
 }
 
-/* Toggle knob */
+/* Toggle knob - RED when unchecked */
 .custom-toggle-slider:before {
     position: absolute;
     content: "";
@@ -283,20 +283,21 @@
     width: 1.4rem;
     left: 0.2rem;
     bottom: 0.2rem;
-    background-color: white;
-    transition: transform 0.25s ease;
+    background-color: #ef4444;  /* Red (Tailwind red-500) */
+    transition: transform 0.25s ease, background-color 0.25s ease;
     border-radius: 50%;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-/* Checked state - move knob */
+/* Checked state - move knob and change to GREEN */
 .custom-toggle input:checked + .custom-toggle-slider:before {
     transform: translateX(1.5rem);
+    background-color: #22c55e;  /* Green (Tailwind green-500) */
 }
 
 /* Checked state - change track color */
 .custom-toggle input:checked + .custom-toggle-slider {
-    background-color: hsl(var(--p));
+    background-color: hsl(var(--bc) / 0.15);  /* Keep track subtle */
 }
 
 /* Focus state - subtle outline */
@@ -310,13 +311,15 @@
     filter: brightness(0.95);
 }
 
-/* Active state - NO black fill, just slight scale */
+/* Active state - NO black fill, just slight scale, preserve colors */
 .custom-toggle input:active + .custom-toggle-slider:before {
     transform: scale(0.95);
+    background-color: #ef4444;  /* Keep red when unchecked */
 }
 
 .custom-toggle input:checked:active + .custom-toggle-slider:before {
     transform: translateX(1.5rem) scale(0.95);
+    background-color: #22c55e;  /* Keep green when checked */
 }
 
 /* Remove any potential outline/box-shadow issues */
