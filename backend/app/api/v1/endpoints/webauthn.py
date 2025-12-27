@@ -37,8 +37,8 @@ from backend.app.models.webauthn_credential import WebAuthnCredential
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.auth import AuthResponse, UserResponse
 from backend.app.services.jwt import create_access_token, create_refresh_token, hash_token
-from backend.app.services.password import verify_password
-from backend.app.services.totp import verify_totp_code
+from backend.app.services.password_service import verify_password
+from backend.app.services.totp_service import verify_totp as verify_totp_code
 from backend.app.services.webauthn_service import (
     create_authentication_challenge,
     create_registration_challenge,
