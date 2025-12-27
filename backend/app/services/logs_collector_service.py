@@ -288,21 +288,26 @@ class LogsCollectorService:
         )
 
         # Refresh Docker logs (collect latest)
-        # NOTE: Only backend and nginx - bot/postgres have too many logs and timeout
+        # NOTE: bot/postgres have aggressive limits to prevent timeouts
         if service == "all" or service is None:
-            services_to_collect = ["backend", "nginx"]
+            services_to_collect = ["backend", "nginx", "bot", "postgres"]
         elif service == "browser":
-            services_to_collect = []
-        elif service in ["bot", "postgres"]:
-            # Skip bot and postgres - they have excessive logs causing timeouts
-            logger.warning(f"[LOGS_COLLECTOR] Skipping service={service} (too many logs, causes timeout)")
             services_to_collect = []
         else:
             services_to_collect = [service]
 
-        # Collect Docker logs asynchronously (reduced tail for performance)
+        # Collect Docker logs asynchronously (different limits per service)
         for svc in services_to_collect:
-            docker_logs = await self.collect_docker_logs(svc, since="5m", tail=100)
+            # Bot and postgres have too many logs - use very aggressive limits
+            if svc in ["bot", "postgres"]:
+                since_param = "1m"  # Last 1 minute only
+                tail_param = 20     # Only 20 most recent logs
+                logger.info(f"[LOGS_COLLECTOR] Using reduced limits for {svc}: since={since_param}, tail={tail_param}")
+            else:
+                since_param = "5m"  # Last 5 minutes
+                tail_param = 100    # 100 logs
+
+            docker_logs = await self.collect_docker_logs(svc, since=since_param, tail=tail_param)
 
             # Store in appropriate deque
             if svc == "backend":
