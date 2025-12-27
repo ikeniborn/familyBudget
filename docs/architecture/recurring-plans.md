@@ -199,6 +199,187 @@ def validate_frequency_value(self):
             raise ValueError(f"Invalid day {day} for month {month}")
 ```
 
+## Notification Integration
+
+**Since version:** 6.4.0
+
+Recurring plans support automatic reminder creation for each generated BudgetFact.
+
+### Purpose
+
+Enable users to receive notifications before scheduled recurring payments (rent, subscriptions, bills).
+
+### Architecture
+
+Uses existing `ScheduledReminder` infrastructure (same as one-time plans):
+- One `ScheduledReminder` per generated `BudgetFact` (NOT one reminder per plan template)
+- Reminders created immediately when facts are generated
+- Reminder datetime = `fact_date` + `reminder_hour:reminder_minute` in SYSTEM_TIMEZONE
+
+### Database Schema
+
+**Added to RecurringPlan model:**
+```sql
+ALTER TABLE t_d_recurring_plan ADD COLUMN
+    enable_reminder BOOLEAN NOT NULL DEFAULT FALSE,
+    reminder_hour INTEGER CHECK (reminder_hour >= 0 AND reminder_hour <= 23),
+    reminder_minute INTEGER CHECK (reminder_minute >= 0 AND reminder_minute <= 59);
+
+-- Constraint: If enabled, time must be complete
+ALTER TABLE t_d_recurring_plan ADD CONSTRAINT chk_reminder_time_complete
+CHECK (
+    (enable_reminder = FALSE) OR
+    (enable_reminder = TRUE AND reminder_hour IS NOT NULL AND reminder_minute IS NOT NULL)
+);
+```
+
+**Migration:** `backend/db/migrations/versions/20251227_d1e6f4a267d5_add_recurring_plan_reminder_settings.py`
+
+### Business Logic
+
+**Service:** `RecurringPlanService._create_reminders_for_facts()`
+**Location:** `backend/app/services/recurring_plan_service.py` (lines 622-725)
+
+**Algorithm:**
+1. Skip if `enable_reminder=false`
+2. For each generated BudgetFact:
+   - Skip if `fact_date < today` (past facts)
+   - Skip if `reminder_datetime <= now` (already passed)
+   - Skip if ScheduledReminder already exists (idempotency)
+   - Create ScheduledReminder with `reminder_datetime = fact_date + hour:minute`
+
+**Idempotency:** Safe to call multiple times - skips existing reminders via fact_id uniqueness.
+
+**Invocation points:**
+1. `create_recurring_plan()` - Creates reminders for initial 3-month horizon
+2. `generate_pending_facts()` - Creates reminders for new facts (scheduler job)
+
+### Frontend Integration
+
+**Modal:** `modal_add_plan` in `frontend/web/templates/plan.html`
+
+**UI Components:**
+- Checkbox: `input[name="recurring_enable_reminder"]` - Toggle reminders
+- Time picker: `select[name="recurring_reminder_hour"]` (0-23)
+- Time picker: `select[name="recurring_reminder_minute"]` (0-59)
+- Container: `#recurring-reminder-settings-modal_add_plan` - Hidden by default
+
+**JavaScript behavior** (lines 1308-1323, 3506-3524):
+```javascript
+// Toggle visibility of time pickers
+checkbox.addEventListener('change', (e) => {
+    settingsDiv.classList.toggle('hidden', !e.target.checked);
+});
+
+// Collect data for API
+const recurringData = {
+    enable_reminder: formData.get('recurring_enable_reminder') === 'on',
+    reminder_hour: ...,
+    reminder_minute: ...,
+};
+
+// Validation
+if (recurringData.enable_reminder && !recurringData.reminder_hour) {
+    showToast('Укажите время напоминания', 'warning');
+    return;
+}
+```
+
+**Success toast** (lines 3537-3541):
+```javascript
+let message = `Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`;
+if (result.enable_reminder && result.reminder_time_display) {
+    message += `. Напоминания в ${result.reminder_time_display}`;
+}
+showToast(message, 'success');
+```
+
+### Display
+
+**Recent transactions card** shows 🔔 bell icon for facts with reminders:
+- Updated via API call (not WebSocket payload)
+- `fallbackRefreshDebounced('recent-transactions')` fetches HTML with reminder indicators
+
+**Fix for double rendering** (v6.4.0):
+- Removed `prependRecentTransaction()` calls from `IncrementalUpdates`
+- Now uses only API-based updates for proper formatting and reminder data
+- No more double processing on fact/plan creation
+
+### Example Usage
+
+**API request:**
+```json
+POST /api/v1/recurring-plans
+{
+    "article_id": 5,
+    "financial_center_id": 1,
+    "frequency_type": "monthly",
+    "frequency_value": 5,
+    "start_date": "2025-01-05",
+    "occurrences_count": 12,
+    "amount": "50000.00",
+    "description": "Monthly rent",
+    "enable_reminder": true,
+    "reminder_hour": 9,
+    "reminder_minute": 0
+}
+```
+
+**Result:**
+- Creates 1 RecurringPlan record
+- Generates 3 BudgetFact records (3 months ahead)
+- Creates 3 ScheduledReminder records (one per fact)
+- Each reminder triggers at: `fact_date 09:00:00`
+
+**Response:**
+```json
+{
+    "id": 1,
+    "enable_reminder": true,
+    "reminder_hour": 9,
+    "reminder_minute": 0,
+    "reminder_time_display": "09:00",
+    "occurrences_generated": 3,
+    ...
+}
+```
+
+### Logging
+
+**Backend prefixes:**
+- `[RECURRING_REMINDER]` - Reminder creation logic
+- `[RECURRING_PLAN]` - Plan creation/update
+
+**Example backend logs:**
+```
+[RECURRING_PLAN] Created plan 42: generated 3 facts, created 3 reminders
+[RECURRING_REMINDER] Plan 42: Processing 3 facts for reminder creation (time: 09:00)
+[RECURRING_REMINDER] Created reminder for fact 100 (fact_date=2025-01-15, reminder_datetime=2025-01-15 09:00:00)
+[RECURRING_REMINDER] Plan 42: Created 3 reminders (skipped: 0 past, 0 existing, 0 passed)
+```
+
+**Frontend prefixes:**
+- `[PLAN]` - Form events, validation, submission
+
+**Example frontend logs:**
+```
+[PLAN] Recurring reminder toggle: enabled
+[createPlan] Reminder enabled: 09:00
+[createPlan] Recurring data with reminders: {enable_reminder: true, reminder_hour: 9, ...}
+```
+
+### Related Files
+
+| Component | File | Lines |
+|-----------|------|-------|
+| Migration | `backend/db/migrations/versions/20251227_d1e6f4a267d5_*.py` | All |
+| Backend Model | `backend/app/models/recurring_plan.py` | 160-179 |
+| Backend Schema | `backend/app/schemas/recurring_plan.py` | 114-134, 348-368 |
+| Backend Service | `backend/app/services/recurring_plan_service.py` | 622-725 |
+| Frontend Modal | `frontend/web/templates/plan.html` | 1308-1323 (event listener) |
+| Frontend JS | `frontend/web/templates/plan.html` | 3506-3524 (data collection) |
+| Frontend Toast | `frontend/web/templates/plan.html` | 3537-3569 (success message) |
+
 ## Migration
 
 **File**: `backend/db/migrations/versions/20251226_e8e69b30e4db_add_yearly_frequency_remove_daily_weekly.py`

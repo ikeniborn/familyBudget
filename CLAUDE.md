@@ -1179,6 +1179,93 @@ console.log('[PLAN] Yearly decoded: 315 → 15 марта')
 - `daily` - Removed (too granular for budget planning)
 - `weekly` - Removed (too granular for budget planning)
 
+### Recurring Plans: Notification Integration (v6.4.0+)
+
+**Since version 6.4.0**: Recurring plans support automatic reminder creation for each generated BudgetFact.
+
+**Purpose**: Enable users to receive notifications before scheduled recurring payments (rent, subscriptions, bills).
+
+**Architecture**: Uses existing `ScheduledReminder` infrastructure (same as one-time plans).
+
+**How it works**:
+1. User creates recurring plan with `enable_reminder=true` and sets `reminder_hour:reminder_minute`
+2. System creates separate `ScheduledReminder` for EACH generated `BudgetFact` (not one for entire plan)
+3. Reminders created immediately when facts are generated (3 months ahead initially + new facts from scheduler job)
+4. Reminder datetime = `fact_date` + `reminder_hour:reminder_minute` in SYSTEM_TIMEZONE
+
+**Database Schema** (RecurringPlan model):
+```python
+enable_reminder: bool = Field(
+    default=False,
+    description="Whether to create reminders for each generated fact"
+)
+reminder_hour: Optional[int] = Field(
+    default=None, ge=0, le=23,
+    description="Hour of reminder time (0-23) in SYSTEM_TIMEZONE"
+)
+reminder_minute: Optional[int] = Field(
+    default=None, ge=0, le=59,
+    description="Minute of reminder time (0-59) in SYSTEM_TIMEZONE"
+)
+```
+
+**Validation**: CHECK constraint ensures complete reminder time:
+```sql
+CHECK (
+  (enable_reminder = false) OR
+  (enable_reminder = true AND reminder_hour IS NOT NULL AND reminder_minute IS NOT NULL)
+)
+```
+
+**Business Logic** (`RecurringPlanService._create_reminders_for_facts()`):
+- Skips facts in the past (`fact_date < today`)
+- Skips if reminder datetime already passed (`reminder_datetime <= now`)
+- Idempotent: Skips if `ScheduledReminder` already exists for fact
+- Links reminder to fact via `fact_id` (ScheduledReminder.fact_id → BudgetFact.id)
+
+**Example Usage**:
+```python
+# Create monthly recurring plan with reminders at 09:00
+data = RecurringPlanCreate(
+    article_id=5,
+    financial_center_id=1,
+    frequency_type="monthly",
+    frequency_value=5,  # 5th of each month
+    start_date=date(2025, 1, 5),
+    occurrences_count=12,
+    amount=Decimal("50000.00"),
+    description="Monthly rent",
+    enable_reminder=True,
+    reminder_hour=9,
+    reminder_minute=0,
+)
+
+# Result: Creates 3 BudgetFact records (3 months ahead) + 3 ScheduledReminder records
+# Each reminder triggers at: fact_date 09:00:00
+```
+
+**Frontend Integration**:
+- Checkbox toggle in `modal_add_plan` reveals time picker fields
+- Validation prevents submission if reminder enabled but time not set
+- Success toast displays reminder time: "Регулярный платеж создан! Сгенерировано записей: 3. Напоминания в 09:00"
+
+**Display**:
+- UI shows 🔔 bell icon next to facts that have reminders
+- Recent transactions card updated via API (not WebSocket payload) to include reminder data
+
+**Logging Prefixes**:
+- Backend: `[RECURRING_REMINDER]`, `[RECURRING_PLAN]`
+- Frontend: `[PLAN]` (form events, validation, encoding)
+
+**Related Files**:
+- Migration: `backend/db/migrations/versions/20251227_d1e6f4a267d5_add_recurring_plan_reminder_settings.py`
+- Backend model: `backend/app/models/recurring_plan.py` (lines 160-179)
+- Backend schema: `backend/app/schemas/recurring_plan.py` (lines 114-134, 348-368)
+- Backend service: `backend/app/services/recurring_plan_service.py` (lines 622-725)
+- Frontend: `frontend/web/templates/plan.html` (lines 1308-1323, 3506-3524, 3537-3569)
+
+**See**: `/docs/architecture/recurring-plans.md` for complete documentation.
+
 ### Transfer Deduplication (Offline Sync & Duplicate Prevention)
 
 **Added in version 5.4.1** - Critical fix to prevent duplicate transfer creation.

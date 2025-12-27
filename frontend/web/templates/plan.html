@@ -1305,6 +1305,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Инициализация кнопок периода планирования
     setupCreatePlanPeriodButtons();
 
+    // Initialize recurring reminder toggle for modal_add_plan
+    const modalId = 'modal_add_plan';
+    const checkbox = document.querySelector(`#${modalId} input[name="recurring_enable_reminder"]`);
+    const settingsDiv = document.getElementById(`recurring-reminder-settings-${modalId}`);
+
+    if (checkbox && settingsDiv) {
+        checkbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            settingsDiv.classList.toggle('hidden', !isChecked);
+
+            console.log('[PLAN] Recurring reminder toggle:', isChecked ? 'enabled' : 'disabled');
+        });
+
+        // Initialize visibility on page load
+        settingsDiv.classList.toggle('hidden', !checkbox.checked);
+    }
+
     // Обработчик отправки формы создания плана
     document.getElementById('form_modal_add_plan').addEventListener('submit', async function(e) {
         e.preventDefault();
@@ -3502,9 +3519,28 @@ async function createPlan(event) {
                 article_type: articleType,
                 financial_center_name: financialCenterName,
                 cost_center_name: costCenterName,
-                plan_date: startDate  // For pending records date display
+                plan_date: startDate,  // For pending records date display
+                // Reminder settings
+                enable_reminder: formData.get('recurring_enable_reminder') === 'on',
+                reminder_hour: formData.get('recurring_enable_reminder') === 'on'
+                    ? parseInt(formData.get('recurring_reminder_hour'))
+                    : null,
+                reminder_minute: formData.get('recurring_enable_reminder') === 'on'
+                    ? parseInt(formData.get('recurring_reminder_minute'))
+                    : null,
             };
 
+            // Validate reminder time if enabled
+            if (recurringData.enable_reminder) {
+                if (recurringData.reminder_hour === null || recurringData.reminder_minute === null || isNaN(recurringData.reminder_hour) || isNaN(recurringData.reminder_minute)) {
+                    showToast('Укажите время напоминания для регулярного платежа', 'warning');
+                    setSubmitLoading(event.target, false);
+                    return;
+                }
+                console.log(`[createPlan] Reminder enabled: ${recurringData.reminder_hour.toString().padStart(2, '0')}:${recurringData.reminder_minute.toString().padStart(2, '0')}`);
+            }
+
+            console.log('[createPlan] Recurring data with reminders:', recurringData);
             debugLog('[createPlan] Creating recurring plan:', recurringData);
 
             // Use OfflineManager if available for offline support
@@ -3515,7 +3551,11 @@ async function createPlan(event) {
                     showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
                     debugLog('[createPlan] Recurring plan saved offline:', result);
                 } else {
-                    showToast(`Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`, 'success');
+                    let message = `Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`;
+                    if (result.enable_reminder && result.reminder_time_display) {
+                        message += `. Напоминания в ${result.reminder_time_display}`;
+                    }
+                    showToast(message, 'success');
                     debugLog('[createPlan] Recurring plan created:', result);
                 }
 
@@ -3539,7 +3579,11 @@ async function createPlan(event) {
 
                 if (response.ok) {
                     const createdPlan = await response.json();
-                    showToast(`Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`, 'success');
+                    let message = `Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`;
+                    if (createdPlan.enable_reminder && createdPlan.reminder_time_display) {
+                        message += `. Напоминания в ${createdPlan.reminder_time_display}`;
+                    }
+                    showToast(message, 'success');
                     debugLog('[createPlan] Recurring plan created:', createdPlan);
 
                     modal_add_plan.close();

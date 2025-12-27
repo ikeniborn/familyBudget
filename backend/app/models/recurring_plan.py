@@ -157,6 +157,27 @@ class RecurringPlan(SQLModel, table=True):
         description="Record type for generated facts: 'plan' or 'fact'"
     )
 
+    # Reminder settings
+    enable_reminder: bool = Field(
+        default=False,
+        nullable=False,
+        description="Whether to create reminders for each generated fact"
+    )
+
+    reminder_hour: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=23,
+        description="Hour of reminder time (0-23) in SYSTEM_TIMEZONE. Required if enable_reminder=true"
+    )
+
+    reminder_minute: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=59,
+        description="Minute of reminder time (0-59) in SYSTEM_TIMEZONE. Required if enable_reminder=true"
+    )
+
     # Status and tracking
     is_active: bool = Field(
         default=True,

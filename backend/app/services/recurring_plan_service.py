@@ -5,7 +5,7 @@ Handles CRUD operations for recurring plans and automatic generation
 of BudgetFact records based on frequency settings.
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from typing import List, Optional, Tuple
 
@@ -19,6 +19,7 @@ from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.recurring_plan import RecurringPlan
+from backend.app.models.scheduled_reminder import ScheduledReminder
 from backend.app.schemas.recurring_plan import (
     RecurringPlanCreate,
     RecurringPlanUpdate,
@@ -101,6 +102,9 @@ class RecurringPlanService:
             amount=data.amount,
             description=data.description,
             record_type=data.record_type,
+            enable_reminder=data.enable_reminder,
+            reminder_hour=data.reminder_hour,
+            reminder_minute=data.reminder_minute,
             is_active=True,
             next_generation_date=next_date,
             last_generated_date=None,
@@ -118,12 +122,29 @@ class RecurringPlanService:
             horizon_days=DEFAULT_GENERATION_HORIZON_DAYS,
         )
 
+        # Create reminders for generated facts (if enabled)
+        reminders_created = 0
+        if generated_count > 0:
+            # Get IDs of newly generated facts
+            facts_stmt = select(BudgetFact.id).where(
+                BudgetFact.recurring_plan_id == plan.id
+            ).order_by(BudgetFact.fact_date)
+            facts_result = await session.execute(facts_stmt)
+            fact_ids = list(facts_result.scalars().all())
+
+            reminders_created = await self._create_reminders_for_facts(
+                session=session,
+                recurring_plan=plan,
+                fact_ids=fact_ids,
+            )
+
         await session.commit()
         await session.refresh(plan)
 
         logger.info(
             f"[RECURRING] Created plan {plan.id} for user {user_id}, "
-            f"frequency={data.frequency_type}, generated {generated_count} facts"
+            f"frequency={data.frequency_type}, generated {generated_count} facts, "
+            f"created {reminders_created} reminders"
         )
 
         return plan
@@ -461,14 +482,39 @@ class RecurringPlanService:
         plans = list(result.scalars().all())
 
         total_generated = 0
+        total_reminders_created = 0
         for plan in plans:
             try:
-                count = await self._generate_facts_for_plan(
+                new_generated = await self._generate_facts_for_plan(
                     session=session,
                     plan=plan,
                     horizon_days=horizon_days,
                 )
-                total_generated += count
+                total_generated += new_generated
+
+                # Create reminders for newly generated facts (if enabled)
+                if new_generated > 0:
+                    # Get IDs of facts generated in this iteration
+                    # Use last_generated_date as reference (facts >= last_generated_date are new)
+                    facts_stmt = select(BudgetFact.id).where(
+                        BudgetFact.recurring_plan_id == plan.id,
+                        BudgetFact.fact_date >= plan.last_generated_date  # Only new facts
+                    ).order_by(BudgetFact.fact_date)
+                    facts_result = await session.execute(facts_stmt)
+                    new_fact_ids = list(facts_result.scalars().all())
+
+                    reminders_created = await self._create_reminders_for_facts(
+                        session=session,
+                        recurring_plan=plan,
+                        fact_ids=new_fact_ids,
+                    )
+                    total_reminders_created += reminders_created
+
+                    logger.info(
+                        f"[SCHEDULER] Plan {plan.id}: generated {new_generated} facts, "
+                        f"created {reminders_created} reminders"
+                    )
+
             except Exception as e:
                 logger.error(f"[RECURRING] Error generating facts for plan {plan.id}: {e}")
                 continue
@@ -476,7 +522,10 @@ class RecurringPlanService:
         await session.commit()
 
         if total_generated > 0:
-            logger.info(f"[RECURRING] Generated {total_generated} facts for {len(plans)} plans")
+            logger.info(
+                f"[RECURRING] Generated {total_generated} facts for {len(plans)} plans, "
+                f"created {total_reminders_created} reminders"
+            )
 
         return total_generated
 
@@ -617,6 +666,111 @@ class RecurringPlanService:
         )
 
         return generated_count
+
+    async def _create_reminders_for_facts(
+        self,
+        session: AsyncSession,
+        recurring_plan: RecurringPlan,
+        fact_ids: List[int],
+    ) -> int:
+        """
+        Create scheduled reminders for generated facts (if enable_reminder=true).
+
+        Args:
+            session: Database session
+            recurring_plan: Recurring plan with reminder settings
+            fact_ids: List of BudgetFact IDs to create reminders for
+
+        Returns:
+            Number of reminders created
+
+        Notes:
+            - Skips facts in the past (fact_date < today)
+            - Skips if reminder datetime <= now (already passed)
+            - Idempotent: skips if reminder already exists for fact
+            - Reminder datetime = fact_date + reminder_hour:minute
+        """
+        if not recurring_plan.enable_reminder:
+            logger.info(f"[RECURRING_REMINDER] Plan {recurring_plan.id}: enable_reminder=false, skipping")
+            return 0
+
+        if recurring_plan.reminder_hour is None or recurring_plan.reminder_minute is None:
+            logger.warning(
+                f"[RECURRING_REMINDER] Plan {recurring_plan.id} has enable_reminder=true "
+                f"but no time set (hour={recurring_plan.reminder_hour}, minute={recurring_plan.reminder_minute})"
+            )
+            return 0
+
+        # Get facts
+        facts_stmt = select(BudgetFact).where(BudgetFact.id.in_(fact_ids))
+        facts_result = await session.execute(facts_stmt)
+        facts = list(facts_result.scalars().all())
+
+        logger.info(
+            f"[RECURRING_REMINDER] Plan {recurring_plan.id}: Processing {len(facts)} facts "
+            f"for reminder creation (time: {recurring_plan.reminder_hour:02d}:{recurring_plan.reminder_minute:02d})"
+        )
+
+        created_count = 0
+        skipped_past = 0
+        skipped_existing = 0
+        skipped_passed = 0
+        now_date = now_local().date()
+        now_datetime = now_local().replace(tzinfo=None)
+
+        for fact in facts:
+            # Skip past facts
+            if fact.fact_date < now_date:
+                skipped_past += 1
+                continue
+
+            # Calculate reminder datetime (naive, in SYSTEM_TIMEZONE)
+            reminder_datetime = datetime.combine(
+                fact.fact_date,
+                time(hour=recurring_plan.reminder_hour, minute=recurring_plan.reminder_minute)
+            )
+
+            # Skip if reminder already passed
+            if reminder_datetime <= now_datetime:
+                skipped_passed += 1
+                logger.debug(
+                    f"[RECURRING_REMINDER] Fact {fact.id}: reminder {reminder_datetime} already passed, skipping"
+                )
+                continue
+
+            # Check if reminder already exists (idempotency)
+            existing = await session.scalar(
+                select(ScheduledReminder).where(ScheduledReminder.fact_id == fact.id)
+            )
+            if existing:
+                skipped_existing += 1
+                logger.debug(f"[RECURRING_REMINDER] Fact {fact.id}: reminder already exists (id={existing.id}), skipping")
+                continue
+
+            # Create reminder
+            reminder = ScheduledReminder(
+                fact_id=fact.id,
+                reminder_datetime=reminder_datetime,
+                status="pending",
+                created_at=now_utc().replace(tzinfo=None),
+                updated_at=now_utc().replace(tzinfo=None),
+            )
+            session.add(reminder)
+            created_count += 1
+
+            logger.info(
+                f"[RECURRING_REMINDER] Created reminder for fact {fact.id} "
+                f"(fact_date={fact.fact_date}, reminder_datetime={reminder_datetime})"
+            )
+
+        await session.flush()
+
+        logger.info(
+            f"[RECURRING_REMINDER] Plan {recurring_plan.id}: Created {created_count} reminders "
+            f"(skipped: {skipped_past} past, {skipped_existing} existing, {skipped_passed} passed)"
+        )
+
+        return created_count
 
     async def _check_fact_exists(
         self,
