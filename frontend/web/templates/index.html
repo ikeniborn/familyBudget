@@ -7,7 +7,8 @@
 <div class="space-y-6">
     {% if user %}
         <!-- Welcome Section (tap to close with localStorage) -->
-        <div id="welcome-section" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500 relative cursor-pointer">
+        <!-- Hidden by default to prevent FOUC, shown by inline script if not dismissed -->
+        <div id="welcome-section" style="display: none" class="hero bg-gradient-to-r from-primary/10 to-secondary/10 rounded-box transition-all duration-500 relative cursor-pointer">
             <div class="hero-content text-center py-6 pb-8">
                 <div class="max-w-md">
                     <h1 class="text-3xl font-bold mb-2">👋 Добро пожаловать, {{ user.first_name or user.username }}!</h1>
@@ -17,6 +18,31 @@
             <!-- Hint text at the bottom -->
             <p class="absolute bottom-2 left-0 right-0 text-center text-xs text-gray-400">для скрытия нажмите на область приветствия</p>
         </div>
+        <script>
+        // Immediate visibility check (prevents FOUC)
+        // Executes before DOMContentLoaded, right after element is parsed
+        (function() {
+            try {
+                const isHidden = localStorage.getItem('welcomeSectionHidden') === 'true';
+                const welcomeSection = document.getElementById('welcome-section');
+
+                if (!isHidden && welcomeSection) {
+                    // Show welcome section only if user hasn't dismissed it
+                    welcomeSection.style.display = 'block';
+                    console.log('[WELCOME] Section shown (not dismissed by user)');
+                } else if (isHidden) {
+                    console.log('[WELCOME] Section hidden (dismissed by user, preventing render)');
+                }
+            } catch (e) {
+                // If localStorage unavailable, show welcome section (graceful fallback)
+                const welcomeSection = document.getElementById('welcome-section');
+                if (welcomeSection) {
+                    welcomeSection.style.display = 'block';
+                    console.log('[WELCOME] Section shown (localStorage unavailable, fallback to visible)');
+                }
+            }
+        })();
+        </script>
 
         <!-- Quick Stats Section (collapsible on mobile) -->
         <div class="card bg-base-100 shadow-xl">
@@ -2449,8 +2475,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    // Check if welcome section should be hidden based on localStorage
-    checkWelcomeSectionVisibility();
+    // Welcome section visibility is now handled by inline script (prevents FOUC)
+    // checkWelcomeSectionVisibility() is no longer needed here
 
     // Add click handler for welcome section (tap to close)
     const welcomeSection = document.getElementById('welcome-section');
