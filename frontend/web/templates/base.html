@@ -508,6 +508,10 @@
     <!-- Debug Logger (conditional logging for development) -->
     <script src="/shared/static/js/debugLog.min.js?v=PLACEHOLDER"></script>
 
+    <!-- Centralized Logger (must load early for all pages) -->
+    <script src="/static/js/config/logging.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/utils/logger.min.js?v=PLACEHOLDER"></script>
+
     <!-- HTMX -->
     <script src="/static/js/vendor/htmx.min.js?v=PLACEHOLDER"></script>
 
@@ -701,7 +705,7 @@
                         <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
                             <li><a href="/admin/users" class="{% if '/admin/users' in request.url.path %}active{% endif %}">👥 Пользователи</a></li>
                             <li><a href="/admin/monitoring" class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
-                            <li><a href="/admin/logs" class="{% if '/admin/logs' in request.url.path %}active{% endif %}">📋 System Logs</a></li>
+                            <li><a href="/admin/logs" class="{% if '/admin/logs' in request.url.path %}active{% endif %}">📋 Системные логи</a></li>
                         </ul>
                     </details>
                 </li>
@@ -960,7 +964,7 @@
                         <li class="menu-title" data-offline-hidden="true"><span>⚙️ Администратор</span></li>
                         <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/users">👥 Пользователи</a></li>
                         <li data-offline-hidden="true"><a href="/admin/monitoring">🔍 Мониторинг</a></li>
-                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/logs">📋 System Logs</a></li>
+                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/logs">📋 Системные логи</a></li>
                     {% endif %}
                     {% if user %}
                         <div class="divider my-1"></div>
