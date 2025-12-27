@@ -34,12 +34,14 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Push Toggle -->
                     <div class="form-control">
-                        <label class="label justify-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors">
-                            <input type="checkbox"
-                                   id="enable-push"
-                                   class="toggle toggle-primary toggle-lg cursor-pointer"
-                                   onchange="saveNotificationPreferences()" />
-                            <div class="cursor-pointer">
+                        <label class="flex items-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors cursor-pointer">
+                            <div class="custom-toggle">
+                                <input type="checkbox"
+                                       id="enable-push"
+                                       onchange="saveNotificationPreferences()" />
+                                <span class="custom-toggle-slider"></span>
+                            </div>
+                            <div class="flex-1">
                                 <span class="label-text font-semibold text-lg">🔔 Push-уведомления</span>
                                 <p class="text-sm text-base-content/60">Браузерные уведомления</p>
                             </div>
@@ -48,12 +50,14 @@
 
                     <!-- Telegram Toggle -->
                     <div class="form-control">
-                        <label class="label justify-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors">
-                            <input type="checkbox"
-                                   id="enable-telegram"
-                                   class="toggle toggle-primary toggle-lg cursor-pointer"
-                                   onchange="saveNotificationPreferences()" />
-                            <div class="cursor-pointer">
+                        <label class="flex items-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors cursor-pointer">
+                            <div class="custom-toggle">
+                                <input type="checkbox"
+                                       id="enable-telegram"
+                                       onchange="saveNotificationPreferences()" />
+                                <span class="custom-toggle-slider"></span>
+                            </div>
+                            <div class="flex-1">
                                 <span class="label-text font-semibold text-lg">📱 Telegram уведомления</span>
                                 <p class="text-sm text-base-content/60">Сообщения от бота</p>
                             </div>
@@ -241,41 +245,85 @@
     padding-bottom: 1rem;
 }
 
-/* Fix toggle switch animation - prevent black fill on active/hover */
-.toggle {
-    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out !important;
+/* Custom toggle switch to avoid DaisyUI animation issues */
+.custom-toggle {
+    position: relative;
+    display: inline-block;
+    width: 3.5rem;
+    height: 2rem;
+    flex-shrink: 0;
 }
 
-/* Remove default focus/active box shadow that creates black appearance */
-.toggle:focus,
-.toggle:focus-visible,
-.toggle:active {
-    outline: none !important;
-    box-shadow: none !important;
+.custom-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
 }
 
-/* Keep toggle background color consistent during interaction */
-.toggle:not(:checked):active,
-.toggle:not(:checked):hover {
-    background-color: hsl(var(--bc) / 0.2) !important;
-    border-color: hsl(var(--bc) / 0.2) !important;
+/* Toggle track */
+.custom-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: hsl(var(--bc) / 0.2);
+    transition: background-color 0.25s ease;
+    border-radius: 2rem;
+    border: 2px solid transparent;
 }
 
-/* Checked state colors */
-.toggle:checked {
-    background-color: hsl(var(--p)) !important;
-    border-color: hsl(var(--p)) !important;
+/* Toggle knob */
+.custom-toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 1.4rem;
+    width: 1.4rem;
+    left: 0.2rem;
+    bottom: 0.2rem;
+    background-color: white;
+    transition: transform 0.25s ease;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.toggle:checked:active,
-.toggle:checked:hover {
-    background-color: hsl(var(--p)) !important;
-    border-color: hsl(var(--p)) !important;
+/* Checked state - move knob */
+.custom-toggle input:checked + .custom-toggle-slider:before {
+    transform: translateX(1.5rem);
 }
 
-/* Toggle knob animation */
-.toggle:after {
-    transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out !important;
+/* Checked state - change track color */
+.custom-toggle input:checked + .custom-toggle-slider {
+    background-color: hsl(var(--p));
+}
+
+/* Focus state - subtle outline */
+.custom-toggle input:focus + .custom-toggle-slider {
+    outline: 2px solid hsl(var(--p) / 0.3);
+    outline-offset: 2px;
+}
+
+/* Hover state - slight brightness change */
+.custom-toggle:hover .custom-toggle-slider {
+    filter: brightness(0.95);
+}
+
+/* Active state - NO black fill, just slight scale */
+.custom-toggle input:active + .custom-toggle-slider:before {
+    transform: scale(0.95);
+}
+
+.custom-toggle input:checked:active + .custom-toggle-slider:before {
+    transform: translateX(1.5rem) scale(0.95);
+}
+
+/* Remove any potential outline/box-shadow issues */
+.custom-toggle input:focus,
+.custom-toggle input:active {
+    outline: none;
+    box-shadow: none;
 }
 </style>
 {% endblock %}
