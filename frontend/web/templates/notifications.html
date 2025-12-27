@@ -34,12 +34,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Push Toggle -->
                     <div class="form-control">
-                        <label class="label cursor-pointer justify-start gap-4">
+                        <label class="label cursor-pointer justify-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors">
                             <input type="checkbox"
                                    id="enable-push"
-                                   class="toggle toggle-primary toggle-lg"
+                                   class="toggle toggle-primary toggle-lg pointer-events-auto"
                                    onchange="saveNotificationPreferences()" />
-                            <div>
+                            <div class="pointer-events-none">
                                 <span class="label-text font-semibold text-lg">🔔 Push-уведомления</span>
                                 <p class="text-sm text-base-content/60">Браузерные уведомления</p>
                             </div>
@@ -48,12 +48,12 @@
 
                     <!-- Telegram Toggle -->
                     <div class="form-control">
-                        <label class="label cursor-pointer justify-start gap-4">
+                        <label class="label cursor-pointer justify-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors">
                             <input type="checkbox"
                                    id="enable-telegram"
-                                   class="toggle toggle-primary toggle-lg"
+                                   class="toggle toggle-primary toggle-lg pointer-events-auto"
                                    onchange="saveNotificationPreferences()" />
-                            <div>
+                            <div class="pointer-events-none">
                                 <span class="label-text font-semibold text-lg">📱 Telegram уведомления</span>
                                 <p class="text-sm text-base-content/60">Сообщения от бота</p>
                             </div>

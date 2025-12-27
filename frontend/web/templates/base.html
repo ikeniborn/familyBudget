@@ -953,9 +953,9 @@
                     <li><a href="/lists">🛒 Списки</a></li>
                     <li data-offline-hidden="true"><a href="/security">🔐 Безопасность{% if user.two_factor_enabled %} <span class="badge badge-success badge-xs">2FA</span>{% endif %}</a></li>
 
-                    <!-- Секция "Прочее" - доступно на планшетах и ПК (hidden на мобильных < 768px) -->
-                    <li class="menu-title hidden md:block" data-offline-hidden="true"><span>📂 Прочее</span></li>
-                    <li class="hidden md:block" data-offline-hidden="true"><a href="/notifications">🔔 Уведомления</a></li>
+                    <!-- Секция "Прочее" -->
+                    <li class="menu-title" data-offline-hidden="true"><span>📂 Прочее</span></li>
+                    <li data-offline-hidden="true"><a href="/notifications">🔔 Уведомления</a></li>
                     <li class="hidden md:block" data-offline-hidden="true"><a href="/import">📥 Импорт</a></li>
                     <li class="menu-title" data-offline-hidden="true"><span>Справочники</span></li>
                     <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/articles">📁 Категории</a></li>
@@ -1739,48 +1739,11 @@
         // Update push bell button state
         async function updatePushBellState() {
             try {
-                // Check if elements exist first (may not exist on all pages)
-                const bellButton = document.getElementById('push-bell-btn');
-                if (!bellButton) {
-                    console.debug('[PUSH_BELL] Bell button not found on this page, skipping update');
-                    return;
-                }
-
-                const enabledIcon = document.getElementById('bell-enabled-icon');
-                const mutedIcon = document.getElementById('bell-muted-icon');
-                const tooltip = document.getElementById('push-bell-tooltip');
-
-                if (!enabledIcon || !mutedIcon) {
-                    console.warn('[PUSH_BELL] Bell icons not found');
-                    return;
-                }
-
-                const response = await fetch('/api/v1/users/me', { credentials: 'include' });
-                if (!response.ok) {
-                    console.warn('[PUSH_BELL] Failed to fetch user preferences');
-                    return;
-                }
-
-                const user = await response.json();
-                const pushEnabled = user.enable_push_notifications ?? true;
-
-                console.log('[PUSH_BELL] User push preference:', pushEnabled);
-
-                if (pushEnabled) {
-                    // Enabled state
-                    enabledIcon.style.display = 'block';
-                    mutedIcon.style.display = 'none';
-                    bellButton.classList.remove('text-base-content/50');
-                    tooltip.textContent = 'Настройки уведомлений (вкл)';
-                } else {
-                    // Disabled state (muted bell)
-                    enabledIcon.style.display = 'none';
-                    mutedIcon.style.display = 'block';
-                    bellButton.classList.add('text-base-content/50');
-                    tooltip.textContent = 'Настройки уведомлений (выкл)';
-                }
+                // Note: Icon state is managed by pushManager.js based on subscription status
+                // This function is reserved for future preference-based UI updates if needed
+                console.debug('[PUSH_BELL] Bell state managed by pushManager');
             } catch (error) {
-                console.error('[PUSH_BELL] Error updating bell state:', error);
+                console.error('[PUSH_BELL] Error:', error);
             }
         }
 
