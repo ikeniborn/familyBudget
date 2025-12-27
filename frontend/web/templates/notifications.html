@@ -70,13 +70,16 @@
     </div>
 
     <!-- Filters Section (desktop only) -->
-    <div class="hidden md:block collapse collapse-arrow bg-base-100 shadow-lg">
-        <input type="checkbox" id="filters-toggle" class="peer" />
-        <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
-            <span>🔍 Фильтры</span>
-            <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
-        </label>
-        <div class="collapse-content">
+    <div class="hidden md:block">
+        <div class="collapse collapse-arrow bg-base-100 shadow-lg">
+            <input type="checkbox" id="filters-toggle" class="peer" />
+            <div class="collapse-title text-xl font-medium">
+                <div class="flex justify-between items-center">
+                    <span>🔍 Фильтры</span>
+                    <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); resetFilters();">Сбросить</button>
+                </div>
+            </div>
+            <div class="collapse-content">
             <div class="pt-4">
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                 <div class="form-control">
@@ -112,6 +115,7 @@
                     ⬆️ Свернуть
                 </button>
                 <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить фильтры</button>
+            </div>
             </div>
             </div>
         </div>
