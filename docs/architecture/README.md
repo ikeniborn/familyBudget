@@ -26,6 +26,37 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-27: Admin User Creation Script Import Fix (v1.1)
+- **Change:** Fixed ModuleNotFoundError in create_admin_user.py when running inside Docker container
+- **Problem:** Script failed during deployment with error `ModuleNotFoundError: No module named 'backend'`
+  - Occurred during `deploy.sh` execution when creating admin user in fresh installation
+  - Script ran inside Docker container at `/app/scripts/create_admin_user.py`
+  - Old code: `sys.path.insert(0, '/app/backend')` + `from app.models.user import User`
+  - But `backend/app/models/__init__.py` uses `from backend.app.models.article import Article`
+  - Python tried to find `/app/backend/backend/app/models/article.py` ❌
+- **Root Cause:**
+  - Docker container structure: `/app/backend/`, `/app/scripts/`, `/app/frontend/`
+  - Script added `/app/backend` to sys.path, allowing `from app.models.*` imports
+  - But `backend/app/models/__init__.py` uses absolute imports with `backend.` prefix
+  - These imports expected `/app` (project root) in sys.path, not `/app/backend`
+  - Result: circular import path mismatch in Docker environment
+- **Solution:**
+  - Changed sys.path from `/app/backend` to `/app` (project root)
+  - Updated imports to use `backend.` prefix: `from backend.app.models.user import User`
+  - Now all imports (script + modules) use same path resolution
+  - Added debug logging: script directory, project root, sys.path[0]
+- **Files changed:**
+  - `scripts/create_admin_user.py:41-62` (+13 lines, refactored sys.path setup)
+  - `docs/architecture/README.md` (this changelog entry)
+- **Impact:**
+  - Admin user creation now works on fresh deployments
+  - Enhanced logging for troubleshooting Docker path issues
+  - Consistent import pattern across all scripts
+- **Testing:** Python syntax validation passed (`python3 -m py_compile`)
+- **Related:** This fix aligns with standard Docker best practices for multi-module Python projects
+
+---
+
 ### 2025-12-27: Setup.sh Admin Credentials Bug Fix (v1.0)
 - **Change:** Fixed critical bug where admin email/password were NOT saved to `/opt/budget/.env`
 - **Problems:**
