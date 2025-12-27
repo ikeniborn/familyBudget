@@ -161,19 +161,21 @@ Family Budget uses **4 different caching strategies** optimized for each content
 
 ## Service Worker Updates (Manual with Notification)
 
-**Since:** v6.4.0 (changed from aggressive auto-update)
-**Previous:** v5.4.0-v6.3.0 (automatic reload)
+**Since:** v6.4.1 (changed from star icon to text indicator)
+**Previous:** v6.4.0 (star icon with badge), v5.4.0-v6.3.0 (automatic reload)
 **Status:** ✅ Active
 
 ### Overview
 
-Family Budget uses **manual update strategy with visual notification icon** to give users control over when to apply updates.
+Family Budget uses **manual update strategy with simple text indicator** to give users control over when to apply updates.
 
-**Key Changes from v6.3.0:**
-- ❌ **REMOVED**: Automatic `window.location.reload()` on update
-- ✅ **NEW**: Star icon in header when update available
-- ✅ **NEW**: User clicks icon to manually reload
-- ✅ **NEW**: First install is silent (no icon, no toast)
+**Key Changes from v6.4.0:**
+- ❌ **REMOVED**: Star icon SVG (⭐)
+- ❌ **REMOVED**: "NEW" badge
+- ✅ **NEW**: Simple "new" text indicator (lowercase, no icon)
+- ✅ **NEW**: Subtle pulse animation on text
+- ✅ **RETAINED**: User clicks indicator to manually reload
+- ✅ **RETAINED**: First install is silent (no indicator, no toast)
 
 **Retained from previous version:**
 - ✅ `skipWaiting()` on install (immediate activation)
@@ -230,7 +232,7 @@ Console: [SW] ✓ Activation complete
 Browser: controllerchange event fires in all tabs
 ```
 
-#### Step 5: Version Check and Show Update Icon
+#### Step 5: Version Check and Show Update Indicator
 
 ```
 All Tabs: controllerchange listener fires
@@ -239,10 +241,10 @@ Console: [SW_UPDATE] ⚡ controllerchange event fired
 FIRST INSTALL PATH:
   All Tabs: Check for saved version in localStorage
   Console: [SW_UPDATE] Saved version: (none - first install)
-  Console: [SW_UPDATE] 🆕 First install detected - setting initial version, no icon
+  Console: [SW_UPDATE] 🆕 First install detected - setting initial version, no indicator
   All Tabs: Save CACHE_VERSION to localStorage
   Console: [SW_UPDATE] Initial version saved: v20251227_1630
-  Result: NO icon shown, NO toast, silent activation
+  Result: NO indicator shown, NO toast, silent activation
 
 UPDATE AVAILABLE PATH:
   All Tabs: Request CACHE_VERSION from new SW via MessageChannel
@@ -253,7 +255,7 @@ UPDATE AVAILABLE PATH:
 
   IF version unchanged:
     Console: [SW_UPDATE] ✓ Version unchanged, no update needed
-    Result: Icon stays hidden
+    Result: Indicator stays hidden
 
   ELSE (version changed):
     Console: [SW_UPDATE] 🔔 UPDATE AVAILABLE: v20251227_1530 → v20251227_1630
@@ -261,23 +263,26 @@ UPDATE AVAILABLE PATH:
       - pwa_update_available = "true"
       - pwa_new_version = "v20251227_1630"
     All Tabs: Call showUpdateIcon()
-    Console: [SW_UPDATE] Showing update icon with animation
-    Console: [SW_UPDATE] ✨ Update icon now visible
-    Result: Star icon appears in header with fade-in + pulse animation
+    Console: [SW_UPDATE] Showing "new" text indicator with fade-in animation
+    Console: [SW_UPDATE] ✨ "new" text indicator now visible with pulse animation
+    Console: [SW_UPDATE] User can click on "new" to reload and apply update
+    Result: "new" text appears in header with fade-in + subtle pulse animation
 ```
 
-#### Step 6: User Clicks Update Icon
+#### Step 6: User Clicks Update Indicator
 
 ```
-User: Clicks star icon in header
-Console: [SW_UPDATE] 🖱️ User clicked update icon - initiating update
+User: Clicks "new" text indicator in header
+Console: [SW_UPDATE] 🖱️ User clicked "new" text indicator - initiating update
 Browser: Get new version from localStorage
 Console: [SW_UPDATE] Updating to version: v20251227_1630
 Browser: Save new version to localStorage (pwa_sw_version)
+Console: [SW_UPDATE] ✓ Saved new version to localStorage: v20251227_1630
 Browser: Clean up update flags (pwa_update_available, pwa_new_version)
-Console: [SW_UPDATE] ⟳ Initiating page reload...
+Console: [SW_UPDATE] ✓ Cleaned up update flags from localStorage
+Console: [SW_UPDATE] ⟳ Initiating page reload to apply new version...
 Browser: RELOAD via window.location.reload()
-Result: Page reloads, user on new version, icon hidden
+Result: Page reloads, user on new version, indicator hidden
 ```
 
 **Why CACHE_VERSION instead of scriptURL:**
@@ -287,11 +292,12 @@ Result: Page reloads, user on new version, icon hidden
 
 **Key Benefits:**
 - ✅ User controls when to update (no data loss from unsaved forms)
-- ✅ Visual notification (star icon + "NEW" badge)
+- ✅ Minimal visual notification ("new" text indicator)
 - ✅ Prevents unnecessary reloads
 - ✅ Silent first install (better UX)
 - ✅ Multi-tab support (each tab independent)
 - ✅ Comprehensive logging for debugging
+- ✅ Simple, unobtrusive design (no icon, no badge)
 
 ---
 
@@ -302,20 +308,21 @@ Result: Page reloads, user on new version, icon hidden
 | 00:00 | Deploy new version to server |
 | 00:00 | First user reloads page → update detected |
 | 00:01 | New SW installs and activates immediately |
-| 00:01 | **Star icon appears in first user's header** |
-| 00:15 | Second user's hourly check → update detected → **star icon appears** |
-| 00:45 | Third user's hourly check → update detected → **star icon appears** |
-| 01:00 | **All users see icon** (max 1-hour delay) |
-| 01:30 | Users click icon when convenient → page reloads → on new version |
+| 00:01 | **"new" text indicator appears in first user's header** |
+| 00:15 | Second user's hourly check → update detected → **"new" indicator appears** |
+| 00:45 | Third user's hourly check → update detected → **"new" indicator appears** |
+| 01:00 | **All users see indicator** (max 1-hour delay) |
+| 01:30 | Users click indicator when convenient → page reloads → on new version |
 
 ---
 
-### Update Icon UX
+### Update Indicator UX
 
 **Design:**
-- **Icon:** ⭐ Star (yellow/warning color with glow effect)
-- **Badge:** Red "NEW" label (positioned top-right corner)
-- **Animation:** fade-in (0.4s cubic-bezier) + continuous pulse (2s cycle)
+- **Indicator:** Simple "new" text (lowercase, no icon, no badge)
+- **Color:** Warning color (yellow/amber for visibility)
+- **Font:** Semibold, responsive (text-sm on mobile, text-base on desktop)
+- **Animation:** fade-in (0.4s cubic-bezier) + subtle pulse (2.5s cycle, opacity only)
 - **Position:** Header navbar-end (between WebSocket Status and Theme Toggle)
 - **Tooltip:** "Доступно обновление! Нажмите для установки"
 
@@ -324,7 +331,7 @@ Result: Page reloads, user on new version, icon hidden
 - ❌ **Hide:** First install (silent activation)
 - ❌ **Hide:** Version unchanged (prevents reload loops)
 - ✅ **Persist:** Across page navigations (via localStorage, until clicked)
-- ✅ **Multi-tab:** Independent (each tab shows icon separately)
+- ✅ **Multi-tab:** Independent (each tab shows indicator separately)
 
 **localStorage State:**
 - `pwa_sw_version`: Current active version (e.g., "v20251227_1530")
@@ -332,11 +339,11 @@ Result: Page reloads, user on new version, icon hidden
 - `pwa_new_version`: Target version to update to (e.g., "v20251227_1630")
 
 **User Interaction:**
-1. Icon appears with fade-in animation when update detected
-2. Star pulses continuously to draw attention
+1. "new" text appears with fade-in animation when update detected
+2. Text pulses subtly (opacity: 1.0 → 0.6 → 1.0) to draw attention
 3. User hovers → tooltip shows update message
 4. User clicks → page reloads immediately
-5. After reload → icon hidden, user on new version
+5. After reload → indicator hidden, user on new version
 
 **Accessibility:**
 - ARIA label: "Обновить приложение до новой версии"

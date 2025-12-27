@@ -431,7 +431,7 @@
            Service Worker Update Icon Animations
            ======================================== */
 
-        /* Fade-in animation for update icon */
+        /* Fade-in animation for update indicator */
         @keyframes fadeInScale {
             from {
                 opacity: 0;
@@ -447,26 +447,24 @@
             animation: fadeInScale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* Pulse animation for star */
-        #update-available-btn svg {
-            animation: starPulse 2s ease-in-out infinite;
+        /* Subtle pulse animation for "new" text */
+        #update-available-btn span {
+            animation: textPulse 2.5s ease-in-out infinite;
         }
 
-        @keyframes starPulse {
+        @keyframes textPulse {
             0%, 100% {
                 opacity: 1;
-                transform: scale(1);
             }
             50% {
-                opacity: 0.7;
-                transform: scale(1.1);
+                opacity: 0.6;
             }
         }
 
-        /* Reduced motion support for update icon */
+        /* Reduced motion support for update indicator */
         @media (prefers-reduced-motion: reduce) {
             .update-icon-enter,
-            #update-available-btn svg {
+            #update-available-btn span {
                 animation: none;
             }
         }
@@ -776,19 +774,11 @@
                  class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden"
                  data-tip="Доступно обновление! Нажмите для установки">
                 <button id="update-available-btn"
-                        class="btn btn-ghost btn-circle btn-sm sm:btn-md relative"
+                        class="btn btn-ghost btn-sm sm:btn-md px-3"
                         onclick="handleUpdateClick()"
                         aria-label="Обновить приложение до новой версии">
-                    <!-- Star icon with glow -->
-                    <svg xmlns="http://www.w3.org/2000/svg"
-                         class="h-5 w-5 sm:h-6 sm:w-6 text-warning"
-                         fill="currentColor"
-                         viewBox="0 0 24 24"
-                         style="filter: drop-shadow(0 0 2px currentColor);">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                    </svg>
-                    <!-- "NEW" badge -->
-                    <span class="absolute -top-1 -right-1 badge badge-error badge-xs px-1">NEW</span>
+                    <!-- Text indicator "new" without star icon -->
+                    <span class="text-warning font-semibold text-sm sm:text-base">new</span>
                 </button>
             </div>
 
@@ -1498,39 +1488,41 @@
             let updateIconShown = false;
 
             /**
-             * Show the update available icon with animation
+             * Show the update available indicator with animation
              * Only shows if not already shown this session
+             * Displays "new" text indicator without star icon
              */
             function showUpdateIcon() {
                 if (updateIconShown) {
-                    console.log('[SW_UPDATE] Icon already shown this session, skipping');
+                    console.log('[SW_UPDATE] Text indicator already shown this session, skipping');
                     return;
                 }
 
-                console.log('[SW_UPDATE] Showing update icon with animation');
+                console.log('[SW_UPDATE] Showing "new" text indicator with fade-in animation');
                 const wrapper = document.getElementById('update-available-wrapper');
 
                 if (!wrapper) {
-                    console.error('[SW_UPDATE] ERROR: Update icon wrapper not found in DOM');
+                    console.error('[SW_UPDATE] ERROR: Update indicator wrapper not found in DOM');
                     return;
                 }
 
-                // Remove hidden class and add animation
+                // Remove hidden class and add fade-in animation
                 wrapper.classList.remove('hidden');
                 wrapper.classList.add('update-icon-enter');
 
                 // Mark as shown to prevent duplicates
                 updateIconShown = true;
 
-                console.log('[SW_UPDATE] ✨ Update icon now visible');
+                console.log('[SW_UPDATE] ✨ "new" text indicator now visible with pulse animation');
+                console.log('[SW_UPDATE] User can click on "new" to reload and apply update');
             }
 
             /**
-             * Handle user clicking the update icon
-             * Saves new version and reloads the page
+             * Handle user clicking the update indicator
+             * Saves new version and reloads the page to apply update
              */
             function handleUpdateClick() {
-                console.log('[SW_UPDATE] 🖱️ User clicked update icon - initiating update');
+                console.log('[SW_UPDATE] 🖱️ User clicked "new" text indicator - initiating update');
 
                 const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
                 console.log('[SW_UPDATE] Updating to version:', newVersion);
@@ -1542,13 +1534,15 @@
                 // Update saved version before reload
                 if (newVersion) {
                     localStorage.setItem(SW_VERSION_KEY, newVersion);
+                    console.log('[SW_UPDATE] ✓ Saved new version to localStorage:', newVersion);
                 }
 
                 // Clean up update flags
                 localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
                 localStorage.removeItem(SW_NEW_VERSION_KEY);
+                console.log('[SW_UPDATE] ✓ Cleaned up update flags from localStorage');
 
-                console.log('[SW_UPDATE] ⟳ Initiating page reload...');
+                console.log('[SW_UPDATE] ⟳ Initiating page reload to apply new version...');
                 window.location.reload();
             }
 

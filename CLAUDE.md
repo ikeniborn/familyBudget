@@ -1516,135 +1516,60 @@ docker compose exec postgres psql -U familybudget -d familybudget -c \
 
 ### Service Worker Updates
 
-**Rule:** Service worker uses **aggressive auto-update** strategy - updates activate and reload automatically.
+**Since:** v6.4.1 (changed to manual update with "new" text indicator)
+**Previous:** v6.4.0 (star icon), v5.4.0-v6.3.0 (auto-reload)
+**Status:** ✅ Active
 
-**Why this is critical:**
-- All users must be on same version for data consistency
-- Bug fixes and security patches deploy immediately
-- No manual user intervention required
-- Mobile app-like update experience
-- Zero user interaction needed
+**Strategy:** Manual update with simple text indicator - users control when to apply updates.
 
-**Implementation (since v5.4.0, updated v5.5.0):**
-1. Service worker calls `skipWaiting()` on install (immediate activation)
-2. Service worker calls `clients.claim()` on activate (take control of all tabs)
-3. Update checks run every **1 hour** (plus on every page load)
-4. Version tracking via localStorage + MessageChannel prevents unnecessary reloads
-5. Page requests CACHE_VERSION from SW via postMessage + MessageChannel
-6. Page **conditionally reloads** only if CACHE_VERSION changed
-7. All tabs reload independently when they detect version change
+**Key Features:**
+- ✅ Simple "new" text indicator in header (no icon, no badge)
+- ✅ User clicks to manually reload and apply update
+- ✅ Silent first install (no notification)
+- ✅ Update checks every 1 hour + on page load
+- ✅ `skipWaiting()` + `clients.claim()` for immediate activation
+- ✅ Version tracking via localStorage prevents unnecessary reloads
+- ✅ Comprehensive logging with `[SW_UPDATE]` prefix
 
-**Update Flow:**
+**Update Flow (Summary):**
 
+1. Deploy new version → CACHE_VERSION updated
+2. Browser detects update (hourly check OR page reload)
+3. New SW installs and activates immediately (skipWaiting + claim)
+4. "new" text indicator appears in header (fade-in + pulse animation)
+5. User clicks "new" → page reloads → on new version
+
+**Console Logging:**
 ```bash
-# 1. Deploy new version
-./deploy.sh --profile full
-
-# 2. Service worker version updated automatically via scripts/update-sw-version.sh
-# CACHE_VERSION set to: v20251224_2029 (timestamp)
-
-# 3. Users trigger update check (page reload OR hourly check)
-# Console logs (if version changed):
-[PWA] Checking for updates...
-[PWA] New service worker found, installing...
-[SW] Installing version: v20251225_1530
-[SW] CRITICAL: Forcing immediate activation via skipWaiting()
-[SW] Activating version: v20251225_1530
-[SW] Deleted 1 old caches
-[SW] Clients claimed
-[SW] Notifying 1 clients about SW update
-[PWA] New service worker activated
-[PWA] Requesting CACHE_VERSION from new SW...
-[PWA] Received SW version: v20251225_1530
-[PWA] New SW CACHE_VERSION: v20251225_1530
-[PWA] Saved CACHE_VERSION: v20251225_1430
-[PWA] ⚡ Version changed, reloading page...
-[PWA] Previous CACHE_VERSION: v20251225_1430
-[PWA] New CACHE_VERSION: v20251225_1530
-[Page reloads automatically - NO notification, NO countdown]
-
-# Alternative: If version unchanged (prevents reload loop)
-[PWA] New service worker activated
-[PWA] Requesting CACHE_VERSION from new SW...
-[PWA] Received SW version: v20251225_1430
-[PWA] New SW CACHE_VERSION: v20251225_1430
-[PWA] Saved CACHE_VERSION: v20251225_1430
-[PWA] ✓ Version unchanged, skipping reload
-[PWA] Application already on latest version
-[No reload occurs]
-
-# 4. Result: User on new version immediately (< 1 second), no unnecessary reloads
+[SW_UPDATE] 🔔 UPDATE AVAILABLE: v20251227_1530 → v20251227_1630
+[SW_UPDATE] Showing "new" text indicator with fade-in animation
+[SW_UPDATE] ✨ "new" text indicator now visible with pulse animation
+[SW_UPDATE] User can click on "new" to reload and apply update
 ```
 
-**Testing Update Flow:**
-
+**Testing:**
 ```bash
-# Manual testing (local development)
-cd ~/familyBudget
-
-# 1. Note current version in browser console
-# [SW] Activating version: v20251224_1500
-
-# 2. Update CACHE_VERSION in sw.js
+# Update version
 scripts/update-sw-version.sh
 
-# 3. Minify service worker
+# Minify and deploy
 npm run minify:js
 
-# 4. Reload page in browser
-# Observe console logs (should show update flow above)
-
-# 5. Verify new version active
-# [SW] Activating version: v20251224_1530
+# Reload page in browser
+# Verify "new" indicator appears in header
+# Click "new" to apply update
 ```
 
-**Multi-Tab Testing:**
+**Benefits:**
+- ✅ User controls update timing (no data loss from unsaved forms)
+- ✅ Minimal, unobtrusive UI (simple text, no icon)
+- ✅ Prevents unnecessary reloads
+- ✅ Multi-tab support
 
-```bash
-# 1. Open app in 3 different browser tabs
-# 2. Deploy new version (or update sw.js locally)
-# 3. Reload any tab
-# 4. Verify: Tab that reloaded detects update and reloads automatically
-# 5. Wait for other tabs' update checks (max 1 hour)
-# 6. Verify: Each tab reloads automatically when it detects update
-# 7. Result: All tabs on new version (within 1 hour max)
-```
-
-**Debugging:**
-
-```bash
-# Check current service worker version
-# DevTools → Console:
-navigator.serviceWorker.controller.scriptURL
-# Should show: /sw.min.js
-
-# Check cache version
-# DevTools → Application → Cache Storage:
-# Should have exactly 1 cache: budget-vXXXXXXXX_XXXX
-
-# Check update registration
-# DevTools → Application → Service Workers:
-# Status: "activated and is running"
-# Update on reload: (toggle for testing)
-
-# Force update check (in console)
-navigator.serviceWorker.getRegistration().then(reg => reg.update());
-```
-
-**Important Notes:**
-- **No state preservation:** Users should save work before reload
-- **First-time install:** Does NOT trigger reload (shows toast "Приложение готово к работе офлайн")
-- **Offline functionality:** Unchanged (IndexedDB, background sync, push notifications all work)
-- **Update frequency:** Max 1-hour delay for 99% of users
-
-**Risks:**
-- User may lose unsaved form data during update → Mitigation: Display UI warning
-- Update may interrupt transaction submission → Future: Add check to delay reload
-
-**See also:**
-- `/docs/architecture/pwa.md` - Comprehensive PWA documentation
-- `sw.js` lines 75-163 - Service worker install/activate events
-- `frontend/web/templates/base.html` lines 1309-1407 - Frontend registration
+**See:**
+- `/docs/architecture/pwa.md` - Full PWA documentation with detailed update flow
+- `sw.js` lines 68-160 - Service worker install/activate events
+- `frontend/web/templates/base.html` lines 774-785, 1490-1547 - Update indicator UI
 
 ### Wake Detection for Mobile (v5.7.0+)
 
