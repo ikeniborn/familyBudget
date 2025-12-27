@@ -26,6 +26,38 @@ Use these files to understand component relationships when planning changes or o
 
 ## Recent Changes
 
+### 2025-12-27: Setup.sh Admin Credentials Bug Fix (v1.0)
+- **Change:** Fixed critical bug where admin email/password were NOT saved to `/opt/budget/.env`
+- **Problems:**
+  1. **sed escaping bug (CRITICAL)**: Special characters in auto-generated password broke sed command
+     - Passwords contain `!@#$%^&*` from `generate_admin_password()`
+     - `&` symbol in sed with `/` delimiter interpreted as "matched string"
+     - Example: `ADMIN_PASSWORD=Test&123` → `ADMIN_PASSWORD=TestADMIN_PASSWORD=old123` (corrupted!)
+  2. **Email validation error handling**: Email cleared but password NOT cleared on validation failure
+  3. **Missing password validation**: No check for empty password after prompt
+- **Root Causes:**
+  - `setup.sh:1456-1457` used `/` delimiter in sed → special chars broke substitution
+  - `setup.sh:828` reset email but NOT password after validation error
+  - `setup.sh:849` no validation that password is non-empty after user input
+- **Solutions:**
+  1. **Fixed sed delimiter** (lines 1469-1470): Changed `/` → `|` to avoid conflicts with special chars
+  2. **Added password reset** (lines 829-830): Clear password when email validation fails
+  3. **Added password validation** (lines 852-862): Check password non-empty, reset both fields if empty
+  4. **Added debug logging** (lines 1458-1468): Log what's being written to .env (email visible, password hidden)
+- **Files changed:**
+  - `setup.sh:828-830,851-862,1455-1470` (+24 lines total)
+  - `docs/architecture/setup-admin-fix-v1.0.md` (NEW, +400 lines comprehensive testing guide)
+  - `docs/architecture/README.md` (this changelog entry)
+- **Impact:**
+  - Admin email/password now correctly saved to .env
+  - Passwords with special chars (`!@#$%^&*`) work correctly
+  - Consistent state on validation errors (both email+password cleared)
+  - Debug logging shows exactly what's written (troubleshooting)
+- **Testing:** See `docs/architecture/setup-admin-fix-v1.0.md` for comprehensive test scenarios
+- **Security:** No changes to password generation or validation - only sed escaping fix
+
+---
+
 ### 2025-12-25: Transfer System Critical Bug Fixes (v5.3.0)
 - **Change:** Fixed three critical bugs in transfer modal validation and submission
 - **Problems:**

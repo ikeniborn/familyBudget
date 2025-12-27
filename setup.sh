@@ -826,6 +826,8 @@ collect_configuration() {
             if ! validate_email "${CONFIG[ADMIN_EMAIL]}"; then
                 error "Invalid email format"
                 CONFIG["ADMIN_EMAIL"]=""
+                CONFIG["ADMIN_PASSWORD"]=""
+                warning "Admin email configuration cancelled due to validation error"
             else
                 echo ""
                 info "Password requirements (OWASP 2023):"
@@ -846,10 +848,18 @@ collect_configuration() {
 
                 prompt "Admin password (or press Enter for auto-generated)" "ADMIN_PASSWORD" "$generated_password" true
 
-                success "Admin email authentication configured"
-                info "Admin: ${CONFIG[ADMIN_EMAIL]}"
-                warning "SECURITY: Password is for INITIAL login only"
-                warning "Change password after first login (optional)"
+                # Validate password is not empty (sanity check)
+                if [[ -z "${CONFIG[ADMIN_PASSWORD]}" ]]; then
+                    error "Password cannot be empty!"
+                    CONFIG["ADMIN_EMAIL"]=""
+                    CONFIG["ADMIN_PASSWORD"]=""
+                    warning "Admin email configuration cancelled due to empty password"
+                else
+                    success "Admin email authentication configured"
+                    info "Admin: ${CONFIG[ADMIN_EMAIL]}"
+                    warning "SECURITY: Password is for INITIAL login only"
+                    warning "Change password after first login (optional)"
+                fi
             fi
         fi
     else
@@ -1451,8 +1461,21 @@ create_env_file() {
     sed -i "s/^ADMIN_TELEGRAM_ID=.*/ADMIN_TELEGRAM_ID=${CONFIG[ADMIN_TELEGRAM_ID]}/" "$env_file"
 
     # Admin email authentication
-    sed -i "s/^ADMIN_EMAIL=.*/ADMIN_EMAIL=${CONFIG[ADMIN_EMAIL]:-}/" "$env_file"
-    sed -i "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=${CONFIG[ADMIN_PASSWORD]:-}/" "$env_file"
+    # CRITICAL FIX: Use | delimiter instead of / to handle special chars in password
+    # Password may contain !@#$%^&* which break sed with / delimiter
+    info "Writing admin credentials to .env..."
+    if [[ -n "${CONFIG[ADMIN_EMAIL]:-}" ]]; then
+        info "  ADMIN_EMAIL: ${CONFIG[ADMIN_EMAIL]}"
+    else
+        info "  ADMIN_EMAIL: (empty - Telegram-only auth)"
+    fi
+    if [[ -n "${CONFIG[ADMIN_PASSWORD]:-}" ]]; then
+        info "  ADMIN_PASSWORD: ***set*** (hidden)"
+    else
+        info "  ADMIN_PASSWORD: (empty - Telegram-only auth)"
+    fi
+    sed -i "s|^ADMIN_EMAIL=.*|ADMIN_EMAIL=${CONFIG[ADMIN_EMAIL]:-}|" "$env_file"
+    sed -i "s|^ADMIN_PASSWORD=.*|ADMIN_PASSWORD=${CONFIG[ADMIN_PASSWORD]:-}|" "$env_file"
 
     sed -i "s/^APP_ENV=.*/APP_ENV=${CONFIG[APP_ENV]}/" "$env_file"
     sed -i "s/^DOMAIN=.*/DOMAIN=${CONFIG[DOMAIN]}/" "$env_file"
