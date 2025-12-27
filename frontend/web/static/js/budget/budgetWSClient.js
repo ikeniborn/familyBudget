@@ -1909,10 +1909,11 @@ class BudgetWSClient {
         const now = Date.now();
         const timeSinceLastChange = now - this._lastStateChangeTime;
 
-        // Exception 1: Allow immediate transition FROM error states TO connected
+        // Exception 1: Allow immediate transition FROM error/reconnecting states TO connected
         const isRecovery = (
             (this._currentBadgeState === 'error' ||
-             this._currentBadgeState === 'limit_reached') &&
+             this._currentBadgeState === 'limit_reached' ||
+             this._currentBadgeState === 'reconnecting') &&
             (newState === 'connected' || newState === 'connected_via_leader')
         );
 
