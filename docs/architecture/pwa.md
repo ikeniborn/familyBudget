@@ -159,22 +159,27 @@ Family Budget uses **4 different caching strategies** optimized for each content
 
 ---
 
-## Aggressive Auto-Update Strategy
+## Service Worker Updates (Manual with Notification)
 
-**Since:** v5.4.0
-**Updated:** v5.5.0 (automatic reload)
+**Since:** v6.4.0 (changed from aggressive auto-update)
+**Previous:** v5.4.0-v6.3.0 (automatic reload)
 **Status:** ✅ Active
 
 ### Overview
 
-Family Budget uses **aggressive fully automatic updates** to ensure all users are on the latest version immediately after deployment.
+Family Budget uses **manual update strategy with visual notification icon** to give users control over when to apply updates.
 
-**Key Decisions:**
+**Key Changes from v6.3.0:**
+- ❌ **REMOVED**: Automatic `window.location.reload()` on update
+- ✅ **NEW**: Star icon in header when update available
+- ✅ **NEW**: User clicks icon to manually reload
+- ✅ **NEW**: First install is silent (no icon, no toast)
+
+**Retained from previous version:**
 - ✅ `skipWaiting()` on install (immediate activation)
 - ✅ `clients.claim()` on activate (take control of all tabs)
 - ✅ Update checks every **1 hour** + on every page load
-- ✅ **Automatic page reload** when new SW activates (no user interaction)
-- ✅ Full console logging for debugging and monitoring
+- ✅ Full console logging with `[SW_UPDATE]` and `[SW]` prefixes
 
 ---
 
@@ -183,7 +188,8 @@ Family Budget uses **aggressive fully automatic updates** to ensure all users ar
 #### Step 1: New Version Deployed
 
 ```
-Server: sw.js updated with new CACHE_VERSION
+Server: sw.js updated with new CACHE_VERSION (timestamp)
+Example: v20251227_1530
 ```
 
 #### Step 2: Browser Detects Update
@@ -200,8 +206,11 @@ Result: updatefound event fires
 
 ```
 New SW: install event fires
+Console: [SW] 📦 Installing Service Worker version: v20251227_1630
 New SW: Cache static resources
+Console: [SW] ⚡ Calling skipWaiting() for immediate activation
 New SW: CRITICAL: Call skipWaiting()
+Console: [SW] ✓ skipWaiting() completed
 Old SW: Still active (for now)
 ```
 
@@ -209,39 +218,80 @@ Old SW: Still active (for now)
 
 ```
 New SW: activate event fires immediately (skipWaiting)
+Console: [SW] 🚀 Activating Service Worker version: v20251227_1630
 New SW: Delete old caches
+Console: [SW] 🗑️ Deleting old cache: budget-v20251227_1530
+Console: [SW] ✓ Deleted 1 old cache(s)
 New SW: CRITICAL: Call clients.claim()
+Console: [SW] 👑 Calling clients.claim() to take control
 New SW: Send postMessage to all clients (SW_UPDATED)
+Console: [SW] 📢 Notifying 1 client(s) about update
+Console: [SW] ✓ Activation complete
 Browser: controllerchange event fires in all tabs
 ```
 
-#### Step 5: Version Check and Conditional Reload
+#### Step 5: Version Check and Show Update Icon
 
 ```
 All Tabs: controllerchange listener fires
-All Tabs: Request CACHE_VERSION from new SW via postMessage + MessageChannel
-All Tabs: Compare CACHE_VERSION with saved version in localStorage
-IF version unchanged:
-  - Log: "✓ Version unchanged, skipping reload"
-  - Skip reload (prevents reload loops)
-ELSE:
-  - Log: "⚡ Version changed, reloading page..."
-  - Save new CACHE_VERSION to localStorage
-  - IMMEDIATELY reload via window.location.reload()
-Result: Only tabs with actual version change reload
+Console: [SW_UPDATE] ⚡ controllerchange event fired
+
+FIRST INSTALL PATH:
+  All Tabs: Check for saved version in localStorage
+  Console: [SW_UPDATE] Saved version: (none - first install)
+  Console: [SW_UPDATE] 🆕 First install detected - setting initial version, no icon
+  All Tabs: Save CACHE_VERSION to localStorage
+  Console: [SW_UPDATE] Initial version saved: v20251227_1630
+  Result: NO icon shown, NO toast, silent activation
+
+UPDATE AVAILABLE PATH:
+  All Tabs: Request CACHE_VERSION from new SW via MessageChannel
+  Console: [SW] 📩 Version request received, responding with: v20251227_1630
+  Console: [SW_UPDATE] New SW version received: v20251227_1630
+  All Tabs: Compare with saved version
+  Console: [SW_UPDATE] Saved version: v20251227_1530
+
+  IF version unchanged:
+    Console: [SW_UPDATE] ✓ Version unchanged, no update needed
+    Result: Icon stays hidden
+
+  ELSE (version changed):
+    Console: [SW_UPDATE] 🔔 UPDATE AVAILABLE: v20251227_1530 → v20251227_1630
+    All Tabs: Store update flags in localStorage
+      - pwa_update_available = "true"
+      - pwa_new_version = "v20251227_1630"
+    All Tabs: Call showUpdateIcon()
+    Console: [SW_UPDATE] Showing update icon with animation
+    Console: [SW_UPDATE] ✨ Update icon now visible
+    Result: Star icon appears in header with fade-in + pulse animation
+```
+
+#### Step 6: User Clicks Update Icon
+
+```
+User: Clicks star icon in header
+Console: [SW_UPDATE] 🖱️ User clicked update icon - initiating update
+Browser: Get new version from localStorage
+Console: [SW_UPDATE] Updating to version: v20251227_1630
+Browser: Save new version to localStorage (pwa_sw_version)
+Browser: Clean up update flags (pwa_update_available, pwa_new_version)
+Console: [SW_UPDATE] ⟳ Initiating page reload...
+Browser: RELOAD via window.location.reload()
+Result: Page reloads, user on new version, icon hidden
 ```
 
 **Why CACHE_VERSION instead of scriptURL:**
 - `scriptURL` never changes (`/sw.min.js` is always the same URL)
-- `CACHE_VERSION` is the actual version identifier (e.g., `v20251225_1430`)
+- `CACHE_VERSION` is the actual version identifier (e.g., `v20251227_1630`)
 - Using MessageChannel for request-response pattern ensures reliable version comparison
 
 **Key Benefits:**
-- ✅ Zero user interaction required
-- ✅ All users on new version within seconds
-- ✅ No stale code running
-- ✅ Prevents unnecessary reload loops
-- ✅ Intelligent version tracking via localStorage
+- ✅ User controls when to update (no data loss from unsaved forms)
+- ✅ Visual notification (star icon + "NEW" badge)
+- ✅ Prevents unnecessary reloads
+- ✅ Silent first install (better UX)
+- ✅ Multi-tab support (each tab independent)
+- ✅ Comprehensive logging for debugging
 
 ---
 
@@ -252,10 +302,47 @@ Result: Only tabs with actual version change reload
 | 00:00 | Deploy new version to server |
 | 00:00 | First user reloads page → update detected |
 | 00:01 | New SW installs and activates immediately |
-| 00:01 | First user's page **automatically reloads** → on new version |
-| 00:15 | Second user's hourly check → update detected → **automatic reload** |
-| 00:45 | Third user's hourly check → update detected → **automatic reload** |
-| 01:00 | **100% users on new version** (max 1-hour delay) |
+| 00:01 | **Star icon appears in first user's header** |
+| 00:15 | Second user's hourly check → update detected → **star icon appears** |
+| 00:45 | Third user's hourly check → update detected → **star icon appears** |
+| 01:00 | **All users see icon** (max 1-hour delay) |
+| 01:30 | Users click icon when convenient → page reloads → on new version |
+
+---
+
+### Update Icon UX
+
+**Design:**
+- **Icon:** ⭐ Star (yellow/warning color with glow effect)
+- **Badge:** Red "NEW" label (positioned top-right corner)
+- **Animation:** fade-in (0.4s cubic-bezier) + continuous pulse (2s cycle)
+- **Position:** Header navbar-end (between WebSocket Status and Theme Toggle)
+- **Tooltip:** "Доступно обновление! Нажмите для установки"
+
+**Visibility Rules:**
+- ✅ **Show:** New version detected AND not first install
+- ❌ **Hide:** First install (silent activation)
+- ❌ **Hide:** Version unchanged (prevents reload loops)
+- ✅ **Persist:** Across page navigations (via localStorage, until clicked)
+- ✅ **Multi-tab:** Independent (each tab shows icon separately)
+
+**localStorage State:**
+- `pwa_sw_version`: Current active version (e.g., "v20251227_1530")
+- `pwa_update_available`: `"true"` when update pending (cleared on click)
+- `pwa_new_version`: Target version to update to (e.g., "v20251227_1630")
+
+**User Interaction:**
+1. Icon appears with fade-in animation when update detected
+2. Star pulses continuously to draw attention
+3. User hovers → tooltip shows update message
+4. User clicks → page reloads immediately
+5. After reload → icon hidden, user on new version
+
+**Accessibility:**
+- ARIA label: "Обновить приложение до новой версии"
+- Keyboard accessible (standard button behavior)
+- Tooltip for screen readers and visual explanation
+- Reduced motion support via `@media (prefers-reduced-motion: reduce)`
 
 ---
 
@@ -581,60 +668,183 @@ if ('serviceWorker' in navigator) {
 
 ## Testing Update Flow
 
-### Manual Testing
+### Test Case: First Install
+
+**Purpose:** Verify silent activation on first-time installation
 
 **Steps:**
-1. Open app in browser
-2. Check current version in console: `[SW] Activating version: vXXXXXXXX_XXXX`
-3. Deploy new version (update `CACHE_VERSION` manually or via `scripts/update-sw-version.sh`)
-4. Reload page OR wait 1 hour
-5. Observe console logs (page should auto-reload):
-   ```
-   [PWA] Checking for updates...
-   [PWA] New service worker found, installing...
-   [SW] Installing version: vXXXXXXXX_YYYY
-   [SW] CRITICAL: Forcing immediate activation via skipWaiting()
-   [SW] Activating version: vXXXXXXXX_YYYY
-   [SW] Deleted 1 old caches
-   [SW] Clients claimed
-   [SW] Notifying 1 clients about SW update
-   [PWA] New service worker activated
-   [PWA] Version: 2025-12-25T...Z
-   [PWA] Auto-reloading page to apply update...
-   [Page reloads automatically]
-   ```
-6. After automatic reload → Verify new version active: `[SW] Activating version: vXXXXXXXX_YYYY`
-7. Verify NO notification shown (automatic reload, no user interaction)
+1. Clear all site data (DevTools → Application → Clear storage)
+2. Visit application for first time
+3. Open DevTools Console
+
+**Expected Behavior:**
+- ✅ Service Worker installs successfully
+- ✅ **NO update icon appears** (silent activation)
+- ✅ **NO toast notification** (silent activation)
+- ✅ Static cache populated
+
+**Expected Console Logs:**
+```
+[SW] 📦 Installing Service Worker version: v20251227_1530
+[SW] ⚡ Calling skipWaiting() for immediate activation
+[SW] ✓ skipWaiting() completed
+[SW] 🚀 Activating Service Worker version: v20251227_1530
+[SW] ✓ Deleted 0 old cache(s)
+[SW_UPDATE] ⚡ controllerchange event fired
+[SW_UPDATE] Saved version: (none - first install)
+[SW_UPDATE] 🆕 First install detected - setting initial version, no icon
+[SW_UPDATE] Initial version saved: v20251227_1530
+```
+
+**Verification:**
+```javascript
+// Check localStorage
+localStorage.getItem('pwa_sw_version')
+// Should return: "v20251227_1530"
+
+// Check no update flags
+localStorage.getItem('pwa_update_available')
+// Should return: null
+```
 
 ---
 
-### Multi-Tab Testing
+### Test Case: Update Available
+
+**Purpose:** Verify update icon appears when new version deployed
 
 **Steps:**
-1. Open app in 3 different tabs
-2. Deploy new version
-3. Trigger update in any tab (reload OR wait 1 hour)
-4. Observe behavior:
-   - Tab that detected update: Reloads automatically
-   - Other tabs: Continue working until their next update check
-5. Wait for other tabs' update checks (max 1 hour):
-   - Each tab will automatically reload when it detects the update
-   - No cross-tab coordination needed (each tab manages itself)
-6. Verify: After 1 hour, all tabs are on new version
+1. With app already installed, update `CACHE_VERSION` in `sw.js`:
+   ```bash
+   cd ~/familyBudget
+   scripts/update-sw-version.sh
+   npm run minify:js
+   ```
+2. Reload page in browser (Ctrl+R / Cmd+R)
+3. Observe header area (between WebSocket Status and Theme Toggle)
+
+**Expected Behavior:**
+- ✅ Star icon appears with fade-in animation
+- ✅ Star pulses continuously (2s cycle)
+- ✅ Badge shows "NEW" label (red)
+- ✅ Tooltip shows "Доступно обновление! Нажмите для установки"
+- ✅ **NO automatic reload** (waits for user click)
+
+**Expected Console Logs:**
+```
+[SW] 📦 Installing Service Worker version: v20251227_1630
+[SW] ⚡ Calling skipWaiting() for immediate activation
+[SW] 🚀 Activating Service Worker version: v20251227_1630
+[SW] 🗑️ Deleting old cache: budget-v20251227_1530
+[SW] ✓ Deleted 1 old cache(s)
+[SW_UPDATE] ⚡ controllerchange event fired
+[SW_UPDATE] Saved version: v20251227_1530
+[SW_UPDATE] New SW version received: v20251227_1630
+[SW_UPDATE] 🔔 UPDATE AVAILABLE: v20251227_1530 → v20251227_1630
+[SW_UPDATE] Showing update icon with animation
+[SW_UPDATE] ✨ Update icon now visible
+```
+
+**Verification:**
+```javascript
+// Check update flags
+localStorage.getItem('pwa_update_available')
+// Should return: "true"
+
+localStorage.getItem('pwa_new_version')
+// Should return: "v20251227_1630"
+
+// Check icon visibility
+document.getElementById('update-available-wrapper').classList.contains('hidden')
+// Should return: false
+```
 
 ---
 
-### First-Time Install Testing
+### Test Case: Manual Update (User Click)
+
+**Purpose:** Verify page reloads when user clicks update icon
 
 **Steps:**
-1. Clear all service workers and caches (DevTools → Application)
-2. Open app for the first time
-3. Verify:
-   - SW installs successfully
-   - Console log: "Service worker installed for the first time"
-   - **NO reload triggered** (first install does NOT reload)
-   - Static cache populated
-4. Note: Only SW updates trigger reload, not first install
+1. After icon appears (from previous test case)
+2. Click the star icon in header
+3. Observe page behavior
+
+**Expected Behavior:**
+- ✅ Page reloads immediately (within 1 second)
+- ✅ After reload, icon is hidden
+- ✅ Application running on new version
+- ✅ localStorage flags cleared
+
+**Expected Console Logs (before reload):**
+```
+[SW_UPDATE] 🖱️ User clicked update icon - initiating update
+[SW_UPDATE] Updating to version: v20251227_1630
+[SW_UPDATE] ⟳ Initiating page reload...
+```
+
+**Expected Console Logs (after reload):**
+```
+[SW] 🚀 Activating Service Worker version: v20251227_1630
+[SW_UPDATE] ⚡ controllerchange event fired
+[SW_UPDATE] Saved version: v20251227_1630
+[SW_UPDATE] New SW version received: v20251227_1630
+[SW_UPDATE] ✓ Version unchanged, no update needed
+```
+
+**Verification:**
+```javascript
+// Check version updated
+localStorage.getItem('pwa_sw_version')
+// Should return: "v20251227_1630"
+
+// Check update flags cleared
+localStorage.getItem('pwa_update_available')
+// Should return: null
+
+localStorage.getItem('pwa_new_version')
+// Should return: null
+
+// Check icon hidden
+document.getElementById('update-available-wrapper').classList.contains('hidden')
+// Should return: true
+```
+
+---
+
+### Test Case: Multi-Tab Behavior
+
+**Purpose:** Verify each tab shows update icon independently
+
+**Steps:**
+1. Open app in Tab A
+2. Open app in Tab B (new tab, same browser)
+3. Deploy new version (update `sw.js`, minify)
+4. Reload Tab A only
+5. Observe both tabs
+
+**Expected Behavior:**
+- ✅ Tab A: Update icon appears immediately (detected update)
+- ✅ Tab B: No icon yet (hasn't checked for updates)
+- ✅ Reload Tab B: Update icon appears
+- ✅ Both tabs can update independently (click icon in either tab)
+- ✅ Each tab's localStorage managed separately for icon visibility
+
+**Verification:**
+```javascript
+// In Tab A (after reload):
+localStorage.getItem('pwa_update_available')
+// Should return: "true"
+
+// In Tab B (before reload):
+localStorage.getItem('pwa_update_available')
+// Should return: "true" (shared localStorage across tabs)
+
+// In Tab B (before reload):
+// Icon should appear after checkForPendingUpdate() on DOMContentLoaded
+```
+
+**Note:** localStorage is SHARED across tabs, but icon visibility is PER-TAB (via `updateIconShown` session variable)
 
 ---
 
