@@ -65,6 +65,20 @@ SKIP_BUILD=false
 declare -A CONFIG
 
 # =============================================================================
+# SOURCE EXTERNAL LIBRARIES
+# =============================================================================
+
+# Source utils.sh for helper functions (validate_email, generate_admin_password, etc.)
+if [[ -f "$SCRIPT_DIR/scripts/lib/utils.sh" ]]; then
+    source "$SCRIPT_DIR/scripts/lib/utils.sh"
+elif [[ -f "scripts/lib/utils.sh" ]]; then
+    source "scripts/lib/utils.sh"
+else
+    echo "[ERROR] Could not find scripts/lib/utils.sh - required for setup"
+    exit 1
+fi
+
+# =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
 
