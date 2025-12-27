@@ -992,3 +992,69 @@ async def broadcast_item_completed(item_id: int, shopping_list_id: int, is_compl
     """Broadcast item completed event."""
     logger.debug(f"broadcast_item_completed: item_id={item_id}, list_id={shopping_list_id}, completed={is_completed}")
     await _broadcast_and_buffer("item_completed", {"id": item_id, "shopping_list_id": shopping_list_id, "is_completed": is_completed})
+
+
+# WebAuthn credential broadcast functions
+
+async def broadcast_webauthn_credential_added(user_id: int, credential_data: dict):
+    """
+    Broadcast WebAuthn credential added event.
+
+    Args:
+        user_id: User ID who added the credential
+        credential_data: Credential metadata (device_name, created_at)
+    """
+    logger.debug(
+        f"broadcast_webauthn_credential_added: user_id={user_id}, "
+        f"device={credential_data.get('device_name')}"
+    )
+    await _broadcast_and_buffer("webauthn_credential_added", {
+        "user_id": user_id,
+        "device_name": credential_data.get("device_name"),
+        "created_at": credential_data.get("created_at"),
+    })
+
+
+async def broadcast_webauthn_credential_revoked(user_id: int, credential_id: str):
+    """
+    Broadcast WebAuthn credential revoked event.
+
+    Args:
+        user_id: User ID who revoked the credential
+        credential_id: Revoked credential ID (truncated for logging)
+    """
+    logger.debug(
+        f"broadcast_webauthn_credential_revoked: user_id={user_id}, "
+        f"credential_id={credential_id[:20]}..."
+    )
+    await _broadcast_and_buffer("webauthn_credential_revoked", {
+        "user_id": user_id,
+        "credential_id": credential_id,
+    })
+
+
+async def broadcast_webauthn_credential_compromised(user_id: int, credential_id: str, reason: str):
+    """
+    Broadcast WebAuthn credential compromised event (cloned credential detected).
+
+    Args:
+        user_id: User ID whose credential was compromised
+        credential_id: Compromised credential ID (truncated for logging)
+        reason: Reason for compromise (e.g., "sign_count_regression")
+    """
+    logger.critical(
+        f"⚠️ broadcast_webauthn_credential_compromised: user_id={user_id}, "
+        f"credential_id={credential_id[:20]}..., reason={reason}"
+    )
+    await _broadcast_and_buffer("webauthn_credential_compromised", {
+        "user_id": user_id,
+        "credential_id": credential_id,
+        "reason": reason,
+    })
+
+    # Send push notification for security alert (critical event)
+    await _send_push_for_offline_users(
+        title="⚠️ Предупреждение безопасности",
+        body="Обнаружена скомпрометированная биометрическая авторизация. Проверьте настройки безопасности.",
+        data={"type": "webauthn_compromised", "url": "/notifications"}
+    )

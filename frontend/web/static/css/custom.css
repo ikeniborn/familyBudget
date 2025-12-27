@@ -362,7 +362,22 @@ html.offline-mode .save-btn:hover {
    Variant: Compact Icons with Center FAB
    ================================== */
 
-/* Bottom Navigation - fixed with safe-area support */
+/* Main content padding (desktop: no FAB, mobile: with FAB) */
+#main-content {
+    padding-left: calc(1rem + var(--safe-area-inset-left));
+    padding-right: calc(1rem + var(--safe-area-inset-right));
+    padding-top: 2rem;
+    padding-bottom: 2rem; /* Desktop: no FAB offset */
+}
+
+/* Mobile: add FAB offset to bottom padding */
+@media (max-width: 1023px) {
+    #main-content {
+        padding-bottom: calc(2rem + var(--safe-area-inset-bottom) + 64px);
+    }
+}
+
+/* Bottom Navigation - MOBILE ONLY (hidden on desktop) */
 .bottom-nav {
     position: fixed;
     bottom: 0;
@@ -383,6 +398,16 @@ html.offline-mode .save-btn:hover {
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     -webkit-overflow-scrolling: touch;
+
+    /* Hide on desktop (≥1024px) */
+    display: none;
+}
+
+/* Show ONLY on mobile/tablet (< 1024px) */
+@media (max-width: 1023px) {
+    .bottom-nav {
+        display: block;
+    }
 }
 
 /* Navigation container */
@@ -421,8 +446,8 @@ html.offline-mode .save-btn:hover {
 }
 
 .icon-btn svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
 }
 
 /* Icon labels */
@@ -445,8 +470,8 @@ html.offline-mode .save-btn:hover {
 }
 
 .center-fab svg {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     color: oklch(var(--pc));
     stroke-width: 2.5;
 }

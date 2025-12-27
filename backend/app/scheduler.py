@@ -35,6 +35,7 @@ LOCK_ID_BUDGET_THRESHOLDS = 1004
 LOCK_ID_PLAN_REMINDERS = 1005
 LOCK_ID_BALANCE_AGGREGATES = 1006
 LOCK_ID_RECURRING_PLANS = 1007
+LOCK_ID_WEBAUTHN_CLEANUP = 1008
 
 
 async def try_advisory_lock(session, lock_id: int) -> bool:
@@ -361,6 +362,73 @@ async def generate_recurring_facts_job():
         raise
 
 
+async def cleanup_expired_webauthn_challenges_job():
+    """
+    Job: Delete expired WebAuthn challenges from database.
+
+    Removes challenges where expires_at < NOW() to prevent table bloat.
+    WebAuthn challenges expire after 10 minutes (registration/authentication).
+
+    Schedule: Every hour
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
+    """
+    logger.info("[SCHEDULER] Starting WebAuthn challenge cleanup job")
+
+    try:
+        async with get_session_context() as session:
+            # Try to acquire advisory lock (non-blocking)
+            if not await try_advisory_lock(session, LOCK_ID_WEBAUTHN_CLEANUP):
+                logger.info(
+                    "[SCHEDULER] WebAuthn cleanup job skipped - "
+                    "another worker is already executing"
+                )
+                return
+
+            try:
+                from datetime import datetime
+                from sqlalchemy import delete, func, select
+                from backend.app.models.webauthn_challenge import WebAuthnChallenge
+
+                now = datetime.utcnow()
+
+                # Count expired challenges before cleanup
+                count_stmt = select(func.count(WebAuthnChallenge.id)).where(
+                    WebAuthnChallenge.expires_at < now
+                )
+                count_result = await session.exec(count_stmt)
+                count_before = count_result.scalar() or 0
+
+                if count_before == 0:
+                    logger.debug("[SCHEDULER] No expired WebAuthn challenges found")
+                    return
+
+                logger.info(
+                    f"[SCHEDULER] Found {count_before} expired WebAuthn challenges"
+                )
+
+                # Delete expired challenges
+                delete_stmt = delete(WebAuthnChallenge).where(
+                    WebAuthnChallenge.expires_at < now
+                )
+                result = await session.exec(delete_stmt)
+                await session.commit()
+
+                logger.info(
+                    f"[SCHEDULER] WebAuthn challenge cleanup completed: "
+                    f"{count_before} challenges deleted"
+                )
+
+            finally:
+                # Always release the lock
+                await release_advisory_lock(session, LOCK_ID_WEBAUTHN_CLEANUP)
+
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Error in WebAuthn challenge cleanup job: {e}", exc_info=True)
+        raise
+
+
 def init_scheduler() -> AsyncIOScheduler:
     """
     Initialize and configure APScheduler.
@@ -450,6 +518,16 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info("[SCHEDULER] Registered job: generate_recurring_facts (daily at 02:00 UTC)")
+
+    # Job 7: Cleanup expired WebAuthn challenges (every hour)
+    scheduler.add_job(
+        cleanup_expired_webauthn_challenges_job,
+        trigger=CronTrigger(minute=0),  # Every hour at :00
+        id="cleanup_expired_webauthn_challenges",
+        name="Cleanup Expired WebAuthn Challenges",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: cleanup_expired_webauthn_challenges (every hour)")
 
     return scheduler
 
