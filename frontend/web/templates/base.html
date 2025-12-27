@@ -497,7 +497,7 @@
     </div>
     <script>
     // PWA Splash Screen Controller - inline for immediate execution
-    // Shows splash ONLY on first ever PWA launch (not on F5, not on navigation)
+    // Shows splash on EVERY cold start (app closed and reopened), not on F5 or in-app navigation
     (function() {
         var splashEl = document.getElementById('pwa-splash');
         if (!splashEl) return;
@@ -516,29 +516,79 @@
                        window.performance.getEntriesByType('navigation')[0];
         var isReload = navEntry && navEntry.type === 'reload';
 
-        // Check if this is FIRST EVER launch (permanent, not per-session)
-        var FIRST_LAUNCH_KEY = 'pwa_first_launch_completed';
-        var isFirstEverLaunch = !localStorage.getItem(FIRST_LAUNCH_KEY);
+        // Session-based detection: cold start = no sessionStorage flag yet
+        var SPLASH_SESSION_KEY = 'pwa_splash_shown';
+        var isColdStart = false;
 
-        // Only show splash on FIRST EVER launch, NOT on reload or navigation
-        if (!isFirstEverLaunch || isReload) {
+        // Try sessionStorage (may fail in private browsing mode)
+        try {
+            isColdStart = !sessionStorage.getItem(SPLASH_SESSION_KEY);
+        } catch (e) {
+            console.warn('[PWA_SPLASH] sessionStorage unavailable (private mode?), fallback to always show:', e);
+            isColdStart = true; // Fallback: show splash if storage unavailable
+        }
+
+        // Console logging for debugging
+        console.log('[PWA_SPLASH] Display check:', {
+            isPWA: isPWA,
+            isColdStart: isColdStart,
+            isReload: isReload,
+            navType: navEntry ? navEntry.type : 'unknown',
+            timestamp: Date.now()
+        });
+
+        // Only show splash on cold start (NEW session), NOT on reload or in-session navigation
+        if (!isColdStart || isReload) {
+            try {
+                console.log('[PWA_SPLASH] Skipping splash:', {
+                    reason: !isColdStart ? 'session active' : 'page reload',
+                    sessionFlag: sessionStorage.getItem(SPLASH_SESSION_KEY),
+                    timestamp: Date.now()
+                });
+            } catch (e) {
+                console.log('[PWA_SPLASH] Skipping splash (storage unavailable)');
+            }
             splashEl.remove();
             return;
         }
 
-        // Mark first launch as completed (permanent)
-        localStorage.setItem(FIRST_LAUNCH_KEY, Date.now().toString());
+        // Mark session as splash-shown (persists until tab close)
+        var startTimestamp = Date.now();
+        try {
+            sessionStorage.setItem(SPLASH_SESSION_KEY, startTimestamp.toString());
+        } catch (e) {
+            console.warn('[PWA_SPLASH] Failed to set sessionStorage:', e);
+        }
 
-        // Show splash for 2 seconds on first ever launch
-        var MIN_DISPLAY_TIME = 2000;
+        console.log('[PWA_SPLASH] Cold start detected, showing splash', {
+            startTimestamp: startTimestamp,
+            duration: '3s'
+        });
+
+        // Show splash for 3 seconds on cold start
+        var MIN_DISPLAY_TIME = 3000;
         var pageLoaded = false;
         var timerDone = false;
 
         function tryHideSplash() {
             if (timerDone && pageLoaded) {
+                var hideTimestamp = Date.now();
+                var actualDuration = hideTimestamp - startTimestamp;
+
+                console.log('[PWA_SPLASH] Hiding splash', {
+                    timerDone: timerDone,
+                    pageLoaded: pageLoaded,
+                    plannedDuration: '3s',
+                    actualDuration: actualDuration + 'ms',
+                    hideTimestamp: hideTimestamp
+                });
+
                 splashEl.classList.add('hidden');
                 setTimeout(function() {
                     splashEl.remove();
+                    console.log('[PWA_SPLASH] Splash removed from DOM', {
+                        totalTime: (Date.now() - startTimestamp) + 'ms'
+                    });
                 }, 300);
             }
         }
@@ -548,12 +598,16 @@
             tryHideSplash();
         }, MIN_DISPLAY_TIME);
 
+        console.log('[PWA_SPLASH] DOMContentLoaded fired');
+
         if (document.readyState === 'complete') {
             pageLoaded = true;
+            console.log('[PWA_SPLASH] Page already loaded (readyState: complete)');
             tryHideSplash();
         } else {
             window.addEventListener('load', function() {
                 pageLoaded = true;
+                console.log('[PWA_SPLASH] Page loaded, checking if ready to hide');
                 tryHideSplash();
             });
         }

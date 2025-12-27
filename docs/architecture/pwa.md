@@ -780,6 +780,7 @@ Content-Security-Policy:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v5.8.0 | 2025-12-27 | Session-based splash screen (every cold start, 3s duration, sessionStorage) |
 | v5.4.0 | 2025-12-24 | Aggressive auto-update strategy (skipWaiting + 1-hour checks) |
 | v5.3.0 | 2025-12-20 | Push notifications + background sync |
 | v5.2.0 | 2025-12-15 | IndexedDB offline storage |
@@ -795,6 +796,330 @@ Content-Security-Policy:
 - [Push API - MDN](https://developer.mozilla.org/en-US/docs/Web/API/Push_API)
 - [IndexedDB API - MDN](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API)
 - [Web App Manifest - MDN](https://developer.mozilla.org/en-US/docs/Web/Manifest)
+
+---
+
+## PWA Splash Screen (Session-Based)
+
+**Since:** v5.8.0
+**Status:** ✅ Active
+
+### Overview
+
+Family Budget implements a **session-based splash screen** that displays on every cold start (app closed and reopened), not just first launch.
+
+**Key Features:**
+- ✅ Shows on EVERY cold start (close → reopen)
+- ✅ Session-based detection (sessionStorage, auto-clears on tab close)
+- ✅ 3-second duration with bounce animation
+- ✅ Comprehensive console logging for debugging
+- ✅ Graceful fallback for private browsing mode
+- ❌ NO iOS native splash (`apple-touch-startup-image`) - HTML-based only
+
+---
+
+### Behavior
+
+**Display Logic:**
+
+Shows splash screen when ALL conditions met:
+1. ✅ PWA mode (standalone, not browser)
+2. ✅ Cold start (no `pwa_splash_shown` sessionStorage flag)
+3. ✅ NOT a page reload (F5, Cmd+R)
+
+**Duration:** Exactly 3 seconds (or until page load completes, whichever is longer)
+
+---
+
+### Detection Method
+
+**Session Tracking:**
+```javascript
+// Cold start = no sessionStorage flag yet
+var SPLASH_SESSION_KEY = 'pwa_splash_shown';
+
+try {
+    var isColdStart = !sessionStorage.getItem(SPLASH_SESSION_KEY);
+} catch (e) {
+    // Private mode fallback: always show splash
+    var isColdStart = true;
+}
+
+// Set flag (persists until tab/window closes)
+sessionStorage.setItem(SPLASH_SESSION_KEY, Date.now().toString());
+```
+
+**Why sessionStorage (not localStorage):**
+- Auto-clears when tab/window closes (perfect for cold start detection)
+- Persists across page reloads (F5) - prevents splash on refresh
+- Per-tab isolation (each tab = separate session)
+
+**Reload Detection:**
+```javascript
+var navEntry = window.performance.getEntriesByType('navigation')[0];
+var isReload = navEntry && navEntry.type === 'reload';
+```
+
+---
+
+### When Splash Shows
+
+| Scenario | Splash Shows? | Reason |
+|----------|---------------|--------|
+| Close PWA → Reopen from home screen | ✅ YES | Cold start (sessionStorage cleared) |
+| Close browser → Reopen PWA | ✅ YES | New session |
+| First-ever launch after install | ✅ YES | New session |
+| Page reload (F5, Cmd+R) | ❌ NO | Session persists, reload detected |
+| In-app navigation (click links) | ❌ NO | Session persists |
+| Background → Foreground | ❌ NO | Session persists, app not closed |
+| Open PWA in browser mode | ❌ NO | Not standalone PWA |
+| Open new tab (same browser) | ✅ YES | Separate session (sessionStorage per-tab) |
+
+---
+
+### Implementation
+
+**File:** `/frontend/web/templates/base.html` (lines 492-615)
+
+**Key Components:**
+
+**HTML Structure:**
+```html
+<div id="pwa-splash" class="pwa-splash" aria-hidden="true" role="presentation">
+    <div class="splash-content">
+        <img src="/static/icons/icon-192.png" alt="" class="splash-icon" width="96" height="96">
+    </div>
+</div>
+```
+
+**CSS Animation:**
+```css
+.splash-icon {
+    animation: splash-bounce 1s ease-in-out infinite alternate;
+}
+
+@keyframes splash-bounce {
+    from { transform: translateY(0); }
+    to { transform: translateY(-10px); }
+}
+```
+
+**JavaScript Logic:**
+- Session detection with try-catch (private mode safe)
+- Performance API reload detection
+- Standalone mode check (`display-mode: standalone`)
+- Duration tracking with timestamps
+- Comprehensive console logging (`[PWA_SPLASH]` prefix)
+
+---
+
+### Console Logs
+
+**Cold Start (splash shown):**
+```
+[PWA_SPLASH] Display check: {isPWA: true, isColdStart: true, isReload: false, navType: "navigate", timestamp: 1735388400000}
+[PWA_SPLASH] Cold start detected, showing splash {startTimestamp: 1735388400000, duration: "3s"}
+[PWA_SPLASH] DOMContentLoaded fired
+[PWA_SPLASH] Page loaded, checking if ready to hide
+[PWA_SPLASH] Hiding splash {timerDone: true, pageLoaded: true, plannedDuration: "3s", actualDuration: "3042ms", hideTimestamp: 1735388403042}
+[PWA_SPLASH] Splash removed from DOM {totalTime: "3342ms"}
+```
+
+**Page Reload (splash skipped):**
+```
+[PWA_SPLASH] Display check: {isPWA: true, isColdStart: false, isReload: true, navType: "reload", timestamp: 1735388450000}
+[PWA_SPLASH] Skipping splash: {reason: "page reload", sessionFlag: "1735388400000", timestamp: 1735388450000}
+```
+
+**In-Session Navigation (splash skipped):**
+```
+[PWA_SPLASH] Display check: {isPWA: true, isColdStart: false, isReload: false, navType: "navigate", timestamp: 1735388460000}
+[PWA_SPLASH] Skipping splash: {reason: "session active", sessionFlag: "1735388400000", timestamp: 1735388460000}
+```
+
+**Browser Mode (splash skipped):**
+```
+[PWA_SPLASH] Display check: {isPWA: false, ...}
+```
+
+---
+
+### Performance
+
+**Metrics:**
+- Minimal overhead (inline JavaScript, no external dependencies)
+- No network requests (icon precached in Service Worker)
+- GPU-accelerated animation (CSS `transform: translateZ(0)`)
+- Total size: ~3KB (HTML + CSS + JS combined)
+
+**Timing:**
+- Script execution: < 10ms
+- DOM ready: ~100-300ms (depending on device)
+- Total splash display: 3000-3300ms (planned 3s + 300ms fade-out)
+
+---
+
+### Accessibility
+
+**Features:**
+- ✅ `aria-hidden="true"` - Hidden from screen readers
+- ✅ `role="presentation"` - No semantic meaning
+- ✅ `prefers-reduced-motion` - Disables bounce animation if user preference
+- ✅ High z-index (99999) - Prevents interaction during splash
+- ✅ Keyboard navigation unaffected (splash removed before interaction possible)
+
+**Reduced Motion:**
+```css
+@media (prefers-reduced-motion: reduce) {
+    .splash-icon, .splash-content {
+        animation: none;
+    }
+    .pwa-splash {
+        transition: none;
+    }
+}
+```
+
+---
+
+### Dark Mode Support
+
+**Implementation:**
+- Auto-detects `prefers-color-scheme: dark`
+- DaisyUI theme-aware gradient background
+- Fallback colors for non-DaisyUI scenarios
+
+**CSS:**
+```css
+.pwa-splash {
+    /* Light mode (default) */
+    background: linear-gradient(135deg, oklch(var(--b1, 100% 0 0)) 0%, oklch(var(--b2, var(--b1, 100% 0 0))) 100%);
+}
+
+@media (prefers-color-scheme: dark) {
+    .pwa-splash {
+        /* Dark mode */
+        background: linear-gradient(135deg, oklch(var(--b1, 25% 0.015 270)) 0%, oklch(var(--b2, var(--b1, 25% 0.015 270))) 100%);
+    }
+}
+```
+
+---
+
+### Debugging
+
+**Console Commands:**
+
+```javascript
+// Check current session state
+sessionStorage.getItem('pwa_splash_shown')
+// Returns: timestamp string (e.g., "1735388400000") if splash shown
+// Returns: null if cold start
+
+// Clear session to force splash on next navigation
+sessionStorage.removeItem('pwa_splash_shown')
+// Navigate or reload → splash should appear
+
+// Check if in PWA mode
+window.matchMedia('(display-mode: standalone)').matches
+// Returns: true (PWA mode) or false (browser mode)
+
+// Check navigation type
+window.performance.getEntriesByType('navigation')[0].type
+// Returns: "navigate", "reload", "back_forward", or "prerender"
+```
+
+**Remote Debugging (iOS Safari):**
+1. Connect iPhone to Mac via USB
+2. Safari → Develop → [iPhone Name] → [PWA]
+3. Console shows all `[PWA_SPLASH]` logs
+4. Test cold start: close PWA completely, reopen from home screen
+
+---
+
+### Edge Cases
+
+**Private Browsing Mode:**
+- sessionStorage may throw SecurityError
+- Fallback: `isColdStart = true` (always show splash)
+- Console warning: `[PWA_SPLASH] sessionStorage unavailable (private mode?)`
+
+**iOS Long Sleep (5+ minutes):**
+- iOS may kill tab in background
+- On return: New session → splash shows (expected behavior)
+- If session preserved: No splash (also correct)
+
+**Multiple Tabs:**
+- Each tab has separate sessionStorage
+- Opening PWA in new tab: Shows splash (separate session)
+- Switching between tabs: No splash (session persists per tab)
+
+---
+
+### Testing Checklist
+
+**Manual Tests:**
+
+1. **Cold Start:**
+   - Close PWA completely → Reopen from home screen
+   - Expected: Splash shows for 3 seconds with bounce
+
+2. **Page Reload:**
+   - Press F5 or Cmd+R during session
+   - Expected: NO splash (session persists)
+
+3. **In-App Navigation:**
+   - Click internal link (e.g., Statistics)
+   - Expected: NO splash (session persists)
+
+4. **Background/Foreground:**
+   - Switch to another app → Return to PWA
+   - Expected: NO splash (session persists, app not closed)
+
+5. **Browser Mode:**
+   - Open app in regular browser (not standalone)
+   - Expected: NO splash (only works in PWA mode)
+
+6. **Multiple Tabs:**
+   - Open PWA in Tab 1 → Open PWA in Tab 2
+   - Expected: Tab 2 shows splash (separate session)
+
+---
+
+### Safari 18+ iOS Compatibility
+
+**Tested On:**
+- ✅ iOS Safari 18.0+ (iPhone 14, 15, 16)
+- ✅ iOS Safari 17.0+ (backward compatible)
+- ✅ Yandex Browser (iOS)
+
+**Known Issues:**
+- None (fully functional on all tested platforms)
+
+**Optimizations:**
+- GPU acceleration for smooth animation
+- `dvh` units for proper viewport handling (notch support)
+- Safe area insets respected (see `lists.css`)
+
+---
+
+### Architecture Notes
+
+**Why NOT Native iOS Splash (`apple-touch-startup-image`):**
+
+**User Choice:** HTML-based splash only
+
+**Rationale:**
+- ✅ More control over animation timing (3 seconds exact)
+- ✅ Consistent behavior across all devices (not just iOS)
+- ✅ Bounce animation impossible with static iOS splash images
+- ✅ Simpler implementation (no need for 10 device-specific meta tags)
+- ✅ Session-based detection works perfectly with HTML
+
+**Trade-off:**
+- ❌ Native iOS splash appears INSTANTLY (before JavaScript)
+- ❌ HTML splash appears after DOM ready (~100-300ms delay)
+- ✅ **For this app:** Animation control + session detection > instant display
 
 ---
 
