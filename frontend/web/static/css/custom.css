@@ -359,110 +359,116 @@ html.offline-mode .save-btn:hover {
 
 /* ==================================
    FAB Toolbar Styles (Phase 2: PWA Mobile UI)
+   Variant: Compact Icons with Center FAB
    ================================== */
 
-/* FAB Toolbar - fixed bottom toolbar with safe-area support */
-.fab-toolbar {
+/* Bottom Navigation - fixed with safe-area support */
+.bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 50;
     background-color: oklch(var(--b1));
-    border-top: 1px solid oklch(var(--bc) / 0.2);
-    box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1), 0 -2px 4px -1px rgba(0, 0, 0, 0.06);
+    border-top: 1px solid oklch(var(--bc) / 0.1);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
 
     /* Safe-area padding */
-    padding-bottom: var(--safe-area-inset-bottom);
-    padding-left: var(--safe-area-inset-left);
-    padding-right: var(--safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
 
-    /* GPU acceleration for smooth animations */
+    /* GPU acceleration */
     transform: translateZ(0);
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
-
-    /* Prevents content from showing through on iOS */
     -webkit-overflow-scrolling: touch;
 }
 
-/* FAB Toolbar container - flex layout with centered content */
-.fab-toolbar-container {
+/* Navigation container */
+.nav-container {
     display: flex;
     align-items: center;
     justify-content: space-around;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
+    padding: 0.5rem;
     max-width: 600px;
     margin: 0 auto;
 }
 
-/* FAB buttons - consistent sizing */
-.fab-toolbar .btn {
-    min-height: 48px;
-    min-width: 64px;
-    flex-shrink: 0;
+/* Icon buttons */
+.icon-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    color: oklch(var(--bc) / 0.6);
+    background: transparent;
+    border: none;
+}
+
+.icon-btn:hover {
+    background: oklch(var(--b2));
+    color: oklch(var(--p));
+}
+
+.icon-btn.active {
+    color: oklch(var(--p));
+    background: oklch(var(--p) / 0.1);
+}
+
+.icon-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Icon labels */
+.icon-label {
+    font-size: 0.625rem;
+    font-weight: 500;
+}
+
+/* Center FAB button (primary action) */
+.center-fab {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: oklch(var(--p));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: -8px;
+    box-shadow: 0 2px 8px oklch(var(--p) / 0.3);
+}
+
+.center-fab svg {
+    width: 24px;
+    height: 24px;
+    color: oklch(var(--pc));
+    stroke-width: 2.5;
 }
 
 /* Dropdown menu above toolbar */
-.fab-toolbar .dropdown-content {
+.bottom-nav .dropdown-content {
     z-index: 60;
 }
 
-/* Button text - show on larger screens */
-.fab-btn-text {
-    display: inline;
-}
-
-/* Hide FAB on print */
+/* Hide on print */
 @media print {
-    .fab-toolbar {
+    .bottom-nav {
         display: none;
     }
 }
 
 /* Accessibility: reduced motion */
 @media (prefers-reduced-motion: reduce) {
-    .fab-toolbar {
+    .bottom-nav {
         transition: none;
     }
-}
-
-/* Mobile optimization: smaller buttons and icons */
-@media (max-width: 640px) {
-    .fab-toolbar-container {
-        gap: 0.25rem;
-        padding: 0.75rem 0.5rem;
-    }
-
-    .fab-toolbar .btn {
-        font-size: 0.875rem; /* 14px */
-        min-width: 56px;
-        padding-left: 0.5rem;
-        padding-right: 0.5rem;
-    }
-
-    .fab-toolbar .btn svg {
-        width: 1.25rem; /* 20px */
-        height: 1.25rem;
-    }
-}
-
-/* Hide button text on very narrow screens (icons only) */
-@media (max-width: 380px) {
-    .fab-btn-text {
-        display: none !important;
-    }
-
-    .fab-toolbar .btn {
-        min-width: 48px;
-    }
-}
-
-/* Tablet optimization: wider max-width */
-@media (min-width: 641px) and (max-width: 1023px) {
-    .fab-toolbar-container {
-        max-width: 700px;
-        gap: 0.75rem;
+    .icon-btn {
+        transition: none;
     }
 }
