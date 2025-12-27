@@ -701,6 +701,7 @@
                         <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
                             <li><a href="/admin/users" class="{% if '/admin/users' in request.url.path %}active{% endif %}">👥 Пользователи</a></li>
                             <li><a href="/admin/monitoring" class="{% if '/admin/monitoring' in request.url.path %}active{% endif %}">🔍 Мониторинг</a></li>
+                            <li><a href="/admin/logs" class="{% if '/admin/logs' in request.url.path %}active{% endif %}">📋 System Logs</a></li>
                         </ul>
                     </details>
                 </li>
@@ -959,6 +960,7 @@
                         <li class="menu-title" data-offline-hidden="true"><span>⚙️ Администратор</span></li>
                         <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/users">👥 Пользователи</a></li>
                         <li data-offline-hidden="true"><a href="/admin/monitoring">🔍 Мониторинг</a></li>
+                        <li class="hidden md:block" data-offline-hidden="true"><a href="/admin/logs">📋 System Logs</a></li>
                     {% endif %}
                     {% if user %}
                         <div class="divider my-1"></div>
@@ -1105,6 +1107,16 @@
 
     <!-- ✅ FIX 4: Shared reminder utilities -->
     <script src="/shared/static/js/reminders.js?v=PLACEHOLDER"></script>
+
+    <!-- Logs Collector for Admin Logs Page -->
+    <script src="/static/js/utils/logsCollector.min.js?v=PLACEHOLDER"></script>
+    <script>
+        // Initialize LogsCollector (singleton)
+        if (typeof LogsCollector !== 'undefined') {
+            window.logsCollector = new LogsCollector();
+            window.logsCollector.start();
+        }
+    </script>
 
     {% block extra_scripts %}{% endblock %}
     {% endif %}
