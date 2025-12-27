@@ -34,12 +34,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Push Toggle -->
                     <div class="form-control">
-                        <label class="label cursor-pointer justify-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors">
+                        <label class="label justify-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors">
                             <input type="checkbox"
                                    id="enable-push"
-                                   class="toggle toggle-primary toggle-lg pointer-events-auto"
+                                   class="toggle toggle-primary toggle-lg cursor-pointer"
                                    onchange="saveNotificationPreferences()" />
-                            <div class="pointer-events-none">
+                            <div class="cursor-pointer">
                                 <span class="label-text font-semibold text-lg">🔔 Push-уведомления</span>
                                 <p class="text-sm text-base-content/60">Браузерные уведомления</p>
                             </div>
@@ -48,12 +48,12 @@
 
                     <!-- Telegram Toggle -->
                     <div class="form-control">
-                        <label class="label cursor-pointer justify-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors">
+                        <label class="label justify-start gap-4 hover:bg-base-200 rounded-lg p-3 transition-colors">
                             <input type="checkbox"
                                    id="enable-telegram"
-                                   class="toggle toggle-primary toggle-lg pointer-events-auto"
+                                   class="toggle toggle-primary toggle-lg cursor-pointer"
                                    onchange="saveNotificationPreferences()" />
-                            <div class="pointer-events-none">
+                            <div class="cursor-pointer">
                                 <span class="label-text font-semibold text-lg">📱 Telegram уведомления</span>
                                 <p class="text-sm text-base-content/60">Сообщения от бота</p>
                             </div>
@@ -239,6 +239,43 @@
     max-height: 1000px;
     padding-top: 1rem;
     padding-bottom: 1rem;
+}
+
+/* Fix toggle switch animation - prevent black fill on active/hover */
+.toggle {
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out !important;
+}
+
+/* Remove default focus/active box shadow that creates black appearance */
+.toggle:focus,
+.toggle:focus-visible,
+.toggle:active {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Keep toggle background color consistent during interaction */
+.toggle:not(:checked):active,
+.toggle:not(:checked):hover {
+    background-color: hsl(var(--bc) / 0.2) !important;
+    border-color: hsl(var(--bc) / 0.2) !important;
+}
+
+/* Checked state colors */
+.toggle:checked {
+    background-color: hsl(var(--p)) !important;
+    border-color: hsl(var(--p)) !important;
+}
+
+.toggle:checked:active,
+.toggle:checked:hover {
+    background-color: hsl(var(--p)) !important;
+    border-color: hsl(var(--p)) !important;
+}
+
+/* Toggle knob animation */
+.toggle:after {
+    transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out !important;
 }
 </style>
 {% endblock %}
