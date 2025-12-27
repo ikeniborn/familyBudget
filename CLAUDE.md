@@ -1697,12 +1697,15 @@ cd ~/familyBudget  # Repository
 - `/api/v1/financial-centers` - CRUD financial centers
 - `/api/v1/cost-centers` - CRUD cost centers
 - `/api/v1/users` - User management (admin)
+- `/api/v1/admin/logs` - Admin logs viewing (admin-only)
+- `/api/v1/admin/logs/browser` - Browser logs ingestion (all users)
 
 ### Web Pages (HTMX)
 - `/` - Home page
 - `/transactions` - Transactions list
 - `/statistics` - Statistics dashboard
 - `/admin` - Admin panel
+- `/admin/logs` - System logs viewer (admin-only, desktop/tablet)
 
 ### Telegram Web Apps
 - `/webapp/` - Main menu
