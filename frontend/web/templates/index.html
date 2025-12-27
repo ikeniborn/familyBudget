@@ -3863,6 +3863,21 @@ function formatShortDate(dateStr) {
 }
 
 /**
+ * Format amount with +/- sign (without decimals and currency)
+ */
+function formatAmount(amount, articleType) {
+    if (!amount) return '—';
+    const value = Math.floor(parseFloat(amount));
+    const formatted = value.toLocaleString('ru-RU').replace(/\s/g, ' ');
+    if (articleType === 'expense' || articleType === 'debit') {
+        return `-${formatted}`;
+    } else if (articleType === 'income' || articleType === 'credit') {
+        return `+${formatted}`;
+    }
+    return formatted;
+}
+
+/**
  * Get status badge HTML for desktop table
  */
 function getStatusBadge(item) {
