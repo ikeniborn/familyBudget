@@ -175,7 +175,7 @@ async def update_notification_preferences(
             changes.append(f"telegram:{old_value}→{enable_telegram}")
 
     # Update timestamp
-    current_user.updated_at = datetime.now(timezone.utc)
+    current_user.updated_at = datetime.utcnow()
 
     # Commit changes
     await session.commit()

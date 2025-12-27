@@ -1739,6 +1739,22 @@
         // Update push bell button state
         async function updatePushBellState() {
             try {
+                // Check if elements exist first (may not exist on all pages)
+                const bellButton = document.getElementById('push-bell-btn');
+                if (!bellButton) {
+                    console.debug('[PUSH_BELL] Bell button not found on this page, skipping update');
+                    return;
+                }
+
+                const enabledIcon = document.getElementById('bell-enabled-icon');
+                const mutedIcon = document.getElementById('bell-muted-icon');
+                const tooltip = document.getElementById('push-bell-tooltip');
+
+                if (!enabledIcon || !mutedIcon) {
+                    console.warn('[PUSH_BELL] Bell icons not found');
+                    return;
+                }
+
                 const response = await fetch('/api/v1/users/me', { credentials: 'include' });
                 if (!response.ok) {
                     console.warn('[PUSH_BELL] Failed to fetch user preferences');
@@ -1749,13 +1765,6 @@
                 const pushEnabled = user.enable_push_notifications ?? true;
 
                 console.log('[PUSH_BELL] User push preference:', pushEnabled);
-
-                const bellButton = document.getElementById('push-bell-btn');
-                const enabledIcon = document.getElementById('bell-enabled-icon');
-                const mutedIcon = document.getElementById('bell-muted-icon');
-                const tooltip = document.getElementById('push-bell-tooltip');
-
-                if (!bellButton) return;
 
                 if (pushEnabled) {
                     // Enabled state
