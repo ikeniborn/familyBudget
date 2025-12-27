@@ -221,6 +221,8 @@ services:
       # PWA files (served by FastAPI StaticFiles)
       - ./sw.min.js:/app/sw.min.js:ro  # Service Worker (minified)
       - ./manifest.json:/app/manifest.json:ro  # PWA Manifest
+      # Docker socket (for LogsCollectorService to access Docker logs)
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
