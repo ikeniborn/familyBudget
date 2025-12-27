@@ -238,7 +238,7 @@ async def admin_logs(
         {
             "request": request,
             "user": current_admin,
-            "page_title": "System Logs"
+            "page_title": "Системные логи"
         }
     )
 
